@@ -1,0 +1,516 @@
+https://qtguide.ustclug.org/
+
+1. 按压按钮 QPushButton            弹个窗、下一步、保存、退出等等
+   典型的按钮有确定(OK)、应用(Apply)、撤销(Cancel)、关闭(Close)、是(Yes)、否(No)和帮助(Help)。
+2. 工具按钮 QToolButton + QToolBar 快捷键
+3. 单选按钮 QRadioButton 互斥的一组选项，只能选择其中一个。例如: 男女
+4. 复选框   QCheckBox    多个可以同时存在的选项.           例如：多个爱好，比如读书、看电影、爬山、游泳等
+5. 命令链接按钮 QCommandLinkButton 点击这个按钮一般意味着打开新的功能窗口或网站链接等
+6. 标准按钮盒 QDialogButtonBox 保存询问对话框里面有“保存”、“丢弃”、“取消”三个标准按钮 Save Cancel Discard
+
+
+QAbstractButton
+---------------  https://blog.csdn.net/liang19890820/article/details/51509764
+QAbstractButton类是按钮部件的抽象基类，提供了按钮所共有的功能。
+QAbstractButton类实现了一个抽象按钮，并且让它的子类来指定如何处理用户的动作，并指定如何绘制按钮。
+QAbstractButton提供了点击和勾选按钮。
+  QRadioButton和QCheckBox类只提供了勾选按钮，
+  QPushButton和QToolButton提供了点击按钮，
+  如果需要的话，它们还可以提供切换行为。
+任何按钮，都可以显示一个包含文本和图标的标签。
+  setText()用来设置文本，
+  setIcon()可以置图标。
+如果按钮被禁用，其标签更改为"disabled"样式。
+
+常用状态
+---------------  https://blog.csdn.net/liang19890820/article/details/51509764
+Qt提供的所有按钮(QPushButton、QToolButton、QCheckBox和QRadioButton)都能够既显示文本也可以显示图标。
+默认按钮(在很多对话框中被使用的)由QPushButton::setDefault()和QPushButton::setAutoDefault()提供。
+QAbstractButton提供了按钮所要用到的绝大多数状态：
+    isDown()
+    按钮是否被按下。
+    
+    isChecked()
+    按钮是否被选中。只有切换按钮才能被切换为选中或不选中（请看下面）。
+
+    isEnabled()
+    按钮是否可以被用户按下。
+
+    setAutoRepeat()
+    如果用户按下按钮，按钮是否可以自动回复。
+
+    setToggleButton()
+    按钮是否是一个切换按钮。
+    
+isDown()和isChecked()的不同点：
+    当用户点击一个切换按钮并且把它选中，按钮首先被按下并且然后被释放变为选中状态。当用户再次点击(非选中)，
+按钮首先被置为按下状态，然后变为非选中状态（isOn()和isChecked()都为false）。
+
+信号
+---------------  https://blog.csdn.net/liang19890820/article/details/51509764
+QAbstractButton提供了四个信号：
+
+    pressed()
+    当鼠标光标在按钮内，鼠标左键被按下时，发送此信号。
+
+    released()
+    当鼠标左键被释放时，发送此信号。
+
+    clicked()
+    当按钮被按下然后又被释放，或按下快捷键，或当animateClick()被调用时，发送此信号。
+
+    toggled()
+    当切换按钮的状态变化时，发送此信号。
+
+    要继承QAbstractButton，你至少不得不重新实现 paintEvent()来绘制按钮的外形、文本、图标。通常也建议重新实现sizeHint()，
+并且有时也建议重新实现hitButton()（为了决定一个按钮按下是否在按钮内）
+    对于具有两个以上状态（如三态按钮）按钮，也将不得不重新实现checkStateSet()和nextCheckState()。
+
+QAbstractButton *pButton = new QPushButton("Ro&ck && Roll", this);
+    如果一个文本按钮的文本中有“&”，QAbstractButton会创建一个自动快捷键。
+下面的代码创建一个标签为“Rock & Roll”的点击按钮。这个按钮有一个自动快捷键，Alt+c。
+如果要显示一个“&”，请使用’&&’。
+    pButton->setShortcut(QKeySequence(Qt::AltModifier + Qt::Key_F7));
+
+1. 按压按钮 QPushButton
+---------------
+  点击该按钮通常是通知程序进行一个操作，比如弹个窗、下一步、保存、退出等等，
+  推动按钮可以显示文本标签或者像素映射，并且和一个可选的小图标。这些可以通过使用构造函数来设置并且在这之后用
+setText()、setPixmap()和setIconSet()来改变。如果按钮失效，文本或像素映射和图标的外观将被按照图形用户界面的风格
+来操作表明按钮看起来是失效的。
+
+按钮如何设置菜单 # https://blog.csdn.net/liang19890820/article/details/51770511
+// 菜单
+QMenu *pMenu = new QMenu(this);
+pMenu->addAction(QString::fromLocal8Bit("设置"));
+pMenu->addAction(QString::fromLocal8Bit("版本检测"));
+pMenu->addSeparator();
+pMenu->addAction(QString::fromLocal8Bit("关于我们"));
+pMenu->addAction(QString::fromLocal8Bit("退出"));
+
+// 按钮
+QPushButton *pButton = new QPushButton(this);
+pButton->setText(QString::fromLocal8Bit("主菜单"));
+
+// 设置菜单
+pButton->setMenu(pMenu);
+
+button->setGeometry (100,100,200,200); //(100,100)坐标(200,200)大小
+
+1.1 构造函数
+---------------
+  QPushButton 常用的构造函数有两个：
+  QPushButton(const QString &text, QWidget *parent = nullptr)
+  QPushButton(const QIcon &icon, const QString &text, QWidget *parent = nullptr)
+  第一个构造函数有一个参数 text 是按钮显示的文本，第二个 parent 是父窗口指针。
+  第二个构造函数多了参数 icon，表示按钮图标，图标意味着有相关的图片资源
+
+1.2 QString 和 QIcon
+除了可以在构造函数里指定文本和图标，QPushButton 类还有对应的 get/set 函数，获取和设置文本的函数：
+QString  text() const
+void     setText(const QString & text)
+获取和设置图标的函数：
+QIcon   icon() const
+void    setIcon(const QIcon & icon)
+
+最重要的模式或状态有：
+  可用或不可用(变灰，失效)。
+  标准推动按钮、切换推动按钮或菜单按钮。
+  开或关(仅对切换推动按钮)。
+  默认或普通。对话框中的默认按钮通常可以被使用回车键或换行键“点击”。
+  自动重复或者不自动重复。
+  被按下或者没有被按下。
+属性
+  bool autoDefault - 推动按钮是否是自动默认按钮
+  bool autoMask - 按钮中自动面具特征是否有效 (只读)
+  bool default - 推动按钮是否是默认按钮
+  bool flat - 边缘是否失效
+  QIconSet iconSet - 推动按钮上的图标
+  bool menuButton - 推动按钮是否有一个菜单按钮在上面(废弃)
+  bool on - 推动按钮是否被切换
+  bool toggleButton - 按钮是不是切换按钮
+
+1.3 按压按钮被点击之后会触发 clicked 信号：
+void QAbstractButton::​clicked(bool checked = false)
+
+QAbstractButton 是各种按钮类的抽象基类，QPushButton 从这个基类继承了点击按钮的信号 ​clicked。
+void QButton::released ()     当按钮被释放的时候，这个信号被发送。
+void QButton::pressed ()      当按钮被按下的时候，这个信号被发送。
+
+    按压按钮一般不会用到 checked 参数，因为按压按钮一般按下去就自动弹起来，没有两种状态。
+而下面的单选按钮和复选框默认都是有两种状态的，被选中和没被选中。
+
+2. 工具按钮 QToolButton +( QGroupBox )
+------------------------------
+    工具按钮通常都不是一个，是一排放置在工具栏 QToolBar 里面，作为快捷按钮来用
+
+2.1 构造函数
+复选框构造函数如下：
+QCheckBox::​QCheckBox(const QString & text, QWidget * parent = 0)
+text 是显示文本，parent 是父窗口指针。文本获取和设置也是使用 text() 和 setText() 函数。
+
+2.2 Status
+复选框也是有选中和非选中两种状态，通过如下函数获取当前状态：
+bool    isChecked() const
+通过代码设置复选框的状态， 使用如下函数：
+void setChecked(bool)
+
+2.3 信号
+复选框状态变化时，会发出信号：
+void    toggled(bool checked) 当按钮被激活时，或者当快捷键被按下时，或者animateClick()被调用时，这个信号被发送。
+信号里的参数 checked 是复选框新的状态值。
+
+QGroupBox 包裹多个复选框，分组框其实就是一个带标题的框，它不会改变复选框的特性，也不会改变其他按钮的特性，所以可以放心用 分组框。
+
+2.4 三态还是两态
+将传统两种状态复选框变成三态复选框的函数是：
+void setTristate(bool y = true)
+如果要获知当前复选框是不是三态的，通过函数：
+bool isTristate() const
+三态复选框的状态枚举 enum Qt::​CheckState 有三个枚举常量：
+枚举常量                数值   描述
+Qt::Unchecked           0      条目未选中
+Qt::PartiallyChecked    1      条目有部分选中
+Qt::Checked             2      条目全选中
+
+
+3. 单选按钮 QRadioButton + (Group Box | QButtonGroup) QButtonGroup::​buttonClicked(int id) + addButton(QAbstractButton * button, int id = -1)
+                         + toggled(bool checked) + bool isChecked()
+------------------------------
+    单选按钮通常是多个放在一块，表示互斥的一组选项，只能选择其中一个来填写，比如一个人性别有男、女，只能选择一个.
+    
+https://blog.csdn.net/liang19890820/article/details/52015023
+  QRadioButton部件提供了一个带有文本标签的单选框(单选按钮)
+  QRadioButton是一个可以切换选中(checked)或未选中(unchecked)状态的选项按钮。
+  单选框通常呈现给用户一个“多选一”的选择。也就是说，在一组单选框中，一次只能选中一个单选框。
+
+详细描述
+  单选框默认开启自动互斥(autoExclusive)。如果启用了自动互斥，属于同一个父部件的单选框的行为就
+和属于一个互斥按钮组的一样。如果你需要为属于同一父部件的单选框设置多个互斥按钮组，把它们加入QButtonGroup中。
+  每当一个按钮切换选中或未选中状态时，会发出的toggled()信号。如果希望每个按钮切换状态时触发一个动作，
+连接到这个信号。使用isChecked()来查看特定按钮是否被选中。
+
+  就像QPushButton一样，单选框可以显示文本，以及可选的小图标。图标使用setIcon()来设置，
+文本可以在构造函数或通过setText()来设置。可以指定快捷键，通过在文本中的特定字符前指定一个&。
+  QRadioButton *button = new QRadioButton("Search from the &cursor", this);
+
+改变QRadioButton按钮显示
+------------------------------ https://blog.csdn.net/liang19890820/article/details/52015023
+构建单选框QRadioButton，然后将它们添加至按钮组QButtonGroup中。
+
+QHBoxLayout *pLayout = new QHBoxLayout();
+m_pButtonGroup = new QButtonGroup(this);
+
+// 设置互斥
+m_pButtonGroup->setExclusive(true);
+for (int i = 0; i < 3; ++i)
+{
+    QRadioButton *pButton = new QRadioButton(this);
+
+    // 设置文本
+    pButton->setText(QString::fromLocal8Bit("切换%1").arg(i + 1));
+
+    pLayout->addWidget(pButton);
+    m_pButtonGroup->addButton(pButton);
+}
+pLayout->setSpacing(10);
+pLayout->setContentsMargins(10, 10, 10, 10);
+
+setLayout(pLayout);
+
+// 连接信号槽
+connect(m_pButtonGroup, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(onButtonClicked(QAbstractButton*)));
+
+# 槽函数，用来判断当前点击的按钮，以及获取按钮组中各个按钮的选中状态。
+
+void MainWindow::onButtonClicked(QAbstractButton *button)
+{
+    // 当前点击的按钮
+    qDebug() << QString("Clicked Button : %1").arg(button->text());
+
+    // 遍历按钮，获取选中状态
+    QList<QAbstractButton*> list = m_pButtonGroup->buttons();
+    foreach (QAbstractButton *pButton, list)
+    {
+        QString strStatus = pButton->isChecked() ? "Checked" : "Unchecked";
+        qDebug() << QString("Button : %1 is %2").arg(button->text()).arg(strStatus);
+    }
+}
+
+样式
+
+单选框样式
+
+QRadioButton{
+    spacing: 2px;
+    color: white;
+}
+QRadioButton::indicator {
+    width: 45px;
+    height: 30px;
+}
+QRadioButton::indicator:unchecked {
+    image: url(:/Images/switchOff);
+}
+QRadioButton::indicator:unchecked:hover {
+    image: url(:/Images/switchOffHover);
+}
+QRadioButton::indicator:unchecked:pressed {
+    image: url(:/Images/switchOffPressed);
+}
+QRadioButton::indicator:checked {
+    image: url(:/Images/switchOn);
+}
+QRadioButton::indicator:checked:hover {
+    image: url(:/Images/switchOnHover);
+}
+QRadioButton::indicator:checked:pressed {
+    image: url(:/Images/switchOnPressed);
+}
+上面，我们通过调用QButtonGroup的setExclusive(true)来设置按钮组中的单选框互斥。
+
+
+3.1 构造函数
+---------------
+  QRadioButton::​QRadioButton(const QString & text, QWidget * parent = 0)
+  text 是显示的文本，parent 是父窗口。文本操作也有类似的 text() 和 setText() 函数
+
+3.2 Checked
+---------------
+单选按钮有选中和非选中两种状态，获取当前状态通过函数：
+bool isChecked() const
+如果希望通过代码来改变单选按钮的状态，可以用如下函数：
+void setChecked(bool)
+    
+常见的手段有两种
+一种是在图形界面放置一个分组框 Group Box，将同组的几个单选按钮塞到分组框里面；
+一种是手动编写代码，将单选按钮添加到虚拟的管理组 QButtonGroup 实例里面
+    
+3.3 信号
+---------------
+    单选按钮通常使用 toggled() 信号，无论单选按钮是变成选中状态(该按钮被点击)或非选中状态
+(同组其他按钮被点击)，只要单选按钮的状态发生变化，这个信号就会触发：
+    void toggled(bool checked)
+参数里 checked 表示新的选中或非选中状态，当然，还可以利用公开函数 isChecked() 获取是否处于选中状态。
+
+3.4 QButtonGroup
+----------------
+    对于使用 QButtonGroup 实例管理的多个单选按钮，还有一个好处是可以进行数值映射，
+不需要给每一个单选按钮都配备槽函数，而只需要根据 QButtonGroup 实例发出的 buttonClicked() 
+信号来统一处理整组的单选按钮，向 QButtonGroup 实例添加按钮的函数为：
+void QButtonGroup::​addButton(QAbstractButton * button, int id = -1)
+
+    可以为每个单选按钮设置唯一的 id （不要用负数，-1 是不设置序号的意思），然后当
+QButtonGroup 分组里的任意一个单选按钮被点击时，都会触发信号：
+void QButtonGroup::​buttonClicked(int id)
+根据参数里的 id 就可以判断是哪个单选按钮被点击了。
+
+    QButtonGroup窗口部件把QButton窗口部件组织在一个组中。
+    按钮组窗口部件使处理一组按钮变得很容易。按钮组中的每一个按钮都有一个唯一的标识。
+当按钮组中的按钮被点击时，按钮组会发射一个带有这个按钮标识的clicked()信号。当你有一
+个相近的按钮并且你想把它们的clicked()信号连接到一个槽时，上述的信号是按钮组在这方面很有用处。
+    互斥(exclusive)的按钮组会把所有的切换按钮关闭，除了那个被点击的。
+    按钮组默认是不互斥的。默认情况下，尽管按钮组不是互斥的，但被插入到这个按钮组的所有单选按钮都变为互斥的。
+
+方法1: 接收来自QButtonGroup 按钮组的信号
+    //新建性别虚拟分组，并添加按钮和id
+    m_pGenderGroup = new QButtonGroup(this);
+    m_pGenderGroup->addButton(ui->radioButtonMan, 0);   //男
+    m_pGenderGroup->addButton(ui->radioButtonWoman, 1); //女
+
+    //新建状态虚拟分组，并添加按钮和id
+    m_pStatusGroup = new QButtonGroup(this);
+    //不同分组的 id 是无关的，不冲突
+    m_pStatusGroup->addButton(ui->radioButtonBang, 0);  //棒棒哒
+    m_pStatusGroup->addButton(ui->radioButtonMeng, 1);  //萌萌哒
+    m_pStatusGroup->addButton(ui->radioButtonYao, 2);   //该吃药了
+
+    //关联两个分组的信号和槽
+    connect(m_pGenderGroup, SIGNAL(buttonClicked(int)), this, SLOT(RecvGenderID(int)));
+    connect(m_pStatusGroup, SIGNAL(buttonClicked(int)), this, SLOT(RecvStatusID(int)));
+
+方法2. 接收来自QRaidoButton 按钮的信号
+    void on_radioButton0to19_toggled(bool checked);
+    void on_radioButton20to39_toggled(bool checked);
+    void on_radioButton40to59_toggled(bool checked);
+    void on_radioButton60to_toggled(bool checked);
+
+    
+int nGenderID = m_pGenderGroup->checkedId(); # 通过QGroupBox获得状态
+int nStatusID = m_pStatusGroup->checkedId(); # 通过QGroupBox获得状态
+ui->radioButton0to19->isChecked()            # 通过QRadioButton获得状态
+ui->radioButton20to39->isChecked()           # 通过QRadioButton获得状态
+ui->radioButton40to59->isChecked()           # 通过QRadioButton获得状态
+ui->radioButton60to->isChecked()             # 通过QRadioButton获得状态
+ui->radioButtonMan->setChecked(true);        # 初始化选中状态
+ui->radioButtonBang->setChecked(true);       # 初始化选中状态
+ui->radioButton0to19->setChecked(true);      # 初始化选中状态
+    
+4. 复选框 QCheckBox - stateChanged() + isChecked() + QGroupBox
+----------------
+    复选框通常表示多个可以同时存在的选项，比如一个人可以同时多个爱好，比如读书、看电影、爬山、游泳等
+
+https://blog.csdn.net/liang19890820/article/details/50976944
+    QCheckBox(复选框)和QRadioButton(单选框)都是选项按钮。这是因为它们都可以在开(选中)或者关(未选中)之间切换。
+区别是对用户选择的限制：单选框定义了“多选一”的选择，而复选框提供的是“多选多”的选择。
+
+    QButtonGroup可以用来在视觉上把许多复选框组织在一起。
+只要复选框被选中或者清除，都会发射一个stateChanged()信号。如果想在复选框状态改变的时候触发一个行为，请连接这个信号，
+可以使用 isChecked()来查询复选框是否被选中。
+
+    除了常用的选中和未选中两个状态，QCheckBox还可选地提供了第三种状态（半选）来表明“没有变化”。
+当需要给用户一个选中或者未选中复选框的选择时，这是很有用的。如果需要第三种状态，可以通过setTristate()来使它生效，
+并使用checkState()来查询当前的切换状态。
+
+和QPushButton一样，复选框可以显示文本或者图标。文本可以通过构造函数或者setText()来设置，图标可以通过setIcon()来设置。
+    QCheckBox *checkbox = new QCheckBox("C&ase sensitive", this);
+
+共有函数
+---------------- https://blog.csdn.net/liang19890820/article/details/50976944
+    Qt::CheckState checkState() const
+    返回复选框的选中状态。如果不需要三态的支持，可以使用QAbstractButton::isChecked()，它返回一个布尔值。
+
+    bool isTristate() const
+    复选框是否为一个三态复选框。
+
+    默认的是false，也就是说复选框只有两个状态。
+
+    void setCheckState(Qt::CheckState state)
+    设置复选框的选中状态。如果不需要三态的支持，可以使用QAbstractButton:setChecked()，它接受一个布尔值。
+
+    void setTristate(bool y = true)
+    设置复选框为一个三态复选框。
+
+信号
+---------------- https://blog.csdn.net/liang19890820/article/details/50976944
+    void stateChanged(int state)
+    当复选框状态发生改变，这个信号就会被发射。即：用户选中或者取消选中。
+    
+三态模式
+----------------
+构造一个复选框QCheckBox，然后使用setTristate()开启三态模式。
+
+QCheckBox *pCheckBox = new QCheckBox(this);
+m_pLabel = new QLabel(this);
+
+m_pLabel->setText("Click CheckBox...");
+pCheckBox->setText(QString::fromLocal8Bit("三态复选框"));
+
+// 开启三态模式
+pCheckBox->setTristate();  
+
+// 连接信号槽
+connect(pCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onStateChanged(int)));
+槽函数，判断当前复选框状态，其中包括：选中(Qt::Checked)、半选(Qt::PartiallyChecked)、未选中(Qt::Unchecked)。
+void MainWindow::onStateChanged(int state)
+{
+    if (state == Qt::Checked) // "选中"
+    {
+        m_pLabel->setText("Checked");
+    }
+    else if(state == Qt::PartiallyChecked) // "半选"
+    {
+        m_pLabel->setText("PartiallyChecked");
+    }
+    else // 未选中 - Qt::Unchecked
+    {
+        m_pLabel->setText("Unchecked");
+    }
+}
+
+手动发送槽信号
+emit pCheckBox->stateChanged(Qt::PartiallyChecked); 
+onStateChanged(Qt::PartiallyChecked);
+
+经过试验，我们归结了两类，分别是可触发和不可触发槽函数的：
+不可触发槽函数：
+emit pCheckBox->clicked(true);
+emit pCheckBox->toggled(true);
+emit pCheckBox->pressed();
+emit pCheckBox->released();
+可触发槽函数：
+pCheckBox->animateClick();
+pCheckBox->click();
+pCheckBox->toggle();
+pCheckBox->setChecked(true);
+pCheckBox->setCheckState(Qt::PartiallyChecked); // QCheckBox自身接口
+也就是说，通过调用这些信号或函数，我们可以很容易判定其是否可以触发stateChanged()信号，从而调用槽函数onStateChanged()。
+
+4.1 构造函数
+多个复选框之间是不冲突了，它们的信号是 无关的，各自顾各自的。
+QCheckBox::​QCheckBox(const QString & text, QWidget * parent = 0)
+text 是显示文本，parent 是父窗口指针。文本获取和设置也是使用 text() 和 setText() 函数。
+
+    对于复选框，不要用虚拟组 QButtonGroup 管理多个复选框，因为虚拟组 QButtonGroup 里面按钮默认全是互斥的，
+多个复选框添加到虚拟组里，那么默认只有一个按钮能被选中，就强行变成单选按钮了。
+    可以从界面拖动分组框 QGroupBox 包裹多个复选框，分组框其实就是一个带标题的框，它不会改变复选框的特性，
+也不会改变其他按钮的特性，所以可以放心用 分组框。
+
+4.2 二态按钮
+复选框也是有选中和非选中两种状态，通过如下函数获取当前状态：
+bool    isChecked() const
+通过代码设置复选框的状态， 使用如下函数：
+void setChecked(bool)
+复选框状态变化时，会发出信号：
+void    toggled(bool checked)
+信号里的参数 checked 是复选框新的状态值。
+
+4.3 三态按钮
+将传统两种状态复选框变成三态复选框的函数是：
+    void setTristate(bool y = true)
+如果要获知当前复选框是不是三态的，通过函数：
+    bool isTristate() const
+三态复选框的状态枚举 enum Qt::​CheckState 有三个枚举常量：
+枚举常量                数值    描述
+Qt::Unchecked           0       条目未选中
+Qt::PartiallyChecked    1       条目有部分选中
+Qt::Checked             2       条目全选中
+
+获知当前三态复选框的状态使用函数：
+    Qt::CheckState QCheckBox::​checkState() const
+如果要通过代码改变三态复选框的状态，那使用函数：
+    void QCheckBox::​setCheckState(Qt::CheckState state)
+三态复选框状态变化时触发信号：
+    void QCheckBox::​stateChanged(int state)
+将 state 值与三种状态的枚举常量比较一下，就可以获知不同的状态
+
+
+5. 命令链接按钮 QCommandLinkButton
+    Qt 仿造 Vista 里的命令链接按钮引入的扁平风格按钮，点击这个按钮一般意味着打开新的功能窗口或网站链接等
+    命令链接按钮相当于是单选按钮和普通按压按钮的结合体，，用于从互斥的一堆选项里选择一个执行，
+并进入下一步操作或打开新的网页链接窗口。
+
+5.1 构造函数
+QCommandLinkButton::​QCommandLinkButton(const QString & text, QWidget * parent = 0)
+QCommandLinkButton::​QCommandLinkButton(const QString & text, const QString & description, QWidget * parent = 0)
+text 是按钮显示的文本，parent 是父窗口指针。第二个构造函数 description 是额外的描述信息，额外信息会显示在按钮普通文本的下方。
+按钮显示文本通过 text() 函数获取，setText() 函数设置。
+    
+命令链接按钮的额外描述可以通过下面两个函数获取或设置：
+QString description() const
+void setDescription(const QString & description)
+
+5.2 信号
+clicked()
+
+5.3 调用浏览器或者本地文件
+通过静态函数：
+bool QDesktopServices::​openUrl(const QUrl & url)
+QUrl 是用于描述网页链接或本地文件链接的类，其常用的构造函数：
+QUrl::​QUrl(const QString & url, ParsingMode parsingMode = TolerantMode)
+构造函数里的字符串 url 就是网页链接或本地文件链接，parsingMode 就用默认的宽容模式 TolerantMode 即可。
+如果要打开本教程的主页，先包含头文件 <QDesktopServices> 和 <QUrl>，然后调用：
+QDesktopServices::openUrl( QUrl("https://lug.ustc.edu.cn/sites/qtguide/") );
+如果要打开 D:\QtProjects 文件夹，那么调用：
+QDesktopServices::openUrl( QUrl("file:///D:/QtProjects") );
+注意 URL 里面都是用右斜杠，file:///  是三根右斜杠，表示打开本地文件系统里的文件夹或文件。
+
+
+    
+6. 标准按钮盒 QDialogButtonBox
+标准按钮盒通常用于对话框程序，举例来说，我们常见的保存询问对话框里面有“保存”、“丢弃”、“取消”三个标准按钮
+
+
+
+
+

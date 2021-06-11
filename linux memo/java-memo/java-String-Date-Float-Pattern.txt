@@ -1,0 +1,98 @@
+---------------------String--------------
+---------字符串字面量：
+String pet = "cat";
+System.out.println("Dog".length());
+
+---------toString()方法:
+方便把任何对象转换成字符串。
+
+public void println(Object x){
+    String s = String.valueOf(x);
+    synchronized(this){
+        print(s);
+        newline();
+    }
+}
+这个方法使用静态的String::valueOf()创建了一个新字符串。
+public static String valueOf(Object obj){
+    return (obj == null)?"null":obj.toString();
+}
+println()方法没有直接使用toString()方法，而使用了静态方法valueOf()，这么做是为了避免obj为
+null时抛出NullPointerException异常。
+
+---------字符串连接：
+连接字符串时，先创建一个使用StringBuilder对象表示的"工作区"，其内容和原始字符串中的字符序列一样。
+然后更新StringBuilder对象，把另一个字符串中的字符添加到尾部。
+最后，在StringBuilder对象上调用toString()方法，得到一个包含所有字符的新字符串。
+使用+连接字符串时，javac会自动创建上述代码。
+
+---------字符串的不可变性
+StringBuilder：一个可变的字符序列。此类提供一个与 StringBuffer 兼容的 API，但不保证同步。该类被设计用作 StringBuffer 的一个简易替换，
+用在字符串缓冲区被单个线程使用的时候（这种情况很普遍）。如果可能，建议优先采用该类，因为在大多数实现中，它比 StringBuffer 要快。
+
+在 StringBuilder 上的主要操作是 append 和 insert 方法，可重载这些方法，以接受任意类型的数据。每个方法都能有效地将给定的数据转换成字符串，
+然后将该字符串的字符追加或插入到字符串生成器中。append 方法始终将这些字符添加到生成器的末端；而 insert 方法则在指定的点添加字符。 
+
+StringBuffer：线程安全的可变字符序列。一个类似于 String 的字符串缓冲区，但不能修改。虽然在任意时间点上它都包含某种特定的字符序列，
+但通过某些方法调用可以改变该序列的长度和内容。 
+
+可将字符串缓冲区安全地用于多个线程。可以在必要时对这些方法进行同步，因此任意特定实例上的所有操作就好像是以串行顺序发生的，
+该顺序与所涉及的每个线程进行的方法调用顺序一致。 
+
+StringBuffer 上的主要操作是 append 和 insert 方法，可重载这些方法，以接受任意类型的数据。每个方法都能有效地将给定的数据转换成字符串，
+然后将该字符串的字符追加或插入到字符串缓冲区中。append 方法始终将这些字符添加到缓冲区的末端；而 insert 方法则在指定的点添加字符。 
+
+---------良性数据竞争
+
+真正不可变的数据和实施不可变的数据的差别：
+
+---------------------正则表达式--------------
+正则表达式的编译表示形式。 
+
+指定为字符串的正则表达式必须首先被编译为此类的实例。然后，可将得到的模式用于创建 Matcher 对象，依照正则表达式，该对象可以与任意字符序列匹配。
+执行匹配所涉及的所有状态都驻留在匹配器中，所以多个匹配器可以共享同一模式。 
+
+因此，典型的调用顺序是 
+
+ Pattern p = Pattern.compile("a*b");
+ Matcher m = p.matcher("aaaaab");
+ boolean b = m.matches();在仅使用一次正则表达式时，可以方便地通过此类定义 matches 方法。此方法编译表达式并在单个调用中将输入序列与其匹配。
+ 语句 boolean b = Pattern.matches("a*b", "aaaaab");
+
+ ---------------------数字和数学运算--------------
+---------Java表示整数类型的方式
+0b00000000 = 0
+0b11111111 = -1
+0b11111111 + 0b00000001 = 0
+
+
+java.lang.Math e 和 pi
+0.1这个数不能使用有限的二进制数位表示。也就是说，人类关心的所有计算，使用浮点数表示时几乎都会失去精度，而且根部无法避免舍去差值。
+
+Float 24位二机制  表示精度
+Double 53位二进制 表示精度
+strctfp 为了兼容其他平台，禁用硬件特性支持----高精度浮点数
+
+java.math.BigDecimal类
+
+---------Java的数学函数标准库
+java.lang.math 
+java.util.Random 伪随机数生成器
+
+ ---------------------日期处理--------------
+java.time
+java.time.chrono
+java.time.format
+java.time.temporal
+java.time.zone
+1、表示的秒数不能超过long类型的取值范围
+2、表示的时间不能比纳秒还精细
+ 
+在Java 8 环境中，别再使用过时的日期和时间类，尤其是java.util.Date
+
+ java.util.Date类提供的基础支持。
+ 调节器的作用是修改日期和时间对象。
+ 
+ 
+
+

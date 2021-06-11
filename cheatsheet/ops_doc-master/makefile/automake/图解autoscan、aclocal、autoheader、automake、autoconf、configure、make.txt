@@ -1,0 +1,108 @@
+ 1.autoscan (autoconf): 扫描源代码以搜寻普通的可移植性问题，比如检查编译器，库，头文件等，生成文件configure.scan,它是configure.ac的一个雏形。
+
+    your source files --> [autoscan*] --> [configure.scan] --> configure.ac
+
+2.aclocal (automake):根据已经安装的宏，用户定义宏和acinclude.m4文件中的宏将configure.ac文件所需要的宏集中定义到文件 aclocal.m4中。aclocal是一个perl 脚本程序，它的定义是：“aclocal - create aclocal.m4 by scanning configure.ac”
+
+user input files   optional input     process          output files
+================   ==============     =======          ============
+
+                    acinclude.m4 - - - - -.
+                                          V
+                                      .-------,
+configure.ac ------------------------>|aclocal|
+                 {user macro files} ->|       |------> aclocal.m4
+                                      `-------'
+3.autoheader(autoconf): 根据configure.ac中的某些宏，比如cpp宏定义，运行m4，声称config.h.in
+
+user input files    optional input     process          output files
+================    ==============     =======          ============
+
+                    aclocal.m4 - - - - - - - .
+                                             |
+                                             V
+                                     .----------,
+configure.ac ----------------------->|autoheader|----> autoconfig.h.in
+                                     `----------'
+
+ 4.automake: automake将Makefile.am中定义的结构建立Makefile.in，然后configure脚本将生成的Makefile.in文件转换为Makefile。如果在configure.ac中定义了一些特殊的宏，比如AC_PROG_LIBTOOL，它会调用libtoolize，否则它会自己产生config.guess和config.sub
+
+user input files   optional input   processes          output files
+================   ==============   =========          ============
+
+                                     .--------,
+                                     |        | - - -> COPYING
+                                     |        | - - -> INSTALL
+                                     |        |------> install-sh
+                                     |        |------> missing
+                                     |automake|------> mkinstalldirs
+configure.ac ----------------------->|        |
+Makefile.am  ----------------------->|        |------> Makefile.in
+                                     |        |------> stamp-h.in
+                                 .---+        | - - -> config.guess
+                                 |   |        | - - -> config.sub
+                                 |   `------+-'
+                                 |          | - - - -> config.guess
+                                 |libtoolize| - - - -> config.sub
+                                 |          |--------> ltmain.sh
+                                 |          |--------> ltconfig
+                                 `----------'
+5.autoconf:将configure.ac中的宏展开，生成configure脚本。这个过程可能要用到aclocal.m4中定义的宏。
+
+user input files   optional input   processes          output files
+================   ==============   =========          ============
+
+aclocal.m4 ,autoconfig.h.in - - - - - - -.
+                                         V
+                                     .--------,
+configure.ac ----------------------->|autoconf|------> configure
+
+ 
+
+6. ./configure的过程
+                                           .-------------> [config.cache]
+     configure* --------------------------+-------------> config.log
+                                          |
+              [config.h.in] -.            v            .--> [autoconfig.h]
+                             +-------> config.status* -+                   
+              Makefile.in ---'                         `-->   Makefile
+
+ 
+7. make过程
+
+     [autoconfig.h] -.
+                     +--> make* --->  程序
+       Makefile   ---'
+
+ 
+                                     .---------,
+                   config.site - - ->|         |
+                  config.cache - - ->|         | - - -> config.cache
+                                     |         +-,
+                                     `-+-------' |
+                                       |         |----> config.status
+                   config.h.in ------->|config-  |----> config.h
+                   Makefile.in ------->|  .status|----> Makefile
+                                       |         |----> stamp-h
+                                       |         +--,
+                                     .-+         |  |
+                                     | `------+--'  |
+                   ltmain.sh ------->|ltconfig|-------> libtool
+                                     |        |     |
+                                     `-+------'     |
+                                       |config.guess|
+                                       | config.sub |
+                                       `------------'
+
+
+                                   .--------,
+                   Makefile ------>|        |
+                   config.h ------>|        |
+{project sources} ---------------->|        |--------> {project targets}
+                                 .-+        +--,
+                                 | `--------'  |
+                                 |   libtool   |
+                                 |   missing   |
+                                 |  install-sh |
+                                 |mkinstalldirs|
+                                 `-------------' 

@@ -1,0 +1,43 @@
+安装虚拟机
+从 6 系列开始 RedHat 推荐使用 virt-install/virsh 系列工具操作 kvm，而不是直接使用 qemu-kvm，所以 qemu-kvm 被移到一个不起眼的地方 /usr/libexec/：
+
+# qemu-kvm
+-bash: qemu-kvm: command not found
+
+# ls /usr/libexec/qemu-kvm
+/usr/libexec/qemu-kvm
+VPSee 采用 RedHat 推荐的方式（virt-install）安装虚拟机，这里以安装 Ubuntu-11.10-server-amd64.iso 为例：
+
+# virt-install \
+--name ubuntu \
+--ram 512 \
+--vcpus=1 \
+--disk path=/root/ubuntu.img,size=10 \
+--accelerate \
+--cdrom /root/ubuntu-11.10-server-amd64.iso \
+--graphics vnc
+开始安装，创建硬盘 ubuntu.img 后就报错，用的是 root 帐号居然还 Permission denied？！
+
+Starting install...
+Creating storage file ubuntu.img                                 | 10.0 GB     00:00
+ERROR    internal error Process exited while reading console log output: char device redirected to /dev/pts/1
+qemu-kvm: -drive file=/root/ubuntu.img,if=none,id=drive-ide0-0-0,format=raw,cache=none: could not open disk image /root/ubuntu.img: Permission denied
+
+Domain installation does not appear to have been successful.
+If it was, you can restart your domain by running:
+  virsh --connect qemu:///system start ubuntu
+otherwise, please restart your installation.
+修改 qemu.conf 配置，把下面几个地方的注释去掉，然后把 dynamic_ownership 的值改成0，禁止 libvirtd 动态修改文件的归属：
+
+# vi /etc/libvirt/qemu.conf
+...
+user = "root"
+group = "root"
+dynamic_ownership = 0
+...
+重启 libvirtd 服务再用上面的 virt-install 命令安装就应该可以了。这个时候 vnc 默认绑定的是本机 127.0.0.1，如果其他机器想用 vnc 客户端访问这台 kvm 服务器正在安装的 ubuntu 的话需要把 vnc 绑定到服务器的 IP 地址或者绑定到全局 0.0.0.0. 修改 qemu.conf 文件取消 vnc_listen 一行前面的注释，记得重启 libvirtd：
+
+# vi /etc/libvirt/qemu.conf
+...
+vnc_listen = "0.0.0.0"
+...

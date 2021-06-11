@@ -1,0 +1,359 @@
+IO(api 基本的套接字传输接口){
+TCP :
+    // 普通文件的读写接口
+    ssize_t send(int sockfd, const void *buf, size_t len, int flags);
+    ssize_t recv(int sockfd, void *buf, size_t len, int flags);
+UDP:
+    ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,const struct sockaddr *dest_addr, socklen_t addrlen);
+    ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
+通用:
+    ssize_t sendmsg(int sockfd, const struct msghdr *msg, int flags);
+    ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags);
+
+    struct msghdr {
+               void         *msg_name;       // 发送或接口端的socket地址， 对于面向连接的传输此处为NULL
+               socklen_t     msg_namelen;    // Socket 地址长度
+               struct iovec *msg_iov;        // 读写缓冲区
+               size_t        msg_iovlen;     // 缓冲区的个数
+               void         *msg_control;    // 辅助数据缓冲区
+               size_t        msg_controllen; // 辅助数据缓冲区大小
+               int           msg_flags;      // 发送或接受信息标志
+      };
+      struct cmsghdr {
+              socklen_t     cmsg_len;     // 包括首部在内的空间大小
+              int           cmsg_level;   // originating protocol
+              int           cmsg_type;    // protocol-specific type
+          /* followed by
+              unsigned char cmsg_data[]; */
+        };
+
+        struct iovec {                    /* Scatter/gather array items */
+                 void  *iov_base;           // Starting address
+                 size_t iov_len;             // Number of bytes to transfer
+        };
+}
+
+socket(ds:套接字地址结构){
+-> 通用套接字地址结构: #include <sys/socket.h>
+    struct sockaddr{
+        sa_family_t			sa_family;
+        char				sa_data[14];
+    }
+-> ipv4 套接字地址结构 
+    #include <netinet_in.h>
+    struct sockaddr_in{
+        sa_family_t 		sin_family;
+        in_port_t			sin_port;
+        struct in_addr		sin_addr;
+        char				sin_zero[8];	
+    }
+
+    struct in_addr{
+        uint32_t 		s_addr;
+    }
+-> ipv6 套接字地址结构
+    #include <netinet/in.h>
+    struct sockaddr_in6{
+        sa_family_t			sin6_family;
+        in_port_t 			sin6_port;
+        uint32_t			sin6_flowinfo;
+        struct in6_addr		sin6_addr;
+        uint32_t			sin6_scope_id;	
+    }
+
+    struct in6_addr{
+        uint8_t	s6_addr[16];
+    }
+
+=> 协议地址长度:
+    INET_ADDRSTRLEN		// 16
+    INET6_ADDRSTRLEN	// 46
+}
+socket(api:sockaddr){
+=> 字节排序函数: 
+    #include <netinet/in.h>
+    uint16_t	htons(uint16_t host16value);
+    uint16_t 	ntohs(uint16_t net16value);
+    uint32_t	htonl(uint32_t host32value);
+    uint32_t	ntohl(uint32_t net32value);
+    #include <arpa/inet.h>
+    int   inet_pton(int family, const char *prt, void *addr);				// 本地地址转网络地址
+    char *inet_ntop(int family, const void *addr, char *prt, size_t len);	// 网络地址转本地地址
+}
+socket(api:socket){
+#include <sys/socket.h>
+int socket(int family, int type, int protocol);
+
+    family:
+        AF_INET:			IPV4 协议
+        AF_INET6:			IPV6 协议
+        AF_LOCAL:			UNIX域套接字协议
+        AF_ROUTE:			路由套接字
+        AF_KEY	:			密钥套接字
+    type:
+        SOCK_STREAM:		字节流套接字
+        SOCK_DGRAM:			数据报套接字
+        SOCK_SEQPACKET:		有序分组套接字
+        SOCK_RAW:			原始套接字
+    protocol:
+        IPPROTO_TCP			TCP 传输协议
+        TPPROTO_UDP			UDP 传输协议
+        IPPROTO_SCTP		SCTP传输协议
+}
+socket(api:connect){
+#include <sys/socket.h>
+int connect(int sockfd, const struct sockaddr* servaddr, socklen_t addrlen);
+
+1> 当ARP表中没有目的主机的MAC地址的时候: 首先发送ARP请求协议再发送SYN分节
+2> 当ARP表中有原目的主机的MAC地址，现在已经失效的时候, 首先发送三次 SYN分节,在这之内没有收到ACK|SYN，就清除ARP的相关表项，
+   之后在重新发送 ARP
+
+->TCP链接失败的原因:
+
+    1> 没有收到响应时， 发送 ETIMEOUT 错误--等待时间一般为75秒，但不确定
+    2> 若服务器上没有在请求端口上有监听程序， 则对SYN的请求返回RST, 客户端返回ECONNREFUSED错误
+        //若是UDP数据包则服务器会产生 端口不可达的ICMP错误（3，3） 
+    3> 客户端发送的SYN分节在某个路由器上引发了 目的不可达的 ICMP 错误，一般有两种
+        -> 主机不可达： ICMP(3 1) // EHOSTUNREACH
+        -> 网路不可达： ICMP(3 0) // ENETUNREACH
+-> connect 成功案例:
+// 第一次握手协议
+14:33:56.868365 IP (tos 0x0, ttl 64, id 15339, offset 0, flags [DF], proto TCP (6), length 60)
+    saligia.linux.55895 > 192.168.1.79.saligia-service: 
+    Flags [S], cksum 0x8fe6 (correct), seq 1019698398, win 14600, 
+    options [mss 1460,sackOK,TS val 7104309 ecr 0,nop,wscale 6], length 0
+// 第二次握手协议
+14:33:56.871411 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    192.168.1.79.saligia-service > saligia.linux.55895: 
+    Flags [S.], cksum 0x1175 (correct), seq 193439328, ack 1019698399, win 14480, 
+    options [mss 1460,sackOK,TS val 5754009 ecr 7104309,nop,wscale 6], length 0
+// 第三次握手协议
+14:33:56.871496 IP (tos 0x0, ttl 64, id 15340, offset 0, flags [DF], proto TCP (6), length 52)
+    saligia.linux.55895 > 192.168.1.79.saligia-service:
+    Flags [.], cksum 0x77e8 (correct), seq 1, ack 1, win 229, 
+    options [nop,nop,TS val 7104312 ecr 5754009], length 0
+}
+
+socket(api:bind){
+#include <sys/socket.h>
+int bind(int sockfd, const struct sockaddr* servaddr, socklen_t addrlen);
+
+-> 如果TCP服务器没有把IP绑定到他的套接字上(ip设置为0)，内核就把客户端的目的IP作为他的源IP地址
+    -> servaddr->sin_addr.s_addr = htonl(INADDR_ANY);
+-> 如果端口号为0， 内核就选择一个临时端口号分配给他
+
+-> 常见错误是 EADDRINUSE
+    -> 解决办法 ： setsockopt(sockfd, SO_REUSEADDR, ..);
+}
+socket(api:listen){
+-> 将一个主动套接字转成被动套接字
+
+#include <sys/socket.h>
+int listen(int blocklog);
+
+-> 队列中包含已经完成三次握手和未完成三次握手的链接
+}
+
+socket(api:accept){
+-> 从已经完成三次握手的队列中取下一个链接进行交互
+
+#include <sys/socket.h>
+int accept(int sockfd, struct sockaddr *clienaddr, socklen_t * addrlen);
+}
+
+socket(api:close){
+-> close: 关闭套接字
+        #include <unistd.h>
+        int close(int sockfd);
+}
+socket(api:addrinfo){
+#include <sys/socket.h>
+-> getsockname: // 返回本地协议地址
+    int getsockname(int fd, struct sockaddr *addr, socklen_t *addrlen);
+-> getpeername：// 获取交互对端地址
+    int getpeername(int fd, struct sockaddr *addr, socklen_t *addrlen);
+}
+socket(api:sockopt){
+#include <sys/socket.h>
+int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen);
+int setsockopt(int sockfd, int level, int optname, void *optval, socklen_t optlen);
+
+SOL_SOCKET:
+    SO_BROADCAST：       // 允许发送广播
+    SO_KEEPALIVE:        // 周期性测试连接是否存活
+            -> 三种情况相应
+             1> 对端响应一个 ACK ， 表示正常， 重置保活计时器
+             2> 对方响应一个 RST ， 表示对方崩溃后重起， 则套接字错误处理为 ECONNRESET， 套接字被关闭
+             3> 表示线路断开：
+                        a> 如果对方无响应，则尝试连续发送 8 个探测分结， 等待11分15秒后断开连接, 返回错误 ETIMEOUT
+                        b> ICMP 主机不可达，
+                        c> 网络不可达
+
+    SO_LINGER：          // 若有数据则延迟发送
+            struct linger{
+              int   l_onoff;
+              int   l_linger; // 拖延一段时间， 直到接受到 ACK，或者 设置时间到
+            }
+            -> 如果 l_onoff 为 0, 则默认关闭本选项： 执行 TCP 的默认行为， close 将立即生效， 如果缓冲区中有数据， 则尝试发送给对端
+            -> 如果 l_onoff 不为 0：
+                1> 如果 l_linger 为 0 : 则立即返回， 并且以 RST 结束， 没有四次握手
+                2> 如果 l_linger 不为0： 则要查看close的返回状态， 如果close为0 则表示对端正常读取数据并返回 ack,
+                                                               如果 没有受到ack就退出， 则close 返回 EWOULDBLOCK错误， 返回 RST
+
+    SO_RCVBUF:           // 接受缓冲区大小           -- 默认 16M
+    SO_SNDBUF:           // 发送缓冲区大小           -- 默认 85M
+    SO_RCVLOWAT:         // 接受缓冲区低水位标志      -- 默认为 1
+    SO_SNDLOWAT:         // 发送缓冲区低水位标志      -- 默认为 1
+    SO_RCVTIMEO:         // 接受超时                -- 默认禁用
+    SO_SNDTIMEO:         // 发送超时                -- 默认禁用
+    SO_REUSEADDR:        // 允许重用本地地址
+    SO_REUSEPORT:        // 允许重用本地端口
+    SO_TYPE:             // 套接字类型
+
+IPPROTO_IP:
+    IP_HDRINCL            // 随数据报包含的IP首部
+    IP_RECVORIGDSTADDR    // 获取数据报的目的地址
+}
+udp(){
+UDP 是无连接不可靠的数据报协议
+
+UDP 常用的函数套接字：
+  #include <sys/socket.h>
+  int sendto(int sockfd, const void *buf, size_t buflen, int flags,  struct sockaddr* addr, socklen_t addrlen);
+  int recvfrom(int sockfd, const void *buf, size_t buflen, int flags, struct sockaddr *addr, socklen_t *addrlen);
+
+UDP的异步错误：
+  -> 一个基本的思想是， 对于一个UDP套接字， 他引发的异步错误却不返回给他，除非他是以连接
+  -> UDP 的connect :
+      UDP 通过 connect 与服务器进行连接， 不过这种方法却与 TCP 连接大相径庭， 没有三次握手过程， 内核只是检查是否有立即返回的错误， 并记录对端的地址与端口
+      -> 我们不能给以连接的UDP的输出操作指定对端的ip 或端口号
+      -> 即使使用 sendto, 对端地址也得为空子段
+      -> 以连接的UDP套接字引发的异步错误会返回给调用进程， 而未连接的不会
+      -> 断开连接需要调用 AF_UNSPEC
+
+UDP 广播：
+  -> IPV6 不支持广播， 使用广播的任何IPV4应用程序到IPV6那里都得重写改写成为多播实现
+  -> 使用 IPV4 广播必须要首先开启广播选项
+  用途：
+    -> 在本地子网中定位一个服务器主机
+    -> 在有多个客户机与一个服务器的通信的局域网环境中减少分组流通
+
+  -> 广播地址的表示：
+    1> 定向广播地址 {子网ID, -1} ： 通常情况下路由器不转发这种数据包
+    2> 受限广播地址 {-1, -1}:路由器从不转发
+    3> 广播ip地址对应的 mac 地址 ff:ff:ff:ff:ff:ff
+
+    说明：
+        1> 如果某主机收到了一个广播后， 在其运输层发现无匹配端口并丢弃报文时， 不能发送 ICMP 端口不可达错误， 防止网络风暴
+        2> 源自 berkeley 的内核不允许对广播数据包执行分片， 如果目的地址是广播地址的数据包发送大小超过了外出接口的MTU，那么调用他的系统调用将
+           返回 EMSGSIZE错误
+UDP 多播：
+  1> 多播地址：
+            -> IPV4：
+                  IP地址：  224.0.0.1 - 239.255.255.255
+                  MAC   :  以太网的高序3位为 ：01：00：5e ， 下一位 : 0 | 低序23位复制自多播组的低序23位
+                  说明：
+                      1> 224.0.0.1 是所有主机组
+                      2> 224.0.0.2 所有路由器组
+
+            -> IPv6:
+
+                IP地址： ff : 01/02 : 80位的0 : 32位组ID
+                MAC   : 高序两个自己是 33：33 | 低序4个字节是从 ip地址的低序中复制得来
+                说明：
+                      1> ff01::1  ff02::1是所有节点组
+                      2> ff01::2  ff02::2 ff05::2 是所有路由器组
+    2> 多播数据报的发送：
+            -> 发送多播数据报无需做任何处理； 发送进程不必为此加入加入多播组
+            -> 如果中间主机不支持ipv4 多播的能力， 他将忽略该帧，
+            -> 该帧基于不完备过滤(散列算法)被对方主机接受， 其中的过滤操作由相应的接口使用该帧的以太网目的主机地址进行
+            -> 该帧传入网络层后，执行完备过滤操作： 网络层比较该地址和本机的接受应用进程加入的多播组，如果没有匹配，则丢弃该分区
+            -> 该帧从网络层传递到运输层之后， 由运输层匹配端口
+
+    3> 源特定多播(SSM)
+            -> 接受进程向多播路由器提供了发送进程的源地址作为多播组加入操作的一部分
+
+    4> 多播套接字选项：
+        选项名                               数据类型                         说明
+        ==========================================================================================
+        IP_MULTICAST_IF                     struct in_addr                指定外出多播数据报的默认接口
+        IP_MULTICAST_TTL                    uint8_t                       指定外出多播数据报的TTL
+        IP_MULTICAST_LOOP                   uint8_t                       开启或禁止外出数据报的回馈
+        ------------------------------------------------------------------------------------------
+        IPV6_MULTICAST_IF                   uint32_t                      指定外出多播数据报的默认接口
+        IPV6_MULTICATST_HOPS                uint8_t                       指定外出多播数据报的TTL
+        IPV6_MULTICAST_LOOP                 uint8_t                       开启或禁止外出数据报的回馈
+        ===========================================================================================
+        IP_ADD_MEMBERSHIP                   struct ip_mreq                加入多播组
+        IP_DROP_MEMBERSHIP                  struct ip_mreq                离开多播组
+        IP_BLOCK_SOURCE                     struct ip_mreq_source         阻塞某个源的多播组
+        IP_UNBLOCK_SOURCE                   struct ip_mreq_source         接触某个源的阻塞
+        IP_ADD_SOURCE_MEMBERSHIP            struct ip_mreq_source         加入一个源特定多播组
+        IP_DROP_SOURCE_MEMBERSHIP           struct ip_mreq_source         离开一个源特定多播组
+        -------------------------------------------------------------------------------------------
+        IPV6_JOIN_GROUP                     struct ipv6_mreq              加入多播组
+        IPV6_LEAVE_GROUP                    struct ipv6_mreq              离开多播组
+        --------------------------------------------------------------------------------------------
+        MCAST_JOIN_GROUP                    struct group_req              加入多播组
+        MCAST_LEAVE_GROUP                   struct group_req              离开多播组
+        MCAST_BLOCK_SOURCE                  struct group_source_req       阻塞某个源的多播组
+        MCAST_UNBLOCK_SOURCE                struct group_source_req       解除某个源的阻塞
+        MCAST_JOIN_SOURCE_GROUP             struct group_source_req       加入一个源特定多播组
+        MCAST_LEAVE_SOURCE_GROUP            struct group_source_req       离开一个源特定多播组
+        ===========================================================================================
+        struct ip_mreq{
+          struct in_addr imr_inderface; // 本地接口
+          struct in_addr imr_multiaddr; // 广播地址
+        }
+        struct ip_mreq_source{
+          struct in_addr imr_interface;
+          struct in_addr imr_sourceaddr;
+          struct in_addr imr_multiaddr;
+        }
+        ---------------------------------------------------
+        struct ipv6_mreq{
+          struct in6_addr ipv6mr_interface;
+          struct in6_addr ipv6mr_multiaddr;
+        }
+        --------------------------------------------------
+        struct group_req{
+          uint32_t                    gr_interface;
+          struct sockaddr_storage     gr_group;
+        }
+        struct group_source_req{
+          uint32_t                     gr_interface;
+          struct sockaddr_storage      gr_source;
+          struct sockaddr_storage      gr_group;
+        }
+        ==============================================================================================
+
+}
+
+unix(){
+UNIX域套接字：
+
+->使用Unix域套接字的特点：
+    1> Unix域套接字通常比通信两端位于同一主机的TCP套接字快出一倍。
+    2> Unix域套接字可用于同一个主机上的不同进程之间传递描述符。
+    3> Unix域套接字可把客户的凭证提供给服务器
+
+-> Unix域套接字地址结构：
+    #include <sys/un.h>
+    struct sockaddr_un{
+      sa_family_t   sun_family;       // AF_LOCAL
+      char          sun_path[104]
+    }
+-> Unix socket 接口
+  #include <sys/socket.h>
+  int socket(int family, int type, int protocol);
+  int socketpair(int family, int type, int protocol, int sockfd[2]);
+  -> 由bind创建的路径名默认访问权限应为0777,并按照当前umask进行修正。
+  -> path 关联的路径名应该是一个绝对路径名,而不是一个相对路径名。
+  -> connect 调用中指定的路径名必须是一个当前绑定在某个打开的Unix域套接字的路径名，而他们的套接字类型也必须一致。
+  -> 调用 connect 连接一个Unix域套接字设计的权限测试等同于 open 以只写的方式访问相应的路径名
+  -> Unix域字节流套接字类似于TCP套接字
+  -> Unix域数据报套接字类似于UDP套接字
+  -> 如果对于某个Unix域字节流套接字的connect调用发现这个监听套接字的队列以满，调用就立即返回 ECONNREFUSED 错误。
+  -> 在一个未绑定的Unix域套接字上发送数据报不会自动给这个套接字捆绑一个路径名。
+
+}

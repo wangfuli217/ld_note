@@ -1,0 +1,396 @@
+##################### rbtree 平衡二叉B树（symmetric binary B-trees）#########################
+    进行插入和删除操作时通过特定操作保持二叉查找树的平衡，从而获得较高的查找性能。 ## 插入和删除
+## 红黑树（Red Black Tree） 是一种自平衡二叉查找树，典型的用途是实现关联数组。
+## 红黑树和AVL树类似，都是在进行插入和删除操作时通过特定操作保持二叉查找树的平衡，从而获得较高的查找性能。
+## 它虽然是复杂的，但它的最坏情况运行时间也是非常良好的，并且在实践中是高效的： 它可以在O(log n)时间内做查找，
+## 插入和删除，这里的n 是树中元素的数目。
+
+## "关联数组"是一种具有特殊索引方式的数组。不仅可以通过整数来索引它，还可以使用字符串或者其他类型的值（除了NULL）来索引它。
+
+libevent：RB_PROTOTYPE(event_map, event_entry, node, compare)和RB_GENERATE(event_map, event_entry, node, compare);
+    RB_PROTOTYPE(event_map, event_entry, node, compare)
+void name##_RB_INSERT_COLOR(struct name *, struct type *);	
+void name##_RB_REMOVE_COLOR(struct name *, struct type *, struct type *);
+struct type *name##_RB_REMOVE(struct name *, struct type *);		
+struct type *name##_RB_INSERT(struct name *, struct type *);		
+struct type *name##_RB_FIND(struct name *, struct type *);		
+struct type *name##_RB_NEXT(struct type *);				
+struct type *name##_RB_MINMAX(struct name *, int);	
+    RB_GENERATE(event_map, event_entry, node, compare);
+void name##_RB_INSERT_COLOR(struct name *head, struct type *elm)	                     
+void name##_RB_REMOVE_COLOR(struct name *head, struct type *parent, struct type *elm)	 	
+struct type *name##_RB_REMOVE(struct name *head, struct type *elm)                       RB_INSERT(name, x, y)
+struct type *name##_RB_INSERT(struct name *head, struct type *elm)                       RB_REMOVE(name, x, y)
+struct type *name##_RB_FIND(struct name *head, struct type *elm)	                     RB_FIND(name, x, y)
+struct type *name##_RB_NEXT(struct type *elm)                                            RB_NEXT(name, x, y)
+struct type *name##_RB_MINMAX(struct name *head, int val)	                             RB_MIN(name, x) | RB_MAX(name, x)
+                                                                                         RB_FOREACH(x, name, head)
+linux-kernel需要实例化rb_insert、rb_serch和rb_for_each、rb_for_each_entry、rb_destroy等函数   （抽象数据结构操作，不抽象业务函数）
+sheepdog：抽象rb_insert、rb_serch和rb_for_each、rb_for_each_entry、rb_destroy等函数，抽象为相同的操作接口   （宏-抽象类） （代码-抽象类）
+libevent：抽象name##_[RB_REMOVE|RB_INSERT|RB_FIND|RB_NEXT|RB_MINMAX|RB_FOREACH]等函数，抽象为相似的操作接口 （宏-抽象类） （代码-实现类）
+linux-kernel                sheepdog               libevent
+lib/rbtree.c                rbtree.h               tree.h (win32.c)
+linux/rbtree.h              rbtree.c               
+
+1]
+struct mytype {
+    struct rb_node node;
+    char *keystring;
+};
+rb_entry(node, type, member)
+
+2]
+struct rb_root mytree = RB_ROOT;
+
+3] serach
+  struct mytype *my_search(struct rb_root *root, char *string)
+  {
+  	struct rb_node *node = root->rb_node;
+
+  	while (node) {
+  		struct mytype *data = container_of(node, struct mytype, node);
+		int result;
+
+		result = strcmp(string, data->keystring);
+
+		if (result < 0)
+  			node = node->rb_left;
+		else if (result > 0)
+  			node = node->rb_right;
+		else
+  			return data;
+	}
+	return NULL;
+  }
+  
+4] insert  
+  int my_insert(struct rb_root *root, struct mytype *data)
+  {
+  	struct rb_node **new = &(root->rb_node), *parent = NULL;
+
+  	/* Figure out where to put new node */
+  	while (*new) {
+  		struct mytype *this = container_of(*new, struct mytype, node);
+  		int result = strcmp(data->keystring, this->keystring);
+
+		parent = *new;
+  		if (result < 0)
+  			new = &((*new)->rb_left);
+  		else if (result > 0)
+  			new = &((*new)->rb_right);
+  		else
+  			return FALSE;
+  	}
+
+  	/* Add new node and rebalance tree. */
+  	rb_link_node(&data->node, parent, new);
+  	rb_insert_color(&data->node, root);
+
+	return TRUE;
+  }
+  
+5] remove 
+
+void rb_erase(struct rb_node *victim, struct rb_root *tree);
+
+  struct mytype *data = mysearch(&mytree, "walrus");
+
+  if (data) {
+  	rb_erase(&data->node, &mytree);
+  	myfree(data);
+  }
+To replace an existing node in a tree with a new one with the same key, call:
+    void rb_replace_node(struct rb_node *old, struct rb_node *new, struct rb_root *tree);
+            
+6] Iterating             
+  struct rb_node *rb_first(struct rb_root *tree);
+  struct rb_node *rb_last(struct rb_root *tree);
+  struct rb_node *rb_next(struct rb_node *node);
+  struct rb_node *rb_prev(struct rb_node *node);
+ 
+6.1 ] Iterating 
+   struct rb_node *node;
+   for (node = rb_first(&mytree); node; node = rb_next(node))
+       printk("key=%s\n", rb_entry(node, struct mytype, node)->keystring);  
+  
+##################### radix tree #########################  http://blog.csdn.net/joker0910/article/details/8250085
+## Linux基数树（radix tree）是将指针与long整数键值相关联的机制，它存储有效率，并且可快速查询，
+## 用于指针与整数值的映射（如：IDR机制）、内存管理等。
+## 
+## radix树就是针对这种稀疏的长整型数据查找，能快速且节省空间地完成映射。借助于Radix树，我们可以实现对于长整型数据类型的路由。
+## 利用radix树可以根据一个长整型（比如一个长ID）快速查找到其对应的对象指针。这比用hash映射来的简单，也更节省空间，使用hash映射
+## hash函数难以设计，不恰当的hash函数可能增大冲突，或浪费空间。
+## 
+## radix tree是一种多叉搜索树，树的叶子结点是实际的数据条目。每个结点有一个固定的、2^n指针指向子结点（每个指针称为槽slot，
+## n为划分的基的大小）。
+
+#     radix树为稀疏树提供了有效的存储，代替固定尺寸数组提供了键值到指针的快速查找。
+include/linux/radix-tree.h
+lib/radix-tree.c
+
+struct radix_tree_root {                  
+unsigned int height;                      height - height of the tree
+gfp_t gfp_mask;                           tells how memory allocations will be performed;
+struct radix_tree_node __rcu *rnode;      rnode - pointer to the child node.
+};                                        
+
+struct radix_tree_node { 
+unsigned int path;                        path - offset in parent & height from the bottom;
+unsigned int count;                       count - count of the child nodes;
+union { 
+    struct { 
+    struct radix_tree_node *parent;       parent - pointer to the parent node;
+    void *private_data;                   private_data - used by the user of a tree;
+    }; 
+    
+    struct rcu_head rcu_head;             rcu_head - used for freeing a node;
+    }; /* For tree user */ 
+struct list_head private_list;            private_list - used by the user of a tree;
+void __rcu *slots[RADIX_TREE_MAP_SIZE];   Every node can contains a set of slots which are store pointers to the data
+unsigned long tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];  tags allow individual bits to be set on records 
+                                                                which are stored in the radix tree.
+};
+
+1]
+方法1
+RADIX_TREE(name, gfp_mask);
+方法2
+struct radix_tree_root my_radix_tree; 
+INIT_RADIX_TREE(my_tree, gfp_mask_for_my_radix_tree);
+
+2]
+int radix_tree_insert(struct radix_tree_root *root, unsigned long index, void *item)
+void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
+
+3]
+void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index);
+radix_tree_gang_lookup(struct radix_tree_root *root, void **results, unsigned long first_index, unsigned int max_items);
+void **radix_tree_lookup_slot(struct radix_tree_root *root, unsigned long index);
+
+
+
+
+##################### AVL tree ######################### http://baike.baidu.com/view/671745.htm 有例子
+AVL树本质上还是一棵二叉搜索树，它的特点是：
+1.本身首先是一棵二叉搜索树。
+2.带有平衡条件：每个结点的左右子树的高度之差的绝对值（平衡因子）最多为1。
+也就是说，AVL树，本质上是带了平衡功能的二叉查找树（二叉排序树，二叉搜索树）。
+
+
+##################### Simple In-memory B+Tree ######################### 
+B-tree（多路搜索树，并不是二叉的）是一种常见的数据结构。使用B-tree结构可以显著减少定位记录时所经历的中间过程，从而加快存取速度。
+按照翻译，B 通常认为是Balance的简称。这个数据结构一般用于数据库的索引，综合效率较高。
+btree.c
+btree.h
+
+
+
+
+
+##################### splay[伸展树] tree #########################
+##      被查频率高的那些条目就应当经常处于靠近树根的位置。 ## 查找快
+## 伸展树（Splay Tree），也叫分裂树，是一种二叉排序树，它能在O(n log n)内完成插入、查找和删除操作。
+## 在伸展树上的一般操作都基于伸展操作：假设想要对一个二叉查找树执行一系列的查找操作，为了使整个查找时间更小，被查频率高的那些条目
+## 就应当经常处于靠近树根的位置。于是想到设计一个简单方法， 在每次查找之后对树进行重构，把被查找的条目搬移到离树根近一些的地方。
+## 伸展树应运而生。伸展树是一种自调整形式的二叉查找树，它会沿着从某个节点到树根之间的路径，通过一系列的旋转把这个节点搬移到树根去。
+## 它的优势在于不需要记录用于平衡树的冗余信息。
+
+libevent：抽象name##_[SPLAY_REMOVE|SPLAY_INSERT|SPLAY_FIND|SPLAY_NEXT|SPLAY_MIN|SPLAY_FOREACH]等函数，抽象为相似的操作接口 （宏-抽象类） （代码-实现类）
+
+#define SPLAY_PROTOTYPE(name, type, field, cmp)	
+void name##_SPLAY(struct name *, struct type *);
+void name##_SPLAY_MINMAX(struct name *, int);	                                       
+struct type *name##_SPLAY_INSERT(struct name *, struct type *);                       SPLAY_INSERT(name, x, y) 
+struct type *name##_SPLAY_REMOVE(struct name *, struct type *);	                      SPLAY_REMOVE(name, x, y)
+static __inline struct type name##_SPLAY_FIND(struct name *head, struct type *elm)    SPLAY_FIND(name, x, y) 
+static __inline struct type name##_SPLAY_NEXT(struct name *head, struct type *elm)	  SPLAY_NEXT(name, x, y) 
+static __inline struct type name##_SPLAY_MIN_MAX(struct name *head, int val)	      SPLAY_MIN(name, x) | SPLAY_MAX(name, x)
+                                                                                      SPLAY_FOREACH(x, name, head)
+                                                                                      
+##################### 最大堆和最小堆 #########################                                                                                      
+       最大堆和最小堆是二叉堆的两种形式。
+最大堆：根结点的键值是所有堆结点键值中最大者，且每个结点的值都比其孩子的值大。
+最小堆：根结点的键值是所有堆结点键值中最小者，且每个结点的值都比其孩子的值小。                                                                                
+
+libevent 用于处理超时处理事件
+min_heap.h
+
+typedef struct min_heap
+{
+    struct event** p;
+    unsigned n, a;
+} min_heap_t;
+
+static inline void         min_heap_ctor_(min_heap_t* s);
+static inline void         min_heap_dtor_(min_heap_t* s);
+static inline void         min_heap_elem_init_(struct event* e);
+static inline int         min_heap_elt_is_top_(const struct event *e);
+static inline int         min_heap_empty_(min_heap_t* s);
+static inline unsigned         min_heap_size_(min_heap_t* s);
+static inline struct event*  min_heap_top_(min_heap_t* s);
+static inline int         min_heap_reserve_(min_heap_t* s, unsigned n);
+static inline int         min_heap_push_(min_heap_t* s, struct event* e);
+static inline struct event*  min_heap_pop_(min_heap_t* s);
+static inline int         min_heap_adjust_(min_heap_t *s, struct event* e);
+static inline int         min_heap_erase_(min_heap_t* s, struct event* e);
+static inline void         min_heap_shift_up_(min_heap_t* s, unsigned hole_index, struct event* e);
+static inline void         min_heap_shift_up_unconditional_(min_heap_t* s, unsigned hole_index, struct event* e);
+static inline void         min_heap_shift_down_(min_heap_t* s, unsigned hole_index, struct event* e);
+
+#define min_heap_elem_greater(a, b) \
+    (evutil_timercmp(&(a)->ev_timeout, &(b)->ev_timeout, >))
+
+void min_heap_ctor_(min_heap_t* s) { s->p = 0; s->n = 0; s->a = 0; }
+void min_heap_dtor_(min_heap_t* s) { if (s->p) mm_free(s->p); }
+void min_heap_elem_init_(struct event* e) { e->ev_timeout_pos.min_heap_idx = -1; }
+int min_heap_empty_(min_heap_t* s) { return 0u == s->n; }
+unsigned min_heap_size_(min_heap_t* s) { return s->n; }
+struct event* min_heap_top_(min_heap_t* s) { return s->n ? *s->p : 0; }
+
+int min_heap_push_(min_heap_t* s, struct event* e)
+{
+    if (min_heap_reserve_(s, s->n + 1))
+        return -1;
+    min_heap_shift_up_(s, s->n++, e);
+    return 0;
+}
+
+struct event* min_heap_pop_(min_heap_t* s)
+{
+    if (s->n)
+    {
+        struct event* e = *s->p;
+        min_heap_shift_down_(s, 0u, s->p[--s->n]);
+        e->ev_timeout_pos.min_heap_idx = -1;
+        return e;
+    }
+    return 0;
+}
+
+int min_heap_elt_is_top_(const struct event *e)
+{
+    return e->ev_timeout_pos.min_heap_idx == 0;
+}
+
+int min_heap_erase_(min_heap_t* s, struct event* e)
+{
+    if (-1 != e->ev_timeout_pos.min_heap_idx)
+    {
+        struct event *last = s->p[--s->n];
+        unsigned parent = (e->ev_timeout_pos.min_heap_idx - 1) / 2;
+        /* we replace e with the last element in the heap.  We might need to
+           shift it upward if it is less than its parent, or downward if it is
+           greater than one or both its children. Since the children are known
+           to be less than the parent, it can't need to shift both up and
+           down. */
+        if (e->ev_timeout_pos.min_heap_idx > 0 && min_heap_elem_greater(s->p[parent], last))
+            min_heap_shift_up_unconditional_(s, e->ev_timeout_pos.min_heap_idx, last);
+        else
+            min_heap_shift_down_(s, e->ev_timeout_pos.min_heap_idx, last);
+        e->ev_timeout_pos.min_heap_idx = -1;
+        return 0;
+    }
+    return -1;
+}
+
+int min_heap_adjust_(min_heap_t *s, struct event *e)
+{
+    if (-1 == e->ev_timeout_pos.min_heap_idx) {
+        return min_heap_push_(s, e);
+    } else {
+        unsigned parent = (e->ev_timeout_pos.min_heap_idx - 1) / 2;
+        /* The position of e has changed; we shift it up or down
+         * as needed.  We can't need to do both. */
+        if (e->ev_timeout_pos.min_heap_idx > 0 && min_heap_elem_greater(s->p[parent], e))
+            min_heap_shift_up_unconditional_(s, e->ev_timeout_pos.min_heap_idx, e);
+        else
+            min_heap_shift_down_(s, e->ev_timeout_pos.min_heap_idx, e);
+        return 0;
+    }
+    return -1;
+}
+
+int min_heap_reserve_(min_heap_t* s, unsigned n)
+{
+    if (s->a < n)
+    {
+        struct event** p;
+        unsigned a = s->a ? s->a * 2 : 8;
+        if (a < n)
+            a = n;
+        if (!(p = (struct event**)mm_realloc(s->p, a * sizeof *p)))
+            return -1;
+        s->p = p;
+        s->a = a;
+    }
+    return 0;
+}
+//主要算法思想是填补空洞，最好找到合适的位置再安插
+void min_heap_shift_up_unconditional_(min_heap_t* s, unsigned hole_index, struct event* e)
+{
+    unsigned parent = (hole_index - 1) / 2;
+    do
+    {
+//如果父节点>value[hole_index]，父节点下沉
+    (s->p[hole_index] = s->p[parent])->ev_timeout_pos.min_heap_idx = hole_index;
+//hole_index替换为parent
+    hole_index = parent;
+    parent = (hole_index - 1) / 2;
+    } while (hole_index && min_heap_elem_greater(s->p[parent], e));
+    (s->p[hole_index] = e)->ev_timeout_pos.min_heap_idx = hole_index;
+}
+
+void min_heap_shift_up_(min_heap_t* s, unsigned hole_index, struct event* e)
+{
+    unsigned parent = (hole_index - 1) / 2;
+    while (hole_index && min_heap_elem_greater(s->p[parent], e))
+    {
+    (s->p[hole_index] = s->p[parent])->ev_timeout_pos.min_heap_idx = hole_index;
+    hole_index = parent;
+    parent = (hole_index - 1) / 2;
+    }
+    (s->p[hole_index] = e)->ev_timeout_pos.min_heap_idx = hole_index;
+}
+
+void min_heap_shift_down_(min_heap_t* s, unsigned hole_index, struct event* e)
+{
+    unsigned min_child = 2 * (hole_index + 1);
+    while (min_child <= s->n)
+    {
+    min_child -= min_child == s->n || min_heap_elem_greater(s->p[min_child], s->p[min_child - 1]);
+    if (!(min_heap_elem_greater(e, s->p[min_child])))
+        break;
+    (s->p[hole_index] = s->p[min_child])->ev_timeout_pos.min_heap_idx = hole_index;
+    hole_index = min_child;
+    min_child = 2 * (hole_index + 1);
+    }
+    (s->p[hole_index] = e)->ev_timeout_pos.min_heap_idx = hole_index;
+}
+
+
+##################### skiplist #########################  
+## 跳跃列表（也称跳表）是一种随机化数据结构，基于并联的链表，其效率可比拟于二叉查找树（对于大多数操作需要O(logn)平均时间）。
+## 
+## 基本上，跳跃列表是对有序的链表增加上附加的前进链接，增加是以随机化的方式进行的，所以在列表中的查找可以快速的跳过部分列表元素，
+## 因此得名。所有操作都以对数随机化的时间进行。
+
+
+redis C
+leveldb C++
+lucence Java
+
+typedef struct zskiplistNode {
+    robj *obj;
+    double score;
+    struct zskiplistNode *backward;
+    struct zskiplistLevel {
+        struct zskiplistNode *forward;
+        unsigned int span;
+    } level[];
+} zskiplistNode;
+
+typedef struct zskiplist {
+    struct zskiplistNode *header, *tail;
+    unsigned long length;
+    int level;
+} zskiplist;

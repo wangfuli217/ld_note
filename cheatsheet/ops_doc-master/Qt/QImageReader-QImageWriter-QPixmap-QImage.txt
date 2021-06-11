@@ -1,0 +1,66 @@
+Qt中的图片相关，常用的几个类就是QImageReader  QImageWriter QPixmap QImage。
+
+一 QImageReader
+1、QImageReader提供了独立接口用来从文件或者设备读取图片。
+2、有一些实用的控制接口，例如setScaledSize()、setClipRect()等。
+3、可以通过supportedImageFormats()查看QImageReader支持的图片格式。
+4、在读取之前常用的两个函数
+
+setDecideFormatFromContent(bool ignored)
+文档说明如下：
+    If ignored is set to true, then the image reader will ignore specified formats 
+or file extensions and decide which plugin to use only based on the contents in the datastream.
+Setting this flag means that all image plugins gets loaded. Each plugin will read
+the first bytes in the image data and decide if the plugin is compatible or not.
+    This also disables auto detecting the image format.
+
+解释：如果设置为真，则忽略指定格式或文件后缀，根据内容决定使用哪个图片插件，也意味着所有的图片插件就要加载进来，
+此设置会使自动探测图片格式设置失效。
+
+canRead() 
+文档说明如下：
+    Returns true if an image can be read for the device (i.e., the image format is supported, 
+and the device seems to contain valid data); otherwise returns false.
+    canRead() is a lightweight function that only does a quick test to see if the image data is valid. 
+read() may still return false after canRead() returns true, if the image data is corrupt.
+    For images that support animation, canRead() returns false when all frames have been read.
+注意返回false的场景。
+5、QImageReader有两个重载的read()函数可以得到QImage
+
+二 QImage
+1、可以从文件读取图片，可以从构造函数或者load()函数传入文件路径。
+2、有像素、灰度操作、镜像、位深、缩放、颜色等操作，图片处理函数比较齐全。
+
+三 QPixmap
+1、可以从文件读取图片，可以从构造函数或者load()函数传入文件路径。
+2、也有图片处理操作例如缩放等，但一般处理图片QImage用的更多些，QPixmap更多用于展示。
+3、有两个静态函数，可以从上面转换而来
+QPixmap::fromImageReader
+QPixmap::fromImage
+4、还有 toImage() 函数。
+
+QString path = "E:/image.jpg";
+QPixmap-->QImage:
+QPixmap pix(path);
+QImage img = pix.toImage();
+
+QImage-->QPixmap:
+QImage img(path);
+QPixmap pix = QPixmap::fromImage(img);
+
+
+四  QImageWriter
+写图片，QImage 和 QPixmap save()函数也可以保存图片。
+
+五、显示
+例如QLabel有setPixmap(const QPixmap &)函数。
+
+六、处理图片数据主要类
+主要有Image, QPixmap, QBitmap and QPicture四个，可以根据需求不同灵活选择。
+文档说明如下：
+    Qt provides four classes for handling image data: QImage, QPixmap, QBitmap and QPicture. 
+QImage is designed and optimized for I/O, and for direct pixel access and manipulation, 
+while QPixmap is designed and optimized for showing images on screen. QBitmap is only 
+a convenience class that inherits QPixmap, ensuring a depth of 1. The isQBitmap() function 
+returns true if a QPixmap object is really a bitmap, otherwise returns false. Finally, 
+the QPicture class is a paint device that records and replays QPainter commands.

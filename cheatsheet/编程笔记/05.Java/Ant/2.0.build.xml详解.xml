@@ -1,0 +1,369 @@
+﻿
+build.xml 详解
+
+
+下边就是一个完整的 build.xml, 然后我们来详细的解释每一句
+
+<!-- build.xml中的第一句话,没有实际的意义,不过 xml 要求写。 -->
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!--
+project 元素是Ant构件文件的根元素, Ant构件文件至少应该包含一个project元素, 否则会发生错误。
+在每个 project 元素下, 可包含多个target元素。它有如下属性:
+    1. name : 用于指定 project 元素的名称。
+    2. default : 用于指定 project 默认执行时所执行的 target 的名称。
+    3. basedir : 顾名思义就是工作的根目录, “.”代表当前目录。该属性没有指定时, 使用Ant的构件文件的附目录作为基准目录。 -->
+<project name="HelloWorld" default="run" basedir=".">
+
+    <!--
+    property 元素 : 该元素可看作 变量 或者 参数 的定义, project 的属性可以通过 property 元素来设定, 也可在Ant之外设定。
+    它的属性:
+        1. name : 变量名。
+        2. value : 变量的值。
+        3. file : 引入配置文件,可以一次引入多个变量。配置文件里面,每一行需要按“变量名=变量值”的形式写。
+    若要在外部引入某文件, 例如 build.properties 文件, 可以通过如下内容将其引入: <property file="build.properties"/>
+    property 元素可用作 task 的属性值。在task中是通过将属性名放在“${”和“}”之间, 并放在task属性值的位置来实现的。
+    Ant 提供了一些内置的属性, 它能得到的系统属性的列表与 Java 文档中 System.getPropertis() 方法得到的属性一致, 这些系统属性可参考sun网站的说明。
+    同时, Ant还提供了一些它自己的内置属性, 如下:
+        basedir : project 基目录的绝对路径, 该属性在 project 元素时定义。
+        ant.file : buildfile 的绝对路径, 如 ant.file 的值为 E:/build.xml 。
+        ant.version : Ant 的版本, 如值为 1.7.0。
+        ant.project.name : 当前指定的 project 的名字, 即所在 project 元素的 name 属性的值。
+        ant.java.version : Ant检测到的JDK的版本, 如1.5。 -->
+    <property name="src" value="src"/>
+    <property name="com.dest" value="classes"/>
+    <property name="hello_jar" value="hello1.jar"/>
+	<property environment="env"/>  <!-- 定义运行环境的名称 -->
+	<property name="catalina.home" value="${env.CATALINA_HOME}" />  <!-- 获取环境变量的值 -->
+
+    <!--
+    target 元素 : Ant的基本执行单元, 它可以包含一个或多个具体的任务。 多个target可以存在相互依赖关系。它有如下属性:
+        1. name : 指定target元素的名称, 这个属性在一个 project 元素中是唯一的。我们可以通过指定target元素的名称来指定某个target。
+        2. depends : 用于描述target之间的依赖关系, 若与多个target存在依赖关系时, 需要以“,”间隔。
+            Ant会依照depends属性中target出现的顺序依次执行每个target。
+            Ant会先检查被依赖的 target 是否曾经被执行过, 如果执行过则直接直接执行本 target 。 如果没有则会先执行它依赖的 target 。
+        3. if : 用于验证指定的属性是否存在, 若不存在, 所在target将不会被执行。
+        4. unless : 该属性的功能与if属性的功能正好相反, 它也用于验证指定的属性是否存在, 若不存在, 所在target将会被执行。
+        5. description : 该属性是关于target功能的简短描述和说明。 -->
+    <target name="init" if="ant.java.version">
+        <description> a example! </description> <!-- 描述、说明 -->
+    </target>
+
+    <!-- 这里的compile之前ant会先检查init是否曾经被执行过, 如果执行过则直接直接执行compile, 如果没有则会先执行它依赖的target(这里的是init), 然后再执行这个target -->
+    <target name="checkInit" depends="init">
+    </target>
+
+    <!-- 再次运行, 这里显示了如何在一个target里边调用其他的target -->
+    <target name="rerun" depends="init,checkInit">   <!-- 依赖多个 target -->
+        <ant target="init" /> <!-- 再次运行 clean -->
+        <ant target="checkInit" /> <!-- 再次运行 run -->
+        <ant antfile="mybuild.xml"></ant> <!-- 执行另外的 build.xml 文件 -->
+    </target>
+
+
+    <!-- ################## java 程序 操作 start ################## -->
+    <!-- 编译 -->
+    <target name="compile" depends="init">
+        <!-- javac 标签的属性如下:
+            srcdir : java源程序的目录。
+            destdir : class文件的输出目录。
+            includes : 别归档的文件模式。
+            exchudes : 被排除的文件模式。
+            debug : 包含的调试信息。
+            optimize : 是否使用优化。
+            classpath : 所使用的类路径。
+            verbose : 提供详细的输出信息。
+            failonerror: 当碰到错误时是否自动停止。 -->
+        <javac srcdir="${src}" destdir="${com.dest}"/>
+        <javac>
+            <classpath refid="project.class.path"/> <!-- 使用 classpath -->
+        </javac>
+    </target>
+
+    <!-- 设置 classpath (我们文档上是这样写的) -->
+	<path id="compile.classpath">
+		<pathelement location="${build.home}/WEB-INF/classes" />
+		<fileset dir="${lib.home}"/>
+    </path>
+    <!-- 设置 classpath (网络某教程上是这样写的, 不知这 classpath 标签 是否笔误) -->
+    <classpath id=" project.class.path">
+        <pathelement path="${classpath}"/>
+        <fileset dir="lib">
+            <include name="**/*.jar"/>
+        </fileset>
+        <pathelement location="classes"/>
+        <dirset dir="build">
+            <include name="apps/**/classes"/>
+            <exclude name="apps/**/*Test*"/>
+        </dirset>
+        <filelist refid="third-party_jars"/>
+    </classpath>
+
+    <!-- 运行 -->
+    <target name="run" depends="build">
+        <!--
+            java 标签, 用来执行编译生成的.class文件, 其属性如下:
+            classname : 将执行的类名。
+            jar : 包含该类的JAR文件名。
+            classpath : 用到的类路径。
+            fork : 在一个新的虚拟机中运行该类。
+            failonerror : 当出现错误时是否自动停止。
+            output : 输出文件。
+            append : 追加或者覆盖默认文件。 -->
+        <java classname="test.ant.HelloWorld" classpath="${hello_jar}"/>
+        <java classname="HelloWorld">
+            <classpath>
+                <pathelement path="build/classes"/>
+            </classpath>
+        </java>
+    </target>
+
+    <!-- 打 jar 包 -->
+    <target name="build" depends="compile">
+        <!-- jar 标签的属性:
+            jarfile : 生产JAR文件名。
+            basedir : 被归档的目录。
+            includes : 别归档的文件模式。
+            exchudes : 被排除的文件模式。 -->
+        <jar jarfile="${hello_jar}" basedir="${com.dest}"/>
+        <jar jarfile="helloworld.jar" basedir="build/classes">
+            <manifest>
+                <attribute name="Main-class" value="HelloWorld"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <!-- 打 war 包-->
+    <target name="war" depends="compile">
+        <!-- war 标签, 用来生成一个WAR包, 其属性如下:
+            destfile : 生产JAR文件名。
+            dir : 被归档的文件目录。
+            includes : 别归档的文件模式。
+            exchudes : 被排除的文件模式。 -->
+        <war destfile="${build}/antwebproject.war" webxml="WebRoot/WEB-INF/web.xml">
+            <!-- 拷贝 WebRoot 下除了 WEB-INF 和 META-INF 的两个文件夹 -->
+            <fileset dir="WebRoot" includes="**/*.jsp"/>
+            <!-- 拷贝lib目录下的jar包 -->
+            <lib dir="${lib}"/>
+            <!-- 拷贝build/classes下的class文件 -->
+            <classes dir="${classes}"/>
+        </war>
+    </target>
+    <!-- ################## java 程序 操作 end ################## -->
+
+
+    <!-- ################## 文件、目录 操作 start ################## -->
+    <!-- 创建目录 操作 -->
+    <target name="makeDir">
+        <description>创建目录</description> <!-- 描述、说明 -->
+        <mkdir dir="${com.dest}"/> <!-- 创建目录 -->
+    </target>
+
+    <!-- 复制 -->
+	<target name="toWorkSpace">
+        <!-- copy 标签, 用于文件或文件集的拷贝, 其属性如下:
+            file : 源文件。
+            tofile : 目标文件。
+            todir : 目标目录。
+            overwrite : 是否覆盖目标文件, 默认值是不覆盖。
+            includeEmptyDirs : 是否拷贝空目录, 默认值为拷贝。
+            failonerror : 当出现错误时是否自动停止, 默认值是停止。
+            verbose 表示制定是否显示详细信息, 默认值不显示。 -->
+        <copy file="file.txt" tofile="copy.txt"/> <!-- 复制单个文件 -->
+        <copy file="file.txt" todir="../other/dir"/> <!-- 将文件复制到另外的目录 -->
+        <!-- 复制目录 -->
+		<copy todir="${basedir}" >
+			<fileset dir="D:/cvsclient/everunion/newgip/GIPAdmin/java/com/everunion">
+				<include name="**/*.java" /> <!-- 指定要复制的内容 -->
+				<include name="**/*.properties" />
+				<exclude name="com/everunion/util/DbUtil.java"/> <!-- 排除的内容,过滤掉这里不要复制的 -->
+			</fileset>
+		</copy>
+		<copy todir="D:/ProgramFiles/tomcat-6.0.18/webapps/GipAdmin/WEB-INF/classes/com/everunion">
+			<fileset dir="bin/com/everunion/" /> <!-- 路径可以写绝对的, 也可以写相对的 -->
+			<fileset dir="src/com/everunion/" />
+			<fileset dir="${app.web}" excludes="**/ft/**,**/img_proxy/**"/> <!-- excludes 的另一种写法,且可多个一起 -->
+		</copy>
+        <!-- 拷贝一个文件集合到一个目录, 同时建立备份文件 -->
+        <copy todir="../backup/dir">
+            <fileset dir="src_dir"/>
+            <globmapper from="*" to="*.bak"/>
+        </copy>
+        <!-- 拷贝一个集合的文件到一个目录, 并替换掉@ TITLE @ -->
+        <copy todir="../backup/dir">
+            <fileset dir="src_dir"/>
+            <filterset>
+                <filter token="TITLE" value="Foo Bar"/>
+            </filterset>
+        </copy>
+
+        <!-- copydir 标签 : 拷贝一个目录下的东西到另一个目录下, (includes 加入, excludes 排除) -->
+        <copydir src="${src}/resources" dest="${dist}" includes="**/*.java" excludes="**/Test.java"/>
+        <!-- copyfile 标签 : 拷贝一个文件 -->
+        <copyfile src="test.java" dest="subdir/test.java"/>
+	</target>
+
+    <!-- 删除 -->
+    <target name="clean">
+        <!-- delete 标签,用于删除文件或目录, 其属性如下:
+            file : 要删除的文件。
+            dir : 要删除的目录。
+            includeEmptyDirs : 表示指定是否要删除空目录, 默认值是删除。
+            failonerror : 当碰到错误是否停止, 默认值是自动停止。
+            verbose : 是否列出所删除的文件, 默认值为不列出。 -->
+        <delete file="photo/amigo.jpg" /> <!-- 删除文件 -->
+        <delete dir="photo" /> <!-- 删除目录 -->
+        <!-- 删除所有的备份文件和空目录 -->
+        <delete includeEmptyDirs="true">
+            <fileset dir="." includes="**/*.bak"/> <!-- 删除所有符合规则的文件(.bak 文件), 包括子目录的 -->
+        </delete>
+
+        <!-- 删除指定目录下所有的文件和目录, 包括指定的目录 -->
+        <delete includeEmptyDirs="true">
+            <fileset dir="build"/>
+        </delete>
+        <!-- 删除当前目录下所有的文件和目录, 不包括当前目录 -->
+        <delete includeemptydirs="true">
+            <fileset dir="build" includes="**/*"/>
+        </delete>
+
+        <!-- 删除文件目录树 -->
+        <deltree dir="dist"/>
+    </target>
+
+    <!-- 移动文件、目录 -->
+    <target name="moveDir">
+        <move file="fromfile.txt" tofile="tofile.txt"/> <!-- 移动单个文件 -->
+        <move file="fromfile.txt" todir="movedir"/> <!-- 移动单个文件到另一个目录 -->
+        <!-- 移动某个目录到另一个目录 -->
+        <move todir="newdir">
+            <fileset dir="olddir">
+                <include name="**/*.jar"/>
+                <exclude name="**/ant.jar"/>
+            </fileset>
+        </move>
+    </target>
+
+    <!-- 重命名 -->
+    <target name="reName">
+        <rename src="foo.jar" dest="ant-${version}.jar"/>
+    </target>
+
+    <!-- 建立临时文件 -->
+    <target name="reName">
+        <!-- 在目录 build 下, 建立文件名为 temp.file, 后缀为.xml 的文件 -->
+        <tempfile property="temp.file" destDir="build" suffix=".xml"/>
+    </target>
+
+    <!-- Touch -->
+    <target name="touchFile">
+        <!-- 如果文件不存在, 创建文件, 如果存在, 更改最后访问时间为当前系统时间 -->
+        <touch file="myfile"/>
+        <!-- 如果文件不存在,创建文件, 更改最后访问时间为 06/28/2000 2:02 pm -->
+        <touch file="myfile" datetime="06/28/2000 2:02 pm"/>
+        <!-- 更改目录下所有文件最后访问时间为 06/28/2000 2:02 pm  -->
+        <touch datetime="09/10/1974 4:30 pm">
+            <fileset dir="src_dir"/>
+        </touch>
+    </target>
+    <!-- ################## 文件、目录 操作 end ################## -->
+
+
+    <target name="echoLog">
+        <!-- echo 标签, 根据日志或监控器的级别输出信息,其属性如下：
+            message : 输出的内容。
+            file : 输出的 log 文件名称。
+            append :
+            level :  -->
+        <echo message="Hello,Amigo"/> <!-- 直接屏幕输出 -->
+        <echo>Hello,Amigo</echo> <!-- 上面语句的第二种写法 -->
+　　    <echo message="Hello,Amigo" file="logs/system.log" append="true"/> <!-- 输出到log文件 -->
+        <!-- 输出一段 xml -->
+        <echoxml file="subbuild.xml">
+            <project default="foo">
+                <target name="foo">
+                    <echo>foo</echo>
+                </target>
+            </project>
+        </echoxml>
+
+        <!-- exec 标签, 执行相关命令 -->
+        <exec executable="sh" failonerror="true" os="Linux">
+            <arg line='-c "./check.sh"' />
+        </exec>
+
+        <!-- aviliable 标签, 查看相关资源是否存在, property 将结果注册, 在别处可以使用 -->
+        <available classname="javax.servlet.http.HttpSessionEvent" property="fff">
+            <classpath refid="lujing"></classpath>
+        </available>
+
+        <!-- fail 标签, 强制 Ant 退出 -->
+        <fail unless="fff" message="成功"/>
+
+        <!-- uptodate 标签, 用于配置属性 -->
+
+        <!-- tstamp 标签, 完成后可以使用 ${DSTAMP} ${TSTAMP} 得到当前时间 -->
+
+        <!-- 引入一个 xml 文件 -->
+        <import file="../common-targets.xml"/>
+
+    </target>
+
+    <!--
+        把变量抽离出来, 写到一个配置文件里面, 而且一个文件还可以写多个变量.
+        如下,文件“all.properties”里面写上3个变量:
+        src1=D:\\study\\ant\\src1
+        src2=D:\\study\\ant\\src2
+        src3=D:\\study\\ant\\src3
+    -->
+    <property file="all.properties" />
+    <!-- 下面可以直接用配置文件里面的多个变量 -->
+    <target name="run2">
+       <ant dir="${src1}" target="run2" />
+       <ant dir="${src2}" target="run2" />
+       <ant dir="${src3}" target="run2" />
+    </target>
+
+</project>
+
+
+
+
+引入其它的 xml 文件:
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- 引入其它的xml文件,里面可以写 property 和 target, 这个xml可以直接调用引入的内容。一般用来引入公用文件  -->
+<!DOCTYPE project [
+    <!ENTITY share-variable SYSTEM "file:../include.xml">
+]>
+
+<!-- 项目的开始 -->
+<project name="HelloWorld" default="run" basedir=".">
+    <!-- 使用引入的内容 -->
+    &share-variable;
+
+    <!-- 项目的其它内容 -->
+    <property name="hello_jar" value="hello1.jar"/>
+    <target name="init">
+       <mkdir dir="${com.dest}"/>
+    </target>
+</project>
+
+
+
+使用远程的cvs, 可以这样使用
+<?xml version="1.0" encoding="utf-8" ?>
+<project>
+    <property name="cvsroot" value=":pserver:wang:@192.168.1.2:/cvsroot"/>
+    <property name="basedir" value="/tmp/testant/"/>
+    <property name="cvs.password" value="wang"/>
+    <property name="cvs.passfile" value="${basedir}/ant.cvspass"/>
+    <target name="initpass">
+        <cvspass cvsroot="${cvsroot}" password="${cvs.password}" passfile="${cvs.passfile}"/>
+    </target>
+    <target name="checkout" depends="initpass">
+        <cvs cvsroot="${cvsroot}" command="checkout" cvsrsh="ssh"
+        package="myproject" dest="${basedir}" passfile="${cvs.passfile}"/>
+    </target>
+</project>
+
+

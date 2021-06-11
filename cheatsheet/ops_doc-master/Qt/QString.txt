@@ -1,0 +1,663 @@
+http://www.kuqin.com/qtdocument/qstring.html
+
+字符     字符序列   字符序列链
+QChar -> QString -> QStringList
+         QTextStream 
+            
+QByteArray -> QString
+  QByteArray encodedString = "xxx";
+  QTextCodec *codec = QTextCodec::codecForName("KOI8-R");
+  QString string = codec->toUnicode(encodedString);
+
+
+QString("%1+%2+ser").arg(str).arg(long); //连接或转换字符串
+QString::number(N, M);                   //N代表要转换的数字，M代表进制  
+const wchar_t * encodedName = reinterpret_cast<const wchar_t *>(fileName.utf16()); //QString to wchar_t    
+QString str1= QString::fromWCharArray(szMsg);  //wchar_t* to QString 
+
+const char * tmp = str.toUtf8().constData(); //QString to char *  
+QStirng str2(tr("Please try again later.")); //char* to QString
+
+
+if (myString == QLatin1String("dbzhang800"))  # 推荐
+if (myString == "dbzhang800")                 # 不推荐
+    下列代码也无法通过编译。
+QString s = "China";
+QString s2("China");
+
+ QLatin1Literal与QLatin1String的最大区别是：它在构造时直接获取字符串的长度，而QLatin1String只保存一个指针。
+
+1. 构造函数
+QString ()
+QString ( QChar ch )
+QString ( const QString & s )
+QString ( const QByteArray & ba )
+QString ( const QChar * unicode, uint length )
+QString ( const char * str )
+
+QString 类是 Qt 中用于表示字符串的类，实现在 QtCore 共享库中。QString 类在实现上有以下特征。
+1）字符串采用 Unicode 内部编码，可以表示世界上大多数语言的文字。
+2）字符串的存储有引用计数，当一个 QString 对象被复制为另一个 QString 对象时，它们实际上指向相同的存储空间，仅仅是增加一个引用计数。
+3）采用"按需复制"的技术，当指向相同存储空间的多个 QString 对象中的一个要被修改时，将真正复制一个新的字符串并进行修改。
+
+1. 构造
+    QString 类提供了很多不同原型的构造函数以方便使用。如：
+    Qstring();                              // 构造空字符串
+    QString(QChar ch);                      // 由 QChar 对象 ch构造
+    QString(const QChar *pch, int size);    // 由 QChar 数组pch构造，size 是数组大小
+    QString(const QString &obj);            // 拷贝构造函数
+    QString(const char *str);               //  由字符串 str 构造，str是一个普通字符串
+注意: 由于存在这些构造函数，凡是可以用 QString 类作为参数的地方，都可以安全地使用 QChar 对象或普通的字符串。
+2. 判断 
+    可以用下面的成员函数判断 QString 对象是否为空字符串：
+    bool isEmpty() const;    // 判断是否为空字符串
+3. 转换
+    QString 类提供了很多函数用于将字符串转换为数值，如：
+    double toDouble(bool *ok = 0) const;                 // 转换为高精度浮点数
+    float toFloat(bool *ok = 0) cosnt;                   // 转换为浮点数
+    int toInt(bool *ok, int base = 10) const;            // 转换为整型数
+    long toLong(bool *ok, int base = 10) cosnt;          // 转换为长整型
+    short toShort(bool *ok, int base = 10) const;        // 转换为短整型
+    uint toUInt(bool *ok = 0; int base = 10) const       // 转换为无符号整型数
+    ulong toLong(bool *ok = 0, int base = 10) const;     // 转换为无符号长整型数 
+    ushort toUShort(bool *ok = 0, int base = 10) const;  // 转换为无符号短整型数
+    这些函数能够解析 QString 对象的内容，将其转换为相应的数值。其中 ok 参数指向一个 bool 型变量， 
+这个参数用于输出转换是否成功的信息。base参数则是转换为整数类型时的基。这些函数都不会改变 QString 对象自身。
+注意： 当字符串以 0x开头时，转换的基自动转换为16， 当字符串以0开头时，转换的基自动为8。
+
+4. 下面这些成员函数可以将一个数值转换为字符串并设为 QString 对象的值：
+    QString &setNum(int n, int base = 10);                                    // 整型数
+    QString &setNum(uint n, int base = 10);                                   // 无符号整型数
+    QString &setNum(long n, int base = 10);                                   // 长整型
+    QString &setNum(ulong n, int base = 10);                                  // 无符号长整型数
+    QString &setNum(short n, int base = 10);                                  // 短整型数
+    QString &setNum(ushort n, int base = 10);                                 // 无符号短整型数
+    QString &setNum(double n, char format = 'g', int precision = 6);          // 高精度浮点数
+    QString &setNum(float n, char format = 'g', int precision = 6);           // 浮点数
+    将浮点数转换为字符串时，format 参数指定转化格式，precision 参数指定转换结果的精度，即有效数组的个数。
+    注意这些函数会改变 QString 对象本身的值，而以下的函数则采用了不同的做法，它们返回一个新的临时对象以供使用：
+    
+    QString number(int n, int base = 10);
+    QString number(uint n, int base = 10);
+    QString number(long n, int base = 10);
+    QString number(ulong n ,int base = 10);
+    QString number(double n, char format = 'q', int precision = 6);
+
+
+       这些函数都是静态成员函数，因而与某个具体的对象无关，可以直接通过类名调用。
+    
+
+QString类提供了一个Unicode文本和经典的C以零结尾的字符数组的抽象。
+QString使用隐含共享，这使它非常有效率并且很容易使用。
+
+    [const char*]
+    所有的QString的方法都使用const char *参数，const char *被解释为经典的C风格的以零结尾的ASCII字符串。
+所以const char *参数为0是合法的。
+1. 如果const char *不是以零结尾的，结果是不确定的。把经典的C字符串复制到QString的函数将不会复制结尾的0字符。
+2. QString的QChar数组(可以通过unicode()返回)通常不以零结尾。
+3. 如果你需要把QString传递到一个需要C的以零结尾的字符串，请使用latin1()。
+
+    [零和空字符串]
+    没有分配任何东西的QString是零，也就是长度和数据指针都为0。引用空字符串("，一个单一的'\0'字符")的QString是空。
+零和空这两个QString在方法中都是合法的。
+    把(const char *) 0赋值给QString给定了一个零QString。为了方便，QString::null是一个零QString。
+当排序的时候，空字符串在最前面，然后是非空字符串，然后才是零字符串。我们建议使用if ( !str.isNull() )，
+而不是if ( !str )来检测非零字符串，
+
+    [QCString,QString,QByteArray]
+    注意如果你发现你正在混合使用QCString、QString和QByteArray，这将会导致很多不必要的复制并且
+也许会预示着你正在处理的真实自然数据是不确定的。
+    如果数据是以零结尾的八位数据，请使用QCString；
+    如果它是没有结尾的(也就是包含0)八位数据，请使用QByteArray；
+    如果它是文本，请使用QString。
+    
+    [QStringList]
+    字符串列表可以使用QStringList类来处理。
+  可以使用QStringList::split()来把一个字符串分割为一个字符串列表，
+  可以使用QStringList::join()把一个字符串列表连接成一个使用随意间隔符的字符串。
+  可以使用QStringList::grep()从一个字符串列表中获得包含特定子字符串或者包含匹配特定的regex的字符串列表。
+  
+    [C程序员的注意事项]
+    由于C++的类型系统和QString是隐含共享的事实，QString也许会被看做整型或者其它简单基本类型。例如：
+    QString boolToString( bool b )
+    {
+        QString result;
+        if ( b )
+            result = "True";
+        else
+            result = "False";
+        return result;
+    }
+    变量result是一个分配在栈中的自动变量。当return被调用时，因为我们正在返回值，复制构造函数被调用并且这个字符串的一个复制被返回。
+    (我们要感谢隐含共享，没有实际的复制发生，请看下面。)
+    
+    在Qt的源代码中，你将会遇到想这样的QString的用法：
+    QString func( const QString& input )
+    {
+        QString output = input;
+        // 处理输出
+        return output;
+    }
+    从input到output的“复制”几乎和复制指针一样快，因为后面的场景复制是通过增加引用计数器来实现的。QString操作是基于写时复制的，
+只有在实例发生实际改变时，才会被复制。
+
+如果你想不丢失任何Unicode信息的情况下创建一个QString的深度复制，那么你应该使用QString中用QChar*作为参数的构造函数。例如：
+    QString a("abcd");
+    QString b( a.unicode(), b.length() );
+另外，使用QString中用const char*参数的构造函数就足够了。例如：
+    QString a("abcd");
+    QString b( a.latin1() );
+    
+
+https://qtguide.ustclug.org/
+key: C++ 基本类型和 QString 的互相转换、
+key: QString 涉及的运算符、
+key: QString 子串查询和操作、
+key: 利用 QTextStream 对 QString 做输入输出操作等
+
+1. QString 定义和QChar定义
+----------------------
+   QString 是由一系列 16 bit 字符 QChar 组成的字符串，以 NULL 字符结尾(末尾的 NULL 不计入字符串长度)。
+   QChar 是一个 Unicode 4.0 标准的字符，对于超过 16bit 范围的国际码字符，QString 里采用相邻的一对 QChar 来表示。
+   QString 使用的其实是 UTF-16 的双字节编码，tr 函数就是将 UTF-8 变长编码的字符串转成 QString 运行时的内码。
+    UTF-8 编码是属于通用的存储交换格式，但这种编码的缺点就是一个字符的长度不固定，这对字符串操作效率是有影响的，
+因为得先确定每个字符的长度。因此 QString 采用固定长度字符单元的 UTF-16 编码，这对程序运行时字符串比较、查询操作效率更高。
+    utf16() 和 unicode() 函数都没有用 to 前缀，因为这两个函数没有做转换，它们返回的就是 QString  运行时的内码，同 data() 函数。
+   tr 函数不仅可以用于支持国际化翻译，并且能自动将字符串的存储交换格式 UTF-8 转换成运行时的 UTF-16 内码，
+返回转换过后得到的 QString 对象。
+    QString 内码是 UTF-16，而标准 C++ 的字符串是 UTF-8 编码的，Qt 针对标准 C++ 字符串也提供了 QByteArray 类，
+用于操作 UTF-8 编码以及其他本地化字符串(如 GBK、Big5)、字节数组(不以 NULL 结尾的纯数据)等.
+
+2. 基本类型与字符串互相转换
+----------------------
+   在编程时经常会出现把数值如 800 转成字符串 "800"，或者反过来把字符串转成数值等情况，
+   展示这些基本类型和 QString 对象的互相转换，并编写一些测试函数来示范效果
+基本类型与字符串互相转换
+基本类型            Qt别称              转入函数     转出函数     描述                                       
+short               qint16              arg或setNum  toShort      2 字节长度，有符号短整型。                         
+unsigned short      ushort、quint16     arg或setNum  toUShort     2 字节长度，无符号短整型。 
+int                 qint32              arg或setNum  toInt        4 字节长度，有符号整型。                                   
+unsigned int        uint、quint32       arg或setNum  toUInt       4 字节长度，无符号整型。                   
+long                无                  arg或setNum  toLong       有符号长整型，对于 32 位编程 long 是 4 字节长度，对于 64 位编程是 8 字节长度。
+unsigned long       ulong               arg或setNum  toULong      无符号长整型，对于 32 位编程 unsigned long 是 4 字节长度，对于 64 位编程是 8 字节长度。
+long long           qlonglong、qint64   arg或setNum  toLongLong   8 字节长度，有符号长长整型。
+unsigned long long  qulonglong、quint64 arg或setNum  toULongLong  8 字节长度，无符号长长整型。
+float               默认情况下无        arg或setNum  toFloat      4 字节长度，单精度浮点数。                 
+double              默认情况对应 qreal  arg或setNum  toDouble     8 字节长度，双精度浮点数。 
+   这些基本的数值类型转为 QString 对象都是使用重载的 arg 或 setNum 函数，而 QString 对象转出为其他类型使用单独命名的函数。
+   Qt 对这些类型的别称都定义在头文件 <QtGlobal> 里面，由于其他绝大多数 Qt 头文件都包含了该全局头文件，所以通常不需要自己手动去包含它的。
+    对于上表需要说明的两点：
+   一是 long 和 ulong 长度是根据操作系统和编译器确定的，32 位编程就是 32 位，64 位编程就是 64 位；
+   二是实数 qreal 默认情况下都是对应 double ，例外情况是在编译 Qt 类库本身时配置了 -qreal float 选项参数，这种例外情况极少，
+   
+2.1 对于整数类型，
+----------------------
+   QString & QString::​setNum(int n, int base = 10)
+     第一个参数就是需要转换的整数，
+     第二个参数是转换之后的目标字符串进制基数，比如转成十六进制字符串、八进制字符串等，默认是转成十进制的字符串。
+   setNum 函数设置好字符串内容后返回 QString 对象自身的引用。
+   
+2.2 对于浮点数类型
+----------------------
+   QString & QString::​setNum(double n, char format = 'g', int precision = 6)
+     第一个参数是需要转换的浮点数，
+     第二个是转换之后的目标字符串格式('e', 'E', 'f', 'g' , 'G')，
+     第三个是目标字符串显示的浮点数精度，默认是 6 。
+       'e'：科学计数法，小写 e，如 [-]9.9e[±]999。
+       'E'：科学计数法，大写 E，如 [-]9.9E[±]999。
+       'f'：定点数显示，[-]9.9。
+       'g'：自动选择用科学计数法或定点数显示，哪种方式最简洁就用哪个，科学计数法的 e 小写。
+       'G'：自动选择用科学计数法或定点数显示，哪种方式最简洁就用哪个，科学计数法的 E 大写。
+       
+void Test_setNum()
+{
+    QString strTest;
+    //to Hex string
+    short numHex = 127;
+    strTest.setNum(numHex, 16);
+    qDebug()<<"Hex: "<<strTest;                      Hex:  "7f" 
+    //to Oct string
+    int numOct = 63;
+    strTest.setNum(numOct, 8);
+    qDebug()<<"Oct: "<<strTest;                      Oct:  "77" 
+    //to normal Dec string
+    long numDec = 800;
+    strTest.setNum(numDec);
+    qDebug()<<"Normal: "<<strTest;                   Normal:  "800" 
+    //to float string
+    float numFixed = 123.78999;
+    strTest.setNum(numFixed, 'f', 3);
+    qDebug()<<"Fixed: "<<strTest;                    Fixed:  "123.790"
+    //to scientific double string
+    double numScientific = 456.78999;
+    strTest.setNum(numScientific, 'e', 6);
+    qDebug()<<"Scientific: "<<strTest;               Scientific:  "4.567900e+02"
+}
+
+QString & setNum ( short n, int base = 10 )
+QString & setNum ( ushort n, int base = 10 )
+QString & setNum ( int n, int base = 10 )
+QString & setNum ( uint n, int base = 10 )
+QString & setNum ( long n, int base = 10 )
+QString & setNum ( ulong n, int base = 10 )
+QString & setNum ( float n, char f = 'g', int prec = 6 )
+QString & setNum ( double n, char f = 'g', int prec = 6 )
+
+2.3 arg 函数
+----------------------
+  arg 函数无所不包，它的参数可以是数值类型、字符串类型，并且可以串联，格式化参数里还可以指定顺序、重复使用参数等等。
+  对于数值类型，它的声明与 setNum 比较类似，以 int 和 double 为例：
+    QString arg(int a, int fieldWidth = 0, int base = 10, QChar fillChar = QLatin1Char( ' ' )) const
+    QString arg(double a, int fieldWidth = 0, char format = 'g', int precision = -1, QChar fillChar = QLatin1Char( ' ' )) const
+    注意 arg 函数声明末尾的 const，这个函数不会改变字符串对象本身的内容，而是会返回一个全新的 QString 对象，
+所以使用这个函数时，必须用它的返回值。
+    对于整数类型，它的声明多出来两个：fieldWidth 是指生成的目标字符串宽度，0 表示自动设置长度，最后的 fillChar 是填充字符，
+如果设置的域宽比较大，多余的空位就会使用这个填充字符填满。
+    对于浮点数类型，多出来的 fieldWidth 也是生成的目标字符串宽度，fillChar 也是填充字符。默认的填充字符是空格，
+QLatin1Char 代表一个字节长度的拉丁字符，与 ASCII 码字符差不多。
+    QLatin1Char 有对应的类 QLatin1String，因为仅支持单字节拉丁字符，不支持国际化，它应用的比较少。
+   
+   arg 函数比 setNum 函数功能更强大，可以设置目标字符串宽度和填充字符。
+arg 函数还可以用字符串作为参数，可以将一个字符串填充到另一个里面
+    QString arg(const QString & a, int fieldWidth = 0, QChar fillChar = QLatin1Char( ' ' )) const
+void Test_arg()
+{
+    //使用 strResult 存储 arg 返回的新对象
+    QString strResult;
+    //Dec
+    long numDec = 800;
+    QString strMod = QObject::tr("Normal: %1");   
+    strResult = strMod.arg(numDec);               //%1是占位符，第一个arg函数参数变量转后的字符串填充到 %1 位置                                 
+    qDebug()<<"Mod: "<<strMod<<" \t Result: "<<strResult; // Mod:  "Normal: %1"   Result:  "Normal: 800" 
+    //Oct
+    int numOct = 63;
+    strResult = QObject::tr("Oct: %1").arg(numOct, 4, 8, QChar('0'));  //numOct转换后为4字符域宽，8进制，填充0                     
+    qDebug()<<strResult;                                  // "Oct: 0077" 
+    //Hex
+    short numHex = 127;
+    QString strPrefix = QObject::tr("0x");
+    //占位符里可填充数值转的字符串，也可以直接填充原有的字符串
+    strResult = QObject::tr("Hex: %1%2").arg(strPrefix).arg(numHex, 0, 16);  //串联：第一个arg函数参数填充到%1，第二个arg填充到%2  
+    qDebug()<<strResult;                                  // "Hex: 0x7f" 
+    //double
+    double numReal = 123.78999;
+    strResult = QObject::tr("Fixed: %1 \t Scientific: %2").arg(numReal, 0, 'f').arg(numReal, 0, 'e', 3);                           
+    qDebug()<<strResult;                                 // "Fixed: 123.789990 	 Scientific: 1.238e+02"
+    //占位符可重复，也可乱序
+    int one = 1;
+    int two = 2;
+    int three = 3;
+    strResult = QObject::tr("%1 小于 %2，%1 小于 %3，%3 大于 %2 。").arg(one).arg(two).arg(three);                                 
+    qDebug()<<strResult;                                 // "1 小于 2???1 小于 3???3 大于 2" 
+}
+
+    QString 里有非常多的重载 arg 函数，每个 arg 函数对应一个类型，因此 %1 既可以填充数值类型转化后的格式化字符串，
+也可以填充其他原有的字符串。
+    long numDec = 800;
+    QString strMod = QObject::tr("Normal: %1");
+    strResult = strMod.arg(numDec);  //%1是占位符，第一个arg函数参数变量转后的字符串填充到 %1 位置
+    qDebug()<<"Mod: "<<strMod<<" \t Result: "<<strResult;
+
+2.4 toInt toDouble
+----------------------
+  int QString::​toInt(bool * ok = 0, int base = 10) const
+    第一个参数 ok 接收一个 bool 变量的指针，用于反馈转换过程是否成功，
+    第二个参数 base 是字符串对象里数字的进制基数，默认的 10 代表十进制，也可以设置二进制、八进制和十六进制等等。
+      如果将 base 设置为 0，那么 toInt 函数将自动识别字符串对象里面的进制标识,对于 "0" 打头的自动按八进制转换，
+ 对于 "0x" 打头的自动按十六进制转换，其他情况都按十进制转换。
+    如果转换出错，ok 指向的变量会设置为 false，返回值为 0 。
+    
+  double QString::​toDouble(bool * ok = 0) const
+    这个不能指定进制基数，都是十进制的，支持定点数字符串和浮点数字符串转成数值。
+    参数 ok 接收一个 bool 变量的指针，用于反馈转换过程是否成功。
+    如果转换失败，ok 指向的变量会设置为 false，返回值为 0。
+void Test_toValue()
+{
+    bool bok = false;
+    //dec
+    QString strDec = QObject::tr("800");
+    int nDec = strDec.toInt(&bok, 10);
+    qDebug()<<nDec<<"\t"<<bok;       //成功       800 	 true
+    //Hex
+    QString strHex = QObject::tr("FFFF");
+    nDec = strHex.toInt(&bok, 10);  //基数错误，转换失败
+    qDebug()<<nDec<<"\t"<<bok;                    0 	 false 
+    short nHexShort = strHex.toShort(&bok, 16);
+    qDebug()<<nHexShort<<"\t"<<bok; //FFFF正整数太大，超出范围，转换失败，没有负号 - 的都算正数。 0 	 false 
+    ushort nHexUShort = strHex.toUShort(&bok, 16);
+    qDebug()<<nHexUShort<<"\t"<<bok;//成功        //65535 	 true
+    //自动转换
+    QString strOct = QObject::tr("0077");
+    int nOct = strOct.toInt(&bok, 0);
+    qDebug()<<nOct<<"\t"<<bok;  //字符 0 打头自动按八进制转 63 	 true 
+    QString strHexWithPre = QObject::tr("0xFFFF");
+    int nHexWithPre = strHexWithPre.toInt(&bok, 0);
+    qDebug()<<nHexWithPre<<"\t"<<bok;   //字符 0x 打头自动按十六进制转 65535 	 true 
+    int nDecAuto = strDec.toInt(&bok, 0);   //"800" ，自动按十进制     800 	 true 
+    qDebug()<<nDecAuto<<"\t"<<bok;
+    //浮点数转换
+    QString strFixed = QObject::tr("123.78999");
+    double dblFixed = strFixed.toDouble(&bok);
+    qDebug()<<fixed<<dblFixed<<"\t"<<bok;      // 123.789990 	 true 
+    //科学计数法
+    QString strScientific = QObject::tr("1.238e-5");
+    double dblScientific = strScientific.toDouble(&bok); // 1.238000e-05 	 true 
+    qDebug()<<scientific<<dblScientific<<"\t"<<bok;
+}
+
+QString arg ( long a, int fieldwidth = 0, int base = 10 ) const
+QString arg ( ulong a, int fieldwidth = 0, int base = 10 ) const
+QString arg ( int a, int fieldwidth = 0, int base = 10 ) const
+QString arg ( uint a, int fieldwidth = 0, int base = 10 ) const
+QString arg ( short a, int fieldwidth = 0, int base = 10 ) const
+QString arg ( ushort a, int fieldwidth = 0, int base = 10 ) const
+QString arg ( char a, int fieldwidth = 0 ) const
+QString arg ( QChar a, int fieldwidth = 0 ) const
+QString arg ( const QString & a, int fieldwidth = 0 ) const
+QString arg ( double a, int fieldwidth = 0, char fmt = 'g', int prec = -1 ) const
+QString & sprintf ( const char * cformat, ... )
+从一个格式化字符串cformat和一个任意的参数列表安全地构建一个格式化的字符串。
+%s转义序列希望一个utf8()编码字符串。格式化字符串cformat希望是一个Latin1的。
+如果你需要一个Unicode格式字符串，使用arg()来替代。
+
+为了完全支持Unicode的类型安全的字符串构建，你可以像这样使用QTextOStream：
+    QString str;
+    QString s = ...;
+    int x = ...;
+    QTextOStream( &str ) << s << " : " << x;
+    
+QString::latin1 ()
+    返回字符串的Latin-1表述。注意如果字符串包含非Latin-1字符，返回值是不确定的。
+如果你想把字符串转化为Unicode以为的格式，请参考QTextCodec类。
+
+arg 函数比 setNum 函数功能更强大，可以设置目标字符串宽度和填充字符。
+
+2.5 字符串运算符
+----------------------
+operator         描述
+=        赋值运算符，遵循隐式共享规则，在赋值的两个对象有变化时才真正复制数据块。                                           
++=       追加。将运算符左边和右边字符串拼接后，赋值给左边对象。                                                             
+<        小于号。左边字符串字典序比右边的靠前时，表达式为真。                                                               
+<=       小于等于。左边字符串字典序比右边的靠前或相同时，表达式为真。                                                       
+==       等于。二者字典序是一致的时候为真。
+!=       不等于。二者字典序不一样的时候为真。
+>        大于。左边字符串字典序比右边的靠后时，表达式为真。
+>=       大于等于。左边字符串字典序比右边的靠后或相同时，表达式为真。                                                       
+[]       类似数组取数的中括号，从指定位置取出 QChar 字符，另外还可以修改指定位置的 QChar 字符。                             
++        拼接。这是个友元函数，将两个字符串拼接后返回全新的字符串对象。  
+
+void Test_operator()
+{
+    // =
+    QString strE1, strE2, strE3;
+    strE1 = QObject::tr("abcd");
+    strE2 = strE1;
+    strE3 = strE2;
+    //打印数据指针
+    qDebug()<<strE1.data_ptr()<<"\t"<<strE2.data_ptr()<<"\t"<<strE3.data_ptr(); // 0x163b1f0 	 0x163b1f0 	 0x163b1f0 
+    //改变字符串，追加
+    strE2.append( QObject::tr("1234") );
+    //再次打印数据指针，谁修改了数据，谁的数据指针就变
+    qDebug()<<strE1.data_ptr()<<"\t"<<strE2.data_ptr()<<"\t"<<strE3.data_ptr(); // 0x163b1f0 	 0x163b280 	 0x163b1f0 
+    // += 和 append 函数类似
+    strE3 += QObject::tr("1234");
+    qDebug()<<strE2<<"\t"<<strE3; //"abcd1234" 	 "abcd1234" 
+    //比较 1 vs 2
+    qDebug()<<"strE1 < strE2: "<<(strE1 < strE2);    // strE1 < strE2:  true 
+    qDebug()<<"strE1 <= strE2: "<<(strE1 <= strE2);  // strE1 <= strE2:  true 
+    qDebug()<<"strE1 == strE2: "<<(strE1 == strE2);  // strE1 == strE2:  false 
+    qDebug()<<"strE1 != strE2: "<<(strE1 != strE2);  // strE1 != strE2:  true 
+    //2 vs 3
+    qDebug()<<"strE2 > strE3"<<(strE2 > strE3);      // strE2 > strE3 false 
+    qDebug()<<"strE2 >= strE3"<<(strE2 >= strE3);    // strE2 >= strE3 true 
+    qDebug()<<"strE2 == strE3"<<(strE2 == strE3);    // strE2 == strE3 true 
+    //类似数组取数
+    qDebug()<<strE1[0];                              // 'a' 
+    strE1[0] = QChar('?');  //修改
+    qDebug()<<strE1;                                 // "?bcd" 
+    //拼接
+    QString strPlus;
+    strPlus = strE1 + strE2 + strE3;
+    qDebug()<<strPlus;                               // "?bcdabcd1234abcd1234" 
+}
+
+
+3. 子串查询与操作
+----------------------
+    QString & append(const QString & str)
+append 追加子串到字符串尾部。
+    QString & prepend(const QString & str)
+prepend 将子串加到字符串头部。
+
+    bool startsWith(const QString & s, Qt::CaseSensitivity cs = Qt::CaseSensitive) const
+startsWith 判断字符串（如 "abcd"）是否以某个子串（如 s 是 "ab"）打头，cs 指判断时大小写是否敏感 ，返回 bool。
+    bool endsWith(const QString & s, Qt::CaseSensitivity cs = Qt::CaseSensitive) const
+endsWith 判断字符串（如 "abcd"）是否以某个子串（如 s 是 "cd"）结尾，cs 指判断时大小写是否敏感，返回 bool。
+    bool contains(const QString & str, Qt::CaseSensitivity cs = Qt::CaseSensitive) const
+contains 判断字符串对象里是否包含子串 str ，参数 cs 指判断时大小写是否敏感，后面函数的 cs 都是一个意思，不重复说了。
+    int count(const QString & str, Qt::CaseSensitivity cs = Qt::CaseSensitive) const
+count 对字符串对象里子串 str 出现的次数做统计，返回出现次数，如果没出现就返回 0。
+    int indexOf(const QString & str, int from = 0, Qt::CaseSensitivity cs = Qt::CaseSensitive) const
+indexOf 从 from 指定的序号开始查询子串 str，返回查到的第一个 str 子串起始位置序号。查不到就返回 -1 。
+    int lastIndexOf(const QString & str, int from = -1, Qt::CaseSensitivity cs = Qt::CaseSensitive) const
+lastIndexOf 默认从字符串尾部开始向前查询，设置 from 之后，从 from 开始的位置向前查询子串 str，返回最先匹配的 str 子串起始位置序号（搜索区间 0 ~ from ，子串起始序号最接近 from）。查不到就返回 -1 。
+    
+    QString & insert(int position, const QString & str)
+insert 是将子串 str 插入到 position 序号位置，子串 str 插入后的起始序号就是 position 。
+    QString & remove(int position, int n)
+remove 从 position 开始的位置移除掉 n 个字符，如果 n 比 position 位置开始的子串长度大，后面的就会被全部移除。
+    QString & remove(const QString & str, Qt::CaseSensitivity cs = Qt::CaseSensitive)
+这个重载的 remove 函数将匹配的所有子串 str 都从字符串里面移除掉，拿来消除空格之类的字符比较好使。
+    QString & replace(int position, int n, const QString & after)
+replace 将从 position 序号开始的 n 个字符的子串替换成 after 字符串。
+    QString & replace(const QString & before, const QString & after, Qt::CaseSensitivity cs = Qt::CaseSensitive)
+这个重载的 replace 将字符串里出现的所有子串 before 全部替换为新的 after。
+    QStringList split(QChar sep, SplitBehavior behavior = KeepEmptyParts, Qt::CaseSensitivity cs = Qt::CaseSensitive) const
+    QStringList split(const QString & sep, SplitBehavior behavior = KeepEmptyParts, Qt::CaseSensitivity cs = Qt::CaseSensitive) const
+split 用字符或子串 sep 切分当前字符串内容，然后将切分的所有子串以 QStringList 列表形式返回，可以从返回的列表提取各个子串。behavior 是分隔模式，是否保留空白字符区域等。
+    QString section(QChar sep, int start, int end = -1, SectionFlags flags = SectionDefault) const
+    QString section(const QString & sep, int start, int end = -1, SectionFlags flags = SectionDefault) const
+section 函数首先将字符串按照字符或子串 sep 分成段落，类似 split 划分，但 section 只返回第 start 段到第 end 段之间的内容。如果没指定 end 就一直包含到最后。flags 参数影响划分行为，如大小写敏感、是否忽略空白区域等。
+    QString left(int n) const
+left 返回字符串左边 n 个字符构成的子串。
+    QString right(int n) const
+right 返回字符串右边 n 个字符构成的子串。 
+    QString mid(int position, int n = -1) const
+mid 返回从 position 位置开始的 n 个字符构成的子串。不设置 n 的话就包含到末尾。
+    QString & fill(QChar ch, int size = -1)
+fill 用字符 ch 填充当前字符串，如果不指定 size ，就把所有的字符都填成 ch 字符。如果指定正数 size，字符串长度被重置为 size 大小，里面依然全是 ch 字符。
+    QString repeated(int times) const
+将当前字符串重复拼接 times 次数，返回新的重复串。
+    QString trimmed() const
+trimmed 剔除字符串头部和尾部的空白字符，包括 '\t', '\n', '\v', '\f', '\r', ' '  。 字符串中间的空白不处理。
+    QString simplified() const
+simplified 剔除字符串里出现的所有空白字符，包括 '\t', '\n', '\v', '\f', '\r', ' '  。 两端和中间的都剔除。
+    void truncate(int position)
+truncate 是从 position 序号开始截断字符串，只保留 0 ~ position-1 位置的字符串，position 位置被设为 NULL，后面的全移除。
+
+void Test_substring()
+{
+    QString strOne = QObject::tr("abcd");
+    QString strThree = strOne.repeated(3); //abcd 重复三次
+    qDebug()<<strThree.isEmpty();   //是否为空                       false
+    qDebug()<<strThree.length()<<"\t"<<strThree.size(); //都是长度   12 	 12 
+    qDebug()<<strThree;                                            // "abcdabcdabcd"
+    //子串查询
+    qDebug()<<strThree.contains(strOne);    //是否包含               true
+    qDebug()<<strThree.count(strOne);       //包含几个               3
+    qDebug()<<strThree.startsWith(strOne);  //打头的子串             true
+    qDebug()<<strThree.indexOf(strOne);     //左边开始的子串位置     0
+    qDebug()<<strThree.lastIndexOf(strOne); //右边开始的子串位置     8
+    //剔除两端的空白
+    QString strComplexFileName = QObject::tr("   /home/user/somefile.txt  \t\t ");
+    QString strFileName = strComplexFileName.trimmed();
+    qDebug()<<strFileName;                             // "/home/user/somefile.txt"
+    if(strFileName.endsWith( QObject::tr(".txt") ))
+    {
+        qDebug()<<"This is a .txt file";              // This is a .txt file 
+    }
+    //分隔子串
+    QStringList subsList = strFileName.split(QChar('/'));
+    for(int i=0; i<subsList.length(); i++)  //打印各个子串
+    {
+        qDebug()<<i<<"\t"<<subsList[i];              // 
+    }
+// 0 	 "" 
+// 1 	 "home" 
+// 2 	 "user" 
+// 3 	 "somefile.txt" 
+    //获取段落
+    QString subsections = strFileName.section(QChar('/'), 2, 3);
+    qDebug()<<subsections;             // "user/somefile.txt" 
+}
+
+
+4. QTextStream配合字符串使用
+qDebug() 有流操作子 fixed 和 scientific，这是调试输出流。对于控制台输入输出流、文件流、内存流，Qt 统一用强大的 QTextStream 来支持
+
+void Test_QTextStream()
+{
+    //内存输出流
+    QString strOut;
+    QTextStream streamOut(&strOut);
+    //打印多种进制数字
+    streamOut<<800<<endl;
+    streamOut<<hex<<127<<endl;
+    streamOut<<oct<<63<<endl;
+    //还原为十进制
+    streamOut<<dec;
+    //设置域宽和填充字符
+    streamOut<<qSetFieldWidth(8)<<qSetPadChar('0')<<800;
+    //还原默认域宽和填充
+    streamOut<<qSetFieldWidth(0)<<qSetPadChar(' ')<<endl;
+    //设置精度
+    streamOut<<qSetRealNumberPrecision(3)<<fixed<<123.789999<<endl;                                                                
+    streamOut<<qSetRealNumberPrecision(6)<<scientific<<123.789999<<endl;                                                           
+    //打印字符串和数字混搭
+    streamOut<<QObject::tr("7*7 == ")<<7*7<<endl;
+    //显示现在的字符串对象
+    qDebug()<<strOut;         
+    /* "800
+7f
+77
+00000800
+123.790
+1.237900e+02
+7*7 == 49
+"  */
+    //内存输入流
+    QString strIn = QObject::tr("800  abcd  123.789999");
+    QTextStream streamIn(&strIn);
+    int numDec = 0;
+    QString strSub;
+    double dblReal = 0.0;
+    //输入到变量里
+    streamIn>>numDec>>strSub>>dblReal;
+    //显示
+    qDebug()<<numDec;                        // 800 
+    qDebug()<<strSub;                        // "abcd"  
+    qDebug()<<fixed<<dblReal;   //定点数显示 // 123.789999  
+}
+
+append() 和 prepend() 
+-----------------  append() 在字符串的后面添加字符串，prepend() 在字符串的前面添加字符串
+QString str1="卖"，str2="拐";
+QString str3=str1;
+str1.append (str2) ; //str1="卖拐"
+str3.prepend (str2) ; //str3="拐卖"
+
+
+toUpper() 和 toLower()
+----------------- toUpper() 将字符串内的字母全部转换为大写形式，toLower() 将字母全部转换为小写形式
+QString str1="Hello, World", str2;
+str2=str1.toUpper(); //str1="HELLO,WORLD"
+str2=str1.toLower(); //str1="hello, world"
+
+count()、size() 和 length()
+----------------- count()、size() 和 length() 都返回字符串的字符个数，这 3 个函数是相同的，但是要注意，字符串中如果有汉字，一个汉字算一个字符。
+QString str1="NI 好"
+N=str1.count()  //N=3
+N=str1.size() //N=3
+N=str1.length() //N=3
+
+trimmed() 和 simplified()
+----------------- trimmed() 去掉字符串首尾的空格，simplified() 不仅去掉首尾的空格，中间连续的空格也用一个空格替换
+QString str1=" Are you OK? ", str2;
+str2=str1.trimmed () ; //str1="Are you OK? "
+str2=str1.simplified(); //str1="Are you OK?"
+
+indexOf () 和 lastIndexOf ()
+-----------------
+indexOf() 函数的原型为：
+int indexOf (const QString &str, int from = 0 , Qt::CaseSensitivity cs = Qt::CaseSensitive) const
+其功能是在自身字符串内查找参数字符串 str 出现的位置，参数 from 是幵始查找的位置，Qt::CaseSensitivity cs 参数指定是否区分大小写。
+lastIndexOf() 函数则是查找某个字符串最后出现的位置。
+
+QString str1="G:\Qt5Book\QT5.9Study\qw.cpp";
+N=str1.indexOf("5.9");  // N=13
+N=str1.lastIndexOf("\\"); //N=21
+提示，"\" 是转义字符，如果要查找 "\"，需要输入 "\\"。
+
+
+isNull() 和 isEmpty()
+-----------------
+两个函数都判读字符串是否为空，但是稍有差别。如果一个空字符串，只有“\0”，isNull() 返回 false，而 isEmpty() 返回 true；只有未赋值的字符串，isNull() 才返回 true。
+QString str1, str2="";
+N=str1.isNull () ; // N=true 未赋值字符串变量
+N=str2.isNull () ; // N=false 只有"\0"的字符串，也不是 Null
+N=str1.isEmpty(); // N=true
+N=str2.isEmpty(); // N=true
+QString 只要赋值，就在字符串的末尾自动加上 "\0"，所以，如果只是要判断字符串内容是否为空，常用 isEmpty()。
+
+
+contains()
+----------------- 判断字符串内是否包含某个字符串，可指定是否区分大小写。
+    QString str1="G:\Qt5Book\QT5.9Study\qw.cpp";
+    N=str1.contains (".cpp", Qt::CaseInsensitive) ; // N=true,不区分大小写
+    N=str1.contains (".CPP", Qt::CaseSensitive) ;  // N=false,区分大小写
+
+endsWith() 和 startsWith()
+----------------- startsWith() 判断是否以某个字符串幵头，endsWith() 判断是否以某个字符串结束。
+    QString str1=MG:\Qt5Book\QT5.9Study\qw.cpp";
+    N=str1.endsWith (".cpp", Qt::CaseInsensitive) ; // N=true，不区分大小写
+    N=str1.endsWith (".CPP", Qt::CaseSensitive) ; // N=false，区分大小写
+    N=str1.startsWith ("g: ") ; // N=true，缺省为不区分大小写
+
+left() 和 right()
+----------------- left 表示从字符串中取左边多少个字符，right 表示从字符串中取右边多少个字符。注意，一个汉字被当作一个字符。
+    QString str2, str1="学生姓名,男,1984-3-4,汉族,山东";
+    N=str1.indexOf (",") ; // N=4，第一个","出现的位置
+    str2=str1.left (N) ; //str2="学生姓名"
+    N=str1.lastIndexOf (",") ; // N=18，最后一个逗号的位置
+    str2=str1.right (str1.size()-N-1); //str2=”山东"，提取最后一个逗号之后的字符串
+
+section()
+section() 函数的原型为：
+QString section (const QString &sep, int start, int end = -1, SectionFlags flags = SectionDefault) const
+----------------- 其功能是从字符串中提取以 sep 作为分隔符，从 start 端到 end 端的字符串。
+
+    QString str2, str1="学生姓名,男,1984-3-4,汉族,山东";
+    str2=str1.section (",",0,0); // str2="学生姓名"， 第 1 段的编号为 0
+    str2=str1.section (",",1,1}; // str2="男"
+    str2=str1.section (",",0,1}; // str2="学生姓名，男"
+    str2=str1.section (",",4,4); // str2="山东"
+QString 还有很多功能函数没有在此介绍，在使用中如果遇到，可查询 Qt 的帮助文件。
+
+从数值到字符串
+---------
+str=QString::number(total,'f',2);
+str=QString::asprintf ("%.2f", total);
+str=str.setNum(total,'f',2);
+str=str.sprintf ("%.2f，total);
+
+
+将一个整数转换为不同进制的字符串，可以使用 QString 的函数 setNum() 或静态函数 number()，它们的函数原型是：
+Qstring &setNum (int n, int base = 10)
+QString number (int n, int base = 10)
+
+str=str.setNum (val, 16); //十六进制
+str=str.setNum (val, 2) ; //二进制
+
+int val=str.tolnt (&ok, 2) ; //以二进制数读入
+int val=str.toInt (&ok);     //缺省为十进制
+str=QString::number(val, 16);//转换为十六进制的字符串

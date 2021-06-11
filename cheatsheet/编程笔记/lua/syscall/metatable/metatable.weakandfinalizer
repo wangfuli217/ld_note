@@ -1,0 +1,107 @@
+print('https://blog.csdn.net/zh379835552/article/details/38420177')
+
+--[[
+1. Weak Table允许回收程序依旧在使用的对象，而finalizer则允许回收garbage collector没有完全或者说直接控制到的对象。
+2. garbage collector只会回收那些确定为garbage的对象，但是它推断不出用户认为哪些变量是garbage。
+   lua中任何全局变量都不会是garbage，尽管程序没有再使用过这些变量Lua也不会自动回收。
+   全局变量在不使用的时候赋值为nil，这时系统才会自动回收内存。
+3. 有的时候仅仅是清除了相关的引用是不够的，
+   我们需要做的仅是将新的对象插入到collection中，但是一旦我们这些对象成为了collection的一部分便再也不会被collected了。
+   Lua并不知道这样的引用不能去阻止Lua对对象的回收，除非用户告诉Lua？
+   --> Weak table就是用来告知Lua某个引用不能去阻止Lua对某个对象的回收的机制 <--
+   --> 一个weak reference就是对一个garbage collector没有管理的对象的引用    <--
+4. weak table会有三种类型：key是weak而value不是；value是weak的而key不是；key和value都是weak的。
+   不管weak table是何种类型，只要key或者value被回收了那么整个table里面的内容都会被回收掉。
+--]]
+
+--[[
+__mode 赋予了table的弱特性，该方法的值类型为string类型。
+       当值为"k",表示key是weak的；
+       当值为"v",表示value是weak的；
+       当值为"kv",则表示key和value都是weak的。
+--]]
+
+a = {}
+--此时表示key为weak
+b = { __mode = "k"}
+setmetatable(a,b)
+key = {}
+a[key] = 1
+key = {}          -- 对key的第二次赋值重写了key第一次复制时的引用，
+a[key] = 2
+collectgarbage()  -- 进行内存回收时将第一次赋值的key回收了，而第二次赋值的没有.. 这里的key是一个table，是一个对象所以可以被回收。
+
+for k,v in pairs(a) do
+     print(v)     -- 2 
+end
+
+--[[
+1. 要注意的是只能从weak table回收对象，而对于如numbers和booleans等变量，则不能回收。
+2. 即假如我们以一个number作为tablekey，那么collector将不会移除这个key，
+   当然当table的value是weak的，不管key是否是weak亦不管key的类型是不是对象，
+   当value被回收了整个table里面的元素都会被移除了。
+3. 如果key是string类型这里需要特殊考虑：尽管string是可回收的，从实现角度看，其不像其余可回收的对象。
+   像table和thread都是明确的创建的，如我们写a = {},就明确的创建了一个table。
+   然而，"a" .. "b" 此时会创建一个string型变量嘛？假如此时系统中已经存在一个"ab"了怎么办？lua会继续创建一个嘛？
+   编译器会在运行程序前就创建一个string型变量嘛？从程序员角度来看，string是变量而不是对象。
+   因此，和number或boolean一样，string也不会从weak table中移除(除非value是weak的)。
+--]]
+
+--------------------------------------------------------------------------------
+-- Memoize Functions
+--[[
+1. 能通过记住该函数的运算结果进而提升一个函数的运行效率，效率体现在当用同一个参数调用该函数的时候，直接返回已经记住的结果。
+
+--]]
+
+local results = {}
+setmetatable(results,{__mode = "v"})  --表示此时table中的value是weak的
+function mem_loadstring( s )
+     local res = results[s]           --从table中访问该参数
+     if res == nil then               --如果该table中没有该值
+          res = assert(load(s))       
+          results[s] = res            --将该值存入table中，下次访问的时候直接返回该值
+     end
+     return res
+end
+
+local results = {}
+setmetatable(results,{__mode = "v"})
+function createRGB( r,g,b )
+     local key = r .. "-" .. g .."-" b           --保持key的唯一性
+     local color = results[key]
+     if color == nil then
+          color = {red = r,green = g,blue = b}
+          results[key] = color
+     end
+     return color
+end
+--[[
+这样就保证每次以同参数创建的table都是同一个。引入了这一机制后，用户也可以直接
+比较通过两个color了，假如是同参数创建的那么就是同一个table，此时比较是相等的。
+否则就一定是不相等的。
+]]
+
+--------------------------------------------------------------------------------
+-- Object Attributes
+--[[
+1. 另一个使用到了weak table的地方是将对象与其属性向关联起来。很多时候我们都需要将一些属性附加至对象上：
+   函数的名字，table的默认值，数组的大小等等。
+2. 当对象是table的时候，我们可以将这些属性以一个特殊的key存储在自身这个table里面。如我们前文所采用的，
+   最简单又是最唯一的key就是创建一个新的对象(通常是一个table)。但是当对象不是table的时候，这些属性就
+   不能存储在自身，这个时候我们就需要采取别的方法来实现我们的要求了。
+3. 用额外的一个table使对象与其属性绑定起来，以对象为key，其属性为value。这个table将保存所有类型对象的属性，
+   这也带来了困扰---不能回收这些对象了，因为这些对象被以key来使用。此时我们就需要引入weak key机制，使用
+   weak key是考虑到，使用weak key不会影响系统回收那些没有被引用的对象；而从另一方面来考虑，如果是使用
+   weak value，一旦value被回收了，与之相关联的对象也会被回收，这是我们不期望的。
+
+--]]
+
+--------------------------------------------------------------------------------
+-- Revisiting Tables with Default Values
+
+--------------------------------------------------------------------------------
+-- Ephemeron Tables
+
+--------------------------------------------------------------------------------
+-- Finalizers

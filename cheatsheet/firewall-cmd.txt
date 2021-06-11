@@ -1,0 +1,59 @@
+    firewalld 是用于 Linux 操作系统的防火墙管理工具。它通过名为 nftables 的用户空间工具
+为 Linux 内核的 netfilter 框架充当前端管理工具，其作为 nft 命令行程序的替代，从而提供 防火墙特性。
+
+    firewalld 是 CentOS 7.0 新推出的管理 netfilter 的工具 : firewalld 是配置和监控防火墙规则的系统守护进程。
+可以实 iptables,ip6tables, : arptables,ebtables 的功能 : firewalld 服务由 firewalld 包提供 : firewalld 
+支持划分区域 zone,每个 zone 可以设置独立的防火墙规则
+    
+
+firewalld zone 分类
+zone 名称     默认配置
+trusted       允许所有流量
+home          拒绝除和传出流量相关的，以及 ssh,mdsn,ipp-client,samba-client,dhcpv6-client 预定义服务之外其它所有传入流量
+internal      和 home 相同
+work          拒绝除和传出流量相关的，以及 ssh,ipp-client,dhcpv6-client 预定义服务之外的其 所有传入流量
+public        拒绝除和传出流量相关的，以及 ssh,dhcpv6-client 预定义服务之外的其它所有传入流量，新加的网卡默认属于 public zone
+externa       拒绝除和传出流量相关的，以及 ssh 预定义服务之外的其它所有传入流量，属于 external zone 的传出 ipv4 流量的源地址将被伪装为传出网卡的地址。
+dmz           拒绝除和传出流量相关的，以及 ssh 预定义服务之外的其它所有传入流量
+block         拒绝除和传出流量相关的所有传入流量
+drop          拒绝除和传出流量相关的所有传入流量（甚至不以 ICMP 错误进行回应）
+
+
+
+预定义的服务
+服务名称        配置
+ssh             Local SSH server. Traffic to 22/tcp
+dhcpv6-client   Local DHCPv6 client. Traffic to 546/udp on the fe80::/64 IPv6 network
+ipp-client      Local IPP printing. Traffic to 631/udp.
+samba-client    Local Windows file and print sharing client. Traffic to 137/udp and 138/udp.
+mdns            Multicast DNS (mDNS) local-link name resolution. Traffic to 5353/udp to the
+
+
+firewalld 预定义服务配置 firewall-cmd --get-services 查看预定义服务列表 /usr/lib/firewalld/services/\*.xml 预定义服务的配置
+
+firewalld 三种配置方法 firewall-config (firewall-config 包) 图形工具 
+                       firewall-cmd  (firewalld 包) 命令行工具 
+                       /etc/firewalld 配置文件，一般不建议
+
+用法 firewall-cmd [OPTIONS...]
+    选项
+--get-zones  列出所有可用区域
+--get-default-zone 查询默认区域
+--set-default-zone= 设置默认区域
+--get-active-zones 列出当前正使用的区域
+--add-source=[--zone=] 添加源地址的流量到指定区域，如果无--zone= 选项，使用默认区域
+--remove-source= [--zone=] 从指定区域删除源地址的流量，如无--zone= 选项，使用默认区域
+--add-interface=[--zone=] 添加来自于指定接口的流量到特定区域，如果无--zone= 选项，使用默认区域
+--change-interface=[--zone=] 改变指定接口至新的区域，如果无--zone= 选项，使用默认区域
+--add-service= [--zone=] 允许服务的流量通过，如果无--zone= 选项，使用默认区域
+--add-port=<PORT/PROTOCOL>[--zone=] 允许指定端口和协议的流量，如果无--zone= 选项，使用默认区域
+--remove-service= [--zone=] 从区域中删除指定服务，禁止该服务流量，如果无--zone= 选项，使用认区域
+--remove-port=<PORT/PROTOCOL>[--zone=] 从区域中删除指定端口和协议，禁止该端口的流量，如果无--zone= 选项，使用默认区域
+--reload 删除当前运行时配置，应用加载永久配置
+--list-services  查看开放的服务
+--list-ports   查看开放的端口
+--list-all [--zone=]  列出指定区域的所有配置信息，包括接口，源地址，端口，服务等，如果无--zone=选项，使用默认区域
+
+
+
+

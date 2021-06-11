@@ -1,0 +1,1 @@
+cmd_/root/rtu/otdr/crosstool/网蜂A8实战演练/led.ko.unsigned := ld -r -m elf_x86_64 -T /usr/src/kernels/2.6.32-279.el6.x86_64/scripts/module-common.lds --build-id -o /root/rtu/otdr/crosstool/网蜂A8实战演练/led.ko.unsigned /root/rtu/otdr/crosstool/网蜂A8实战演练/led.o /root/rtu/otdr/crosstool/网蜂A8实战演练/led.mod.o 

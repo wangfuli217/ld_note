@@ -1,0 +1,321 @@
+cat - <<'EOF'
+echo "40 7 * * 2 /root/sh">>/var/spool/cron/root    # 直接将命令写入周期任务
+crontab -l                                          # 查看自动周期性任务
+crontab -u username -l 
+crontab -u   # 设定某个用户的cron服务，一般root用户在执行这个命令的时候需要此参数
+crontab -r                                          # 删除自动周期性任务
+crontab -r -u username   #删除某用户名下的定时任务,此命令需要以root用户身份执行
+
+cron.deny和cron.allow                               # 禁止或允许用户使用周期任务
+at.deny和at.allow                                   # 禁止或允许用户使用定时任务
+
+01 * * * * root run-parts /etc/cron.hourly  # 每小时执行/etc/cron.hourly内的脚本
+02 4 * * * root run-parts /etc/cron.daily   # 每天执行/etc/cron.daily内的脚本
+22 4 * * 0 root run-parts /etc/cron.weekly  # 每星期执行/etc/cron.weekly内的脚本
+42 4 1 * * root run-parts /etc/cron.monthly # 每月去执行/etc/cron.monthly内的脚本
+大家注意"run-parts"这个参数了，如果去掉这个参数的话，后面就可以写要运行的某个脚本名，而不是文件夹名了。
+
+系统级别crontab,需要root或者类似权限的系统服务和重要任务使用.第六个字段为用户名
+用户级别crontab,用户使用crontab命令来安装属于他们自己的定时任务,第六个字段为需要运行的命令
+EOF
+
+crontab_i_command(){ cat - <<'EOF'
+    crontab -l      (list user's crontab)
+    crontab -r      (delete user's crontab)
+    crontab -e      (edit user's crontab)  
+    
+crontab进行周期工作调度,其由cron服务支持。
+与at用户限制类似,crontab也会限制执行的用户,crontab会去查找/etc/cron.allow与/etc/cron.deny这两个文件,
+如果这两个文件不存在,我们可自行创建,文件写入的用户名会被限制(一般只保留cron.deny)
+
+对执行crontab命令的用户进行限制,当一个用户执行crontab,crontab会在/var/spool/cron/crontabs
+(Ubuntu)创建一个同用户名的文件,来记录用户的周期工作.
+CentOS会在/var/spool/cron目录下创建同用户名的记录文件.
+
+   * * * * * 要执行的命令
+   ----------------------
+   | | | | |
+   | | | | ------- 周当中的某一天 (0-7) 周日为0或7
+   | | | --------- 月份(1-12)
+   | | ----------- 一个月当中的某天(1-31)
+   | ------------- 小时(0-23)
+   --------------- 分钟(0-59)
+操作符允许你为一个字段指定多个值,这里有三个操作符可以使用，
+    *星号(*)     #此操作符为字段指定所有可用的值.例如在小时字段中，一个 * 等同于每个小时；在月份字段中 一个 * 则等同于每月 
+    *逗号 (,)     #这个操作符指定一个包含多个值的列表.例如：1，5，10，15，20，25 
+    *横杠 (-)     #此操作符号指定一个值的范围，例如 5-15 等同于使用逗号操作符键入的5,6,7,8,...,13,14,15 
+    *分割符 (/)   #此操作符指定了一个步进值. 例如：0-23/ 可以用于小时字段来指定某个命令每小时执行一次,步进值也可以跟在 * 操作符后边.如果你希望命令行每2小时执行一次，则可以用*/2. 
+使用特殊字符来节省时间:
+    特殊字符        含义
+    @reboot        在每次启动时运行一次
+    @yearly        每年运行一次,等同与"0 0 1 1 *"
+    @annually      同 @yearly 
+    @monthly       每月运行一次,等同于"0 0 1 * *"
+    @weekly        每周运行一次,等同于"0 0 * * 0"
+    @daily         每天运行一次,等同于"0 0 * * *"
+    @midnight      同@daily 
+    @hourly        每小时运行一次,等同于"0 * * * *"
+eg. @hourly /path/to/ntpdate 
+　　f1 f2 f3 f4 f5 program 
+
+　　其中 f1 是表示分钟,f2 表示小时,f3 表示一个月份中的第几日,f4 表示月份,f5 表示一个星期中的第几天。program 表示要执行的程式。 
+　　当 f1 为 * 时表示每分钟都要执行 program,f2 为 * 时表示每小时都要执行程式,其余类推 
+　　当 f1 为 a-b 时表示从第 a 分钟到第 b 分钟这段时间内要执行,f2 为 a-b 时表示从第 a 到第 b 小时都要执行,其余类推 
+　　当 f1 为 */n 时表示每 n 分钟个时间间隔执行一次,f2 为 */n 表示每 n 小时个时间间隔执行一次,其余类推 
+　　当 f1 为 a, b, c,... 时表示第 a, b, c,... 分钟要执行,f2 为 a, b, c,... 时表示第 a, b, c...个小时要执行,其余类推 
+EOF
+}
+
+crontab_i_command_e(){ cat - <<'EOF'
+    vim /etc/crontab
+
+        SHELL=/bin/sh
+        PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+        MAILTO=root
+        HOME=/
+
+        mm hh dd MMM JJJ [user] command
+
+RULES
+    * * * * *    [user]    command to execute
+    - - - - -
+    | | | | |
+    | | | | + - - - day of week (0-6 ; sunday=0)
+    | | | + - - - - month (1-12)
+    | | + - - - - - day of month (1-31)
+    | + - - - - - - hour (0-23)
+    + - - - - - - - minute (0-59)
+
+    Example:
+        alarm clock set to 6:30AM
+        30 6 * * * /home/nano/alarm
+        
+crontab文件的格式：
+minute    hour    day    month    weekday    username     command
+
+minute：分，值为0-59
+hour：小时，值为1-23
+day：天，值为1-31
+month：月，值为1-12
+weekday：星期，值为0-6（0代表星期天，1代表星期一，以此类推）
+username：要执行程序的用户，一般设置为root
+command：要执行的程序路径（设置为绝对路径）例如：/home/www.osyunwei.com/osyunwei.sh
+EOF
+}
+
+crontab_tt_command(){ cat - <<'EOF'
+crontab [ -u user ] file
+crontab [ -u user ] { -l | -r | -e }
+crontab 是用来让使用者在固定时间或固定间隔执行程式之用,换句话说,也就是类似使用者的时程表。-u user 是指设定指定 user 的时程表,
+这个前提是你必须要有其权限(比如说是 root)才能够指定他人的时程表。如果不使用 -u user 的话,就是表示设定自己的时程表。 
+　　
+  使用者也可以将所有的设定先存放在档案 file 中,用 crontab file 的方式来设定时程表。 
+  例子:
+  0 7 * * * /bin/ls  #每月每天每小时的第 0 分钟执行一次 /bin/ls:
+  0 6-12/3 * 12 * /usr/bin/backup  #在 12 月内, 每天的早上 6 点到 12 点中,每隔 20 分钟执行一次 /usr/bin/backup:
+  0 17 * * 1-5 mail -s "hi" alex@domain.name < /tmp/maildata  #周一到周五每天下午 5:00 寄一封信给 alex@domain.name:
+  20 0-23/2 * * * echo "haha" #每月每天的午夜 0 点 20 分, 2 点 20 分, 4 点 20 分....执行 echo "haha" 
+  
+  30 21 * * * /apps/bin/cleanup.sh #21:30运行/apps/bin目录下的cleanup.sh。
+  45 4 1,10,22 * * /apps/bin/backup.sh #每月1,10,22日的4:45运行/apps/bin目录下的backup.sh。
+  10 1 * * 6,0 /bin/find -name "core" -exec rm {} \; #每周六、周日的1 : 1 0运行一个f i n d命令。
+  0,30 18-23 * * * /apps/bin/dbcheck.sh  #每天18:00至23:00之间每隔30分钟运行/apps/bin目录下的dbcheck.sh。
+  0 23 * * 6 /apps/bin/qtrend.sh #每星期六的11:00pm运行/apps/bin目录下的qtrend.sh。
+  
+  30 21 * * * /usr/local/etc/rc.d/lighttpd restart #上面的例子表示每晚的21:30重启apache。
+  45 4 1,10,22 * * /usr/local/etc/rc.d/lighttpd restart #上面的例子表示每月1、10、22日的4 : 45重启apache。
+  10 1 * * 6,0 /usr/local/etc/rc.d/lighttpd restart #上面的例子表示每周六、周日的1 : 10重启apache。
+  0,30 18-23 * * * /usr/local/etc/rc.d/lighttpd restart #上面的例子表示在每天18 : 00至23 : 00之间每隔30分钟重启apache。
+  0 23 * * 6 /usr/local/etc/rc.d/lighttpd restart #上面的例子表示每星期六的11 : 00 pm重启apache。
+  * */1 * * * /usr/local/etc/rc.d/lighttpd restart #每一小时重启apache
+  * 23-7/1 * * * /usr/local/etc/rc.d/lighttpd restart #晚上11点到早上7点之间，每隔一小时重启apache
+  0 11 4 * mon-wed /usr/local/etc/rc.d/lighttpd restart #每月的4号与每周一到周三的11点重启apache
+  0 4 1 jan * /usr/local/etc/rc.d/lighttpd restart #一月一号的4点重启apache
+EOF
+}
+
+crontab_t_command(){ cat - <<'EOF'
+1、每天6:00执行
+0 6 * * * root /home/www.osyunwei.com/osyunwei.sh
+
+2、每周六凌晨4:00执行
+0 4 * * 6 root /home/www.osyunwei.com/osyunwei.sh
+
+3、每周六凌晨4:05执行
+5 4 * * 6 root /home/www.osyunwei.com/osyunwei.sh 
+
+4、每周六凌晨4:15执行
+15 4 * * 6 root /home/www.osyunwei.com/osyunwei.sh
+
+5、每周六凌晨4:25执行
+25 4 * * 6 root /home/www.osyunwei.com/osyunwei.sh
+
+6、每周六凌晨4:35执行
+35 4 * * 6 root /home/www.osyunwei.com/osyunwei.sh
+
+7、每周六凌晨5:00执行
+5 * * 6 root /home/www.osyunwei.com/osyunwei.sh
+
+8、每天8:40执行
+40 8 * * * root /home/www.osyunwei.com/osyunwei.sh
+
+9、每天8:30执行
+30 8 * * * root /home/www.osyunwei.com/osyunwei.sh
+
+10、每周一到周五的11:41开始，每隔10分钟执行一次
+41,51 11 * * 1-5   root /home/www.osyunwei.com/osyunwei.sh
+1-59/10 12-23 * * 1-5   root /home/www.osyunwei.com/osyunwei.sh
+
+11、在每天的10:31开始，每隔2小时重复一次
+31 10-23/2 * * * root   /home/www.osyunwei.com/osyunwei.sh
+
+12、每天15:00执行
+0 15 * * *  root /home/www.osyunwei.com/osyunwei.sh
+
+13、每天的10:30开始，每隔2小时重复一次
+30 10-23/2 * * * root  /home/www.osyunwei.com/osyunwei.sh
+
+14、每天15:30执行
+30 15 * * *  root /home/www.osyunwei.com/osyunwei.sh
+
+15、每天17:50执行
+50 17 * * *  root /home/www.osyunwei.com/osyunwei.sh
+
+16、每天8:00执行
+0 8 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+
+17、每天18:00执行
+0 18 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+
+18、每天8:30执行
+30 8 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+
+19、每天20:30
+30 20 * * *  root /home/www.osyunwei.com/osyunwei.sh
+
+20、每周一到周五2:00
+0 2 * * 1-5 root /home/www.osyunwei.com/osyunwei.sh
+
+21、每周一到周五9:30
+30 9 * * 1-5 root /home/www.osyunwei.com/osyunwei.sh
+
+22、每周一到周五8:00，每周一到周五9:00
+0 8,9 * * 1-5  root /home/www.osyunwei.com/osyunwei.sh
+
+23、每天23:59
+59 23 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+
+24、每周六23:59
+59 23 * * 6  root    /home/www.osyunwei.com/osyunwei.sh
+
+25、每天0:30
+30 0 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+
+26、每周一到周五9:25到11:35之间、13:00到15:00之间，每隔10分钟运行一次
+25,35,45,55  9 * * 1-5  root   /home/www.osyunwei.com/osyunwei.sh
+5-59/10  10 * * 1-5  root   /home/www.osyunwei.com/osyunwei.sh
+5,15,25,35  11 * * 1-5  root   /home/www.osyunwei.com/osyunwei.sh
+*/10  13-15 * * 1-5  root   /home/www.osyunwei.com/osyunwei.sh
+
+27、每周一到周五8:30、8:50、9:30、10:00、10:30、11:00、11:30、13:30、14:00、14:30、5:00分别执行一次
+30,50 8 * * 1-5  root  /home/www.osyunwei.com/osyunwei.sh
+30 9 * * 1-5  root  /home/www.osyunwei.com/osyunwei.sh
+*/30 10-11 * * 1-5  root  /home/www.osyunwei.com/osyunwei.sh
+30 13 * * 1-5  root  /home/www.osyunwei.com/osyunwei.sh
+0,30 14-15 * * 1-5  root  /home/www.osyunwei.com/osyunwei.sh
+
+28、每天23:50执行
+50 23 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+
+29、每天10:00、16:00执行
+0 10,16 * * *  root /home/www.osyunwei.com/osyunwei.sh
+
+30、每天5:30执行
+30 5 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+
+31、每周一到周五9:30执行
+30 9 * * 1-5  root  /home/www.osyunwei.com/osyunwei.sh
+
+32、每周一到周五13:00执行
+0 13 * * 1-5  root  /home/www.osyunwei.com/osyunwei.sh
+
+33、每天7:51执行
+51 7 * * *  root /home/www.osyunwei.com/osyunwei.sh
+
+34、每天7:53、12:40分别执行一次
+53 7 * * *  root /home/www.osyunwei.com/osyunwei.sh
+40 12 * * *  root /home/www.osyunwei.com/osyunwei.sh
+
+35、每天7:55执行
+55 7 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+
+36、每天8:10、16:00、20:00分别执行一次
+10 8 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+0 16 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+0 20 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+
+37、每天7:57、8:00分别执行一次
+57 7 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+0 8 * * *  root  /home/www.osyunwei.com/osyunwei.sh
+EOF
+}
+
+crontab_i_at(){ cat - <<'EOF'
+使用方式:at -V [-q queue] [-f file] [-mldbv] TIME
+at time: 进行工作调度安排,以[CTRL]+[d]结束工作安排,并返回一个工作编号
+at -l  # 显示当前存在的工作
+at -d  # 工作编号:取消某个工作
+at -c  # 工作编号:显示某个工作具体的执行过程
+
+-q:使用指定的伫列(Queue)来储存,at 的资料是存放在所谓的 queue 中,使用者可以同时使用多个 queue,而 queue 的编号为 a, b, c... z 以及 A, B, ... Z 共 52 个 
+-m:即使程式/指令执行完成后没有输出结果, 也要寄封信给使用者 
+-f file:读入预先写好的命令档。使用者不一定要使用交谈模式来输入,可以先将所有的指定先写入档案后再一次读入 
+-l:列出所有的指定 (使用者也可以直接使用 atq 而不用 at -l) 
+-d:删除指定 (使用者也可以直接使用 atrm 而不用 at -d) 
+-v:列出所有已经完成但尚未删除的指定
+
+at进行单次工作调度,其是一次性的,由atd服务支持；
+/etc/init.d/atd restart；
+chkconfig atd on
+
+at进行工作调度,其是针对执行at命令的用户,我们并不想让所有用户都可以执行at(某些用户可能执行破坏系统的命令),所以我们会限制可at的用户.
+at工作时会区查找/etc/at.allow和/etc/at.deny中限制的用户名单(通常at.allow与at.deny不同时存在)
+1)/etc/at.allow
+当其存在时,只有at.allow中的用户才能执行at
+2)/etc/at.deny
+当/etc/at.allow不存在,at会查找/etc/at.deny,这个文件内的用户都不能执行at
+3)以上两个文件都不存在
+只有root才能执行at
+EOF
+}
+
+crontab_t_at(){ cat - <<'EOF'
+其中time的格式可以有HH:MM HH:MM YYYY-MM-DD 
+                    now + num [minutes| hours | days | weeks]等
+echo "/bin/ls"   | at 5pm + 3 days      # 三天后的下午 5 点锺执行 /bin/ls:
+echo "/bin/ls"   | at 5pm + 2 weeks     # 三个星期后的下午 5 点锺执行 /bin/ls:
+echo "/bin/date" | at 17:20 tomorrow    # 明天的 17:20 执行 /bin/date:
+echo find /etc -name "passwd" -print | at now +1 minute # echo命令向at命令提交作业
+
+at [HH:MM] [yyyy-mm-dd]
+~]# at 12:00 2012-12-21
+at> echo "End of the world"
+# Ctrl+D 结束
+
+    atq ：查询当前设置的at任务列表
+    atrm 编号 ：删除指定任务编号的at任务
+    at -c 编号 ：查看任务内容
+    at $(date "+%H:%M" -d '+2 minute')
+    at $( date "+%H:%M %Y-%m-%d" --date="1 day" )  
+    at $( date "+%H:%M %F" --date="1 day" )  
+    echo "touch hello" |at now +1 minutes
+
+echo "somecommand &" | at 5pm
+echo "somecommand > out.txt 2>err.txt &" | at 5pm
+echo "somecommand &" | at now + 2 minutes
+echo "somecommand &" | at 17:00
+echo "somecommand &" | at 17:00 Jul 7
+echo "somecommand &" | at 4pm 12.03.17
+echo "nohup somecommand > out.txt 2>err.txt &" | at 5pm
+EOF
+}

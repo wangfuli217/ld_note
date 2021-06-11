@@ -1,0 +1,41 @@
+    setjmp 是 C 语言解决 exception 的标准方案。我个人认为，setjmp/longjmp 这组 api 
+的名字没有取好，导致了许多误解。名字体现的是其行为：跳转，却没能反映其功能：
+exception 的抛出和捕获。
+
+    longjmp 从名字上看，叫做长距离跳转。实际上它能做的事情比名字上看起来的要少得多。
+跳转并非从静止状态的代码段的某个点跳转到另一个位置（类似在汇编层次的 jmp 指令做的那样），
+而是在运行态中向前跳转。
+
+    C 语言的运行控制模型，是一个基于栈结构的指令执行序列。表示出来就是 call/return ：
+调用一个函数，然后用 return 指令从一个函数返回。
+
+    setjmp/longjmp实际上是完成的另一种调用返回的模型.setjmp相当于call,longjmp 则是return 。
+    
+    重要的区别在于：setjmp 不具备函数调用那样灵活的入口点定义；而 return 不具备 longjmp 
+那样可以灵活的选择返回点。
+    其次，第一、setjmp 并不负责维护调用栈的数据结构，即，你不必保证运行过程中 setjmp 和
+longjmp 层次上配对。如果需要这种层次，则需要程序员自己维护一个调用栈。这个调用栈往往是
+一个 jmp_buf 的序列；
+    第二、它也不提供调用参数传递的功能，如果你需要，也得自己来实现。
+
+    setjmp 也可以用来模拟 coroutine 。但是会遇到一个难以逾越的难点：正确的 coroutine 
+实现需要为每个 coroutine 配备一个独立的数据栈，这是 setjmp 无法做到的。
+    虽然有一些 C 的 coroutine 库用 setjmp/longjmp 实现。但使用起来都会有一定隐患。
+多半是在单一栈上预留一块空间，然后给另一个 coroutine 运行时覆盖使用。
+    当数据栈溢出时，程序会发生许多怪异的现象，很难排除这种溢出 bug 。要正确的实现 
+coroutine ，还需要 setcontext 库 ，这已经不是 C 语言的标准库了。
+
+在使用 setjmp 时，最常见的一个错误用法就是对 setjmp 做封装，用一个函数去调用它。比如：
+int try(breakpoint bp)
+{
+    return setjmp(bp->jb);
+}
+
+void throw(breakpoint bp)
+{
+    longjmp(bp->jb,1);
+}
+    setjmp 不应该封装在一个函数中。这样写并不讳引起编译错误。但十有八九会引起运行期错误。
+错误的起源在于 longjmp 的跳转返回点，必须在运行流经过并有效的位置。
+    而如果对 setjmp 做过一层函数调用的封装后。上例中的 setjmp 设置的返回点经过 try 
+的调用返回后，已经无效。如果要必要封装的话，应该使用宏。

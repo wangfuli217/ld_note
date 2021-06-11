@@ -1,0 +1,72 @@
+--[=[
+  file:seek()##
+  原型：file:seek ([whence [, offset]])
+  解释：设置和获取当前文件位置,
+        成功则返回最终的文件位置(按字节),
+        失败则返回nil加错误信息，
+        其中参数offset表示偏移的字节数，默认为0，whence是一个描述参数的字符串，一共有下述3中取值：
+        "set"：设置从文件头开始        curpos = file:seek("set", +offset) file:seek("set",0) == file:seek("set")
+        "cur": 设置从当前位置开始[默认]curpos = file:seek("cur", +-offset) file:seek("cur",0) == file:seek("cur")
+        "end": 设置从文件尾开始        curpos = file:seek("end", -offset) file:seek("end",0) == file:seek("end")
+                                       curpos = file:seek() == file:seek("cur") == file:seek("cur",0)
+文件模型会保存当前读写的字符位置.随着read或者write的调用,这个读写点会自动移动.如果要重新读取某一段内容或者覆盖某一段已经存在的内容,就需要移动读写点.
+--]=]
+
+local myfile = io.open("seektest.txt", "w")
+if nil == myfile then
+    print("open file seektest.txt fail")
+end
+
+local beginpos = myfile:seek()
+print("file begin pos = "..beginpos)
+
+local movehundred = myfile:seek("cur", 100)           -- 向后移动100个字节
+print("after move hundred file pos = "..movehundred)
+myfile:write("file end......................")
+
+local moveback = myfile:seek("cur", -95)              -- 回退95个字节，开始输入内容
+print("after move back file pos = "..moveback)
+myfile:write("file begin......................")
+myfile:write("................................")
+
+print("default = "..tostring(myfile:seek()))         -- whence 的默认值是 "cur"， offset 默认为 0 。
+print("cur = "..tostring(myfile:seek("cur")))        -- 调用 file:seek("set") 将位置设为文件开头（并返回 0）
+print("set = "..tostring(myfile:seek("set")))        -- 调用 file:seek("set") 将位置设为文件开头（并返回 0）
+print("end = "..tostring(myfile:seek("end")))        -- 调用 file:seek("end") 将位置设到文件末尾，并返回文件大小。
+
+myfile:seek("set", 20)                                -- 向后移动20字节，插入内容
+myfile:write("\nthis is insert content\n")
+
+myfile:seek("end", -15)                               -- 从后回退15字节插入内容
+myfile:write("\nbingo end")
+
+local curfilesize = myfile:seek("end")                -- 记录此文件大小
+print("cur file size = "..curfilesize)
+
+myfile:seek("end", 10)                                -- 结尾向后扩大10字节插入内容
+myfile:write("test")
+
+local finalfilesize = myfile:seek("end")              -- 记录最终文件大小作比较
+print("final file size = "..finalfilesize)
+
+-- 移动文件指针到开头
+myfile:seek("set")
+myfile:write("haha ")
+myfile:close();
+
+myfile = io.open("seektest.txt", "r")
+-- 读取文件内容
+local content = myfile:read("*a");
+myfile:close();
+
+-- 打印内容
+print("\nfile content is:")
+print(content)
+
+--[[
+1. 不带参数file:seek()则返回当前位置，file:seek("set")则定位到文件头，file:seek("end")则定位到文件尾并返回文件大小。
+2. 参数whence的默认值是"cur"，而参数offset的默认值是0。
+3. 由代码可知参数offset可以是负数表示向前移动。
+4. 分析一下结果中为什么没有输出空白的部分和字符“test”呢，原因是中间有一段是没有内容的，这段内容的默认是我们不知道是什么，因为这是我们直接跳过的，所以在输出时字符串被截断了，导致字符串“test”没有显示出来。
+5. 我借助其他文本工具显示出最后的一段空白字符是NULL，也就是'\0'，这也就解释了为什么最后的“test”内容被截断了。
+--]]

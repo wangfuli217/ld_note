@@ -1,0 +1,109 @@
+# overlayfs 基本概念
+    overlayfs在linux主机上只有两层，一个目录在下层，用来保存镜像(docker)，另外一个目录在上层，用来存储容器信息。
+    在overlayfs中，底层的目录叫做lowerdir，顶层的目录称之为upperdir，对外提供统一的文件系统为merged。
+
+    当需要修改一个文件时，使用CoW将文件从只读的Lower复制到可写的Upper进行修改，结果也保存在Upper层。
+    在镜像(Docker)中，底下的只读层就是image，可写层就是Container
+    
+    在overlayfs中每个镜像层都会在/var/lib/docker/overlay有对应的目录，使用硬链接与底层数据进行关联。
+    
+# overlay中的读写
+    在容器中读取文件
+        (1)目标文件不在容器层内，overlay会从镜像层读取文件，此时，对容器性能的影响很小。
+        (2)目标文件在容器层内，overlay直接从容器层读取。
+        (3)目标文件在容器层和镜像层同时存在，overlay读入容器层中的文件，此时容器层的文件会覆盖镜像层的文件。
+
+    在容器中修改文件
+        在容器中第一次修改文件，此时文件不在容器层中。overlay会把文件从镜像层复制到容器层，所有该文件中的修改都保存在容器层中。
+        注意：overlay工作文件系统层(devicemapper工作再块层面)，因此复制文件会复制整个文件，因此在频繁读写会很消耗资源
+
+        (1)只是在第一次修改文件时，需要把文件从镜像层复制到容器层，后续操作都是在容器层中完成。
+        (2)overlayfs只有两层，lowerdir和upperdir，因此在很深的目录树中，搜索文件会相对比较快
+
+    在容器中删除文件和目录
+        在容器中删除文件时，overlay存储驱动在容器层中新建一个without文件，该文件用语隐藏镜像层中的目标文件。在容器层删除目录时，overlay存储驱动在容器层新建一个opaque目录，该目录用于隐藏镜像层中的目标目录。
+        需要明白的一点是，任何存储驱动都不会删除底层image中的目标文件和目录的。
+
+        
+modprobe overlayfs
+overlayfs挂载后系统文件的page cache是全部共享的。
+
+    # mkdir low upper work
+    # ls
+    low  upper  work
+    # echo 'abs' > low/11.txt
+    # echo 'xuxuebiao' > upper/22.txt
+    # mkdir merged
+    # mount -t overlayfs -olowerdir=./low,upperdir=./upper overlayfs ./merged
+    # ls
+    low  merged  upper  work
+    # cd merged/
+    # ls
+    11.txt  22.txt
+    # ll
+    total 8
+    -rw-r--r--. 1 root root  4 Mar 27 18:57 11.txt
+    -rw-r--r--. 1 root root 10 Mar 27 18:58 22.txt
+    
+    # tree
+    .
+    ├── low
+    │   └── 11.txt
+    ├── merged
+    │   ├── 11.txt
+    │   └── 22.txt
+    ├── upper
+    │   └── 22.txt
+    └── work
+        └── work
+    
+    5 directories, 4 files
+    可以看到，merged目录中时low和upper目录联合的结果
+    
+    
+    分别修改文件：
+    # cat 11.txt
+    abs
+    # cat 22.txt
+    xuxuebiao
+    # vim 11.txt
+    # cat 11.txt
+    Hello ,overlayfs!
+    # cat ../low/11.txt
+    abs
+    # cat ../upper/
+    11.txt   11.txt~  22.txt
+    # cat ../upper/11.txt
+    Hello ,overlayfs!
+    # cat ../upper/11.txt~
+    cat: ../upper/11.txt~: No such device or address
+    # cat ../upper/11.txt
+    11.txt   11.txt~
+    # cat ../upper/11.txt~
+    cat: ../upper/11.txt~: No such device or address
+    
+    可以看到low目录下的文件没有变化，但是upper里面的文件内容已经改变，并且有了一个11.txt~文件
+    
+    
+    # ls -i ../upper/11.txt 11.txt
+    143902921 11.txt  143902921 ../upper/11.txt
+    可以看到upper和merged目录中的两个文件11.txt的inode其实是一致的，其实是硬链接
+    143902921 11.txt  143902918 ../low/11.txt
+    merged目录文件和low目录文件对比
+    
+    
+    删除文件测试：
+    # rm 11.txt
+    rm: remove regular file ‘11.txt’? y
+    # ls
+    ls: cannot access 11.txt: No such file or directory
+    ls: cannot access 11.txt~: No such file or directory
+    11.txt  11.txt~  22.txt
+    
+    # cat ../upper/11.txt~
+    cat: ../upper/11.txt~: No such device or address
+    # ls -l ../upper/11.txt
+    c---------. 1 root root 0, 0 Mar 27 19:08 ../upper/11.txt
+    
+    删除文件后发现文件无法访问，底层变成了一个大小为0，且没有任何人有权限的一个空文件。
+    overlayfs用这种删除标记的方式标识文件被删除，（如果upper中没有该文件的话，则底层low中的同名文件又恢复出来显示了，因此需要有这个空文件来标识删除，并且覆盖底层的文件）

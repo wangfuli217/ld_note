@@ -1,0 +1,93 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include "utlist.h"
+
+typedef struct el {
+    int id;
+    struct el *next, *prev;
+} el;
+
+int main (void) {
+    int i = 0;
+    el els[20], *e, *tmp;
+    el *headA = NULL;
+    el *headB = NULL;
+    for (i = 0; i < 20; i++) {
+        els[i].id = (int) 'a' + i;
+    }
+
+    /*test LL macros */
+    printf ("Dl replace elem\n");
+    LL_APPEND (headA, &els[0]);
+    LL_APPEND (headA, &els[1]);
+    LL_APPEND (headA, &els[2]);
+    LL_APPEND (headA, &els[3]);
+    LL_FOREACH (headA, e) {
+        printf ("%c ", e->id);
+    }
+
+    printf ("\n");
+    /* replace head elem */
+    puts ("replace head index 0 with index 4");
+    LL_REPLACE_ELEM (headA, &els[0], &els[4]);
+    LL_FOREACH (headA, e) {
+        printf ("%c ", e->id);
+    }
+    printf ("\n");
+    puts ("replace head index 4 with index 5");
+    LL_REPLACE_ELEM (headA, &els[4], &els[5]);
+    LL_FOREACH (headA, e) {
+        printf ("%c ", e->id);
+    }
+    printf ("\n");
+
+    /* replace last elem */
+    puts ("replace last index 4 with index 6");
+    LL_REPLACE_ELEM (headA, &els[3], &els[6]);
+    LL_FOREACH (headA, e) {
+        printf ("%c ", e->id);
+    }
+    printf ("\n");
+    puts ("replace last index 6 with index 7");
+    LL_REPLACE_ELEM (headA, &els[6], &els[7]);
+    LL_FOREACH (headA, e) {
+        printf ("%c ", e->id);
+    }
+    printf ("\n");
+
+    /* replace middle elem */
+    puts ("replace middle index 1,2 with index 8,9");
+    LL_REPLACE_ELEM (headA, &els[1], &els[8]);
+    LL_REPLACE_ELEM (headA, &els[2], &els[9]);
+    LL_FOREACH (headA, e) {
+        printf ("%c ", e->id);
+    }
+    printf ("\n");
+
+    /* replace all just to be sure the list is intact... */
+    puts ("replace in FOREACH_SAFE");
+    i = 10;
+    LL_FOREACH_SAFE (headA, e, tmp) {
+        LL_REPLACE_ELEM (headA, e, &els[i]);
+        i++;
+    }
+    LL_FOREACH (headA, e) {
+        printf ("%c ", e->id);
+    }
+    printf ("\n");
+
+    /* single elem */
+    puts ("replace single");
+    LL_APPEND (headB, &els[18]);
+    LL_FOREACH (headB, e) {
+        printf ("%c ", e->id);
+    }
+    printf ("\n");
+    LL_REPLACE_ELEM (headB, &els[18], &els[19]);
+    LL_FOREACH (headB, e) {
+        printf ("%c ", e->id);
+    }
+    printf ("\n");
+
+    return 0;
+}

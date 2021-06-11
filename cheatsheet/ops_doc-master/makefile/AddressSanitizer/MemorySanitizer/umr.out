@@ -1,0 +1,23 @@
+###############################################################################
+Using MemorySanitizer
+###############################################################################
+
+%clang -fsanitize=memory -fPIE -pie -fno-omit-frame-pointer -g -O2 umr.cc
+% ./a.out
+==6726==  WARNING: MemorySanitizer: UMR (uninitialized-memory-read)
+    #0 0x7fd1c2944171 in main umr.cc:6
+    #1 0x7fd1c1d4676c in __libc_start_main /build/buildd/eglibc-2.15/csu/libc-start.c:226
+    
+    
+###############################################################################
+Origins tracking
+###############################################################################
+%clang -fsanitize=memory -fsanitize-memory-track-origins -fPIE -pie -fno-omit-frame-pointer -g -O2 umr.cc
+% ./a.out
+==6726==  WARNING: MemorySanitizer: UMR (uninitialized-memory-read)
+    #0 0x7fd1c2944171 in main umr.cc:6
+    #1 0x7fd1c1d4676c in __libc_start_main /build/buildd/eglibc-2.15/csu/libc-start.c:226
+  ORIGIN: heap allocation:
+    #0 0x7f5872b6a31b in operator new[](unsigned long) msan_new_delete.cc:39
+    #1 0x7f5872b62151 in main umr.cc:4
+    #2 0x7f5871f6476c in __libc_start_main /build/buildd/eglibc-2.15/csu/libc-start.c:226

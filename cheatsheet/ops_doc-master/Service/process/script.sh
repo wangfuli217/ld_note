@@ -1,0 +1,1 @@
+#! ./myecho script-arg

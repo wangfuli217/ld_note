@@ -1,0 +1,160 @@
+os.exit()		--退出lua解释器
+保留标识符"_"作为哑变量使用
+
+以两个连字符(--)开始一个"行注释"
+以"--[["开始,直至"]]"是块注释,通常放入"--[["和"--]]"中间,当重新启用中间代码时,只需要在--[[前加一个-变为---[[
+
+要删除某个变量,只需要赋值为nil
+
+Lua有8种基础类型:nil(空),boolean(布尔),number(数字),string(字符串),userdata(自定义类型),function(函数),thread(线程),table(表)
+函数type可根据一个值返回基类型名称
+
+lua将false和nil作为假,其他作为true,真
+
+字符串需要以一对匹配的单引号或双引号来界定,还可以用一对匹配的双方括号来界定一个字符串,就像写块注释一样,以这种形式表达的字符串可以延伸多行,lua不会解释其中的转义序列,此外,如果字符串的第一个字符是换行字符,那么lua会忽略他
+有时字符串需要包含像a=b[c[i]]这样的内容,这样上一个方法就不适用了,可以在双方括号中间加入任意的"="字符,直到出现匹配的内嵌同样"="的双方括号才算字符串结束,这套机制同样适用于注释
+
+lua提供了运行时数字与字符串的自动转换
+
+..		--字符串连接操作符,当直接在一个数字后面使用他时,必须加一个空格,否则lua会将第一个点当作小数点
+
+tonumber()		--将字符串转作数字,当参数不能正确地表示一个数字时,返回nil
+tostring()		--将数字转成字符串,或者用空字符串与他相连
+
+在Lua5.1中,可以在字符串前放入#获得字符串长度
+
+table类型实现了"关联数组","关联数组"是一种具有特殊索引方式的数组,不仅可以整数来索引它,还可以使用字符串或其他类型的值(除了nil)来索引它,table既不是值也不是变量,而是"对象",没办法声明一个table,table的创建是通过构造表达式完成的,最简单的就是a={},table永远是匿名的,一个持有table的变量与table自身之间没有固定的关联性,当一个程序再也没有对一个table的引用时,lua的垃圾收集器最终会删除该table,并复用它的内存
+语法糖:  a["name"]=a.name
+若days={"Sunday","Monday"...},则dats[1]初始化为字符串"Sunday",以此类推
+若a={x=10,y=20}等价于a={};a.x=10;a.y=20
+在table中,对于数字和字符串的key是按照值来匹配的,但是对于table型的key则是按照id来匹配
+每当Lua评估一个构造式时,都会先创建一个新table,然后初始化它,这样,就能用table写出以下链表代码:
+list=nil
+for line in io.lines() do
+	list={nex=list,value=line}
+end
+
+允许多重赋值
+a,b=10,2*x
+local创建局部变量,访问局部变量会比全局变量更快,也可以避免将一些无用的名称引用全局环境
+
+table.maxn(...)		--返回一个table的最大正索引数,与"#"不同的是,"#"会在碰到第一个nil就停止了,某些情况下会有问题,这是lua5.1的新函数
+
+lua能常以1作为索引的起始值,长度操作符"#"用于返回一个数组或线性表的最后一个索引值
+
+常规算术操作符:
++			--加
+-			--减
+*			--乘
+/			--除
+^			--指数	
+%			--取模	a%b==a-floor(a/b)*b
+-			--负号
+
+关系操作符
+<  >  <=  >=  ==  ~=
+
+对于table,userdata和函数,lua是作引用比较的,也就是说,只有当它们引用同一个对象时,才认为它们相等
+
+逻辑操作符
+and or not
+
+lua操作符优先级,从高到低
+^
+not # -(一元)
+* / %
++ -
+..
+< > <= >= ~= ==
+and 
+or
+在二元操作符中,除了"^"和".."是"右结合"的,所有其他操作符都是"左结合"的
+
+控制语句
+if ... then
+	...
+elseif ... then
+	...
+else
+	...
+end
+
+while ... do
+	...
+end
+
+repeat			
+	...
+until ...	--条件为真时结束循环
+
+--数字型for,var从exp1变化到exp2,每次变化都以exp3作为步长递增var,第三个表达式exp3是可选的,若不指定,lua会将步长默认置1,如果不想给循环设置上限,可以使用常量math.huge,for的三个表达式是在循环开始前一次性求值的,控制变量会被自动声明为for语句的局部变量
+for var=exp1,exp2,exp3 do
+	...
+end
+
+--泛型for,通过一个迭代器来遍历所有值
+for i,v in ipairs(a)		--遍历数组的迭代器函数,在每次循环中,i会被赋予一个索引值,同时v被赋予一个对应于该索引的数组元素值,迭代table元素使用pairs,迭代文件中每行的io.lines,迭代字符串中单词的string.gmatch
+do
+	print(v)
+end	
+
+:	--冒号操作符,表达式o.foo(x)可以写作o:foo(x)
+
+function 函数名(函数形参)		--创建一个函数,return可以返回多个返回值,只要在return后面列出所有返回值即可,"..."表示可以参数数量不受限制,在函数中使用时,也使用"..."
+	...
+end
+
+尾调用消除,当一个函数调用是另一个函数的最后一个动作时,该调用才算是一条尾调用,例:
+function f(x) return g(x) end
+在这种情况下,程序就不需要返回那个"尾调用"所有的函数了,所以在"尾调用"之后,程序也不需要保存任何关于该函数的栈(stack)信息了,这种被称为尾调用消除,在调用以下函数时,传入任何数字都不会造成栈溢出
+function foo(n)
+	if n>0 then return foo(n-1) end
+end
+
+当一个函数内部嵌套另一个函数定义时,内部的函数体可以访问外部函数的局部变量------词法定界
+在Lua中函数和其他值(数值,字符串)一样,函数可以被存放在变量中,也可以被存放在表中,可以作为函数的参数,还可以作为函数的返回值------第一类值
+闭包是一个函数加上它可以正确访问的upvalues(外部的局部变量)
+
+解释型语言的特征不在于他们是否被编译,而是编译器是语言运行时的一部分,所以,执行编译产生的中间码会更快
+coroutine	协同程序
+co=coroutine.create(要运行的函数)	创建新的协同程序
+coroutine.wrap(函数名)				与create不同的是,wrap返回的是函数,不是协同本身
+coroutine.status(co)				检查运行状态 suspended,挂起,died,终止
+coroutine.resume(co)				运行挂起的协同程序
+coroutine.yield()					将正在运行的协同程序挂起
+
+lua_State 中放的是 lua 虚拟机中的环境表、注册表、运行堆栈、虚拟机的上下文等数据。
+ 从一个主线程（特指 lua 虚拟机中的线程，即 coroutine）中创建出来的新的 lua_State 会共享大部分数据，但会拥有一个独立的运行堆栈。所以一个线程对象拥有一个lua_State
+ 
+c调用lua
+luaL_loadfile(lua_State *L,const char* name)	加载name文件时把它当一个lua模块,它内部使用的函数是lua_load去加载名为name的模块,和lua_load一样,只加载,不运行
+int lua_load(lua_State* L, lua_Reader reader, void* data, const char* chunkname);
+     用来加载lua模块。加载如果没有错误，则lua_load将要编译的块当做lua函数压到栈顶，否则，往栈顶压错误信息。返回的结果是：
+     0：没有错误
+     LUA_ERRSYNTAX:预编译有语法错误
+     LUA_ERRMEN:内存分配错误
+     这个函数【只加载】代码块，【不运行】。
+     lua_load加载的时候会自己识别加载的代码块是字符串还是二进制，并相应的加载它。
+     lua_load函数使用用户提供的reader函数去读取代码块（可以去查看lua_Reader）。data作为参数传给reader函数的时候它是透明的。
+     最后那个chunkname则是用来错误信息和调试信息用的。
+	 
+lua_State *lua_newstate (lua_Alloc f, void *ud);
+	创建的一个新的独立的状态机。如果创建不了（因为内存问题）返回 NULL 。参数 f 是一个分配器函数； Lua 将通过这个函数做状态机内所有的内存分配操作。第二个参数 ud ，这个指针将在每次调用分配器时被直接传入。
+lua_State *luaL_newstate()
+
+lua_global(lua_State *L,const char* name)		获取全局变量name的值,压入栈顶
+lua_setglobal(lua_State *L,const char* name)	从堆栈上弹出一个值,并将其设置到全局变量name中
+
+lua_pcall(lua_State *L,int nargs,int nresults,int errfunc)		
+在压入结果前,lua_pcall会先删除栈中的函数及其参数,如果一个函数返回多个结果,那么第一个结果最先压入
+如果在lua_pcall的运行过程中有任何错误,lua_pcall会先返回一个非零值,并在栈中压入一条错误信息,不过即使如此,它仍会弹出函数及其参数,然后,在压入错误消息前,如果存在一个错误处理函数,lua_pcall就会先调用他,通过lua_pcall的最后一个参数可以指定这个错误处理函数,0表示没有错误处理函数,最终的错误消息就是原来的错误消息
+对于普通的错误,lua_pcall会返回错误代码LUA_ERRRUN,但有两种特殊情况,不会运行错误处理函数,第一种是内存分配 错误,对于这类错误,lua_pcall问题返回LUA_ERRMEM,第二类错误则发生在lua运行错误处理函数时,在这种情况中,是没有必要再次调用错误处理函数的,因为lua_pcall会立即返回错误代码LUA_ERRERR
+
+lua_register(lua_State *L,const char *name,lua_CFunction f)		将c函数f设置到全局变量name中
+
+lua调用c
+需将新的C函数注册到Lua中,所有注册到Lua中的函数都具有相同的原型,它返回一个整数,表示其压入栈中的返回值数量,因此这个函数无须在压入结果前清空栈,在它返回后,Lua会自动删除栈中结果之下的内容
+typdef int (*lua_cFunction) (lua_State *L)
+
+void lua_pushcfunction (lua_State *L, lua_CFunction f);
+将一个 C 函数压入堆栈。这个函数接收一个 C 函数指针，并将一个类型为 function 的 Lua 值压入堆栈。当这个栈顶的值被调用时，将触发对应的 C 函数。

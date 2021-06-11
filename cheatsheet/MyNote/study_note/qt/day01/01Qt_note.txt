@@ -1,0 +1,89 @@
+QT编程基础
+－－－－－－
+Qt简介
+	Qt是图形用户界面(GUI)框架,五套基于C++语言的类库
+	GTK/GTK+   Qt     MFC
+		|    /    \    |
+	  XLib           Win32/64
+		|				|
+				OS
+	Qt专注但不局限于图形用户界面的开发,系统调用,网络编程,数据库编程,2D/3D图形处理等待
+	Qt是跨平台的应用编程框架,Linux,Windows,Max OS X,Android,Ios
+	Qt堪称艺术级别的图形开发工具,同时为最终用户和开发团队带来高品质的使用体验
+	由来和发展
+		诞生,1991,Haavard Nord,Eirik Chambe-Eng全作编写了最初的Qt
+		成长,1994,Haavard和eirik创立了Troll Tech(奇趣科技)公司
+		开源,2005,Qt4.0发布,奇趣科技被诺基亚收购,更名为QtSoftware,在2009正式宣布开源
+		新生,2012,诺基亚将全部Qt和知识产权出售给Digia公司,Digia公司在2014成立全资子公司The Qt Company,专门负责Qt技术开发和拓展
+	为什么选择Qt
+		基于C++语言,简单,易用,面向对象
+		优良的跨平台特性
+		架构健壮,功能强大,性能卓越
+		基于Qt开发便捷而且高效
+		免费
+Qt环境和工具链
+	Qt助手		 assistant
+	Qt构建器	
+		qmake -project 生成工程文件(.pro)
+	    qmake   生成Makefile文件->make
+		qmake -version  看Qt本
+	Qt辅助编译器
+		moc -模型对象编译器,编译信号和槽代码
+		uic -用户界面编译器,编译用户界面描述脚本
+		rcc -资源编译器,编译资源多媒体文件
+	Qt设计师
+		以所见即所得的方式编辑,设计和修改图形用户界面,产生用户界面描述脚本(.ui)
+		designer
+	Qt创建器
+		集成开发环境(IDE),集编辑,设计,编译,链接,调试诸功能于一身的开发环境
+		qtcreator
+	头文件和库
+		/usr/include/qt4
+		/usr/lib/i386-linux-gnu/libQtXXX
+		所有和头文件及库有关的编译选项(-I/-l/-L)在qmake自动生成的Makefile中都会包含
+第一个Qt程序
+	Public Type -公有成员类型
+	Properties  -私有成员变量,可以通过公有成员函数访问属性类型 
+		属性类型 属性名(void);   //获取属性
+		void set属性名(属性类型参数);  //设置属性
+	Public Functions  -公有非静态成员函数,也包括构造函数和析构函数,如果是虚函数还可能被其子类覆盖
+	Public Slots  -公有槽函数
+		触发某种事件->Qt调用相应的信号函数->人为指定或者系统默认的槽函数->处理该事件-------------事件驱动模型
+	Signals -信号函数
+		如果对象的内部状态发生变化,比如按钮被点击,或者窗口失去焦点,这种变化可能会对它的客户或拥有者具有一定的意义,那么这个对象可以抛出信号,即调用信号函数,而信号函数可以根据事先的预定,调用特定的槽函数,以响应该变化
+		Qt的信号-槽机制完全独立操作系统本身的事件循环
+	Static Public Members  -公有静态成员
+		与具体对象无关,同时又为该类所有对象共享的公共资源和访问接口
+	Protected Functions  -保护成员函数
+		从Qt的类中派生自己的子类,可以访问基类中的保护成员
+	Macros  -宏定义
+		SIGNAL -标记信号函数的签名
+		SLOT -标记槽函数的签名
+		Q_OBJECT -支持moc编译器生成信号和槽的处理代码
+	Detailed Description -细节描述
+		类的用法,调用上下文和使用中的注意事项
+使用中文
+	字符编码
+		任何字符在计算机内部都是用数字表示,即字符编码
+		不同的国家和地区都为自己的语言定义不同的编码标准
+		英语国家:基本ASCII码,128个字符
+		欧洲国家:扩展ASCII码,256个字符
+		中国大陆:GBK,21003个字符
+		港台地区:BIG5,13060个字符
+	统一编码
+		国际标准化组织制定的ISO/IEC 10646标准定义了支持世界上一切语言文字的统一编码,称为Unicode
+		根据字长的不同,Unicode又被分为两个子集:
+			UCS-2:双字节统一字符集,2B/字符,65000个字符
+			UCS-4:四字节统一字符集,4B/字符,99089个字符
+		UCS转换格式(UCS TranSofrmation Format,UTF)
+			UTF-8:用1到4个字节表示一个Unicode字符
+			UTF-16:用2或4个字节表示一个Unicode字符
+			UTF-32:用4个字节表示一个Unicode字符
+		第一步,创建可以理解UTF-8的格式外部编码的解码器
+			QTextCodec* codec=QTextCodec::codecForName("utf-8");
+		第二步,将前面创建的解码器交给专司译码的翻译器
+			QTextCodec::setCodecForTr(codec);
+		第三步,将外部编码字符串翻译成内部编码的字符串
+			QString str=QObject::tr("你好,Qt!");
+信号和槽的概念
+容器窗口和事件同步

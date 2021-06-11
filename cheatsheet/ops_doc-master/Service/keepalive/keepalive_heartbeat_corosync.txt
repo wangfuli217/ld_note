@@ -1,0 +1,589 @@
+Heartbeat、Corosync是属于同一类型，Keepalived与Heartbeat、Corosync，根本不是同一类型的。
+1. Keepalived使用的vrrp协议方式，虚拟路由冗余协议 (Virtual Router Redundancy Protocol，简称VRRP)；
+2. Heartbeat或Corosync是基于主机或网络服务的高可用方式；
+简单的说就是，Keepalived的目的是模拟路由器的高可用，Heartbeat或Corosync的目的是实现Service的高可用。
+
+一般Keepalived是实现前端高可用，常用的前端高可用的组合有，就是我们常见的
+LVS+Keepalived、
+Nginx+Keepalived、
+HAproxy+Keepalived。
+
+Heartbeat或Corosync是实现服务的高可用，常见的组合有
+Heartbeat v3(Corosync)+Pacemaker+NFS+Httpd 实现Web服务器的高可用、
+Heartbeat v3(Corosync)+Pacemaker+NFS+MySQL 实现MySQL服务器的高可用。
+
+Keepalived中实现轻量级的高可用，一般用于前端高可用，且不需要共享存储，一般常用于两个节点的高可用。
+Heartbeat(或Corosync)一般用于服务的高可用，且需要共享存储，一般用于多节点的高可用。
+
+heartbaet与corosync我们又应该选择哪个好啊?
+我想说我们一般用corosync，因为corosync的运行机制更优于heartbeat，就连从heartbeat分离
+出来的pacemaker都说在以后的开发当中更倾向于corosync，所以现在corosync+pacemaker是最佳组合。
+
+
+1.Keepalived 定义
+-----------------------------------	
+    Keepalived 是一个基于VRRP协议来实现的LVS服务高可用方案，可以利用其来避免单点故障。
+一个LVS服务会有2台服务器运行Keepalived，一台为主服务器（MASTER），一台为备份服务器（BACKUP），
+但是对外表现为一个虚拟IP，主服务器会发送特定的消息给备份服务器，当备份服务器收不到这个消息
+的时候，即主服务器宕机的时候， 备份服务器就会接管虚拟IP，继续提供服务，从而保证了高可用性。
+Keepalived是VRRP的完美实现。
+
+2.VRRP 协议简介
+-----------------------------------
+    在现实的网络环境中，两台需要通信的主机大多数情况下并没有直接的物理连接。对于这样的情况，
+它们之间路由怎样选择？主机如何选定到达目的主机的下一跳路由，这个问题通常的解决方法有二种：
+    在主机上使用动态路由协议(RIP、OSPF等)
+    在主机上配置静态路由 
+很明显，在主机上配置动态路由是非常不切实际的，因为管理、维护成本以及是否支持等诸多问题。
+配置静态路由就变得十分流行，但路由器(或者说默认网关default gateway)却经常成为单点故障。
+VRRP的目的就是为了解决静态路由单点故障问题，VRRP通过一竞选(election)协议来动态的将路由任务
+交给LAN中虚拟路由器中的某台VRRP路由器。
+
+3.VRRP 工作机制
+-----------------------------------
+    在一个VRRP虚拟路由器中，有多台物理的VRRP路由器，但是这多台的物理的机器并不能同时工作，而是
+由一台称为MASTER的负责路由工作，其它的都是BACKUP，MASTER并非一成不变，VRRP让每个VRRP路由器参与竞选，
+最终获胜的就是MASTER。MASTER拥有一些特权，比如，拥有虚拟路由器的IP地址，我们的主机就是用这个IP地址
+作为静态路由的。拥有特权的MASTER要负责转发发送给网关地址的包和响应ARP请求。
+
+    VRRP通过竞选协议来实现虚拟路由器的功能，所有的协议报文都是通过IP多播(multicast)包(多播地址224.0.0.18)
+形式发送的。虚拟路由器由VRID(范围0-255)和一组IP地址组成，对外表现为一个周知的MAC地址。所以，在一个
+虚拟路由器中，不管谁是MASTER，对外都是相同的MAC和IP(称之为VIP)。客户端主机并不需要因为MASTER的改变而
+修改自己的路由配置，对客户端来说，这种主从的切换是透明的。
+
+    在一个虚拟路由器中，只有作为MASTER的VRRP路由器会一直发送VRRP通告信息(VRRP Advertisement message)，
+BACKUP不会抢占MASTER，除非它的优先级(priority)更高。当MASTER不可用时(BACKUP收不到通告信息)，
+多台BACKUP中优先级最高的这台会被抢占为MASTER。这种抢占是非常快速的(<1s)，以保证服务的连续性。
+由于安全性考虑，VRRP包使用了加密协议进行加密。
+
+4. VRRP 工作流程
+-----------------------------------
+4.1 .初始化：    
+    路由器启动时，如果路由器的优先级是255(最高优先级，路由器拥有路由器地址)，要发送VRRP通告信息，
+并发送广播ARP信息通告路由器IP地址对应的MAC地址为路由虚拟MAC，设置通告信息定时器准备定时发送VRRP通告信息，
+转为MASTER状态；否则进入BACKUP状态，设置定时器检查定时检查是否收到MASTER的通告信息。
+
+4.2 .Master
+    设置定时通告定时器；
+    用VRRP虚拟MAC地址响应路由器IP地址的ARP请求；
+    转发目的MAC是VRRP虚拟MAC的数据包；
+    如果是虚拟路由器IP的拥有者，将接受目的地址是虚拟路由器IP的数据包，否则丢弃；
+    当收到shutdown的事件时删除定时通告定时器，发送优先权级为0的通告包，转初始化状态；
+    如果定时通告定时器超时时，发送VRRP通告信息；
+    收到VRRP通告信息时，if 如果优先权为0，发送VRRP通告信息；else 否则判断数据的优先级是否高于本机，
+或相等而且实际IP地址大于本地实际IP，设置定时通告定时器，复位主机超时定时器，转BACKUP状态；
+否则的话，丢弃该通告包；
+
+4.3 .Backup
+    设置主机超时定时器；
+    不能响应针对虚拟路由器IP的ARP请求信息；
+    丢弃所有目的MAC地址是虚拟路由器MAC地址的数据包；
+    不接受目的是虚拟路由器IP的所有数据包；
+    当收到shutdown的事件时删除主机超时定时器，转初始化状态；
+    主机超时定时器超时的时候，发送VRRP通告信息，广播ARP地址信息，转MASTER状态；
+    收到VRRP通告信息时，if 如果优先权为0，表示进入MASTER选举；else 否则判断数据的优先级是否高于本机，
+如果高的话承认MASTER有效，复位主机超时定时器；否则的话，丢弃该通告包； 
+
+5 .ARP查询处理
+-----------------------------------
+       当内部主机通过ARP查询虚拟路由器IP地址对应的MAC地址时，MASTER路由器回复的MAC地址为虚拟的
+VRRP的MAC地址，而不是实际网卡的 MAC地址，这样在路由器切换时让内网机器觉察不到；而在路由器重新启动时，
+不能主动发送本机网卡的实际MAC地址。如果虚拟路由器开启的ARP代理 (proxy_arp)功能，代理的ARP回应也回应
+VRRP虚拟MAC地址；
+
+
+三、环境准备
+-----------------------------------
+1.操作系统
+    CentOS 6.4 X86_64 
+2.软件版本
+    ipvsadm.x86_64 0:1.25-10.el6                  
+    keepalived.x86_64 0:1.2.7-3.el6      
+    httpd-2.2.15-29.el6.centos.x86_64
+    
+    测试机 192.168.18.210
+                 |
+              switch      VIP   192.168.18.200
+     ____________|______________________________________           
+     |                |                |               |
+192.168.18.201  192.168.18.202  192.168.18.207  192.168.18.208
+    Node1           Node2            Master         Slave
+    
+4.时间同步
+-----------------------------------
+node1:
+[root@node1 ~]# ntpdate 202.120.2.101
+node2:
+[root@node2 ~]# ntpdate 202.120.2.101
+master:
+[root@master ~]# ntpdate 202.120.2.101
+slave:
+[root@slave ~]# ntpdate 202.120.2.101
+
+5.主机名互相解析
+-----------------------------------
+node1:
+[root@node1 ~]# cat /etc/hosts  
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4   
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6   
+192.168.18.201    node1.test.com    node1   
+192.168.18.202    node2.test.com    node2
+
+node2:
+[root@node2 ~]# cat /etc/hosts  
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4   
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6   
+192.168.18.201    node1.test.com    node1   
+192.168.18.202    node2.test.com    node2
+
+
+6.安装yum源
+-----------------------------------
+node1:
+[root@node1 ~]# rpm -ivh http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+[root@node1 ~]# rpm -ivh http://elrepo.org/elrepo-release-6-5.el6.elrepo.noarch.rpm
+
+node2:
+[root@node2 ~]# rpm -ivh http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+[root@node2 ~]# rpm -ivh http://elrepo.org/elrepo-release-6-5.el6.elrepo.noarch.rpm
+
+master:
+[root@master ~]# rpm -ivh http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+[root@master ~]# rpm -ivh http://elrepo.org/elrepo-release-6-5.el6.elrepo.noarch.rpm
+
+slave:
+[root@slave ~]# rpm -ivh http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+[root@slave ~]# rpm -ivh http://elrepo.org/elrepo-release-6-5.el6.elrepo.noarch.rpm
+
+
+四、LVS+Keepalived 实现高可用的前端负载均衡器
+-----------------------------------
+node1:
+-----------------
+1.安装httpd
+[root@node1 ~]# yum install -y httpd
+2.配置httpd
+[root@node1 ~]# vim /var/www/html/index.html
+<h1>RS1.test.com</h1>
+3.启动httpd
+[root@node1 ~]# service httpd start
+4.测试
+浏览器 linker 192.168.18.201
+5.设置开机自启动
+[root@node1 ~]# chkconfig httpd on   
+[root@node1 ~]# chkconfig httpd --list    
+httpd              0:关闭    1:关闭    2:启用    3:启用    4:启用    5:启用    6:关闭
+6.配置node1
+[root@node1 ~]# mkdir src   
+[root@node1 ~]# cd src/    
+[root@node1 src]# vim realserver.sh
+#!/bin/bash   
+#    
+# Script to start LVS DR real server.    
+# description: LVS DR real server    
+#    
+.  /etc/rc.d/init.d/functions
+VIP=192.168.18.200 #修改你的VIP   
+host=$(/bin/hostname)
+case "$1" in   
+start)    
+       # Start LVS-DR real server on this machine.    
+        /sbin/ifconfig lo down    
+        /sbin/ifconfig lo up    
+        echo 1 > /proc/sys/net/ipv4/conf/lo/arp_ignore    
+        echo 2 > /proc/sys/net/ipv4/conf/lo/arp_announce    
+        echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore    
+        echo 2 > /proc/sys/net/ipv4/conf/all/arp_announce
+        /sbin/ifconfig lo:0 $VIP broadcast $VIP netmask 255.255.255.255 up   
+        /sbin/route add -host $VIP dev lo:0
+;;   
+stop)
+        # Stop LVS-DR real server loopback device(s).   
+        /sbin/ifconfig lo:0 down    
+        echo 0 > /proc/sys/net/ipv4/conf/lo/arp_ignore    
+        echo 0 > /proc/sys/net/ipv4/conf/lo/arp_announce    
+        echo 0 > /proc/sys/net/ipv4/conf/all/arp_ignore    
+        echo 0 > /proc/sys/net/ipv4/conf/all/arp_announce
+;;   
+status)
+        # Status of LVS-DR real server.   
+        islothere=`/sbin/ifconfig lo:0 | grep $VIP`    
+        isrothere=`netstat -rn | grep "lo:0" | grep $VIP`    
+        if [ ! "$islothere" -o ! "isrothere" ];then    
+            # Either the route or the lo:0 device    
+            # not found.    
+            echo "LVS-DR real server Stopped."    
+        else    
+            echo "LVS-DR real server Running."    
+        fi    
+;;    
+*)    
+            # Invalid entry.    
+            echo "$0: Usage: $0 {start|status|stop}"    
+            exit 1    
+;;    
+esac    
+[root@node1 src]# chmod +x realserver.sh   
+[root@node1 src]# ll    
+总用量 4    
+-rwxr-xr-x 1 root root 1485 8月  22 10:18 realserver.sh
+[root@node1 src]# ./realserver.sh start
+
+7.查看配置
+[root@node1 src]# ifconfig   
+eth0      Link encap:Ethernet  HWaddr 00:0C:29:11:92:E4 
+          inet addr:192.168.18.201  Bcast:192.168.18.255  Mask:255.255.255.0    
+          inet6 addr: fe80::20c:29ff:fe11:92e4/64 Scope:Link    
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1    
+          RX packets:115061 errors:0 dropped:0 overruns:0 frame:0    
+          TX packets:14979 errors:0 dropped:0 overruns:0 carrier:0    
+          collisions:0 txqueuelen:1000    
+          RX bytes:43448483 (41.4 MiB)  TX bytes:1224926 (1.1 MiB)
+lo        Link encap:Local Loopback 
+          inet addr:127.0.0.1  Mask:255.0.0.0    
+          inet6 addr: ::1/128 Scope:Host    
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1    
+          RX packets:2 errors:0 dropped:0 overruns:0 frame:0    
+          TX packets:2 errors:0 dropped:0 overruns:0 carrier:0    
+          collisions:0 txqueuelen:0    
+          RX bytes:168 (168.0 b)  TX bytes:168 (168.0 b)
+lo:0      Link encap:Local Loopback 
+          inet addr:192.168.18.200  Mask:255.255.255.255    
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1
+[root@node1 src]# route -n   
+Kernel IP routing table    
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface    
+192.168.18.200  0.0.0.0         255.255.255.255 UH    0      0        0 lo    
+192.168.18.0    0.0.0.0         255.255.255.0   U     0      0        0 eth0    
+169.254.0.0     0.0.0.0         255.255.0.0     U     1002   0        0 eth0    
+0.0.0.0         192.168.18.254  0.0.0.0         UG    0      0        0 eth0
+[root@node1 src]# cat /proc/sys/net/ipv4/conf/lo/arp_ignore   
+1    
+[root@node1 src]# cat /proc/sys/net/ipv4/conf/lo/arp_announce    
+2    
+[root@node1 src]# cat /proc/sys/net/ipv4/conf/all/arp_ignore    
+1    
+[root@node1 src]# cat /proc/sys/net/ipv4/conf/all/arp_announce
+2
+好了，node1到这里基本配置完成，下面我们来配置node2。
+
+
+
+node2:
+-----------------
+1.安装httpd
+[root@node2 ~]# yum install -y httpd
+2.配置httpd
+[root@node2 ~]# vim /var/www/html/index.html
+<h1>RS2.test.com</h1>
+3.启动httpd
+[root@node2 ~]# service httpd start
+4.测试
+浏览器 linker 192.168.18.202
+5.设置开机自启动
+[root@node2 ~]# chkconfig httpd on   
+[root@node2 ~]# chkconfig httpd --list    
+httpd              0:关闭    1:关闭    2:启用    3:启用    4:启用    5:启用    6:关闭
+6.配置node2
+[root@node2 ~]# mkdir src   
+[root@node2 ~]# cd src/    
+[root@node2 src]# vim realserver.sh
+#!/bin/bash   
+#    
+# Script to start LVS DR real server.    
+# description: LVS DR real server    
+#    
+.  /etc/rc.d/init.d/functions
+VIP=192.168.18.200   
+host=$(/bin/hostname)
+case "$1" in   
+start)    
+       # Start LVS-DR real server on this machine.    
+        /sbin/ifconfig lo down    
+        /sbin/ifconfig lo up    
+        echo 1 > /proc/sys/net/ipv4/conf/lo/arp_ignore    
+        echo 2 > /proc/sys/net/ipv4/conf/lo/arp_announce    
+        echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore    
+        echo 2 > /proc/sys/net/ipv4/conf/all/arp_announce
+        /sbin/ifconfig lo:0 $VIP broadcast $VIP netmask 255.255.255.255 up   
+        /sbin/route add -host $VIP dev lo:0
+;;   
+stop)
+        # Stop LVS-DR real server loopback device(s).   
+        /sbin/ifconfig lo:0 down    
+        echo 0 > /proc/sys/net/ipv4/conf/lo/arp_ignore    
+        echo 0 > /proc/sys/net/ipv4/conf/lo/arp_announce    
+        echo 0 > /proc/sys/net/ipv4/conf/all/arp_ignore    
+        echo 0 > /proc/sys/net/ipv4/conf/all/arp_announce
+;;   
+status)
+        # Status of LVS-DR real server.   
+        islothere=`/sbin/ifconfig lo:0 | grep $VIP`    
+        isrothere=`netstat -rn | grep "lo:0" | grep $VIP`    
+        if [ ! "$islothere" -o ! "isrothere" ];then    
+            # Either the route or the lo:0 device    
+            # not found.    
+            echo "LVS-DR real server Stopped."    
+        else    
+            echo "LVS-DR real server Running."    
+        fi    
+;;    
+*)    
+            # Invalid entry.    
+            echo "$0: Usage: $0 {start|status|stop}"    
+            exit 1    
+;;    
+esac
+[root@node2 src]# chmod +x realserver.sh   
+[root@node2 src]# ./realserver.sh start
+7.查看配置
+[root@node2 src]# ifconfig   
+eth0      Link encap:Ethernet  HWaddr 00:0C:29:B8:DF:6A 
+          inet addr:192.168.18.202  Bcast:192.168.18.255  Mask:255.255.255.0    
+          inet6 addr: fe80::20c:29ff:feb8:df6a/64 Scope:Link    
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1    
+          RX packets:110545 errors:0 dropped:0 overruns:0 frame:0    
+          TX packets:10461 errors:0 dropped:0 overruns:0 carrier:0    
+          collisions:0 txqueuelen:1000    
+          RX bytes:32853789 (31.3 MiB)  TX bytes:889109 (868.2 KiB)
+lo        Link encap:Local Loopback 
+          inet addr:127.0.0.1  Mask:255.0.0.0    
+          inet6 addr: ::1/128 Scope:Host    
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1    
+          RX packets:6 errors:0 dropped:0 overruns:0 frame:0    
+          TX packets:6 errors:0 dropped:0 overruns:0 carrier:0    
+          collisions:0 txqueuelen:0    
+          RX bytes:616 (616.0 b)  TX bytes:616 (616.0 b)
+lo:0      Link encap:Local Loopback 
+          inet addr:192.168.18.200  Mask:255.255.255.255    
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1
+[root@node2 src]# route -n   
+Kernel IP routing table    
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface    
+192.168.18.200  0.0.0.0         255.255.255.255 UH    0      0        0 lo    
+192.168.18.0    0.0.0.0         255.255.255.0   U     0      0        0 eth0    
+169.254.0.0     0.0.0.0         255.255.0.0     U     1002   0        0 eth0    
+0.0.0.0         192.168.18.254  0.0.0.0         UG    0      0        0 eth0
+[root@node2 src]# cat /proc/sys/net/ipv4/conf/lo/arp_ignore   
+1    
+[root@node2 src]# cat /proc/sys/net/ipv4/conf/lo/arp_announce    
+2    
+[root@node2 src]# cat /proc/sys/net/ipv4/conf/all/arp_ignore    
+1    
+[root@node2 src]# cat /proc/sys/net/ipv4/conf/all/arp_announce    
+2
+
+
+masterg与slave:
+-----------------
+1.安装keepalived与ipvsadm
+[root@master ~]# yum install -y keepalived ipvsadm
+[root@slave ~]# yum install -y keepalived ipvsadm
+
+2.修改配置文件
+[root@master ~]# cat /etc/keepalived/keepalived.conf   
+! Configuration File for keepalived
+global_defs {   
+   notification_email {    
+15251076067@163.com #配置管理员邮箱    
+   }    
+   notification_email_from root #配置发件人    
+   smtp_server 127.0.0.1 #配置邮件服务器    
+   smtp_connect_timeout 30    
+   router_id LVS_DEVEL    
+}
+vrrp_instance VI_1 {   
+    state MASTER #配置模式    
+    interface eth0    
+    virtual_router_id 51    
+    priority 101 #配置优先级    
+    advert_int 1    
+    authentication {    
+        auth_type PASS    
+        auth_pass 1111    
+    }    
+    virtual_ipaddress {    
+        192.168.18.200 #配置虚拟IP地址    
+    }    
+}
+virtual_server 192.168.18.200 80 {   
+    delay_loop 6    
+    lb_algo rr    
+    lb_kind DR    
+    nat_mask 255.255.255.0    
+    #persistence_timeout 50    
+    protocol TCP
+    real_server 192.168.18.201 80 { #配置realaserver   
+        weight 1    
+        HTTP_GET { #监控配置    
+            url {    
+              path /    
+          status_code 200    
+            }    
+            connect_timeout 2    
+            nb_get_retry 3    
+            delay_before_retry 1    
+        }    
+    }    
+    real_server 192.168.18.202 80 {    
+        weight 1    
+        HTTP_GET {    
+            url {    
+              path /    
+              status_code 200    
+            }    
+            connect_timeout 2    
+            nb_get_retry 3    
+            delay_before_retry 1    
+        }    
+    }    
+}
+
+3.将配置文件同步到slave
+[root@master ~]# scp /etc/keepalived/keepalived.conf root@192.168.18.207:/etc/keepalived/
+
+4.简单修改一下slave配置文件
+[root@slave keepalived]# cat keepalived.conf   
+! Configuration File for keepalived
+global_defs {   
+   notification_email {    
+     15251076067@163.com    
+   }    
+   notification_email_from root    
+   smtp_server 127.0.0.1    
+   smtp_connect_timeout 30    
+   router_id LVS_DEVEL    
+}
+vrrp_instance VI_1 {   
+    state BACKUP #修改为BACKUP    
+    interface eth0    
+    virtual_router_id 51    
+    priority 100 #修改优先级    
+    advert_int 1    
+    authentication {    
+        auth_type PASS    
+        auth_pass 1111    
+    }    
+    virtual_ipaddress {    
+        192.168.18.200    
+    }    
+}
+virtual_server 192.168.18.200 80 {   
+    delay_loop 6    
+    lb_algo rr    
+    lb_kind DR    
+    nat_mask 255.255.255.0    
+    #persistence_timeout 50    
+    protocol TCP
+    real_server 192.168.18.201 80 {   
+        weight 1    
+        HTTP_GET {    
+            url {    
+              path /    
+          status_code 200    
+            }    
+            connect_timeout 2    
+            nb_get_retry 3    
+            delay_before_retry 1    
+        }    
+    }    
+    real_server 192.168.18.202 80 {    
+        weight 1    
+        HTTP_GET {    
+            url {    
+              path /    
+              status_code 200    
+            }    
+            connect_timeout 2    
+            nb_get_retry 3    
+            delay_before_retry 1    
+        }    
+    }    
+}
+
+5.启动master与slave的keepalived服务
+[root@master ~]# service keepalived start   
+正在启动 keepalived：                                      [确定]
+[root@slave ~]# service keepalived start   
+正在启动 keepalived：                                      [确定]
+
+
+6.查看一下LVS状态
+[root@master ~]# ipvsadm -L -n   
+IP Virtual Server version 1.2.1 (size=4096)    
+Prot LocalAddress:Port Scheduler Flags    
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn    
+TCP  192.168.18.200:80 rr    
+  -> 192.168.18.201:80            Route   1      0          0        
+  -> 192.168.18.202:80            Route   1      0          0
+  
+7.测试
+浏览器 linker 192.168.18.200   
+浏览器 linker 192.168.18.200  
+
+
+8.模拟故障
+-----------------
+(1).停止一下node1
+[root@node1 src]# service httpd stop   
+停止 httpd：                                               [确定]
+(2).查看一下的lvs
+[root@master ~]# ipvsadm -L -n   
+IP Virtual Server version 1.2.1 (size=4096)    
+Prot LocalAddress:Port Scheduler Flags    
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn    
+TCP  192.168.18.200:80 rr    
+  -> 192.168.18.202:80            Route   1      0          0
+  
+(3).测试一下
+浏览器 linker 192.168.18.200 
+
+(4).查看一下邮件
+(5).重新启动一下node1
+
+[root@node1 src]# service httpd start   
+正在启动 httpd：                                           [确定]
+
+(6).再查看一下lvs状态
+
+[root@master ~]# ipvsadm -L -n   
+IP Virtual Server version 1.2.1 (size=4096)    
+Prot LocalAddress:Port Scheduler Flags    
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn    
+TCP  192.168.18.200:80 rr    
+  -> 192.168.18.201:80            Route   1      0          0        
+  -> 192.168.18.202:80            Route   1      0          0
+
+(7).再查看一下邮件
+(8).关闭master上keepalived
+
+[root@master ~]# service keepalived stop   
+停止 keepalived：                                          [确定]    
+[root@master ~]# ipvsadm -L -n    
+IP Virtual Server version 1.2.1 (size=4096)    
+Prot LocalAddress:Port Scheduler Flags    
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
+
+(9).查看一下slave状态
+
+[root@slave ~]# ip addr show   
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 16436 qdisc noqueue state UNKNOWN    
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00    
+    inet 127.0.0.1/8 scope host lo    
+    inet6 ::1/128 scope host    
+       valid_lft forever preferred_lft forever    
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000    
+    link/ether 00:0c:29:f9:e6:26 brd ff:ff:ff:ff:ff:ff    
+    inet 192.168.18.207/24 brd 192.168.18.255 scope global eth0    
+    inet 192.168.18.200/32 scope global eth0    
+    inet6 fe80::20c:29ff:fef9:e626/64 scope link    
+       valid_lft forever preferred_lft forever    
+[root@slave ~]# ipvsadm -L -n    
+IP Virtual Server version 1.2.1 (size=4096)    
+Prot LocalAddress:Port Scheduler Flags    
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn    
+TCP  192.168.18.200:80 rr    
+  -> 192.168.18.201:80            Route   1      0          0        
+  -> 192.168.18.202:80            Route   1      0          0
+
+(10).再次测试一下

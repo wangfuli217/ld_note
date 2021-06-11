@@ -1,0 +1,36 @@
+﻿
+
+tomcat如何把web项目部署到磁盘的任意目录
+
+tomcat5:
+	一，为了说明此问题的解决方案，我们需要假定几个条件：
+       1. 我们的tomcat安装在： D:\tomcat5.5
+       2. 我们已经完成了一个web项目： mobile_app
+       3.我们把此项目放到了E盘的根目录下：E:\mobile_app
+
+	二， 把此项目配置到tomcat服务器中：
+       1. 到 D:\tomcat5.5 下找到conf文件夹，在此文件夹下依次找到Catalina\localhost文件夹
+       2. 在 conf\Catalina\localhost 目录下新建一个 mobile_app.xml 文件，注意这个文件名既代表了此web项目的名称
+       3. 编辑此mobile_app.xml文件
+           <Context docBase="E:\mobile_app"></Context>
+
+	这样的话，我们就可以把web项目放到其他的任何目录下，而不一定要放到webapps目录下。
+
+
+tomcat6
+	在 %TOMCAT_HOME%\conf\server.xml 文件中找到<Host>节点，并向<Host>节点中加入如下的子节点。
+
+	<Context path="" docBase="d:/webproject" debug="5" reloadable="true" crossContext="true"/>
+	这样一来，就无法访问tomcat的管理程序了。我们可以将管理程序目录(webapps/ROOT)映射到其他的web路径上。如下面的配置将管理程序映射到了/manager路径。
+
+	<Context path="/manager" docBase="c:/apache-tomcat-6.0.13/webapps/ROOT" debug="5" reloadable="true" crossContext="true"/>
+	<Context path="/manager" docBase="E:\test" debug="0" reloadable="true"/> <!-- 网上也有这样的写法 -->
+	这样就设置了虚拟目录为 manager 的项目路径
+
+	参数:
+	   path		访问时候用的虚拟路径
+	   docBase	项目实际存放路径(这里一般写绝对的磁盘路径，当然也可以写相对路径，相对路径是相对于tomcat安装目录的webapps目录的，通常设置虚拟目录的目的是将tomcat的安装和项目的保存分开，所以这里建议你使用磁盘绝对路径。)
+
+
+	访问时候访问url是 http://localhost:8080/manager/
+

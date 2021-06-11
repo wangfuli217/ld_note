@@ -1,0 +1,171 @@
+https://www.cnblogs.com/littleatp/p/7384706.html
+
+一、文件编码
+PEM (Privacy Enhancement Message)，定义见 RFC1421
+是一种基于 base64 的编码格式，常见于 linux/unix 下的证书编码
+结构组成 == {header} body {tail}
+示例
+
+-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDMYfnvWtC8Id5bPKae5yXSxQTt
++Zpul6AnnZWfI2TtIarvjHBFUtXRo96y7hoL4VWOPKGCsRqMFDkrbeUjRrx8iL91
+4/srnyf6sh9c8Zk04xEOpK1ypvBz+Ks4uZObtjnnitf0NBGdjMKxveTq+VE7BWUI
+yQjtQ8mbDOsiLLvh7wIDAQAB
+-----END PUBLIC KEY-----
+
+
+DER (Distinguished Encoding Rules) , 定义见维基百科-ASN.1.DER
+是来自ASN.1 体系的一种二进制编码格式，常用于 windows/mac 的证书编码
+编码方式 == DER uses a pattern of type-length-value triplets
+
+
+二、公钥标准
+PKCS (Public Key Cryptography Standards)，定义见维基百科-PKCS
+是一套公钥密码学标准，其定义范围涵盖了证书签名、加密算法、填充模式及校验流程等。
+
+常见PKCS标准
+版本          里程碑
+PKCS#1        RFC8017，定义了公钥私钥的编码格式(ASN.1编码)，包括基础算法及编码/填充模式、签名校验，openssl的默认标准格式
+PKCS#3        DiffieHellman Key Agreement，定义了DH 密钥交换标准
+PKCS#5        RFC8018，基于密码的加密标准，定义了PBKDF2算法
+PKCS#7        RFC2315，定义密钥信息语法标准，PKI体系下的信息签名及加密标准，是S/MIME的一部分
+PKCS#8        RFC5958，定义私钥信息语法标准，用于描述证书密钥对的通用格式(不限RSA)
+PKCS#11       定义了密钥 Token接口，常用于单点登录/公钥算法/磁盘加密系统.(硬件加密)
+PKCS#12       RFC7292，个人信息交换语法标准，定义了私钥和公钥证书的存储方式(支持密码)，常用PFX简称，Java Key Store的编码格式
+
+三、RSA 密钥
+1. RSA 公钥编码
+1.1 PublicKey-PKCS#1-PEM
+-----BEGIN RSA PUBLIC KEY-----
+BASE64 ENCODED DATA
+-----END RSA PUBLIC KEY-----
+
+1.2 PublicKey-PKCS#1-DER
+RSAPublicKey ::= SEQUENCE {
+    modulus           INTEGER,  -- n
+    publicExponent    INTEGER   -- e
+}
+
+1.3 PublicKey-PKCS#8-PEM
+-----BEGIN PUBLIC KEY-----
+BASE64 ENCODED DATA
+-----END PUBLIC KEY-----
+
+1.4 PublicKey-PKCS#8-DER
+PublicKeyInfo ::= SEQUENCE {
+  algorithm       AlgorithmIdentifier,
+  PublicKey       BIT STRING
+}
+AlgorithmIdentifier ::= SEQUENCE {
+  algorithm       OBJECT IDENTIFIER,
+  parameters      ANY DEFINED BY algorithm OPTIONAL
+}
+
+对于RSA公钥来说，OID就是(1.2.840.113549.1.1.1)
+
+2. RSA 私钥编码
+2.1 PrivateKey-PKCS#1-PEM
+-----BEGIN RSA PRIVATE KEY-----
+BASE64 ENCODED DATA
+-----END RSA PRIVATE KEY-----
+
+2.2 PrivateKey-PKCS#1-DER
+RSAPrivateKey ::= SEQUENCE {
+  version           Version,
+  modulus           INTEGER,  -- n
+  publicExponent    INTEGER,  -- e
+  privateExponent   INTEGER,  -- d
+  prime1            INTEGER,  -- p
+  prime2            INTEGER,  -- q
+  exponent1         INTEGER,  -- d mod (p-1)
+  exponent2         INTEGER,  -- d mod (q-1)
+  coefficient       INTEGER,  -- (inverse of q) mod p
+  otherPrimeInfos   OtherPrimeInfos OPTIONAL
+}
+
+2.3 PrivateKey-PKCS#8-PEM
+-----BEGIN PRIVATE KEY-----
+BASE64 ENCODED DATA
+-----END PRIVATE KEY-----
+
+2.4 PrivateKey-PKCS#8-DER
+PrivateKeyInfo ::= SEQUENCE {
+  version         Version,
+  algorithm       AlgorithmIdentifier,
+  PrivateKey      OCTET STRING
+}
+
+AlgorithmIdentifier ::= SEQUENCE {
+  algorithm       OBJECT IDENTIFIER,
+  parameters      ANY DEFINED BY algorithm OPTIONAL
+}
+
+2.5 私钥文件可采用加密方式存储，加密后的格式：
+EncryptedPrivateKey-PKCS#8-PEM
+-----BEGIN ENCRYPTED PRIVATE KEY-----
+BASE64 ENCODED DATA
+-----END ENCRYPTED PRIVATE KEY-----
+
+2.6 Encrypted-PrivateKey-PKCS#8-DER
+EncryptedPrivateKeyInfo ::= SEQUENCE {
+  encryptionAlgorithm  EncryptionAlgorithmIdentifier,
+  encryptedData        EncryptedData
+}
+
+EncryptionAlgorithmIdentifier ::= AlgorithmIdentifier
+EncryptedData ::= OCTET STRING
+
+
+四、证书
+X.509 证书，维基百科-X.509，是目前流行的公钥证书标准。
+    一个 X.509 证书包含了一个公钥和对应的实体名(hostname/organization/individual)；
+证书通常由证书认证机构签名或自签名；当证书持有者被另外一方信任时(通过公钥签名验证)，
+两者便可以基于公钥算法建立安全传输通道。
+
+证书结构
+Certificate
+Version Number
+Serial Number
+Signature Algorithm ID
+Issuer Name
+Validity period
+Not Before
+Not After
+Subject name
+Subject Public Key Info
+Public Key Algorithm
+Subject Public Key
+Issuer Unique Identifier (optional)
+Subject Unique Identifier (optional)
+Extensions (optional)
+...
+Certificate Signature Algorithm
+Certificate Signature
+
+主要字段
+字段               描述
+版本号             指出该证书使用了哪种版本的X.509标准（版本1、版本2或是版本3），版本号会影响证书中的一些特定信息
+序列号             标识证书的唯一整数，由证书颁发者分配的本证书的唯一标识符
+签名算法标识符     用于签证书的算法标识，由对象标识符加上相关的参数组成，用于说明本证书所用的数字签名算法。例如，SHA-1-RSA
+颁发者名称         证书颁发者的可识别名（DN），是签发该证书的实体唯一的CA的X.500名字
+有效期限           证书起始日期和时间以及终止日期和时间
+主体名             证书持有人的唯一标识符(或称DN-distinguished name)
+公钥信息           包括证书持有人的公钥、算法
+颁发者唯一标识符   标识符—证书颁发者的唯一标识符，仅在版本2和版本3中有要求，属于可选项
+主体唯一标识符     标识符—证书颁发者的唯一标识符，仅在版本2和版本3中有要求，属于可选项
+颁发者的数字签名   这是使用颁发者私钥生成的签名，以确保这个证书在发放之后没有被撰改过
+扩展信息            ..
+
+扩展字段
+字段              描述
+发行者密钥标识符  证书所含密钥的唯一标识符，用来区分同一证书拥有者的多对密钥
+密钥使用          一个比特串，指明（限定）证书的公钥可以完成的功能或服务，如：证书签名、数据加密等。如果某一证书将 KeyUsage 扩展标记为“极重要”，而且设置为“keyCertSign”，则在 SSL 通信期间该证书出现时将被拒绝，因为该证书扩展表示相关私钥应只用于签写证书，而不应该用于 SSL
+CRL分布点         指明CRL的分布地点
+私钥的使用期      指明证书中与公钥相联系的私钥的使用期限，它也有Not Before和Not After组成。若此项不存在时，公私钥的使用期是一样的
+证书策略          由对象标识符和限定符组成，这些对象标识符说明证书的颁发和使用策略有关s
+策略映射          表明两个CA域之间的一个或多个策略对象标识符的等价关系，仅在CA证书里存在
+主体别名          指出证书拥有者的别名，如电子邮件地址、IP地址等，别名是和DN绑定在一起的
+颁发者别名        指出证书颁发者的别名，如电子邮件地址、IP地址等，但颁发者的DN必须出现在证书的颁发者字段
+主体目录属性      指出证书拥有者的一系列属性。可以使用这一项来传递访问控制信息
+
+

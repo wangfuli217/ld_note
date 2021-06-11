@@ -1,0 +1,611 @@
+=== GCC and it's toolbox ===
+
+
+1. 最小化Code size (去除无用的数据和函数)： >
+    CC_OPT = -Os -fdata-sections -ffunction-sections
+    LD_OPT = -Wl,--gc-sections
+    gcc $(CC_OPT) test.cpp -o test $(LD_OPT)
+
+2. objcopy
+    bin -> ihex >
+    $ objcopy --change-addresses 0x08000000 -I binary -O ihex a.bin a.hex
+<    ihex -> bin >
+    $ objcopy -I ihex -O binary a.hex a.bin
+<    elf -> ihex >
+    $ objcopy -O ihex a.elf a.hex
+<    elf -> bin >
+    $ objcopy -O binary a.elf a.bin
+
+3. objdump
+    elf -> disassemble >
+    objdump -d a.elf > a.dis
+<    binary -> disassemble (ARM cortex-m3 thumb) >
+    arm-none-eabi-objdump -D -b binary -m arm -M force-thumb a.bin > a.dis
+
+4. readelf
+    读取elf文件头信息, 包括ENTRY等 >
+    readelf -h a.elf
+<    NOTE: GDB会自动在load程序之后把ENTRY值赋给$PC指针
+
+5. arm-none-eabi-gcc, printf, malloc
+    arm gcc 的newlib库在调用malloc、printf等函数时，需要 *_sbrk()* 系统调用，
+    默认的weak声明的_sbrk()直接使用linker脚本里的 *end* 符号(但是这样不安全)。
+
+6. GDB
+    gdb [options] --args executable-file [inferior-arguments ...] ~
+    options: ~
+         --symbols=SYMFILE  从指定文件中读取符号表。
+         --directory=DIR    加入一个源文件的搜索路径。默认搜索路径是环境变量中PATH所定义的路径。
+         --nx               忽略.gdbinit 文件
+
+    初始化: ~
+         gdb初始化时候会主动读取 ~/.gdbinit 文件，并把它作为初始化文件
+         常用选项：
+             set confirm off                         # 取消confirm
+             set verbose off                         # 详细输出禁止
+             set history filename ~/.gdb_history     # 历史记录
+             set history remove-duplicates unlimited # 去除重复的历史记录
+             set history save on                     # 存储历史记录
+             set pagination off                      # 取消滚屏时候的提示(取消类似more命令的提示)
+             set print pretty on                     # 漂亮的打印
+             set print elements 0                    # 打印大数组时，不限制个数
+             set print array on                      # 漂亮的打印数组
+             set output-radix 0x0A                   # 10进制输出
+             set input-radix 0x0A                    # 10进制输入
+             set arm force-mode thumb                # 强制使用thumb模式
+
+    编译要求: ~
+         使用编译器(cc/gcc/g++)编译的时候加上 -g 选项，它可以把调试信息加入到可执行文件中去。如：> cc -g hello.c -o hello
+         -g与-ggdb区别：
+            -g         利用操作系统的nativa format生成调试信息
+            -ggdb      专门为GDB生成更为丰富的调试信息，但不能使用其他调试器调试了
+         级别(同样适用于-ggdb)：
+            -g2        默认级别，此时产生的调试信息包括扩展的符号表，行号，变量表
+            -g3        包含g2的所有信息，以及源代码中定义的宏
+            -g1        不包含行号和局部变量的调试信息
+         所以常用-ggdb3作为编译选项
+
+    调试命令: ~
+         一般:
+             load <elf-file>  加载elf文件和符号
+             l  [list]        列出当前程序执行点前后的程序源码
+             bt [backtrace]   查看调用栈
+             up               向上移动栈
+             down             向下移动栈
+             f  [frame]       会打印出：栈的层编号，当前的函数名，函数参数值，函数所在文件及行号，函数 执行到的语句。
+             info f           会打印出更详细的栈信息
+             info locals      打印出当前函数中所有局部变量及其值
+             disassemble func 反汇编
+             q  [quit]        退出
+             set args (eg: set args 10 20 30 40 50) 指定运行时main()的参数
+             macro expand I_AM_A_MACRO 显示宏的值
+
+        Restore和Dump数据
+             restore <hex-file>                     加载hex文件
+             restore <bin-file> binary <address>    加载bin文件到指定地址
+             dump memory <file> <begin> <end>       dump bin文件
+             dump ihex memory <file> <begin> <end>  dump hex文件
+
+         运行与调试:
+             r  [run]      (重新)运行程序
+             c  [continue] 继续
+             s  [step]     单步，进入函数
+             si [stepi]    单步跟踪一条机器指令
+             n  [next]     单步，不进入函数
+             ni [nexti]    单步跟踪一条机器指令
+             finish        跳出当前函数
+             u  [until]    跳出当前循环
+
+         断点(breakPoint):
+             b [break]:
+                  b <function>     (eg: b main)     断点设置到main
+                  b <linenum>      (eg: b 15)       断点设置到当前文件的第15行
+                  b <+/-offset>    (eg: b +10)      断点设置到当前行+10的位置
+                  b if <condition> (eg: b if i=10)  当i=100的时候停住
+                  b <where> if <condition> (eg: b func if i=10)
+                  b <filename:linenum> (eg: b a.c:10)
+             info break：查看已经存在的断点     
+             clear 清除所有断点
+             clear <function>      (eg: clear main) 清除函数上的断点
+             delete <breakpoints>  (eg: delete 2)   清除断点号为2的断点
+             disable <breakpoints> (eg: disable 2)  暂时disable断点号为2的断点
+
+         观察点(WatchPoint)
+             watch <expr>     (eg: watch var)  为表达式（变量）expr设置一个观察点。一量表达式值有变化时，马上停住程序。
+             rwatch <expr>    (eg: rwatch var) 当表达式（变量）expr被读时，停住程序。
+             awatch <expr>    (eg: awatch var) 当表达式（变量）的值被读或被写时，停住程序。
+             info watchpoints 列出当前所设置了的所有观察点。
+             example: >
+             $ watch *0x2000A000 #当内存0x2000A000的值改变时，触发断点
+             $ watch llc_env     #当内存llc_env整个类型的值改变时，触发断点
+<
+         查看运行时数据
+             p [print]: 查看变量 (优先查看局部变量)
+                 p <expr>             (eg: p var)        十进制查看变量var的值
+                 p /<fmt> <expr>      (eg: p /x var)     带格式化的查看变量var的值(十六进制)
+                 p <$reg>             (eg: p $pc)        查看寄存器PC的值
+                 p file::variable     (eg: p 'a.c::var') 查看a.c中变量var的值，优先查看全局变量
+                 p function::variable (eg: p main::var)  查看mian()中变量var的值
+                 p *pdata@len         (eg: p *pdata@10)  查看数组且长度为10的内容, *是重要的
+                 p array              (eg: p array)      查看固定数组所有内容
+
+             x [examine]: 查看内存数据
+                  x/<n/f/u/i> <addr> (eg: x /10xh 0x40001000) 从内存地址为0x40001000处读取10个双字的数据 
+                       <n> 读取字符个数
+                       <f> 格式化
+                       <u> 字符大小 b单字节 h双字节 w四字节 g八字节
+                       <i> 反汇编 (eg:x /8i $PC - 16)
+                  使用print查看内存。优点：长度可以用变量
+                       p /x *((uint32_t *)0x20000000)@10
+                       p /x *((uint8_t *)0x20000000)@length
+
+             display: 自动显示内存变量数据, 单步或者断点后自动显示
+                 display <expr>       (eg: display var)
+                 display/<fmt> <expr> (eg: display /x var)
+                 display/<fmt> <addr> (eg: display /x 0x40001000)
+                 undisplay <dnums...>
+                 info display
+
+             关于格式化字符 <fmt>:
+                 x  按十六进制格式显示变量。
+                 d  按十进制格式显示变量。
+                 u  按十进制格式显示无符号整型。
+                 o  按八进制格式显示变量。
+                 t  按二进制格式显示变量。 
+                 a  按十六进制格式显示变量。
+                 c  按字符格式显示变量。
+                 f  按浮点数格式显示变量。
+
+         改变程序的执行:
+             set var <var>=<value> (eg: set var width=100) 设置变量width为100
+             jump <linespec>       (eg: jump 12)           强制跳转到指定行
+             jump <address>        (eg: jump 0x10000004)   强制跳转到指定地址
+             call <expr>           (eg: call main)         强制调用一个函数
+             return 强制跳出当前函数
+
+         查看寄存器
+             info registers 查看寄存器的情况。（除了浮点寄存器）
+             info all-registers 查看所有寄存器的情况。（包括浮点寄存器）
+             info registers <regname ...> 查看所指定的寄存器的情况。
+
+         修改内存值：
+             set *(int *)pointer = value
+
+         定义环境变量
+             set $<var> = <value> (eg: set $i=0) 设置变量
+             p $<var>             (eg: p $i)     查看变量值
+             show convenience 查看所有变量
+
+         查看数据结构offset和size：
+            ptype /o <struct>
+
+         命中断点时候自动执行命令：
+             (gdb) command 6 //6是断点号。如果没有断点号，则默认使用上面紧跟的断点
+             Type commands for breakpoint(s) 6, one per line.
+             End with a line saying just "end".
+             >x /2xw 0x4001A030 
+             >x /4xw 0x4001A020 
+             >x /1xw 0x4001A038 
+             >x /1xw 0x4001A03c 
+             >x /1xw 0x4001A200 
+             >x /10xw 0x4001A204
+             >x /10xw payload    
+             >end //结束
+
+         执行shell程序：
+             shell ls  #执行shell的ls程序，即 shell 命令
+             cd        #可以直接执行
+             make      #可以直接执行
+             pwd       #查看当前所在的目录
+
+         链接断开远程调试：
+             链接：target remote 192.168.1.160:2331
+             断开：kill
+
+         加载符号：
+            file <file>:
+                加载并覆盖文件内的符号，并把该文件作为执行文件。没有参数的含义：删除已有的符号和执行文件
+            symbol-file <file>:
+                仅加载并覆盖文件内的符号，不加载该文件作为执行文件
+            exec-file <file>:
+                仅把该文件作为可执行文件，不加载符号
+            add-symbol-file <file> <address>:
+                仅加载并附加文件内的符号，不加载该文件作为执行文件
+
+         重定位源文件：
+            directory <dir>
+                添加新的源文件搜索目录，ELF内的文件位置为相对文件位置时使用
+            set substitute-path <old-dir> <new-dir>
+                修改旧的绝对目录为新的目录
+                $ set substitute-path E:/2-svn/ble_asic/rom/ /home/lenovo/tags/hs6620_rom_a0_release/rom
+            info source
+                查看当前文件位置
+            info sources
+                查看所有文件位置
+
+    ~/.gdbinit 语法： ~
+         默认情况gdb会在初始化的时候加载该文件。
+         定义函数：define
+              define conncet
+              target remote 192.168.1.160:2331
+              end
+         非define定义的函数，gdb会在初始化的时候自动执行。
+
+    GDB自动调试脚本 ~
+        gdb加载脚本的方式有
+            gdb -x script
+            gdb命令: source script
+
+        条件控制语句：
+            if (id==10)
+            end
+
+            if (id==10)
+            else
+            end
+
+            while (id)
+            end
+
+        变量
+            set $var = 100
+            set $var += 10
+            set $var++
+
+        打印：
+            echo text                       # 仅打印出text的字面内容
+            output expression               # 输出expression的友好结果，类似p打印，只不过不会输出"$n = xxx"
+            output /fmt expression          # 输出expression的格式化结果，类似p打印，只不过不会输出"$n = xxx"
+            printf string, expressions...   # 格式化输出，用法同c语言的printf，但是当输出%s，可能会有问题（需要调试程序里有malloc的函数）
+
+        example: >
+        (gdb) source test.gdb
+        (file) test.gdb:
+            file test.bin
+            set logging on gdb.log
+            set $var = 0
+            break function
+            command
+                p $pc
+                frame
+                info register
+                while($var < 100)
+                    set $var++
+                    printf "%08X\n", $var
+                end
+                c
+            end
+            run
+<
+    GDB 问题处理:
+        1. 如果打印某个符号时发现GDB报如下错时： >
+            No symbol "HS_PMU" in current context.
+<           可以使用"list"命令，选择该符号所在的上下文，如：l main
+           原因是GDB在解析某个符号时,必须要求该符号在要求的上下文中。(某些宏和变量和函数可以用static声明)
+           注意：变量可以使用'file'::var的方式声明作用域，但是宏不行
+
+
+7. 使用GDB调试KEIL产生的AXF文件:
+    使用GDB调试原始的keil的AXF文件有功能性问题
+    This happens because of the differences between
+    the GNU and the Keil linker. The GNU linker computes 2
+    different addresses for the data section: the address where
+    it will be loaded (VMA) and the address in the FLASH memory
+    where its contents will be stored (LMA). GDB then puts the
+    section contents at the LMA address and the startup code
+    copies it to VMA. Keil linker sets the LMA = VMA, so instead
+    of writing the data section to FLASH, GDB puts it directly
+    into RAM where it gets overwritten by the Keil statup code
+    that expects it to be in the FLASH. To fix this we first
+    need to find out the section name.
+    Run arm-eabi-objdump.exe -x <ELF FILE> on your ELF file (objdump tool is a part of the GCC toolchain):
+
+    keil axf objdump: >
+    Idx Name   Size      VMA       LMA       File off  Algn
+    0 ER_RO    0000168c  08000000  08000000  00000034  2**2
+               CONTENTS, ALLOC, LOAD, READONLY, CODE
+    1 ER_RW    00000020  20000000  20000000  000016c0  2**2  ----->相同<-----
+               CONTENTS, ALLOC, LOAD, DATA
+    2 ER_ZI    00000660  20000020  20000020  000016e0  2**3
+               ALLOC
+<    gcc axf objdump: >
+    Idx Name   Size      VMA       LMA       File off  Algn
+    0 .text    00018f40  08000000  08000000  00008100  2**2
+               CONTENTS, ALLOC, LOAD, READONLY, CODE
+    1 .data    000002b0  2000b000  08019048  00023000  2**2  ----->不相同<-----
+               CONTENTS, ALLOC, LOAD, DATA
+    2 .bss     00000f34  2000b2b0  080192f8  000232b0  2**2
+               ALLOC
+<
+    We will fix this in two steps: first we’ll run the Keil tool called fromelf.exe
+    to convert the ELF file into a .bin file that will reflect the FLASH memory 
+    contents the way Keil tools expect it:
+>
+    fromelf.exe --bin --output <bin file> <elf file>
+
+<    Then we will edit the .elf file using the objcopy tool to replace the data
+    that gets copied to the FLASH memory with the contents of the .bin file.
+    This will ensure that GDB puts the initialization data into the FLASH in
+    the same way as Keil expects it:
+>
+    arm-eabi-objcopy.exe  --remove-section ER_RO \
+    --add-section ER_RO=<bin file> \
+    --set-section-flags ER_RO=CONTENTS,ALLOC,LOAD,READONLY,CODE \
+    --change-section-address ER_RO=<previous address of ER_RO>\
+
+<    The modified fragment of the Makefile will look this way
+    (section names and addresses depend on the device and should
+     be taken from the dump of the original elf file):
+>
+    ifeq ($(TARGETTYPE),APP)
+    ROM_SECTION_NAME := ER_RO
+    $(BINARYDIR)/$(TARGETNAME): $(all_objs) $(EXTERNAL_LIBS)
+        $(LD) -o $(@:.elf=.axf) $(LDFLAGS) $(START_GROUP) $(all_objs) \
+          $(LIBRARY_LDFLAGS) $(END_GROUP)
+        $(FROMELF) --bin --output $(@:.elf=.bin) $(@:.elf=.axf)
+        $(OBJCOPY) --remove-section $(ROM_SECTION_NAME) \
+            --add-section $(ROM_SECTION_NAME)=$(@:.elf=.bin) \
+            --set-section-flags \
+            $(ROM_SECTION_NAME)=CONTENTS,ALLOC,LOAD,READONLY,CODE \
+            --change-section-address $(ROM_SECTION_NAME)=0x08000000 \
+            $(@:.elf=.axf) $@
+    endif
+<
+    NOTE: 问题总结： ~
+    根源：由于KEIL的RW的LMA未在ROM里，导致GDB的"load"命令未正确加载RW段到ROM。~
+    GDB在load AXF时，会把程序load到LMA里去 (KEIL生成的AXF文件RW段的VMA和LMA相等，GCC生成的AXF文件的RW段VMA和LMA不相等). ~
+    而KEIL的RW段的LMA在RAM里，所以GDB在load KEIL的AXF的时候没有load RW段到ROM里，导致KEIL的startup程序(__main)在初始化RW段时出错(KEIL默认会对数据段进行压缩处理) ~
+
+    NOTE：解决方法总结：~
+    直接把ROM里的段(ER_RO)替换成整个bin文件，于是在加载ER_RO时也同时把RW段加载了 ~
+
+    Example: >
+    #!/bin/bash
+    #file: release_hs6620_rom_axf_keil2gdb.sh
+
+    binfile='rom/out/hs6620_rom.bin'
+    keilaxffile='rom/out/hs6620_rom.axf'
+    gdbaxffile='rom/out/hs6620_rom_gdb.axf'
+    romvectorfile='rom/out/rom_vector.bin'
+    romtextfile='rom/out/rom_text.bin'
+
+    # split the binfile to rom-vector and rom-text
+    dd if=$binfile of=$romvectorfile skip=0   bs=256       iflag=skip_bytes count=1
+    dd if=$binfile of=$romtextfile   skip=256 bs=100000000 iflag=skip_bytes count=1
+
+    # relocate rom section
+    arm-none-eabi-objcopy \
+        --remove-section ROM_VECTOR \
+        --add-section ROM_VECTOR=$romvectorfile \
+        --set-section-flags ROM_VECTOR=CONTENTS,ALLOC,LOAD,READONLY,DATA \
+        --change-section-address ROM_VECTOR=0x08000000 \
+        $keilaxffile $gdbaxffile
+
+    arm-none-eabi-objcopy \
+        --remove-section ROM_TEXT \
+        --add-section ROM_TEXT=$romtextfile \
+        --set-section-flags ROM_TEXT=CONTENTS,ALLOC,LOAD,READONLY,CODE \
+        --change-section-address ROM_TEXT=0x08000100 \
+        $keilaxffile $gdbaxffile
+
+    # rm tmp file
+    rm -rf $romvectorfile
+    rm -rf $romtextfile
+
+8. syscalls.c >
+
+    #include <sys/stat.h>
+    #include <errno.h>
+    #include <stdio.h>
+    #include "hs66xx.h"
+
+    //调用printf时候的打印输出
+    static int dbg_send_bytes(const unsigned char *pdata, int len)
+    {
+    }
+
+    static void dbg_flush(void)
+    {
+    }
+
+    int _open (const char *name, int flags, int mode)
+    {
+        errno = ENOENT;
+        return -1;
+    }
+
+    int _close (int file)
+    {
+        if (file == 1 || file == 2)
+        {
+            dbg_flush();
+            return 0;
+        }
+        errno = EBADF;
+        return -1;
+    }
+
+    int _isatty (int file)
+    {
+        if (file >= 0 && file <= 2) return 1;
+        return 0;
+    }
+
+    int _read (int file, char *ptr, int len)
+    {
+        return 0;
+    }
+
+    int _write (int file, const char *ptr, int len)
+    {
+        int sent = -1;
+        if (file == 1 || file == 2)
+            sent = dbg_send_bytes ((const unsigned char*)ptr, len);
+        return sent;
+    }
+
+    int _lseek (int file, int ptr, int dir)
+    {
+        return 0;
+    }
+
+    int _fstat (int file, struct stat *st)
+    {
+        if (file >= 0 && file <= 2)
+        {
+            st->st_mode = S_IFCHR;
+            return 0;
+        }
+        errno = EBADF;
+        return -1;
+    }
+
+    int _stat (char *file, struct stat *st)
+    {
+        errno = ENOENT;
+        return -1;
+    }
+
+    //内部内存分配时候使用
+    caddr_t _sbrk (int incr)
+    {
+        extern char _end; /* Defined by the linker */
+        static char *end = &_end;
+        char *prev_end = end;
+        end += incr;
+        return (caddr_t) prev_end;
+    }
+
+    int _fsync (int fd)
+    {
+        if (fd == 1 || fd == 2)
+        {
+            dbg_flush();
+            return 0;
+        }
+        if (fd == 0) return 0;
+        errno = EBADF;
+        return -1;
+    }
+
+    void _exit (int status)
+    {
+        while (1);
+    }
+
+    void _abort()
+    {
+        while (1);
+    }
+
+    void _kill()
+    {
+        while (1);
+    }
+
+    pid_t _getpid (void)
+    {
+        return 1;
+    }
+
+9. Section: .bss VS COMMON
+    在GCC里.bss和COMMON段很类似，默认情况：
+    int a = 0; // place to .bss section ~
+    int a;     // place to COMMON section ~
+
+    让编译器把所有未初始化的变量放到.bss段的方式是：gcc -fno-common
+
+    NOTE: 使用工具size时请注意：必须加入--common选项来让.bss段里包含未初始化的段，如： >
+          find -name "*.o" | xargs arm-none-eabi-size --common
+<    NOTE: 连接脚本里的.bss段需加入COMMON段，如： >
+        .bss : {
+            *(.bss*)
+            *(COMMON)
+            . = ALIGN(4);
+            _ebss = .;
+        } >ram
+
+10. 使用Python扩展GDB:
+    自定义命令的例子： >
+    # 1. 导入gdb模块来访问gdb提供的python接口
+    import gdb
+
+    # 2. 用户自定义命令需要继承自gdb.Command类
+    class Move(gdb.Command):
+
+        # 3. gdb会提取该类的__doc__属性作为对应命令的文档
+        """Move breakpoint
+        Usage: mv old_breakpoint_num new_breakpoint
+        Example:
+            (gdb) mv 1 binary_search -- move breakpoint 1 to `b binary_search`
+        """
+
+        def __init__(self):
+            # 4. 在构造函数中注册该命令的名字 (gdb.COMPLETE_FILENAME: 文件名字自动完成,不需要的话可以去掉)
+            super(self.__class__, self).__init__("mv", gdb.COMMAND_USER, gdb.COMPLETE_FILENAME)
+
+        # 5. 在invoke方法中实现该自定义命令具体的功能
+        # args表示该命令后面所衔接的参数，这里通过string_to_argv转换成数组
+        def invoke(self, args, from_tty):
+            argv = gdb.string_to_argv(args)
+            if len(argv) != 2:
+                raise gdb.GdbError('输入参数数目不对，help mv以获得用法')
+            # 6. 使用gdb.execute来执行具体的命令
+            gdb.execute('delete ' + argv[0])
+            gdb.execute('break ' + argv[1])
+
+    # 7. 向gdb会话注册该自定义命令
+    Move()
+<
+    断点的例子： >
+    import gdb
+    # 继承断点类
+    class MyBreakpoint (gdb.Breakpoint):
+        # 断点命中之后做什么
+        def stop (self):
+            inf_val = gdb.parse_and_eval("foo")
+            if inf_val == 3:
+                # 停止执行
+                return True
+            else:
+                # 继续执行
+                return False
+
+    # 设置断点
+    MyBreakpoint("source.cpp:42")
+    gdb.execute("c")
+<
+    GDB提供的重要的API：
+    1. gdb.execute(command_string, to_string=False) >
+        执行GDB命令。默认输出到终端，如果to_string=True的话，输出通过返回值返回
+<    2. gdb.parse_and_eval(expression_string) >
+        解析表达式(函数,变量,等)，并通过返回值返回。可使用str(),int()等强制转换返回值
+        获得某个函数的返回值：flash_id = int(gdb.parse_and_eval('sf_read_id(0)'))
+        获得某个变量的地址: buffer_address = int(gdb.parse_and_eval('m_buffer').cast(gdb.lookup_type('int')))
+        获得某个缓冲的字符串：string = gdb.parse_and_eval('FlashDevice.DevName').string()
+<    3. raise gdb.GdbError(string) >
+        raise 异常使用
+<    4. gdb.objfiles() >
+        当前调试文件,通过file命令添加的, 返回一个list
+        gdb.objfiles()[0].filename: 第一个调试文件的名字
+
+11. GNU Binary Utilities Tools:
+    • ar:           Create, modify, and extract from archives
+    • nm:           List symbols from object files
+    • objcopy:      Copy and translate object files
+    • objdump:      Display information from object files
+    • ranlib:       Generate index to archive contents
+    • size:         List section sizes and total size
+    • strings:      List printable strings from files
+    • strip:        Discard symbols
+    • c++filt:      Filter to demangle encoded C++ symbols
+    • cxxfilt:      MS-DOS name for c++filt
+    • addr2line:    Convert addresses to file and line
+    • nlmconv:      Converts object code into an NLM
+    • windmc:       Generator for Windows message resources
+    • windres:      Manipulate Windows resources
+    • dlltool:      Create files needed to build and use DLLs
+    • readelf:      Display the contents of ELF format files
+    • elfedit:      Update the ELF header of ELF files
+
+vim: ft=help

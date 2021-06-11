@@ -1,0 +1,41 @@
+丰富文本文件写入类
+
+1. QTextEdit 和 QPlainTextEdit 都使用 QTextDocument 管理文档内容
+2. QTextDocumentWriter 可以将 QTextDocument 管理的文档内容写入到文件中
+   目前支持写入三种文件格式：plaintext(普通文本，如*.txt)，HTML(丰富格式文本，*.htm 或*.html)，
+   ODF(开放办公文档格式，LibreOffice、OpenOffice文档格式)。
+   对于 QTextDocument 对象，目前是管写不管读，因为写入简单，读取比较麻烦。
+   
+3. 构造函数
+   QTextDocumentWriter(QIODevice * device, const QByteArray & format)
+   QTextDocumentWriter(const QString & fileName, const QByteArray & format = QByteArray())
+   第一个构造函数的 device 是已经打开的写入文件对象，
+   第二个构造函数的 fileName 是要写入的文件名。format 就是三种格式字符串其中之一："plaintext" 、"HTML" 或者 "ODF" 。
+   
+   如果构造函数未指定写入文件格式，可以用如下函数来设置或更改格式：
+   void QTextDocumentWriter::​setFormat(const QByteArray & format)
+   如果要更改写入的文件对象或文件名，可以用如下函数：
+   void QTextDocumentWriter::​setDevice(QIODevice * device)
+   void QTextDocumentWriter::​setFileName(const QString & fileName)
+   
+4. QTextEdit 和 QPlainTextEdit 到 QTextDocumentWriter的write函数
+   有了写入文件和写入格式之后，一般是从 QTextEdit 或 QPlainTextEdit 编辑器获取文档对象指针：
+   QTextDocument * QTextEdit::document() const
+   QTextDocument * QPlainTextEdit::document() const
+   最后调用 QTextDocumentWriter 对象的写入函数即可：
+   bool QTextDocumentWriter::​write(const QTextDocument * document)
+   如果写入成功会返回 true，写入失败就返回 false。
+   
+   另外还有一个写入文档片段的函数：
+   bool QTextDocumentWriter::​write(const QTextDocumentFragment & fragment)
+   文档片段一般从剪贴板或者根据用户选中的高亮部分获取
+   
+5. 编码
+   对于文本文件，"plaintext" 和 "HTML" 格式的，可能涉及到文本的字符编码函数，Qt 默认使用 UTF-8 格式的，
+如果需要改变文本编码，可以自己在文档写入之前设置：
+   void QTextDocumentWriter::​setCodec(QTextCodec * codec)   //修改文本编码
+   QTextCodec * QTextDocumentWriter::​codec() const    //获取当前编码格式
+   指定文本编码格式的对象指针一般用如下静态函数获取：
+   QTextCodec * QTextCodec::​codecForName(const char * name)  //静态函数，根据编码格式名称返回文本编码器
+   
+   

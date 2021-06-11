@@ -1,0 +1,23 @@
+1.udelay(); mdelay(); ndelay();实现的原理本质上都是忙等待，ndelay和mdelay都是通过udelay衍生出来的，
+我们使用这些函数的实现往往会碰到编译器的警告implicit declaration of function 'udelay'，这往往是由于头文件的使用不当造成的。
+
+在include/asm-???/delay.h中定义了udelay（），而在include/linux/delay.h中定义了mdelay和ndelay.
+
+udelay一般适用于一个比较小的delay，如果你填的数大于2000，系统会认为你这个是一个错误的delay函数，
+因此如果需要2ms以上的delay需要使用mdelay函数。
+
+2.由于这些delay函数本质上都是忙等待，对于长时间的忙等待意味这无谓的耗费着cpu的资源，因此对于毫秒级的延时，
+内核提供了msleep，ssleep等函数，这些函数将使得调用它的进程睡眠参数指定的时间。
+
+
+在Ｌinux　Ｄriver开发中，经常要用到延迟函数：msleep，mdelay／udelay．
+
+虽然msleep和mdelay都有延迟的作用，但他们是有区别的．
+
+mdelay是忙等待函数，在延迟过程中无法运行其他任务．这个延迟的时间是准确的．是需要等待多少时间就会真正等待多少时间．
+而msleep是休眠函数，它不涉及忙等待．你如果是msleep(１０)，那实际上延迟的时间，大部分时候是要多于１０ms的，是个不定的时间值．
+
+他们的差异，平时我也讲的出来，可是真正用起来的时候，就忘记了．曾在两个driver的i2c的code中，需要用到delay函数，而我用了msleep函数，
+一直Ｉ２Ｃ速度超慢．而我又不知道哪里出了问题，我潜意识中，认为我只delay了１ms，可是，实际上是十几毫秒．
+
+要尽量使用sleep函数（msleep等）而不是delay函数（mdelay等），两者对系统性能以及功耗的影响相差很远，特别是活动进程很少的时候。

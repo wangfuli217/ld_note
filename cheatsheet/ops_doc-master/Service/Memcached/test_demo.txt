@@ -1,0 +1,272 @@
+telnet 127.0.0.1 11211
+Trying 127.0.0.1...
+Connected to 127.0.0.1.
+Escape character is '^]'.
+set foo 0 0 3                                                     保存命令
+# bar                                                             数据
+# STORED                                                          结果
+get foo                                                           取得命令
+# VALUE foo 0 3                                                   数据
+# bar                                                             数据
+# END                                                             结束行
+
+--------------------------------------------------------------------------------
+将 value(数据值) 存储在指定的 key(键) 中。
+如果set的key已经存在，该命令可以更新该key所对应的原来的数据，也就是实现更新的作用。
+
+set key flags exptime bytes [noreply] 
+value 
+参数说明如下：
+    key：键值 key-value 结构中的 key，用于查找缓存值。
+    flags：可以包括键值对的整型参数，客户机使用它存储关于键值对的额外信息 。
+    exptime：在缓存中保存键值对的时间长度(以秒为单位，0 表示永远)
+    bytes：在缓存中存储的字节数
+    noreply(可选)： 该参数告知服务器不需要返回数据
+    value：存储的值(始终位于第二行)(可直接理解为key-value结构中的value)
+    
+# key       runoob
+# flag      0
+# exptime   900 (以秒为单位)
+# bytes     9 (数据存储的字节数)
+# value     memcached
+--------------------------------------
+set runoob 0 900 9
+memcached
+# STORED
+
+get runoob
+# VALUE runoob 0 9
+# memcached
+
+
+--------------------------------------------------------------------------------
+将 value(数据值) 存储在指定的 key(键) 中
+如果 add 的 key 已经存在，则不会更新数据(过期的 key 会更新)，之前的值将仍然保持相同，并且您将获得响应 NOT_STORED。
+
+add key flags exptime bytes [noreply]
+value
+参数说明如下：
+    key：键值 key-value 结构中的 key，用于查找缓存值。
+    flags：可以包括键值对的整型参数，客户机使用它存储关于键值对的额外信息 。
+    exptime：在缓存中保存键值对的时间长度(以秒为单位，0 表示永远)
+    bytes：在缓存中存储的字节数
+    noreply(可选)： 该参数告知服务器不需要返回数据
+    value：存储的值(始终位于第二行)(可直接理解为key-value结构中的value)
+
+# 以下实例中我们设置：
+#   key         new_key
+#   flag        0
+#   exptime     900 (以秒为单位)
+#   bytes       10 (数据存储的字节数)
+#   value       data_value
+--------------------------------------
+add new_key 0 900 10
+data_value
+# STORED
+get new_key
+# VALUE new_key 0 10
+# data_value
+# END
+# 
+输出
+如果数据添加成功，则输出：
+STORED
+输出信息说明：
+    STORED：保存成功后输出。
+    NOT_STORED ：在保存失败后输出。
+
+--------------------------------------------------------------------------------
+用于替换已存在的 key(键) 的 value(数据值)。
+如果 key 不存在，则替换失败，并且您将获得响应 NOT_STORED。
+
+replace 命令的基本语法格式如下：
+replace key flags exptime bytes [noreply]
+value
+参数说明如下：
+    key：键值 key-value 结构中的 key，用于查找缓存值。
+    flags：可以包括键值对的整型参数，客户机使用它存储关于键值对的额外信息 。
+    exptime：在缓存中保存键值对的时间长度(以秒为单位，0 表示永远)
+    bytes：在缓存中存储的字节数
+    noreply(可选)： 该参数告知服务器不需要返回数据
+    value：存储的值(始终位于第二行)(可直接理解为key-value结构中的value)
+
+实例
+以下实例中我们设置：
+    key → mykey
+    flag → 0
+    exptime → 900 (以秒为单位)
+    bytes → 10 (数据存储的字节数)
+    value → data_value
+以下实例中我们使用的键位 'mykey' 并存储对应的值 data_value。执行后我们替换相同的 key 的值为 'some_other_value'。
+add mykey 0 900 10
+# data_value
+# STORED
+get mykey
+# VALUE mykey 0 10
+# data_value
+# END
+replace mykey 0 900 16
+some_other_value
+get mykey
+# VALUE mykey 0 16
+# some_other_value
+# END
+
+输出
+如果数据添加成功，则输出：
+STORED
+输出信息说明：
+    STORED：保存成功后输出。
+    NOT_STORED：执行替换失败后输出。
+    
+--------------------------------------------------------------------------------
+append 命令用于向已存在 key(键) 的 value(数据值) 后面追加数据 。
+
+append 命令的基本语法格式如下：
+append key flags exptime bytes [noreply]
+value
+参数说明如下：
+    key：键值 key-value 结构中的 key，用于查找缓存值。
+    flags：可以包括键值对的整型参数，客户机使用它存储关于键值对的额外信息 。
+    exptime：在缓存中保存键值对的时间长度(以秒为单位，0 表示永远)
+    bytes：在缓存中存储的字节数
+    noreply(可选)： 该参数告知服务器不需要返回数据
+    value：存储的值(始终位于第二行)(可直接理解为key-value结构中的value)
+
+实例如下：
+    首先我们在 Memcached 中存储一个键 runoob，其值为 memcached。
+    然后，我们使用 get 命令检索该值。
+    然后，我们使用 append 命令在键为 runoob 的值后面追加 "redis"。
+    最后，我们再使用 get 命令检索该值。
+
+set runoob 0 900 9
+memcached
+# STORED
+get runoob
+# VALUE runoob 0 9
+# memcached
+# END
+append runoob 0 900 5
+redis
+# STORED
+get runoob
+# VALUE runoob 0 14
+# memcachedredis
+# END
+
+输出
+如果数据添加成功，则输出：
+STORED
+输出信息说明：
+    STORED：保存成功后输出。
+    NOT_STORED：该键在 Memcached 上不存在。
+    CLIENT_ERROR：执行错误。
+
+--------------------------------------------------------------------------------
+prepend 命令用于向已存在 key(键) 的 value(数据值) 前面追加数据 。
+语法：
+prepend 命令的基本语法格式如下：
+prepend key flags exptime bytes [noreply]
+value
+参数说明如下：
+    key：键值 key-value 结构中的 key，用于查找缓存值。
+    flags：可以包括键值对的整型参数，客户机使用它存储关于键值对的额外信息 。
+    exptime：在缓存中保存键值对的时间长度(以秒为单位，0 表示永远)
+    bytes：在缓存中存储的字节数
+    noreply(可选)： 该参数告知服务器不需要返回数据
+    value：存储的值(始终位于第二行)(可直接理解为key-value结构中的value)
+实例如下：
+    首先我们在 Memcached 中存储一个键 runoob，其值为 memcached。
+    然后，我们使用 get 命令检索该值。
+    然后，我们使用 prepend 命令在键为 runoob 的值前面追加 "redis"。
+    最后，我们再使用 get 命令检索该值。
+
+set runoob 0 900 9
+memcached
+# STORED
+get runoob
+# VALUE runoob 0 9
+# memcached
+# END
+prepend runoob 0 900 5
+redis
+# STORED
+get runoob
+# VALUE runoob 0 14
+# redismemcached
+# END
+
+输出
+如果数据添加成功，则输出：
+STORED
+输出信息说明：
+    STORED：保存成功后输出。
+    NOT_STORED：该键在 Memcached 上不存在。
+    CLIENT_ERROR：执行错误。
+--------------------------------------------------------------------------------
+命令用于执行一个"检查并设置"的操作
+它仅在当前客户端最后一次取值后，该key 对应的值没有被其他客户端修改的情况下， 才能够将值写入。
+检查是通过cas_token参数进行的， 这个参数是Memcach指定给已经存在的元素的一个唯一的64位值。
+
+
+CAS 命令的基本语法格式如下：
+cas key flags exptime bytes unique_cas_token [noreply]
+value
+参数说明如下：
+    key：键值 key-value 结构中的 key，用于查找缓存值。
+    flags：可以包括键值对的整型参数，客户机使用它存储关于键值对的额外信息 。
+    exptime：在缓存中保存键值对的时间长度(以秒为单位，0 表示永远)
+    bytes：在缓存中存储的字节数
+    unique_cas_token通过 gets 命令获取的一个唯一的64位值。
+    noreply(可选)： 该参数告知服务器不需要返回数据
+    value：存储的值(始终位于第二行)(可直接理解为key-value结构中的value)
+    
+要在 Memcached 上使用 CAS 命令，你需要从 Memcached 服务商通过 gets 命令获取令牌(token)。
+gets 命令的功能类似于基本的 get 命令。两个命令之间的差异在于，gets 返回的信息稍微多一些：
+64 位的整型值非常像名称/值对的 "版本" 标识符。
+实例步骤如下：
+    如果没有设置唯一令牌，则 CAS 命令执行错误。
+    如果键 key 不存在，执行失败。
+    添加键值对。
+    通过 gets 命令获取唯一令牌。
+    使用 cas 命令更新数据
+    使用 get 命令查看数据是否更新
+
+cas tp 0 900 9
+ERROR             <− 缺少 token
+
+cas tp 0 900 9 2
+memcached
+NOT_FOUND         <− 键 tp 不存在
+
+set tp 0 900 9
+memcached
+STORED
+
+gets tp
+VALUE tp 0 9 1
+memcached
+END
+
+cas tp 0 900 5 1
+redis
+STORED
+
+get tp
+VALUE tp 0 5
+redis
+END
+
+输出
+
+如果数据添加成功，则输出：
+
+STORED
+
+输出信息说明：
+
+    STORED：保存成功后输出。
+    ERROR：保存出错或语法错误。
+    EXISTS：在最后一次取值后另外一个用户也在更新该数据。
+    NOT_FOUND：Memcached 服务上不存在该键值。
+    

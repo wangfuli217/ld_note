@@ -1,0 +1,3155 @@
+<HTML>
+<HEAD>
+<TITLE>automake</TITLE>
+</HEAD>
+<BODY>
+<H1>GNU Automake</H1>
+<H2>For version 1.3, 3 April 1998</H2>
+<ADDRESS>David MacKenzie and Tom Tromey</ADDRESS>
+<P>
+<P><HR><P>
+<H1>目录</H1>
+<UL>
+<LI><A NAME="TOC1" HREF="automake.html#SEC1">介绍</A>
+<LI><A NAME="TOC2" HREF="automake.html#SEC2">通用性概念</A>
+<UL>
+<LI><A NAME="TOC3" HREF="automake.html#SEC3">通用操作</A>
+<LI><A NAME="TOC4" HREF="automake.html#SEC4">深度</A>
+<LI><A NAME="TOC5" HREF="automake.html#SEC5">严格性</A>
+<LI><A NAME="TOC6" HREF="automake.html#SEC6">统一命名机制</A>
+<LI><A NAME="TOC7" HREF="automake.html#SEC7">派生变量是如何命名的</A>
+</UL>
+<LI><A NAME="TOC8" HREF="automake.html#SEC8">一些实例软件包</A>
+<UL>
+<LI><A NAME="TOC9" HREF="automake.html#SEC9">一个简单的例子，从起点到终点</A>
+<LI><A NAME="TOC10" HREF="automake.html#SEC10">一个经典的程序</A>
+<LI><A NAME="TOC11" HREF="automake.html#SEC11">创建etags和ctags</A>
+</UL>
+<LI><A NAME="TOC12" HREF="automake.html#SEC12">创建<TT>`Makefile.in'</TT></A>
+<LI><A NAME="TOC13" HREF="automake.html#SEC13">扫描<TT>`configure.in'</TT></A>
+<UL>
+<LI><A NAME="TOC14" HREF="automake.html#SEC14">配置需求</A>
+<LI><A NAME="TOC15" HREF="automake.html#SEC15">Automake能够识别的其它事情</A>
+<LI><A NAME="TOC16" HREF="automake.html#SEC16">自动生成的aclocal.m4</A>
+<LI><A NAME="TOC17" HREF="automake.html#SEC17">由Automake支持的Autoconf宏</A>
+<LI><A NAME="TOC18" HREF="automake.html#SEC18">编写你自己的aclocal宏</A>
+</UL>
+<LI><A NAME="TOC19" HREF="automake.html#SEC19">顶层<TT>`Makefile.am'</TT></A>
+<LI><A NAME="TOC20" HREF="automake.html#SEC20">创建程序和库</A>
+<UL>
+<LI><A NAME="TOC21" HREF="automake.html#SEC21">创建一个程序</A>
+<LI><A NAME="TOC22" HREF="automake.html#SEC22">创建一个库</A>
+<LI><A NAME="TOC23" HREF="automake.html#SEC23">对LIBOBJS和ALLOCA的特别处理</A>
+<LI><A NAME="TOC24" HREF="automake.html#SEC24">创建一个共享库</A>
+<LI><A NAME="TOC25" HREF="automake.html#SEC25">创建一个程序时使用的变量</A>
+<LI><A NAME="TOC26" HREF="automake.html#SEC26">对Yacc和Lex的支持</A>
+<LI><A NAME="TOC27" HREF="automake.html#SEC27">C++和其它语言</A>
+<LI><A NAME="TOC28" HREF="automake.html#SEC28">自动de-ANSI-fication</A>
+<LI><A NAME="TOC29" HREF="automake.html#SEC29">自动的依赖性（dependency）跟踪</A>
+</UL>
+<LI><A NAME="TOC30" HREF="automake.html#SEC30">其它派生对象</A>
+<UL>
+<LI><A NAME="TOC31" HREF="automake.html#SEC31">可执行的脚本</A>
+<LI><A NAME="TOC32" HREF="automake.html#SEC32">头文件</A>
+<LI><A NAME="TOC33" HREF="automake.html#SEC33">与体系结构无关（Architecture-independent）的数据文件</A>
+<LI><A NAME="TOC34" HREF="automake.html#SEC34">已创建的源代码</A>
+</UL>
+<LI><A NAME="TOC35" HREF="automake.html#SEC35">其它GNU工具</A>
+<UL>
+<LI><A NAME="TOC36" HREF="automake.html#SEC36">Emacs Lisp</A>
+<LI><A NAME="TOC37" HREF="automake.html#SEC37">Gettext</A>
+<LI><A NAME="TOC38" HREF="automake.html#SEC38">Guile</A>
+<LI><A NAME="TOC39" HREF="automake.html#SEC39">Libtool</A>
+<LI><A NAME="TOC40" HREF="automake.html#SEC40">Java</A>
+</UL>
+<LI><A NAME="TOC41" HREF="automake.html#SEC41">创建文档</A>
+<UL>
+<LI><A NAME="TOC42" HREF="automake.html#SEC42">Texinfo</A>
+<LI><A NAME="TOC43" HREF="automake.html#SEC43">Man手册</A>
+</UL>
+<LI><A NAME="TOC44" HREF="automake.html#SEC44">安装了些什么</A>
+<LI><A NAME="TOC45" HREF="automake.html#SEC45">清除了些什么</A>
+<LI><A NAME="TOC46" HREF="automake.html#SEC46">需要发布哪些文件</A>
+<LI><A NAME="TOC47" HREF="automake.html#SEC47">对测试套件（test suites）的支持</A>
+<LI><A NAME="TOC48" HREF="automake.html#SEC48">改变Automake的行为</A>
+<LI><A NAME="TOC49" HREF="automake.html#SEC49">其它规则</A>
+<UL>
+<LI><A NAME="TOC50" HREF="automake.html#SEC50">与<CODE>etags</CODE>之间的界面</A>
+<LI><A NAME="TOC51" HREF="automake.html#SEC51">处理新的文件扩展名</A>
+</UL>
+<LI><A NAME="TOC52" HREF="automake.html#SEC52">条件（Conditionals）</A>
+<LI><A NAME="TOC53" HREF="automake.html#SEC53"><CODE>--gnu</CODE> and <CODE>--gnits</CODE>的效果</A>
+<LI><A NAME="TOC54" HREF="automake.html#SEC54"><CODE>--cygnus</CODE>的效果</A>
+<LI><A NAME="TOC55" HREF="automake.html#SEC55">什么时候Automake不够用</A>
+<LI><A NAME="TOC56" HREF="automake.html#SEC56">发布<TT>`Makefile.in'</TT></A>
+<LI><A NAME="TOC57" HREF="automake.html#SEC57">未来的某些想法</A>
+<LI><A NAME="TOC58" HREF="automake.html#SEC58">索引</A>
+</UL>
+<P><HR><P>
+
+<P>
+@dircategory GNU admin
+@direntry
+* automake: (automake).		Making Makefile.in's
+
+</P>
+<P>
+@dircategory Individual utilities
+@direntry
+* aclocal: (automake)Invoking aclocal.          Generating aclocal.m4
+
+</P>
+
+<P>
+Copyright (C) 1995, 96 Free Software Foundation, Inc.
+<P>
+这是GNU Automake文档的第一版，<BR>
+并且是针对GNU Automake 1.3的。<BR>
+<P>
+自由软件基金会出版 <BR>
+59 Temple Place - Suite 330, <BR>
+Boston, MA 02111-1307 USA <BR>
+
+</P>
+<P>
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+</P>
+<P>
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+</P>
+<P>
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation
+approved by the Free Software Foundation.
+
+</p>
+<p>
+只要版权声明和本许可声明保留在所有副本中，您就被授权制作和发行本手册的
+原文副本。
+
+</p>
+<p>
+只要整个最终派生工作按照与本手册相同的许可声明发行，您就被授权按照与
+发行原文相同的条件复制和发行本手册的修改版本。
+
+</p>
+<p>
+除了本许可声明应该使用由基金会批准的译文之外，您被授权按照与上述修改
+版本相同的条件复制和发行本手册的其它语言的译文。
+
+</P>
+
+<HR>
+
+<P>本文档由王立翻译。 1999.12.17</P>
+<P>译者在此声明：不对任何由译文错误或者对译文的误解承担任何责任。</P>
+
+<HR>
+
+<H1><A NAME="SEC1" HREF="automake.html#TOC1">介绍</A></H1>
+
+<P>
+Automake是一个从文件<TT>`Makefile.am'</TT>自动生成<TT>`Makefile.in'</TT>
+的工具。每个<TT>`Makefile.am'</TT>基本上是一系列<CODE>make</CODE>的宏定义
+（make规则也会偶尔出现）。生成的<TT>`Makefile.in'</TT>s服从GNU Makefile标准。
+
+</P>
+<P>
+GNU Makefile标准文档（参见<CITE>GNU编码标准</CITE>中的‘Makefile惯例’节）
+长、复杂，而且会发生改变。Automake的目的就是解除个人GNU维护者维护Makefile的负担
+（并且让Automake的维护者来承担这个负担）。
+
+</P>
+<P>
+典型的Automake输入文件是一系列简单的宏定义。处理所有这样的文件以创建
+<TT>`Makefile.in'</TT>。在一个项目（project）的每个目录中通常包含一个
+<TT>`Makefile.am'</TT>。
+
+</P>
+<P>
+Automake在几个方面对一个项目做了限制；例如它假定项目使用Autoconf
+（参见<CITE>Autoconf手册</CITE>），并且对<TT>`configure.in'</TT>的内容施加了某些限制。
+
+</P>
+<P>
+为生成<TT>`Makefile.in'</TT>，Automake需要<CODE>perl</CODE>。
+但是由Automake创建的发布完全服从GNU标准，并且在创建中不需要<CODE>perl</CODE>。
+
+</P>
+<P>
+请把关于Automake的建议和bug发送到
+<A HREF="mailto:automake-bugs@gnu.org">automake-bugs@gnu.org</A>。
+
+</P>
+
+
+
+<H1><A NAME="SEC2" HREF="automake.html#TOC2">通用性概念</A></H1>
+
+<P>
+一些基本概念将有助于理解Automake是如何工作的。
+
+</P>
+
+
+
+<H2><A NAME="SEC3" HREF="automake.html#TOC3">通用操作</A></H2>
+
+<P>
+Automake读入<TT>`Makefile.am'</TT>并且生成<TT>`Makefile.in'</TT>。
+在<TT>`Makefile.am'</TT>中定义的一些宏和目标（targets）指挥automake生成
+更多特定的代码；例如一个<SAMP>`bin_PROGRAMS'</SAMP>宏定义将生成一个需要
+被编译、连接的目标。
+
+</P>
+<P>
+<TT>`Makefile.am'</TT>中的宏定义和目标被复制到生成的文件中。这使得你可以把
+任何代码添加到生成的<TT>`Makefile.in'</TT>文件中。例如，Automake的发布
+包含了非标准的<CODE>cvs-dist</CODE>目标，Automake的维护者用它从他的版本
+控制系统中创建发布版本。
+
+</P>
+<P>
+Automake不能识别GNU对make的扩展。在<TT>`Makefile.am'</TT>中使用这些
+扩展将导致错误或者令人不解的行为。
+
+</P>
+<P>
+Automake试图明智地把注释和相邻的目标（或者变量定义）关联起来。
+
+</P>
+<P>
+在<TT>`Makefile.am'</TT>中定义的目标通常覆盖了所有由<CODE>automake</CODE>
+自动生成的拥有相似名字的目标。虽然Automake提供了这一功能，但最好避免使用它，
+因为有些时候生成的规则将是十分特别的。
+
+</P>
+<P>
+类似地，在<TT>`Makefile.am'</TT>中定义的变量将覆盖任何通常由<CODE>automake</CODE>
+创建的变量定义。该功能比覆盖目标定义的功能要常用得多。需要警告的是许多由
+<CODE>automake</CODE>生成的变量都被认为是内部使用的，并且它们的名字可能在未来
+的版本中改变。
+
+</P>
+<P>
+在检验变量定义的时候，Automake将递归地检验定义中的变量引用。例如，如果Automake
+在如下片断中搜索<SAMP>`foo_SOURCES'</SAMP>的内容。
+
+</P>
+
+<PRE>
+xs = a.c b.c
+foo_SOURCES = c.c $(xs)
+</PRE>
+
+<P>
+它将把文件<TT>`a.c'</TT>、 <TT>`b.c'</TT>和 <TT>`c.c'</TT>作为<SAMP>`foo_SOURCES'</SAMP>
+的内容。
+
+</P>
+<P>
+Automake还允许给出<EM>不</EM>被复制到输出中的注释；所有以<SAMP>`##'</SAMP>开头的行
+将被Automake彻底忽略。
+
+</P>
+<P>
+作为惯例，<TT>`Makefile.am'</TT>的第一行是：
+
+</P>
+
+<PRE>
+## Process this file with automake to produce Makefile.in
+</PRE>
+
+
+
+<H2><A NAME="SEC4" HREF="automake.html#TOC4">深度</A></H2>
+<P>
+<CODE>automake</CODE>支持三种目录层次： “flat”、“shallow”和“deep”。
+
+</P>
+<P>
+一个<EM>flat</EM>（平）包指的是所有文件都在一个目录中的包。为这类包提供的<TT>`Makefile.am'</TT>
+缺少宏<CODE>SUBDIRS</CODE>。这类包的一个例子是<CODE>termutils</CODE>。
+
+<A NAME="IDX1"></A>
+
+</P>
+<P>
+一个<EM>deep</EM>（深）包指的是所有的源代码都被储存在子目录中的包；顶层
+目录主要包含配置信息。GNU <CODE>cpio</CODE>
+是这类包的一个很好的例子，GNU <CODE>tar</CODE>也是。deep包的顶层<TT>`Makefile.am'</TT>将包括
+宏<CODE>SUBDIRS</CODE>，但没有其它定义需要创建的对象的宏。
+
+</P>
+<P>
+一个<EM>shallow</EM>（浅）包指的是主要的源代码储存在顶层目录中，而
+各个部分（典型的是库）则储存在子目录中的包。Automake本身就是这类包（GNU
+<CODE>make</CODE>也是如此，它现在已经不使用<CODE>automake</CODE>）。
+
+</P>
+
+<H2><A NAME="SEC5" HREF="automake.html#TOC5">严格性</A></H2>
+<P>
+Automake的目的是用于维护GNU包，它为适应那些希望使用它的人做出
+了一些努力，但并不指望应用所有的GNU惯例。
+
+</P>
+<P>
+按照这个目标，Automake支持三级<EM>严格性</EM>---严格性指的是Automake
+将如何检查包所服从的标准。
+
+</P>
+<P>
+可用的严格性级别有：
+
+</P>
+<DL COMPACT>
+
+<DT><SAMP>`foreign'</SAMP>（外来）
+<DD>
+Automake将仅仅检查那些为保证正确操作所必需的事项。例如，尽管GNU标准指出
+文件<TT>`NEWS'</TT>必须存在，在本方式下，并不需要它。该模式名来自于Automake
+是被设计成用于GNU程序的事实的；它放松了标准模式的操作规则。
+
+<DT><SAMP>`gnu'</SAMP>
+<DD>
+Automake将尽可能地检查包是否服从GNU标准。这是缺省设置。
+
+<DT><SAMP>`gnits'</SAMP>
+<DD>
+Automake将按照还没有完成的Gnits标准进行检查。它们是基于GNU标准的，但更加
+详尽。除非你是Gnits标准的参与奉献者，我们建议您在Gnits标准正式出版之前
+不要使用这一选项。
+</DL>
+
+<P>
+关于严格性级别的精确含义的详细说明，参见<A HREF="automake.html#SEC53"><CODE>--gnu</CODE>
+和<CODE>--gnits</CODE>的效果</A>
+
+</P>
+
+
+
+<H2><A NAME="SEC6" HREF="automake.html#TOC6">统一命名机制</A></H2>
+<P>
+Automake变量通常服从统一的命名机制，以易于确定如何创建和安装程序（和其它派生对象）。
+这个机制还支持在运行<CODE>configure</CODE>的时候确定应该创建那些对象。
+
+</P>
+<P>
+在运行<CODE>make</CODE>时，某些变量被用于确定应该创建那些对象。
+这些变量被称为<EM>主（primary）</EM>变量。例如，主变量<CODE>PROGRAMS</CODE>
+保存了需要被编译和连接的程序的列表。
+<A NAME="IDX2"></A>
+
+</P>
+<P>
+另一组变量用于确定应该把创建了的对象安装在哪里。这些变量在主变量之后命名，
+但是含有一个前缀以指出那个标准目录将作为安装目录。标准目录名在GNU标准中给出
+（参见<CITE>GNU编码标准</CITE>中的`为Directory Variables'节）。
+Automake用<CODE>pkglibdir</CODE>、<CODE>pkgincludedir</CODE>和
+<CODE>pkgdatadir</CODE>扩展了这个列表；除了把<SAMP>`@PACKAGE@'</SAMP>附加
+其后之外，与非<SAMP>`pkg'</SAMP>版本是相同的。
+例如，<CODE>pkglibdir</CODE>被定义为<CODE>$(datadir)/@PACKAGE@</CODE>.
+<A NAME="IDX3"></A>
+
+</P>
+<P>
+对于每个主变量，还有一个附加的变量，它的名字是在主变量名之前加一个<SAMP>`EXTRA_'</SAMP>。
+该变量用于储存根据<CODE>configure</CODE>的运行结果，可能创建、也可能不创建
+的对象列表。引入该变量是因为Automake必须静态地知道需要创建的对象的完整列表
+以创建在所有情况下都能够工作的<TT>`Makefile.in'</TT>。
+
+</P>
+<P>
+例如，在配置时刻<CODE>cpio</CODE>确定创建哪些程序。一部分程序被安装在<CODE>bindir</CODE>，
+还有一部分程序被安装在<CODE>sbindir</CODE>：
+
+</P>
+
+<PRE>
+EXTRA_PROGRAMS = mt rmt
+bin_PROGRAMS = cpio pax
+sbin_PROGRAMS = @PROGRAMS@
+</PRE>
+
+<P>
+定义没有前缀的主变量（比如说<CODE>PROGRAMS</CODE>）是错误的。
+
+</P>
+<P>
+在构造变量名的时候，通常省略后缀<SAMP>`dir'</SAMP>；因此我们使用
+<SAMP>`bin_PROGRAMS'</SAMP>而不是<SAMP>`bindir_PROGRAMS'</SAMP>.
+
+</P>
+<P>
+不是每种对象都可以安装在任何目录中。Automake将记录它们以试图找出
+错误。Automake还将诊断目录名中明显的拼写错误。
+
+</P>
+<P>
+有时标准目录--即使在Automake扩展之后---是不够的。特别在有些时候，为了清晰
+起见，把对象安装到预定义目录的子目录中是十分有用的。为此，Automake允许你
+扩展可能的安装目录列表。如果定义了一个添加了后缀<SAMP>`dir'</SAMP>的变量
+（比如说<SAMP>`zardir'</SAMP>），则给定的前缀（比如<SAMP>`zar'</SAMP>）
+就是合法的。
+
+</P>
+<P>
+例如，在HTML支持成为Automake的一部分之前，你可以使用它安装原始的HTML文档。
+
+</P>
+
+<PRE>
+htmldir = $(prefix)/html
+html_DATA = automake.html
+</PRE>
+
+<P>
+特殊前缀<SAMP>`noinst'</SAMP>表示根本不会安装这些有问题的对象。
+
+</P>
+<P>
+特殊前缀<SAMP>`check'</SAMP>表示仅仅在运行<CODE>make check</CODE>
+命令的时候才创建这些有问题的对象。
+
+</P>
+<P>
+可能的主变量名有<SAMP>`PROGRAMS'</SAMP>、<SAMP>`LIBRARIES'</SAMP>、
+<SAMP>`LISP'</SAMP>、<SAMP>`SCRIPTS'</SAMP>、<SAMP>`DATA'</SAMP>、
+<SAMP>`HEADERS'</SAMP>、<SAMP>`MANS'</SAMP>和<SAMP>`TEXINFOS'</SAMP>。
+<A NAME="IDX4"></A>
+<A NAME="IDX5"></A>
+<A NAME="IDX6"></A>
+<A NAME="IDX7"></A>
+<A NAME="IDX8"></A>
+<A NAME="IDX9"></A>
+<A NAME="IDX10"></A>
+<A NAME="IDX11"></A>
+
+</P>
+
+
+
+<H2><A NAME="SEC7" HREF="automake.html#TOC7">派生变量是如何命名的</A></H2>
+
+<P>
+有时Makefile变量名是从用户提供的某些文本中派生而来的。例如程序名被重写
+到Makefile宏名中。Automake把这些文本规范化，以使它可以不必服从Makefile的
+变量名规则。在名字中除了字母、数字和下划线之外的所有字符都将用下划线代替。
+例如，如果你的程序被命名为<CODE>sniff-glue</CODE>，那么派生出的变量名
+将是<CODE>sniff_glue_SOURCES</CODE>，而不是<CODE>sniff-glue_SOURCES</CODE>。
+
+</P>
+
+
+
+<H1><A NAME="SEC8" HREF="automake.html#TOC8">一些实例软件包</A></H1>
+
+
+
+<H2><A NAME="SEC9" HREF="automake.html#TOC9">一个简单的例子，从起点到终点</A></H2>
+
+<P>
+让我们假定你刚刚写完<CODE>zardoz</CODE>，一个是你的头从一个漩涡漂流
+到另一个漩涡的程序。你已经使用了<CODE>autoconf</CODE>以提供一个可移植的框架，
+但你的<TT>`Makefile.in'</TT>还未完成，所以你需要<CODE>automake</CODE>。
+
+</P>
+<P>
+第一步是更新你的<TT>`configure.in'</TT>以包含<CODE>automake</CODE>需要的命令。
+完成这一步的最简单方式是在<CODE>AC_INIT</CODE>之后添加<CODE>AM_INIT_AUTOMAKE</CODE>：
+
+</P>
+
+<PRE>
+AM_INIT_AUTOMAKE(zardoz, 1.0)
+</PRE>
+
+<P>
+因为你的程序不含有任何复杂性的因素（例如，它不使用<CODE>gettext</CODE>，它
+不需要共享库），你已经完成了这一步工作。很容易吧！
+
+</P>
+<P>
+现在你必须重新生成<TT>`configure'</TT>。但为此，你需要告诉<CODE>autoconf</CODE>
+如何找到你使用的新宏。完成该任务的最简单的方式是使用<CODE>aclocal</CODE>程序为你
+生成你的<TT>`aclocal.m4'</TT>。但是等等...你已经有了一个<TT>`aclocal.m4'</TT>，
+这是因为你必须为你的程序写一些宏。<CODE>aclocal</CODE>允许你把你自己的宏放到
+<TT>`acinclude.m4'</TT>中去，所以简单地改名并且运行：
+
+</P>
+
+<PRE>
+mv aclocal.m4 acinclude.m4
+aclocal
+autoconf
+</PRE>
+
+<P>
+现在是你为<CODE>zardoz</CODE>写的<TT>`Makefile.am'</TT>的时候了。
+<CODE>zardoz</CODE>是一个用户程序，所以你需要把它安装到其它用户程序安装的地方去。
+<CODE>zardoz</CODE>还有一些Texinfo文档。你的<TT>`configure.in'</TT>脚本使用
+<CODE>AC_REPLACE_FUNCS</CODE>，因此你需要与<SAMP>`@LIBOBJS@'</SAMP>连接。
+所以这里你写：
+
+</P>
+
+<PRE>
+bin_PROGRAMS = zardoz
+zardoz_SOURCES = main.c head.c float.c vortex9.c gun.c
+zardoz_LDADD = @LIBOBJS@
+
+info_TEXINFOS = zardoz.texi
+</PRE>
+
+<P>
+现在你运行<CODE>automake --add-missing</CODE>以生成你的<TT>`Makefile.in'</TT>
+并且得到任何你可能需要的附加文件，现在你完成了你的任务！
+
+</P>
+
+
+<H2><A NAME="SEC10" HREF="automake.html#TOC10">一个经典的程序</A></H2>
+
+<P>
+<CODE>hello</CODE>因为它经典的简单性和多用性而出名。
+本节展示Automake将被如何用于Hello包。
+下面的例子来自于最新的GNU Hello，但剔除了所有仅为维护者使用的代码和所有的版权注释。
+
+</P>
+<P>
+当然，GNU Hello比您的传统的两行的代码具有更多的特征。GNU Hello是国际化的，进行选项
+处理，并且含有一个手册和一个测试套件。GNU Hello是一个deep包。
+
+</P>
+<P>
+这里是来自于GNU Hello的<TT>`configure.in'</TT>：
+
+</P>
+
+<PRE>
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(src/hello.c)
+AM_INIT_AUTOMAKE(hello, 1.3.11)
+AM_CONFIG_HEADER(config.h)
+
+dnl Set of available languages.
+ALL_LINGUAS="de fr es ko nl no pl pt sl sv"
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_ISC_POSIX
+
+dnl Checks for libraries.
+
+dnl Checks for header files.
+AC_STDC_HEADERS
+AC_HAVE_HEADERS(string.h fcntl.h sys/file.h sys/param.h)
+
+dnl Checks for library functions.
+AC_FUNC_ALLOCA
+
+dnl Check for st_blksize in struct stat
+AC_ST_BLKSIZE
+
+dnl internationalization macros
+AM_GNU_GETTEXT
+AC_OUTPUT([Makefile doc/Makefile intl/Makefile po/Makefile.in \
+           src/Makefile tests/Makefile tests/hello],
+   [chmod +x tests/hello])
+</PRE>
+
+<P>
+宏<SAMP>`AM_'</SAMP>由Automake（或者Gettext库）提供；其它的是标准Autoconf宏。
+
+</P>
+
+<P>
+顶层<TT>`Makefile.am'</TT>：
+
+</P>
+
+<PRE>
+EXTRA_DIST = BUGS ChangeLog.O
+SUBDIRS = doc intl po src tests
+</PRE>
+
+<P>
+就像你所见到的，这里的所有工作实际上都是在子目录中完成的。
+
+</P>
+<P>
+<TT>`po'</TT>和<TT>`intl'</TT>目录是<CODE>gettextize</CODE>自动生成的；
+在这里我们不讨论它们。
+
+</P>
+<P>
+在</TT>`doc/Makefile.am'</TT>中我们看到：
+
+</P>
+
+<PRE>
+info_TEXINFOS = hello.texi
+hello_TEXINFOS = gpl.texi
+</PRE>
+
+<P>
+它足以创建、安装并且发布Hello手册。
+
+</P>
+
+<P>
+这里是<TT>`tests/Makefile.am'</TT>:
+
+</P>
+
+<PRE>
+TESTS = hello
+EXTRA_DIST = hello.in testdata
+</PRE>
+
+<P>
+脚本<TT>`hello'</TT>是由<CODE>configure</CODE>生成的，并且仅仅在测试时才生成。
+<CODE>make check</CODE>将运行这个测试。
+
+</P>
+<P>
+最后我们有<TT>`src/Makefile.am'</TT>，所有实际工作在此完成：
+
+</P>
+
+<PRE>
+bin_PROGRAMS = hello
+hello_SOURCES = hello.c version.c getopt.c getopt1.c getopt.h system.h 
+hello_LDADD = @INTLLIBS@ @ALLOCA@
+localedir = $(datadir)/locale
+INCLUDES = -I../intl -DLOCALEDIR=\"$(localedir)\"
+</PRE>
+
+
+
+<H2><A NAME="SEC11" HREF="automake.html#TOC11">创建etags和ctags</A></H2>
+
+<P>
+这里是另一个复杂一些的例子。它展示了如何从同一个源文件（<TT>`etags.c'</TT>）
+生成两个程序（<CODE>ctags</CODE>和<CODE>etags</CODE>）。困难的部分是对
+<TT>`etags.c'</TT>的每个编译需要不同的<CODE>cpp</CODE>选项。
+
+</P>
+
+<PRE>
+bin_PROGRAMS = etags ctags
+ctags_SOURCES =
+ctags_LDADD = ctags.o
+
+etags.o: etags.c
+        $(COMPILE) -DETAGS_REGEXPS -c etags.c
+
+ctags.o: etags.c
+        $(COMPILE) -DCTAGS -o ctags.o -c etags.c
+</PRE>
+
+<P>
+其中<CODE>ctags_SOURCES</CODE>被定义为空--这种方式表明没有替换隐含的值
+然而，隐含的值被用于从<TT>`etags.o'</TT>生成<CODE>etags</CODE>。
+
+</P>
+<P>
+<CODE>ctags_LDADD</CODE>用于把<TT>`ctags.o'</TT>添加到连接行中。
+<CODE>ctags_DEPENDENCIES</CODE>由Automake生成。
+
+</P>
+<P>
+如果你的编译器不接受<SAMP>`-c'</SAMP>和<SAMP>`-o'</SAMP>，那么上述规则
+将不能工作。对此，最简单的修正是引入伪依赖（bogus dependency）（以避免由并行
+<CODE>make</CODE>所导致的问题）：
+
+</P>
+
+<PRE>
+etags.o: etags.c ctags.o
+        $(COMPILE) -DETAGS_REGEXPS -c etags.c
+
+ctags.o: etags.c
+        $(COMPILE) -DCTAGS -c etags.c &#38;&#38; mv etags.o ctags.o
+</PRE>
+
+<P>
+同样，如果使用了de-ANSI-fication的特征，这些显式规则将不能工作；支持它需要
+一些更多的工作：
+
+</P>
+
+<PRE>
+etags._o: etags._c ctags.o
+        $(COMPILE) -DETAGS_REGEXPS -c etags.c
+
+ctags._o: etags._c
+        $(COMPILE) -DCTAGS -c etags.c &#38;&#38; mv etags._o ctags.o
+</PRE>
+
+
+
+<H1><A NAME="SEC12" HREF="automake.html#TOC12">创建<TT>`Makefile.in'</TT></A></H1>
+
+<P>
+为了为一个包创建所有的<TT>`Makefile.in'</TT>，在顶层目录不带任何参数地运行<CODE>automake</CODE>。
+<CODE>automake</CODE>将自动地寻找每个合适的<TT>`Makefile.am'</TT>（通过扫描
+<TT>`configure.in'</TT>；参见<A HREF="automake.html#SEC13">扫描<TT>`configure.in'</TT></A>）
+并生成相应的<TT>`Makefile.in'</TT>。<CODE>automake</CODE>认为包的组成是相当简单的；
+它假定包仅仅在顶层目录含有一个<TT>`configure.in'</TT>。如果你的包含有多个
+<TT>`configure.in'</TT>，那么你必须在每个含有<TT>`configure.in'</TT>的目录
+中运行<CODE>automake</CODE>。
+
+</P>
+<P>
+你偶尔可能需要给<CODE>automake</CODE>参数；<SAMP>`.am'</SAMP>被添加到参数之后
+并且其结果将作为输入文件名。该特征通常仅仅用于自动重新创建一个过时的
+<TT>`Makefile.in'</TT>。<CODE>automake</CODE>必须总是在项目的最顶层目录中运行，
+即使用于重新生成某些子目录中的<TT>`Makefile.in'</TT>也是如此。
+这是因为<CODE>automake</CODE>必须扫描<TT>`configure.in'</TT>，并且因为
+在某些情况下，<CODE>automake</CODE>根据<TT>`Makefile.in'</TT>在子目录中这一情况
+确定它的行为。
+
+</P>
+<P>
+<CODE>automake</CODE>接受以下选项：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>-a</CODE>
+<DD>
+<DT><CODE>--add-missing</CODE>
+<DD>
+Automake要求一些通用文件在特定的位置存在。例如如果<TT>`configure.in'</TT>运行
+了<CODE>AC_CANONICAL_HOST</CODE>，就需要<TT>`config.guess'</TT>。
+Automake与几个这样的文件一同发布；只要可能，该选项将把缺少的文件自动添加到包中。
+通常如果Automake告诉你缺少文件，试一下本选项。
+
+<DT><CODE>--amdir=<VAR>dir</VAR></CODE>
+<DD>
+在<VAR>dir</VAR>中而不是安装目录中，寻找Automake数据文件，它通常用于调试。
+
+<DT><CODE>--build-dir=<VAR>dir</VAR></CODE>
+<DD>
+告诉Automake创建目录在那里。本选项在把依赖性添加到由<CODE>make dist</CODE>生成的
+<TT>`Makefile.in'</TT>中的时候使用；在其它情况下不应该使用它。
+
+<DT><CODE>--cygnus</CODE>
+<DD>
+按照Cygnus规则，而不是GNU或者Gnits规则，生成<TT>`Makefile.in'</TT>，
+详情请参见<A HREF="automake.html#SEC54"><CODE>--cygnus</CODE>的效果</A>。
+
+<DT><CODE>--foreign</CODE>
+<DD>
+把全局严格性设置成<SAMP>`foreign'</SAMP>。详情请参见<A HREF="automake.html#SEC5">严格性</A>。
+
+<DT><CODE>--gnits</CODE>
+<DD>
+把全局严格性设置成<SAMP>`gnits'</SAMP>。详情请参见
+<A HREF="automake.html#SEC53"><CODE>--gnu</CODE>和<CODE>--gnits</CODE>的效果</A>
+
+<DT><CODE>--gnu</CODE>
+<DD>
+把全局严格性设置成<SAMP>`gnu'</SAMP>。详情请参见
+<A HREF="automake.html#SEC53"><CODE>--gnu</CODE>和<CODE>--gnits</CODE>的效果</A>。
+这是缺省严格性。
+
+<DT><CODE>--help</CODE>
+<DD>
+打印命令行选项的概述并且退出。
+
+<DT><CODE>-i</CODE>
+<DD>
+<DT><CODE>--include-deps</CODE>
+<DD>
+包含生成的<TT>`Makefile.in'</TT>中所有自动生成的依赖信息（参见<A HREF="automake.html#SEC29">自动的依赖性跟踪</A>）。
+通常在制作发布版本时使用；参见<A HREF="automake.html#SEC46">需要发布哪些文件</A>。
+
+<DT><CODE>--generate-deps</CODE>
+<DD>
+生成一个连接了所有自动生成的依赖信息的文件（参见
+<A HREF="automake.html#SEC29">自动的依赖性跟踪</A>）文件，<TT>`.dep_segment'</TT>。
+通常在制作发布版本时使用；参见<A HREF="automake.html#SEC46">需要发布哪些文件</A>。
+在维护为其它平台所制作的<TT>`SMakefile'</TT>或者makefile（<TT>`Makefile.DOS'</TT>，
+等等，）时是有用的。它只能与<CODE>--include-deps</CODE>、<CODE>--srcdir-name</CODE>
+和<CODE>--build-dir</CODE>一同使用。如果给出了本选项，不会实行任何其他处理。
+
+<DT><CODE>--no-force</CODE>
+<DD>
+通常<CODE>automake</CODE>创建在<TT>`configure.in'</TT>中提到的所有
+<TT>`Makefile.in'</TT>。本选项仅仅更新那些按照它们的依赖性过时了的
+<TT>`Makefile.in'</TT>。
+
+<DT><CODE>-o <VAR>dir</VAR></CODE>
+<DD>
+<DT><CODE>--output-dir=<VAR>dir</VAR></CODE>
+<DD>
+把生成的<TT>`Makefile.in'</TT>放到目录<VAR>dir</VAR>中。
+通常每个<TT>`Makefile.in'</TT>在对应的<TT>`Makefile.am'</TT>所在
+的目录中创建。本选项被用于创建发布版本。
+
+<DT><CODE>--srcdir-name=<VAR>dir</VAR></CODE>
+<DD>
+告诉Automake与当前任务相关的源代码目录名。本选项在把依赖性引入
+由<CODE>make dist</CODE>生成的<TT>`Makefile.in'</TT>中时使用；
+它不应被用于其它情况。
+
+<DT><CODE>-v</CODE>
+<DD>
+<DT><CODE>--verbose</CODE>
+<DD>
+让Automake打印关于被读入或创建的文件的信息。
+
+<DT><CODE>--version</CODE>
+<DD>
+打印Automake的版本号并且退出。
+</DL>
+
+
+
+<H1><A NAME="SEC13" HREF="automake.html#TOC13">扫描<TT>`configure.in'</TT></A></H1>
+
+<P>
+Automake扫描包的<TT>`configure.in'</TT>以确定关于包的一些信息。
+Automake需要一些<CODE>autoconf</CODE>宏并且一些变量必须在
+<TT>`configure.in'</TT>中定义。Automake还用来自<TT>`configure.in'</TT>
+的信息以进一步修整它的输出。
+
+</P>
+<P>
+为了简化维护，Automake还支持一些<CODE>autoconf</CODE>宏。
+通过使用程序<CODE>aclocal</CODE>，可以自动地把这些宏附加到你的<TT>`aclocal.m4'</TT>中。
+
+</P>
+
+
+<H2><A NAME="SEC14" HREF="automake.html#TOC14">配置需求</A></H2>
+
+<P>
+达到Automake要求的最简单方式就是使用宏<CODE>AM_INIT_AUTOMAKE</CODE>
+（参见<A HREF="automake.html#SEC17">由Automake支持的Autoconf宏</A>）。
+但是如果你愿意，你可以手工完成所需的各个步骤：
+<A NAME="IDX12"></A>
+
+</P>
+
+<UL>
+<LI>
+
+用<CODE>AC_SUBST</CODE>定义变量<CODE>PACKAGE</CODE>和<CODE>VERSION</CODE>。
+<A NAME="IDX13"></A>
+<A NAME="IDX14"></A>
+<CODE>PACKAGE</CODE>应该是在捆绑发布的时候使用的包的名称。
+例如，Automake把<CODE>PACKAGE</CODE>定义成<SAMP>`automake'</SAMP>。
+<CODE>VERSION</CODE>应该是被开发的版本的版本号。
+我们建议你仅仅在你的包中定义版本号的地方创建<TT>`configure.in'</TT>；
+这使得发布简单化了。
+
+除非在<SAMP>`Gnits'</SAMP>模式（参见<A HREF="automake.html#SEC53">
+<CODE>--gnu</CODE>和<CODE>--gnits</CODE>的效果</A>），Automake
+不会对<CODE>PACKAGE</CODE>或者<CODE>VERSION</CODE>进行任何解释。
+
+<LI>
+
+如果要安装一个程序或者一个脚本，使用宏<CODE>AC_ARG_PROGRAM</CODE>。
+<A NAME="IDX15"></A>
+
+<LI>
+
+如果包不是平（flat）的，使用宏<CODE>AC_PROG_MAKE_SET</CODE>。
+<A NAME="IDX16"></A>
+
+<LI>
+
+使用宏<CODE>AM_SANITY_CHECK</CODE>以确认创建环境的完整性。
+
+<LI>
+
+如果包安装了任何脚本（参见<A HREF="automake.html#SEC31">可执行的脚本</A>），
+使用宏<CODE>AM_PROG_INSTALL</CODE>。否则，使用<CODE>AC_PROG_INSTALL</CODE>。
+<A NAME="IDX17"></A>
+<A NAME="IDX18"></A>
+
+<LI>
+
+使用<CODE>AM_MISSING_PROG</CODE>以确认在创建环境中，程序<CODE>aclocal</CODE>、
+<CODE>autoconf</CODE>、<CODE>automake</CODE>、<CODE>autoheader</CODE>
+和<CODE>makeinfo</CODE>是否存在。下面是如何完成这个任务：
+
+<PRE>
+missing_dir=`cd $ac_aux_dir &#38;&#38; pwd`
+AM_MISSING_PROG(ACLOCAL, aclocal, $missing_dir)
+AM_MISSING_PROG(AUTOCONF, autoconf, $missing_dir)
+AM_MISSING_PROG(AUTOMAKE, automake, $missing_dir)
+AM_MISSING_PROG(AUTOHEADER, autoheader, $missing_dir)
+AM_MISSING_PROG(MAKEINFO, makeinfo, $missing_dir)
+</PRE>
+
+</UL>
+
+<P>
+这里是Automake需要的，但是没有被<CODE>AM_INIT_AUTOMAKE</CODE>运行的
+其它宏：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>AC_OUTPUT</CODE>
+<DD>
+Automake用它确定创建那个文件。列出的名为<CODE>Makefile</CODE>的文件
+作为<TT>`Makefile'</TT>处理。对其它列出的文件进行不同的处理。
+目前唯一的不同是<TT>`Makefile'</TT>将被<CODE>make distclean</CODE>
+删除，而其它的文件将被<CODE>make clean</CODE>删除。
+<A NAME="IDX19"></A>
+</DL>
+
+
+
+<H2><A NAME="SEC15" HREF="automake.html#TOC15">Automake能够识别的其它事情</A></H2>
+
+<P>
+Automake还将能够识别某些宏的使用并且适当地修整生成的<TT>`Makefile.in'</TT>。
+目前能够识别的宏以及它们的效果是：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>AC_CONFIG_HEADER</CODE>
+<DD>
+Automake要求使用<CODE>AM_CONFIG_HEADER</CODE>，它类似于<CODE>AC_CONFIG_HEADER</CODE>
+而且完成一些有用的Automake特定的工作。
+<A NAME="IDX20"></A>
+
+<DT><CODE>AC_CONFIG_AUX_DIR</CODE>
+<DD>
+Automake将在调用本宏时命名的目录中寻找各种求助脚本，例如<TT>`mkinstalldirs'</TT>。
+如果没找到，将在其它标准的位置（顶层目录中，或者在对应与当前<TT>`Makefile.am'</TT>
+的源代码目录，任何一个都是合适的）中寻找脚本。
+<A NAME="IDX21"></A>
+请帮助我：以给出寻找该目录的完整列表。
+
+<DT><CODE>AC_PATH_XTRA</CODE>
+<DD>
+Automake将把由<CODE>AC_PATH_XTRA</CODE>定义的变量的定义插入
+每个创建C程序或者库的<TT>`Makefile.in'</TT>中。
+<A NAME="IDX22"></A>
+
+<DT><CODE>AC_CANONICAL_HOST</CODE>
+<DD>
+<DT><CODE>AC_CHECK_TOOL</CODE>
+<DD>
+Automake将确认<TT>`config.guess'</TT>和<TT>`config.sub'</TT>的存在。
+并且将引入<TT>`Makefile'</TT>变量<SAMP>`host_alias'</SAMP>和
+<SAMP>`host_triplet'</SAMP>。
+<A NAME="IDX23"></A>
+<A NAME="IDX24"></A>
+<A NAME="IDX25"></A>
+<A NAME="IDX26"></A>
+
+<DT><CODE>AC_CANONICAL_SYSTEM</CODE>
+<DD>
+它类似于<CODE>AC_CANONICAL_HOST</CODE>，此外还定义了<TT>`Makefile'</TT>
+变量<SAMP>`build_alias'</SAMP>和<SAMP>`target_alias'</SAMP>。
+<A NAME="IDX27"></A>
+<A NAME="IDX28"></A>
+<A NAME="IDX29"></A>
+
+<DT><CODE>AC_FUNC_ALLOCA</CODE>
+<DD>
+<DT><CODE>AC_FUNC_GETLOADAVG</CODE>
+<DD>
+<DT><CODE>AC_FUNC_MEMCMP</CODE>
+<DD>
+<DT><CODE>AC_STRUCT_ST_BLOCKS</CODE>
+<DD>
+<DT><CODE>AC_FUNC_FNMATCH</CODE>
+<DD>
+<DT><CODE>AM_FUNC_STRTOD</CODE>
+<DD>
+<DT><CODE>AC_REPLACE_FUNCS</CODE>
+<DD>
+<DT><CODE>AC_REPLACE_GNU_GETOPT</CODE>
+<DD>
+<DT><CODE>AM_WITH_REGEX</CODE>
+<DD>
+Automake将确认为对应于这些宏的对象生成了适当的依赖关系。
+此外，Automake将验证适当的源文件成为发布的一部分。
+使用这些宏，Automake并不需要任何C源代码，所以<CODE>automake -a</CODE>
+将不会安装源代码。
+详情请参见<A HREF="automake.html#SEC22">创建一个库</A>
+<A NAME="IDX30"></A>
+<A NAME="IDX31"></A>
+<A NAME="IDX32"></A>
+<A NAME="IDX33"></A>
+<A NAME="IDX34"></A>
+<A NAME="IDX35"></A>
+<A NAME="IDX36"></A>
+<A NAME="IDX37"></A>
+<A NAME="IDX38"></A>
+<A NAME="IDX39"></A>
+
+<DT><CODE>LIBOBJS</CODE>
+<DD>
+Automake将检测把<SAMP>`.o'</SAMP>文件添加到<CODE>LIBOBJS</CODE>中的语句，
+并且按照与在<CODE>AC_REPLACE_FUNCS</CODE>中发现的文件相同的方式处理
+这些附加的文件。
+<A NAME="IDX40"></A>
+
+<DT><CODE>AC_PROG_RANLIB</CODE>
+<DD>
+如果在包中创建了任何库，就需要它。
+<A NAME="IDX41"></A>
+
+<DT><CODE>AC_PROG_CXX</CODE>
+<DD>
+如果包含了任何C++源代码，就需要它。
+<A NAME="IDX42"></A>
+
+<DT><CODE>AM_PROG_LIBTOOL</CODE>
+<DD>
+Automake将启动为<CODE>libtool</CODE>所做的处理（参见<CITE>Libtool手册</CITE>）。
+<A NAME="IDX43"></A>
+
+<DT><CODE>AC_PROG_YACC</CODE>
+<DD>
+如果找到了Yacc源文件，那么你必须使用这个宏或者在<TT>`configure.in'</TT>
+中定义变量<SAMP>`YACC'</SAMP>。前者更好一些。
+<A NAME="IDX44"></A>
+<A NAME="IDX45"></A>
+
+<DT><CODE>AC_DECL_YYTEXT</CODE>
+<DD>
+如果在包中有Lex源代码，需要使用这个宏。
+<A NAME="IDX46"></A>
+
+<DT><CODE>AC_PROG_LEX</CODE>
+<DD>
+如果找到了Lex源代码，那么必须使用本宏。
+<A NAME="IDX47"></A>
+
+<DT><CODE>ALL_LINGUAS</CODE>
+<DD>
+如果Automake发现在<TT>`configure.in'</TT>中设置了该变量，
+它将检查目录<TT>`po'</TT>以确认所有命名了的<SAMP>`.po'</SAMP>
+文件都是存在的，并且所有存在的<SAMP>`.po'</SAMP>文件都被
+命了名。
+<A NAME="IDX48"></A>
+
+<DT><CODE>AM_C_PROTOTYPES</CODE>
+<DD>
+在使用自动de-ANSI-fication时，需要它。参见<A HREF="automake.html#SEC28">自动de-ANSI-fication</A>。
+<A NAME="IDX49"></A>
+
+<DT><CODE>AM_GNU_GETTEXT</CODE>
+<DD>
+使用了GNU gettext的包需要使用本宏。
+（参见<A HREF="automake.html#SEC37">Gettext</A>）。
+它将与gettext一起发布。如果Automake看到这个宏，Automake将确认包
+是否符合gettext的某些要求。
+<A NAME="IDX50"></A>
+
+<DT><CODE>AM_MAINTAINER_MODE</CODE>
+<DD>
+该宏为<CODE>configure</CODE>添加一个<SAMP>`--enable-maintainer-mode'</SAMP>
+选项。如果使用了本宏，<CODE>automake</CODE>将关闭在生成的
+<TT>`Makefile.in'</TT>中缺省的“maintainer-only”规则。
+在<SAMP>`Gnits'</SAMP>模式中，不允许使用本宏。
+（参见<A HREF="automake.html#SEC53"><CODE>--gnu</CODE>和<CODE>--gnits</CODE></A>的效果）。
+<A NAME="IDX51"></A>
+
+<DT><CODE>AC_SUBST</CODE>
+<DD>
+<DT><CODE>AC_CHECK_TOOL</CODE>
+<DD>
+<DT><CODE>AC_CHECK_PROG</CODE>
+<DD>
+<DT><CODE>AC_CHECK_PROGS</CODE>
+<DD>
+<DT><CODE>AC_PATH_PROG</CODE>
+<DD>
+<DT><CODE>AC_PATH_PROGS</CODE>
+<DD>
+上述任意一个宏的第一个参数将在每个生成的<TT>`Makefile.in'</TT>
+中自动地被定义为一个变量。
+<A NAME="IDX52"></A>
+<A NAME="IDX53"></A>
+<A NAME="IDX54"></A>
+<A NAME="IDX55"></A>
+<A NAME="IDX56"></A>
+<A NAME="IDX57"></A>
+
+</DL>
+
+
+<H2><A NAME="SEC16" HREF="automake.html#TOC16">自动生成aclocal.m4</A></H2>
+
+<P>
+Automake包含了许多可以你的包中使用的的Autoconf宏；其中一些实际上是
+Automake在某些情况下需要的。你必须在你的<TT>`aclocal.m4'</TT>中定义这些宏；
+否则<CODE>autoconf</CODE>将不能找到它们。
+
+</P>
+<P>
+程序<CODE>aclocal</CODE>将基于<TT>`configure.in'</TT>的内容自动生成文件
+<TT>`aclocal.m4'</TT>。它提供了一个不必四处寻找而获得Automake提供的宏的
+便利方式。此外，<CODE>aclocal</CODE>机制对使用它的其它包来说，是可以扩展的。
+
+</P>
+<P>
+在启动时，<CODE>aclocal</CODE>扫描所有它能够找到的<SAMP>`.m4'</SAMP>文件，
+以寻找宏定义。而后它扫描<TT>`configure.in'</TT>。任何在第一步中提到的宏，
+以及它所需要的宏，将被放到<TT>`aclocal.m4'</TT>中。
+
+</P>
+<P>
+如果<TT>`acinclude.m4'</TT>存在，它的内容将被自动包含在
+<TT>`aclocal.m4'</TT>中。这对于把本地宏合并到<TT>`configure'</TT>是有用的。
+
+</P>
+<P>
+<CODE>aclocal</CODE>接受如下选项：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>--acdir=<VAR>dir</VAR></CODE>
+<DD>
+在目录<VAR>dir</VAR>中，而不是在安装目录中，寻找宏文件。这通常用于调试。
+
+<DT><CODE>--help</CODE>
+<DD>
+打印命令行选项的概述并且退出。
+
+<DT><CODE>-I <VAR>dir</VAR></CODE>
+<DD>
+把目录<VAR>dir</VAR>添加到搜索<SAMP>`.m4'</SAMP>的目录列表中。
+
+<DT><CODE>--output=<VAR>file</VAR></CODE>
+<DD>
+把输出储存到文件<VAR>file</VAR>中，而不是<TT>`aclocal.m4'</TT>中。
+
+<DT><CODE>--print-ac-dir</CODE>
+<DD>
+打印<CODE>aclocal</CODE>将搜索<SAMP>`m4'</SAMP>文件的目录名。当给出
+本选项的时候，不实施通常的处理。包可以用本选项确定应该把宏文件安装到哪里。
+
+<DT><CODE>--verbose</CODE>
+<DD>
+打印它所检测的文件名。
+
+<DT><CODE>--version</CODE>
+<DD>
+打印Automake的版本号并且退出。
+</DL>
+
+
+
+<H2><A NAME="SEC17" HREF="automake.html#TOC17">由Automake支持的Autoconf宏</A></H2>
+
+<DL COMPACT>
+
+<DT><CODE>AM_CONFIG_HEADER</CODE>
+<DD>
+Automake将生成规则以自动地重新生成config头文件。如果你使用本宏，
+你必须在你的源代码目录中创建文件<TT>`stamp-h.in'</TT>。它可以为空。
+<A NAME="IDX58"></A>
+
+<DT><CODE>AM_CYGWIN32</CODE>
+<DD>
+检查本<CODE>configure</CODE>是否是在<SAMP>`Cygwin32'</SAMP>环境
+中运行。（FIXME xref）。如果是，把输出变量<CODE>EXEEXT</CODE>定义为
+<SAMP>`.exe'</SAMP>；否则，把它定义为空字符串。Automake识别该宏
+并且用它生成在<SAMP>`Cygwin32'</SAMP>中可以自动工作的<TT>`Makefile.in'</TT>。
+在<SAMP>`Cygwin32'</SAMP>环境中，即使在命令行中没有明确指出，<CODE>gcc</CODE>
+将生成文件名以<SAMP>`.exe'</SAMP>结尾的可执行文件。Automake向
+<TT>`Makefile.in'</TT>添加特定的代码以适当地处理它。
+
+<DT><CODE>AM_FUNC_STRTOD</CODE>
+<DD>
+如果不能使用函数<CODE>strtod</CODE>，或者不能正确地工作（例如在SunOS 5.4上），
+就把<TT>`strtod.o'</TT>添加到输出变量<CODE>LIBOBJS</CODE>中。
+<A NAME="IDX59"></A>
+
+<DT><CODE>AM_FUNC_ERROR_AT_LINE</CODE>
+<DD>
+如果没有找到<CODE>error_at_line</CODE>函数，就把<TT>`error.o'</TT>添加到<CODE>LIBOBJS</CODE>中。
+<A NAME="IDX60"></A>
+
+<DT><CODE>AM_FUNC_MKTIME</CODE>
+<DD>
+检查函数<CODE>mktime</CODE>。如果没有找到，就把<TT>`mktime.o'</TT>添加到<SAMP>`LIBOBJS'</SAMP>中。
+<A NAME="IDX61"></A>
+
+<DT><CODE>AM_FUNC_OBSTACK</CODE>
+<DD>
+检查GNU obstacks代码；如果没有找到，就把<TT>`obstack.o'</TT>添加到<SAMP>`LIBOBJS'</SAMP>中。
+<A NAME="IDX62"></A>
+
+<DT><CODE>AM_C_PROTOTYPES</CODE>
+<DD>
+检查编译器是否可以识别函数原型。如果可以识别，就定义<SAMP>`PROTOTYPES'</SAMP>
+并且把输出变量<SAMP>`U'</SAMP>和<SAMP>`ANSI2KNR'</SAMP>设置为空。否则，
+把<SAMP>`U'</SAMP>设置成<SAMP>`_'</SAMP>，并且把<SAMP>`ANSI2KNR'</SAMP>
+设置成<SAMP>`./ansi2knr'</SAMP>。Automake使用这些值以实现自动de-ANSI-fication。
+<A NAME="IDX63"></A>
+
+<DT><CODE>AM_HEADER_TIOCGWINSZ_NEEDS_SYS_IOCTL</CODE>
+<DD>
+如果使用<CODE>TIOCGWINSZ</CODE>需要<TT>`&#60;sys/ioctl.h&#62;'</TT>，
+那么定义<CODE>GWINSZ_IN_SYS_IOCTL</CODE>。否则，<CODE>TIOCGWINSZ</CODE>
+可以在<TT>`&#60;termios.h&#62;'</TT>中发现。
+<A NAME="IDX64"></A>
+
+<DT><CODE>AM_INIT_AUTOMAKE</CODE>
+<DD>
+运行大部分<TT>`configure.in'</TT>需要的多个宏。本宏有两个参数，包名称
+和版本号。缺省情况下，本宏用<CODE>AC_DEFINE</CODE>定义<SAMP>`PACKAGE'</SAMP>和
+<SAMP>`VERSION'</SAMP>。可以通过添加非空的第三个参数以避免这一行为。
+
+<DT><CODE>AM_PATH_LISPDIR</CODE>
+<DD>
+搜索程序<CODE>emacs</CODE>，并且，如果找到了，把输出变量<CODE>lispdir</CODE>
+设置为到Emac的site-lisp目录的完整路径。
+<A NAME="IDX65"></A>
+
+<DT><CODE>AM_PROG_CC_STDC</CODE>
+<DD>
+如果C编译器的缺省状态不是标准C（ANSI C），试图把一个选项添加到输出变量
+<CODE>CC</CODE>中以使得C编译器这样做。本宏尝试在各种系统中选择标准C的
+各种选项。如果编译器正确地处理函数原型，它就认为编译器处于标准C模式。
+
+如果你使用本宏，你应该在调用它之后检查C编译器是否被设置成接受标准C；
+如果不是，shell变量<CODE>am_cv_prog_cc_stdc</CODE>被设置成<SAMP>`no'</SAMP>。
+如果你按照标准C写你的源代码，你可以利用<CODE>ansi2knr</CODE>选项
+创建它的非标准C版本。
+<A NAME="IDX66"></A>
+
+<DT><CODE>AM_PROG_INSTALL</CODE>
+<DD>
+类似与<CODE>AC_PROG_INSTALL</CODE>，但还定义了<CODE>INSTALL_SCRIPT</CODE>。
+<A NAME="IDX67"></A>
+
+<DT><CODE>AM_PROG_LEX</CODE>
+<DD>
+类似与带有<CODE>AC_DECL_YYTEXT</CODE>的<CODE>AC_PROG_LEX</CODE>，
+但在没有lex的系统上使用脚本<CODE>missing</CODE>。
+<SAMP>`HP-UX 10'</SAMP>是一个这样的系统。
+<A NAME="IDX68"></A>
+
+<DT><CODE>AM_SANITY_CHECK</CODE>
+<DD>
+它检查并确保在创建目录中被创建的文件比源代码目录中的文件要新。
+在时钟设置不正确的系统中它可能失败。本宏在<CODE>AM_INIT_AUTOMAKE</CODE>
+中自动运行。
+<A NAME="IDX69"></A>
+
+<DT><CODE>AM_SYS_POSIX_TERMIOS</CODE>
+<DD>
+检查系统中，是否可以使用POSIX termios头文件和函数。如果可以，就把shell变量
+<CODE>am_cv_sys_posix_termios</CODE>设置为<SAMP>`yes'</SAMP>。如果不能使用，
+就把<CODE>am_cv_sys_posix_termios</CODE>设置为<SAMP>`no'</SAMP>。
+<A NAME="IDX70"></A>
+
+<DT><CODE>AM_TYPE_PTRDIFF_T</CODE>
+<DD>
+如果类型<SAMP>`ptrdiff_t'</SAMP>是在<TT>`&#60;stddef.h&#62;'</TT>中定义的，
+就定义<SAMP>`HAVE_PTRDIFF_T'</SAMP>。
+
+<A NAME="IDX71"></A>
+
+<DT><CODE>AM_WITH_DMALLOC</CODE>
+<DD>
+增加<CODE>dmalloc</CODE>包支持。如果用户用<SAMP>`--with-dmalloc'</SAMP>进行配置，
+那么定义<CODE>WITH_DMALLOC</CODE>并且把<SAMP>`-ldmalloc'</SAMP>添加到<CODE>LIBS</CODE>。
+包<CODE>dmalloc</CODE>可以在<A HREF="ftp://ftp.letters.com/src/dmalloc/dmalloc.tar.gz">ftp://ftp.letters.com/src/dmalloc/dmalloc.tar.gz</A>
+找到。
+<A NAME="IDX72"></A>
+
+<DT><CODE>AM_WITH_REGEX</CODE>
+<DD>
+把<SAMP>`--with-regex'</SAMP>添加到<CODE>configure</CODE>的命令行中。
+如果给出<SAMP>`--with-regex'</SAMP>（缺省设置），那么使用
+<SAMP>`regex'</SAMP>常规表达式库，<TT>`regex.o'</TT>
+被添加到<SAMP>`LIBOBJS'</SAMP>中，并且定义<SAMP>`WITH_REGEX'</SAMP>。
+如果给出<SAMP>`--without-regex'</SAMP>，那么使用<SAMP>`rx'</SAMP>
+常规表达式库，<TT>`rx.o'</TT>被添加到<SAMP>`LIBOBJS'</SAMP>中。
+<A NAME="IDX73"></A>
+</DL>
+
+
+
+<H2><A NAME="SEC18" HREF="automake.html#TOC18">编写你自己的aclocal宏</A></H2>
+
+<P>
+aclocal不含有任何宏的任何内置信息，所以扩展你自己的宏是十分容易的。
+
+</P>
+<P>
+它通常被用于那些需要为使用它的其它程序提供它们自己的Autoconf宏的库。例如<CODE>gettext</CODE>库支持宏
+<CODE>AM_GNU_GETTEXT</CODE>，该宏将被任何使用<CODE>gettext</CODE>的任何包所使用。在安装库的时候，
+它安装宏以便<CODE>aclocal</CODE>可以找到它。
+
+</P>
+<P>
+一个宏文件应该是一系列<CODE>AC_DEFUN</CODE>'。aclocal还懂得<CODE>AC_REQUIRE</CODE>，
+所以把每个宏储存在一个单独的文件中是安全的。
+
+</P>
+<P>
+一个宏文件的文件名应该以<SAMP>`.m4'</SAMP>结尾。这类文件都应该安装在<TT>`$(datadir)/aclocal'</TT>中。
+
+</P>
+
+
+<H1><A NAME="SEC19" HREF="automake.html#TOC19">顶层<TT>`Makefile.am'</TT></A></H1>
+
+<P>
+在非平（non-flat）包中，顶层<TT>`Makefile.am'</TT>必须告诉Automake
+应该在那个子目录中进行创建。这通过变量<CODE>SUBDIRS</CODE>来完成。
+<A NAME="IDX74"></A>
+
+</P>
+<P>
+宏<CODE>SUBDIRS</CODE>保存了需要进行各种创建的子目录列表。在生成
+的<TT>`Makefile'</TT>中的许多目标（例如，<CODE>all</CODE>）即需要
+在本目录下运行，也需要在所有特定的子目录下运行。需要指出，出现在
+<CODE>SUBDIRS</CODE>中的子目录并不一定含有<TT>`Makefile.am'</TT> ；
+只要在配置（运行configuration）之后含有<TT>`Makefile'</TT>就行了。
+这使得你可以从不使用Automake的软件包（例如，<CODE>gettext</CODE>）中引入库。
+在<CODE>SUBDIRS</CODE>中提到的目录必须是当前目录的直接子目录。
+例如，你可以把<SAMP>`src/subdir'</SAMP>添加到<CODE>SUBDIRS</CODE>中。
+
+</P>
+<P>
+在一个深（deep）包中，顶层<TT>`Makefile.am'</TT>通常十分简短。
+例如，下面是Hello发布版中的<TT>`Makefile.am'</TT>：
+
+</P>
+
+<PRE>
+EXTRA_DIST = BUGS ChangeLog.O README-alpha
+SUBDIRS = doc intl po src tests
+</PRE>
+
+<P>
+就像在GNU <CODE>Inetutils</CODE>中的情况一样，如果你只需要创建整个
+包的一个子集，你可以覆盖变量<CODE>SUBDIRS</CODE>。在你的
+<TT>`Makefile.am'</TT>中包含：
+
+</P>
+
+<PRE>
+SUBDIRS = @SUBDIRS@
+</PRE>
+
+<P>
+而后在你的<TT>`configure.in'</TT>中，你可以指明：
+
+</P>
+
+<PRE>
+SUBDIRS = "src doc lib po"
+AC_SUBST(SUBDIRS)
+</PRE>
+
+<P>
+以上修改的结果是：automake将创建包以获得subdirs，但
+实际上在运行<CODE>configure</CODE>之前并没有把目录
+列表包括进来。
+
+</P>
+
+<P>
+<CODE>SUBDIRS</CODE>可以包含配置替换（例如，<SAMP>`@DIRS@'</SAMP>）；
+Automake本身并不实际检查这个变量的内容。
+
+</P>
+<P>
+如果定义了<CODE>SUBDIRS</CODE>，那么你的<TT>`configure.in'</TT>
+必须包含<CODE>AC_PROG_MAKE_SET</CODE>。
+
+</P>
+<P>
+对<CODE>SUBDIRS</CODE>的使用并不限于顶层目录中的<TT>`Makefile.am'</TT>。
+Automake可以用于构造任意深度的包。
+
+</P>
+
+
+
+<H1><A NAME="SEC20" HREF="automake.html#TOC20">创建程序和库</A></H1>
+
+<P>
+Automake的大部分功能的目的是使创建C程序和库变得容易些。
+
+</P>
+
+
+
+<H2><A NAME="SEC21" HREF="automake.html#TOC21">创建一个程序</A></H2>
+
+<P>
+在一个含有将被创建成一个程序（而不是创建成一个库）的源代码的目录中，
+要使用主变量<SAMP>`PROGRAMS'</SAMP>。程序可以安装到<SAMP>`bindir'</SAMP>、
+<SAMP>`sbindir'</SAMP>、<SAMP>`libexecdir'</SAMP>、<SAMP>`pkglibdir'</SAMP>中，
+或者根本不安装（<SAMP>`noinst'</SAMP>）。
+
+</P>
+<P>
+例如：
+
+</P>
+
+<PRE>
+bin_PROGRAMS = hello
+</PRE>
+
+<P>
+在这种简单的情况下，最终的<TT>`Makefile.in'</TT>将含有代码以生成
+名为<CODE>hello</CODE>的一个程序。变量<CODE>hello_SOURCES</CODE>
+用于确定哪些源代码应该被创建到可执行文件中去：
+
+</P>
+
+<PRE>
+hello_SOURCES = hello.c version.c getopt.c getopt1.c getopt.h system.h 
+</PRE>
+
+<P>
+它将导致所有提及的<SAMP>`.c'</SAMP>文件被编译成对应的<SAMP>`.o'</SAMP>
+文件。而后被一同连接以生成<TT>`hello'</TT>。
+
+</P>
+<P>
+如果需要<SAMP>`prog_SOURCES'</SAMP>，但并未定义它，那么它被缺省地设置
+成单个文件<TT>`prog.c'</TT>。在上面的例子中，对<CODE>hello_SOURCES</CODE>
+的定义实际上是多余的。
+<A NAME="IDX75"></A>
+<A NAME="IDX76"></A>
+
+</P>
+<P>
+可以把多个程序创建到一个目录中。多个程序可以共享一个源代码文件。
+源代码文件必须在需要它的每个<SAMP>`_SOURCES'</SAMP>中列出。
+
+</P>
+<P>
+出现在<SAMP>`_SOURCES'</SAMP>中的头文件将被包含在发布版本中，其它的头文件将被忽略。
+因为它并不明显，你不应该把由<TT>`configure'</TT>生成的头文件包含在变量<SAMP>`_SOURCES'</SAMP>中；
+不应该发布这个文件。也可以列出lex（<SAMP>`.l'</SAMP>）和yacc（<SAMP>`.y'</SAMP>）文件；
+参见<A HREF="automake.html#SEC26">对Yacc和Lex的支持</A>。
+
+</P>
+<P>
+即使不是所有的文件在所有的情况下都需要被创建，Automake也必须知道
+所有可能被连接到程序中的源文件。所有仅仅是可能被创建的文件应该被适当
+地添加到变量<SAMP>`EXTRA_'</SAMP>中。例如，如果<TT>`hello-linux.c'</TT>
+是有条件地被包含在<CODE>hello</CODE>中，<TT>`Makefile.am'</TT>应该包括：
+
+</P>
+
+<PRE>
+EXTRA_hello_SOURCES = hello-linux.c
+</PRE>
+
+<P>
+类似地，有时候需要在配置的时刻确定创建那些程序。例如GNU <CODE>cpio</CODE>
+仅仅在特殊情况下才创建<CODE>mt</CODE>和<CODE>rmt</CODE>。
+
+</P>
+<P>
+在这种情况下，你必须把可能创建的所有程序都告诉<CODE>automake</CODE>，
+但同时使生成的<TT>`Makefile.in'</TT>使用由<CODE>configure</CODE>
+指明的程序。这可以通过在<CODE>EXTRA_PROGRAMS</CODE>中列出所有可能创建的程序的同时，
+把<CODE>configure</CODE>提供的值的替换到每个<SAMP>`_PROGRAMS'</SAMP>变量的定义中，来完成。
+<A NAME="IDX77"></A>
+
+</P>
+<P>
+如果你需要和<CODE>configure</CODE>没有找到的库相连接，你可以使用<CODE>LDADD</CODE>来完成。
+该变量实际上可以用于把任何选项添加到连接器的命令行中。
+<A NAME="IDX78"></A>
+
+</P>
+<P>
+有时，要在一个目录中创建多个程序，但并不共享相同的连接时刻需求（link-time requirement）。
+在这种情况下，你可以使用变量<SAMP>`<VAR>prog</VAR>_LDADD'</SAMP>
+（其中<VAR>prog</VAR>是出现在某些<SAMP>`_PROGRAMS'</SAMP>变量
+中的程序名）来覆盖全局的<CODE>LDADD</CODE>。（对于某个程序来说，
+如果存在这个变量，那么那个程序的连接就不使用<CODE>LDADD</CODE>。）
+<A NAME="IDX79"></A>
+
+</P>
+<P>
+例如，在GNU cpio中，<CODE>pax</CODE>、<CODE>cpio</CODE>和<CODE>mt</CODE>
+需要和库<TT>`libcpio.a'</TT>连接。然而，<CODE>rmt</CODE>在同一个目录
+中创建，并且不需要与<TT>`libcpio.a'</TT>连接。此外，<CODE>mt</CODE>
+和<CODE>rmt</CODE>也仅仅在这种结构下创建。这里是cpio的<TT>`src/Makefile.am'</TT>
+内容（有删节）：
+
+</P>
+
+<PRE>
+bin_PROGRAMS = cpio pax @MT@
+libexec_PROGRAMS = @RMT@
+EXTRA_PROGRAMS = mt rmt
+
+LDADD = ../lib/libcpio.a @INTLLIBS@
+rmt_LDADD =
+
+cpio_SOURCES = ...
+pax_SOURCES = ...
+mt_SOURCES = ...
+rmt_SOURCES = ...
+</PRE>
+
+<P>
+变量<SAMP>`prog_LDADD'</SAMP>并不适用与传递程序特定的连接器选项
+（除了<SAMP>`-l'</SAMP>和<SAMP>`-L'</SAMP>之外）。所以，为此请使用
+变量<SAMP>`prog_LDFLAGS'</SAMP>。
+<A NAME="IDX80"></A>
+
+</P>
+<P>
+有时候，是否创建一个程序依赖于不属于那个程序的某些其它目标。
+通过使用变量<SAMP>`prog_DEPENDENCIES'</SAMP>可以实现该功能。
+每个程序都依赖于这个变量的内容，但是不对它进行进一步的解释。
+
+</P>
+<P>
+如果没有给出<SAMP>`prog_DEPENDENCIES'</SAMP>，它就由Automake来计算。
+自动获取的值是进行了大部分配置替换后的<SAMP>`prog_LDADD'</SAMP>内容，即删除
+了<SAMP>`-l'</SAMP>和<SAMP>`-L'</SAMP>选项。没有进行的配置替换仅仅是
+<SAMP>`@LIBOBJS@'</SAMP> and <SAMP>`@ALLOCA@'</SAMP>；没有进行这些
+替换是因为它们不会使生成的<SAMP>`prog_DEPENDENCIES'</SAMP>含有非法的值。
+
+</P>
+
+
+
+<H2><A NAME="SEC22" HREF="automake.html#TOC22">创建一个库</A></H2>
+
+<P>
+创建库与创建程序十分类似。在这种情况下，主变量的名字是<SAMP>`LIBRARIES'</SAMP>。
+库可以安装到<CODE>libdir</CODE>或<CODE>pkglibdir</CODE>之中。
+
+</P>
+<P>
+关于如何使用Libtool和主变量<SAMP>`LTLIBRARIES'</SAMP>创建共享库的详情，
+请参见<A HREF="automake.html#SEC24">创建共享库</A>。
+
+</P>
+<P>
+每个<SAMP>`_LIBRARIES'</SAMP>变量都是需要被创建的库的列表。
+例如创建一个名为<TT>`libcpio.a'</TT>的库，但并不安装它，你可以写：
+
+</P>
+
+<PRE>
+noinst_LIBRARIES = libcpio.a
+</PRE>
+
+<P>
+确定那些源代码应该被创建到库中的方式与创建程序的情况完全相同，是通过
+变量<SAMP>`_SOURCES'</SAMP>。需要指出的是，库的名字是规范化的
+（参见<A HREF="automake.html#SEC7">派生变量是如何命名的</A>），
+所以对应与<TT>`liblob.a'</TT>的<SAMP>`_SOURCES'</SAMP>变量对应的
+变量名为<SAMP>`liblob_a_SOURCES'</SAMP>，而不是<SAMP>`liblob.a_SOURCES'</SAMP>。
+
+</P>
+<P>
+通过使用变量<SAMP>`library_LIBADD'</SAMP>，可以把额外的对象添加到库中。
+这应该由<CODE>configure</CODE>确定的对象使用。再看看cpio：
+<A NAME="IDX81"></A>
+<A NAME="IDX82"></A>
+
+</P>
+
+<PRE>
+libcpio_a_LIBADD = @LIBOBJS@ @ALLOCA@
+</PRE>
+
+
+
+<H2><A NAME="SEC23" HREF="automake.html#TOC23">对LIBOBJS和ALLOCA的特别处理</A></H2>
+
+<P>
+Automake显式地识别对<CODE>@LIBOBJS@</CODE>和<CODE>@ALLOCA@</CODE>的使用，并用该信息，以及从
+<TT>`configure.in'</TT>中派生出的<CODE>LIBOBJS</CODE>文件列表，把适当的源文件自动添加到发布版本中。
+（参见<A HREF="automake.html#SEC46">需要发布哪些文件</A>）。
+这些源文件还按照依赖跟踪机制进行自动处理，参见<A HREF="automake.html#SEC29">自动依赖跟踪</A>。
+
+</P>
+<P>
+在任何<SAMP>`_LDADD'</SAMP>或<SAMP>`_LIBADD'</SAMP>变量中，
+<CODE>@LIBOBJS@</CODE>和<CODE>@ALLOCA@</CODE>都将被自动识别出来。
+
+</P>
+
+
+<H2><A NAME="SEC24" HREF="automake.html#TOC24">创建一个共享库</A></H2>
+
+<P>
+创建共享库是一件相对复杂的事情。为此，提供了GNU Libtool以使我们
+可以按照与平台无关的方式创建共享库（参见<CITE>Libtool手册</CITE>）。
+
+</P>
+<P>
+Automake使用Libtool来创建在主变量<SAMP>`LTLIBRARIES'</SAMP>中声明的库。
+每个<SAMP>`_LTLIBRARIES'</SAMP>变量都是一个需要创建的共享库的列表。
+例如，为了创建一个名为<TT>`libgettext.a'</TT>的库和它对应的共享库，
+并且把它安装到<SAMP>`libdir'</SAMP>，可以写：
+
+</P>
+
+<PRE>
+lib_LTLIBRARIES = libgettext.la
+</PRE>
+
+<P>
+需要指出的是：共享库<EM>必须</EM>被安装，所以不允许使用
+<SAMP>`noinst_LTLIBRARIES'</SAMP>和<SAMP>`check_LTLIBRARIES'</SAMP>。
+
+</P>
+<P>
+对于每个库，变量<SAMP>`library_LIBADD'</SAMP>包含了需要被添加到共享
+库中的额外的libtool对象（<SAMP>`.lo'</SAMP>文件）。
+变量<SAMP>`library_LDFLAGS'</SAMP>包含了所有附加的libtool选项，
+例如<SAMP>`-version-info'</SAMP>或者<SAMP>`-static'</SAMP>。
+
+</P>
+<P>
+普通的库可能需要使用<CODE>@LIBOBJS@</CODE>，而libtool库必须是使用
+<CODE>@LTLIBOBJS@</CODE>。必须这样做是因为libtool所操作的目标文件
+并不仅仅是<SAMP>`.o'</SAMP>。libtool手册包含了关于这个问题的细节。
+
+</P>
+<P>
+对于安装在某些目录中的库，<CODE>automake</CODE>将自动提供适当的
+<SAMP>`-rpath'</SAMP>选项。然而，对于那些在配置时刻才能都确定的库
+（因而必须在<CODE>EXTRA_LTLIBRARIES</CODE>中给出），<CODE>automake</CODE>
+并不知道它们最终安装的目录；对于这类库，你必须把
+<SAMP>`-rpath'</SAMP>选项手工地添加到适当的<SAMP>`_LDFLAGS'</SAMP>
+变量中去。
+
+</P>
+<P>
+详情请参见<CITE>Libtool手册</CITE>。
+
+</P>
+
+
+<H2><A NAME="SEC25" HREF="automake.html#TOC25">创建一个程序时使用的变量</A></H2>
+
+<P>
+有时有必要知道那个<TT>`Makefile'</TT>变量被Automake用于编译；
+例如在某些特殊情况下，你可能需要完成你自己的编译任务。
+
+</P>
+<P>
+有些变量是从Autoconf中继承而来的；它们是<CODE>CC</CODE>、
+<CODE>CFLAGS</CODE>、<CODE>CPPFLAGS</CODE>、<CODE>DEFS</CODE>、
+<CODE>LDFLAGS</CODE>和<CODE>LIBS</CODE>。
+<A NAME="IDX83"></A>
+
+</P>
+<P>
+还有一些附加的变量是Automake自行定义的：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>INCLUDES</CODE>
+<DD>
+一个<SAMP>`-I'</SAMP>选项的列表。如果你需要包含特殊的目录，
+你可以在你的<TT>`Makefile.am'</TT>中设置它。
+<CODE>automake</CODE>已经自动地提供了一些<SAMP>`-I'</SAMP>选项。
+特别地，它生成<SAMP>`-I$(srcdir)'</SAMP>和一个指向保存了
+<TT>`config.h'</TT>的目录的<SAMP>`-I'</SAMP>选项（如果你已经
+使用了<CODE>AC_CONFIG_HEADER</CODE>或者<CODE>AM_CONFIG_HEADER</CODE>）。
+
+除了<SAMP>`-I'</SAMP>以外，<CODE>INCLUDES</CODE>实际上还可以用于添加任何<CODE>cpp</CODE>选项。
+例如，有时用它把任意的<SAMP>`-D'</SAMP>选项传递给编译器。
+
+<DT><CODE>COMPILE</CODE>
+<DD>
+实际用于编译C源文件的命令。文件名被添加到它的后面以形成完整的命令行。
+
+<DT><CODE>LINK</CODE>
+<DD>
+实际用于连接C程序的命令。
+</DL>
+
+
+
+<H2><A NAME="SEC26" HREF="automake.html#TOC26">对Yacc和Lex的支持</A></H2>
+
+<P>
+Automake对Yacc和Lex有一些特殊的支持。
+
+</P>
+<P>
+Automake假定由yacc（或lex）生成的<SAMP>`.c'</SAMP>文件
+是以输入文件名为基础命名的。就是说，对于yacc源文件<TT>`foo.y'</TT>，
+automake将认为生成的中间文件是<TT>`foo.c'</TT>（而不是更加传统的
+<TT>`y.tab.c'</TT>）。
+
+</P>
+<P>
+yacc源文件的扩展名被用于确定生成的<SAMP>`C'</SAMP>或<SAMP>`C++'</SAMP>
+文件的扩展名。使用扩展名<SAMP>`.y'</SAMP>的文件将被转化成
+<SAMP>`.c'</SAMP>文件；类似地，扩展名<SAMP>`.yy'</SAMP>转化成
+<SAMP>`.cc'</SAMP>；<SAMP>`.y++'</SAMP>转化成<SAMP>`c++'</SAMP>；
+<SAMP>`.yxx'</SAMP>转化成<SAMP>`.cxx'</SAMP>；类似地，Lex源文件
+可以用于生成<SAMP>`C'</SAMP>或者<SAMP>`C++'</SAMP>；扩展名
+<SAMP>`.l'</SAMP>、<SAMP>`.ll'</SAMP>、<SAMP>`.l++'</SAMP>和
+<SAMP>`.lxx'</SAMP>都可以被识别。
+
+</P>
+<P>
+你不应该在任何<SAMP>`SOURCES'</SAMP>变量中明确地提及
+中间的（<SAMP>`C'</SAMP>或者<SAMP>`C++'</SAMP>）文件；
+只要列出源文件就可以了。
+
+</P>
+<P>
+由yacc（或lex）生成的中间文件将被包含在由它创建的
+任何发布版本中。这样用户就不需要拥有yacc或lex了。
+
+</P>
+<P>
+如果出现了yacc源文件，那么你的<TT>`configure.in'</TT>必须
+定义变量<SAMP>`YACC'</SAMP>。完成这个任务最容易的方式是
+使用宏<SAMP>`AC_PROG_YACC'</SAMP>。
+
+</P>
+<P>
+相似地，如果出现了lex源文件，那么你的<TT>`configure.in'</TT>
+必须定义变量<SAMP>`LEX'</SAMP>。你可以用宏<SAMP>`AC_PROG_LEX'</SAMP>
+来完成这个工作。Automake对lex的支持还要求你使用宏
+<SAMP>`AC_DECL_YYTEXT'</SAMP>--automake需要知道
+<SAMP>`LEX_OUTPUT_ROOT'</SAMP>的值。
+
+</P>
+<P>
+Automake允许在一个程序中使用多个yacc （或lex）源文件。
+Automake使用一个称为<CODE>ylwrap</CODE>的小程序在子目录中运行
+<CODE>yacc</CODE>（或者<CODE>lex</CODE>）。必须这样做是因为
+yacc的输出文件名被修改了，并且并行的make可以同时地处理多于
+一个的yacc实例。<CODE>ylwrap</CODE>和automake一同发布。
+它应该出现在由<SAMP>`AC_CONFIG_AUX_DIR'</SAMP>给出的目录，如果
+没有在<TT>`configure.in'</TT>中给出这个宏，它就应该出现在当前目录中。
+
+</P>
+<P>
+对于<CODE>yacc</CODE>，仅仅管理锁是不够的。<CODE>yacc</CODE>的输出
+还总是在内部使用相同的符号名，所以不可能把两个<CODE>yacc</CODE>解析器（parser）
+连接到同一个可执行文件中。
+
+</P>
+<P>
+我们建议使用如下在<CODE>gdb</CODE>中应用的改名方式：
+
+<PRE>
+#define	yymaxdepth c_maxdepth
+#define	yyparse	c_parse
+#define	yylex	c_lex
+#define	yyerror	c_error
+#define	yylval	c_lval
+#define	yychar	c_char
+#define	yydebug	c_debug
+#define	yypact	c_pact	
+#define	yyr1	c_r1			
+#define	yyr2	c_r2			
+#define	yydef	c_def		
+#define	yychk	c_chk		
+#define	yypgo	c_pgo		
+#define	yyact	c_act		
+#define	yyexca	c_exca
+#define yyerrflag c_errflag
+#define yynerrs	c_nerrs
+#define	yyps	c_ps
+#define	yypv	c_pv
+#define	yys	c_s
+#define	yy_yys	c_yys
+#define	yystate	c_state
+#define	yytmp	c_tmp
+#define	yyv	c_v
+#define	yy_yyv	c_yyv
+#define	yyval	c_val
+#define	yylloc	c_lloc
+#define yyreds	c_reds
+#define yytoks	c_toks
+#define yylhs	c_yylhs
+#define yylen	c_yylen
+#define yydefred c_yydefred
+#define yydgoto	c_yydgoto
+#define yysindex c_yysindex
+#define yyrindex c_yyrindex
+#define yygindex c_yygindex
+#define yytable	 c_yytable
+#define yycheck	 c_yycheck
+</PRE>
+
+<P>
+对于每一个define，用任何你喜欢的东西替换前缀<SAMP>`c_'</SAMP>。
+这些定义可以为<CODE>bison</CODE>、<CODE>byacc</CODE>和传统的
+<CODE>yacc</CODE>工作。如果你发现某个解析器使用了这里所没有提到的
+符号，请告诉我们以便把它添加到上述列表中。
+
+</P>
+
+
+
+<H2><A NAME="SEC27" HREF="automake.html#TOC27">C++和其它语言</A></H2>
+
+<P>
+Automake对C++提供了完整的支持，对其它语言也有一些不完善的支持。
+对其它语言的支持将根据实际需要被添加进来。
+
+</P>
+<P>
+任何包括了C++代码的包都必须在<TT>`configure.in'</TT>中定义
+输出变量<SAMP>`CXX'</SAMP>；完成这一任务的最简单方式就是使用
+宏<CODE>AC_PROG_CXX</CODE>。
+
+</P>
+<P>
+在出现C++源文件的时候需要定义几个附加的变量：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>CXX</CODE>
+<DD>
+C++编译器的名称。
+<A NAME="IDX84"></A>
+
+<DT><CODE>CXXFLAGS</CODE>
+<DD>
+传递给C++编译器的任何选项。
+<A NAME="IDX85"></A>
+
+<DT><CODE>CXXCOMPILE</CODE>
+<DD>
+实际用于编译C++源文件的命令。文件名将被添加到它的后面以构成完整的命令行。
+<A NAME="IDX86"></A>
+
+<DT><CODE>CXXLINK</CODE>
+<DD>
+实际用于连接C++程序的命令。
+<A NAME="IDX87"></A>
+</DL>
+
+
+
+<H2><A NAME="SEC28" HREF="automake.html#TOC28">自动de-ANSI-fication</A></H2>
+
+<P>
+虽然GNU标准允许使用标准C，使用标准C可能使包难以移植到
+一些旧的编译器上（典型的是SunOS）。
+
+</P>
+<P>
+在实际的编译发生之前，Automake允许你通过对每个源文件实施"de-ANSI-fying"
+以在这一类机器上进行工作。
+
+</P>
+<P>
+如果<TT>`Makefile.am'</TT>变量<CODE>AUTOMAKE_OPTIONS</CODE>
+<A NAME="IDX88"></A>
+（参见<A HREF="automake.html#SEC48">改变Automake的行为</A>）包括了选项<CODE>ansi2knr</CODE>，
+<A NAME="IDX89"></A>
+那么处理de-ANSI-fication的代码就被插入到生成的<TT>`Makefile.in'</TT>中。
+
+</P>
+<P>
+这使得目录中的每个C源文件都被看作标准C。如果有标准C编译器可以使用，
+就使用它。如果没有标准C编译器可用，就用程序<CODE>ansi2knr</CODE>
+把文件转换成K&#38;R C，而后再被编译。
+
+</P>
+<P>
+程序<CODE>ansi2knr</CODE>相当简单。它假定源代码按照特定的方式进行排版；
+详情请参见<CODE>ansi2knr</CODE>的man。
+
+</P>
+<P>
+支持de-ANSI-fication需要把源文件<TT>`ansi2knr.c'</TT>和
+<TT>`ansi2knr.1'</TT>与标准C源代码放在同一个包中；这些文件与Automake
+一同发布。此外，包的<TT>`configure.in'</TT>必须调用宏<CODE>AM_C_PROTOTYPES</CODE>。
+<A NAME="IDX90"></A>
+
+</P>
+<P>
+Automake还负责在当前包的其它目录中寻找<CODE>ansi2knr</CODE>的支持文件。
+这通过把到达适当目录的相对路径添加到选项<CODE>ansi2knr</CODE>之前来完成。
+例如，假定一个包的标准C代码储存在子目录<TT>`src'</TT>和<TT>`lib'</TT>中。
+文件<TT>`ansi2knr.c'</TT>和<TT>`ansi2knr.1'</TT>出现在<TT>`lib'</TT>中。
+那么下述内容应该在<TT>`src/Makefile.am'</TT>中出现：
+
+</P>
+
+<PRE>
+AUTOMAKE_OPTIONS = ../lib/ansi2knr
+</PRE>
+
+<P>
+如果没有给出前缀，就假定文件在当前目录中。
+
+</P>
+
+
+<H2><A NAME="SEC29" HREF="automake.html#TOC29">自动依赖性跟踪</A></H2>
+
+<P>
+作为开发者，经常痛苦地在每次项目的include文件的依赖关系发生变化
+的时候对<TT>`Makefile.in'</TT>进行更新。
+<CODE>automake</CODE>提供了一种方式以自动跟踪依赖关系的变化，并且
+在生成的<TT>`Makefile.in'</TT>中给出这些依赖关系。
+
+</P>
+<P>
+当前这种支持需要使用GNU <CODE>make</CODE>和<CODE>gcc</CODE>。
+如果有足够的必要性，将来可能提供对不同的依赖性生成程序的支持。
+在此之前，如果当前目录中定义了任何C程序或者库，在缺省状态下
+就启动这种模式，因而你可能从非GNU make那里得到一个<SAMP>`Must
+be a separator'</SAMP>错误。
+
+</P>
+<P>
+当你决定创建一个发布版本时，目标<CODE>dist</CODE>
+<A NAME="IDX91"></A>
+将用<SAMP>`--include-deps'</SAMP>和其它选项重新运行<CODE>automake</CODE>。这将是的以前生成的依赖关系被
+插入到生成的<TT>`Makefile.in'</TT>中，并因而被插入到发布之中。这一步骤还不会把依赖性生成代码包括进来，
+所以那些下载你的发布版本的人就不必使用GNU <CODE>make</CODE>和<CODE>gcc</CODE>，而且不会导致错误。
+
+</P>
+<P>
+在添加到<TT>`Makefile.in'</TT>的时候，所有系统特定的依赖性
+都被自动删除了。这可以通过把文件罗列在变量<SAMP>`OMIT_DEPENDENCIES'</SAMP>
+<A NAME="IDX92"></A>
+中来实现。
+例如：<CODE>automake</CODE>将删除所有对系统头文件的引用。有时有必要指明应该删除哪个头文件。例如，如果你的
+<TT>`configure.in'</TT>使用了<SAMP>`AM_WITH_REGEX'</SAMP>，那么就应该删除任何与<TT>`rx.h'</TT>或者
+<TT>`regex.h'</TT>有关的依赖性，这是因为在用户配置包之前还不知道应该使用那个头文件。
+
+</P>
+<P>
+实际上，<CODE>automake</CODE>足够地聪明以至于可以处理诸如常规表达式头文件
+的特殊情况。如果使用了<SAMP>`AM_GNU_GETTEXT'</SAMP>，它还将自动忽略
+<TT>`libintl.h'</TT>。
+
+</P>
+<P>
+自动依赖性跟踪功能可以通过在变量<CODE>AUTOMAKE_OPTIONS</CODE>
+中设置<CODE>no-dependencies</CODE>来关闭。
+<A NAME="IDX93"></A>
+<A NAME="IDX94"></A>
+
+</P>
+<P>
+如果你打开由<CODE>make dist</CODE>创建的发布版本，而且你希望重新
+添加依赖性跟踪的代码，只要重新运行<CODE>automake</CODE>就行了。
+
+</P>
+<P>
+实际的依赖性文件被储存在创建目录下的一个名为<TT>`.deps'</TT>
+的子目录中。这些依赖性是机器特有的。如果你愿意，删除它们是安全的；
+它们将在下次创建的时候自动重建。
+
+</P>
+
+
+
+<H1><A NAME="SEC30" HREF="automake.html#TOC30">其它派生对象</A></H1>
+
+<P>
+Automake可以处理不是C程序的其它派生对象。有时对实际创建这类对象
+的支持必须显式地给出，但Automake仍然会自动地处理安装和发布。
+
+</P>
+
+
+
+<H2><A NAME="SEC31" HREF="automake.html#TOC31">可执行脚本</A></H2>
+
+<P>
+定义和安装脚本程序是可能的。这种程序被罗列在主变量<SAMP>`SCRIPTS'</SAMP>中。
+<CODE>automake</CODE>没有为脚本定义任何依赖性关系；
+<TT>`Makefile.am'</TT>应该包含正确的规则。
+<A NAME="IDX95"></A>
+
+</P>
+<P>
+<CODE>automake</CODE>并不假定脚本是派生的对象；这些对象必须被手工地删除；
+详情请参见<A HREF="automake.html#SEC45">清除了些什么</A>。
+
+</P>
+<P>
+<CODE>automake</CODE>本身就是在配置时刻从<TT>`automake.in'</TT>
+中生成的脚本。下面给出了如何处理它：
+
+</P>
+
+<PRE>
+bin_SCRIPTS = automake
+</PRE>
+
+<P>
+因为<CODE>automake</CODE>出现在宏<CODE>AC_OUTPUT</CODE>中，自动地生成了一个关于它的目标。
+
+</P>
+<P>
+脚本对象可以安装在<CODE>bindir</CODE>、<CODE>sbindir</CODE>、
+<CODE>libexecdir</CODE>或者<CODE>pkgdatadir</CODE>中。
+
+</P>
+
+
+
+<H2><A NAME="SEC32" HREF="automake.html#TOC32">头文件</A></H2>
+
+<P>
+头文件由<SAMP>`HEADERS'</SAMP>变量族所指定。
+通常是不安装头文件的，所以变量<CODE>noinst_HEADERS</CODE>是最常用的。
+<A NAME="IDX96"></A>
+
+</P>
+<P>
+所有的头文件都必须在某些地方列出；没有列出的头文件将不会出现在
+发布版本中。通常最清楚的方式是和程序的其它源代码一起列出不会被
+安装的头文件。参见<A HREF="automake.html#SEC21">创建一个程序</A>。
+在变量<SAMP>`_SOURCES'</SAMP>中列出的头文件不需要在任何
+<SAMP>`_HEADERS'</SAMP>变量中再次列出。
+
+</P>
+<P>
+头文件可以安装到<CODE>includedir</CODE>、<CODE>oldincludedir</CODE>或者
+<CODE>pkgincludedir</CODE>中。
+
+</P>
+
+
+
+<H2><A NAME="SEC33" HREF="automake.html#TOC33">与体系结构无关的数据文件</A></H2>
+
+<P>
+Automake使用<SAMP>`DATA'</SAMP>族变量来支持对各种数据文件的安装。
+<A NAME="IDX97"></A>
+
+</P>
+<P>
+这些数据可以安装在目录<CODE>datadir</CODE>、
+<CODE>sysconfdir</CODE>、<CODE>sharedstatedir</CODE>、
+<CODE>localstatedir</CODE>或者<CODE>pkgdatadir</CODE>中。
+
+</P>
+<P>
+在缺省状态下，数据文件不会被包含在发布版本中。
+
+</P>
+<P>
+下面是<CODE>automake</CODE>如何安装它的附加数据文件：
+
+</P>
+
+<PRE>
+pkgdata_DATA = clean-kr.am clean.am ...
+</PRE>
+
+
+
+<H2><A NAME="SEC34" HREF="automake.html#TOC34">已创建的源代码</A></H2>
+
+<P>
+有时候，一个可以被称作“源文件”的文件（例如一个C <SAMP>`.h'</SAMP>文件）
+实际上是从其它文件中派生出来的。这类文件应该被罗列在变量
+<CODE>BUILT_SOURCES</CODE>中。
+<A NAME="IDX98"></A>
+
+</P>
+<P>
+在缺省状态下，不会编译已创建的源文件。你必须在一些其它的<SAMP>`_SOURCES'</SAMP>变量中明确地给出它们，
+以便对其进行编译。
+
+</P>
+<P>
+需要说明的是，在某些情况下，<CODE>BUILT_SOURCES</CODE>将以令人惊讶的方式工作。
+为了获得已创建的源文件以进行自动依赖性跟踪，<TT>`Makefile'</TT>必须依赖于
+<CODE>$(BUILT_SOURCES)</CODE>。这导致这些源文件可能在某些可笑的时候被重新创建。
+
+</P>
+
+
+
+<H1><A NAME="SEC35" HREF="automake.html#TOC35">其它的GNU工具</A></H1>
+
+<P>
+因为Automake被设计成为GNU程序自动生成<TT>`Makefile.in'</TT>，
+它为与其它GNU工具进行互操作做出了努力。
+
+</P>
+
+
+
+<H2><A NAME="SEC36" HREF="automake.html#TOC36">Emacs Lisp</A></H2>
+
+<P>
+Automake为Emacs Lisp提供了一些支持。主变量<SAMP>`LISP'</SAMP>被用于保存
+一个<SAMP>`.el'</SAMP>文件的列表。该主变量的可能前缀有：<SAMP>`lisp_'</SAMP>
+和<SAMP>`noinst_'</SAMP>。如果定义了<CODE>lisp_LISP</CODE>，那么
+<TT>`configure.in'</TT>就必须运行<CODE>AM_PATH_LISPDIR</CODE>
+（参见<A HREF="automake.html#SEC17">Automake支持的Autoconf宏</A>）.
+<A NAME="IDX99"></A>
+<A NAME="IDX100"></A>
+<A NAME="IDX101"></A>
+
+</P>
+<P>
+在缺省状态下，Automake将使用通过<CODE>AM_PATH_LISPDIR</CODE>
+找到的Emacs按字节编译（byte-compile）所有Emacs Lisp源文件。
+如果你不希望使用字节编译，请把变量<SAMP>`ELCFILES'</SAMP>定义为空。
+<A NAME="IDX102"></A>
+字节编译的Emacs Lisp文件并不能在所有版本的Emacs间移植，所以如果
+你希望在同一个地方安装多于一个版本的Emacs，你可以关闭它。
+进一步，许多包并没有从字节编译中获得实际的好处。我们仍然建议你
+不要改变缺省设置。对站点进行特殊的配置以适用于它们自身，可能比
+为其它所有人创建不和谐的安装要更好一些。
+
+</P>
+
+
+<H2><A NAME="SEC37" HREF="automake.html#TOC37">Gettext</A></H2>
+
+<P>
+如果在<TT>`configure.in'</TT>中出现了<CODE>AM_GNU_GETTEXT</CODE>，
+那么Automake就开启对GNU gettext的支持，一个支持国际化的消息编目系统
+（参见<CITE>GNU gettext工具</CITE>中的`GNU Gettext'节）。
+
+</P>
+<P>
+在Automake中对<CODE>gettext</CODE>的支持需要把两个子目录附加到
+包中，<TT>`intl'</TT>和<TT>`po'</TT>。Automake确认这些目录的存在
+并且在<CODE>SUBDIRS</CODE>中被给出。
+
+</P>
+<P>
+更进一步，Automake检查在<TT>`configure.in'</TT>中包含了与所有合法
+的<SAMP>`.po'</SAMP>文件相对应的<SAMP>`ALL_LINGUAS'</SAMP>定义，并且
+没有多余的定义。
+
+</P>
+
+
+
+<H2><A NAME="SEC38" HREF="automake.html#TOC38">Guile</A></H2>
+
+<P>
+Automake为构造Guile模块提供了一些自动支持。如果宏<CODE>AM_INIT_GUILE_MODULE</CODE>
+出现在<TT>`configure.in'</TT>中，Automake将开启对Guile的支持。
+
+</P>
+<P>
+现在对Guile的支持仅仅表示宏<CODE>AM_INIT_GUILE_MODULE</CODE>：
+
+<UL>
+<LI>
+
+运行了<CODE>AM_INIT_AUTOMAKE</CODE>。
+
+<LI>
+
+带路径<TT>`..'</TT>运行了<CODE>AC_CONFIG_AUX_DIR</CODE>。
+</UL>
+
+<P>
+随着Guile模块代码的成熟，无疑Automake的支持也将会更好。
+
+</P>
+
+
+<H2><A NAME="SEC39" HREF="automake.html#TOC39">Libtool</A></H2>
+
+<P>
+Automake通过主变量<SAMP>`LTLIBRARIES'</SAMP>提供了对GNU Libtool的支持（参见<CITE>Libtool手册</CITE>）
+参见<A HREF="automake.html#SEC24">创建一个共享库</A>。
+
+</P>
+
+
+<H2><A NAME="SEC40" HREF="automake.html#TOC40">Java</A></H2>
+
+<P>
+通过主变量<SAMP>`JAVA'</SAMP>，Automake为Java的编译提供了少量支持。
+
+</P>
+<P>
+任何在变量<SAMP>`_JAVA'</SAMP>列举的<SAMP>`.java'</SAMP>文件在创建时刻将用<CODE>JAVAC</CODE>进行编译。
+在缺省状态，<SAMP>`.class'</SAMP>文件不会被包含在发布版本中。
+
+</P>
+<P>
+目前Automake正试图限制只能在<TT>`Makefile.am'</TT>中使用一个<SAMP>`_JAVA'</SAMP>主变量。
+引入这个限制是因为，通常是不可能知道哪个<SAMP>`.class'</SAMP>文件是从哪个<SAMP>`.java'</SAMP>
+文件中生成的 -- 因此不可能知道哪个文件应该被安装到哪里。
+
+</P>
+
+
+
+<H1><A NAME="SEC41" HREF="automake.html#TOC41">创建文档</A></H1>
+
+<P>
+目前Automake提供了对Texinfo和man的支持。
+
+</P>
+
+
+
+<H2><A NAME="SEC42" HREF="automake.html#TOC42">Texinfo</A></H2>
+
+<P>
+如果当前目录中含有Texinfo源文件，你必须在主变量<SAMP>`TEXINFOS'</SAMP>
+中给出声明。通常Texinfo文件被转换成info，因此经常在这里使用宏<CODE>info_TEXINFOS</CODE>。
+需要指出的是任何Texinfo源文件的文件名的扩展名都必须是<SAMP>`.texi'</SAMP>或者<SAMP>`.texinfo'</SAMP>。
+<A NAME="IDX103"></A>
+<A NAME="IDX104"></A>
+
+</P>
+<P>
+如果<SAMP>`.texi'</SAMP>文件<CODE>@include</CODE>s <TT>`version.texi'</TT>，就将自动生成那个文件。
+<TT>`version.texi'</TT>定义了三个你可以引用的Texinfo宏：<CODE>EDITION</CODE>、<CODE>VERSION</CODE>和
+<CODE>UPDATED</CODE>。前两个宏保存了你的包的版本号（为清晰起见而分别保存）；最后一个宏是最后一次修改主文件的日期。
+对<TT>`version.texi'</TT>的支持需要程序<CODE>mdate-sh</CODE>；这个程序由Automake提供。
+
+</P>
+<P>
+有时，一个info文件实际上依赖于多个<SAMP>`.texi'</SAMP>文件。
+例如，在GNU Hello中，<TT>`hello.texi'</TT>包括了文件<TT>`gpl.texi'</TT>。
+你可以通过使用变量<SAMP>`<VAR>texi</VAR>_TEXINFOS'</SAMP>告诉Automake
+这一依赖性。下面就是Hello处理它的代码：
+<A NAME="IDX105"></A>
+<A NAME="IDX106"></A>
+
+</P>
+
+<PRE>
+info_TEXINFOS = hello.texi
+hello_TEXINFOS = gpl.texi
+</PRE>
+
+<P>
+在缺省状态下，Automake认为<TT>`texinfo.tex'</TT>出现在Texinfo源文件所在的目录中。
+然而，如果你在<TT>`configure.in'</TT>中使用了<CODE>AC_CONFIG_AUX_DIR</CODE>
+那么将到那个目录中去寻找<TT>`texinfo.tex'</TT>文件。如果给出了
+<SAMP>`--add-missing'</SAMP>，Automake将自动提供<TT>`texinfo.tex'</TT>
+
+</P>
+<P>
+如果你的包在许多目录中储存了Texinfo文件，你可以用变量<CODE>TEXINFO_TEX</CODE>
+来告诉automake到那里去寻找你的包的规范<TT>`texinfo.tex'</TT>文件。
+这个变量的值应该是从当前<TT>`Makefile.am'</TT>到<TT>`texinfo.tex'</TT>
+的相对路径。
+
+</P>
+
+<PRE>
+TEXINFO_TEX = ../doc/texinfo.tex
+</PRE>
+
+<P>
+选项<SAMP>`no-texinfo.tex'</SAMP>可以消除对<TT>`texinfo.tex'</TT>的需要。
+但使用变量<CODE>TEXINFO_TEX</CODE>更好些，因为它使得目标<CODE>dvi</CODE>
+仍然可以工作。
+
+</P>
+<P>
+Automake生成一个<CODE>install-info</CODE>目标；一些人显式地使用它。
+在缺省状态下，info文档通过运行<SAMP>`make install'</SAMP>来安装。
+可以通过给出选项<CODE>no-installinfo</CODE>以阻止执行这一操作。
+
+</P>
+
+
+
+<H2><A NAME="SEC43" HREF="automake.html#TOC43">Man手册</A></H2>
+
+<P>
+一个包还可以包含man手册。（参见GNU关于此事的标准，<CITE>GNU编码标准</CITE>中的`Man手册'节。）
+用主变量<SAMP>`MANS'</SAMP>声明Man手册。通常使用宏<CODE>man_MANS</CODE>。
+根据文件的扩展名，Man手册被自动地安装到<CODE>mandir</CODE>的正确子目录中。
+<A NAME="IDX107"></A>
+<A NAME="IDX108"></A>
+
+</P>
+<P>
+在缺省状态下，man手册通过运行<SAMP>`make install'</SAMP>安装。
+然而，因为GNU项目并不需要man手册，许多维护者没有花费时间以
+及时更新man手册。在这些情况下，给出选项<CODE>no-installman</CODE>
+将阻止对man手册的安装。用户仍然可以显式地使用<SAMP>`make install-man'</SAMP>
+来安装它们。
+<A NAME="IDX109"></A>
+<A NAME="IDX110"></A>
+
+</P>
+<P>
+下面是GNU <CODE>cpio</CODE>如何处理它的文档（它同时包括了Texinfo文档和
+man手册）：
+
+</P>
+
+<PRE>
+info_TEXINFOS = cpio.texi
+man_MANS = cpio.1 mt.1
+</PRE>
+
+<P>
+Texinfo源文件和info文档都被看作用于创建发布版本的源代码。
+
+</P>
+<P>
+Man手册现在并不被看作源代码，因为man手册有时是自动生成的。
+
+</P>
+
+
+
+<H1><A NAME="SEC44" HREF="automake.html#TOC44">安装了些什么</A></H1>
+
+<P>
+自然地，一旦你的程序被创建了，Automake实际上处理了安装程序的细节。
+所有<CODE>PROGRAMS</CODE>、<CODE>SCRIPTS</CODE>、
+<CODE>LIBRARIES</CODE>、<CODE>LISP</CODE>、<CODE>DATA</CODE>
+和<CODE>HEADERS</CODE>中列出的文件都被自动地安装在适当的位置。
+
+</P>
+<P>
+Automake还可以处理对info文档和man手册的安装。
+
+</P>
+<P>
+Automake生成分离的<CODE>install-data</CODE>和<CODE>install-exec</CODE>目标，
+如果安装器（installer）在共享的目录结构中为多个机器进行安装，这些目标
+允许与机器独立的部分仅仅被安装一次。目标<CODE>install</CODE>依赖于这两个目标。
+<A NAME="IDX111"></A>
+<A NAME="IDX112"></A>
+<A NAME="IDX113"></A>
+
+</P>
+<P>
+Automake还生成一个<CODE>uninstall</CODE>目标，一个
+<CODE>installdirs</CODE>目标，和一个<CODE>install-strip</CODE>目标。
+<A NAME="IDX114"></A>
+<A NAME="IDX115"></A>
+<A NAME="IDX116"></A>
+
+</P>
+<P>
+通过定义目标<CODE>install-exec-local</CODE>，或者目标<CODE>install-data-local</CODE>
+就可以扩展这一机制。如果这些目标存在，它们将在运行<SAMP>`make install'</SAMP>时运行。
+<A NAME="IDX117"></A>
+<A NAME="IDX118"></A>
+
+</P>
+<P>
+使用标准目录前缀<SAMP>`data'</SAMP>、<SAMP>`info'</SAMP>、<SAMP>`man'</SAMP>、
+<SAMP>`include'</SAMP>、<SAMP>`oldinclude'</SAMP>、<SAMP>`pkgdata'</SAMP>或者
+<SAMP>`pkginclude'</SAMP>的变量（例如，<SAMP>`data_DATA'</SAMP>）将由
+<SAMP>`install-data'</SAMP>安装。
+
+</P>
+<P>
+使用标准目录前缀<SAMP>`bin'</SAMP>、<SAMP>`sbin'</SAMP>、<SAMP>`libexec'</SAMP>、
+<SAMP>`sysconf'</SAMP>、<SAMP>`localstate'</SAMP>、<SAMP>`lib'</SAMP>或者
+<SAMP>`pkglib'</SAMP>的变量（例如，<SAMP>`bin_PROGRAMS'</SAMP>）将由
+<SAMP>`install-exec'</SAMP>安装。
+
+</P>
+<P>
+任何使用了含有<SAMP>`exec'</SAMP>的用户定义目录前缀的变量（例如，<SAMP>`myexecbin_PROGRAMS'</SAMP>）
+将由<SAMP>`install-exec'</SAMP>安装。所有使用其它用户定义的前缀的变量将由<SAMP>`install-data'</SAMP>安装。
+
+</P>
+<P>
+Automake在所有的install规则中生成对变量<SAMP>`DESTDIR'</SAMP>的支持；
+参见<CITE>GNU编码标准</CITE>中的`Makefile惯例'节。
+<A NAME="IDX119"></A>
+
+</P>
+
+
+
+<H1><A NAME="SEC45" HREF="automake.html#TOC45">清除了些什么</A></H1>
+
+<P>
+
+GNU Makefile标准给出了许多不同的清除规则。通常由Automake自动确定可以清除哪些文件。
+当然，Automake还能识别一些为指明需要额外地清除的文件而定义的变量。这些变量是
+<CODE>MOSTLYCLEANFILES</CODE>、<CODE>CLEANFILES</CODE>、<CODE>DISTCLEANFILES</CODE>
+和<CODE>MAINTAINERCLEANFILES</CODE>。
+<A NAME="IDX120"></A>
+<A NAME="IDX121"></A>
+<A NAME="IDX122"></A>
+<A NAME="IDX123"></A>
+
+</P>
+
+
+
+<H1><A NAME="SEC46" HREF="automake.html#TOC46">需要发布哪些文件</A></H1>
+
+<P>
+生成的<TT>`Makefile.in'</TT>中的<CODE>dist</CODE>目标可以用于产生用gzip压缩了的发布<CODE>tar</CODE>文件。
+tar文件是根据<SAMP>`PACKAGE'</SAMP>变量和<SAMP>`VERSION'</SAMP>变量命名的；
+精确地说，被命名为<SAMP>`<VAR>package</VAR>-<VAR>version</VAR>.tar.gz'</SAMP>。
+<A NAME="IDX124"></A>
+<A NAME="IDX125"></A>
+<A NAME="IDX126"></A>
+
+</P>
+<P>
+在大部分情况下，发布版本中的文件由Automake自动寻找：所有的源文件被自动地包含在发布版本中，还有所有的
+<TT>`Makefile.am'</TT>和<TT>`Makefile.in'</TT>。Automake定义了一些常用的内置文件，如果出现在当前目录中，
+那么就被自动地包含在发布版本中。可以用<SAMP>`automake --help'</SAMP>打印它们。此外，由<CODE>configure</CODE>
+读入的文件（例如，对应于由<CODE>AC_OUTPUT</CODE>调用指明的文件的源文件）将被自动地包含在发布版本中。
+
+</P>
+<P>
+有时，除此而外仍然有一些文件需要被发布而没有包含在自动规则
+之中。这些文件应该在变量<CODE>EXTRA_DIST</CODE>中列出。
+需要指出的是，<CODE>EXTRA_DIST</CODE>只能处理当前目录中的文件；
+其它目录中的文件将使<CODE>make dist</CODE>在运行时发生错误。
+<A NAME="IDX127"></A>
+
+</P>
+<P>
+如果你定义了<CODE>SUBDIRS</CODE>，automake将递归地把子目录包含在发布版本中。
+如果是有条件地定义<CODE>SUBDIRS</CODE>（参见<A HREF="automake.html#SEC52">条件</A>），
+通常automake将把所有可能出现在<CODE>SUBDIRS</CODE>中的所有目录包含在发布版本中。
+如果你需要有条件地给出一组目录，你可以设置变量<CODE>DIST_SUBDIRS</CODE>以精确地列出需要包含在发布版本中的子目录。
+<A NAME="IDX128"></A>
+
+</P>
+<P>
+有时在发布版本打包之前修改发布版本是有用的。如果目标<CODE>dist-hook</CODE>存在，它可以在填充发布目录之后，
+创建tar（或shar）文件之前运行。使用该功能的一种方式是发布新的<TT>`Makefile.am'</TT>被删除了的子目录中的文件。
+
+</P>
+
+<PRE>
+dist-hook:
+        mkdir $(distdir)/random
+        cp -p random/a1 random/a2 $(distdir)/random
+</PRE>
+
+<P>
+Automake还生成一个<CODE>distcheck</CODE>目标，它有助于确认给定的发布版本实际上是可以工作的。
+<CODE>distcheck</CODE>首先创建发布版本，而后试图进行一个<CODE>VPATH</CODE>创建。
+<A NAME="IDX129"></A>
+
+</P>
+
+
+<H1><A NAME="SEC47" HREF="automake.html#TOC47">对测试套件的支持</A></H1>
+
+<P>
+Automake支持两种形式的测试套件。
+
+</P>
+<P>
+如果定义了变量<CODE>TESTS</CODE>，它的值被看作为了运行测试而运行的程序列表。
+程序可以是派生对象或者是源对象；生成的规则将在<VAR>srcdir</VAR>和<TT>`.'</TT>中寻找。
+应该在<VAR>srcdir</VAR>（它可以既是环境变量，又是make变量）中寻找程序需要的数据文件，
+所以它们在一个分离的目录中进行创建的工作（参见<CITE>Autoconf手册</CITE>中的`创建目录'节），
+并且是在特别的目标<CODE>distcheck</CODE>中创建的（参见<A HREF="automake.html#SEC46">那些需要被发布</A>）。
+
+</P>
+<P>
+在运行的终点将打印失败的次数。如果一个测试程序以状态77退出，
+在最后的计数中它的结果将被忽略。这一特征允许不可移植的测试在对它
+来说没有意义的环境下被忽略。
+
+</P>
+<P>
+变量<CODE>TESTS_ENVIRONMENT</CODE>可以用于为测试运行而设置环境变量；在该规则中设置环境变量<CODE>srcdir</CODE>。
+如果你所有的测试程序都是脚本，你还可以把<CODE>TESTS_ENVIRONMENT</CODE>设置成一个对shell的调用
+（例如<SAMP>`$(SHELL) -x'</SAMP>）；这对调试测试结果来说是有用的。
+<A NAME="IDX130"></A>
+<A NAME="IDX131"></A>
+
+</P>
+<P>
+如果<SAMP>`dejagnu'</SAMP>出现在<CODE>AUTOMAKE_OPTIONS</CODE>中，
+那么就假定运行一个基于<CODE>dejagnu</CODE>的测试套件。变量
+<CODE>DEJATOOL</CODE>的值被作为<CODE>--tool</CODE>的参数传递给
+<CODE>runtest</CODE>；它的缺省值是包的名字。
+
+</P>
+<P>
+在缺省状态下，变量<CODE>RUNTESTDEFAULTFLAGS</CODE>保存了传递给dejagnu的<CODE>--tool</CODE>和<CODE>--srcdir</CODE>选项；
+如果有必要，可以覆盖它。
+<A NAME="IDX132"></A>
+
+</P>
+<P>
+还可以覆盖变量<CODE>EXPECT</CODE>、<CODE>RUNTEST</CODE>和<CODE>RUNTESTFLAGS</CODE>以提供项目特定的值。
+例如，如果你正在测试编译器工具链（toolchain），你就需要这样做。这是因为缺省值并没有把主机名和目标名考虑进去。
+<A NAME="IDX133"></A>
+<A NAME="IDX134"></A>
+<A NAME="IDX135"></A>
+<A NAME="IDX136"></A>
+<A NAME="IDX137"></A>
+
+</P>
+<P>
+在上述两种情况中，测试都是通过<SAMP>`make check'</SAMP>来完成的。
+
+</P>
+
+
+
+<H1><A NAME="SEC48" HREF="automake.html#TOC48">改变Automake的行为</A></H1>
+
+<P>
+Automake的各种特征可以在<TT>`Makefile.am'</TT>中用各种选项进行控制。
+这些选项在一个名为<CODE>AUTOMAKE_OPTIONS</CODE>的特殊变量中被列出。
+目前可以理解的选项有：
+<A NAME="IDX138"></A>
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>gnits</CODE>
+<DD>
+<DT><CODE>gnu</CODE>
+<DD>
+<DT><CODE>foreign</CODE>
+<DD>
+<DT><CODE>cygnus</CODE>
+<DD>
+设置适当的严格性。选项<CODE>gnits</CODE>还隐含了<CODE>readme-alpha</CODE>和<CODE>check-news</CODE>。
+
+<DT><CODE>ansi2knr</CODE>
+<DD>
+<DT><CODE>path/ansi2knr</CODE>
+<DD>
+打开自动de-ANSI-fication功能。参见<A HREF="automake.html#SEC28">自动de-ANSI-fication</A>。
+如果以一个路径开头，那么生成的<TT>`Makefile.in'</TT>将在特别给定的目录中寻找程序<TT>`ansi2knr'</TT>。
+通常，路径应该是到同一个发布版本中的其它目录的相对路径（虽然Automake并不进行这项检查）。
+
+<DT><CODE>check-news</CODE>
+<DD>
+给出该选项后，如果当前的版本号没有出现在<TT>`NEWS'</TT>文件中的前几行中，
+将导致<CODE>make dist</CODE>的失败。
+
+<DT><CODE>dejagnu</CODE>
+<DD>
+生成<CODE>dejagnu</CODE>特定的规则。参见<A HREF="automake.html#SEC47">对测试套件的支持</A>。
+
+<DT><CODE>dist-shar</CODE>
+<DD>
+就象普通的<CODE>dist</CODE>目标那样生成<CODE>dist-shar</CODE>目标。
+这个新目标将创建一个发布版本的shar包。
+<A NAME="IDX139"></A>
+
+<DT><CODE>dist-zip</CODE>
+<DD>
+就象普通的<CODE>dist</CODE>目标那样生成<CODE>dist-zip</CODE>目标。
+这个新目标将创建一个发布版本的zip包。
+<A NAME="IDX140"></A>
+
+<DT><CODE>dist-tarZ</CODE>
+<DD>
+就象普通的<CODE>dist</CODE>目标那样生成<CODE>dist-tarZ</CODE>目标。
+这个新目标将创建一个发布版本的tar包；假定使用传统的<CODE>tar</CODE>
+和<CODE>compress</CODE>。警告：如果你实际上在使用<CODE>GNU tar</CODE>，
+那么生成的包可能含有不可移植的结构。
+<A NAME="IDX141"></A>
+
+<DT><CODE>no-dependencies</CODE>
+<DD>
+这与在命令行中使用选项<SAMP>`--include-deps'</SAMP>相类似，但在那些
+你不希望使用自动依赖性跟踪的场合下更为有用。
+参见<A HREF="automake.html#SEC29">自动依赖性跟踪</A>。
+在这个情况下将有效地关闭自动依赖性跟踪。
+
+<DT><CODE>no-installinfo</CODE>
+<DD>
+给出该选项后，生成的<TT>`Makefile.in'</TT>在缺省的状态下将不会创建或者
+安装info文档。然而，目标<CODE>info</CODE>和目标<CODE>install-info</CODE>
+仍然是可用的安装选项。
+在<SAMP>`GNU'</SAMP>严格性以及更高的严格性中这个选项是不允许使用的。
+<A NAME="IDX142"></A>
+<A NAME="IDX143"></A>
+
+<DT><CODE>no-installman</CODE>
+<DD>
+给出这个选项后，生成的<TT>`Makefile.in'</TT>在缺省状态下将不会安装man手册。
+然而，目标<CODE>install-man</CODE>仍然是可用的安装选项。
+在<SAMP>`GNU'</SAMP>严格性以及更高的严格性中这个选项是不允许使用的。
+<A NAME="IDX144"></A>
+
+<DT><CODE>no-texinfo.tex</CODE>
+<DD>
+即使在本目录中含有texinfo文件，也不需要<TT>`texinfo.tex'</TT>
+
+<DT><CODE>readme-alpha</CODE>
+<DD>
+如果本发布是一个alpha版本，并且存在文件<TT>`README-alpha'</TT>，
+那么它将被添加到发布版本中。如果给出了该选项，版本号应该是以下
+两种形式之一。第一种形式是<SAMP>`<VAR>MAJOR</VAR>.<VAR>MINOR</VAR>.<VAR>ALPHA</VAR>'</SAMP>，
+其中每个元素都是一个数字；最后的点和数字应该被忽略以用于非alpha版本。
+第二种形式是<SAMP>`<VAR>MAJOR</VAR>.<VAR>MINOR</VAR><VAR>ALPHA</VAR>'</SAMP>，
+其中<VAR>ALPHA</VAR>是一个文字；对于非alpha版本来说，应该忽略它。
+
+<DT><VAR>version</VAR>
+<DD>
+可以给出版本号（例如，<SAMP>`0.30'</SAMP>）。如果Automake并不比要求的
+版本号新，将不会创建<TT>`Makefile.in'</TT>。
+</DL>
+
+<P>
+<CODE>automake</CODE>能够诊断不能识别的选项。
+
+</P>
+
+
+
+<H1><A NAME="SEC49" HREF="automake.html#TOC49">其它规则</A></H1>
+
+<P>
+还有一些不适于放在任何其它地方的几条规则。
+
+</P>
+
+
+
+<H2><A NAME="SEC50" HREF="automake.html#TOC50">与<CODE>etags</CODE>之间的界面</A></H2>
+
+<P>
+在某些环境下，<CODE>automake</CODE>将生成规则以产生由GNU Emacs使用的<TT>`TAGS'</TT>文件。
+
+</P>
+<P>
+如果出现了任何C源代码或者头文件，那么就为该目录创建目标<CODE>tags</CODE>和目标<CODE>TAGS</CODE>。
+<A NAME="IDX145"></A>
+
+</P>
+<P>
+在运行的时候，将在多个目录包的顶层目录创建一个<CODE>tags</CODE>文件，它将生成一个
+包括了对所有子目录的<TT>`TAGS'</TT>文件的引用的<TT>`TAGS'</TT>文件。
+
+</P>
+<P>
+此外，如果定义了变量<CODE>ETAGS_ARGS</CODE>，将生成目标<CODE>tags</CODE>。
+该变量用于包含了能够被标记，但是不能够被<CODE>etags</CODE>所识别的源文件的目录。
+<A NAME="IDX146"></A>
+
+</P>
+<P>
+下面是Automake如何为它的源代码生成标记和它的Texinfo文件中的结点。
+
+</P>
+
+<PRE>
+ETAGS_ARGS = automake.in --lang=none \
+ --regex='/^@node[ \t]+\([^,]+\)/\1/' automake.texi
+</PRE>
+
+<P>
+如果你把文件名添加到<SAMP>`ETAGS_ARGS'</SAMP>，你将可能还要设置<SAMP>`TAGS_DEPENDENCIES'</SAMP>。
+该变量的内容将直接添加到目标<CODE>tags</CODE>的依赖列表中。
+<A NAME="IDX147"></A>
+
+</P>
+<P>
+Automake还将生成一个将在源代码上运行<CODE>mkid</CODE>的<CODE>ID</CODE>目标。
+它仅仅可以在一个目录到目录的基础（directory-by-directory basis）上使用。
+<A NAME="IDX148"></A>
+
+</P>
+
+
+
+<H2><A NAME="SEC51" HREF="automake.html#TOC51">处理新的文件扩展名</A></H2>
+
+<P>
+有时，为处理Automake不能识别的文件类型而引入新的隐含规则是有用的。
+如果这样做，你必须把这些新的后缀告诉GNU Make。可以通过把新后缀的列表添加到变量<CODE>SUFFIXES</CODE>来完成。
+<A NAME="IDX149"></A>
+
+</P>
+<P>
+例如，目前automake不能对Java提供任何支持。如果你写了一个用于从<SAMP>`.java'</SAMP>
+源文件生成<SAMP>`.class'</SAMP>文件的宏，你还需要把这些后缀添加到列表中：
+
+</P>
+
+<PRE>
+SUFFIXES = .java .class
+</PRE>
+
+
+
+<H1><A NAME="SEC52" HREF="automake.html#TOC52">条件</A></H1>
+
+<P>
+Automake支持一种简单的条件。
+
+</P>
+<P>
+<A NAME="IDX150"></A>
+在使用条件之前，你必须在<CODE>configure.in</CODE>文件中使用
+<CODE>AM_CONDITIONAL</CODE>定义它。宏<CODE>AM_CONDITIONAL</CODE>
+接受两个参数。
+
+</P>
+<P>
+<CODE>AM_CONDITIONAL</CODE>的第一个参数是条件的名字。
+它应该是一个以字母开头并且仅仅由字母、数字和下划线组成的简单字符串。
+
+</P>
+<P>
+<CODE>AM_CONDITIONAL</CODE>的第二个参数是一个适用于shell的if语句的shell条件。
+该条件将在运行<CODE>configure</CODE>的时候被求值。
+
+</P>
+<P>
+条件典型地依赖于用户提供给<CODE>configure</CODE>脚本的选项。
+下面是一个演示如果在用户使用了<SAMP>`--enable-debug'</SAMP>选项的情况下
+为真的条件的例子。
+
+</P>
+
+<PRE>
+AC_ARG_ENABLE(debug,
+[  --enable-debug    Turn on debugging],
+[case "${enableval}" in
+  yes) debug=true ;;
+  no)  debug=false ;;
+  *) AC_MSG_ERROR(bad value ${enableval} for --enable-debug) ;;
+esac],[debug=false])
+AM_CONDITIONAL(DEBUG, test x$debug = xtrue)
+</PRE>
+
+<P>
+下面是一个如何在<TT>`Makefile.am'</TT>中使用条件的例子：
+
+</P>
+
+<PRE>
+if DEBUG
+DBG = debug
+else
+DBG =
+endif
+noinst_PROGRAMS = $(DBG)
+</PRE>
+
+<P>
+这个小例子还可以被处理以用于EXTRA_PROGRAMS。（参见<A HREF="automake.html#SEC21">创建一个程序</A>）。
+
+</P>
+<P>
+你只能在<CODE>if</CODE>语句中测试单个变量。可以忽略<CODE>else</CODE>语句。条件可以嵌套到任意深度。
+
+</P>
+<P>
+需要指出的是Automake中的条件与GNU Make中的条件是不相同的。Automake的条件在配置时刻
+由<TT>`configure'</TT>脚本完成检查，并且将影响<TT>`Makefile.in'</TT>到<TT>`Makefile'</TT>的转换。
+它们是基于传递给<TT>`configure'</TT>的选项和<TT>`configure'</TT>对本地系统的检测结果的。
+GNU Make条件则在make时完成检查，并且是基于传递给make程序的变量或者是基于在<TT>`Makefile'</TT>中定义的变量的。
+
+</P>
+<P>
+Automake条件在任何make下都可以工作。
+
+</P>
+
+
+<H1><A NAME="SEC53" HREF="automake.html#TOC53"><CODE>--gnu</CODE>和<CODE>--gnits</CODE>的效果</A></H1>
+
+<P>
+选项<SAMP>`--gnu'</SAMP>（或者<SAMP>`AUTOMAKE_OPTIONS'</SAMP>中的<SAMP>`gnu'</SAMP>）将使得
+<CODE>automake</CODE>执行如下检查：
+
+</P>
+
+<UL>
+<LI>
+
+在包的顶层目录中应该含有文件<TT>`INSTALL'</TT>、<TT>`NEWS'</TT>、<TT>`README'</TT>、<TT>`COPYING'</TT>、
+<TT>`AUTHORS'</TT>和<TT>`ChangeLog'</TT>。
+
+<LI>
+
+禁止使用选项<SAMP>`no-installman'</SAMP>和<SAMP>`no-installinfo'</SAMP>。
+</UL>
+
+<P>
+需要指出的是，该选项将在未来进行扩展以进行更多的检查；熟悉GNU标准的精确需求是值得推荐的。
+此外，<SAMP>`--gnu'</SAMP>可以要求某些非标准GNU程序为了各种仅由维护者使用的目标而存在；
+例如，在将来<SAMP>`make dist'</SAMP>可能会需要<CODE>pathchk</CODE>。
+
+</P>
+<P>
+选项<SAMP>`--gnits'</SAMP>进行<SAMP>`--gnu'</SAMP>所做的所有检查，此外还进行如下检查：
+
+</P>
+
+<UL>
+<LI>
+
+<SAMP>`make dist'</SAMP>将检查以确认文件<TT>`NEWS'</TT>被更新到当前的版本。
+
+<LI>
+
+不允许出现文件<TT>`COPYING.LIB'</TT>。LGPL显然是一个失败的试验。
+
+<LI>
+
+检查文件<SAMP>`VERSION'</SAMP>以确保它的格式是符合Gnits标准的。
+
+<LI>
+
+如果<SAMP>`VERSION'</SAMP>表明本版本是alpha版本，并且文件<TT>`README-alpha'</TT>
+出现在包的顶层目录中，那么它就被包含在发布版本中。
+因为该模式是唯一对版本号格式实行限制的模式，所以上述操作在<SAMP>`--gnits'</SAMP>
+模式下实施而不在其它模式下进行，因此，该模式也是<CODE>automake</CODE>唯一能够
+自动确定是否把<TT>`README-alpha'</TT>包含在发布版本中的模式。
+
+<LI>
+
+需要出现文件<TT>`THANKS'</TT>。
+</UL>
+
+
+
+<H1><A NAME="SEC54" HREF="automake.html#TOC54"><CODE>--cygnus</CODE>的效果</A></H1>
+
+<P>
+对于如何构造<TT>`Makefile.in'</TT>，Cygnus解决方案有一些不同的规则。
+把<SAMP>`--cygnus'</SAMP>传递给<CODE>automake</CODE>将使所有生成的<TT>`Makefile.in'</TT>
+服从Cygnus规则。
+
+</P>
+<P>
+下面是<SAMP>`--cygnus'</SAMP>的精确效果：
+
+</P>
+
+<UL>
+<LI>
+
+总是在创建目录中，而不是在源目录创建Info文件。
+
+<LI>
+
+如果指明了Texinfo源文件，就不需要<TT>`texinfo.tex'</TT>。其设想是：应该提供该文件，
+但<CODE>automake</CODE>不能在适当的位置找到它。这种设想是Cygnus包典型的包装方式的产物。
+
+<LI>
+
+<SAMP>`make dist'</SAMP>将在创建目录和源目录中寻找文件。
+为了支持把info文件储存在创建目录中而提供这个功能。
+
+<LI>
+
+将在创建树和用户的<SAMP>`PATH'</SAMP>中寻找某些工具。这些工具是<CODE>runtest</CODE>、
+<CODE>expect</CODE>、<CODE>makeinfo</CODE>和<CODE>texi2dvi</CODE>。
+
+<LI>
+
+隐含<CODE>--foreign</CODE>选项。
+
+<LI>
+
+隐含选项<SAMP>`no-installinfo'</SAMP>和选项<SAMP>`no-dependencies'</SAMP>。
+
+<LI>
+
+需要宏<SAMP>`AM_MAINTAINER_MODE'</SAMP>和宏<SAMP>`AM_CYGWIN32'</SAMP>。
+
+<LI>
+
+目标<CODE>check</CODE>并不依赖于目标<CODE>all</CODE>。
+</UL>
+
+<P>
+
+建议GNU维护者使用<SAMP>`gnu'</SAMP>严格性方式而不是特殊的Cygnus模式。
+
+</P>
+
+
+
+<H1><A NAME="SEC55" HREF="automake.html#TOC55">什么时候Automake不够用</A></H1>
+
+<P>
+Automake的隐含语义意味着许多问题只要通过把一些<CODE>make</CODE>
+目标和规则添加到<TT>`Makefile.in'</TT>中就可以解决了。
+<CODE>automake</CODE>将忽略这些添加的目标和规则。
+
+</P>
+<P>
+对于这种做法需要提出告诫。虽然你可以覆盖已经被<CODE>automake</CODE>所使用
+的目标，但这通常是失策的，在非平包（non-flat）的顶层目录中尤其如此。然而，你可以在
+你的<TT>`Makefile.in'</TT>中给出各种带有<SAMP>`-local'</SAMP>的有用目标版本。
+Automake将用那些用户提供的目标补充标准的目标。
+
+</P>
+<P>
+支持本地版本的目标有<CODE>all</CODE>、<CODE>info</CODE>、<CODE>dvi</CODE>、
+<CODE>check</CODE>、<CODE>install-data</CODE>、<CODE>install-exec</CODE>、
+<CODE>uninstall</CODE>和各种<CODE>clean</CODE>目标
+（<CODE>mostlyclean</CODE>、<CODE>clean</CODE>、<CODE>distclean</CODE>和
+<CODE>maintainer-clean</CODE>）。需要指出的是没有
+<CODE>uninstall-exec-local</CODE>或者<CODE>uninstall-data-local</CODE>目标；
+请使用<CODE>uninstall-local</CODE>。仅仅反安装数据或仅仅反安装可执行文件
+是没有意义的。
+<A NAME="IDX151"></A>
+<A NAME="IDX152"></A>
+<A NAME="IDX153"></A>
+<A NAME="IDX154"></A>
+<A NAME="IDX155"></A>
+<A NAME="IDX156"></A>
+<A NAME="IDX157"></A>
+
+</P>
+<P>
+例如，下面是把一个文件安装到<TT>`/etc'</TT>的一种方式：
+
+</P>
+
+<PRE>
+install-data-local:
+        $(INSTALL_DATA) $(srcdir)/afile /etc/afile
+</PRE>
+
+<P>
+某些目标还可以在完成它的工作之后运行一个称为<EM>hook</EM>的其它目标。
+hook是在源目标名的后面添加<SAMP>`-hook'</SAMP>。允许使用hook的目标是
+<CODE>install-data</CODE>、<CODE>install-exec</CODE>、<CODE>dist</CODE>和
+<CODE>distcheck</CODE>。
+<A NAME="IDX158"></A>
+<A NAME="IDX159"></A>
+<A NAME="IDX160"></A>
+
+</P>
+<P>
+例如，下面是如果创建一个到已经安装的程序的硬连接：
+
+</P>
+
+<PRE>
+install-exec-hook:
+        ln $(bindir)/program $(bindir)/proglink
+</PRE>
+
+
+
+<H1><A NAME="SEC56" HREF="automake.html#TOC56">发布<TT>`Makefile.in'</TT></A></H1>
+
+<P>
+Automake对于发布生成的<TT>`Makefile.in'</TT>没有施加任何限制。
+我们仍然鼓励软件的作者按照诸如GPL之类的条款发布它们的作品，但是Automake
+并不要求你这样做。
+
+</P>
+<P>
+一些可以通过选项<CODE>--add-missing</CODE>自动安装的文件则受到
+GPL的约束；打开每个文件检查一下。
+
+</P>
+
+
+
+<H1><A NAME="SEC57" HREF="automake.html#TOC57">未来的某些想法</A></H1>
+
+<P>
+下面是可能在未来发生的一些事情：
+
+</P>
+
+<UL>
+<LI>
+
+支持HTML。
+
+<LI>
+
+输出将被清理。例如，只有那些确实使用了的变量才会出现在生成的
+<TT>`Makefile.in'</TT>文件中。
+
+<LI>
+
+对发布版本提供自动重编码支持。其目的是允许维护者使用对他来说
+最方便的字符集，但所有的发布都将使用Unicode或者带有UTF-8编码的
+ISO 10646。
+
+<LI>
+
+对自动生成包提供支持（例如Debian包、RPM包、Solaris包等等）。
+如果有具备创建包的经验的人告诉我怎样做才是有帮助的，那么将会更快地提供这项支持。
+
+<LI>
+
+用Guile重写。这不会在不久的将来发生，但它终将发生。
+</UL>
+
+
+
+<H1><A NAME="SEC58" HREF="automake.html#TOC58">索引</A></H1>
+
+<P>
+转到:
+<A HREF="#cindex__">_</A>
+-
+<A HREF="#cindex_a">a</A>
+-
+<A HREF="#cindex_b">b</A>
+-
+<A HREF="#cindex_c">c</A>
+-
+<A HREF="#cindex_d">d</A>
+-
+<A HREF="#cindex_e">e</A>
+-
+<A HREF="#cindex_h">h</A>
+-
+<A HREF="#cindex_i">i</A>
+-
+<A HREF="#cindex_l">l</A>
+-
+<A HREF="#cindex_m">m</A>
+-
+<A HREF="#cindex_n">n</A>
+-
+<A HREF="#cindex_o">o</A>
+-
+<A HREF="#cindex_p">p</A>
+-
+<A HREF="#cindex_r">r</A>
+-
+<A HREF="#cindex_s">s</A>
+-
+<A HREF="#cindex_t">t</A>
+<P>
+<H2><A NAME="cindex__">_</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX79">_LDADD</A>
+<LI><A HREF="automake.html#IDX80">_LDFLAGS</A>
+<LI><A HREF="automake.html#IDX81">_LIBADD</A>
+<LI><A HREF="automake.html#IDX75">_SOURCES</A>
+<LI><A HREF="automake.html#IDX106">_TEXINFOS</A>
+</DIR>
+<H2><A NAME="cindex_a">a</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX88">AUTOMAKE_OPTIONS</A>, <A HREF="automake.html#IDX93">AUTOMAKE_OPTIONS</A>, <A HREF="automake.html#IDX138">AUTOMAKE_OPTIONS</A>
+</DIR>
+<H2><A NAME="cindex_b">b</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX28">build_alias</A>
+<LI><A HREF="automake.html#IDX98">BUILT_SOURCES</A>
+</DIR>
+<H2><A NAME="cindex_c">c</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX121">CLEANFILES</A>
+<LI><A HREF="automake.html#IDX84">CXX</A>
+<LI><A HREF="automake.html#IDX86">CXXCOMPILE</A>
+<LI><A HREF="automake.html#IDX85">CXXFLAGS</A>
+<LI><A HREF="automake.html#IDX87">CXXLINK</A>
+</DIR>
+<H2><A NAME="cindex_d">d</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX8">DATA</A>, <A HREF="automake.html#IDX97">DATA</A>
+<LI><A HREF="automake.html#IDX134">DEJATOOL</A>
+<LI><A HREF="automake.html#IDX119">DESTDIR</A>
+<LI><A HREF="automake.html#IDX128">DIST_SUBDIRS</A>
+<LI><A HREF="automake.html#IDX122">DISTCLEANFILES</A>
+</DIR>
+<H2><A NAME="cindex_e">e</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX102">ELCFILES</A>
+<LI><A HREF="automake.html#IDX146">ETAGS_ARGS</A>
+<LI><A HREF="automake.html#IDX135">EXPECT</A>
+<LI><A HREF="automake.html#IDX127">EXTRA_DIST</A>
+<LI><A HREF="automake.html#IDX77">EXTRA_PROGRAMS</A>
+</DIR>
+<H2><A NAME="cindex_h">h</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX9">HEADERS</A>, <A HREF="automake.html#IDX96">HEADERS</A>
+<LI><A HREF="automake.html#IDX25">host_alias</A>
+<LI><A HREF="automake.html#IDX26">host_triplet</A>
+</DIR>
+<H2><A NAME="cindex_i">i</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX104">info_TEXINFOS</A>
+</DIR>
+<H2><A NAME="cindex_l">l</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX78">LDADD</A>
+<LI><A HREF="automake.html#IDX83">LDFLAGS</A>
+<LI><A HREF="automake.html#IDX82">LIBADD</A>
+<LI><A HREF="automake.html#IDX5">LIBRARIES</A>
+<LI><A HREF="automake.html#IDX6">LISP</A>, <A HREF="automake.html#IDX99">LISP</A>
+<LI><A HREF="automake.html#IDX100">lisp_LISP</A>
+</DIR>
+<H2><A NAME="cindex_m">m</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX123">MAINTAINERCLEANFILES</A>
+<LI><A HREF="automake.html#IDX108">man_MANS</A>
+<LI><A HREF="automake.html#IDX10">MANS</A>, <A HREF="automake.html#IDX107">MANS</A>
+<LI><A HREF="automake.html#IDX120">MOSTLYCLEANFILES</A>
+</DIR>
+<H2><A NAME="cindex_n">n</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX101">noinst_LISP</A>
+</DIR>
+<H2><A NAME="cindex_o">o</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX92">OMIT_DEPENDENCIES</A>
+</DIR>
+<H2><A NAME="cindex_p">p</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX2">PROGRAMS</A>, <A HREF="automake.html#IDX4">PROGRAMS</A>
+</DIR>
+<H2><A NAME="cindex_r">r</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX136">RUNTEST</A>
+<LI><A HREF="automake.html#IDX132">RUNTESTDEFAULTFLAGS</A>
+<LI><A HREF="automake.html#IDX137">RUNTESTFLAGS</A>
+</DIR>
+<H2><A NAME="cindex_s">s</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX7">SCRIPTS</A>, <A HREF="automake.html#IDX95">SCRIPTS</A>
+<LI><A HREF="automake.html#IDX76">SOURCES</A>
+<LI><A HREF="automake.html#IDX1">SUBDIRS</A>, <A HREF="automake.html#IDX74">SUBDIRS</A>
+<LI><A HREF="automake.html#IDX149">SUFFIXES</A>
+</DIR>
+<H2><A NAME="cindex_t">t</A></H2>
+<DIR>
+<LI><A HREF="automake.html#IDX147">TAGS_DEPENDENCIES</A>
+<LI><A HREF="automake.html#IDX29">target_alias</A>
+<LI><A HREF="automake.html#IDX130">TESTS</A>
+<LI><A HREF="automake.html#IDX131">TESTS_ENVIRONMENT</A>
+<LI><A HREF="automake.html#IDX11">TEXINFOS</A>, <A HREF="automake.html#IDX103">TEXINFOS</A>, <A HREF="automake.html#IDX105">TEXINFOS</A>
+</DIR>
+
+</P>
+<P><HR>
+</BODY>
+</HTML>

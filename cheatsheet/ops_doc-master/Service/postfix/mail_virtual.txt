@@ -1,0 +1,431 @@
+[Postfix-2.11+Dovecot-2.0.9+MySQL+Nginx+Cyrus-sasl+Extmail-1.2实现基于虚拟用户的邮件系统架构]
+
+系统：
+CentOS 7.1
+IP:192.168.2.220
+域名：mail.test.com
+----------------------------------------------------------------------------------------
+——安装前的准备工作
+1）关闭Selinux
+12 [root@node1 ~]# vi /etc/selinux/config 
+SELINUX=disabled
+
+2）安装程序依赖包
+[root@node1 ~]# yum install db4-devel ntpdate cyrus-sasl-md5 perl-GD perl-DBD-MySQL perl-GD perl-CPAN perl-CGI perl-CGI-Session cyrus-sasl-lib cyrus-sasl-plain cyrus-sasl cyrus-sasl-devel libtool-ltdl-devel telnet mail -y
+
+3) 由于CentOS7默认安装的是MariaDB，所以要添加MySQL的yum源，有些编译需要的devel包只有epel有，所以我们把epel源也一并添加
+yum install -y wget 
+wget http://dev.mysql.com/get/mysql-community-release-el7-5.noarch.rpm 
+rpm -ivh mysql-community-release-el7-5.noarch.rpm  
+wget http://dl.Fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm 
+rpm -ivh epel-release-latest-7.noarch.rpm
+
+4）安装Unix-Syslog补丁
+[root@node1 soft]# wget http://www.cpan.org/authors/id/M/MH/MHARNISCH/Unix-Syslog-1.1.tar.gz 
+[root@node1 soft]# tar fzvx Unix-Syslog-1.1.tar.gz 
+[root@node1 soft]# cd Unix-Syslog-1.1 
+[root@node1 Unix-Syslog-1.1]# perl Makefile.PL 
+[root@node1 Unix-Syslog-1.1]# make && make install
+
+注意：不安装此补丁的话使用extmail会报如下错误：
+Unix::Syslog not found, please install it first! (in cleanup) Undefined subroutine &Ext::Logger::do_closelog called at /var/www/extsuite/extmail/libs/Ext/Logger.pm line 86.
+----------------------------------------------------------------------------------------
+——安装postfix
+1）卸载系统自带的postfix软件和用户组
+[root@node1 ~]# yum remove postfix -y 
+[root@node1 ~]# userdel postfix 
+[root@node1 ~]# groupdel postdrop
+
+2）添加postfix用户和组
+[root@node1 ~]# groupadd -g 2525 postfix 
+[root@node1 ~]# useradd -g postfix -u 2525 -s /sbin/nologin -M postfix 
+[root@node1 ~]# groupadd -g 2526 postdrop 
+[root@node1 ~]# useradd -g postdrop -u 2526 -s /sbin/nologin -M postdrop
+
+3）下载postfix
+
+[root@node1 ~]# mkdir /tmp/soft 
+[root@node1 ~]# cd /tmp/soft 
+[root@node1 soft]# wget  
+[root@node1 soft]# tar xfv postfix-2.11.0.tar.gz 
+[root@node1 soft]# cd postfix-2.11.0 
+[root@node1 postfix-2.11.0]# make makefiles \ 
+'CCARGS=-DHAS_MYSQL -I/usr/include/mysql -DUSE_SASL_AUTH \ 
+-DUSE_CYRUS_SASL -I/usr/include/sasl -DUSE_TLS ' \ 
+'AUXLIBS=-L/usr/lib64/mysql -lmysqlclient -lz -lrt -lm -L/usr/lib64/sasl2 -lsasl2  -lssl -lcrypto'
+[root@node1 postfix-2.11.0]# make && make install
+
+4）配置相应权限
+[root@node1 postfix-2.11.0]# chown -R postfix:postdrop /var/spool/postfix 
+[root@node1 postfix-2.11.0]# chown -R postfix:postdrop /var/lib/postfix/ 
+[root@node1 postfix-2.11.0]# chown root /var/spool/postfix 
+[root@node1 postfix-2.11.0]# chown -R root /var/spool/postfix/pid
+
+5）配置postfix
+[root@node1 postfix-2.12-20140406]# vi /etc/postfix/main.cf 
+#设置主机名 
+myhostname = mail.test.com 
+#指定域名 
+mydomain = test.com 
+#指明发件人所在的域名 
+myorigin = $mydomain 
+#指定postfix系统监听的网络接口 
+inet_interfaces = all
+#指定postfix接收邮件时收件人的域名 [使用虚拟域需要禁用] 
+mydestination = $myhostname, localhost.$mydomain, localhost,$mydomain 
+#指定信任网段类型 
+mynetworks_style = host 
+#指定信任的客户端 
+mynetworks = 192.168.0.0/16, 127.0.0.0/8
+#指定允许中转邮件的域名 
+relay_domains = $mydestination 
+#设置邮件的别名 
+alias_maps = hash:/etc/aliases
+
+6）设置开启启动
+[root@node1 postfix-2.12-20140406]# chkconfig --add postfix 
+[root@node1 postfix-2.12-20140406]# chkconfig postfix on 
+[root@node1 postfix-2.12-20140406]# service postfix restart 
+[root@node1 postfix-2.12-20140406]# netstat -antup |grep 25 
+tcp        0      0 0.0.0.0:25              0.0.0.0:*              LISTEN      1917/master
+
+----安装Dovecot
+1）安装Dovecot
+1 [root@node1 ~]# yum install -y  dovecot dovecot-devel dovecot-mysql
+
+2）配置Dovecot
+1234567891011121314151617181920212223242526272829 [root@node1 soft]# cd /etc/dovecot/ 
+[root@node1 dovecot]# vi dovecot.conf 
+protocols = imap pop3 
+!include conf.d/*.conf 
+listen = *
+base_dir = /var/run/dovecot/
+[root@node1 dovecot]# cd conf.d/ 
+[root@node1 conf.d]# vi 10-auth.conf 
+disable_plaintext_auth = no 
+[root@node1 conf.d]# vi 10-mail.conf 
+mail_location = maildir:~/Maildir 
+mail_location = maildir:/var/mailbox/%d/%n/Maildir 
+mail_privileged_group = mail 
+[root@node1 conf.d]# vi 10-ssl.conf 
+ssl = no 
+[root@node1 conf.d]# vi 10-logging.conf 
+log_path = /var/log/dovecot.log 
+info_log_path = /var/log/dovecot.info 
+log_timestamp = "%Y-%m-%d %H:%M:%S "
+[root@node1 conf.d]# cp auth-sql.conf.ext auth-sql.conf 
+[root@node1 conf.d]# vi auth-sql.conf 
+passdb { 
+  driver = sql 
+  args = /etc/dovecot/dovecot-sql.conf 
+} 
+userdb { 
+  driver = sql 
+  args = /etc/dovecot/dovecot-sql.conf 
+}
+
+3）编辑dovecot通过mysql认证的文件
+[root@node1 conf.d]# vi /etc/dovecot-mysql.conf 
+driver = mysql 
+connect = host=localhost dbname=extmail user=extmail password=extmail 
+default_pass_scheme = CRYPT 
+password_query = SELECT username AS user,password AS password FROM mailbox WHERE username = '%u'
+user_query = SELECT maildir, uidnumber AS uid, gidnumber AS gid FROM mailbox WHERE username = '%u'
+
+——安装courier-authlib
+1）下载安装courier-authlib
+[root@node1 soft]# wget http: 
+//jaist.dl.sourceforge.net/project/courier/authlib/0.66.1/courier-authlib-0.66.1.tar.bz2 
+[root@node1 soft]# tar fvx courier-authlib-0.66.1.tar.bz2 
+[root@node1 soft]# cd courier-authlib-0.66.1 
+[root@node1 courier-authlib-0.66.1]# ./configure \ 
+--prefix=/usr/local/courier-authlib \ 
+    --sysconfdir=/etc \ 
+    --without-authpam \ 
+    --without-authshadow \ 
+    --without-authvchkpw \ 
+    --without-authpgsql \ 
+    --with-authmysql \ 
+    --with-mysql-libs=/usr/lib64/mysql \ 
+    --with-mysql-includes=/usr/include/mysql \ 
+    --with-RedHat \ 
+    --with-authmysqlrc=/etc/authmysqlrc \ 
+    --with-authdaemonrc=/etc/authdaemonrc \ 
+    --with-mailuser=postfix 
+[root@node1 courier-authlib-0.66.1]# make && make install
+
+2）配置courier-authlib
+[root@node1 courier-authlib-0.66.1]# chmod 755 /usr/local/courier-authlib/var/spool/authdaemon 
+[root@node1 courier-authlib-0.66.1]# cp /etc/authdaemonrc.dist  /etc/authdaemonrc 
+[root@node1 courier-authlib-0.66.1]# cp /etc/authmysqlrc.dist  /etc/authmysqlrc 
+[root@node1 courier-authlib-0.66.1]# vi /etc/authdaemonrc 
+authmodulelist="authmysql"
+authmodulelistorig="authmysql"
+[root@node1 courier-authlib-0.66.1]# vi /etc/authmysqlrc 
+MYSQL_SERVER            localhost 
+MYSQL_USERNAME          extmail 
+MYSQL_PASSWORD          extmail 
+MYSQL_SOCKET            /var/lib/mysql/mysql.sock 
+MYSQL_PORT              3306
+MYSQL_DATABASE          extmail 
+MYSQL_USER_TABLE        mailbox 
+MYSQL_CRYPT_PWFIELD    password 
+DEFAULT_DOMAIN          test.com 
+MYSQL_UID_FIELD        '2525'
+MYSQL_GID_FIELD        '2525'
+MYSQL_LOGIN_FIELD      username 
+MYSQL_HOME_FIELD        concat('/var/mailbox/',homedir) 
+MYSQL_NAME_FIELD        name 
+MYSQL_MAILDIR_FIELD    concat('/var/mailbox/',maildir)
+
+3）设置courier-authlib开机启动
+[root@node1 courier-authlib-0.66.1]# cp courier-authlib.sysvinit /etc/init.d/courier-authlib 
+[root@node1 courier-authlib-0.66.1]# chmod +x /etc/init.d/courier-authlib 
+[root@node1 courier-authlib-0.66.1]# chkconfig --add courier-authlib 
+[root@node1 courier-authlib-0.66.1]# chkconfig courier-authlib on 
+[root@node1 courier-authlib-0.66.1]# echo "/usr/local/courier-authlib/lib/courier-authlib" >> /etc/ld.so.conf.d/courier-authlib.conf 
+[root@node1 courier-authlib-0.66.1]# ldconfig 
+[root@node1 courier-authlib-0.66.1]# service courier-authlib start 
+Starting Courier authentication services: authdaemond
+
+4）设置smtpd认证
+[root@node1 courier-authlib-0.66.1]# vi /usr/lib64/sasl2/smtpd.conf 
+pwcheck_method: authdaemond 
+log_level: 3
+mech_list: PLAIN LOGIN 
+authdaemond_path:/usr/local/courier-authlib/var/spool/authdaemon/socket
+
+5）配置postfix支持SMTP
+1234567 [root@node1 dovecot]# vi /etc/postfix/main.cf 
+smtpd_sasl_auth_enable = yes 
+smtpd_sasl_local_domain = '' 
+smtpd_recipient_restrictions = permit_mynetworks,permit_sasl_authenticated,reject_unauth_destination 
+broken_sasl_auth_clients=yes 
+smtpd_client_restrictions = permit_sasl_authenticated 
+smtpd_sasl_security_options = noanonymous
+
+6）配置postfix支持虚拟用户
+[root@node1 courier-authlib-0.66.1]# vi /etc/postfix/main.cf 
+virtual_mailbox_base = /var/mailbox 
+virtual_mailbox_maps = mysql:/etc/postfix/mysql_virtual_mailbox_maps.cf 
+virtual_mailbox_domains = mysql:/etc/postfix/mysql_virtual_domains_maps.cf 
+virtual_alias_domains =
+virtual_alias_maps = mysql:/etc/postfix/mysql_virtual_alias_maps.cf 
+virtual_uid_maps = static:2525
+virtual_gid_maps = static:2525
+virtual_transport = virtual
+
+——安装Extmail
+1）创建相关目录并解压extmail
+[root@node1 soft]# mkdir -p /var/www/extsuite 
+[root@node1 soft]# tar fzvx extmail-1.2.tar.gz -C /var/www/extsuite/ 
+[root@node1 soft]# cp /var/www/extsuite/extmail-1.2 /var/www/extsuite/extmail 
+[root@node1 soft]# cd /var/www/extsuite/extmail
+
+2）修改Extmail的主配置文件
+
+[root@node1 extmail]# cp webmail.cf.default webmail.cf 
+[root@node1 extmail]# vi webmail.cf 
+SYS_SESS_DIR = /tmp/extmail 
+SYS_UPLOAD_TMPDIR = /tmp/extmail/upload 
+SYS_USER_LANG = zh_CN 
+SYS_MIN_PASS_LEN = 8
+SYS_MAILDIR_BASE = /var/mailbox 
+SYS_MYSQL_USER = extmail 
+SYS_MYSQL_PASS = extmail 
+SYS_MYSQL_DB = extmail 
+SYS_MYSQL_HOST = localhost 
+SYS_MYSQL_SOCKET = /var/lib/mysql/mysql.sock 
+SYS_MYSQL_TABLE = mailbox 
+SYS_MYSQL_ATTR_USERNAME = username 
+SYS_MYSQL_ATTR_DOMAIN = domain 
+SYS_MYSQL_ATTR_PASSWD = password 
+SYS_AUTHLIB_SOCKET = /usr/local/courier-authlib/var/spool/authdaemon/socket
+
+3）建立extmail的临时文件目录及session目录
+
+[root@node1 extman]# mkdir -p /tmp/extmail/upload 
+[root@node1 extman]# chown postfix.postfix -R /tmp/extmail/
+
+——安装Extman
+
+1）解压extmail
+[root@node1 soft]# tar fzvx extman-1.1.tar.gz -C /var/www/extsuite/ 
+[root@node1 soft]# cd /var/www/extsuite/extmail 
+[root@node1 extsuite]# mv extman-1.1 extman 
+[root@node1 extsuite]# cd extman
+
+2）修改Extman的主配置文件
+[root@node1 extman]# cp webman.cf.default webman.cf 
+[root@node1 extman]# vi webman.cf 
+SYS_MAILDIR_BASE = /var/mailbox 
+SYS_DEFAULT_UID = 2525
+SYS_DEFAULT_GID = 2525
+SYS_MYSQL_USER = extmail 
+SYS_MYSQL_PASS = extmail 
+SYS_MYSQL_DB = extmail 
+SYS_MYSQL_HOST = localhost 
+SYS_MYSQL_SOCKET = /var/lib/mysql/mysql.sock
+
+3）修改cgi目录的属主
+[root@node1 extman]# chown -R postfix.postfix /var/www/extsuite/extman/cgi/ 
+[root@node1 extman]# chown -R postfix.postfix /var/www/extsuite/extmail/cgi/
+
+4）导入Extman的数据库
+
+[root@node1 extman]# cd docs/ 
+[root@node1 docs]# vi extmail.sql 
+将文件里面所有的TYPE=MyISAM改为ENGINE=MyISAM、命令如下： 
+:% s/TYPE/ENGINE/g  共有5处 
+[root@node1  docs]# sed -i 's/extmail.org/test.com/g' init.sql 
+[root@node1  docs]# sed -i 's/1000/2525/g' init.sql 
+[root@node1 docs]# mysql -u root < extmail.sql 
+[root@node1 docs]# mysql -u root < init.sql
+
+5）授予用户extmail访问extmail数据库的权限
+[root@node1 ~]# mysql -uroot -p 
+Enter password:  
+Welcome to the MySQL monitor.  Commands end with ; or \g. 
+Your MySQL connection id is 79
+Server version: 5.6.29 MySQL Community Server (GPL) 
+  
+Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved. 
+  
+Oracle is a registered trademark of Oracle Corporation and/or its 
+affiliates. Other names may be trademarks of their respective 
+owners. 
+  
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement. 
+  
+mysql> GRANT all privileges on extmail.* TO extmail@localhost IDENTIFIED BY 'extmail'; 
+mysql> GRANT all privileges on extmail.* TO extmail@127.0.0.1 IDENTIFIED BY 'extmail'; 
+mysql> quit 
+Bye
+
+6）为Extman创建临时目录并给予权限
+[root@node1 docs]# mkdir /tmp/extman 
+[root@node1 docs]# chown postfix.postfix -R /tmp/extman/
+
+——重启postfix、dovecot、saslauthd、nginx
+[root@node1 docs]# service postfix restart 
+[root@node1 docs]# service dovecot restart 
+[root@node1 docs]# service saslauthd restart
+
+——测试虚拟用户实现结果
+1）测试Postfix 支持虚拟用户
+[root@node1 docs]# /usr/local/courier-authlib/sbin/authtest -s login postmaster@test.com extmail
+Authentication succeeded.        //  表示成功
+      Authenticated: postmaster@test.com  (uid 2525, gid 2525)
+    Home Directory: /mailbox/test.com/postmaster
+            Maildir: /mailbox/test.com/postmaster/Maildir/
+                Quota: (none)
+Encrypted Password: $1$phz1mRrj$3ok6BjeaoJYWDBsEPZb5C0
+Cleartext Password: extmail
+            Options: (none)
+2）测试虚拟用户SMPT发信认证
+[root@node1 docs]# printf  "postmaster@test.com" | openssl base64 
+cG9zdG1hc3RlckBleHRtYWlsLm9yZw==
+[root@node1 docs]# printf  "extmail" | openssl base64 
+ZXh0bWFpbA==
+[root@node1 docs]# 
+[root@node1 docs]# telnet localhost 25 
+Trying 127.0.0.1... 
+Connected to localhost.localdomain (127.0.0.1). 
+Escape character is '^]'. 
+220 mail.benet.com ESMTP Postfix 
+auth login 
+334 VXNlcm5hbWU6 
+cG9zdG1hc3RlckBleHRtYWlsLm9yZw==
+334 UGFzc3dvcmQ6 
+ZXh0bWFpbA==
+235 2.0.0 Authentication successful      //  表示成功 
+quit 
+221 2.0.0 Bye 
+Connection closed by foreign host.
+
+——启动extmail和extman的相关程序
+1）修改dispatch-initSU_UID和SU_GID
+[root@node1 docs]# vi /var/www/extsuite/extmail/dispatch-init 
+SU_UID=postfix 
+SU_GID=postfix
+
+2）启动dispatch-init并添加到/etc/rc.local [不启动dispatch-init]
+[root@node1 docs]# /var/www/extsuite/extmail/dispatch-init start 
+[root@node1 docs]# echo "/var/www/extsuite/extmail/dispatch-init start" >> /etc/rc.local
+
+注意：不启动dispatch-init 连接extmail时候会报502错误。
+3）启动cmdserver并添加到/etc/rc.local
+[root@node1 docs]# /data/www/extman/daemon/cmdserver -v -d 
+[root@node1 docs]# echo "/var/www/extsuite/extman/daemon/cmdserver -v -d " >> /etc/rc.local
+
+
+注意：不启动cmdserver的话，extmail登录管理后台，系统信息里会报Connection refused错误
+如果出现如下错误：Undefined subroutine &Ext::Utils::sort2name called at /var/www/extsuite/extmail/libs/Ext/App/Folders.pm line 387.
+解决办法：
+[root@node1 Ext]# cd /var/www/extsuite/extmail/libs/Ext 
+[root@node1 Ext]# cp Utils.pm /var/www/extsuite/extman/libs/ 
+[root@node1 Ext]# cd /var/www/extsuite/extman/libs/Ext 
+[root@node1 Ext]# mv Utils.pm ManUtils.pm 
+[root@node1 Ext]# /var/www/extsuite/extmail/dispatch-init stop 
+[root@node1 Ext]# /var/www/extsuite/extmail/dispatch-init start
+
+——Extmail虚拟主机配置 [这里用的是nginx]
+1）配置extmail虚拟主机
+[root@node1 ~]# vi /usr/local/nginx/conf/conf.d/extmail.conf
+server {
+  listen      8080;
+  server_name  mail.test.com;
+  index index.html index.htm index.php index.cgi;
+  root  /var/www/extsuite/extmail/html/;
+  location /extmail/cgi/ {
+            fastcgi_pass          127.0.0.1:8888;
+            fastcgi_index        index.cgi;
+            fastcgi_param  SCRIPT_FILENAME  /var/www/extsuite/extmail/cgi/$fastcgi_script_name;
+            include              fcgi.conf;
+        }
+        location  /extmail/  {
+            alias  /var/www/extsuite/extmail/html/;
+        }
+        location /extman/cgi/ {
+            fastcgi_pass          127.0.0.1:8888;
+            fastcgi_index        index.cgi;
+            fastcgi_param  SCRIPT_FILENAME  /var/www/extsuite/extman/cgi/$fastcgi_script_name;
+            include            fcgi.conf;
+        }
+        location /extman/ {
+            alias  /var/www/extsuite/extman/html/;
+        }
+      access_log  /usr/local/nginx/logs/extmail_access.log;
+}
+2）创建fcgi.conf
+12345678910111213141516 [root@node1 ~]# vi /usr/local/nginx/conf/fcgi.conf 
+fastcgi_param  GATEWAY_INTERFACE  CGI/1.1; 
+fastcgi_param  SERVER_SOFTWARE    nginx; 
+fastcgi_param  QUERY_STRING      $query_string; 
+fastcgi_param  REQUEST_METHOD    $request_method; 
+fastcgi_param  CONTENT_TYPE      $content_type; 
+fastcgi_param  CONTENT_LENGTH    $content_length; 
+fastcgi_param  SCRIPT_NAME        $fastcgi_script_name; 
+fastcgi_param  REQUEST_URI        $request_uri; 
+fastcgi_param  DOCUMENT_ROOT      $document_root; 
+fastcgi_param  SERVER_PROTOCOL    $server_protocol; 
+fastcgi_param  REMOTE_ADDR        $remote_addr; 
+fastcgi_param  REMOTE_PORT        $remote_port; 
+fastcgi_param  SERVER_ADDR        $server_addr; 
+fastcgi_param  SERVER_PORT        $server_port; 
+fastcgi_param  SERVER_NAME        $server_name;
+
+3）重启nginx
+[root@node1 ~]# service nginx restart
+
+——Extmail测试
+http://192.168.2.220:8080/extman/  管理后台  用户名：root@test.com  初始密码：extmail*123*
+http://192.168.2.220:8080/extmail/cgi/index.cgi extmail用户登录界面
+注册账号后登陆报错：
+Can't chdir to /var/mailbox/test.com/fei.xiao/Maildir/, No such file or directory
+
+解决方案：
+目录权限属性问题：
+查看extman的:
+SYS_MAILDIR_BASE = /var/mailbox
+配置是否正确,删除域名再重建，在新建用户的时候会自动在/var/mailbox/下创建该用户的域名和邮件目录

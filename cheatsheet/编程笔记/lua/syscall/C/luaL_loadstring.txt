@@ -1,0 +1,32 @@
+#if 0
+  luaL_loadstring
+  [-0, +1, –]
+int luaL_loadstring (lua_State *L, const char *s);
+将一个字符串加载为 Lua 代码块。 这个函数使用 lua_load 加载一个零结尾的字符串 s。
+此函数的返回值和 lua_load 相同。
+lua_load 的返回值可以是：
+  LUA_OK: 没有错误；
+  LUA_ERRSYNTAX: 在预编译时碰到语法错误；
+  LUA_ERRMEM: 内存分配错误；
+  LUA_ERRGCMM: 在运行 __gc 元方法时出错了。(这个错误和代码块加载过程无关，它是由垃圾收集器引发的)
+也和 lua_load 一样，这个函数仅加载代码块不运行
+#endif
+
+#if 0
+loadstring
+    与loadfile类似，不同的是loadstring是从一个字符串中读取代码，而非从文件中读取，
+即loadfile的参数是一个文件名，而loadstring的参数是一个字符串，同样返回的是一个函数。
+1.特点：功能强大，但开销大；
+2.典型用处：执行外部代码，如：用户的输入
+3.错误错里：代码中如果有语法错误就会返回nil
+4.理解：f = loadstring("i = i+1")  可理解为(但不完全是)f = function() i = i+1  end 
+(注：这里的变量"i"是全局变量，不是指局部变量，如果没有定义全局变量"i",调用f()则会报错！，即loadstring不涉及词法域)
+
+例如：
+i = 32
+local i = 1
+f = loadstring("i = i+1;print(i)")
+g = function() i = i+1;print(i) end 
+f() -->33 --不涉及词法域
+g() -->2  --涉及词法域
+#endif

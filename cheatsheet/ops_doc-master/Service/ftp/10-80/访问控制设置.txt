@@ -1,0 +1,59 @@
+=============================================================================== 访问控制设置
+两种控制方式：一种控制主机访问，另一种控制用户访问。
+
+1、控制主机访问：
+=======================================
+# 如果启用，并且vsftpd是使用tcp_wrappers支持编译的，则传入连接将通过tcp_wrappers访问控制提供。
+# 此外，还有一种基于每个IP的配置机制。如果tcp_wrappers设置VSFTPD_LOAD_CONF环境变量，
+# 则vsftpd会话将尝试加载此变量中指定的vsftpd配置文件。
+
+tcp_wrappers=YES/NO
+
+设置vsftpd是否与tcp wrapper相结合来进行主机的访问控制。默认值为YES。如果启用，则vsftpd服务器会检查/etc/hosts.allow 和/etc/hosts.deny 中的设置，来决定请求连接的主机，是否允许访问该FTP服务器。这两个文件可以起到简易的防火墙功能。
+
+比如：若要仅允许192.168.10.1-192.168.10.254的用户可以连接FTP服务器，
+则在
+/etc/hosts.allow
+/etc/hosts.deny
+文件中添加以下内容：
+
+其格式如下：
+限制的服务：ip(网段)
+vsftpd:192.168.1.
+vsftpd:192.168.1.12
+vsftpd:192.168.1.0/255.255.255.0这里不能写成192.168.1.0/24
+
+2、控制用户访问：
+=======================================
+vsftpd.ftpusers  #用于保存不允许进行FTP登录的本地用户帐号。就是vsftp用户的黑名单
+
+vsftpd.user_list
+
+(1)设置禁止vsftpd.user_list文件中的用户登录：要在主配置文件vsftpd.conf中修改如下两项，
+userlist_enable=yes
+userlist_deny=yes
+说明：配置完以后，除了vsftpd.ftpusers文件和vsftpd.user_list文件中记录的ftp用户不能登录vsftp服务以外，其他的ftp用户都可以登录。
+
+(2)设置只允许vsftpd.user_list文件中的用户登录;同样的道理要把主配置文件vsftpd.conf 中的语句修改如下两项： 
+userlist_enable=yes
+userlist_deny=no
+ 说明：配置完以后，只允许vsftpd.user_list文件中记录的ftp用户能登录vsftp服务，其他的ftp用户都不可以登录。
+
+
+
+
+# 如果启用，vsftpd将从userlist_file给出的文件名加载用户名列表。如果用户尝试使用此文件中的名称登录，
+# 则在要求输入密码之前，他们将被拒绝。这可能有助于防止传输明文密码。另请参见 userlist_deny。
+# 默认值：NO
+userlist_enable
+
+# 如果 激活userlist_enable，则检查此选项 。如果将此设置设置为NO，则将拒绝用户登录，除非它们明确列在userlist_file指定的文件中 。
+# 拒绝登录时，将在要求用户输入密码之前发出拒绝。
+# 默认值：YES
+userlist_deny
+
+# 此选项是userlist_enable 选项处于活动状态时加载的文件的名称 。
+# 默认值：/etc/vsftpd.user_list
+userlist_file
+
+

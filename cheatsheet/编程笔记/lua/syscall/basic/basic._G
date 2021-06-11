@@ -1,0 +1,72 @@
+--[[
+  原型：_G
+  解释：首先要注意的是，_G是一个变量而不是一个函数，它掌控了整个全局环境（其中_G._G = _G）。
+        Lua语言本身并不使用这个变量，改变这个变量的值也不会对运行环境产生影响(使用函数setfenv() 可以改变运行环境)。
+--]]
+
+-- 先输出一下函数是否存在
+print("print_message = ", tostring(_G["print_message"]))
+
+-- 先写一下全局函数
+function print_message(str)
+    print("Lua output : "..str)
+end
+
+-- 再输出一下函数是否存在
+print("print_message = ", tostring(_G["print_message"]))
+
+-- 调用函数
+local func = _G["print_message"]
+func("print_message function is exist!")
+
+-- 定义局部函数
+local function local_name()
+    print("Lua output : this is local functon")
+end
+
+-- 检查一下局部函数是否存在
+print("local_name = ", tostring(_G["local_name"]))
+
+_G["local_name"] = local_name;
+
+-- 调用就已经变成全局函数的局部函数
+_G["local_name"]()
+
+--[[
+1. _G保存了lua所用的所有全局函数和全局变量，初始情况是只包含lua程序库的函数和变量。
+2. lua程序中定义的全局函数和变量会自动加入到_G中，而局部函数和变量不会这样做。
+3. 可以把局部函数使用键值对的方式保存在_G中，这样我们就可以通过_G和名字来访问原来的局部函数了
+--]]
+
+--[[
+_G
+├── string: 
+|    ├── sub: function: 006AEB70
+|    ├── upper: function: 006AEBB8
+|    ├── len: function: 006AE290
+|    ├── gfind: function: 006AE170
+|    ├── rep: function: 006AE3F8
+|    ├── find: function: 006ADFC0
+|    ├── match: function: 006AE368
+|    ├── char: function: 006ADEA0
+|    ├── dump: function: 006ADF30
+|    ├── gmatch: function: 006AE170
+|    ├── reverse: function: 006AE440
+|    ├── byte: function: 006ADE10
+|    ├── format: function: 006AE050
+|    ├── gsub: function: 006AE200
+|    └── lower: function: 006AE2D8
+├── xpcall: function: 006AA630
+├── package: 
+|    ├── preload: 
+|    |    └── { }
+|    ├── loadlib: function: 006AAD80
+|    ├── loaded: 
+|    |    └── { }
+|    ├── loaders: 
+|    |    ├── 1] function: 006AAEA0
+|    |    ├── 2] function: 006AAEE8
+|    |    ├── 4] function: 006AAF78
+|    |    └── 3] function: 006AAF30
+
+--]]

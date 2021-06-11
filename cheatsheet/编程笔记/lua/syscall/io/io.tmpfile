@@ -1,0 +1,38 @@
+--[[
+  io.tmpfile()##
+  原型：io.tmpfile()
+  解释：返回一个临时文件的句柄，以可写(实际上也可读)的方式打开并且在程序结束时自动删除。
+  也可以使用os.tmpname创建临时文件并返回其名称,然后用io.open打开,但是不推荐这么用.
+--]]
+
+-- 创建并打开临时文件
+local myfile = io.tmpfile()
+print("\nfile handle is:")
+print(myfile)
+
+-- 向文件中写入内容
+myfile:write("name=AlbertS\n");
+myfile:write("age=22\n")
+myfile:write("removed file when the program ends \n")
+
+-- 做了许多操作之后
+-- ...
+-- ...
+
+-- 移动文件指针到开头
+myfile:seek("set")
+
+-- 读取文件内容
+local content = myfile:read("*a");
+myfile:close();
+
+
+print("\nfile content is:")
+print(content)
+
+--[[
+1. 注意对比函数os.tmpname()和io.tmpfile()的相同点和不同点，只用时候要注意，最重要的是os.tmpname()只返回文件名，
+   需要手动打开和关闭，而io.tmpfile()函数实现打开和关闭都是自动的。
+2. io.tmpfile()函数打开的文件句柄一旦关闭就无法再打开了，所以在使用完毕之前切勿随意关闭文件。
+
+--]]

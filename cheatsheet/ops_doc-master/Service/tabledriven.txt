@@ -1,0 +1,147 @@
+表驱动法是一种编程模式，从表里面查询信息而不使用逻辑语句（如if或switch）
+适当运用表驱动法可以精简程序，所谓表驱动，就是把程序中的复杂逻辑用查表的方式来替代，从而达到更好的效率。
+
+表的形式及表中放什么内容
+    表形式可以为一维数组、二维数组和结构体数组。
+    表中可以存放数值、字符串或函数指针等数据。
+如何去访问表。
+1. 直接访问
+2. 索引访问
+3. 阶梯访问
+
+核对表（表驱动法）
+    你考虑过把表驱动法作为复杂逻辑的替换方案吗？
+    你考虑过把表驱动法作为复杂继承结构的替换方案吗？
+    你考虑过把表数据存储在外部并在运行期间读入，以便在不修改代码的情况下就可以改变这些数据吗？
+    如果无法用一种简单的数组索引去访问表，那么你把计算访问键值的功能提取成单独的子程序，而不是在代码中重复地计算键值吗？
+
+表的形式：数组、链表 高级语言用数据库
+
+monit(){
+1. 枚举值 与 字符串表(monit.c)
+char *actionnames[] = { "ignore",          "alert",     "restart",     "stop",     "exec",      "unmonitor",    "start",     "monitor",   ""};
+enum Action_Type      {Action_Ignored = 0, Action_Alert,Action_Restart,Action_Stop,Action_Exec, Action_Unmonitor,Action_Start,Action_Monitor}
+int Util_getAction(const char *action) # char *-> Action_Type
+actionnames[A->id]                     # Action_Type ->char *
+actionnames[s->doaction]               # Action_Type ->char *
+
+char *modenames[] = {"active", "passive"};
+enum Monitor_Mode   {Monitor_Active, Monitor_Passive};
+
+char *onrebootnames[] = {"start", "nostart", "laststate"};
+enum OnrebootType       {Onreboot_Start, Onreboot_Nostart, Onreboot_Laststate}
+
+char *checksumnames[] = {"UNKNOWN", "MD5", "SHA1"};
+Event_Type
+char *operatornames[] = {"less than", "less than or equal to", "greater than", "greater than or equal to", "equal to", "not equal to", "changed"};
+# Operator_Type
+char *operatorshortnames[] = {"<", "<=", ">", ">=", "=", "!=", "<>"};
+# Operator_Type
+char *servicetypes[] = {"Filesystem", "Directory", "File", "Process", "Remote Host", "System", "Fifo", "Program", "Network"};
+# Service_Type
+char *socketnames[] = {"unix", "IP", "IPv4", "IPv6"};
+# Socket_Family
+char *timestampnames[] = {"modify/change time", "access time", "change time", "modify time"};
+# Timestamp_Type
+char *httpmethod[] = {"", "HEAD", "GET"};
+# Http_Method
+
+1. 字符串表按序排列，枚举值也是按序排序，
+2. 从字符串到枚举值通过函数，从枚举值到字符串使用数组
+注意点：按序排列和结束标识(""空字符串 或 NULL非法指针)
+
+2. 整数值 与 字符串表(monit.c)
+char *icmpnames[] = {"Reply", "", "", "Destination Unreachable", "Source Quench", "Redirect", "", "", "Ping", "", "", "Time Exceeded", "Parameter Problem", "Timestamp Request", "Timestamp Reply", "Information Request", "Information Reply", "Address Mask Request", "Address Mask Reply"};
+# int type;
+char *sslnames[] = {"auto", "v2", "v3", "tlsv1", "tlsv1.1", "tlsv1.2", "tlsv1.3"};
+# short version
+
+
+3. 整数值 与 字符串(time.c)
+static const char days[] = "SunMonTueWedThuFriSat";
+static const char months[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
+1. 字符串被分割成等长字符段，通过数值获得指定位置字符段。
+注意：字符串 可以 被分成等长字符段。
+
+4. 值 到 字符串表示
+static const char *kNotation[] = {"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", NULL};
+1. 数值等比，字符相等情况。
+
+5. 值 到 字符串表示
+struct conversion {
+        double base;
+        char *suffix;
+    } conversion[] = {
+        {1000, "ms"}, // millisecond
+        {60,   "s"},  // second
+        {60,   "m"},  // minute
+        {24,   "h"},  // hour
+        {365,  "d"},  // day
+        {999,  "y"}   // year
+    };
+1. 数值不等比，字符串不相等。
+
+6. 日志 log.c 
+static struct mylogpriority {
+        int  priority;
+        char *description;
+} logPriority[] = {
+        {LOG_EMERG,   "emergency"},
+        {LOG_ALERT,   "alert"},
+        {LOG_CRIT,    "critical"},
+        {LOG_ERR,     "error"},
+        {LOG_WARNING, "warning"},
+        {LOG_NOTICE,  "notice"},
+        {LOG_INFO,    "info"},
+        {LOG_DEBUG,   "debug"},
+        {-1,          NULL}
+};
+logPriorityDescription
+while ((*lp).description) #
+1. 日志打印，宏值对应字符串
+
+typedef struct myeventtable {
+        int id;
+        char *description_failed;
+        char *description_succeeded;
+        char *description_changed;
+        char *description_changednot;
+        State_Type saveState; // Bitmap of the event states that should trigger state file update
+} EventTable_T;
+
+EventTable_T Event_Table[] = {
+{Event_Action, "Action done", "Action done", "Action done",  "Action done",  State_None},
+{Event_ByteIn, "Download bytes exceeded", "Download bytes ok", "Download bytes changed",  "Download bytes not changed", State_None},
+... ...
+};
+const char *Event_get_description(Event_T E) 
+Action_Type Event_get_action(Event_T E) 
+const char *Event_get_action_description(Event_T E)
+void Event_queue_process() 
+
+}
+
+moosefs(){
+
+}
+
+redis(){
+
+1. 字符串作为关键字 到 处理命令
+redisCommandTable[] = {
+{"get",getCommand,2,"r",0,NULL,1,1,1,0,0},
+... ...
+}
+1. 字符串关键字命令 或 客户端发送命令
+
+
+}
+
+toybox(){
+
+}
+
+libevent(){
+
+
+}

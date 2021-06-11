@@ -1,0 +1,24 @@
+require "all.pattern" :import()
+
+function assert_equal(a, b)
+  if a ~= b then error("<" .. tostring(a) .. "==" .. tostring(b) .. ">", 2) end
+end
+
+assert_equal(px"", "")
+assert_equal(px"   \f\n\r\t\f", "")
+assert_equal(px" ^ %(  .-  %) $ ", "^%(.-%)$")
+assert_equal(px" 1%%% 2%% %%% %.%b %%%  %a  %b%% % . . %a",
+               "1%%% 2%%%%% %.%b %%%%a%b%%% ..%a")
+assert_equal(px"%", "%") -- actually invalid pattern
+assert_equal(("(x y)"):gsub(px" ^ %( . % . %) $ ", "t"), "t")
+
+assert_equal(("_"):match("^" .. pat_id), "_")
+assert_equal(("A1_"):match("^" .. pat_id), "A1_")
+
+assert_equal(("--\n2"):match("^" .. pat_scomment), "--")
+assert_equal(("--123\n2"):match("^" .. pat_scomment), "--123")
+
+assert_equal(("--[[ ] ]] "):match("^" .. pat_mcomment), "--[[ ] ]]")
+assert_equal(("--[[ ]] ]]"):match("^" .. pat_mcomment), "--[[ ]]")
+assert_equal(("--[==[ ]] ]==] ]==]"):match("^" .. pat_mcomment),
+              "--[==[ ]] ]==]")

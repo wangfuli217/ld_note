@@ -1,0 +1,269 @@
+回顾：
+1.嵌入式linux裸板开发相关的操作步骤
+  1.1.嵌入式linux软件组成部分：
+  bootloader(u-boot):裸板程序
+  kernel
+  rootfs
+  
+  1.2.裸板开发的步骤
+  1.分析用户需求
+  2.掌控硬件特性
+    粗看硬件位置(标签)
+    细看硬件连接(原理图)
+        目的：外设最终连接到CPU的哪个管脚上
+  3.根据硬件管脚特性确定它将来对应的控制器
+  4.根据处理器的芯片手册找到控制器相关的章节
+  5.根据芯片手册确定相关的寄存器
+    了解寄存器的特性(基地址和相应的BIT位)
+  6.编写裸板程序
+  7.交叉编译(一定搭建交叉编译器的环境变量)  
+    arm-linux-gcc -nostdlib -c xxx.c -o xxx.o
+    arm-linux-ld -nostartfiles -nostdlib 
+     -Ttext=0x20008000 -o xxx.elf xxx.o
+    arm-linux-objcopy -O binary xxx.elf xxx.bin
+    
+    切记：链接的顺序问题
+    明确：程序的入口地址0x20008000
+    1.正常的led.c文件中led_test函数定义在delay函数
+      定义的前面,对led.elf反汇编：
+      arm-linux-objdump -D led.elf > led.dis
+    2.打开led.dis
+      Disassembly of section .text://代码段信息
+      20008000 <led_test>: //led_test函数的地址为0x20008000
+      程序地址        机器码         对应汇编代码
+      20008000:       e92d4800        push    {fp, lr}
+      ...             ...             ...
+      所以：每当go 20008000执行led.bin时
+      CPU就会自动到0x20008000运行,最终运行的
+      led_test函数
+    
+    3.异常的led.c,将delay函数的定义放在led_test函数
+      定义的前面,再对led.elf进行反汇编：
+      arm-linux-objdump -D led.elf > led.dis
+    4.打开led.dis
+      Disassembly of section .text:
+      20008000 <delay>:
+      20008000:       e52db004        push    {fp}   
+      结果：执行go 20008000,CPU到20008000去执行
+            delay函数,而led_test不会被执行
+    总结：裸板开发一定要注意入口函数的地址一定要
+          正确(地址为0x20008000)
+    
+    8.利用网络tftp服务将xxx.bin下载到下位机的内存
+      借助u-boot提供的网络命令
+      tftp 20008000 xxx.bin //xxx.bin在上位机的/tftpboot
+      go 20008000
+              
+2.UART相关内容
+  面试题：谈谈对串口的理解
+  2.1.UART的功能 
+      用于连接设备,设备通过UART进行通信
+      画出简要的连接示意图
+  2.2.UART的定义
+      通用串行异步收发器
+      对对应进行解释
+      通用：标准
+      串行：PK 并行
+      异步：PK 同步
+            本质：实现数据同步
+  2.3.UART的通信方式
+      三种
+      三根线：RX/TX/GND
+  2.4.了解UART传输电平特性
+      UART传输线：电平为EIA
+      电路上：电平为TTL(CPU认识)
+      借助：电平转换芯片(TPAD使用SP3232EEN)
+      画出实际的UART连接图  
+  
+  2.5.提问：数据如何在数据线上传输呢？
+            并且双方的数据同步？
+      答：答案在UART传输协议中
+      UART协议设计的概念：
+      空闲位
+      起始位
+      数据位
+      奇偶校验位
+      停止位
+      波特率 
+      画出数据线上的操作时序图：
+      举例：TPAD向PC发送0xaa = 10101010
+      配置：115200,8O1
+      
+   2.6.研究对象的转移
+   1.CPU跟PC机通信通过UART
+   2.CPU操作TX/RX两根线
+   3.CPU操作TX/RX对应的UART控制器
+   4.CPU操作控制器对应的寄存器
+   
+   2.7.S5PV210串口控制器硬件特性
+   1.集成4个UART控制器,支持4个UART
+     UART缓冲区大小为256字节
+     两种工作模式：FIFI模式(软件设置)/非FIFIO模式(1字节)
+   2.关键要理解P854UART控制器框图
+     CPU发送‘A’：
+     1.CPU首先利用软件将数据字符'A'写到缓冲区
+     2.控制器自动将缓冲区的数据放到移位器
+     3.移位器硬件自动一位一位将数据丢到TX数据线上
+     总结：只需关注如何将数据利用软件写到缓冲区
+     
+     CPU读取PC发送的数据：
+     1.UART控制器的移位器硬件自动将RX数据线上的
+       数据接收
+     2.移位器硬件自动再将数据丢给接收缓冲区
+     3.CPU软件读取缓冲区的数据即可
+     
+     波特率产生器：
+     波特率产生器将来根据软件指定的波特率(115200)
+     让发送移位器和接收移位器按照一定的频率进行
+     传输数据
+   
+   3.摘出来所需的寄存器
+     明确：用户操作COM1(UART0)
+     明确：有些寄存器是无关紧要寄存器
+     明确：UART控制器操作方式：
+           轮询方式：CPU不能干别的事,一直操作(读或者写)
+           	     控制器(在门口一直等待远方的客人)
+           	     "死等",一般应用在等待时间极短
+           	     的情况下,如果等待的时间非常长
+           	     并且采用轮询,大大降低CPU的利用率
+           这里采用轮询方式(poll)！
+           	     
+           中断方式：
+           DMA方式：
+     这里选择NON-FIFO模式(1字节)
+     1.ULCON0控制器寄存器
+       基地址：0xE2900000
+       BIT[5:3]:用来设置校验方式
+       BIT[2]:用来设置停止位
+       BIT[1:0]:用来设置数据位的位数
+       注意：这里BIT[1:0]=11b=0x3h
+       
+     2.UCON0控制器寄存器
+       基地址：0xE2900004
+       BIT[10]:用来选择波特率产生器的时钟源
+               PCLK=66.5MHz/SCLK_UART
+               BIT[10]=0
+       
+       BIT[3:2]:用来设置UART发送缓冲区的操作模式
+                BIT[3:2]=01b=0x1h(poll mode)
+       BIT[1:0]:用来设置UART接收缓冲区的操作模式
+                BIT[3:2]=01b=0x1h(poll mode) 
+                
+     3.USTATUS接收发送状态寄存器
+       基地址：0xE2900010
+       BIT[2]:表示发送的状态
+              =0：表示没有发送完毕
+                  CPU就不能继续发送
+              =1: 表示发送完毕
+                  CPU可以接着发送数据
+                  
+       BIT[0]:表示接收的状态
+              =0：表示接收缓冲区没数              
+              =1：表示已经接收到了数据
+       总结：
+       CPU要想发送数据,应该在BIT[2]=1时发
+       CPU要想读取数据,应该在BIT[0]=1是读
+       
+    4.UTXH0发送缓冲区寄存器
+      基地址：0xE2900020
+      BIT[7:0]:用来存储要发送的数据
+    
+    5.UTXH0发送缓冲区寄存器
+     基地址：0xE2900024
+     BIT[7:0]:用来存储接收的数据
+     
+    6.UBRDIV0波特率配置寄存器
+     基地址：0xE2900028
+     BIT[15:0]:配置波特率分频系数 
+     如何配置呢？
+   
+    7.UDIVSLOT0波特率配置寄存器
+     基地址：0xE290002C
+     BIT[15:0]:配置波特率分频系数 
+     如何配置呢？
+     
+     答：具体配置如下：
+     DIV_VAL=UBRDIV0 + (num of 1s in UDIVSLOT0)/16
+     DIV_VAL=(PCK/(115200*16)) - 1
+     
+     推出算：
+     UBRDIV0 + (num of 1s in UDIVSLOT0)/16
+     =(PCK/(115200*16)) - 1
+     =66500000 / (115200 * 16) - 1
+     =35.0789
+     
+     =>
+     UBRDIV0 = 35
+     (num of 1s in UDIVSLOT0)/16 = 0.0789
+     (num of 1s in UDIVSLOT0) = 0.0789*16=1(只取整)
+     说明：UDIVSLOT0的16位的值只要有1个1即可 
+     通过查表最终得到：
+     UDIVSLOT0 = 0x0080
+     
+     案例：如果波特率位9600，如何配置两个寄存器？
+     
+     2.8.编写UART裸板驱动程序
+         用户需求：TPAD通过UART0向PC发送字符串
+                   "hello,world"
+     实施步骤：
+     1.mkdir /opt/arm/day06/1.0 -p
+     2.cd /opt/arm/day06/1.0 
+     3.vim uart.h //声明
+     4.vim uart.c //定义
+     5.vim main.c //调用
+     6.编译
+       arm-linux-gcc -nostdlib -c uart.c -o uart.o
+       arm-linux-gcc -nostdlib -c main.c -o main.o
+       arm-linux-ld -nostartfile -nostdlib 
+        -Ttext=0x20008000 -emain -o uart.elf
+        			main.o uart.o
+       arm-linux-objcopy -O binary uart.elf uart.bin
+       arm-linux-objdump -D uart.elf > uart.dis
+       vim uart.dis //确保入口函数为main
+     7.cp uart.bin  /tftpboot
+     8.开发板上测试,开发板执行：
+       进入uboot命令行模式：
+       tftp 20008000 uart.bin
+       go 20008000
+       查看PC的串口终端是否有helloworld打印信息
+     
+     ‘\n’:换行
+     '\r':回车
+
+3.案例：添加TPAD通过UART0读取PC机发送过来的数据
+  实施步骤：
+  1.cp /opt/arm/day06/1.0 /opt/arm/day06/2.0 -fr
+  2.cd /opt/arm/day06/2.0
+  3.各种编辑代码
+  4.编译
+  5.测试
+  
+4.优化代码,利用Makefile进行编译
+  回顾Makefile语法：
+  目标：依赖
+  	命令
+  
+  NAME=xxx //定义变量,变量名为NAME
+  $(NAME):应用变量的内容
+  %.o:%.c:
+   	arm-linux-gcc -c -o $@ $<
+  说明：
+  "%"等价"*"表示所有
+  表示：所有的.o依赖所有的.c
+  $@:目标文件
+  $<:所有的依赖文件
+  
+  <<跟我一起写Makefile>>
+  
+  
+
+
+
+
+
+
+
+
+
+
+

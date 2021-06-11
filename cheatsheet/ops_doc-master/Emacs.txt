@@ -1,0 +1,122 @@
+http://www.cnblogs.com/holbrook/archive/2012/02/18/2357660.html # 笔记中
+
+整个窗口在Emacs中叫做frame，图形界面下的Emacs可以打开多个frame。
+每个frame从上到下分成3部分，分别是
+    缓冲区 # 缓冲区是编辑的主区域，但是在这里操作的还不是真正的文件，而是文件的一个缓存。
+           # 只有执行写入操作时，才会将buffer的内容写入到文件。
+    状态栏 # U: 当前的文件编码是UTF-8, 如果是GBK会显示c
+           # **: 文件状态，**表示未保存，--表示可写，%%表示只读
+           # Emacs1: 是当前编辑的文件的名称
+           # All: 表示当前缓冲区已经显示文件的所有内容，否则会显示比如Bot,表示处于文件的末尾处
+           # L23: 当前光标所在的行数
+           # fundamental: 当前的模式
+    回显区 # 提示当前正在进行的操作。比如"文件已保存"之类的信息。
+           # 如果一个命令没有输入完，这里还会显示已经输入的指令，提示用户。
+    
+命令 -> 对Emacs所有的操作都是通过调用命令实现的。对于一些常用的命令，会定义快捷键以便快速使用。
+    ESC ESC ESC (M-x keyboard-escape-quit) # 取消
+    
+快捷键 -> 快捷键只是一种发送命令的方法！
+    C-：Control
+    M-: Alt（应该是Meta，在 PC 上，Meta键 通常对应 Alt 键）
+    C-M-： 同时按住 Ctrl 和 Alt
+    S-：Shift
+    RET：Return
+    TAB：Tab
+    ESC：Esc，等价于M-。比如，C-M-r ,等价于ESC C-r
+    SPC：空格键
+    DEL：退格键
+    Delete：删除键
+    
+    C-x C-c（M-x save-buffers-kill-emacs）
+    
+模式
+    主要模式：主要模式由文件类型决定，每个buffer打开文件时会根据文件类型决定其主要模式。
+              # fundamental-mode：缺省的 Emacs 模式，拥有最少设置和绑定
+              # text-mode：编辑文本的基本模式
+              # c-mode：用于编辑 C 程序源代码
+              # lisp-interaction-mode:用于编辑和编译 Lisp 代码
+              # ptex-mode：用于编辑 TeX 文档
+    次要模式 次要模式可以组合到主要模式中，常见的次要模式比如：
+              # abbrev-mode：用于生成和使用缩写
+              # auto-fill-mode：用于自动文字回绕、填充较长的行和段落
+              # line-number-mode：显示当前行号
+              # overwrite-mode：覆盖模式，代替默认的插入模式
+    可以通过命令来指定模式：M-x  mode_name
+
+GNU的软件大多有丰富的帮助系统，学习GNU的软件时，首先学习如何使用其帮助系统，往往事半功倍。
+Emacs的帮助文档很多，并大部分都在C-h开头的组合键中。
+
+首先是C-h ？，关于帮助系统的“帮助”。改命令会打开一个新的Frame，
+快捷键      命令                        说明
+C-h ?                                   关于帮助系统的帮助，可以通过SPC和DEL键滚动，通过ESC退出
+C-h t       M-x help-with-tutorial      进入 《Emacs 快速指南》
+C-h r       M-x info-emacs-manual       Emacs使用手册
+C-h i       M-x info                    《Emacs说明》
+C-h a       M-x apropos-command         搜索命令》
+C-h v       M-x describe-variable       查看变量说明》
+C-h f       M-x describe-function       查看函数说明》
+C-h m       M-x describe-mode           查看当前mode的相关文档，包含mode中的命令、快捷键等》
+C-h k KEYS  M-x describe-key KEYS       查看快捷键对应的命令及其简要说明，比如C-h k C-x C-c，会告诉你C-x C-c是做什么的》
+C-h c KEYS  M-x describe-key-briefly    查看键绑定说明》
+C-h w       M-x where-is                查看某个命令对应的快捷键》
+C-h b       M-x describe-bindings       查看当前buffer所有的快捷键列表》
+KEYS C-h                                查看当前buffer中以某个快捷键序列开头的快捷键列表，比如C-c C-h》
+            M-x apropos                 查看匹配某个关键词的任何东西，如函数，变量，命令，模式等》
+            
+            
+文件操作
+    快捷键(C-x)     命令(M-x)                              说明
+    C-x C-f         find-file                               打开文件或录
+    C-x C-c         save-buffers-kill-emacs                 保存退出
+    C-x C-z         iconify-or-deiconify-frame              挂起（最小化）
+    C-x C-f         find-file                               打开文件、目录
+    C-x C-r         find-file-read-only                     以只读模式打开
+    C-x i           insert-file                             插入文件
+    C-x C-s         save-buffer                             保存
+    C-x s           save-some-buffers                       保存所有未保存的缓冲区
+    C-x C-w         write-file                              另存为文件
+    C-x RET r       revert-buffer-with-coding-system        以指定编码读取文件
+    C-x RET f       set-buffer-file-coding-system           以指定编码保存文件
+    revert-buffer                                           恢复到原始状态
+    C-x d           dired                                   进入目录列表模式
+    C-x C-d         list-directory                          获取文件列表（简洁）
+
+
+光标定位
+            向前    向后    向下    向上        
+    翻页                    C-v    M-v
+    字符    C-f     C-b     C-n    C-p
+    单词    M-f     M-b
+    句      M-a     M-e
+    行      C-a     C-e
+    段落    M-{     M-}
+    缓冲区  M-<     M->
+    
+    其它：
+    M-g M-g     (goto-line)                      跳转到某行
+    M-x              (goto-char)                    跳转到字符位置:     
+    C-M-l          (reposition-window)    将当前行卷至页面中部
+    C-l               (recenter)                       刷新页面，将将当前行卷至页面中部 （使用数字参数指定行）
+    M-r M-x      (move-to-window-line) 移动光标至页面中间的行 （使用数字参数指定行）
+
+输入删除
+            向前        向后
+    字符     C-d         DEL
+    单词     M-d        M-DEL
+    行       C-k（删除至行尾）
+    整行                   C-S-backspace
+    按表达式删除    C-M-k
+    区块     C-w
+    删除连续空格     M-x delete-horizontal-space
+    
+复制粘贴
+    复制前要先选择:C-@开始区块选择，然后移动光标，选中的区域会高亮
+    剪切:前面"删除"的部分包括了一些剪切操作，对区块的剪切用C-w
+    复制:区块复制用M-w，至于复制1行，复制1个单词之类的功能，自己想办法吧:(
+    粘贴: C-y:粘贴kill-ring堆栈的最后一次的内容
+    C-y 之后可以继续M-y, 对Kill-ring中的内容依次召回
+    
+撤销重做
+    撤销: C-/  (每插入20个字符，视为一个 undo 的单位)
+    重做: C-/ 后，依次输入C-g C-/ 就可以redo

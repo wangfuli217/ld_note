@@ -1,0 +1,64 @@
+# make_ext4fs -l 150M system.img systemimg  # 压缩
+# simg2img system.img system.ext4.img       # 解压
+# mount s.img systemimg -o loop             # 挂载
+
+make_ext4fs -s -l 354M -a root -L linux rootfs_qtopia_qt4.img rootfs_qtopia_qt4
+
+-------------------------------------------------------------------------------
+1.ubuntu系统，准备工具
+make_ext4fs、simg2img、mkusering.sh。
+这三个工具可以在源码编译之后的 out/host/linux_x86/bin目录下获取，并将这三个命令复制到ubuntu系统/usr/bin目录。
+2.解压system.img为system.img.ext4 命令：
+simg2img  system.img  system.img.ext4
+3.创建system.img.ext4挂载目录tmp
+命令：mkdir tmp
+4.挂载system.img.ext4到tmp目录
+命令：mount -t ext4 -o loop  system.img.ext4 tmp
+5.进入tmp目录，根据需求修改tmp中的目录
+6.将tmp目录打包为新的system.img
+命令：make_ext4fs -s -l 239M -a system system.img tmp
+关于make_ext4fs、simg2img、mkusering.sh的参数含义可以在终端中直接输入命令，并回车查看。
+-------------------------------------------------------------------------------
+
+1.判断文件系统类型
+   file out/target/product/generic/system.img
+   如果输出是： out/target/product/generic/system.img: VMS Alpha executable  ， 则表明是 yaffs2 文件系统，
+   如果输出是： data 文件，则表明是 ext 文件系统
+
+2. 解压
+  - yaffs2 文件系统：
+
+       下载 unyaffs 工具， 可以从 http://code.google.com/p/unyaffs/downloads/list 下载。
+
+       创建一个目录把system.img 文件拷贝到该目录下
+
+       运行 unyaffs system.img && rm system.img 就可以把 system.img 解压到新创建的目录下
+
+  - ext 文件系统
+
+      用simg2img 工具把system.img 转为为ext4 文件格式。
+     用法： simg2img system.img system.ext4.img.
+    工具位置 out/host/linux-x86/bin/simg2img
+    源代码 http://gitorious.org/0xdroid/system_extras/blobs/9c842adc177c1bcd22c2038d8d237bfb70654dca/ext4_utils/simg2img.c
+
+       之后创建一个目录，例如 "data",之后运行 mount -t ext4 -o loop system.ext4.img  data
+
+       这样就可以在目录data 下面看到整个system.img 的内容了
+
+3. 压缩
+  - yaff2 文件系统
+
+      可以使用工具： out/host/linux-x86/bin/mkyaffs2image
+     工具用例：   out/host/linux-x86/bin/mkyaffs2image -f  out/target/product/generic/system out/target/product/generic/system.img
+
+  - ext4 文件系统
+
+      可以使用 out/host/linux-x86/bin/mkuserimg.sh 来生成 ext 文件系统的 system.img .
+    mkuserimg.sh 用法如下：
+
+        mkuserimg.sh [-s] SRC_DIR OUTPUT_FILE EXT_VARIANT MOUNT_POINT SIZE
+       ./mkuserimg.sh -s /some/directory/with/files ./factoryfs_custom.img ext4 ./temp 512M
+
+     
+
+        可以从这里看到源代码：  https://android.googlesource.com/platform/system/extras/+/android-cts-4.1_r2/ext4_utils/mkuserimg.sh

@@ -1,0 +1,111 @@
+https://devhints.io/vim
+https://github.com/rstacruz/cheatsheets
+
+https://github.com/IceHe/lib
+https://icehe.xyz/#/
+
+
+#### Rsync
+1. Basic example
+# syncing folder src into dest:
+rsync -avz ./src /dest
+# syncing the content of src into dest:
+rsync -avz ./src/ /dest
+
+2. Display options
+-q, --quiet
+-v, --verbose
+-h, --human-readable
+    --progress
+-P                     # same as --partial --progress
+
+3. Backup options
+-b, --backup           # backup with suffix
+    --suffix=SUFFIX    # default ~ without --backup-dir
+    --backup-dir=DIR
+
+4. Archive options
+-a, --archive    # archive (-rlptgoD)
+-r, --recursive
+-l, --links      # copy symlinks as links
+-p, --perms      # preserve permissions
+-t, --times      # preserve times
+-g, --group      # preserve group
+-o, --owner      # preserve owner
+-D               # --devices --specials
+--delete         # Delete extra files
+
+5. OSX
+--exclude '.Trashes'
+--exclude '.Spotlight-V100'
+--exclude '.fseventsd'
+
+6. Transfer options
+-z, --compress
+-n, --dry-run
+    --partial   # allows resuming of aborted syncs
+
+7. Skipping options
+-u, --update     # skip files newer on dest
+-c, --checksum   # skip based on checksum, not mod-time & size
+
+8. Include options
+--exclude=PATTERN
+--include=PATTERN
+
+--exclude-from=FILE
+--include-from=FILE
+--files-from=FILE    # read list of filenames from FILE
+
+#### Adb
+1. Device Basics
+adb devices             Lists connected devices
+adb devices -l          Lists connected devices and kind
+adb root                Restarts adbd with root permissions
+adb start-server        Starts the adb server
+adb kill-server         Kills the adb server
+adb remount             Remounts file system with read/write access
+adb reboot              Reboots the device
+adb reboot bootloader   Reboots the device into fastboot
+adb disable-verity      Reboots the device into fastboot
+
+wait-for-device can be specified after adb to ensure that the command will run once the device is connected.
+-s can be used to send the commands to a specific device when multiple are connected.
+Examples
+$ adb wait-for-device devices
+ List of devices attached
+ somedevice-1234 device
+ someotherdevice-1234 device
+$ adb -s somedevice-1234 root
+
+2. Logcat
+adb logcat                  Starts printing log messages to stdout
+adb logcat -g               Displays current log buffer sizes
+adb logcat -G <size>        Sets the buffer size (K or M)
+adb logcat -c               Clears the log buffers
+adb logcat *:V              Enables ALL log messages (verbose)
+adb logcat -f <filename>    Dumps to specified file
+Examples
+$ adb logcat -G 16M
+$ adb logcat *:V > output.log
+
+3. File Management
+adb push <local> <remote>   Copies the local to the device at remote
+adb pull <remote> <local>   Copies the remote from the device to local
+Examples
+$ echo "This is a test" > test.txt
+$ adb push  test.txt /sdcard/test.txt
+$ adb pull /sdcard/test.txt pulledTest.txt
+
+4. Remote Shell
+adb shell <command>                     Runs the specified command on device (most unix commands work here)
+adb shell wm size                       Displays the current screen resolution
+adb shell wm size WxH                   Sets the resolution to WxH
+adb shell pm list packages              Lists all installed packages
+adb shell pm list packages -3           Lists all installed 3rd-party packages
+adb shell monkey -p app.package.name    Starts the specified package
+
+
+
+
+

@@ -1,0 +1,525 @@
+Ubuntu+Sendmail+Dovecot+Openwebmail 邮件服务器搭建完全解决方案
+
+MUA -- > SMTP -- > MTA -- > SMTP -- > MTA -- > POP3或IMAP4 -- >MUA
+发信人         新浪电子邮局      Google电子邮局
+    总的来说，一般的网络服务程序在传输信息时就像拨打电话，需要双方同时保持在线，而在电子邮件系统中，当用户发送邮件后不必
+等待投递工作完成即可下线。如果对方邮件服务器（MTA）宕机或对方临时离线，则发件服务器（MTA）就会把要发送的内容自动的暂
+时保存到本地，等检测到对方邮件服务器恢复后会立即再次投递，期间一般无需运维人员维护处理，随后收信人（MUA）就能在自己
+的信箱中找到这封邮件了。
+    一个最基础的电子邮件系统肯定要能提供发件服务和收件服务，为此需要使用基于SMTP协议的Postfix服务程序提供发件服务功能，
+并使用基于POP3协议的Dovecot服务程序提供收件服务功能。这样一来，用户就可以使用Outlook Express或Foxmail等客户端服务程
+序正常收发邮件了。
+                            其他MTA
+                发往本域的邮件  发往外域的邮件
+        -->发送邮件 -- postfix -- 存储本域邮件 --> mailbox
+foxmail                                              |
+        --> 收信认证   -- dovecot --    收取邮件 <-- |
+        <-- 收信       -- dovecot --    通过PAM进行认证 --> 系统账户和密码
+                         POP3或IMAP4
+
+1. 基于SMTP协议的Postfix服务程序提供发送和中转邮件服务功能。即：foxmail通过smtp协议将邮件投递给Postfix，Postfix根据邮件路由信息转发邮件给合理的Postfix服务。
+2. 基于POP3协议和IMAP协议的Dovecot服务程序提供接收邮件服务功能。即：foxmail通过POP3或者IMAP协议连接到Dovecot服务，Dovecot服务将邮件或者邮件标题推送给foxmail.
+3. Outlook Express或Foxmail等客户端服务程序正常收发邮件. 即：foxmail通过smtp发送邮件，foxmail通过POP3或者IMAP获取邮件
+
+Postfix  改良sendmail邮件服务器
+邮件相关协议
+-------------------
+1. SMTP（Simple Mail Transfer Protocol）即简单邮件传输协议， 工作在TCP的25端口。
+它是一组用于由源地址到目的地址传送邮件的规则，由它来控制信件的中转方式。跟名字
+一样smtp非常简单，无法做到认证，邮件存放等功能。
+ESMTP : Extended Simple Mail Transfer Protocol (提供身份验证机制)
+
+2. POP3（Post Office Protocol）邮局协议第3版，工作在TCP的110端口。本协议主要用于
+支持使用客户端远程管理在服务器上的电子邮件。POP 协议支持“离线”邮件处理。
+其具体过程是：邮件发送到服务器上，电子邮件客户端调用邮件客户机程序以连接服务器，
+并下载所有未阅读的电子邮件。这种离线访问模式是一种存储转发服务，将邮件从邮件服务器端
+送到个人终端机器上，一般是PC机或 MAC。一旦邮件发送到 PC 机或MAC上，邮件服务器上的
+邮件将会被删除。但目前的POP3邮件服务器大都可以"只下载邮件，服务器端并不删除"，
+也就是改进的POP3协议。
+
+3. IMAP4（Internet Mail Access Protocol）因特网邮件访问协议第4版，工作在TCP的143端口。
+IMAP4协议与POP3协议一样也是规定个人计算机如何访问网上的邮件的服务器进行收发邮件的协议，
+但是IMAP4协议同POP3协议相比更高级。IMAP4支持协议客户机在线或者离开访问并阅读服务器上的邮件，
+还能交互式的操作服务器上的邮件。IMAP4协议更人性化的地方是不需要像POP3协议那样把邮件下载到本地，
+用户可以通过客户端直接对服务器上的邮件进行操作.
+(这里的操作是指：在线阅读邮件 在线查看邮件主题 大小 发件地址等信息)。
+用户还可以在服务器上维护自己邮件目录(维护是指移动)新建 删除重命名共享 抓取文本 等操作。
+IMAP4协议弥补了POP3协议的很多缺陷。
+
+邮件相关名词
+-------------------
+一般情况下，我们把电子邮件程序分解成传输代理，投递代理，用户代理。
+1. 用户代理用来接受用户的指令，将用户的信件传送至信件传输代理.
+2. 投递代理则从信件传输代理取得信件传送至最终用户的邮箱.
+当用户试图发送一封电子邮件的时候，他并不能直接将信件发送到对方的机器上，用户代理必须试图去寻找一个信件传输代理，把邮件提交给它。
+3. 信件传输代理得到了邮件后，首先将它保存在自身的缓冲队列中，然后，根据邮件的目标地址，信件传输代理程序将找到应该对这个目标地址负责的邮件传输代理服务器， 并且通过网络将邮件传送给它。
+对方的服务器接收到邮件之后，将其缓冲存储在本地，直到电子邮件的接收者查看自己的电子信箱。
+
+1. MTA（Mail Transfer Agent）邮件传输代理工具
+通过SMTP协议所指定的服务器,就可以把E-mail寄到收信人的服务器上了，整个过程只要几分钟。
+SMTP服务器则是遵循SMTP协议的发送邮件服务器，用来发送或中转发出的电子邮件。
+常用的MTA有：
+  SendMail：邮件的鼻祖。
+  Qmail：一个数学家开发，作为Linux下面主流的邮件系统内核，大量著名的商业邮件系统都是在Qmail内核下开发，比如Hotmail。
+  Postfix：IBM安全专家开发，模块化设计，并且比sendmail兼容效率更高。
+  Exim：是基于GPL协议的开放源代码软件，由英国剑桥大学的Philip Hazel开发。
+  Exchange：微软公司的一套电子邮件服务组件，是个消息与协作系统。
+
+2. MDA（Mail Delivery Agent）
+邮件投递代理，投递代理则从信件传输代理取得信件传送至最终用户的邮箱。常用的MDA有：
+ProcMail：Postfix默认的邮件投递工具。
+MailDrop：相对比较专业的投递代理工具。
+
+3. MRA(Mail Retrieval Agent)
+邮件取回代理，使用POP3或IMAP4协议工作。一般用于从用户信箱取回邮件到邮件用户代理客户端。常用的MRA有：
+Dovecot：是一个开源的支持IMAP和POP3协议的收邮件服务器（自带SASL功能）。
+
+4. MUA(Mail User Agent)
+  邮件用户代理工具。常用的MUA有：
+  OE：Windows旧版本自带的工具。
+  Outlook：Office套件带的工具。
+  FoxMail：腾讯公司的邮件客户端工具。
+  Thunderbird：雷鸟是Linux下的客户端工具。
+  Mutt：Linux下的字符界面客户端工具。
+
+5. WebMail
+基于Web的电子邮件收发系统，扮演邮件用户代理角色，一般而言，WebMail系统提供邮件收发、用户在线服务和系统服务管理等功能。
+WebMail的界面直观、友好，不需要借助客户端，免除了用户对E-mail客户软件（如：Foxmail、Outlook等）进行配置时的麻烦，只要能上网就能使用WebMail，方便用户对邮件进行接收和发送。WebMail使得E-mail在Internet上的应用广泛。常用的Webmail有:
+Openwebmail：台湾开发的。
+Squirrelmail：Centos系统自带。
+Extmail，Extman：国内开发的也被称为EMOS系统。
+
+6. Mail Relay
+邮件中继，先要明白一个概念，一封邮件只要不是发送给本域内用户的，比如从当前域发送到另一个域，
+或从当前域发送到另一个域然后转到另外一个域的，这就属于中继。但是一般邮件服务器都会允许本地
+或本域内的用户进行中继。不然就只能在本域内发送邮件而不能给外部邮箱发送邮件。
+Postfix默认只能基于IP地址做中继认证。
+
+7. SASL（simple authentication secure layer）
+简单认证安全层，是一种用来扩充C/S模式验证能力的机制。在Postfix可以利用SASL来判断用户是否有权使用转发服务，或是辨认谁在使用你的服务器。
+
+8. 常用的Sasl有
+cyrus-sasl：Redhat系列自带的SASL认证框架。
+dovecot-sasl：dovecot组件带的SASL认证框架。
+courier-authlib：这是一个带有MTA，MDA以及SASL认证的软件，但是一般只是用它的SASL功能。
+
+邮件名词
+-------------------
+邮件传输:MT
+邮件投递:MD
+邮件用户:MU
+邮件用户代理:MUA 能够让邮件用户编辑邮件并且向外发送邮件的工具 Mail User Agent
+邮件传输代理:MTA
+邮件投递代理:MDA Mail Delivery Agent
+邮件取回(检索)代理:MRA Mail Retrivel Agent
+
+
+发送邮件的流程:
+-------------------
+1、从MUA --> MTA :使用的是SMTP协议
+2、从MTA 发现需要发送的邮件是本地邮件，则使用LMTP协议传输，如果发现要发送的邮件是远程邮件，则使用SMTP协议传输
+3、当远程服务器接收到邮件之后，会将邮件传输给MDA，由MDA进行邮件投递的工作
+4、用户通过MRA来取得自己的邮件，这个过程使用的协议叫POP3协议或者是IMAP协议
+
+Postfix介绍
+-------------------
+Postfix是Wietse Venema在IBM的GPL协议之下开发的MTA（邮件传输代理）软件。是为了改良sendmail邮件服务器而产生的。其特点：
+1. postfix是免费的:
+postfix想要作用的范围是广大的Internet用户，试图影响大多数的Internet上的电子邮件系统，因此它是免费的。
+2. 更快:
+postfix在性能上大约比sendmail快三倍。一部运行postfix的台式PC每天可以收发上百万封邮件。
+3. 兼容性好:postfix是sendmail兼容的，从而使sendmail用户可以很方便地迁移到postfix。
+Postfix支持/var[/spool]/mail、/etc/aliases、 NIS、和 ~/.forward 文件。
+4. 更健壮:
+postfix被设计成在重负荷之下仍然可以正常工作。当系统运行超出了可用的内存或磁盘空间时，
+postfix会自动减少运行进程的数目。当处理的邮件数目增长时，postfix运行的进程不会跟着增加。
+5. 更灵活:
+postfix是由超过一打的小程序组成的，每个程序完成特定的功能。你可以通过配置文件设置每个程序的运行参数。
+6. 安全性:
+postfix具有多层防御结构，可以有效地抵御恶意入侵者。如大多数的postfix程序可以运行在较低的权限之下，
+不可以通过网络访问安全性相关的本地投递程序等等。
+
+postfix(安装配置){
+卸载自带postfix
+-------------------
+$ rpm -q postfix
+postfix-2.6.6-2.2.el6_1.x86_64
+$ rpm -ev postfix --nodeps
+
+环境准备
+-------------------
+1. YUM要配置好。
+2. 编译环境要配置好。
+PS: 这两步骤如果有问题，那么可以看本网站提供的YUM和编译章节。
+
+安装MySQL服务器
+-------------------
+$ yum install mysql-server mysql mysql-devel perl-DBD-MySQL
+$ chkconfig mysqld on
+$ service mysqld restart
+$ rpm -q mysql
+mysql-5.1.71-1.el6.x86_64
+
+安装cyrus-sasl并启动saslauthd服务
+-------------------
+$ yum install cyrus-sasl cyrus-sasl-devel
+$ service saslauthd start
+$ chkconfig saslauthd on
+
+查看postfix用户
+-------------------
+$ id postfix
+uid=89(postfix) gid=89(postfix) 组=89(postfix),12(mail)
+
+发送邮件的用户，这里就使用系统自带的postfix用户，记住UID:89、GID:89，后面很多地方都要用到这两个ID号，
+如果此ID号更改了，那么Postfix安装方面会有很多目录权限都需要更改。
+
+编译安装postfix-2.11.7
+-------------------
+$ tar zxvf postfix-2.11.7.tar.gz
+$ cd postfix-2.11.7
+$ make makefiles 'CCARGS=-DHAS_MYSQL -I/usr/include/mysql -DUSE_SASL_AUTH -DUSE_CYRUS_SASL -I/usr/include/sasl  -DUSE_TLS ' 'AUXLIBS=-L/usr/lib64/mysql -lmysqlclient -lz -lm -L/usr/lib/sasl2 -lsasl2  -lssl -lcrypto'
+
+$ tar zxvf postfix-2.11.7.tar.gz
+$ cd postfix-2.11.7
+$ make makefiles 'CCARGS=-DHAS_MYSQL -I/usr/include/mysql -DUSE_SASL_AUTH -DUSE_CYRUS_SASL -I/usr/include/sasl  -DUSE_TLS ' 'AUXLIBS=-L/usr/lib64/mysql -lmysqlclient -lz -lm -L/usr/lib/sasl2 -lsasl2  -lssl -lcrypto'
+
+#-DHAS_MYSQL -I/usr/include/mysql   //启用Mysql存储，指定头文件;
+#-DUSE_SASL_AUTH -DUSE_CYRUS_SASL -I/usr/include/sasl   //启用SASL（cyrus）认证框架;
+#-DUSE_TLS    //启用SSL功能;
+#AUXLIBS=-L/usr/lib64/mysql -lmysqlclient    //找Mysql客户端库文件;
+#-lz                    //压缩裤文件;
+#-lm -L/usr/lib64/sasl2     //模块文件;
+#-lsasl2 -lssl -lcrypto       //加密库文件;
+
+有以下信息就表示配置成功了
+
+[src/posttls-finger]
+cat ../../conf/makedefs.out Makefile.in >Makefile
+rm -f Makefile; (cat conf/makedefs.out Makefile.in) >Makefile
+
+$ make
+$ make install
+
+按照以下的提示输入相关的路径([]号中的是缺省值，”]”后的是输入值，省略的表示采用默认值)
+-------------------
+install_root: [/]
+#指定Postfix安装目录，默认
+tempdir: [/root/postfix-2.11.7] /tmp/postfix
+#指定Postfix临时文件目录
+config_directory: [/etc/postfix]
+#指定Postfix配置文件目录，默认
+command_directory: [/usr/sbin]
+#指定Postfix二进制文件目录，默认
+daemon_directory: [/usr/libexec/postfix]
+#指定Postfix服务器进程，默认
+data_directory: [/var/lib/postfix]
+#指定Postfix可写文件目录，默认
+html_directory: [no] /var/www/html/postfix
+#指定Postfix帮助文件，可以使用web服务器打开
+mail_owner: [postfix]
+#指定Postfix属主，默认
+mailq_path: [/usr/bin/mailq]
+#指定Postfix队列程序路径，默认
+manpage_directory: [/usr/local/man]
+newaliases_path: [/usr/bin/newaliases]
+#指定Postfix生成别名命令位置，默认
+queue_directory: [/var/spool/postfix]
+#指定Postfix队列目录，默认
+readme_directory: [no]
+sendmail_path: [/usr/sbin/sendmail]
+#指定Postfix客户端（smtp），默认
+setgid_group: [postdrop]
+#指定Postfix投递组（默认有这个组，但没有这个用户），默认
+}
+
+postfix(){
+[root@localhost ~]# vim /etc/rc.d/init.d/postfix
+#!/bin/bash
+#
+# chkconfig: 2345 80 30
+# description: Postfix is a Mail Transport Agent, which is the program \
+# processname: master
+# pidfile: /var/spool/postfix/pid/master.pid
+# config: /etc/postfix/main.cf
+# config: /etc/postfix/master.cf
+# Source function library.
+. /etc/rc.d/init.d/functions
+# Source networking configuration.
+. /etc/sysconfig/network
+ 
+# Check that networking is up.
+[ $NETWORKING = "no" ] && exit 3
+ 
+[ -x /usr/sbin/postfix ] || exit 4
+[ -d /etc/postfix ] || exit 5
+[ -d /var/spool/postfix ] || exit 6
+ 
+RETVAL=0
+prog="postfix"
+ 
+start() {
+      # Start daemons.
+      echo -n $"Starting postfix: "
+        /usr/bin/newaliases >/dev/null 2>&1
+      /usr/sbin/postfix start 2>/dev/null 1>&2 && success || failure $"$prog start"
+      RETVAL=$?
+      [ $RETVAL -eq 0 ] && touch /var/lock/subsys/postfix
+        echo
+      return $RETVAL
+}
+stop() {
+        # Stop daemons.
+      echo -n $"Shutting down postfix: "
+      /usr/sbin/postfix stop 2>/dev/null 1>&2 && success || failure $"$prog stop"
+      RETVAL=$?
+      [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/postfix
+      echo
+      return $RETVAL
+}
+reload() {
+      echo -n $"Reloading postfix: "
+      /usr/sbin/postfix reload 2>/dev/null 1>&2 && success || failure $"$prog reload"
+      RETVAL=$?
+      echo
+      return $RETVAL
+}
+abort() {
+      /usr/sbin/postfix abort 2>/dev/null 1>&2 && success || failure $"$prog abort"
+      return $?
+}
+flush() {
+      /usr/sbin/postfix flush 2>/dev/null 1>&2 && success || failure $"$prog flush"
+      return $?
+}
+check() {
+      /usr/sbin/postfix check 2>/dev/null 1>&2 && success || failure $"$prog check"
+      return $?
+}
+ 
+restart() {
+      stop
+      start
+}
+# See how we were called.
+case "$1" in
+  start)
+      start
+       ;;
+  stop)
+      stop
+      ;;
+  restart)
+      stop
+      start
+      ;;
+  reload)
+      reload
+      ;;
+  abort)
+      abort
+      ;;
+  flush)
+      flush
+      ;;
+  check)
+      check
+      ;;
+  status)
+      status master
+      ;;
+  condrestart)
+      [ -f /var/lock/subsys/postfix ] && restart || :
+      ;;
+  *)
+      echo $"Usage: $0 {start|stop|restart|reload|abort|flush|check|status|condrestart}"
+      exit 1
+esac
+exit $?
+# END
+
+[root@localhost ~]# chmod +x /etc/rc.d/init.d/postfix
+[root@localhost ~]# chkconfig --add postfix
+[root@localhost ~]# chkconfig postfix on
+[root@localhost ~]# service postfix start
+}
+
+postfix(Postfix相关命令){
+# 开启postfix;
+$ postfix start
+ 
+# 检查配置;
+$ postfix check
+ 
+# 重新加载;
+$ postfix reload
+ 
+$ postconf [OPTION]
+-d：显示Postfix默认的配置;
+-n：显示新修改的配置;
+-m：显示支持的存储文件类型如hash,mysql等;
+-a：显示支持sasl的客户端插件类型;
+
+安装完毕
+
+如果上面没有使用UID为89的postfix用户，那么检查postfix时就会报如下错误。
+
+$ postfix check
+postsuper: fatal: scan_dir_push: open directory defer: Permission denied
+
+原因是一般编译安装时，Postfix队列目录/var/spoole/postfix/，下有几个目录会使用系统自带postfix的目录，由于系统默认使用postfix(UID:89)用户给删除了，所以这些目录就找不到postfix用户，开启时就会报错一些权限问题，把以下几个目录权限给修改以下就好了，如果还有一些别的目录一并修改即可。
+
+$ chown -R postfix.root /var/spool/postfix/defer/
+$ chown -R postfix.root /var/spool/postfix/deferred/
+$ chown -R postfix.root /var/spool/postfix/private/
+$ chown -R postfix.postdrop /var/spool/postfix/public/
+$ chown -R postfix.postdrop /var/spool/postfix/maildrop/
+$ chown -R postfix.root /var/lib/postfix/
+}
+
+postfix(){
+Postfix进程
+master：这条进程是 Postfix 邮件系统的大脑，它产生所有其他进程。
+smtpd：作为服务器端程序处理所有外部连进来的请求。
+smtp：作为客户端程序处理所有对外发起连接的请求。
+qmgr：它是 Postfix 邮件系统的心脏，处理和控制邮件队列里面的所有消息。
+local：这是 Postfix 自有的本地投递代理MDA，就是它负责把邮件保存到邮箱里。
+}
+
+bind(部署DNS服务器){
+postfix根据域名和地址做一个MX记录，A记录，PTR记录(一般在互联网上邮件服务器都要反解，没有PTR记录会认为是垃圾邮件)
+
+$ service iptables stop
+$ chkconfig iptables on
+$ setenforce 0
+$ hostname mail.ywnds.com
+$ echo "127.0.0.1  mail.ywnds.com" >> /etc/hosts
+$ yum install bind bind-utils bind-libs
+
+配置DNS
+
+$ cat /etc/named.conf
+options {
+  listen-on port 53 { any; };
+  directory       "/var/named";
+  allow-query     { any; };
+  recursion yes;
+{
+zone "ywnds.com" IN {
+  type master;
+  file "ywnds.com";
+};
+#include "/etc/named.root.key";
+
+PS：添加和修改以上内容即可。
+
+$ cat /var/named/ywnds.com
+$TTL 1D
+@       IN    SOA    ns.ywnds.com.    root.ywnds.com. (
+                                        0      ; serial
+                                        1D     ; refresh
+                                        1H     ; retry
+                                        1W     ; expire
+                                        3H )   ; minimum
+@       IN    NS      ns
+ns      IN    A       192.168.60.10
+@       IN    MX 10   smtp
+smtp    IN    A       192.168.60.10
+pop3    IN    A       192.168.60.10
+mail    IN    A       192.168.60.10
+
+$ service named restart
+$ chkeconfig named on
+}
+
+postfix(postfix主配置文件添加以下内容){
+postfix主配置文件进行模块化了，其中:
+
+/etc/postfix/main.cf：这个文件保存全局配置信息，所有进程都会用到，除非这些配置在 master.cf 文件中被重新设置了。
+
+/etc/postfix/master.cf：这个文件保存了额外的进程运行时环境参数，在 main.cf 文件中定义的配置可能会被本文件的配置覆盖掉。
+
+在配置文件中所有的参数都必须顶格写不然就会当做是上一行参数的续写。另外postfix大部分配置文件都进行默认化处理了，可以使用postconf -d进行查看。
+
+$cat /etc/postfix/main.cf
+inet_protocols = all
+inet_interfaces = 192.168.60.10,127.0.0.1
+myhostname = mail.ywnds.com
+mydomain = ywnds.com
+myorigin = $mydomain
+mydestination = $myhostname， localhost.$mydomain， localhost， $mydomain
+mynetworks = 127.0.0.0/8
+message_size_limit = 20485760
+mailbox_size_limit = 5097152000
+show_user_unknown_table_name = no
+bounce_queue_lifetime = 1d
+maximal_queue_lifetime = 1d
+home_mailbox = Maildir/
+#home_mailbox = Mailbox
+#mailbox_command = /some/where/procmail
+
+参数解释：
+
+inet_protocols = all
+
+#指定协议。
+
+inet_interfaces = 192.168.60.10,127.0.0.1
+
+#指定postfix系统监听的网络接口。
+
+myhostname = mail.ywnds.com
+
+#指定主机名。
+
+mydomain = ywnds.com
+
+#指定域名，默认情况下postfix将myhostname的第一部分删除而作为mydomain的值。
+
+myorigin = $mydomain
+
+#用来自动补全本域用户，用来指明发件人所在的域名，即做发件地址伪装。
+
+mydestination = $myhostname， localhost.$mydomain， localhost， $mydomain
+
+#这里定义了Postfix接收邮件时的收件人域名，即Postfix要接收哪些域名的邮件，不在此区域内的都算是中继邮件，如果不加$mydomain的话那么就不允许收本域内邮件。
+
+mynetworks = 127.0.0.0/8
+
+#根据网络地址中继，默认给你所在的整个网络中继，postfix系统根据其值来区别用户是远程的还是本地的，这里设置只给本机中继。
+
+message_size_limit = 20485760
+
+mailbox_size_limit = 5097152000
+
+show_user_unknown_table_name = no
+
+#邮件大小限制为20M，邮箱大小限制为5G。
+
+bounce_queue_lifetime = 1d
+
+maximal_queue_lifetime = 1d
+
+#队列超时限制为1天。
+
+home_mailbox = Maildir/
+
+home_mailbox = Mailbox
+
+# 邮箱投递方式有两种：一种是Mailbox方式，即同一个用户的所有邮件内容存储为单个文件，通常保存在/var/spool/mail/目录下文件名与用户名相同（Postfix默认使用）；第二种是Maildir方式，即使用目录结构来存储用户的邮件内容每一个用户使用一个文件夹，每封邮件都作为一个独立的文件存放。Maildir方式的存取速度和效率要好一些对于管理邮件内容页更加方便。
+
+mailbox_command = /some/where/procmail
+
+#这里可以配置MDA使用procmail方式(postfix默认的投递代理)。
+}
+
+postfix(注意问题){
+1、在postfix的配置文件中，参数行和注释行是不能处在同一行中的；
+2、任何一个参数的值都不需要加引号，否则，引号将会被当作参数值的一部分来使用；
+3、每修改参数及其值后执行 postfix reload 即可令其生效；但若修改了inet_interfaces，则需重新启动postfix；
+4、如果一个参数的值有多个，可以将它们放在不同的行中，只需要在其后的每个行前多置一个空格即可；postfix会把第一个字符为空格或tab的文本行视为上一行的延续；
+}
+https://www.linuxprobe.com/linux-postfix-1.html  1-9
+http://www.ywnds.com/?p=1770
+https://www.linuxprobe.com/chapter-15.html
+iRedMail.md

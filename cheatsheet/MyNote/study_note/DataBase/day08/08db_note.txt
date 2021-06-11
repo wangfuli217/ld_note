@@ -1,0 +1,169 @@
+什么是pro程序
+	概念
+		通过在过程化编程语言中嵌入sql语句开发出的应用程序叫pro程序
+	目的
+		使用c或者c++这种高效的语言成为访问oracle数据库的工具
+	宿主语言
+		sql语句所嵌入的语言
+
+如何编译运行一个c程序
+	编写源代码
+		vi ***.c
+	编译
+		gcc -c ***.c
+	链接
+		gcc ***.o -l库 -L路径
+	运行
+		./a.out
+
+开发运行一个proc程序的步骤
+	编写源代码
+		vi ***.pc
+	预编译 把pc文件转换成c文件
+		proc ***.pc
+	编译 链接
+		gcc ***.c -lclntsh
+	运行 
+		./a.out
+
+proc程序和c程序的区别和联系
+	联系
+		包含头文件
+		定义函数
+		实现函数
+		使用库函数
+	区别
+		连接数据库 exec sql connect:userpasswd;
+				   exec sql connect:username identified by:passwd;
+		查询数据库 exec sql select语句
+		断开数据库 exec sql commit work release;  提交之后断开
+				   exec sql rollback work release; 
+
+解决上传文件的问题
+	下载gftp安装包
+	安装gftp
+	sudo dpkg -i gftp*
+	启动
+	gftp
+	
+宿主变量
+	特点:既能在sql语句中使用,又能在宿主语言中使用的变量
+	宿主变量的类型
+	char
+	char var[n] 定长字符串
+	short
+	int 
+	long
+	float
+	double
+	varchar var[n] 变长字符串
+
+	定长字符串和变长字符串
+		定长字符串
+			如果数据量不够就补空格
+	变长字符串
+		把char类型修改成varchar
+		在sql语句中要和普通的变量一样去使用
+		在宿主语言中要使用变量名.arr获取数据
+		注意垃圾值问题
+			varchar var_name[30]={0};
+			var_name.arr[var_name.len]='\0';
+
+		使用proc的预编译选项char_map
+			proc char_map=charz   默认的选项值,代表对char数组按照定长处理,空格补齐,'\0'结尾
+			char_map=string		将char数组按照变长处理
+
+	和c++语言相关的预编译选项
+		oname	输出文件名,默认输出c语言形式的.c文件
+				c++推荐使用.cpp
+		parse	解析方式,默认是full的c方式
+				c++  parse=partia 严格的c++检查,不推荐使用
+					 parse=none   推荐方式
+		code	代码风格默认ansi_c
+				c++推荐使用code=cpp,需要把所有的数组变量放入申明区
+				exec sql begin declare section;
+					定义数组变量
+				exec sql end declare section;
+
+		proc ***.pc oname=***.cpp parse=none code=cpp
+		gcc ***.cpp -lclntsh -lstdc++
+		g++	***.cpp -lclntsh
+
+	和PLSQL相关的预编译选项
+		sqlcheck=semantics
+		userid=用户名/密码
+	宿主变量使用的注意事项
+		宿主变量建议放入申明区,这样可以避免语言和系统之间的差异
+		宿主变量可以是指针,但需要提前分配内存,特例:只能读不能写char *userpasswd="tarena/tarena"
+		DDL中不能使用宿主变量
+			char table_name[30]="s_emp";
+			/*删除表名为table_name*/
+			exec sql drop table table_name;
+		sql语句中使用宿主变量时需要在变量名前加冒号
+
+指示变量
+	作用:当数据库表中的字段值赋值给宿主变量时,赋值的状态可以通过指示变量获得
+
+	==0		则代表赋值正常
+	==-1	则代表数据库中的字段值是NULL值
+	>0		则代表截断赋值(尽量避免)
+
+	语法
+		指示变量必须是short类型
+		exec sql select 字段名 into :宿主变量:指示变量 from 表名 where 条件;
+		exec sql select 字段名 into :宿主变量 indicator :指示变量 from 表名;	举例
+		把s_emp表中id=1的manager_id赋值给一个宿主变量,并且使用指示变量指示赋值的状态
+
+数组变量
+	数组变量的使用注意事项
+	proc只支持一维数组   字符除外
+	proc不支持数组指针
+	proc支持最大元素个数32767
+	在select语句中使用数组时只要给出数组名即可
+
+	把s_emp表中所有的id,first_name,salary分别放入三个数组中,然后输出这三个数组的值
+
+	如何获得sql语句影响的行数?
+	sqlca.sqlerrd[2]
+
+sqlca通信区
+	什么是sqlca?
+		sqlca本质上就是一个结构体,这个结构体中记录了sql语句执行的信息,每执行一次sql就会把结构体中的字段更新一遍,所以要获得sql语句的执行信息要立即获取,否则会被下次sql覆盖掉
+	
+	sqlca可以获取的信息
+		sqlca.sqlerrd[2]   sql语句影响的数据行数
+		sqlca.sqlcode	   记录sql语句的执行状态
+								==0		sql语句执行正常
+								>0		sql语句执行出错
+								<0		数据库本身错误,或者网络错误
+		sqlca.sqlerrm.sqlerrmc          获得sql语句的错误消息
+
+oraca通信区
+	是对sqlca通信区的补充,可以通过orace获取sql语句
+
+proc程序中如何使用sql语句
+	select语句
+		在select语句前加exec sql和into关键字结合,把数据放入宿主变量
+	DML(insert delete update)
+	TCL(commit rollback  savepoint)
+	DDL(create drop alter)
+		直接在这些语句前加exec sql
+		DDL中不能使用宿主变量
+
+proc中如何调用PLSQL
+	语法:程序连接完数据库之后出现如下代码
+		exec sql execute
+			begin
+				/* 这里是PLSQL的匿名块,要遵循PLSQL的语法 */
+			end;
+		end-exec;
+
+	写一个存储过程,设计两个整数参数,把两个参数的和存入第二个参数中,在数据库中建立这个存储过程,写一个proc程序连接数据库并调用这个存储过程,验证存储过程的功能
+	create or replace procedure sum1(num1 number,num2 in out number)
+	is
+	begin
+		num2:=num1+num2;
+	end;
+
+	sqlcheck=semantics   是调用存储过程必须的选项
+	userid=用户名/密码	 是在预编译时连接数据库,确认存储过程是否存在与合法

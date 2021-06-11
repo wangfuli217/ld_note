@@ -1,0 +1,109 @@
+
+
+https://blog.csdn.net/u011125673/article/details/50474491
+
+    QTcpSocket类的方法connectToHost会泄露内存，即使把调用这个方法的QTcpSocket实例delete掉，内存也不会释放！
+反复connectToHost会导致段错误，十分危险。必须控制connectToHost的使用次数！
+
+    1. 连接服务器
+    m_tcpSocket->connectToHost(“127.0.0.1”, 9877);
+    connected = m_tcpSocket->waitForConnected();
+    只有使用waitForConnected()后,QTcpSocket才真正尝试连接服务器，并返回是否连接的结果。
+
+    2. 写数据
+    m_tcpSocket->write(str.toStdString().c_str(), strlen(str.toStdString().c_str()));
+    m_tcpSocket->waitForBytesWritten();
+    当使用waitForBytesWritten()后，QTcpSocket才真正发送数据。
+    m_tcpSocket->write(str1.toStdString().c_str(), strlen(str1.toStdString().c_str()));
+    m_tcpSocket->write(str2.toStdString().c_str(), strlen(str2.toStdString().c_str()));
+    的结果是发送了str1str2
+
+    3. 断开与服务器的连接
+    m_tcpSocket->disconnectFromHost()
+    m_tcpSocket->waitForDisconnected()
+
+    4. 善于使用QTcpSocket的SIGNAL：connected()，disconnected()，error(QAbstractSocket::SocketError)
+    配合自定义私有开关变量bool connected，QTimer可以实现自动重连接等逻辑。
+
+    
+mSocket = newQTcpSocket(this);
+mSocket->connectToHost(iAddr,iPort);
+qDebug(“State:%d\n”,mSocket->state()); // State: 2; 2代表ConnectingState，正确的应该为3（ConnectedState）
+
+connect(mSocket,SIGNAL(readyRead()),this,SLOT(read()));
+connect(mSocket,SIGNAL(disconnected()),this,SLOT(disConnect()));return(true);
+socket的连接是异步的，所以必须等连接建立完成才能使用，所以分别加入waitForConnected()和waitForBytesWritten()后调试通过。 
+
+
+
+
+
+https://blog.csdn.net/sun222555888/article/details/82917325
+
+//1. 创建TCP套接字对象 
+m_pTcpSocket = new QTcpSocket(this); 
+
+//2. 已连接、数据可读、失败信号连接 
+connect(m_pTcpSocket, &QTcpSocket::connected, this, &SimpleTcpSocketClientDemo::connected); 
+connect(m_pTcpSocket, &QIODevice::readyRead, this, &SimpleTcpSocketClientDemo::readyRead); 
+typedef void (QAbstractSocket::*QAbstractSocketErrorSignal)(QAbstractSocket::SocketError); 
+connect(m_pTcpSocket, static_cast<QAbstractSocketErrorSignal>(&QTcpSocket::error), this, &SimpleTcpSocketClientDemo::error); 
+
+//3. 与服务器端建立连接 m_pTcpSocket->connectToHost("127.0.0.1", 8888);
+
+
+已连接信号
+SimpleTcpSocketClientDemo::connected
+可读数据信号
+SimpleTcpSocketClientDemo::readyRead
+socket异常
+SimpleTcpSocketClientDemo::error
+
+
+example/network
+  blockingclient (线程阻塞方式)
+  fortuneclient  (非阻塞方式)
+  fortuneserver  (非阻塞服务器方式)
+  threadedfortuneserver (线程池服务器方式)  https://doc.qt.io/qt-5.12/qthread.html
+
+https://doc.qt.io/qt-5/qabstractsocket.html#stateChanged 
+void  connected()                                                              tcp connect 成功
+void  disconnected()                                                           tcp disconnect 成功
+void QAbstractSocket::stateChanged(QAbstractSocket::SocketState socketState)   tcp 连接状态变化
+
+https://doc.qt.io/qt-5/qtcpserver.html#incomingConnection
+void QTcpServer::incomingConnection(qintptr socketDescriptor)  # 保护函数 重新定义该函数会改变TcpServer接收新连接流程
+
+
+emit error(tcpSocket.error());
+
+
+
+写数据
+    QByteArray block;
+    QDataStream out(&block, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_4_0);
+    out << (quint16)0;
+    out << text;
+    out.device()->seek(0);
+    out << (quint16)(block.size() - sizeof(quint16));
+    
+    
+读数据
+    QDataStream in(tcpSocket);
+    in.setVersion(QDataStream::Qt_4_0);
+
+    if (blockSize == 0) {
+        if (tcpSocket->bytesAvailable() < (int)sizeof(quint16))
+            return;
+
+        in >> blockSize;
+    }
+
+    if (tcpSocket->bytesAvailable() < blockSize)
+        return;
+
+    QString nextFortune;
+    in >> nextFortune;
+
+

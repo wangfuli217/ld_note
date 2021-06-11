@@ -1,0 +1,390 @@
+http://www.cnblogs.com/stephen-liu74/archive/2011/06/05/2073338.html
+
+
+valgrind的用法 
+valgrind --tool=memcheck --leak-check=full ./main
+valgrind --tool=memcheck --leak-resolution=high ./main
+valgrind --tool=memcheck --show-reachable=yes ./main
+valgrind --tool=memcheck --show-reachable=yes --log-file=proglog ./main
+valgrind --tool=callgrind ./main
+valgrind --tool=cachegrind ./main
+valgrind --tool=helgrind ./main
+valgrind --tool=massif ./main
+
+(1)检查内存(如内存初始化，内存溢出等错误)
+valgrind --quiet --tool=memcheck ./myproc 10172 0474 htparam  
+(2)内存检查选项 -- quiet 表示安静的执行，只打印错误信息
+valgrind --quiet --tool=memcheck --leak-check=yes ./myproc 10172 0474 htparam  
+(3)显示详细信息 --verbose
+   显示详细信息。在各个方面显示你的程序的额外信息，例如：共享对象 
+   加载，使用的重置，执行引擎和工具的进程，异常行为的警告信息。重 
+   复这个标记可以增加详细的级别。
+valgrind --quiet --verbose  --tool=memcheck --leak-check=yes ./ myproc 10172 0474 htparam
+(4)输出到日志中 --log-file=<filename> 
+   定Valgrind把它所有的信息输出到指定的文件中。实际上，被创建文件的 文件名是由filename,'.' 
+   和进程号连接起来的（即<filename>.<pid>）从而每个进程创建不同的文件。 
+   valgrind --quiet --log-file=valgrind_myproc.log --verbose  --tool=memcheck --leak-check=yes ./ myproc 10172 0474 htparam
+(5)输出日志到指定的网络ip和端口
+valgrind --quiet --log-socket=<ip-192.168.20.210:port-8000> --verbose  --tool=memcheck --leak-check=yes ./ myproc 10172 0474 htparam   
+
+【----- 错误相关选项 -----】
+(6)用xml格式输出日志： --xml=<yes|no> [default: no] 
+ valgrind --quiet --verbose --xml=yes --tool=memcheck --leak-check=yes ./test
+(7)改变层次 --num-callers=<number> [default: 12] 
+valgrind --quiet --verbose --xml=yes --num-callers=100 --tool=memcheck --leak-check=yes ./test
+(8)关闭默认错误的打印上限
+   当这个选项打开时，在总量达到10,000,000，或者1,000个不同的错误， Valgrind停止报告错误。这是为了避免错误跟踪机制在错误很多的程序 
+   下变成一个巨大的性能负担。
+   
+--error-limit=<yes|no> [default: yes] 
+valgrind --quiet --verbose --xml=yes --num-callers=100 --error-limit=no --tool=memcheck --leak-check=yes ./test
+
+【-----malloc 选项-----】
+(9)内存对齐选项 --alignment=<number> [default: 8] 
+  默认Valgrind的malloc(),realloc(), 等等，是8字节对齐地址的。这 
+  是大部分处理器的标准。然而，一些程序可能假定malloc()等总是返回 
+  16字节或更多对齐的内存。提供的数值必须在8和4096区间之内，并且 
+  必须是2的幂数。
+  valgrind --quiet --verbose --alignment=16 --xml=yes --num-callers=100 --error-limit=no --tool=memcheck --leak-check=yes ./test
+---=========== 以下的比较重要 ---===========
+【-----内存检查选项----】
+
+(10) --leak-check=<no|summary|yes|full> [default: summary] 
+当这个选项打开时，当客户程序结束时查找内存泄漏。内存泄漏意味着 
+  有用malloc分配内存块，但是没有用free释放，而且没有指针指向这块 
+  内存。这样的内存块永远不能被程序释放，因为没有指针指向它们。如 
+  果设置为summary，Valgrind会报告有多少内存泄漏发生了。如果设置为 
+  full或yes，Valgrind给出每一个独立的泄漏的详细信息。 
+
+(11) --show-reachable=<yes|no> [default: no] 
+当这个选项关闭时，内存泄漏检测器只显示没有指针指向的内存块，或 
+者只能找到指向块中间的指针。当这个选项打开时，内存泄漏检测器还 
+报告有指针指向的内存块。这些块是最有可能出现内存泄漏的地方。你 
+的程序可能，至少在原则上，应该在退出前释放这些内存块。这些有指 
+针指向的内存块和没有指针指向的内存块，或者只有内部指针指向的块， 
+都可能产生内存泄漏，因为实际上没有一个指向块起始的指针可以拿来释 
+放，即使你想去释放它。
+
+
+
+1. 使用未初始化的内存(Use of uninitialised memory)
+2. 使用已经释放了的内存(Reading/writing memory after it has been free'd)
+3. 使用超过malloc分配的内存空间(Reading/writing off the end of malloc'd blocks)
+4. 对堆栈的非法访问(Reading/writing inappropriate areas on the stack)
+5. 申请的空间是否有释放(Memory leaks – where pointers to malloc'd blocks are lost forever)
+6. malloc/free/new/delete申请和释放内存的匹配(Mismatched use of malloc/new/new [] vs free/delete/delete [])
+
+src和dst的重叠(Overlapping src and dst pointers in memcpy() and related functions)
+
+
+一、Memcheck-tools
+    1.    可查找的错误类型：
+            1) Illegal read or write errors
+            --read-var-info=<yes|no> [default:no],如果这个选项被打开，应用程序将运行的更慢，但是能够给出能多的错误细节。如下：
+   
+            --read-var-info=no
+            ==15516== Uninitialised byte(s) found during client check request
+            ==15516==    at 0x400633: croak (varinfo1.c:28)
+            ==15516==    by 0x4006B2: main (varinfo1.c:55)
+            ==15516==  Address 0x60103b is 7 bytes inside data symbol "global_i2"
+            ==15516==
+            ==15516== Uninitialised byte(s) found during client check request
+            ==15516==    at 0x400633: croak (varinfo1.c:28)
+            ==15516==    by 0x4006BC: main (varinfo1.c:56)
+            ==15516==  Address 0x7fefffefc is on thread 1's stack
+           
+            --read-var-info=yes:
+            ==15522== Uninitialised byte(s) found during client check request
+            ==15522==    at 0x400633: croak (varinfo1.c:28)
+            ==15522==    by 0x4006B2: main (varinfo1.c:55)
+            ==15522==  Location 0x60103b is 0 bytes inside global_i2[7],
+            ==15522==  a global variable declared at varinfo1.c:41
+            ==15522==
+            ==15522== Uninitialised byte(s) found during client check request
+            ==15522==    at 0x400633: croak (varinfo1.c:28)
+            ==15522==    by 0x4006BC: main (varinfo1.c:56)
+            ==15522==  Location 0x7fefffefc is 0 bytes inside local var "local"
+            ==15522==  declared at varinfo1.c:46, in frame #1 of thread 1
+
+            2) Use of uninitialized values
+            --track-origins=yes 可以得到更为详细的错误信息(特别针对使用未初始化的变量时)
+           
+            3) Use of uninitialized or unaddressable values in system calls
+            Code example:           
+            int main( void )
+            {
+                    char* arr  = malloc(10);
+                    int*  arr2 = malloc(sizeof(int));
+                    write( 1 /* stdout */, arr, 10 );
+                    exit(arr2[0]);
+            }
+
+            Valgrind给出的信息：
+            Syscall param write(buf) points to uninitialised byte(s)
+            at 0x25A48723: __write_nocancel (in /lib/tls/libc-2.3.3.so)
+            by 0x259AFAD3: __libc_start_main (in /lib/tls/libc-2.3.3.so)
+            by 0x8048348: (within /auto/homes/njn25/grind/head4/a.out)
+            Address 0x25AB8028 is 0 bytes inside a block of size 10 alloc'd
+            at 0x259852B0: malloc (vg_replace_malloc.c:130)
+            by 0x80483F1: main (a.c:5)
+       
+            Syscall param exit(error_code) contains uninitialised byte(s)
+            at 0x25A21B44: __GI__exit (in /lib/tls/libc-2.3.3.so)
+            by 0x8048426: main (a.c:8)
+
+            4) Illegal frees
+            Valgrind将会跟踪program通过malloc/new分配的内存，因此他可以确切的指导当前的free/delete操作是否合法。以下是重复free的一个例子。
+            Invalid free()
+                at 0x4004FFDF: free (vg_clientmalloc.c:577)
+                by 0x80484C7: main (tests/doublefree.c:10)
+            Address 0x3807F7B4 is 0 bytes inside a block of size 177 free'd
+                at 0x4004FFDF: free (vg_clientmalloc.c:577)
+                by 0x80484C7: main (tests/doublefree.c:10)
+               
+            5) When a heap block is freed with an inappropriate deallocation function
+            下面是一个用new[]分配但是用free释放的code example
+            Mismatched free() / delete / delete []
+                at 0x40043249: free (vg_clientfuncs.c:171)
+                by 0x4102BB4E: QGArray::~QGArray(void) (tools/qgarray.cpp:149)
+                by 0x4C261C41: PptDoc::~PptDoc(void) (include/qmemarray.h:60)
+                by 0x4C261F0E: PptXml::~PptXml(void) (pptxml.cc:44)
+            Address 0x4BB292A8 is 0 bytes inside a block of size 64 alloc'd
+                at 0x4004318C: operator new[](unsigned int) (vg_clientfuncs.c:152)
+                by 0x4C21BC15: KLaola::readSBStream(int) const (klaola.cc:314)
+                by 0x4C21C155: KLaola::stream(KLaola::OLENode const *) (klaola.cc:416)
+                by 0x4C21788F: OLEFilter::convert(QCString const &) (olefilter.cc:272)
+
+            6）Overlapping source and destination blocks
+            ==27492== Source and destination overlap in memcpy(0xbffff294, 0xbffff280, 21)
+            ==27492==    at 0x40026CDC: memcpy (mc_replace_strmem.c:71)
+            ==27492==    by 0x804865A: main (overlap.c:40)
+   
+            7）Memory leak detection
+            Pointer chain            AAA Category    BBB Category
+            -------------            ------------    ------------
+            (1)  RRR ------------> BBB                    DR
+            (2)  RRR ---> AAA ---> BBB    DR              IR
+            (3)  RRR               BBB                    DL
+            (4)  RRR      AAA ---> BBB    DL              IL
+            (5)  RRR ------?-----> BBB                    (y)DR, (n)DL
+            (6)  RRR ---> AAA -?-> BBB    DR              (y)IR, (n)DL
+            (7)  RRR -?-> AAA ---> BBB    (y)DR, (n)DL    (y)IR, (n)IL
+            (8)  RRR -?-> AAA -?-> BBB    (y)DR, (n)DL    (y,y)IR, (n,y)IL, (_,n)DL
+            (9)  RRR      AAA -?-> BBB    DL              (y)IL, (n)DL
+           
+            Pointer chain legend:
+            - RRR: a root set node or DR block
+            - AAA, BBB: heap blocks
+            - --->: a start-pointer
+            - -?->: an interior-pointer
+           
+            Category legend:
+            - DR: Directly reachable
+            - IR: Indirectly reachable
+            - DL: Directly lost
+            - IL: Indirectly lost
+            - (y)XY: it's XY if the interior-pointer is a real pointer
+            - (n)XY: it's XY if the interior-pointer is not a real pointer
+            - (_)XY: it's XY in either case
+           
+            --show-reachable=yes如果这样设置，cases 1，2，4 and 9 才会被定位。
+            --leak-check=full，memcheck将针对definitely lost or probably lost给出更为详细的信息，甚至包括分配的地点。
+           
+    2.    Memcheck命令行选项：
+           1)    --leak-check=<no|summary|yes|full> [default: summary]
+                  如果是summary，则只是给出最后leak的汇总，如果是yes或者是full的话，将会给出比较详细的leak信息。
+                   
+           2)    --leak-resolution=<low|med|high> [default: high]
+                  用于合并leak信息来源的backtraces，如果low，当有两层匹配的时候就可以合并，mid是四层，high要求必须完全比配。该选项不会影响Memcheck查找leak的能力，只会影响结果的显示方式。
+           
+           3)    --show-reachable=<yes|no> [default: no]
+                  如果设置为yes，将获取全部的内存分配状况。
+                   
+           4)    --track-origins=<yes|no> [default: no]
+                  如果设置为yes，对于为初始化的变量（from heap or stack）能够非常好的定位到错误源，但是这也将导致程序的整体运行速度变慢和更大的内存开销。
+                   
+           5)    --freelist-vol=<number> [default: 20000000]
+                  <number>是按照byte来计算的，这个数字越大，检测出对已释放内存的无效访问的可能性越高。
+
+1. Callgrind收集程序运行时的一些数据，函数调用关系等信息，还可以有选择地进行cache 模拟。
+   在运行结束时，它会把分析数据写入一个文件。callgrind_annotate可以把这个文件的内容转化成可读的形式
+2. 它模拟CPU中的一级缓存I1,D1和L2二级缓存，能够精确地指出程序中cache的丢失和命中。
+   如果需要，它还能够为我们提供cache丢失次数，内存引用次数，以及每行代码，每个函数，每个模块，
+   整个程序产生的指令数。这对优化程序有很大的帮助
+
+二、Cachegrind:
+    Cachegrind通过模拟cpu的1,3级缓存，收集应用程序运行时关于cpu的一些统计数据，最后在将明细数据和汇总信息打印出来。
+   
+    1.    以下是cpu统计数据的一些术语缩写：
+           I cache reads (Ir, which equals the number of instructions executed), I1 cache read misses (I1mr) and LL cache instruction read misses (ILmr).
+           D cache reads (Dr, which equals the number of memory reads), D1 cache read misses (D1mr), and LL cache data read misses (DLmr).
+           D cache writes (Dw, which equals the number of memory writes), D1 cache write misses (D1mw), and LL cache data write misses (DLmw).
+           Conditional branches executed (Bc) and conditional branches mispredicted (Bcm).
+           Indirect branches executed (Bi) and indirect branches mispredicted (Bim).
+
+           Note that D1 total accesses is given by D1mr + D1mw, and that LL total accesses is given by ILmr + DLmr + DLmw.
+
+    2.    执行方式：
+           valgrind --tool=cachegrind your_application
+           以下为程序输出的统计信息：
+           ==31751== I   refs:      27,742,716
+           ==31751== I1  misses:           276
+           ==31751== LLi misses:           275
+           ==31751== I1  miss rate:        0.0%
+           ==31751== LLi miss rate:        0.0%
+           ==31751==
+           ==31751== D   refs:      15,430,290  (10,955,517 rd + 4,474,773 wr)
+           ==31751== D1  misses:        41,185  (    21,905 rd +    19,280 wr)
+           ==31751== LLd misses:        23,085  (     3,987 rd +    19,098 wr)
+           ==31751== D1  miss rate:        0.2% (       0.1%   +       0.4%)
+           ==31751== LLd miss rate:        0.1% (       0.0%   +       0.4%)
+           ==31751==
+           ==31751== LL misses:         23,360  (     4,262 rd +    19,098 wr)
+           ==31751== LL miss rate:         0.0% (       0.0%   +       0.4%)
+           
+           cachegrind的结果也会以输出文件的方式输出更多的细节，输出文件的缺省文件名是cachegrind.out.<pid>，其中<pid>是当前进程的pid。该文件名可以通过--cachegrind-out-file选择指定更可读的文件名，这个文件将会成为cg_annotate的输入。
+           
+    3.    cg_annotate:
+           cg_annotate <filename>
+           以下为cg_annotate执行后的统计信息的输出：
+           I1 cache:              65536 B, 64 B, 2-way associative
+           D1 cache:              65536 B, 64 B, 2-way associative
+           LL cache:              262144 B, 64 B, 8-way associative
+           Command:               concord vg_to_ucode.c
+           Events recorded:       Ir I1mr ILmr Dr D1mr DLmr Dw D1mw DLmw
+           Events shown:          Ir I1mr ILmr Dr D1mr DLmr Dw D1mw DLmw
+           Event sort order:      Ir I1mr ILmr Dr D1mr DLmr Dw D1mw DLmw
+           Threshold:             99%
+           Chosen for annotation:
+           Auto-annotation:       off
+
+           以下为cg_annotate执行后的明细信息的输出(function by function):
+           --------------------------------------------------------------------------------
+           Ir        I1mr ILmr Dr        D1mr  DLmr  Dw        D1mw   DLmw    file:function
+           --------------------------------------------------------------------------------
+            8,821,482    5    5 2,242,702 1,621    73 1,794,230      0      0  getc.c:_IO_getc
+            5,222,023    4    4 2,276,334    16    12   875,959      1      1  concord.c:get_word
+            2,649,248    2    2 1,344,810 7,326 1,385         .      .      .  vg_main.c:strcmp
+            2,521,927    2    2   591,215     0     0   179,398      0      0  concord.c:hash
+            2,242,740    2    2 1,046,612   568    22   448,548      0      0  ctype.c:tolower
+            1,496,937    4    4   630,874 9,000 1,400   279,388      0      0  concord.c:insert
+              897,991   51   51   897,831    95    30        62      1      1  ???:???
+              598,068    1    1   299,034     0     0   149,517      0      0  ../sysdeps/generic/lockfile.c:__flockfile
+              598,068    0    0   299,034     0     0   149,517      0      0  ../sysdeps/generic/lockfile.c:__funlockfile
+              598,024    4    4   213,580    35    16   149,506      0      0  vg_clientmalloc.c:malloc
+              446,587    1    1   215,973 2,167   430   129,948 14,057 13,957  concord.c:add_existing
+              341,760    2    2   128,160     0     0   128,160      0      0  vg_clientmalloc.c:vg_trap_here_WRAPPER
+              320,782    4    4   150,711   276     0    56,027     53     53  concord.c:init_hash_table
+              298,998    1    1   106,785     0     0    64,071      1      1  concord.c:create
+              149,518    0    0   149,516     0     0         1      0      0  ???:tolower@@GLIBC_2.0
+              149,518    0    0   149,516     0     0         1      0      0  ???:fgetc@@GLIBC_2.0
+               95,983    4    4    38,031     0     0    34,409  3,152  3,150  concord.c:new_word_node
+               85,440    0    0    42,720     0     0    21,360      0      0  vg_clientmalloc.c:vg_bogus_epilogue
+
+           注：以上数据中，如果某个column的value为dot,则意味着这个event在这个函数中没有发生。如果函数名中包含???:???,则不能从debug info中确定文件名，如果程序在编译的时候没有-g选项，将会有大量的这种未知信息。
+
+    4.    line by line 计算：
+           cg_annotate <filename> concord.c，将输出concord.c基于line的统计数据，如下：
+           --------------------------------------------------------------------------------
+           -- User-annotated source: concord.c
+           --------------------------------------------------------------------------------
+            Ir        I1mr ILmr Dr      D1mr  DLmr  Dw      D1mw   DLmw
+            .    .    .       .     .     .       .      .      .  void init_hash_table(char *file_name, Word_Node *table[])
+            3    1    1       .     .     .       1      0      0  {
+            .    .    .       .     .     .       .      .      .      FILE *file_ptr;
+            .    .    .       .     .     .       .      .      .      Word_Info *data;
+            1    0    0       .     .     .       1      1      1      int line = 1, i;
+            .    .    .       .     .     .       .      .      .
+            5    0    0       .     .     .       3      0      0      data = (Word_Info *) create(sizeof(Word_Info));
+            .    .    .       .     .     .       .      .      .
+        4,991    0    0   1,995     0     0     998      0      0      for (i = 0; i < TABLE_SIZE; i++)
+        3,988    1    1   1,994     0     0     997     53     52          table[i] = NULL;
+            .    .    .       .     .     .       .      .      .
+            .    .    .       .     .     .       .      .      .      /* Open file, check it. */
+            6    0    0       1     0     0       4      0      0      file_ptr = fopen(file_name, "r");
+            2    0    0       1     0     0       .      .      .      if (!(file_ptr)) {
+            .    .    .       .     .     .       .      .      .          fprintf(stderr, "Couldn't open '%s'.\n", file_name);
+            1    1    1       .     .     .       .      .      .          exit(EXIT_FAILURE);
+            .    .    .       .     .     .       .      .      .      }
+            .    .    .       .     .     .       .      .      .
+      165,062    1    1  73,360     0     0  91,700      0      0      while ((line = get_word(data, line, file_ptr)) != EOF)
+      146,712    0    0  73,356     0     0  73,356      0      0          insert(data->;word, data->line, table);
+            .    .    .       .     .     .       .      .      .
+            4    0    0       1     0     0       2      0      0      free(data);
+            4    0    0       1     0     0       2      0      0      fclose(file_ptr);
+            3    0    0       2     0     0       .      .      .  }
+           
+    5.    cg_diff file1 file2
+           用于比较两个输入文件的差异，这个工具可以用于在测试某个功能的性能，然后做出一些修改，然后比较前后的差异。
+           
+    6.    Cachegrind命令行选项：
+           --cache-sim=no|yes [yes]
+           指定是否收集cache accesses和miss counts
+       
+           --branch-sim=no|yes [no]
+           指定是否收集branch instruction和misprediction counts
+           
+    7.    cg_annotate命令行选项：
+           --show=A,B,C [default: all, using order in cachegrind.out.<pid>]
+           指定需要显示的events columns，如(--show=D1mr,DLmr) or (--show=DLmr,DLmw)
+       
+           --sort=A,B,C [default: order in cachegrind.out.<pid>]
+           指定function-by-function明细中排序需要基于的事件
+           
+           --threshold=X [default: 0.1%]
+           对输出的数据进行过滤，只要超过该阈值的明细信息才会被数据。
+           Sets the threshold for the function-by-function summary. A function is shown if it accounts for more than X% of the counts for the primary sort event. If auto-annotating, also affects which files are annotated.   
+           Note: thresholds can be set for more than one of the events by appending any events for the --sort option with a colon and a number (no spaces, though). E.g. if you want to see each function that covers more than 1% of LL read misses or 1% of LL write misses, use this option:
+           --sort=DLmr:1,DLmw:1
+       
+           --auto=<no|yes> [default: no]           
+           When enabled, automatically annotates every file that is mentioned in the function-by-function summary that can be found. Also gives a list of those that couldn't be found.
+       
+           --context=N [default: 8]
+           Print N lines of context before and after each annotated line. Avoids printing large sections of source files that were not executed. Use a large number (e.g. 100000) to show all source lines.
+
+           -I<dir> --include=<dir> [default: none]
+            指定source file的搜索路径，可以通过多个-I/--include来指定更多的目录。
+
+三、Callgrind:
+    1.    精确诊断部分代码片段：
+           --instr-atstart=no 在程序启动的时候将该选项设置为no, 这样程序就不会收集这些测试信息。当你准备开始测量你需要测量的代码片段时，再在另外的终端窗口中执行该命令 callgrind_control -i on 如果想要完成精确的测量，需要在该测量代码片段的前面定义该宏CALLGRIND_START_INSTRUMENTATION，在其后再定义CALLGRIND_STOP_INSTRUMENTATION。
+
+    2.    通过callgrind_control来dump指定函数的统计信息：
+           --dump-before=function：在进入该函数之前dump统计信息到文件；
+           --dump-after=function：在离开该函数之后dump统计信息到文件；
+           --zero-before=function：在进入该函数之前用0重置所有的计数器，在代码中添加该宏CALLGRIND_ZERO_STATS，可以更加精确的重置计数器为0.
+           以上选项可以被多次使用，以便指定多个函数。
+           
+    3.    Callgrind --cache-sim=yes 通过将该选项置为yes，可以模拟cache的行为，从而得到更多的关于cache的统计数据。
+           Callgrind --branch-sim=yes 通过将该选项置为yes，可以得到更多像低效的switch语句带来的性能问题。
+    4.    Callgrind命令行选项：
+           1)    --callgrind-out-file=<file>
+           指定profile data的输出文件，而不是缺省命名规则生成的文件。
+           
+           2)    --dump-line=<no|yes> [default: yes]
+           事件计数将以source line作为统计的粒度，但是要求源程序在编译的时候加入-g选项。
+           
+           3)    --collect-systime=<no|yes> [default: no]
+           This specifies whether information for system call times should be collected.   
+       
+    5.    callgrind_annotate命令行选项：(大部分选项和cg_annotate相同，以下两个选项为callgrind_annotate独有)
+           1)    --inclusive=<yes|no> [default: no]
+           在计算cost的时候，将callee的成本合并到caller的成本中。
+          
+           2)    --tree=<none|caller|calling|both> [default: none]
+           Print for each function their callers, the called functions or both.
+
+1. 它主要用来检查多线程程序中出现的竞争问题。Helgrind 寻找内存中被多个线程访问，而又没有一贯加锁的区域，
+   这些区域往往是线程之间失去同步的地方，而且会导致难以发掘的错误。Helgrind实现了名为" Eraser" 的竞争
+   检测算法，并做了进一步改进，减少了报告错误的次数。
+
+四、Helgrind：
+    1.    --track-lockorders=no|yes [default: yes]
+           是否在程序运行的过程中检测lock的加锁顺序，如果暂时不关心此类问题，可以考虑暂时关闭他     
+
+    2.    --read-var-info=yes
+           可以给出比较详细的变量声明地址
+           
+Massif
+    堆栈分析器，它能测量程序在堆栈中使用了多少内存，告诉我们堆块，堆管理块和栈的大小。Massif能帮助我们减少内存的使用，在带有虚拟内存的现代系统中，它还能够加速我们程序的运行，减少程序停留在交换区中的几率           

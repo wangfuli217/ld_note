@@ -1,0 +1,1 @@
+cmd_/home/jedi/.src/ldd/scull/scull.ko := ld -r -m elf_i386 -T /usr/src/kernels/2.6.32.11-99.fc12.i686.PAE/scripts/module-common.lds --build-id -o /home/jedi/.src/ldd/scull/scull.ko /home/jedi/.src/ldd/scull/scull.o /home/jedi/.src/ldd/scull/scull.mod.o

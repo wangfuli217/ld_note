@@ -1,0 +1,72 @@
+第一：Lua函数调用的总体流程
+在保护性调用的情况下，lua中函数调用的流程如下，非保护性调用的流程更加简单，请追踪lua_call函数
+
+int docall (lua_State *L, int narg, int nres)
+|
+—— int lua_pcallk (lua_State *L, int nargs, int nresults, int errfunc ...)
+   |
+   —— luaD_pcall (lua_State *L, Pfunc func, void *u,ptrdiff_t old_top, ptrdiff_t ef)
+      |
+      -- luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud) 
+         |
+         -- void f_call (lua_State *L, void *ud)
+            |
+            -- void luaD_call (lua_State *L, StkId func, int nResults, int allowyield)
+               |
+               -- int luaD_precall (lua_State *L, StkId func, int nresults)
+                  |
+                  -- luaD_poscall
+
+第二：函数调用的方式和异常处理
+    可以看到 luaD_rawrunprotected 函数调用的实际上是 f_call，真正调用的函数在f_call中被调用，封装这一层的意义就是为了实
+现保护性调用。保护性调用的情况下lua虚拟机使用lua_longjmp为函数实现堆栈续传功能，也就是当错误发生的时候，在Lua内部能够
+最终跳转到调用点继续向下执行。所有使用luaD_rawrunprotected函数的的调用都不会因为错误直接导致程序退出，而是回到调用点然
+后将状态返回给外层逻辑处理。
+//保护性调用
+int luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud) {
+  unsigned short oldnCcalls = L->nCcalls;
+  struct lua_longjmp lj;
+  lj.status = LUA_OK;
+  lj.previous = L->errorJmp;  /* chain new error handler */
+  L->errorJmp = &lj;
+  LUAI_TRY(L, &lj,
+    (*f)(L, ud); 当f函数调用出异常会回到这里继续向下走
+  );
+  L->errorJmp = lj.previous;  /* restore old error handler */
+  L->nCcalls = oldnCcalls;
+  return lj.status;
+}
+对于Lua而言，只有LUA_YIELD是被视为可恢复的异常  #define errorstatus(s)  ((s) > LUA_YIELD)，对于其他的错误就要报错了。
+    其实对于调用一个函数，无论是lua函数还是c函数，可以使用lua_pacall(lua_call)：这种方式的调用我们可以看到，在调用
+到 luaD_call 这个流程是，allowyield传的是0，也就是说是不允许挂起的，因此如果你在函数中如果使用了yield相关的函数试图挂起程
+序时候，再lua_yieldk中会报错：attempt to yield from outside a coroutine。因此我是不是可以理解为，如果你需要在函数中
+yield，就不能通过lua_pcall和lua_call的形式发起函数调用。当然还是有一种形式是使用lua_resume发起函数调用：我们知道
+resume的功能是唤醒一个挂起的线程（coroutine），当第一次调用的时候他只是简单的执行函数体，只有在之前有过yield挂起的记录
+之后再次调用resume才具备恢复线程的功能，这种方式是允许函数让出线程（yield挂起）的，下面会介绍到。
+LUA_API int lua_yieldk (lua_State *L, int nresults, lua_KContext ctx,
+                        lua_KFunction k) {
+    归纳一下上面的内容：如果你调用的是不会挂起线程的函数体或者函数块，使用lua_pcall(lua_call)以及lua_resume都能够正
+常执行函数，如果函数体中含有挂起线程的流程，必须使用lua_resume发起函数调用。
+
+第三：函数调用的核心函数
+    lua_precall是函数调用的前半部分，lua_postcall顾名思义对应函数调用的后半部分。如果调用的是C函数，那么在lua_precall中
+调整调整就直接调用了，然后直接调用lua_postcall函数调用就算结束了，然而如果是lua函数，需要交给lua虚拟机执行指令集调用，因
+此lua_precall只是将堆栈调整妥当，等到lvm执行完毕之后再执行lua_postcall，调整返回值。
+
+lua_postcall主要是调整函数调用后的堆栈，特别是调整返回值和函数调用链，代码描述还是挺清楚的。
+
+
+第四：关于续传函数的使用
+    上面提到了lua中函数调用的异常处理，依赖于ljmp进行异常恢复，但是如果调用链中在c函数中挂起，那么再次使
+用lua_resume试图恢复调用栈的时候，C中的堆栈已经丢失了。通俗点讲就是：你在一个函数A中yield，函数B中第一
+次resume开始执行A函数，当遇到yield时候调用流程被打断，线程被挂起，当你再次调用resume的时候，你希望的
+是回到A函数中继续执行A在yield函数下面的代码段，但是这个是做不到的，因为C的堆栈在Lua虚拟机中已经无从查找
+了！因此lua提供了续点函数来间接处理这个难题，你可以在lua_pcallk或者lua_callk中传入一个k函数，也就是续点函
+数，当你的调用中某个yield被resume唤醒的时候，由于并不能够回到这个C函数中继续执行，但是他回到你提供的k
+函数，让你作为一个中间的跳板做一下事情！这就是续点函数。lua_pcallk和lua_callk函数不能在最外层调用的，还是
+上面提到的这个问题，最外层的函数调用如果不是用lua_resume发起的话就会出现上面提到的错误。其实这个也好理
+解，因为你的函数中含有yield相关的代码段，因此你的function就是allowyield的，但是通过lua_pcallk和lua_callk实
+际上调用的都是luaD_call不允许allowyield的版本。
+LUA_API void lua_callk (lua_State *L, int nargs, int nresults,
+                        lua_KContext ctx, lua_KFunction k) {
+

@@ -1,0 +1,128 @@
+# REFERENCES
+https://wiki.netbsd.org/tutorials/pkgsrc/pbulk/
+http://www.perkin.org.uk/posts/distributed-chrooted-pkgsrc-bulk-builds.html
+http://www.silas.net.br/doc.notes/pkgsrc/pkgsrc-bulkbuild.html
+http://cvsweb.netbsd.org/bsdweb.cgi/pkgsrc/doc/HOWTO-pbulk?rev=1.8&content-type=text/x-cvsweb-markup
+http://www.netbsd.org/docs/pkgsrc/faq.html#fetch-https
+
+# be root
+# NOTE: 'sudo' doesn't exist until after you have pkgsrc... grrr....
+sudo bash
+
+# install pkgsrc, if needed
+# NOTE: 'git' doesn't exist until after you have pkgsrc... grrr....
+cd /usr
+git clone https://github.com/jsonn/pkgsrc.git --branch trunk --single-branch --depth 10000
+ >> NOTE: for /usr/src, use:
+ 	--branch netbsd_6_1 --no-single-branch --depth 10000
+
+# (SO MAYBE THE SCRIPT SHOUDLN'T START UNTIL HERE)
+# AND THEN IT CAN HAVE THE OPTION TO USE GIT
+# OR MAYBE IT SHOULD KNOW HOW TO BOOTSTRAP THE WHOLE PROCESS?
+# GITHUB HAS  THE "DOWNLOAD ZIP" OPTION :)
+# BUT MAYBE THE SCRIPT SHOULD BE DISTRIBUTED AS A PKGSRC PACKAGE, ANYWAY
+
+### REMEMBER TO HAVE A STEP TO UPDATE PKGSRC
+### AND MAYBE USE pkg_chk TO SEE WHAT INTERESTING CHANGES HAVE HAPPENED
+
+# install mksandbox
+cd /usr/pkgsrc/pkgtools/mksandbox
+make install
+
+# make a sandbox
+mksandbox --without-x /usr/sandbox
+ >> warning about /netbsd missing
+
+# configure sandbox to mount /var/spool and re-mount
+/usr/sandbox/sandbox umount
+vi /usr/sandbox/sandbox
+ >> manually add the line below to 'fses':
+	 /var/spool /var/spool rw \
+/usr/sandbox/sandbox mount
+
+# ENTER THE CHROOT
+chroot /usr/sandbox /bin/ksh
+
+# make directories where pbulk will expect to find them
+mkdir /bulklog
+mkdir /scratch
+
+# ...and with the right owner
+useradd pbulk
+ >> warning about no home directory
+chown pbulk /scratch
+
+# make a special place for pbulk to live
+cd /usr/pkgsrc/bootstrap
+./bootstrap --prefix=/usr/pkg_bulk --pkgdbdir=/usr/pkg_bulk/.pkgdb
+./cleanup
+
+# configure some settings for building pbulk
+echo >> /usr/pkg_bulk/etc/mk.conf
+echo "WRKOBJDIR=/usr/work" >> /usr/pkg_bulk/etc/mk.conf
+echo "DISTDIR=/usr/distfiles" >> /usr/pkg_bulk/etc/mk.conf
+echo "PACKAGES=/usr/packages" >> /usr/pkg_bulk/etc/mk.conf
+
+# build and install pbulk
+cd /usr/pkgsrc/pkgtools/pbulk
+env PATH=/usr/pkg_bulk/bin:/usr/pkg_bulk/sbin:${PATH} bmake install
+
+# configure pbulk
+vi /usr/pkg_bulk/etc/pbulk.conf
+ >> make these changes:
+ 	base_url=
+	reuse_scan_results=yes
+	master_mode=no
+	report_recipients="narthur-pkgsrc-bulk@rainskit.com"
+	report_subject_prefix="pkgsrc bulk build"
+	bootstrapkit=
+	make=/usr/bin/make
+	ulimit -t 1800 # set the limit on CPU time (in seconds)
+	ulimit -v 2097152 # limits process address space
+	limited_list=/etc/pkglist
+	packages=/usr/packages
+	rsync=:
+	#mail=:
+
+# configure (the chroot's) mk.conf
+vi /etc/mk.conf
+ >> make these changes:
+ 	FAILOVER_FETCH=yes
+	WRKOBJDIR=/scratch
+	PKGSRCDIR=/usr/pkgsrc
+	DISTDIR=/usr/distfiles
+	PACKAGES=/usr/packages
+	MAKE_JOBS=5
+	ALLOW_VULNERABLE_PACKAGES=yes
+	#DEPENDS_TARGET=package-install
+	NO_MULTI_PKG=
+
+# install wget; ftp can't do everything
+cd /usr/pkgsrc/net/wget
+make install package
+chown -R pbulk /scratch
+### XXX figure out what to do about all the leftover stuff in /scratch - can it be removed?
+### XXX same thing with /user/work
+
+# now tell pkgsrc to use it
+vi /etc/mk.conf
+ >> make these changes:
+	FETCH_USING=wget
+
+# run the build
+/usr/pkg_bulk/bin/bulkbuild
+
+### full reset
+cd /usr/pkgsrc/net/wget
+make clean
+make install package
+chown -R pbulk /scratch
+/usr/pkg_bulk/bin/bulkbuild
+
+### quick reset
+(rebuild wget and fix /scratch permissions)
+cd /usr/pkg_bulk/libexec/pbulk
+./scan
+./build
+
+

@@ -1,0 +1,309 @@
+.\" author: Pierre Cassat
+.TH  "piwi-bash-library" "3" "2014-12-20" "Version 0.2.0" "Piwi Bash Library Manual"
+.SH NAME
+.PP
+Piwi-Bash-Library - An open source day-to-day bash library.
+.SH SYNOPSIS
+.PP
+\fBpiwi-bash-library-script\fP [\fIcommon options\fP] [\fIscript options\fP [=\fIvalue\fP]] (\fI--\fP) [\fIarguments\fP] (\fI--\fP)
+.PP
+\fBpiwi-bash-library-script\fP  [\fB-h\fP|\fB-V\fP]  [\fB-x\fP|\fB-v\fP|\fB-i\fP|\fB-q\fP|\fB-f\fP]
+    [\fB--help\fP|\fB--usage\fP|\fB--man\fP]
+    [\fB--force\fP|\fB--help\fP|\fB--interactive\fP|\fB--quiet\fP|\fB--verbose\fP|\fB--debug\fP|\fB--dry-run\fP]
+    [\fB--version\fP|\fB--libversion\fP]
+    [\fB--logfile\fP \fI=filename\fP] [\fBworking-dir\fP \fI=path\fP]
+        [\fIscript options ...\fP]  (--)  [\fIarguments ...\fP]
+.PP
+\fBpiwi-bash-library-script\fP  [\fIcommon options\fP] 
+    [\fB-t\fP|\fB--target\fP \fI=path\fP]  [\fB--local\fP]
+    [\fB-b\fP|\fB--branch\fP \fI=branch\fP]  [\fB-r\fP|\fB--release\fP \fI=version\fP]
+    [\fB-p\fP|\fB--preset\fP \fI=(default dev user full)\fP]
+    [\fB-e\fP|\fB--exec\fP \fI='string to eval'\fP]
+        help | usage
+        version
+        check
+        install
+        update
+        uninstall
+        documentation
+        clean
+.SH DESCRIPTION
+.PP
+\fBBash\fP, the "\fIBourne-Again-SHell\fP", is a \fIUnix shell\fP written for the GNU Project as a
+free software replacement of the original Bourne shell (sh). The present library is a tool
+for Bash scripts facilities. To use the library, just include its source file using:
+`\fSsource path/to/piwi-bash-library.bash\fP` and call its methods.
+.PP
+The library is NOT a script doing some work itself except dealing with a copy of the library
+; it is just a library. This manual explains the library itself, its options and
+usage methods but you MAY keep in mind that the final manual page to read is the one of
+the real script you will call, using the tools of the library to build its own work. See the
+"\fIInterface\fP" section of this manual for information about the library interface (when calling
+it directly).
+.PP
+The following features are available using the library:
+.RS
+.IP \(bu 
+some common methods to work with \fIstrings\fP, \fIintegers\fP, \fIfiles\fP and \fIarrays\fP
+.IP \(bu 
+a management of information messages like \fIwarnings\fP and \fIerrors\fP
+.IP \(bu 
+a management of a simple \fIhelp or usage information\fP for each script (just defining some variables
+in the script)
+.IP \(bu 
+the creation of some \fIcolorized and stylized content\fP for terminal output: some methods are designed
+to wrap a string between colored or styled tags, according to the current system,
+and to build a colorized content using XML-like tags (`\fS<mytag>my content</mytag>\fP`)
+.IP \(bu 
+a management of a \fIconfiguration dotfile\fP for a script: some methods allow you to read, write,
+update and delete configuration values in a file
+.IP \(bu 
+a management of \fItemporary files\fP and \fIlog files\fP
+.IP \(bu 
+a management of \fIscript's options and arguments\fP (re-arrangement, loop etc)
+.IP \(bu 
+a set of \fIcommon options\fP (described in next "\fIOptions\fP" section) to let the user interact
+with the script, such as increase or decrease verbosity, make a dry run, ask to force 
+commands or to always prompt for confirmation
+.RE
+.PP
+For the library source code and messages outputs, we mostly try to follow the
+GNU coding standards <http://www.gnu.org/prep/standards/standards.html> to keep user in
+a known environment ...
+.PP
+For a complete information and a documentation, see <http://github.com/piwi/bash-library/wiki/>.
+.SH INTERFACE
+.PP
+When calling the library script itself from the command line, a user interface is available to
+deal (install/update/uninstall) with a copy of the library locally or globally in your 
+system (3rd synopsis form). To start with this interface, you can run:
+.RS
+
+.EX
+path/to/piwi-bash-library.bash (--less) help
+.EE
+.RE
+.PP
+A basic synopsis of the interface is:
+.RS
+
+.EX
+path/to/piwi-bash-library.bash -[common options] --target=path --preset=default action-name
+.EE
+.RE
+.PP
+See the "\fIOptions\fP" section below for specific options usage.
+.SS The following actions are available:
+.TP
+\fBcheck\fP
+check if your library is up-to-date
+.TP
+\fBdocumentation\fP
+see the library documentation ; use option \fBverbose\fP to increase verbosity ; you can
+add an `\fSmd\fP` prefix to get the documentation in Markdown format (\fBmddocumentation\fP)
+.TP
+\fBhelp\fP and \fBusage\fP
+get an 'help' and 'usage' information about the library
+.TP
+\fBinstall\fP
+install a copy of the library locally or in your system
+.TP
+\fBuninstall\fP
+uninstall a copy from a system path
+.TP
+\fBupdate\fP
+update the library with a newer version if so ; this will update the MINOR version
+.TP
+\fBversion\fP
+get the version information about the library ; use option \fBquiet\fP to get only
+the version number (alias of \fBlibversion\fP)
+.SH OPTIONS
+.PP
+Each script depending on the library may define its own options. Please report to the script's
+manpage or help string for more information.
+.SS The following common options are supported:
+.TP
+\fB--dry-run\fP
+see commands to run but do not run them actually ; this will define the environment variables 
+\fIDRYRUN\fP on \fItrue\fP and \fIINTERACTIVE\fP and \fIFORCED\fP on \fIfalse\fP
+.TP
+\fB-f\fP, \fB--force\fP
+force some commands to not prompt confirmation ; this will define the environment
+variables \fIFORCED\fP on \fItrue\fP and \fIVERBOSE\fP and \fIDEBUG\fP on \fIfalse\fP
+.TP
+\fB-h\fP, \fB--help\fP
+show an information message
+.TP
+\fB-i\fP, \fB--interactive\fP
+ask for confirmation before any action ; this will define the environment variables
+\fIINTERACTIVE\fP on \fItrue\fP and \fIFORCED\fP on \fIfalse\fP
+.TP
+\fB--libversion\fP
+see the library version ; use option \fIquiet\fP to only have the version number
+.TP
+\fB--log\fP \fIfilename\fP
+define the log filename to use (default is \fIpwibashlib.log\fP) ; this will update
+the environment variable \fILOGFILE\fP
+.TP
+\fB--man\fP
+try to open a manpage for current script if available, or show the help string otherwise
+.TP
+\fB-q\fP, \fB--quiet\fP
+decrease script verbosity, nothing will be written unless errors ; this will define
+the environment variables \fIVERBOSE\fP on \fIfalse\fP and \fIQUIET\fP on \fItrue\fP
+.TP
+\fB-v\fP, \fB--verbose\fP
+increase script verbosity ; this will define the environment variables \fIVERBOSE\fP on \fItrue\fP
+and \fIQUIET\fP on \fIfalse\fP
+.TP
+\fB-V\fP, \fB--version\fP
+see the script version when available ; use option \fBquiet\fP to only have the version number
+.TP
+\fB--working-dir\fP \fIpath\fP
+redefine the working directory (default is \fIpwd\fP) ; the `\fSpath\fP` argument must exist ; this will update
+the environment variable \fIWORKINGDIR\fP
+.TP
+\fB-x\fP, \fB--debug\fP
+enable debug mode ; this will define the environment variables \fIDEBUG\fP and \fIVERBOSE\fP on \fItrue\fP
+and \fIQUIET\fP on \fIfalse\fP
+.TP
+\fB--usage\fP
+show a quick usage information
+.PP
+You can group short options like `\fS-xc\fP`, set an option argument like `\fS-d(=)value\fP` or
+`\fS--long=value\fP` and use `\fS--\fP` to explicitly specify the end of the script options.
+Options are treated in the command line order (`\fS-vq\fP` will finally retain `\fS-q\fP`).
+.PP
+You can mix short options, long options and script arguments at your convenience.
+.PP
+In some cases, you can use an automatic long option named as a program like `\fS--less\fP` for the
+"less" program. If this program is installed in the system, it will be used for certain
+option rendering. For instance, a long "help" output can be loaded via `\fSless\fP` running:
+.RS
+
+.EX
+piwi-bash-library-script -h --less
+.EE
+.RE
+.SS Specific options of the library's interface:
+.PP
+Calling the library script itself to use its interface, you can use the following options:
+.TP
+\fB-b\fP, \fB--branch\fP \fIname\fP
+defines the GIT branch to use from the remote repository ; the branch MUST exist in the
+repository ; it defaults to "\fImaster\fP"
+.TP
+\fB-e\fP, \fB--exec\fP \fI\'bash string to evaluate'\fP
+a bash raw script string to evaluate in library's environment ; the execution will stop
+after the `\fSevaluate\fP` process (exclusive action) and exit with its last status
+.TP
+\fB--local\fP
+defines the current directory as target directory (alias of \fBtarget=pwd\fP)
+.TP
+\fB-p\fP, \fB--preset\fP \fItype\fP
+defines the preset type to use for an installation ; can be "\fIdefault\fP" (default value),
+"\fIuser\fP", "\fIdev\fP" or "\fIfull\fP" ; the value of this option will be used to define the
+files to install ; see the "\fIFiles\fP" section below for more information
+.TP
+\fB-r\fP, \fB--release\fP \fIversion_number\fP
+defines the GIT version tag to use from the remote repository ; the release MUST exist in the
+repository ; default behavior follows the \fBbranch\fP option
+.TP
+\fB-t\fP, \fB--target\fP \fIpath\fP
+defines the target directory of a copy installation ; if it does not exist, `\fSpath\fP` will
+be created ; it defaults to current path (`\fS$HOME/bin\fP`)
+.SH ENVIRONMENT
+.PP
+The library defines the followings environment variables:
+.TP
+COLOR_LIGHT COLOR_DARK COLOR_INFO COLOR_NOTICE COLOR_WARNING COLOR_ERROR COLOR_COMMENT
+a set of predefined colors
+.TP
+VERBOSE QUIET DEBUG INTERACTIVE FORCED
+the library flags, activated by script common options (see previous section)
+.TP
+USEROS USERSHELL SHELLVERSION
+the current user operating system, binary shell in use and bash version
+.TP
+NAME VERSION DATE DESCRIPTION_USAGE LICENSE_USAGE HOMEPAGE_USAGE SYNOPSIS_USAGE OPTIONS_USAGE
+these are used to build the help information of the scripts ; they may be defined for each script
+.TP
+SYNOPSIS_MANPAGE DESCRIPTION_MANPAGE OPTIONS_MANPAGE EXAMPLES_MANPAGE EXIT_STATUS_MANPAGE FILES_MANPAGE ENVIRONMENT_MANPAGE COPYRIGHT_MANPAGE BUGS_MANPAGE AUTHOR_MANPAGE SEE_ALSO_MANPAGE
+these are used to build man-pages and help information ; they may be defined for each script
+.TP
+NAME VERSION DATE PRESENTATION COPYRIGHT LICENSE SOURCES ADDITIONAL_INFO
+these are used to build the version string of the scripts ; they may be defined for each script
+.TP
+SCRIPT_OPTS SCRIPT_ARGS SCRIPT_PROGRAMS OPTIONS_ALLOWED LONG_OPTIONS_ALLOWED ARGIND ARGUMENT
+these are used for options and arguments ; see the documentation for more informations
+.TP
+LOREMIPSUM LOREMIPSUM_SHORT LOREMIPSUM_MULTILINE
+these are defined for tests with sample strings
+.TP
+CMD_OUT CMD_ERR CMD_STATUS
+these are defined after usage of the `\fSevaluate()\fP` method or derivatives with respectively the STDOUT, STDERR and
+exit STATUS of the evaluated command
+.SH EXIT STATUS
+.PP
+The library defines and uses some specific error status:
+.TP
+\fIE_ERROR\fP = \fB90\fP
+classic error
+.TP
+\fIE_OPTS\fP = \fB81\fP
+script options error
+.TP
+\fIE_CMD\fP = \fB82\fP
+missing command error
+.TP
+\fIE_PATH\fP = \fB83\fP
+path not found error
+.SH FILES
+.TP
+\fBpiwi-bash-library.bash\fP | \fBpiwi-bash-library\fP
+the standalone library source file
+.TP
+\fBpiwi-bash-library.man\fP
+the manpage of the library, installed in section 3 of system manpages for global installation
+.TP
+\fBpiwi-bash-library-README.md\fP (optional)
+the standard README file of the version installed (Markdown syntax) ; it is installed
+by the interface using the "user" or "full" presets
+.TP
+\fBpiwi-bash-library-DOC.md\fP (optional)
+the development documentation file of the version installed (Markdown syntax) ; it
+is installed by the interface using the "dev" or "full" presets
+.SH LICENSE
+.PP
+Copyleft (ↄ) 2013-2015, Pierre Cassat & contributors
+<http://e-piwi.fr/> - Some rights reserved.
+.PP
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+.PP
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+.PP
+For sources & updates, see <http://github.com/piwi/bash-library>.
+.PP
+For documentation, see <http://github.com/piwi/bash-library/wiki/>.
+.PP
+To read GPL-3.0 license conditions, see <http://www.gnu.org/licenses/gpl-3.0.html>.
+.SH BUGS
+.PP
+To transmit bugs, see <http://github.com/piwi/bash-library/issues>.
+.SH AUTHOR
+.PP
+The \fIpiwi-bash-library\fP is created and maintained by Pierre Cassat 
+(piwi - <http://e-piwi.fr/> - <me [at] e-piwi.fr>) & contributors.
+.SH SEE ALSO
+.PP
+bash(1), sed(1), grep(1), printf(1), echo(1), tput(1), uname(1), getopt(1), getopts(1)
+

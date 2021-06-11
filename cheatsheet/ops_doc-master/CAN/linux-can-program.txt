@@ -1,0 +1,133 @@
+https://github.com/linux-can/can-utils
+
+Socket-CAN-mgt和Socket-CAN.txt(中) can.txt(英) 有虚拟can总线和can总线 通过ip命令的操作信息。
+
+
+
+SocketCAN userspace utilities and tools
+
+1. Basic tools to display, record, generate and replay CAN traffic
+    candump : display, filter and log CAN data to files  candump日志文件可以被log2asc 和log2long 解析
+    "(%010ld.%06ld) %*s %s
+     (  秒  . 毫秒) 接口名称 can_id(hexstring) # data(hexstring) 见: lib.h 中sprint_canframe函数说明
+    canplayer : replay CAN logfiles
+    -v verbose
+    setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, NULL, 0); 不需要接收报文 -> 而candump不需要发送报文
+    
+    cansend : send a single frame
+    根据指定的vcan接口和数据内容发送对应的数据，帧包括: 数据帧和遥控帧，数据帧可以包含数据，遥控帧不能包含数据，可以指定长度
+    
+    cangen : generate (random) CAN traffic
+    根据参数随机或者指定产生特定的CANFrame。 模式有：指定值、随机值、递增值。
+    模式适用于: CANID, CANFrame长度和CANFrame内容。
+    
+    cansniffer : display CAN data content differences (just 11bit CAN IDs)
+    可定制过滤canid的侦探器。
+    
+2. CAN access via IP sockets
+    canlogserver : log CAN frames from a remote/local host
+    CAN_RAW使得本地或者远程TCP连接能够获得CAN接口读到的数据
+    
+    bcmserver : interactive BCM configuration (remote/local)
+    CAN_BCM方式实现: 将CAN接口的数据转发给TCP连接客户端，将TCP客户端的数据转发给CAN接口。
+    
+    socketcand : use RAW/BCM/ISO-TP sockets via TCP/IP sockets
+
+3. CAN in-kernel gateway configuration
+    cangw : CAN gateway userpace tool for netlink configuration
+    实现两条can总线之间数据转发
+    
+4. CAN bus measurement and testing
+    canbusload : calculate and display the CAN busload
+    can-calc-bit-timing : userspace version of in-kernel bitrate calculation
+    canfdtest : Full-duplex test program (DUT and host part)
+    
+5. ISO-TP tools ISO15765-2:2016 for Linux
+    isotpsend : send a single ISO-TP PDU
+    isotprecv : receive ISO-TP PDU(s)
+    isotpsniffer : 'wiretap' ISO-TP PDU(s)
+    isotpdump : 'wiretap' and interpret CAN messages (CAN_RAW)
+    isotpserver : IP server for simple TCP/IP <-> ISO 15765-2 bridging (ASCII HEX)
+    isotpperf : ISO15765-2 protocol performance visualisation
+    isotptun : create a bi-directional IP tunnel on CAN via ISO-TP
+    
+6. Log file converters  log2asc 产生的数据可以被asc2log解析;  candump日志文件可以被log2asc 和log2long 解析
+    asc2log : convert ASC logfile to compact CAN frame logfile
+    log2asc -I candump-2019-10-16_161142.log -4 -n vcan0 | asc2log -v 
+    
+    /* 0.002367 1   390x  Rx d     8      17 00 14 00 C0 00 08 00 */ 转换成 "(%ld.%06ld) " -- 时间 canx -- 接口 12345678#112233
+    /* 秒.毫秒 接口 canid   帧类型 帧长度 帧数据 ... ...      ... */
+    log2asc : convert compact CAN frame logfile to ASC logfile              # hexstring   用hexstring展示所有内容
+    log2asc -I candump-2019-10-16_161142.log -4 -n vcan0
+    
+    log2long : convert compact CAN frame representation into user readable  # ascistring  用ascistring展示可以被打印字符(不可打印和非ascii用.代替)
+    cat candump-2019-10-16_161142.log | log2long
+    
+7. Serial Line Discipline configuration (for slcan driver)
+    slcan_attach : userspace tool for serial line CAN interface configuration
+    slcand : daemon for serial line CAN interface configuration
+    slcanpty : creates a pty for applications using the slcan ASCII protocol
+    
+--------------------
+cansend can0 0x11 0x22 0x33 0x44 0x55 0x66 0x77 0x88
+发送默认ID为0x1的can标准帧，数据为0x11 22 33 44 55 66 77 88 每次最大8个byte
+
+cansend can0 -i 0x800 0x11 0x22 0x33 0x44 0x55 0x66 0x77 0x88 -e
+-e 表示扩展帧，CAN_ID最大29bit，标准帧CAN_ID最大11bit 
+-i表示CAN_ID
+
+cansend can0 -i 0x02 0x11 0x12 --loop=20
+--loop 表示发送20个包
+
+candump can0
+接收CAN0数据
+
+    
+    -a (%010ld.%06ld)  秒.毫秒
+    -A ("%Y-%m-%d %H:%M:%S".%06ld) 年-月-日 时:分:秒 . 毫秒
+    -d (%03ld.%06ld) 报文之间时间差，
+    -z (%03ld.%06ld) 当前报文和初始报文之间时间差
+candump
+candump -c -c -ta can0,123:7FF,400:700,#000000FF can2,400~7F0 can3 can8
+candump -l any,0~0,#FFFFFFFF    (log only error frames but no(!) data frames)
+candump -l any,0:0,#FFFFFFFF    (log error frames and also all data frames)
+candump vcan2,12345678:DFFFFFFF (match only for extended CAN ID 12345678)
+candump vcan2,123:7FF (matches CAN ID 123 - including EFF and RTR frames)
+candump vcan2,123:C00007FF (matches CAN ID 123 - only SFF and non-RTR frames)
+
+ -l 选项和-s选项之间存在关联关系； === -l决定stdout输出为slient模式。
+ -l 选项和asc2log log2asc log2long之间存在关联关系；同canplayer也存在关联关系
+ -L 选项将日志输出到stdout, 该选项和 -i -a 和 -S之间互斥关系。 -L前台打印和-l后台日志内容完全一致。
+ -i -a 和 -S 与 -s组成的前台打印之间存在关联关系； -s决定是否输出到前端，-i -a -S决定输出到前端的内容的格式
+ 
+logfrmt -L 和 log -l 都需要时间戳，时间戳来源
+ -T select 阻塞等待超时时间值，多久没有读写异常消息的时候，进行时间值超时。
+    select 只进行读事件关注 socket为SOCK_RAW形式
+    
+    for (cmsg = CMSG_FIRSTHDR(&msg);
+         cmsg && (cmsg->cmsg_level == SOL_SOCKET);
+         cmsg = CMSG_NXTHDR(&msg,cmsg)) {
+    SO_TIMESTAMP
+    SO_TIMESTAMPING
+    SO_RXQ_OVFL
+ }
+ 
+* SO_TIMESTAMP 
+    Generates a timestamp for each incoming packet in (not necessarily
+    monotonic) system time. Reports the timestamp via recvmsg() in a
+    control message as struct timeval (usec resolution).
+
+* SO_TIMESTAMPNS
+    Same timestamping mechanism as SO_TIMESTAMP, but reports the
+    timestamp as struct timespec (nsec resolution).
+
+* SO_TIMESTAMPING
+    Generates timestamps on reception, transmission or both. Supports
+    multiple timestamp sources, including hardware. Supports generating
+    timestamps for stream sockets.
+SOF_TIMESTAMPING_SOFTWARE， SOF_TIMESTAMPING_RX_SOFTWARE， SOF_TIMESTAMPING_RAW_HARDWARE 用于选项
+
+"candump-%04d-%02d-%02d_%02d%02d%02d.log"
+ candump-year--mon-mond_hour|min|sec.log
+
+

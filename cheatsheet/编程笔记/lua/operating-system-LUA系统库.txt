@@ -1,0 +1,162 @@
+系统库简介
+    Lua为了保证高度的可移植性，因此，它的标准库仅仅提供了非常少的功能，特别是和OS相关的库。
+    但是Lua还提供了一些扩展库，比如Posix库等。
+    对于文件操作而言，该库仅提供了os.rename函数和os.remove函数。
+os.time && os.date  
+    1. 日期和时间：
+os.time ([table])
+    功能：按table的内容返回一个时间值(数字),若不带参数则返回当前时间
+        table的字段：
+        year, month, day, hour, min, sec, isdst
+        print(os.time());
+        -->1249887340
+        print(os.time({year=1970, month=1, day=1, hour=0}));
+        -->10500
+
+    在Lua中，函数time和date提供了所有的日期和时间功能。
+    如果不带任何参数调用time函数，它将以数字形式返回当前的日期和时间。如果以一个table作为参数，它将返回一个数字，表示该table中所描述的日期和时间。该table的有效字段如下：
+    字段名 	描述
+    year 	一个完整的年份
+    month 	01-12
+    day 	01-31
+    hour 	00-23
+    min 	00-59
+    sec 	00-59
+    isdst 	布尔值，true表示夏令时
+
+    print(os.time{year = 1970, month = 1, day = 1, hour = 8, min = 0}) --北京是东八区，所以hour等于时表示UTC的0。
+    print(os.time())  --输出当前时间距离1970-1-1 00:00:00所经过的秒数。输出值为 1333594721
+    函数date是time的反函数，即可以将time返回的数字值转换为更高级的可读格式，其第一个参数是格式化字符串，表示期望的日期返回格式，第二个参数是日期和时间的数字，缺省为当前日期和时间。如：
+
+os.date ([format [, time]])
+    功能：返回一个按format格式化日期、时间的字串或表
+    若设置time参数，则按time指定的时间格式化，否则按当前时间格式化
+    参数：
+    format:
+         "!":按格林尼治时间进行格式化。
+  　　　　"*t":将返一个带year(4位),month(1-12), day (1--31), hour (0-23), min (0-59), sec (0-61), wday (星期几, 星期天为1), yday (年内天数), and isdst (是否为日光节约时间true/false)的带键名的表; 若没有"*t"则返回一个按C的strftime函数格式化的字符串
+    若不带参数，则按当前系统的设置返回格式化的字符串 os.date() <=> os.date("%c")
+  
+    dd = os.date("*t",os.time())  --如果格式化字符串为"*t"，函数将返回table形式的日期对象。如果为"!*t"，则表示为UTC时间格式。
+    print("year = " .. dd.year)
+    print("month = " .. dd.month)
+    print("day = " .. dd.day)
+    print("weekday = " .. dd.wday)  --一个星期中的第几天，周日是第一天
+    print("yearday = " .. dd.yday)  --一年中的第几天，1月1日是第一天
+    print("hour = " .. dd.hour)
+    print("min = " .. dd.min)
+    print("sec = " .. dd.sec)
+        
+    --[[
+    year = 2012
+    month = 4
+    day = 5
+    weekday = 5
+    yearday = 96
+    hour = 11
+    min = 13
+    sec = 44
+    --]]
+
+
+    date函数的格式化标识和C运行时库中的strftime函数的标识完全相同，见下表：
+    关键字 	    描述
+    %a 	        一星期中天数的缩写，如Wed
+    %A 	        一星期中天数的全称，如Friday
+    %b 	        月份的缩写，如Sep
+    %B 	        月份的全称，如September
+    %c 	        日期和时间
+    %d 	        一个月中的第几天(01-31)
+    %H 	        24小时制中的小时数(00-23)
+    %I 	        12小时制中的小时数(01-12)
+    %j 	        一年中的第几天(001-366)
+    %M 	        分钟(00-59)
+    %m 	        月份(01-12)
+    %p 	        "上午(am)"或"下午(pm)"
+    %S 	        秒数(00-59)
+    %w 	        一星期中的第几天(0--6等价于星期日--星期六)
+    %x 	        日期，如09/16/2010
+    %X 	        时间，如23:48:20
+    %y 	        两位数的年份(00-99)
+    %Y 	        完整的年份(2012)
+    %% 	        字符'%'
+    print(os.date("%Y-%m-%d"))  --输出2012-04-05
+    print(os.date("today is %A, in %B"))      -->today is Tuesday, in May
+    print(os.date("%x", 906000490))           -->09/16/1998
+
+os.difftime (t2, t1)
+    功能：返回t1到t2相差的秒数
+    例如：
+    t1 = os.time();
+    for i = 0, 10000000 do
+    os.time();
+    end
+    t2 = os.time();
+    print(os.difftime(t2, t1));
+
+os.clock
+    函数os.clock()返回CPU时间的描述，通常用于计算一段代码的执行效率。如：
+    local x = os.clock()
+    local s = 0
+    for i = 1, 10000000 do 
+        s = s + i 
+    end
+    print(string.format("elapsed time: %.2f\n", os.clock() - x))
+    
+    --输出结果为：
+    --elapsed time: 0.21    
+
+
+
+2. 其他系统调用：
+os.execute函数用于执行和操作系统相关的命令，
+    功能：相当于C的system函数,返回系统状态码
+    os.execute("pause")
+    os.execute("mkdir " .. "hello")
+    
+os.exit ([code])
+    功能：相当于C的exit函数,终止主程序,code为返回值
+        os.exit(1)
+        
+os.getenv (varname)-
+    功能：返回当前进程的环境变量varname的值,若变量没有定义时返回nil
+    print(os.getenv("USERDOMAIN"))
+    print(os.getenv("SystemRoot"))
+    print(os.getenv("Os2LibPath"))
+    print(os.getenv("ProgramFiles" ))
+    print(os.getenv("APPDATA" ))
+    print(os.getenv("ALLUSERSPROFILE" ))
+    print(os.getenv("CommonProgramFiles" ))
+    print(os.getenv("COMPUTERNAME" ))
+    print(os.getenv("USERNAME"))
+    print(os.getenv("USERPROFILE" ))
+    print(os.getenv("ComSpec"))
+    print(os.getenv("LOGONSERVER" ))
+    print(os.getenv("NUMBER_OF_PROCESSORS" ))
+    print(os.getenv("OS"))
+    print(os.getenv("PATHEXT" ))
+    print(os.getenv("PROCESSOR_ARCHITECTURE" ))
+    print(os.getenv("PROCESSOR_IDENTIFIER" ))
+    print(os.getenv("PROCESSOR_LEVEL" ))
+    print(os.getenv("PROCESSOR_REVISION" ))
+    print(os.getenv("USERDOMAIN"))
+    print(os.getenv("SystemRoot" ))
+    print(os.getenv("TEMP"))
+    
+os.remove (filename)
+    功能：删除文件或一个空目录,若函数调用失败则返加nil加错误信息
+
+os.rename (oldname, newname)
+    功能：更改一个文件或目录名,若函数调用失败则返加nil加错误信息
+
+os.setlocale (locale [, category])
+    功能：设置程序的当前设置,函数返回最新的值，失败则返回nil
+　       locale：一个指定当前设置的字串
+　       　　　 "":一个空字串，当前设置被视为本地设置
+　       　　　"c":当前设置被视为标准c设置
+ 　      　　 nil:返回category指示设置名的当前值
+　       category：一个描述要更改的设置名
+            "all"[默认], "collate", "ctype", "monetary", "numeric", "time"
+os.tmpname()
+    功能：返回一个临时文件名
+            

@@ -1,0 +1,52 @@
+#cp ./tmux.conf ~/.tmux.conf
+#9-23
+
+#水平或垂直分割窗口
+#unbind '"'
+bind - splitw -v # 分割成上下两个窗口
+#unbind %
+bind | splitw -h # 分割成左右两个窗口
+bind \ splitw -h # 分割成左右两个窗口
+#选择分割的窗格
+bind k selectp -U # 选择上窗格
+bind j selectp -D # 选择下窗格
+bind h selectp -L # 选择左窗格
+bind l selectp -R # 选择右窗格
+#重新调整窗格的大小
+bind ^k resizep -U 10 # 跟选择窗格的设置相同，只是多加 Ctrl（Ctrl-k）
+bind ^j resizep -D 10 # 同上
+bind ^h resizep -L 10 # ...
+bind ^l resizep -R 10 # ...
+#交换两个窗格
+bind U swapp -U # 与上窗格交换 Ctrl-u
+bind D swapp -D # 与下窗格交换 Ctrl-d
+#bind A-l swapp -L # 与上窗格交换 Ctrl-l
+#bind A-r swapp -R # 与下窗格交换 Ctrl-r
+#此类配置可以在命令行模式中输入show-options -g查询
+set-option -g base-index 1 #窗口的初始序号；默认为0，这里设置为1
+set-option -g display-time 5000 #提示信息的持续时间；设置足够的时间以避免看不清提示，单位为毫秒
+set-option -g repeat-time 1000 #控制台激活后的持续时间；设置合适的时间以避免每次操作都要先激活控制台，单位为毫秒
+set-option -g status-keys vi #操作状态栏时的默认键盘布局；可以设置为vi或emacs
+set-option -g status-right "#(date +%H:%M' ')" #状态栏右方的内容；这里的设置将得到类似23:59的显示
+set-option -g status-right-length 10 #状态栏右方的内容长度；建议把更多的空间留给状态栏左方（用于列出当前窗口）
+set-option -g status-utf8 on #开启状态栏的UTF-8支持
+#此类设置可以在命令行模式中输入show-window-options -g查询
+set-window-option -g mode-keys vi #复制模式中的默认键盘布局；可以设置为vi或emacs
+#set-window-option -g utf8 on #开启窗口的UTF-8支持
+#将激活控制台的快捷键由Ctrl+b修改为Ctrl+a
+#set-option -g prefix C-a
+#unbind-key C-b
+#bind-key C-a send-prefix
+#添加自定义快捷键
+bind-key z kill-session #按z结束当前会话；相当于进入命令行模式后输入kill-session
+#bind-key h select-layout even-horizontal #按h将当前面板布局切换为even-horizontal；相当于进入命令行模式后输入select-layout even-horizontal
+#bind-key v select-layout even-vertical #按v将当前面板布局切换为even-vertical；相当于进入命令行模式后输入select-layout even-vertical
+#当 tmux 启动时，可以默认启动一些应用：
+#new -s work mutt # 新建名为 work 的会话，并启动 muttneww rtorrent
+#neww rtorrent # 启动 rtorrent
+#neww vim # 启动 vim
+#neww zsh
+#selectw -t 3 # 默认选择标号为 3 的窗口
+#执行命令，比如看 Manpage、查 Perl 函数
+bind m command-prompt "splitw -h 'exec man %%'"
+bind @ command-prompt "splitw -h 'exec perldoc -f %%'"

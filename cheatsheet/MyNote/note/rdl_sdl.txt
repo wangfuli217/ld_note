@@ -1,0 +1,46 @@
+sdl		OPENBILLING6.0里用来定义存放数据的数据结构的一种语言
+rdl		资源定义语言
+
+sdl定义
+	语法:	sdl sdl文件名列表,文件名用单引号引起来,多个文件名用逗号分隔
+	例:
+		# 将对应产生 #include "billing/xdr_sdl_c.h" 和 #include "common/customer_sdl_c.h"
+		sdl 'billing/xdr.sdl','common/customer.sdl'
+	fs：代表各类文件系统，包括null、debug、local、file、ftp等（其中local和file代表本地文件系统，后续会对不支持FUSE的分布式文件系统的提供支持）；
+kv：代表各类key/value的存储，包括aimdb、memcached、redis、shmkv等；
+rdbms：各种关系数据库，包括oracle、sqlite、mysql等；
+queue：各种队列。
+
+一个做参考的规划方式为：\系统名称\模块名称[\资源分类]\资源名
+
+
+
+resource命令	#定义系统中的逻辑资源
+	语法:	resource URI字符串 [选项][do...end]
+	其中：
+	1）URI字符串的scheme只能是fs、kv、rdbms、queue之一，然后跟path；
+	2）“选项”部分目前支持：
+	“:state_mgr => 类名”，表示当前resource的所有REST函数都作为“类名”的成员函数，从而使得这些函数都是有状态的，其应用场合通常有访问mdb和rdbms；
+	“:name => 类名”，表示仍然使用无状态的REST函数，但把这些函数放到“类名”下，成为静态函数，其应用场合通常有fs和queue。
+	3）do ... end 可以被省略，其中可以有：list、get、post、put、delete、copy、move 等命令。
+
+定义访问函数的参数（get等命令）
+	语法：get :in => { 入参变量名 => 类型 [, ...] }, :out => { 出参变量名 => 类型 [, ...] }
+	其中：
+		:in 用于定于输入参数，只有 post 和 put 函数可以定义 :in；
+		:out 用于定义输出参数，list、get、post和put函数可以定义 :out；
+	注意：
+		变量名一定要用冒号开始，变量命名同于C++/Java变量名；
+		类型则是SDL中允许的各种数据类型。
+
+key命令:	#定义kv类资源的key,key中只能是简单的数据类型，如字符串、整型、日期和时间
+	语法：key :变量名 => 变量类型……
+	resource 'kv:/cache/product' do
+		key	:acct_id => 'int64'
+	end
+	
+rdl2cpp命令		#产生对应的C++代码
+	语法:	rdl2cpp -g RDL文件名
+
+
+	

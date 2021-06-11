@@ -1,0 +1,84 @@
+
+https://blog.csdn.net/u010168781/article/details/88558858
+1、简介
+---------------
+函数原型
+
+QIcon QIcon::fromTheme(const QString &name)
+QIcon QIcon::fromTheme(const QString &name, const QIcon &fallback)
+上述两个函数可以从系统主题中获取图标，后者可以在主题中找不到图标时，再使用自己定义的图标，使用方法如下：
+ QIcon undoicon = QIcon::fromTheme("edit-undo");
+ QIcon undoicon = QIcon::fromTheme("edit-undo", QIcon(":/undo.png"));
+ 
+2、主题图标
+---------------
+官方说明
+最新版本的freedesktop图标规范和命名规范可以在这里获得:
+图标规则，图标格式、保存图标的默认目录
+http://standards.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html
+命名规范：如例子中的"edit-undo"
+http://standards.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
+存放图标的目录：
+
+$HOME/.icons、$XDG_DATA_DIRS/icons、 /usr/share/pixmaps
+我的XDG_DATA_DIRS环境变量：
+
+$ echo $XDG_DATA_DIRS
+/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/
+图标格式
+
+支持的图像文件格式为PNG，XPM和SVG。PNG是推荐的位图格式，SVG用于矢量化图标。由于向后兼容性的原因，支持XPM，
+并且不建议新主题使用XPM文件。支持SVG是可选的
+
+
+
+    QIcon 类代表图标，实现在 QtGui 共享库中。QIcon 对象可以认为是一系列图像的组合，
+每个图像代表窗口在某种状态下应该1显示的图标。
+
+1. 构造
+    QIcon 类支持以下构造函数：
+    QIcon();                          // 构造一个空图像构成的图标
+    QIcon(const QPixmap &pixmap);     // 从 Pixmap 对象构造函数
+    QIcon(const QString &filename);   // 从图像文件构造图标
+    当从 QPixmap 对象构造图标时，系统会自动产生窗口不同状态下对应的图像，比如窗口
+在禁用状态下其图标为灰色。从文件构造图标时，文件并不是立刻加载，而是当图标要显示时才加载。
+
+2. 添加图像
+下面的成员函数可以从图像文件中向 QIcon 对象添加图像：
+void addFile(const QString &filename, const QSize &size = QSize(), Mode mode = Normal, State state = Off);
+    其中各个参数的含义解释如下。
+    1）filename：文件名。
+    2）size：指定大小。
+    3）mode：指定使用模式，即窗口在何种状态下使用这个图像。
+    4）state：指定使用状态。
+    
+    Mode 为 QIcon 类的成员类型，有以下取值。
+    1）QIcon::Normal：    窗口为使能状态，但未激活。
+    2）QIcon::Disabled：  窗口为禁用状态。
+    3）QIcon::Active：    窗口为激活状态。
+    4）QIcon::Selected：  窗口被选中。
+         
+    当窗口的状态切换时，默认的图标绘制函数会自动根据窗口的状态重绘图标。如果窗口还有所谓的开关状态
+(比如一个按钮可以有按下和弹起两个状态)，则还可以根据 state 参数来选择不同的图像。state 参数为 State 类型，
+这也是一个 QIcon 类的成员类型，它有以下取值。
+     QIcon::Off：窗口在关状态。
+     QIcon::On： 窗口在开状态。
+     
+    另外一个成员函数可以直接将 QPixmap 对象添加到 QIcon 对象中：
+void addPixmap(const QPixmap &pixmap, Mode mode = Normal, State state = Off);
+    这里的 pixmap 参数是要添加的 QPixmap 对象，mode 参数和 state 参数的含义与 addFile 函数中相同。
+
+3. 获取图像
+    下面的成员函数可以获取 QIcon 对象中的图像：
+QPixmap pixmap(const QSize &size, Mode  mode = Normal, State state = Off) const;
+    其中参数 size 是指定的大小，参数 mode 和 state 则是使用模式和状态。这个函数还有以下重载版本：
+    QPixmap pixmap(int w, int h, Mode mode = Normal, State state = Off) const;
+    QPixmap pixmap(int extent, Mode mode = Normal, State state = Off) const;
+         它们分别等价于以下的函数调用：
+    pixmap(QSize(w, h), mode, state);
+    pixmap(QSize(extent,, extent), mode, state);
+         注意返回的图像大小可能比指定的小，但不会比指定的大。  
+
+4. 判断
+    以下成员函数可以判断 QIcon 对象是否为空图像构成的图标：         
+    bool isNull() const;     // 判断是否为空图像构成的图标

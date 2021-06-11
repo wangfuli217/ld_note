@@ -1,0 +1,385 @@
+####################### Java 类对象  #######################
+Class 类的实例表示正在运行的 Java 应用程序中的类和接口。枚举是一种类，注释是一种接口。每个数组属于被映射为 Class 对象的一个类，
+    所有具有相同元素类型和维数的数组都共享该 Class 对象。基本的 Java 类型（boolean、byte、char、short、int、long、float 和 double）
+    和关键字 void 也表示为 Class 对象。 
+Class 没有公共构造方法。Class 对象是在加载类时由 Java 虚拟机以及通过调用类加载器中的 defineClass 方法自动构造的。 
+
+以下示例使用 Class 对象来显示对象的类名： 
+     void printClassName(Object obj) {
+         System.out.println("The class of " + obj +
+                            " is " + obj.getClass().getName());
+     }
+ 还可以使用一个类字面值（JLS Section 15.8.2）来获得命名类型（或 void）的 Class 对象。例如： 
+     System.out.println("The name of class Foo is: "+Foo.class.getName());
+
+Class对象的生成方式如下：
+1.Class.forName("类名字符串")
+2.类名.class
+3.实例对象.getClass()
+
+public class TestClass {  
+public  static void main(String[] args)  
+{  
+    try {  
+        //测试Class.forName()  
+        Class testTypeForName=Class.forName("TestClassType");     ## 初始化类的静态变量     
+        System.out.println("testForName---"+testTypeForName);  
+        //测试类名.class  
+        Class testTypeClass=TestClassType.class;                  ## 不做任何处理
+        System.out.println("testTypeClass---"+testTypeClass);  
+        //测试Object.getClass()  
+        TestClassType testGetClass= new TestClassType();          ## 初始化对象的构造函数和类的动态变量
+        System.out.println("testGetClass---"+testGetClass.getClass());  
+    } catch (ClassNotFoundException e) {  
+        // TODO Auto-generated catch block  
+        e.printStackTrace();  
+    }  
+    }  
+}  
+
+class TestClassType{  
+    //构造函数  
+    public TestClassType(){  
+        System.out.println("----构造函数---");  
+    }  
+    //静态的参数初始化  
+    static{  
+        System.out.println("---静态的参数初始化---");  
+    }  
+    //非静态的参数初始化  
+    {  
+        System.out.println("----非静态的参数初始化---");  
+    }          
+}
+
+测试的结果如下：
+
+---静态的参数初始化---
+testForName---class TestClassType
+testTypeClass---class TestClassType
+----非静态的参数初始化---
+----构造函数---
+testGetClass---class TestClassType
+
+当我们编写一个新的java类时,JVM就会帮我们编译成class对象,存放在同名的.class文件中。在运行时，当需要生成这个类的对象，
+JVM就会检查此类是否已经装载内存中。若是没有装载，则把.class文件装入到内存中。若是装载，则根据class文件生成实例对象。
+
+####################### Java 类对象<Java技术手册>  #######################
+运行时通过包含元数据的类对象表示类文件，而类对象表示的是从中创建类文件的Java类型。
+在Java中，创建类对象有多种方式，其中最简单的方式是： Class<?> myCl = getClass();
+getClass()方式的实例对应的类对象。查看Object类的公共方法之后，我们知道，Object类中的getClass()方法是公开的，所以，可以
+获取任意对象o的类对象。Class<?> c = o.getClass();
+//类型名称后加上".class"，表示的是类的字面量
+c = int.class //等同于Integer.TYPE;
+c = String.class; //等同于"a string".getClass();
+c = byte[].class //字节数组的类型
+
+基本类型和void也能使用字面量表示类对象；
+c = Void.TYPE; //特殊的"没有返回值"类型
+c = Byte.TYPE; //表示byte类型的类对象
+c = Integer.TYPE; //表示int类型的类对象
+对于未知的类型，要使用复杂的方法。
+
+$$$$$ 类对象包含指定类型的元数据，包含这个类中定义的方法、字段和构造函数等。开发者可以使用这些元数据审查类，就算加载类时，对这个类一无所知
+也可以审查。
+
+可以找出类文件中所有的弃用方法
+Class<?> clz = getClassFromDisk();
+for(Method m:clz.getMethods()){
+    for(Annotation a:m.getAnnotations())
+        if(a.annotationType() == Deprecated.class){
+            System.out.println(m.getName());
+        }
+}
+可以找出两个类文件的共同祖先；
+public static Class<?> commonAncestor(Class<?> cl1, Class<?> cl2){
+    if(cl1 == null || cl2 == null )return null;
+    if(cl1.equals(cl2)) return cl1;
+    if(cl1.isPrimitive() || cl2.isPrimitive()) return null;
+    
+    List<Class<?>> ancestors = new ArrayList<>();
+    Class<?> c = cl1;
+    while(!c.equals(Object.class)){
+        if(c.equals(cl2)) return c;
+        ancestors.add(c);
+        c = c.getSuperclass();
+    }
+    Class<?> c = cl2;
+    while(!c.equals(Object.class)){
+        for(Class<?> k: ancestors){
+            if(c.equals(k) return c;)
+        }
+        c = c.getSuperclass()
+    }
+    return Object.class;
+}
+类文件必须符合非常明确的布局才算合法，JVM才能加载。类文件包含以下部分
+魔法数：(所有类文件都是以CAFEBABE者四个十六进制的字节开始的)
+使用的类文件标准版本
+当前类的常量池
+访问标识(abstract public等等)
+当前类的名称
+继承信息(例如超类的名称)
+实现的接口
+字段
+方法
+属性
+
+####################### 类加载的各个阶段<Java技术手册>  #######################
+类加载是把新类型添加到运行中的JVM进程里的过程。这是新代码进入Java系统的唯一方式，也是Java平台中把数据变成代码的唯一方式。
+类加载分为几个阶段
+
+####################### 加载
+类加载过程首先会加载一个字节数组。这个数组往往从文件系统中读取，不过也可以从URL或其他位置(一般使用Path对象表示)读取。
+Classloader::defineClass() 方法的作用是把类文件(表示为字节数据)转换成类对象，这是受保护的方法，因此不通过子类无法访问。
+defineClass()的第一个任务是加载。加载的过程中会生成类对象的骨架，对应于尝试加载的类，这个阶段会对类做些基本价差。
+不过，加载阶段不会生成完成的类对象，而且类也还不能使用。加载结束后，必须链接类
+
+####################### 验证
+验证阶段确认类文件与预期相符，而且没有违背JVM的安全模型。
+JVM字节码经过精心设计，可以静态检查。这么做会减慢类加载过程，不过能加快运行时。--因为此时可以不做检查。
+验证阶段的目的是避免JVM执行可能导致自身崩溃的字节码，或者把JVM带入未测试的未知状态，出现恶意代码能攻击的漏洞。
+验证字节码能防御恶意编写的Java字节码，还能防止不信任的Java编译器输出的无效字节码。
+
+
+####################### 准备和解析
+验证通过后，类就好了使用的准备，内存分配好了，类中的静态变量也准备初始化了。
+在这个阶段，变量还未初始化，而且也没有执行新类的字节码。开始运行代码之前，JVM要确保运行时知道这个类文件引用的没有各个类型。
+如果不知道，可能还要加载这些类型--再开始其他类加载过程，让JVM加载新类型。
+
+这个加载和发现的过程可能会不断的进行下去，知道知道所有类型为止。这对最初加载的类型来说，叫做"传递闭包"
+####################### 初始化
+解析阶段结束后，JVM终于可以初始化类了。这个阶段会初始化静态变量，还会运行静态初始化代码块。
+这是JVM首次执行新加载的类的字节码。静态初始化代码运行完毕后，类就完全加载好了，可以使用了。
+
+JVM的一个特性是对此特别有帮助的：JVM是栈机器。因此，所有操作都是在栈中执行，而不在寄存器中执行。栈的状态在方法内的
+任何地方都能推知，这一点可以保证字节码不会破坏安全模型。
+
+####################### 应用类加载知识  #######################
+若想应用类加载知识，一定要完全理解java.lang.ClassLoader类
+
+## JDK 说明文档
+## 类加载器是负责加载类的对象。ClassLoader 类是一个抽象类。如果给定类的二进制名称，那么类加载器会试图查找或生成构成类定义的数据。
+## 一般策略是将名称转换为某个文件名，然后从文件系统读取该名称的“类文件”。 
+## 每个 Class 对象都包含一个对定义它的 ClassLoader 的引用。 
+## 
+## 数组类的 Class 对象不是由类加载器创建的，而是由 Java 运行时根据需要自动创建。数组类的类加载器由 Class.getClassLoader() 返回，
+## 该加载器与其元素类型的类加载器是相同的；如果该元素类型是基本类型，则该数组类没有类加载器。 
+
+String current = new File(".").getCanonicalPath();
+try(URLClassLoader url = new URLClassLoader(new URL[] {new URL("file://"+current+"/")})){
+    Class<?> clz = url.loadClass("com.example.DFACaller");
+    System.out.println(clz.getName());
+}
+loadClass()方法的参数是类文件的二进制名。注意，类文件必须存放在文件系统中的预定位置，URLClassLoader对象才能找到指定的类。
+例如：要在相对于工作目录的com/example/DFAClass.class文件中才能找到com.example.DFACaller类。
+
+Class类还提供了Class.forName()方法，这是个静态方法，能从类路径中加载还为引用的类。
+这个方法的参数是类的完全限定名称。例如
+Class<?> jdbcClz = Class.forName("oracle.jdbc.dirver.OracleDirver");
+如果找不到指定的类，这个方法会抛出ClassnotFoundException异常。
+
+类加载程序层次结构：
+1、原始类加载程序：JVM进程中出现的第一个类加载程序，只用来加载核心系统类。rt.jar
+2、扩展类加载程序：只用来加载JDK扩展---扩展一般保存在JVM安装目录中的lib/ext目录里
+3、应用类加载程序：也叫系统类加载程序。从类路径中加载应用代码。这个类加载程序最常见，其父级类是扩展类加载程序。
+                   应用类加载程序使用非常广泛，但很多高级Java框架需要的功能，这些主要的类加载程序没有提供，因此要扩展标准的类
+                   加载程序。"自定义类加载"的基础是，实现ClassLoader的新子类。
+4、自定义类加载程序：加载类时，迟早要把数据变成代码。defineClass()方法的作用是把byte[]数组转换成类对象。这个方法通常在子类中调用。
+
+public static class DiskLoader extends ClassLoader{
+    public DiskLoader(){
+        super(DiskLoader.class.getClassLoader());
+    }
+    public Class<?> loadFromDisk(String clzName) throws IOException{
+        byte[] b = Files.readAllBytes(Paths.get(clzName));
+        
+        return defineClass(null, b,0,b.length);
+    }
+}
+
+动态类加载有个缺点：使用动态加载的类对象时，往往对这个类知之甚少或一无所知。为了有效
+使用这个类，我们通常要使用一套动态编程技术---反射。
+
+
+####################### 反射  #######################        
+反射是在运行时审查、操作和修改对象的能力，可以修改对象的结构和行为，甚至还能够自我修改。
+即使编译时不知道类型和方法名称，也能使用反射。反射使用类对象提供的基本元数据，能从类对象中找到方法或字段的名称，然后获取表示方法或字段的对象。
+
+使用Class::newInstance()或另一个构造方法创建实例时也能让实例具有反射功能。如果有一个能反射的对象和一个Method对象，我们就能在之前类型未知的对象上调用任何方法。
+
+插入式框架、调试器、代码浏览器和REPL类环境往往都会在反射的基础上实现。
+反射在测试中也有广泛的使用，例如JUnit和TestNG库都用到了反射，而创建模拟对象也要使用反射。
+
+$$$$$ 使用反射时有个常见的误区：试图创建能使用于所有场合的反射框架。正确的方法是，只处理当前领域立即就能解决的问题。
+$$$$$ 在自己的代码中使用反射API时一定要知道，获取到的对象几乎所有信息都未知，因此处理起来可能很麻烦。
+
+任何反射操作的第一步都是获取一个Class对象，表示要处理的类型。要了这个对象，就能访问表示字段、方法或构造方法的对象，并将其应用于未知类型的实例。
+获取未知类型的实例，最简单的方法是使用没有参数的构造方法，这个构造方法可以直接在Class对象上调用：
+Class<?> clz = getSomeClassObject();
+Object rcvr = clz.newInstance();
+如果构造方法有参数，必须找到具体需要使用的构造方法，并使用Constructor对象表示。
+
+####################### 反射 ：Method对象
+类对象中包含该类中每个方法的Method对象。这些Method对象在类加载之后惰性创建，所有在IDE的调试器中不会立即出现。
+看看Method类的源码，看看Method对象中包含了方法的那些信息和元数据；
+private Class<?>        clazz;
+private int             slot;
+private String          name;
+private Class<?>        returnType；
+private Class<?>[]      parameterTypes;
+private Class<?>[]      exceptionTypes;
+private int             modifiers;
+private transient String signature;
+private transient MethodRepository genericInfo;
+private byte[]          annotations;
+private byte[]          parameterAnnotations;
+private byte[]          annotationDefault;
+private volatile MethodAccessor methodAccessor;
+Method对象提供了所有可用信息，包括方法能抛出的异常和注解，甚至还有被javac移除的泛型信息。
+
+Method对象中的元数据可以调用访问器方法查看，不过一直以来，Method对象最大用处是反射调用。
+
+这些对象表示的方法可以在Method对象上使用invoke()方法调用，下面这个示例在String对象上调用hashCode()方法：
+Object rcvr = "a";
+try{
+    Class<?>[] argTypes = new Class[]{};
+    Object[] args = null;
+    
+    Method meth = rcvr.getClass().getMethod("hashCode",argTypes);
+    Object ret = meth.invoke(rcvr, args);
+    System.out.println(ret);
+}catch(IllegalArgumentException | NoSuchMethodException | SecurityException e){
+    e.printStactTrace();
+}catch(IllegalAccessException | InvocationTargetException x){
+    x.printStactTrace();
+}
+为了获取想使用的Method对象，我们在类对象上调用getMethod()方法，得到的是一个Method对象的引用，指向这个类中对象的公共方法。
+
+注意：变量rcvr的静态类型是Object。在反射调用的过程中不会用到静态类型信息。invoke()返回的也是Object对象，所以hashCode()方法真正的返回值被自动打包成Integer类型。
+
+
+反射的问题：
+1、大量使用Object[]表示调用参数和其他示例；
+2、大量使用Class[]表示类型；
+3、同名方法可以重载，所以需要维护一个类型组成的数组，区分不同的方法。
+4、不能很友好地表示基本类型--需要手动打包和拆包。
+
+void就是个明显的问题----虽然有void.class，但没有坚持用下去，Java甚至不知道void是不是一种类型，而且反射API中的某些方法使用null代替void.
+
+处理非公开方法的方式是更大的问题。我们不能使用getMethod()方法，必须使用getDeclaredMethod()方法才能获取非公开的引用，而且还需要使用
+setAccessible()方法覆盖Java的访问控制子系统，然后才能执行非公共方法。
+
+public class MyCache{
+    private void flush(){
+        //清除缓存
+    }
+}
+
+Class<?> clz MyCache.class;
+try{
+    Object rcvr = clz.newInstance();
+    Class<?>[] argTypes = new Class[]{};
+    Object[] args = null;
+    
+    Method meth = clz.getDeclaredMethod("flush", argTypes);
+    meth.setAccessible(true);
+    meth.invoke(rcvr, args);
+}catch(IllegalArgumentException | NoSuchMethodException | SecurityException e){
+    e.printStactTrace();
+}catch(IllegalAccessException | InvocationTargetException x){
+    x.printStactTrace();
+}
+
+检查硬盘中的类文件里是否包含弃用方法：
+
+public class CustomClassloadingExamples{
+    public static class DiskLoader extends ClassLoader{
+        public DiskLoader(){
+            super(DiskLoader.class.getClassLoader());
+        }
+        
+        public Class<?> loadFromDisk(String clzName) throws IOException{
+            byte[] b = Files.readAllBytes(Paths.get(clzName));
+            
+            return defineClass(null, b, 0, b.length);
+        }
+        
+        public void findDeprecateMethods(Class<?> clz){
+            for(Method m : clz.getMethods()){
+                for(Annotation a : m.getAnnotations()){
+                    if(a.annotationType() == Deprecated.class){
+                        System.out.println(m.getName());
+                    }
+                }
+            }
+        }
+    }
+    
+    public static void main(String[] args) throws IOException, ClassNotFoundException{
+        CustomClassloadingExamples rfx = new CustomClassloadingExamples();
+        
+        if(args.length > 0){
+            DiskLoader dlr = new DiskLoader();
+            Class<?> clzToTest = dlr.loadFromDisk(args[0]);
+            rfx.findDeprecatedMethods(clzToTest);
+        }
+    }
+}
+####################### 反射 ：创建动态代理
+Java的反射API---创建动态代理。创建代理是实现了一些接口的类(扩展java.lang.reflect.Proxy类)这些类在运行时动态创建，
+而且会把所有调用都转交给InvocationHandler对象处理：
+
+InvocationHandler h = new InvocationHandler(){
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args)
+        throw Trowable{
+            String name = method.getName();
+            System.out.println("Call as:"+name);
+            
+            switch(name){
+                case "isOpen":
+                    return false;
+                case "close":
+                    return null;
+            }
+            return null;
+        }
+};
+
+Channel c = (Channel) Proxy.newProxyInstance(Channel.class.getClassLoader(), 
+                            new Class[] {Channel.class}, h);
+c.isOpen();
+c.close();
+代理可以用作测试的替身对象。
+代理的另一个作用是提供接口的部分实现，或者修饰或控制委托对象的某些方面：
+
+####################### 方法句柄
+Java 7引入全新的内省和方法访问机制，这种机制原本是为动态语言设计的，运行时可能需要加入方法调度决策机制。为了在JVM层支持这个机制，Java引入
+了一个新字节吗 invokedynamic。Java 7并没有使用这个字节码，在Java 8中才大量用于lambda表达式和Nashorn JavaScript引擎中。
+
+方法句柄:可以理解成安全且现代化的反射。
+MethodType对象：包含返回值的类型和参数类型，但没有接收者的类型或方法的名称。因为没有方法名称，所以具有正确签名的方法可以绑定到任何名称上。
+方法的签名通过工厂方法MethodType.methodType()获取，是MethodType类的实例，且不可变：
+MethodType m2Str = MethodType.methodType(String.class); //toString();
+//integer.paserInt
+MethodType mtParseInt = 
+    MethodType.methodType(Integer.class, String.class);
+//ClassLoader类中的defineClass()方法
+MethodType mtdefClz = 
+    MethodType.methodType(Class.class, String.class, byte[].class, int.class, int.class); 
+
+####################### 方法查找    
+Lookup l = MethodHandles.lookup();
+l.findVirtual();
+l.findConstructor();
+l.findStatic();
+l.findGetter();
+l.findSetter();
+
+####################### 调用方法句柄   
+方法句柄表示调用方法的能力。方法句柄对象是强类型的，会尽量保证类型安全。
+方法句柄都是java.lang.invoke.MethodHandle类的子类实例，JVM会使用特殊的方式处理这个类。
+调用方法句柄有两种方式---- 使用invoke()方法或invokeExact()方法。
+
+

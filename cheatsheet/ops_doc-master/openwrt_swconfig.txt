@@ -1,0 +1,81 @@
+想要改变你的路由器wan口和lan口配置或者添加wan口等就需要用到vlan配置
+https://wiki.openwrt.org/toh/asus/rt-n14u  华硕mt7530说明文档
+https://wikidevi.com/wiki/MediaTek_MT7621  MT7621 方案
+
+http://www.econet-inc.com/tw/3_products_7530.html 简要说明
+
+t: 从该接口发送的数据包被打上指定的vlan；从该接口接收的报文已经被打上指定的vlan。
+   port作为连接CPU的口，被打上指定的tagged
+   '0 1 2 3 5t' 表示当离开0 1 2 3口的时候，去掉vlan。当离开5口的时候被打上tagged。
+   
+一个口收到tagged类型数据包的时候，通过数据包内的vid进行转发。
+一个口收到untagged类型数据包的时候，直接打上pvid到数据包内进行转发。
+config 'switch_port'
+    option 'port'      '3'
+    option 'pvid'      '1'
+
+swconfig list
+swconfig dev switch0 show
+swconfig dev rtl8366rb show
+
+openwrt启动过程中对路由芯片的配置内容
+  swconfig dev rt305x set enable_vlan 1
+  swconfig dev rt305x vlan 1 set ports "0 6"
+  swconfig dev rt305x port 6 set untag 0
+  swconfig dev rt305x set apply 1
+  vconfig add eth0 1
+  ifconfig eth0 up
+  ifname=eth0.1
+  
+swconfig dev mt7530 help
+  switch0: mt7530(mt7530), ports: 8 (cpu @ 6), vlans: 16
+  --switch
+      Attribute 1 (int): enable_vlan (VLAN mode (1:enabled))
+      # swconfig dev mt7530 get enable_vlan
+      # swconfig dev mt7530 set enable_vlan 1
+      Attribute 2 (none): apply (Activate changes in the hardware)
+      # swconfig dev mt7530 set apply 1
+      Attribute 3 (none): reset (Reset the switch)
+      # swconfig dev mt7530 set reset
+  --vlan
+      Attribute 1 (int): vid (VLAN ID (0-4096))
+      # swconfig dev mt7530 vlan 1 get vid 
+      # swconfig dev mt7530 vlan 1 set vid 100
+      Attribute 2 (ports): ports (VLAN port mapping)
+      # swconfig dev mt7530 vlan 1 get ports 
+      # swconfig dev mt7530 vlan 2 get ports 
+  --port
+      Attribute 1 (string): mib (Get MIB counters for port)
+      # swconfig dev mt7530 port 3 get mib 
+      Attribute 2 (int): pvid (Primary VLAN ID)
+      # swconfig dev mt7530 port 3 get pvid 
+      Attribute 3 (string): link (Get port link information)
+      # swconfig dev mt7530 port 3 get link 
+       
+      swconfig dev switch0 port 4 set disable 1
+      swconfig dev switch0 port 4 set disable 0
+      
+      swconfig dev rtl8366s port 0 set led 2
+      swconfig dev rtl8366rb set apply
+      
+      swconfig dev switch0 set enable_vlan 0
+      swconfig dev switch0 set apply
+      
+接口保持三种状态：
+1. 关联：  出入此接口的数据包被打上vlan
+2. 不关联：出入此接口的数据包为普通数据包
+3. 关：    用于区分不同的vlan
+最多可以支持16个vlan设置。
+      
+swconfig dev ethX vlan 4 set ports '0 1t 2 5t' 
+swconfig dev ethX vlan 5 set ports '0t 1t 5t
+
+swconfig命令模式
+swconfig dev <dev> 
+[port <port>|vlan <vlan>|csmap <index>] 
+(help|set <key> <value>|get <key>|load <config>|show)
+swconfig 结构框架是应用层与内核驱动通信的一种框架，主要实通过应用层命令去配置交换机芯片的底层驱动，应用层与内核层采用netlink通信机制.
+      
+swconfig dev "$name" load network
+
+swconfig dev <switch_interface_name> show | grep link or see swconfig

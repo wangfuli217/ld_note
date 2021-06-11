@@ -1,0 +1,533 @@
+ERROR:
+    waf@ubuntu:~$ sh ./find_exe.sh 
+    ./find_exe.sh: 24: Bad substitution
+        check /bin/sh -> bash or dash....
+
+set -o emacs/vim    dive int emacs/vim env
+
+BASH:
+no global/local var, all visible after 'sourced'
+
+a=`./a.out`
+    assign stdout (excluding stderr) to a
+./a.out
+a=$?
+    return x or exit(x)
+
+bash:   == = all ok
+zsh:    == fails in `source`  mklvars.sh:43: = not found
+
+array:  arr=(1 2 3)
+
+for siteip in $(seq 1 254)
+
+shift $#    remove all
+
+test == []
+expr == (())
+
+$ expr length "jaseywang.info"
+14
+$ expr substr "jaseywang.info" 2 2
+as
+$ expr index "jaseywang.info" a
+2
+
+D_NONE="\033[m"
+D_RED="\033[0;32;31m"
+D_GREEN="\033[0;32;32m"
+echo -e "${D_RED}hello${D_NONE}"
+
+is_run()
+{
+    res=`ps aux | grep $1 | wc -l`
+    if [[ $res > 1 ]]; then
+        echo running                            res=`is_run gvim`, res is always 'running'
+        or return 1                             if there's return, $? to get the retval
+    fi
+}
+
+cmd test like in C,
+    if [[ `cmd` ]] ; then ... fi
+
+${val#
+${val##
+${val%
+${val%%
+${val:-empty}
+${val//old/new}
+${val:s:e}
+${val:(-3)}     last 3
+
+if gcc >& /dev/null; then       no, cmd success(return 0) == true
+    echo yes 
+else echo no
+fi
+
+arg parse:
+while [ $# -gt 0 ]; do
+    case $1 in
+        ..) ..;;
+        ..) ..;;
+    esac
+    shift
+done
+
+文件测试：
+-b block file
+-c 这是一个块设备
+-d 这是一个目录
+-e 文件存在 对软连接就是它指向的真实文件 不是软连接本身
+-f 文件为一般文件，非目录或设备文件
+-g sgid标记被设置到文件或目录上
+-h 这是一个符号链接文件
+-k 设置粘贴位置
+-o 若文件存在且被有效用户ID所拥有，则为真
+-p 这个文件是一个管道
+-r readable
+-s 文件大小不为0
+-t 文件被关联到一个终端设备上
+-u suid标记被设置到文件或目录上
+-w 文件是否有可写权限
+-x 文件是否有可执行权限
+-z 若string长度为0，则为真
+-n 若string长度不为0，则为真
+-G 文件所属组是否与你的相同
+-L 这是一个符号链接
+-N 从文件上次被读取到现在是否被修改过
+-O 判断自己是否文件拥有者
+-S 这是一个Socket
+exp1 -a exp2    and
+exp1 -o exp2    or
+file1 -nt file2 file1是否比file2新
+file1 -et file2 file1和file2是否相同文件的硬链接
+! 非
+
+$0                 正在被执行命令的名字。对于shell脚本而言，这是被激活命令的路径
+$n                 该变量与脚本被激活时所带的参数相对应。n是正整数，与参数位置相对应($1,$2...)
+$#                 提供脚本的参数号
+$*                 所有这些参数都被双引号引住。若一个脚本接收两个参数，$*等于$1$2
+$@                 所有这些参数都分别被双引号引住。若一个脚本接收到两个参数，$@等价于$1$2
+$?                 前一个命令执行后的退出状态
+$$                 当前shell的进程号。对于shell脚本，这是其正在执行时的进程ID
+$!                 前一个后台命令的进程号
+
+$$ $- $? $!
+!!		last cmd
+!$ == $_   	last part in last cmd
+
+整数比较:
+
+-eq 等于 if [ "$a" -eq "$b" ]
+-ne 不等于 if [ "$a" -ne "$b" ]
+-gt 大于 if [ "$a" -gt "$b" ]
+-ge 大于等于 if [ "$a" -ge "$b" ]
+-lt 小于 if [ "$a" -lt "$b" ]
+-le 小于等于 if [ "$a" -le "$b" ]
+< 小于(在双括号中使用) (("$a" < "$b"))
+<= 小于等于(在双括号中使用) (("$a" <= "$b"))
+> 大于(在双括号中使用) (("$a" > "$b"))
+>= 大于等于(在双括号中使用) (("$a" >= "$b"))
+
+字符串比较:
+
+= 等于 if [ "$a" = "$b" ]
+== 等于,与=等价 if [ "$a" == "$b" ]
+==比较操作符在双中括号对和单中括号对中的行为是不同的.
+  1 [[ $a == z* ]]    # 如果$a以"z"开头(模式匹配)那么结果将为真
+  2 [[ $a == "z*" ]]  # 如果$a与z*相等(就是字面意思完全一样), 那么结果为真.
+  3 [ $a == z* ]      # 文件扩展匹配(file globbing)和单词分割有效.
+  4 [ "$a" == "z*" ]  # 如果$a与z*相等(就是字面意思完全一样), 那么结果为真.
+!= 不等号,将在[[ ... ]]结构中使用模式匹配 if [ "$a" != "$b" ]
+< 小于, 按照ASCII字符进行排序 if [[ "$a" < "$b" ]]"<"
+  使用在[ ]结构中的时候需要被转义 if [ "$a" \< "$b" ]
+> 大于, 按照ASCII字符进行排序 if [[ "$a" > "$b" ]]
+  ">"使用在[ ]结构中的时候需要被转义 if [ "$a" \> "$b" ]
+-z 字符串为"null", 意思就是字符串长度为零
+-n 字符串不为"null".
+
+RECURSIVE
+
+redirect input:		first close fd0, then link the file to fd0
+redirect output:	first close fd1, then link the file to fd1
+
+su root
+	/etc/bashrc
+tty:	/etc/profile /etc/bashrc ~/.bashrc ~/.bash_profile
+sakura: 	     /etc/bashrc ~/.bashrc
+
+shell executes builtin/func more quickly, 'cause it need no hd-manipulation, they're shell's memory image
+
+shell bulitin:	speed;	change the shell's state(proc state). external cmd also a new proc, so can't make influence on shell
+but at least a exception:
+				PWD(also a new proc)
+				chdir() to show every dir, until get to the root dir in it's fs, not always the "/"
+				try:
+int main(int argc, char *argv[])
+{
+	system("pwd"); chdir("/home"); system("pwd");
+}
+
+UULP 4.10:	
+/bin/pwd:	在匹配的inode ".." 上找不到目录入口
+builtin pwd:	/home/jedi/testdir
+
+
+login shell	exit	logout
+others		exit	logout -- not login shell, use 'exit'
+
+if they have same name, so can give a same name to a func with the main scripts
+alias > keryword > func"--change shell's state--"builtin (mem image, main) > cmd (hard disk, sub)
+
+echo a | echo b | echo c		-->	c
+
+ch ()					bash func exe in main shell
+{
+	cd /etc/
+	pwd
+}	# ----------  end of function ch  ----------
+pwd	--> ~
+ch	--> /etc
+pwd	--> /etc
+
+(())	digit judge/operation
+[  ]	all type judge
+{  } 	exe cmd
+
+' ' == " $ `` " 
+
+` ` == $()		remove all \n
+" `` " == " $() "	remain all \n
+$(cal) == echo $(cal)
+echo "$(cal)"
+
+${#arr[*]}  !=  ${#arr[0]}
+
+command builtin enable
+
+enable | wc -l == 61
+
+typeset(ksh) == declare(bash)
+export == declare -x
+
+set   : sets the positional parameters
+set --: unsets/resets all PP
+
+shell -- 1st dereference
+eval  -- 2nd dereference, "\$part$n"
+
+$ exec > tmp
+$ ls; echo aaa
+$ exec > /dev/tty
+$ echo aaa
+aaa
+
+read line
+val=`line`
+
+#!/bin/bash
+IFS=:
+echo "Employee Names:"
+echo "---------------"
+while read name empid dept
+do
+	echo "$name is part of $dept department"
+done < ~/employees.txt
+
+echo \n		n
+echo "\n"	\n
+echo -e "\n"	
+
+${var%${var#?}} == ${var:0:1} == $(echo $var | cut -c1)		the 1st char in the string
+${var:start:len}
+
+2#101 == 10#5
+
+let n+=1 == (( n+=1 ))
+
+name=${2:?"requires an argument"}	check for the 2nd arg, if not exists, or == NULL, show "requires an argument"
+
+name=tom			evaluation
+name = tom; name == tom		judge
+
+test == [  ]
+
+digit:	[ $aaa ] (( $aaa )) (($aaa)) (( aaa )) ((aaa)) 
+[ aa -a bb ] [[ aa && bb ]]
+
+select	PS3	$REPLY $COLUMNS $LINES
+
+wherever u use EXIT, including function, the shell would exit
+
+trap 'trap 2' 2
+trap N	reset signal N
+trap -	reset all
+
+getopts	$OPTIND	$OPTARG
+total arg num + 1 == $OPTIND	$OPTIND is always the NO. of the next opt which will b deal with
+
+use single-char-opt and multi-chars-opt together, put the latter in front of the former
+
+bash function retval: if no declaration explicitly, use the last cmd's retval as default
+
+exec N<>file	open FILE as fd-N
+
+&-		关闭文件标识符
+n<&- 		关闭输入文件标识符n
+0<&-或<&- 	关闭标准输入stdin
+n>&- 		关闭输出文件标识符n
+1>&-或>&-	关闭标准输出stdout
+
+(sub)	{main}
+( cd /etc/ ) 	~
+{ cd /etc/; } 	/etc/
+
+echo 1 | tee a b c	redirect output to multi files
+tee在不影響原本 I/O 的情況下，將 stdout 複製一份到檔案去
+cmd1 | cmd2 > file; cmd3 < file		2 times I/O
+cmd1 | cmd2 | tee file | cmd3		1 time  I/O
+
+> 	tee
+>>	tee -a
+
+cmd	opt	arg
+wildcards only have influence on path-arg
+
+[!abc]	wildcards
+[^abc]	RE
+
+1st STDOUT, STDERR	2nd STDIN
+
+IFS variable is used by the sh and bash shell to determine which characters separate {command line arguments}.
+
+sudo echo 1 > /proc/sys/kernel/sysrq	Permission Denied
+> or >> are also BASH-CMD, SUDO just give the privilege to ECHO, not including >
+sudo sh -c 'echo 1 > /proc...'
+su -c 'echo 1 > /proc...'
+
+if [ a ]; then
+	do sth.; fi	==	[ a ] && { do sth. }
+if [ !a ]; then
+	do sth.; fi	== 	[ a ] || { do sth. }
+[ a ] && { do right } || { do wrong }
+
+name=/home/jedi/aaa.txt
+${name##*/} == aaa.txt
+${name%/*}  == /home/jedi		==>	discard the last /
+
+bash func is bash scripts' scripts:
+my.sh 	 p1  p2		$0 == my.sh	$1 ==  p1	$2 ==  p2
+my_func fp1 fp2		$0 == my.sh	$1 == fp1	$2 == fp2
+
+declare -l aa=AAA
+aa=BBB			echo $aa ==> bbb -- let aa lower-case eternally
+
+a=`echo $1 | egrep '/'` --> a == stdout(no STDERR)
+a=$?			--> a == 0~255
+
+{ echo a; }		if a ; then
+-----------------------------------------------
+{			if a
+  echo a		then
+}				echo a
+			fi
+
+in me.sh:
+echo me >> me.sh	when get here, append "mm" to me.sh, then:
+mm			when append above done, execute here --> cmd not found!
+bash could write to itself while executing!!
+
+a.sh ~/.bin
+mv /usr/bin
+a.sh /usr/bin
+mv ~/.bin
+a.sh	--> /usr/bin : file not found		hash
+
+[[ -z $string ]] [ "$string" == "" ]
+
+eval "sed 's/=\'$delete\'/=\'$tool\'/' ~/.strc >| ~/.sttmp"
+!$ == "sed 's/=\'$delete\'/=\'$tool\'/' ~/.strc >| ~/.sttmp"
+
+gd a.png	cmd not found	$? == 127
+gd a.png &	cmd not found	$? == 0 4iv.....
+
+func retval auto stored in $?
+aaa() { return 266; }
+aaa; echo $? -> 10	0-255
+
+var in func, just like in .bashrc, after sourcing it, we b able to see and use (except local)
+
+---------------------------------------------------------------------------------------------
+nr=3
+a=~/aa$nr  	a == /home/jedi/aa3
+b="~/aa$nr"	b == ~/aa3
+
+while [ -e $a ]  YES!!!	
+while [ -e $b ]  NO!!!!
+---------------------------------------------------------------------------------------------
+
+[ -n $a ]   && echo a || echo b		4iv a...
+[ -n "$a" ] && echo a || echo b		RIGHT!!!
+
+bash defaults every var as string, if need INT:
+a=5; a=a+1; echo $a ==> a+1
+declare -i a || (( a=a+1 ))
+a=5; a+=1; echo $a ==> 6
+
+cmd &; wait $! echo $?	==	cmd; echo $?
+
+僵死进程，不能奢望通过kill命令杀死之，因为它已经“死”了，不再接收任何系统信号。
+当子进程终止时，它释放资源，并且发送SIGCHLD信号通知父进程。父进程接收SIGCHLD信号，调用wait返回子进程的状态，并且释放系统进程表资源。故如果子进程先于父进程终止，而父进程没有调用wait接收子进程信息，则子进程将转化为僵死进程，直到其父进程结束
+wait <-- sigchld == sighld
+
+nevertheless parent don't "wait", kernel will always send "SIGCHLD" to the parent
+
+SIGUSR!:
+kill -USR1 PID 
+或则 
+kill(pid,SIGUSR1)   kill -s SIGUSR1 procname/pid    kill -10 procname/pid
+
+set -m; 	(-m, monitor) allow job control
+trap 'wait $!; pc=$?' CHLD	when met with CHLD, do the cmds in single quotes
+trap "wait $!; pc=$?" CHLD	do them 2 times, 1st when parsing
+
+trap 'cmd1; exit $stat' 0   when exit normally, do what in the '', don't use "", so $stat won't be parsed preliminarily
+
+echo -n "give me an answer: "	# no need to flush, although no '\n' here, the sentence would be always shown
+read
+
+return 44(other than general 0), when executing it, shell would tell u "shell returned 44"
+
+
+=================================================================================================
+Sed/Awk:
+
+gawk 'NR==9' a.txt	==
+sed -n '9p' a.txt
+
+awk "\$2==\"scull\" {print \$1}" /proc/devices		248
+
+出于安全考虑，现代的大部分 UNIX 类系统都会忽略掉SHELL脚本的 suid ，只有二进制可执行程序的 suid 有效 。所以直接给脚本文件设置 suid 是达不到预期效果的。
+例如有shell脚本 apk.sh
+即使执行命令 #chmod 4755 apk.sh ，系统也会忽略该脚本的SUID位。
+所以如果确实需要给脚本文件设 suid，常见的做法是用 C 写一个封装程序，在这个程序里调用脚本。这样，给封装程序（二进制可执行程序）设上 suid (chmod 4755 a.out) 就可以达到给脚本文件设 suid 的效果了。
+
+echo -e "\033[;31m" 
+echo -e "\033[;32m" 
+echo -e "\033[;33m" 
+echo -e "\033[;34m" 
+echo -e "\033[;35m" 
+echo -e "\033[;36m" 
+echo -e "\033[;37m" 
+echo -e "\033[;38m" 
+echo -e "\033[40;38m"
+echo -e "\033[41;38m" 
+echo -e "\033[42;38m" 
+echo -e "\033[43;38m" 
+echo -e "\033[44;38m" 
+echo -e "\033[45;38m"
+echo -e "\033[46;38m" 
+echo -e "\033[47;38m"
+
+[===================================================================================================>]100%
+#!/bin/bash
+COUNTER=0
+_R=0
+_C=`tput cols`
+_PROCEC=`tput cols`
+tput cup $_C $_R
+printf "["
+while [ $COUNTER -lt 100 ]
+do
+    COUNTER=`expr $COUNTER + 1`
+    sleep 0.1
+    printf "=>"
+    _R=`expr $_R + 1`
+    _C=`expr $_C + 1`
+    tput cup $_PROCEC 101
+    printf "]%d%%" $COUNTER
+    tput cup $_C $_R
+done
+printf "\n"
+
+${arr[*]}  all elem in one
+${arr[@]}  one by one
+$* == $@ but "$*" != "$@"
+
+all are ok:
+    (( arr[i] = ${arr[i-1]} + ${arr[i-2]} ))
+    (( arr[i] = arr[i-1] + arr[i-2] ))
+    (( sum += arr[i] ))
+
+function usage
+{
+    cat << EOF
+`basename $0`: A utility to send files to a remote ftp server automatically
+Usage: `basename $0` [Action]
+Example: `basename $0` -f config_file
+Actions:
+    -f:         set the configuration files
+    -h:         show this help
+EOF
+}
+
+a=aa/bb/cc/dd
+$(basename $a) = dd
+$(dirname $a) = aa/bb/cc
+
+
+AWK:
+-F '='  new delimiter
+NR==3  {print $1,$2}
+/ereg/ {print $1}
+{print substr($2, 2)}
+echo 1 2 | gawk '{printf "%.2f", $1/$2}'
+
+
+SED:
+default global, s/old/new/ (g)
+sed f1 f2 f3...     line number only has 1 NO.1
+sed 1,$d(delete 1st&last)
+a\ after; i\ above
+    sed -i '/match_pattern/ \i add_sth'
+sed -n '10,15p' filename        print line 10-15 
+sed 'y/abc/xyz/g' x.txt   a->x & b->y & c->z
+sed '/pattern start/,/pattern end/s/xx/yy/g'  replace between the line containing /pattern start/ and the line containing /pattern end/
+sed '/test/{ n; s/aa/bb/; }' example-----如果test被匹配，则移动到匹配行的下一行，替换这一行的aa，变为bb，并打印该行，然后继续。
+[0-9]\{4\}      4 digits
+
+
+GREP:
+\|              or
+\(?=expr\)      0-width-assertion
+
+
+SORT:
+index from 0
+sort +2 -3 +0 -2 file, means 1st according to field-2, stop at field-3(excluding), 2nd start from 0 to 2(excluding)
+-b      ignore the starting spaces, recommand to set defaultly
+        if no -n/+n specified, -b is useless
+-u      better than uniq, because the latter needs the file've been sorted
+-d      dictionary order, digit/char/space only
+-n      digit not ascii, sort +2 -3 +0nb -2 file
+
+
+shell case      wc
+awk -F          reg [ \t,.]+
+
+
+FIND:
+-name "xxx"
+-type f regular file
+-print  print all recursively, \n to separate
+-print0 same as above, but use null to separate
+-name "*.php" -or -name "*.htm" -or -name "*.html"
+find path -name "xx", can't be find -name "xx" path     FULL name, can't be regex
+
+
+ERROR:
+line 433(last line): syntax error: unexpected end of file
+        { path=${path%/*} }  --> { path=${path%/*}; } is ok, or:
+                        {
+                            path...
+                        }

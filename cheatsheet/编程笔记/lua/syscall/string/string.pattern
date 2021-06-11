@@ -1,0 +1,217 @@
+--[[
+  %[sSpPcCdDxXaAlLuUwWgG]  %跟随这些字母表示集合
+  %[01-9]                  %跟随数字表示捕获副本
+  %[%()+*?-.$^]            %用来转义特殊字符
+  
+1. 捕获返回 find match gmatch
+2. 捕获副本 find match gmatch gsub
+3. 捕获替换 gsub
+--]]
+
+--[[ 基本应用实例 --]]
+local sourcestr = "ehrt999wj=--=-*-/4mdqwl\0ds123tfef" 
+print("sourcestr = "..string.format("%q",sourcestr));  --"ehrt999wj=--=-*-/4mdqwl\000ds123tfef"
+
+local match_ret = string.match(sourcestr, "%z")                                 -- '%z'的使用
+print("%z      match = \t", string.format("%q",match_ret)) --"\000"
+
+match_ret = string.match(sourcestr, "%a*")                                      -- '*'的使用
+print("%a*     match = \t", string.format("%q",match_ret)) -- "ehrt"
+
+match_ret = string.match(sourcestr, "%a%d-")                                    -- '-'的使用
+print("%a%d-   match = \t", string.format("%q",match_ret)) --   "e"
+
+match_ret = string.match(sourcestr, "%a%d*")                                    -- '*'的使用
+print("%a%d*   match = \t", string.format("%q",match_ret)) --   "e"
+
+match_ret = string.match(sourcestr, "%a%d%d*")                                  -- '*'的使用
+print("%a%%dd* match = \t", string.format("%q",match_ret)) --  "t999"
+
+match_ret = string.match(sourcestr, "%a%d+")
+print("%a%d+   match = \t", string.format("%q",match_ret))   --   "t999"        -- '+'的使用
+
+match_ret = string.match(sourcestr, "%a%d%d+")
+print("%a%d%d+ match = \t", string.format("%q",match_ret))  --  "t999"          -- '+'的使用
+
+-- 用来匹配成对的字符串：'%b()' ，'%b[]'，'%b%{%}' 和 '%b<>'。你也可以使用任何字符作为分隔符
+match_ret = string.match(sourcestr, "%bhs")                                     -- '%bxy'的使用
+print("%bhs    match = \t", string.format("%q",match_ret)) -- "hrt999wj=--=-*-/4mdqwl\000ds"
+
+local match_ret1, match_ret2 = string.match(sourcestr, "()t9()")                -- '()xxx()'的使用
+print("()t9()  match = \t", string.format("%q",match_ret1),  -- "4"     "6"
+    string.format("%q",match_ret2))
+
+--[[ '%'转义实例 printf和strftime使用相同的规则转义字符 --]] 
+print("\n%% for quote especial -- ")
+local dhcp_option = '3,192.168.111.1  6,192.168.111.1,8.8.8.8  4,255.255.0.0 '  -- % 用于对特殊字符转义
+for opt in string.gmatch(dhcp_option, "[%S]+") do
+  for ipaddr in string.gmatch(opt, "[%d]+%.[%d]+%.[%d]+%.[%d]+") do
+    print(ipaddr)
+  end
+end
+
+                                                                                -- %f只是一个探测功能，并不影响原字符串的位置
+-- 模式'%f[charset]'代表前置模式，该模式只有在后一个字符位于[charset]内而前一个字符不在时匹配一个空字符串
+-- The frontier pattern %f followed by a set detects by a set detects the transition from 'not in set' to 'in set'
+s = "the anthem is the theme"
+print(string.gsub(s, "%f[%w]the%f[%W]", 'one'))
+-- 模式'%f[%w]' 上个位置非字母或数字的字符， 当前位置是字母或数字的字符
+-- 模式'%f[%W]' 上个位置字母或数字的字符， 当前位置是非字母或数字的字符
+
+print(string.gsub ("THE (QUICK) brOWN FOx JUMPS", "%f[%a]%u+%f[%A]", print))
+-- %f[%a]表示探测当前位置是'字符'， 上个位置是'非字符'。
+-- %f[%A]表探测当前位置是'非字符'， 上个位置是'字符'
+--[[
+    一开始探测位置为1即字符T，上个字符不存在就为'\0'(非字符)，%f[%a]通过探测， 
+因为%f不影响原字符串的位置所以%u+还是从1开始检查。%u+即以贪婪的方式匹配大写字母， 
+所以会匹配到索引为3的位置，此时匹配%f[%A], 他要求当前位置为"非字符"，由于当前位置
+是空格，符合；上个位置为"字符"，而上个位置为E，也是字符，所以%f[%A]的探测也是
+成功的，THE就被匹配出来了 
+--]]
+
+--[[ 重复次数和锚点实例 . --]]
+--  "(.-)" "(.*)"                                                               -- 懒惰|贪婪匹配
+-- 懒惰匹配 "(.-)"
+-- 贪婪匹配 "(.*)"
+print("\n1. greedy and lazy match -- ")
+print("The big {brown} fox jumped {over} the lazy {dog}.")
+print("gsub(str, {(.-)}, function(a)  print(a) end) -- ")
+x,t = string.gsub("The big {brown} fox jumped {over} the lazy {dog}.","{(.-)}", function(a)  print(a) end )
+print(x,'\t\t\t"matchs="',t)
+print("gsub(str, {(.*)}, function(a)  print(a) end) -- ")
+x,t = string.gsub("The big {brown} fox jumped {over} the lazy {dog}.","{(.*)}", function(a)  print(a) end )
+print(x,'\t\t\t"matchs="',t)
+
+print("\n2. greedy and lazy match -- ")                                         -- repl 支持模式转义；不支持模式集合；
+print('gsub("(hello)world)", "%(.*%)", "%(.*%)") = ' , string.gsub("(hello)world)", "%(.*%)", "%(.*%)"))
+print('gsub("(hello)world)", "%(.-%)", "%(.-%)") = ' , string.gsub("(hello)world)", "%(.-%)", "%(.-%)"))
+
+str = "int x; /* x */  int y; /* y */" 
+print("\n3. greedy and lazy match -- ")
+print('gsub('.. str.."pattern repl = ")
+print('gsub(str, "/%*.*%*/", "<comment>")   = ', string.gsub(str, "/%*.*%*/", "<comment>")) 
+print('gsub(str, "/%*.-%*/", "<comment>") =', string.gsub(str, "/%*.-%*/", "<comment>")) 
+
+print("\nmatch('one |two| three |four| five', pattern =")
+print('match("one |two| three |four| five", "|.*|") = \t', string.match("one |two| three |four| five", "|.*|"))
+print('match("one |two| three |four| five", "|.-|") = \t', string.match("one |two| three |four| five", '|.-|'))
+print('match("one |two| three |four| five", "|[^|]*|") = ', string.match("one |two| three |four| five", '|[^|]*|'))
+
+print("\n4. greedy and lazy match with anchor -- ")
+print('match("abc", "a.*") = ', string.match("abc", "a.*"))
+print('match("abc", "a.-") = ', string.match("abc", "a.-"))
+print('match("abc", "a.-$") = ', string.match("abc", "a.-$"))
+print('match("abc", "^.-b") = ', string.match("abc", "^.-b"))
+
+print("\n5. greedy and + pattern -- ")
+print('match("one |two| three", "|.*|") = ', string.match("one |two| three", "|.*|"))
+print('match("one || three", "|.*|") = ', string.match("one || three", '|.*|'))
+print('match("one || three", "|.+|") = ', string.match("one || three", '|.+|'))
+
+print("\n6. ? pattern -- ")
+print('match("examples", "examples?") = ', string.match("examples", "examples?"))
+print('match("example", "examples?") = ', string.match("example", 'examples?'))
+print('match("example", "examples") = ', string.match("example", 'examples'))
+
+print("\n7. .[^] pattern -- ")
+print('find("abcdefg", "b..") = ', string.find("abcdefg", "b.."))
+print('match("abcdefg", "b..") = ', string.match("abcdefg", "b.."))
+print('match("abcd", "[bc][bc]") = ', string.match("abcd", "[bc][bc]"))
+print('match("abcd", "[^ad]") = ', string.match("abcd", '[^ad]'))
+print('string.match("123", "[0-9]") = ', string.match("123", "[0-9]"))
+
+
+--[[ 成对匹配实例 --]]
+-- "%bxy" "%b()" "%b[]" "%b{}" "%b<>" 
+print("\nbxy -- ")                                                              -- 成对匹配;贪婪匹配
+print('gsub("xddxdddyyxxx", "%bxy", "replacement") =', string.gsub("xddxdddyyxxx", "%bxy", "replacement"))
+
+s = "a (enclosed (in) parenteses) line"                                         -- 成对匹配;贪婪匹配
+print("b()", s)                                                                 
+print((string.gsub(s, "%b()", "")))
+
+--[[ 捕获
+1. 捕获返回 find match gmatch
+2. 捕获副本 find match gmatch gsub
+3. 捕获替换 gsub
+ --]]
+-- 用()将要捕获的部分包围起来 
+pair = "name = Anna"
+firstidx, lastidx, key, value = string.find(pair, "(%a+)%s*=%s*(%a+)")
+-- print(key, value) --  name Anna
+
+-- 捕获副本使用(%1-%9)                                                          -- find使用捕获副本
+s = "abc \"it\'s a cat\""
+_,_,_,q = string.find(s, "([\"'])(.-)%1")
+print("\nfind using 'capture copy' ")
+print("string = "..s, "pattern = ".. "([\"'])(.-)%1")
+
+s=[[then he said: "it's all right"!]]                                          -- match使用捕获副本
+-- q, quotedPart = string.match(s, "([\"'])(.-)([\"'])")
+q, quotedPart = string.match(s, "([\"'])(.-)%1")
+print("\nmatch using 'capture copy' ")
+print("string = "..s, "pattern = ".. "([\"'])(.-)%1")
+print(quotedPart)
+
+-- 空模式: 函数string.find在字符串的开始位置正确地找到一个空的字母序列          -- 空模式
+print('\nstring.find("abcdefg", "") = ', string.find("abcdefg", ""))
+print('string.find(";$%  **#$hello13", "%a*") = ', string.find(";$%  **#$hello13", "%a*"))
+print('string.find(";$%  **#$hello13", "%a-") = ', string.find(";$%  **#$hello13", "%a-"))
+print('string.find(";$%  **#$hello13", "%a?") = ', string.find(";$%  **#$hello13", "%a?"))
+print('string.find(";$%  **#$hello13", "%a+") = ', string.find(";$%  **#$hello13", "%a+"))
+print('string.find(";$%  **#$hello13", "%a") = ', string.find(";$%  **#$hello13", "%a"))
+
+-- gsub也可以用拷贝捕获技巧
+print(string.gsub("hello, world", "(o)", "%1-%1")) -- hello-o, wo-orld    2
+print(string.gsub("hello Lua", "(.)(.)", "%2%1"))  -- ehll ouLa           4
+function trim (s) return (string.gsub(s, "^%s*(.-)%s*$", "%1")) end -- 注意匹配数用括号丢弃
+
+--[=[
+1.Character Class
+一个字符类可以被用于表示一组字符，以下组合被允许来来描述一个字符类：
+  x ：表示字符x本身（这里的x表示不是魔法字符^$()%.[]*+-?中的一个）。
+  . ：表示所有字符（一个点/英文中句号）。
+  %a：表示所有字母。
+  %c：表示所有控制字符。
+  %d：表示所有十进制数字。
+  %l：表示所有小写字母。
+  %p：表示所有标点符号。
+  %s：表示所有空白字符。
+  %u：表示所有大写字母。
+  %w：表示所有字母和数字。
+  %x：表示所有十六进制数。
+  %z：表示0值字符。
+  %x：表示字符x(此处的字符x不是字母或数字)。这是讲魔术字符转义的标准方式，当被用于在模式中表示自身时，任何标点符号（甚至非魔术的）都能加一个前缀%。
+  [set]：表示set中的所有字符的联合构成的分类。通过用-分隔截止字符可以指定某个范围的字符。上面描述的所有种类的%x都可用作set的组成部分。set中的所有其他字符表示它们自身。例如[%w_]（或[_%w]）表示所有字母数字字符和下划线，[0-7]表示八进制数字，[0-7%l%-]表示八进制数字和小写字母以及-字符。
+  [^set]：表示set的补集，其中的set在上面解释了。
+  字符范围和字符类之间的相互作用是未定义的。因此类似[%a-z]或[a-%%]的模式没有意义。
+  对于所有单字母表示的字符类（%a、%c等等），相应的大写字母表示该字符类的补集。例如，%S表示所有非空白符。
+  字母、空白和其他字符组合的定义依赖于当前locale。特别地，字符类[a-z]可能不等于%l。
+
+  '[%w_]'     匹配数字字母和下划线，
+  '[01]'      匹配二进制数字，
+  '[%[%]]'    匹配方括号。
+  '[0-9]'     匹配0到9之间的数
+  '[^0-7]'    所有八进制数字外的字符
+  '[^\n]'     除换行外的所有字符
+  '[_a][_w]*' 标识符：标识符是一个由字母或下划线开头，并紧跟零个或多个由下划线、字母或数字组成的序列
+  '[+-]?%d+'  表示一个整数
+2.Pattern Item
+  一个模式选项可以是：
+  一个单个字符类，它匹配该类中的任意单个字符。
+  一个后跟*的单个字符类，它匹配该类中的0或多个字符。这些重复项将总是匹配最长的可能序列。
+  一个后跟+的单个字符类，它匹配该类中的1或多个字符。这些重复项将总是匹配最长的可能序列。
+  一个后跟-的单个字符类，它也匹配该类中的0或多个字符。与*不同，这些重复项将总是匹配最短的可能序列。
+  一个后跟?的单个字符类，它匹配出现0或1次该类中的字符。
+  %n中的n在1和9之间，这种项匹配一个等价于捕获的字符串的第n个子串（见下面）
+  %bxy中x和y是两个不同的字符；这种项匹配始于x终于y的字符串，并且x和y是对称的。这表示，如果一个人从左到右读字符串，对x计数为+1，对y计数为-1，结尾的y是第一个遇到计数为0的y。例如，项%b()匹配带有平衡的圆括号的表达式。
+
+3.Pattern
+  模式是一系列的模式项。在模式开头的^将匹配固定在源串的开头。在模式结尾的$将匹配固定在源串的结尾。在其他位置上，^和$没有特殊含义，表示它们自身。
+  
+4.Captures
+  模式可以含有括在圆括号内的子模式，它们描述捕获。当成功进行一个匹配，源串中匹配捕获的子串被存储（捕获）以便将来使用。捕获根据它们的左圆括号进行编号。例如，在模式"(a*(.)%w(%s*))"中，字符串的匹配"a*(.)%w(%s*)"的部分作为第一个捕获被存储（因此被编号为1），匹配"."的字符被捕获并编号为2，匹配"%s*"的部分被编号为3。
+  作为一种特殊情况，空捕获()捕获当前字符串位置（一个数字）。例如，如果我们把模式()aa()用于字符串"flaaap"，将有两个捕获：3和5。
+  模式不能含有内嵌的0(即'\0')。使用%z代替。
+
+--]=]

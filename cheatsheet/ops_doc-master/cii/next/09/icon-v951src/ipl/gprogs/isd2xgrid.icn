@@ -1,0 +1,58 @@
+############################################################################
+#
+#	File:     isd2xgrid.icn
+#
+#	Subject:  Program to create grid plots for ISDs
+#
+#	Author:   Ralph E. Griswold
+#
+#	Date:     July 4, 2002
+#
+############################################################################
+#
+#  NOTE:  The drawdown code is patched in from code in pfd2ill.icn and
+#  uses a different method than the others.  One way or another, the
+#  methods should be made consonant.
+#
+#  The option -n s allows a basename to be specified for the image file.
+#  It defaults to the name in the ISD.
+#
+#  This version is for ISDs without explicit thread-color information.
+#
+############################################################################
+#
+#  Requires:  Version 9 graphics and large integers
+#
+############################################################################
+#
+#  Links:  isdxplot, options, wopen, xcode
+#
+############################################################################
+#
+#  Note:  The include file may contain link declarations.
+#
+############################################################################
+
+link isdxplot
+link options
+link wopen
+link xcode
+
+procedure main(args)
+   local draft, win, opts
+
+   opts := options(args, "n:")
+
+   isd			# hands off, linker!
+
+   draft := xdecode(&input) | stop("*** cannot decode draft")
+
+   draft.name := \opts["n"]
+
+   &dump := 1
+   win := plot(draft, "clip") | stop("*** plot() failed")
+   &dump := 0
+
+   WriteImage(win, draft.name || "_d.gif")
+
+end

@@ -1,0 +1,288 @@
+<!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+    <TITLE>Icon External Values</TITLE>
+    <LINK REL="STYLESHEET" TYPE="text/css" HREF="istyle.css">
+    <LINK REL="SHORTCUT ICON" HREF="shortcut.gif">
+</HEAD>
+<BODY>
+
+<P><A HREF="http://www.cs.arizona.edu/icon/"> <IMG SRC="wwwcube.gif"
+ALT="[Icon home]" WIDTH=128 HEIGHT=144 BORDER=0 ALIGN=RIGHT> </A>
+
+<H1> Icon External Values </H1>
+
+<P> Carl Sturtivant
+<BR> <SMALL> Computer Science &amp; Engineering Department </SMALL>
+<BR> <SMALL> University of Minnesota </SMALL>
+
+<P> Gregg M. Townsend
+<BR> <SMALL> Department of Computer Science </SMALL>
+<BR> <SMALL> The University of Arizona </SMALL>
+
+<P> <SMALL> www.cs.arizona.edu/icon/v951/extlvals.htm
+<BR> 
+Last updated March 25, 2010</SMALL>
+<!-- $Id: extlvals.htm,v 1.19 2013/06/04 22:12:25 gmt Exp $ -->
+
+
+<H2> Introduction </H2>
+
+
+<P> External values provide a way for
+<A HREF="cfuncs.htm">dynamically loaded C functions</A>
+to create and return opaque data structures to an Icon program.
+This allows state to be maintained across multiple calls of
+loaded functions.
+
+<P> The creation of an external value in C defines 
+not just the data itself but also some related attributes.
+These control the sorting behavior, image, and other such aspects.
+Icon provides defaults and also adds a serial number
+similar to those of lists, sets, and tables.
+
+<P> The specification of attributes effectively creates a number
+of distinct types.
+Each loadable library can define the types it needs for its own purposes.
+From an object-oriented perspective, these can be seen as subtypes
+of a common <CODE>external</CODE> type.
+
+
+<H2> External Values in an Icon Program </H2>
+
+<P> External values are opaque to Icon. They are <EM>created</EM> only by
+dynamically 
+loaded C functions, any of which in turn may have access to their internals. In 
+this way a library of Icon functions to work with a specific kind of external 
+value is possible. However, such values can be seen and manipulated (assigned, 
+passed to procedures or functions, sorted, copied, etc.) in Icon. The 
+behavior of an external value in Icon may be modified to some extent by the 
+implementation of the dynamically loaded function that is used to create it, as 
+described below.
+
+<P> In what follows let <CODE>E</CODE>, <CODE>E1</CODE>, and <CODE>E2</CODE>
+be external values
+produced by some loaded function or functions. Icon prescribes the following 
+default behavior of such values, which is exhibited if the functions that 
+created them did not override such at the time of creation. Otherwise behavior 
+in the following contexts is determined by the external values' creators.
+
+<P> External values always sort after values of all other types.
+Within themselves external 
+values are first sorted by type name (which is a set by the creator,
+is returned by the Icon function <CODE>type</CODE>,
+and specifies a subtype of the external type).
+The default sort within such a subtype is by serial number. Only sorting 
+within a subtype (i.e., externals with a specific type name) can be overridden 
+by the creator. See the next section for a description of the relevant C 
+internals. The default behavior follows.
+
+<BLOCKQUOTE><DL>
+<DT><CODE>type(E)</CODE>
+	<DD>returns the string <CODE>"external"</CODE>
+<DT><CODE>image(E)</CODE>
+	<DD>returns a string indicating the type, serial number,
+	and the number of data words,
+	<I>e.g.</I> <CODE>"external_12(3)"</CODE>
+<DT><CODE>copy(E)</CODE>
+	<DD>returns <CODE>E</CODE> itself without copying
+<DT><CODE>sort()</CODE>
+	<DD>external values sort first by type name and then by serial number
+<DT><CODE>E1 === E2</CODE>	
+	<DD>produces <CODE>E1</CODE> when <CODE>E1</CODE> and <CODE>E2</CODE>
+	are the same external object; otherwise fails
+<DT><CODE>E1 ~=== E2</CODE>
+	<DD>produces <CODE>E2</CODE> when <CODE>E1</CODE> and <CODE>E2</CODE>
+	are distinct; otherwise fails
+</DL></BLOCKQUOTE>
+	
+	
+<H2> Creating and Using External Values in C </H2>
+
+<P>These next sections describe the C interface for a reader who is
+familiar with the use of loadable functions.
+
+<P> An Icon external value is implemented by a descriptor that points
+to an external block containing several components.
+The data area and the function list are the most important of these.
+
+<P> An integer word count indicates the size of the data area.
+This is specified when the external block is created.
+Often external data is a single pointer to other data (a handle)
+and so only one word is required.
+
+<P> The function list allows the programmer to override,
+for all values of the same external type,
+the default behaviors listed in the previous section.
+The list is a callback table pointing to programmer-defined C functions
+as described in more detail below.
+The function list also acts as a unique type identifier, because external
+values with different function lists behave as values of distinct type.
+
+<P> A dynamically loaded C function allocates an external value by including
+<CODE>ipl/cfuncs/icall.h</CODE> and calling <CODE>alcexternal</CODE>:
+
+<BLOCKQUOTE>
+<DL>
+<DT>
+<CODE>externalblock *alcexternal</CODE>(long size, funclist *funcs, void *data)
+</DT><DD>
+    allocates and returns a pointer to an external block.
+    <BR><VAR>size</VAR> specifies the number of bytes
+    in the entire external block (and by implication 
+    the size of the data block inside it).
+    <BR><VAR>funcs</VAR>, if not null, specifies a list of functions to
+    override the default behavior.  See the next section.
+    <BR><VAR>data</VAR>, if not null, specifies the location of data
+    that is copied in to initialize the data block (until it is full).
+</DD></DL>
+</BLOCKQUOTE>
+
+<P>
+A typical call might be
+<BLOCKQUOTE>
+    blk = alcexternal(sizeof(externalblock) + sizeof(mydata), funcs, &mydata); 
+</BLOCKQUOTE>
+The result is returned to Icon by the macro call
+<CODE>RetExternal(</CODE>blk<CODE>)</CODE>.
+The block may eventually be freed by garbage collection if it
+is not saved or if it later becomes inaccessible to the Icon program.
+
+<P> A loadable function that accepts an external value as an argument can call
+<BLOCKQUOTE>
+    ArgExternal(i,f);
+</BLOCKQUOTE>
+to validate argv[i] as an external value of the type associated
+with function list f, and can then call
+<BLOCKQUOTE>
+    blk = ExternalBlock(i);
+</BLOCKQUOTE>
+to get the address of the associated external block;
+the associated data is at blk&ndash;&gt;data.
+
+<P>A more complete example is found in the file
+<CODE>ipl/cfuncs/external.c</CODE>.
+
+	
+<H2> The Function List Passed to alcexternal </H2>
+
+<P> The function list associated with an external value is a struct
+containing pointers to C functions.
+It is reminiscent of a "dispatch table" or "class pointer" 
+for dynamic method calls in an implementation of an object oriented programming 
+language. Indeed an Icon external value is very much like a traditional object 
+with its own data and methods. Typically such a function list would be static 
+and shared among many Icon external values of the same kind ("class" or "type").
+
+<P> Every external value has a function list; a default list is supplied
+if NULL is passed to alcexternal.  A null entry within a function list
+produces the default behavior for the associated action.
+
+<P> Functions in the list use the same interface as loadable C functions.
+Incoming arguments are passed beginning at argv[1].
+A result is produced by storing it in argv[0]
+and returning 0 as the outcome of the function.
+When extlcmp is called, argc has a value of 2;
+for the other functions, argc is 1.
+
+<P> The possible custom functions are as follows:
+
+<BLOCKQUOTE>
+<DL>
+
+<DT>
+<CODE>int extlcmp</CODE>(int argc, descriptor *argv)	
+</DT><DD>
+returns an Icon integer
+for use in sorting two external values that both have this function list
+and are therefore considered to be of the same external subtype.
+The function result should be negative if the first external value is
+deemed less than the second, zero if they are deemed equal, and positive
+if the first is deemed greater than the second.
+This overrides the default behavior of the <CODE>sort</CODE> function
+which compares serial numbers.
+</DD>
+
+<DT>
+<CODE>int extlcopy</CODE>(int argc, descriptor *argv)
+</DT><DD>
+returns an external value defined as a copy of its argument. 
+This overrides the default behavior of the <CODE>copy</CODE> function,
+which is to return another reference to the external value without copying.
+</DD>
+
+<DT>
+<CODE>int extlname</CODE>(int argc, descriptor *argv)
+</DT><DD>
+returns an Icon string naming the type of the external value.
+This overrides the default behavior of the <CODE>type</CODE> function, and thus
+also affects the ordering relative to other external values when sorting.
+</DD>
+
+<DT>
+<CODE>int extlimage</CODE>(int argc, descriptor *argv)
+</DT><DD>
+returns an Icon string to serve as the image of the external value.
+This overrides the default behavior of the <CODE>image</CODE> function.
+</DD>
+
+</DL>
+</BLOCKQUOTE>
+	
+
+<H2> Implementation Details </H2>
+
+<SMALL>This section supplements the Icon
+<A HREF="http://www.cs.arizona.edu/icon/ibsale.htm">
+implementation book</A>.</SMALL>
+
+<P> A descriptor for an external value has a vword containing the bit pattern 
+D_External which contains the value T_External indicating the external type, 
+along with the bit F_Nqual indicating that the value is not a string and the 
+bit F_Ptr indicating to the garbage collector that the dword is a pointer that 
+needs tending. The dword contains a pointer to an external block. This block is 
+implemented as a C struct with a pointer to a function block C struct as 
+follows. The structs below, along with types word and descriptor,
+are defined in ipl/cfuncs/icall.h.
+	
+<PRE>
+typedef struct funclist {	 /* list of user defined callbacks */
+	int (*extlcmp)   (int argc, descriptor *argv);	/* compare */
+	int (*extlcopy)  (int argc, descriptor *argv);	/* copy */
+	int (*extlname)  (int argc, descriptor *argv);	/* type name */
+	int (*extlimage) (int argc, descriptor *argv);	/* image */
+} funclist;	
+
+typedef struct externalblock {
+	word title;		/* the block header, including type */
+	word size;		/* the number of bytes in the block */
+	word id;		/* the serial number */
+	funclist *funcs;	/* pointer to the callback list */
+	word data[];		/* arbitrary custom data */
+} externalblock;
+</PRE>
+
+<P> A call of alcexternal initializes all fields of an external block.
+Data is copied without interpretation, and the function
+list pointer is stored.  The header is assigned an appropriate constant for the 
+garbage collector, and the size is set. alcexternal maintains a static 
+count of the number of external blocks allocated, and this is incremented and 
+assigned to id.
+
+<P> The following error code numbers are assigned for use with external values:
+<BLOCKQUOTE><TABLE>
+<TR><TH>errno<TH>errtext<TH>meaning
+<TR><TD><CODE>131</CODE><TD><CODE>external expected</CODE>
+    <TD>not an external value
+<TR><TD><CODE>132</CODE><TD><CODE>incorrect external type</CODE>
+    <TD>external of wrong flavor
+<TR><TD><CODE>133</CODE><TD><CODE>invalid external value</CODE>
+    <TD>right flavor in wrong context
+<TR><TD><CODE>134</CODE><TD><CODE>malformed external value</CODE>
+    <TD>data is bogus, not just inappropriate
+</TABLE></BLOCKQUOTE>
+
+<P> <HR>
+
+</BODY>
+</HTML>

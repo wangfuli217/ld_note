@@ -1,0 +1,244 @@
+1. 数组操作：
+    在Lua中，“数组”只是table的一个别名，是指以一种特殊的方法来使用table。出于性能原因，Lua的C API为数组操作提供了专门的函数，如：
+    void lua_rawgeti(lua_State* L, int index, int key);
+    void lua_rawseti(lua_State* L, int index, int key);
+    以上两个函数分别用于读取和设置数组中的元素值。其中index参数表示待操作的table在栈中的位置，key表示元素在table中的索引值。由于这两个函数均为原始操作，比涉及元表的table访问更快。通常而言，作为数组使用的table很少会用到元表。
+    见如下代码示例和关键性注释：
+
+
+#include <stdio.h>
+#include <string.h>
+#include <lua.hpp>
+#include <lauxlib.h>
+#include <lualib.h>
+
+extern "C" int mapFunc(lua_State* L)
+{
+    //检查Lua调用代码中传递的第一个参数必须是table。否则将引发错误。
+    luaL_checktype(L,1,LUA_TTABLE);
+    luaL_checktype(L,2,LUA_TFUNCTION);
+    //获取table中的字段数量，即数组的元素数量。
+    int n = lua_objlen(L,1);
+    //Lua中的数组起始索引习惯为1，而不是C中的0。
+    for (int i = 1; i <= n; ++i) {
+        lua_pushvalue(L,2);  //将Lua参数中的function(第二个参数)的副本压入栈中。
+        lua_rawgeti(L,1,i);  //压入table[i]
+        lua_call(L,1,1);     //调用function(table[i])，并将函数结果压入栈中。
+        lua_rawseti(L,1,i);  //table[i] = 函数返回值，同时将返回值弹出栈。
+    }
+
+    //无结果返回给Lua代码。
+    return 0;
+}
+
+
+    2. 字符串操作：
+    当一个C函数从Lua收到一个字符串参数时，必须遵守两条规则：不要在访问字符串时从栈中将其弹出，不要修改字符串。在Lua的C API中主要提供了两个操作Lua字符串的函数，即：
+    void  lua_pushlstring(lua_State *L, const char *s, size_t l);
+    const char* lua_pushfstring(lua_State* L, const char* fmt, ...);
+    第一个API用于截取指定长度的子字符串，同时将其压入栈中。而第二个API则类似于C库中的sprintf函数，并将格式化后的字符串压入栈中。和sprintf的格式说明符不同的是，该函数只支持%%(表示字符%)、%s(表示字符串)、%d(表示整数)、%f(表示Lua中的number)及%c(表示字符)。除此之外，不支持任何例如宽度和精度的选项。
+
+
+#include <stdio.h>
+#include <string.h>
+#include <lua.hpp>
+#include <lauxlib.h>
+#include <lualib.h>
+
+extern "C" int splitFunc(lua_State* L)
+{
+    const char* s = luaL_checkstring(L,1);
+    const char* sep = luaL_checkstring(L,2); //分隔符
+    const char* e;
+    int i = 1;
+    lua_newtable(L); //结果table
+    while ((e = strchr(s,*sep)) != NULL) {
+        lua_pushlstring(L,s,e - s);  //压入子字符串。
+        //将刚刚压入的子字符串设置给table，同时赋值指定的索引值。
+        lua_rawseti(L,-2,i++);       
+        s = e + 1;
+    }
+    //压入最后一个子串
+    lua_pushstring(L,s);
+    lua_rawseti(L,-2,i);
+    return 1; //返回table。
+}
+
+    Lua API中提供了lua_concat函数，其功能类似于Lua中的".."操作符，用于连接(并弹出)栈顶的n个值，然后压入连接后的结果。其原型为：
+    void  lua_concat(lua_State *L, int n);
+    参数n表示栈中待连接的字符串数量。该函数会调用元方法。然而需要说明的是，如果连接的字符串数量较少，该函数可以很好的工作，反之，则会带来性能问题。为此，Lua API提供了另外一组函数专门解决由此而带来的性能问题，见如下代码示例：
+
+#include <stdio.h>
+#include <string.h>
+#include <lua.hpp>
+#include <lauxlib.h>
+#include <lualib.h>
+
+extern "C" int strUpperFunc(lua_State* L)
+{
+    size_t len;
+    luaL_Buffer b;
+    //检查参数第一个参数是否为字符串，同时返回字符串的指针及长度。
+    const char* s = luaL_checklstring(L,1,&len);
+    //初始化Lua的内部Buffer。
+    luaL_buffinit(L,&b);
+    //将处理后的字符依次(luaL_addchar)追加到Lua的内部Buffer中。
+    for (int i = 0; i < len; ++i)
+        luaL_addchar(&b,toupper(s[i]));
+    //将该Buffer及其内容压入栈中。
+    luaL_pushresult(&b);
+    return 1;
+}
+
+
+    使用缓冲机制的第一步是声明一个luaL_Buffer变量，并用luaL_buffinit来初始化它。初始化后，就可通过luaL_addchar将一个字符放入缓冲。除该函数之外，Lua的辅助库还提供了直接添加字符串的函数，如：
+    void luaL_addlstring(luaL_Buffer* b, const char* s, size_t len);
+    void luaL_addstring(luaL_Buffer* b, const char* s);
+    最后luaL_pushresult会更新缓冲，并将最终的字符串留在栈顶。通过这些函数，就无须再关心缓冲的分配了。但是在追加的过程中，缓冲会将一些中间结果放到栈中。因此，在使用时要留意此细节，只要保证压入和弹出的次数相等既可。Lua API还提供一个比较常用的函数，用于将栈顶的字符串或数字也追加到缓冲区中，函数原型为：
+    void luaL_addvalue(luaL_Buffer* b);
+   
+    3. 在C函数中保存状态：
+    Lua API提供了三种方式来保存非局部变量，即注册表、环境和upvalue。
+    1). 注册表：
+    注册表是一个全局的table，只能被C代码访问。通常用于保存多个模块间的共享数据。我们可以通过LUA_REGISTRYINDEX索引值来访问注册表。
+
+#include <stdio.h>
+#include <string.h>
+#include <lua.hpp>
+#include <lauxlib.h>
+#include <lualib.h>
+
+void registryTestFunc(lua_State* L)
+{
+    lua_pushstring(L,"Hello");
+    lua_setfield(L,LUA_REGISTRYINDEX,"key1");
+    lua_getfield(L,LUA_REGISTRYINDEX,"key1");
+    printf("%s\n",lua_tostring(L,-1));
+}
+
+int main()
+{
+    lua_State* L = luaL_newstate();
+    registryTestFunc(L);
+    lua_close(L);
+    return 0;
+}
+
+
+    2). 环境：
+    如果需要保存一个模块的私有数据，即模块内各函数需要共享的数据，应该使用环境。我们可以通过LUA_ENVIRONINDEX索引值来访问环境。
+
+
+#include <lua.hpp>
+#include <lauxlib.h>
+#include <lualib.h>
+
+//模块内设置环境数据的函数
+extern "C" int setValue(lua_State* L)
+{
+    lua_pushstring(L,"Hello");
+    lua_setfield(L,LUA_ENVIRONINDEX,"key1");
+    return 0;
+}
+
+//模块内获取环境数据的函数
+extern "C" int getValue(lua_State* L)
+{
+    lua_getfield(L,LUA_ENVIRONINDEX,"key1");
+    printf("%s\n",lua_tostring(L,-1));
+    return 0;
+}
+
+static luaL_Reg myfuncs[] = { 
+    {"setValue", setValue},
+    {"getValue", getValue},
+    {NULL, NULL} 
+}; 
+
+
+extern "C" __declspec(dllexport)
+int luaopen_testenv(lua_State* L)
+{
+    lua_newtable(L);  //创建一个新的表用于环境
+    lua_replace(L,LUA_ENVIRONINDEX); //将刚刚创建并压入栈的新表替换为当前模块的环境表。
+    luaL_register(L,"testenv",myfuncs);
+    return 1;
+}
+
+
+    Lua测试代码如下。
+
+require "testenv"
+
+print(testenv.setValue())
+print(testenv.getValue())
+--输出为：Hello
+
+    3). upvalue：
+    upvalue是和特定函数关联的，我们可以将其简单的理解为函数内的静态变量。 
+
+
+#include <lua.hpp>
+#include <lauxlib.h>
+#include <lualib.h>
+
+extern "C" int counter(lua_State* L)
+{
+    //获取第一个upvalue的值。
+    int val = lua_tointeger(L,lua_upvalueindex(1));
+    //将得到的结果压入栈中。
+    lua_pushinteger(L,++val);
+    //赋值一份栈顶的数据，以便于后面的替换操作。
+    lua_pushvalue(L,-1);
+    //该函数将栈顶的数据替换到upvalue(1)中的值。同时将栈顶数据弹出。
+    lua_replace(L,lua_upvalueindex(1));
+    //lua_pushinteger(L,++value)中压入的数据仍然保留在栈中并返回给Lua。
+    return 1;
+}
+
+extern "C" int newCounter(lua_State* L)
+{
+    //压入一个upvalue的初始值0，该函数必须先于lua_pushcclosure之前调用。
+    lua_pushinteger(L,0);
+    //压入闭包函数，参数1表示该闭包函数的upvalue数量。该函数返回值，闭包函数始终位于栈顶。
+    lua_pushcclosure(L,counter,1);
+    return 1;
+}
+
+static luaL_Reg myfuncs[] = { 
+    {"counter", counter},
+    {"newCounter", newCounter},
+    {NULL, NULL} 
+}; 
+
+
+extern "C" __declspec(dllexport)
+int luaopen_testupvalue(lua_State* L)
+{
+    luaL_register(L,"testupvalue",myfuncs);
+    return 1;
+}
+
+    Lua测试代码如下。
+
+
+require "testupvalue"
+
+func = testupvalue.newCounter();
+print(func());
+print(func());
+print(func());
+
+func = testupvalue.newCounter();
+print(func());
+print(func());
+print(func());
+
+--[[ 输出结果为：
+1
+2
+3
+1
+2
+3
+--]] 

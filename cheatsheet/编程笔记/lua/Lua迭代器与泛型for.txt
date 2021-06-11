@@ -1,0 +1,353 @@
+1. 迭代器与Closure：
+  迭代器
+    a. 迭代器是一种支持指针类型的结构，它可以遍历集合的每一个元素。
+    b. 在Lua中我们常常使用函数来描述迭代器，每次调用该函数就返回集合的下一个元素。
+    c. 迭代器需要保留上一次成功调用的状态和下一次成功调用的状态，也就是他知道来自于哪里和将要前往哪里。
+  闭包
+    d. 闭包是一个内部函数，它可以访问一个或者多个外部函数的外部局部变量。
+    e. 每次闭包的成功调用后这些外部局部变量都保存他们的值(状态)。当然如果要创建一个闭包必须要创建其外部局部变量。
+    f. 所以一个典型的闭包的结构包含两个函数：一个是闭包自己；另一个是工厂(创建闭包的函数)。
+
+    I. 闭包提供的机制可以很容易实现迭代器
+    从这一点看，Lua中closure机制为实现迭代器提供了语言上的保障，见如下示例：
+  function values(t)    -- 工厂       工厂函数有参数
+      local i = 0       -- 非局部变量  
+      local n = table.getn(t)
+      return function() -- 闭包自己   闭包自己没有参数
+          i = i + 1
+          if i <= n then return t[i] end
+      end
+  end
+    II. values()与ipairs()不同的是我们实现的这个迭代器返回元素的值而不是索引下标
+        values是一个工厂，每次调用他都会创建一个新的闭包(迭代器本身)。
+        闭包保存内部局部变量(t,i,n)，因此每次调用他返回list中的下一个元素值，当list中没有值时，返回nil.
+  t = {10, 20, 30}
+  it = values(t)
+  while true do
+      local element = it()  -- 局部变量
+      if element == nil then
+          break
+      end
+      print(element)
+  end
+  --另外一种基于foreach的调用方式(泛型for)  |  --另外一种基于foreach的调用方式(泛型for)
+  t2 = {15, 25, 35}                         |  t2 = {15, 25, 35}
+  for element in values(t2) do              |  for i = 1,#t2 do
+      print(element)                        |      print(t2[i])
+  end                                       |  end
+  g. 范性for为迭代循环处理所有的簿记(中间变量及其判断)：
+     首先调用迭代工厂；内部保留迭代函数，因此我们不需要iter变量；      -- 调用工厂函数创建迭代器函数和中间变量
+     然后在每一个新的迭代处调用迭代器函数；                            -- 循环调用迭代器函数
+     当迭代器返回nil时循环结束(后面我们将看到范性for能胜任更多的任务)。-- 迭代器函数返回nil则结束循环
+  print(unpack(t2)))  -- 仅仅适用于列表，不能用于字典和字典-列表混合方式
+
+    function allwords()
+        local line = io.read()   -- current line
+        local pos = 1            -- current position in the line
+        return function ()       -- iterator function
+            while line do        -- repeat while there are lines
+            local s, e = string.find(line, "%w+", pos)
+               if s then         -- found a word?
+                  pos = e + 1   -- next position is after this word
+                  return string.sub(line, s, e) -- return the word
+               else
+                  line = io.read()  -- word not found; try next line
+                  pos = 1       -- restart from first position
+               end
+           end
+        return nil    -- no more lines: end of traversal
+        end
+    end
+    h. 只有一个位置进行数据返回return
+       工厂函数用于初始化数据
+       内部while用于行切换，外部for获得单词
+  
+2. 泛型for的语义：  迭代函数、状态常量、控制变量 -- 第一个变量为控制变量，其值为nil时循环结束。
+      上面示例中的迭代器有一个明显的缺点，即每次循环时都需要创建一个新的closure变量，否则第一次迭代成功后，再将该closure用于新
+  的for循环时将会直接退出。
+      这里我们还是先详细的讲解一下Lua中泛型(for)的机制，之后再给出一个无状态迭代器的例子，以便于我们的理解。如果我们的迭代器
+  实现为无状态迭代器，那么就不必为每一次的泛型(for)都重新声明一个新的迭代器变量了。
+      
+      泛型(for)的语法如下：
+      for <var-list> in <exp-list> do
+          <body>
+      end
+      为了便于理解，由于我们在实际应用中<exp-list>通常只是包含一个表达式(expr)，因此简单起见，这里的说明将只是包含一个表达式，
+  而不是表达式列表。现在我们先给出表达式的原型和实例，如：
+  function ipairs2(a)
+      return iter,a,0
+  end
+  a. 该函数返回3个值，第1个为实际的迭代器函数变量，
+                      第2个是一个恒定对象，这里我们可以理解为待遍历的容器，
+                      第3个变量是在调用iter()函数时为其传入的初始值。
+                      
+    下面我们再看一下iter()函数的实现，如：
+  local function iter(a, i) -- 无状态迭代器不使用闭包函数实现
+      i = i + 1             -- a为容器，i如何确定，难道来源输出第一个值
+      local v = a[i]
+      if v then
+          return i, v
+      else
+          return nil, nil
+      end
+  end
+  在迭代器函数iter()中返回了两个值，分别对应于table的key和value，其中key(返回的i)如果为nil，
+  泛型(for)将会认为本次迭代已经结束。下面我们先看一下实际用例，如：
+  
+  a = {"one","two","three"}
+  for k,v in ipairs2(a) do  -- for k,v in iter,a,0 do 
+      print(k, v)
+  end
+  
+  --输出结果为：
+  --1       one
+  --2       two
+  --3       three
+  
+  这个例子中的泛型(for)写法可以展开为下面的基于while循环的方式，如：
+  
+  a = {"one","two","three"}
+  do
+      local _it,_s,_var = ipairs2(a)
+      while true do
+          local var_1,var_2 = _it(_s,_var) -- _var初始为ipairs2(a)返回的初始值0，_var后续为_it函数第一个返回值
+          _var = var_1
+          if _var == nil then  --注意，这里只判断迭代器函数返回的第一个是否为nil。
+              break
+          end
+          print(var_1,var_2)
+      end
+  end
+  --输出结果同上。
+
+     1. 初始化，计算in后面表达式的值，表达式应该返回范性for需要的三个值：迭代函数、状态常量、控制变量；
+  与多值赋值一样，如果表达式返回的结果个数不足三个会自动用nil补足，多出部分会被忽略。
+     2. 将状态常量和控制变量作为参数调用迭代函数(注意：对于for结构来说，状态常量没有用处，仅仅在初始化时获取他的值并传递给迭代函数)。
+     3. 将迭代函数返回的值赋给变量列表。将迭代器返回值第1个再赋值给(控制变量)
+     4. 如果返回的第一个值为nil循环结束，否则执行循环体。
+     5. 回到第二步再次调用迭代函数。
+  更具体地说：
+  for var_1, ..., var_n in explist do block end
+  等价于
+  do
+      local _f, _s, _var = explist                -- 步骤1
+      while true do                               -- 
+         local var_1, ... , var_n = _f(_s, _var)  -- 步骤2 ---| 步骤5
+         _var = var_1 --                          -- 步骤3   /|\ 
+         if _var == nil then break end            -- 步骤4 ---|
+         block                                    -- 
+      end                                         -- 
+  end
+  如果我们的迭代函数是f，状态常量是s，控制变量的初始值是a0，那么控制变量将循环：a1=f(s,a0)、a2=f(s,a1)、……，直到ai=nil。
+
+3. 无状态迭代器的例子：
+  a. 无状态的迭代器是指不保留任何状态的迭代器，因此在循环中我们可以利用无状态迭代器避免创建闭包花费额外的代价。
+  b. 每一次迭代，迭代函数都是用两个变量(状态常量和控制变量)的值作为参数被调用，一个无状态的迭代器只利用这两个值可以获取下一个元素。
+  这里的示例将实现遍历链表的迭代器。
+  function getnext(list, node)  --迭代器函数。
+      if not node then
+          return list           -- 看似返回list，其实list中包括val和next
+      else                      
+          return node.next      -- 看似返回next，其实list中包括val和next
+      end
+  end
+  
+  function traverse(list)       --泛型(for)的expression
+      return getnext,list,nil
+  end
+  
+  --初始化链表中的数据。
+  list = nil
+  for line in io.lines() do
+      list = { val = line, next = list}
+  end
+  
+  --以泛型(for)的形式遍历链表。  -- 从最后一行到开始行反向迭代 -- 
+  for node in traverse(list) do
+      print(node.val)
+  end
+
+    这里使用的技巧是：将链表的头结点作为恒定状态(traverse返回的第二个值)，而将当前节点作为控制变量。
+    第一次调用迭代器函数getnext()时，node为nil，因此函数返回list作为第一个结点。
+    在后续调用中node不再为nil了，所以迭代器返回node.next，直到返回链表尾部的nil结点，
+    此时泛型(for)将判断出迭代器的遍历已经结束。
+    
+    最后需要说明的是，traverse()函数和list变量可以反复的调用而无需再创建新的closure变量了。
+    这主要是因为迭代器函数(getnext)实现为无状态迭代器。
+
+多状态的迭代器
+  1. 很多情况下，迭代器需要保存多个状态信息而不是简单的状态常量和控制变量，最简单的方法是使用闭包，
+  2. 一种方法就是将所有的状态信息封装到table内，将table作为迭代器的状态常量，因为这种情况下可以将所有的信息存放在table内，所以迭代函数通常不需要第二个参数。
+  local iterator       -- to be defined later
+  function allwords()
+      local state = {line = io.read(), pos = 1}
+      return iterator, state
+  end
+
+  真正的处理工作是在迭代函数内完成：
+  function iterator (state)
+      while state.line do      -- repeat while there are lines
+         -- search for next word
+         local s, e = string.find(state.line, "%w+", state.pos)
+         if s then     -- found a word?
+             -- update next position (after this word)
+             state.pos = e + 1
+             return string.sub(state.line, s, e)
+         else   -- word not found
+             state.line = io.read()   -- try next line...
+             state.pos = 1     -- ... from first position
+         end
+      end
+      return nil        -- no more lines: end loop
+  end
+
+  我们应该尽可能的写无状态的迭代器，因为这样循环的时候由for来保存状态，不需要创建对象花费的代价小；
+  如果不能用无状态的迭代器实现，应尽可能使用闭包；
+  尽可能不要使用table这种方式，因为创建闭包的代价要比创建table小，另外Lua处理闭包要比处理table速度快些。
+  
+4. 具有复杂状态的迭代器：
+    在上面介绍的迭代器实现中，迭代器需要保存许多状态，可是泛型(for)却只提供了恒定状态和控制变量用于状态的保存。
+    一个最简单的办法是使用closure。当然我们还以将所有的信息封装到一个table中，并作为恒定状态对象传递给迭代器。
+    虽说恒定状态变量本身是恒定的，即在迭代过程中不会换成其它对象，但是该对象所包含的数据是否变化则完全取决于
+    迭代器的实现。就目前而言，由于table类型的恒定对象已经包含了所有迭代器依赖的信息，那么迭代器就完全可以
+    忽略泛型(for)提供的第二个参数。下面我们就给出一个这样的实例，见如下代码：
+    
+  local iterator
+  function allwords()
+      local state { line = io.read(), pos = 1 }
+      return iterator, state
+  end
+  --iterator函数将是真正的迭代器
+  function iterator(state)
+      while state.line do
+          local s,e = string.find(state.line,"%w+",state.pos)
+          if s then
+              state.pos = e + 1
+              return string.sub(state.line,s,e)
+          else
+              state.line = io.read()
+              state.pos = 1
+          end
+      end
+      return nil
+  end
+
+-----------------------  无状态迭代器的例子应该为：
+  local function getnext(list, node)  --迭代器函数。                                                                                          
+      if not node then
+          return list
+      else
+          return node.next
+      end
+  end
+   
+  function traverse(list)  --泛型(for)的expression
+      return getnext,list,nil
+  end
+    
+  --初始化链表中的数据。
+  list = nil
+  for line in io.lines() do
+      line = { val = line, next = list}
+      list = line
+  end
+   
+  --以泛型(for)的形式遍历链表。
+  for node in traverse(list) do
+      print(node.val)
+  end
+
+5. 真正的迭代器
+  作为一个具体的例子，我们使用上述方式重写allwords迭代器：
+  function allwords (f)
+      -- repeat for each line in the file
+      for l in io.lines() do
+         -- repeat for each word in the line
+         for w in string.gfind(l, "%w+") do
+             -- call the function
+             f(w)
+         end
+      end
+  end
+  
+  如果我们想要打印出单词，只需要
+  allwords(print)
+  更一般的做法是我们使用匿名函数作为作为参数，下面的例子打印出单词'hello'出现的次数：
+  
+  local count = 0
+  allwords(function (w)
+      if w == "hello" then count = count + 1 end
+  end)
+  print(count)
+  
+  用for结构完成同样的任务：
+  local count = 0
+  for w in allwords() do
+      if w == "hello" then count = count + 1 end
+  end
+  print(count)
+
+6. 用作迭代器的协同
+  可以将循环的迭代器看作生产者-消费者模式的特殊的例子。迭代函数产生值给循环体消费。
+  所以可以使用协同来实现迭代器。协同的一个关键特征是它可以不断颠倒调用者与被调用者之间的关系，这样我们毫无顾虑的使用它实现一个迭代器，而不用保存迭代函数返回的状态。
+  直接写这样一个迭代函数来完成这个任务并不容易，但是写一个生成所有排列的递归函数并不难。
+  
+  function permgen (a, n)
+      if n == 0 then
+         printResult(a)
+      else
+         for i=1,n do
+             -- put i-th element as the last one
+             a[n], a[i] = a[i], a[n]
+             -- generate all permutations of the other elements
+             permgen(a, n - 1)
+             -- restore i-th element
+             a[n], a[i] = a[i], a[n]
+         end
+      end
+  end
+  
+  function printResult (a)
+      for i,v in ipairs(a) do
+         io.write(v, " ")
+      end
+      io.write("\n")
+  end
+  
+  permgen ({1,2,3,4}, 4)
+
+    有了上面的生成器后，下面我们将这个例子修改一下使其转换成一个迭代函数：
+    1. 第一步printResult 改为 yield
+  function permgen (a, n)
+      if n == 0 then
+          coroutine.yield(a)
+      else
+      ...
+
+    2. 第二步，我们定义一个迭代工厂，修改生成器在生成器内创建迭代函数，并使生成器运行在一个协同程序内。迭代函数负责请求协同产生下一个可能的排列。
+  function perm (a)
+      local n = table.getn(a)
+      local co = coroutine.create(function () permgen(a, n) end)
+      return function ()   -- iterator
+         local code, res = coroutine.resume(co)
+         return res
+      end
+  end
+
+    这样我们就可以使用for循环来打印出一个数组的所有排列情况了：
+  for p in perm{"a", "b", "c"} do
+      printResult(p)
+  end
+
+  perm函数使用了Lua中常用的模式：
+  将一个对协同的resume的调用封装在一个函数内部，这种方式在Lua非常常见，所以Lua专门为此专门提供了一个函数coroutine.wrap。
+  与create相同的是，wrap创建一个协同程序；不同的是wrap不返回协同本身，而是返回一个函数，当这个函数被调用时将resume协同。
+  wrap中resume协同的时候不会返回错误代码作为第一个返回结果，一旦有错误发生，将抛出错误。我们可以使用wrap重写perm：
+  function perm (a)
+      local n = table.getn(a)
+      return coroutine.wrap(function () permgen(a, n) end)
+  end
+  一般情况下，coroutine.wrap比coroutine.create使用起来简单直观，前者更确切的提供了我们所需要的：
+  一个可以resume协同的函数，然而缺少灵活性，没有办法知道wrap所创建的协同的状态，也没有办法检查错误的发生。
+
+

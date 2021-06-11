@@ -1,0 +1,1 @@
+mem.c和memchk.c均实现对free alloc的封装，真是memchk.c添加了对内存的稽查功能。

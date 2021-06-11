@@ -1,0 +1,102 @@
+--[[
+  http://lua-users.org/wiki/StringRecipes
+--]]
+
+-- 1. Check if string X starts or ends with string Y
+local function starts_with(str, start)
+   return str:sub(1, #start) == start
+end
+
+local function ends_with(str, ending)
+   return ending == "" or str:sub(-#ending) == ending
+end
+
+-- Change the first character of a word to upper case
+str = str:gsub("^%l", string.upper)
+
+-- Change the first alphabetic character of a word to upper case
+str = str:gsub("%a", string.upper, 1)
+
+-- Put HTML tags in lowercase (but leaves attribute names untouched)
+str = str:gsub("<[^%s>]+", string.lower)
+
+-- Change an entire string to Title Case (i.e. capitalise the first letter of each word)
+local function tchelper(first, rest)
+   return first:upper()..rest:lower()
+end
+str = str:gsub("(%a)([%w_']*)", tchelper)
+
+-- Convert words in all upper-case to lower-case
+str = str:gsub("%f[%a]%u+%f[%A]", string.lower)
+
+
+-- Iterate over words in a string (adapted from Lua manual)
+-- words and numbers
+for word in str:gmatch("%w+") do ... end
+-- identifiers in typical programming languages
+for id in str:gmatch("[_%a][_%w]*") do ... end
+-- whitespace-separated components (without handling quotes)
+for id in str:gmatch("%S+") do ... end
+-- Iterate over lines in a buffer, ignoring empty lines
+for line in str:gmatch("[^\r\n]+") do ... end
+
+
+-- Text Wrapping
+function wrap(str, limit, indent, indent1)
+   indent = indent or ""
+   indent1 = indent1 or indent
+   limit = limit or 72
+   local here = 1-#indent1
+   local function check(sp, st, word, fi)
+      if fi - here > limit then
+         here = st - #indent
+         return "\n"..indent..word
+      end
+   end
+   return indent1..str:gsub("(%s+)()(%S+)()", check)
+end
+
+
+-- Repetition
+-- Check if a string is a repetition of some pattern
+str:gsub(pat, "") == ""
+-- Check if a string is a repetition of some pattern separated by whitespace
+not str:gsub(pat, ""):find"%S"
+-- Check if a string is a repetition of some pattern and also satisfies some condition
+str:gsub(pat, function(s) return ok(s) and "" or "*" end) == ""
+
+
+-- Formatting
+
+-- URL/E-Mail/Web Processing
+-- Decode an URL-encoded string
+function url_decode(str)
+   str = str:gsub("+", " ")
+   str = str:gsub("%%(%x%x)", function(h)
+      return string.char(tonumber(h,16))
+   end)
+   str = str:gsub("\r\n", "\n")
+   return str
+end
+
+-- URL-encode a string
+function url_encode(str)
+   if str then
+      str = str:gsub("\n", "\r\n")
+      str = str:gsub("([^%w %-%_%.%~])", function(c)
+         return ("%%%02X"):format(string.byte(c))
+      end)
+      str = str:gsub(" ", "+")
+   end
+   return str
+end
+
+
+-- Match Email addresses
+email="alex@it-rfc.de"
+if email:match("[A-Za-z0-9%.%%%+%-]+@[A-Za-z0-9%.%%%+%-]+%.%w%w%w?%w?") then
+   print(email .. " is a valid email address")
+end
+
+
+

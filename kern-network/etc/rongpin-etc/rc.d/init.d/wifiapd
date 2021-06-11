@@ -1,0 +1,36 @@
+#!/bin/sh
+
+IPADDR=192.168.18.1
+APCONF=/etc/hostapd.conf
+
+#modprobe rtl8192cu
+#if ! grep rtl8192cu /sys/class/net/wlan0/device/uevent >/dev/null 2>&1; then
+#	echo "ERROR: rtl8192cu not found";
+#	exit 1
+#fi
+
+if [ ! -f /var/lib/misc/udhcpd.leases ]; then
+	mkdir -p /var/lib/misc
+	touch /var/lib/misc/udhcpd.leases
+fi
+
+# See how we were called
+case $1 in
+	start)
+		killall hostapd udhcpd 2>/dev/null
+		
+		ifconfig wlan0 ${IPADDR}
+		udhcpd -S
+		hostapd -B ${APCONF}
+		echo 1 > /proc/sys/net/ipv4/ip_forward
+		;;
+
+	stop)
+		echo 0 > /proc/sys/net/ipv4/ip_forward
+		killall hostapd udhcpd 2>/dev/null
+		ifconfig wlan0 down
+		;;
+esac
+
+exit 0
+

@@ -1,0 +1,32 @@
+-- http://www.cnblogs.com/AUOONG/archive/2012/03/12/2391824.html
+
+创建一个/usr/lib/lua/luci/controller/admin/test.lua文件。
+
+module("luci.controller.admin.test", package.seeall)
+
+function index()
+    local page
+    page           = entry({ "admin", "user", "list" }, template("admin/user/list.htm"), _("user list"), 10)
+    page.i18n      = 'auto'
+    page.hidden    = true
+    page.dependent = true
+end
+
+
+
+    是否能够真正的隐藏还要看主题是否支持。在/usr/lib/lua/luci/view/themes/主题名称/header.htm中找到subtree函数。
+查找是否在里面使用dispatcher.node_childs(node)方法来获取节点。如果没有使用node_childs那么基本上就可以断定
+不支持hidden这个属性。如果不支持，则可以通过修改header.htm中的subtree函数。找到如下相似的代码：
+for k, n in pairs(node.nodes) do 
+        if n.title and n.target then 
+            table.insert(index, {name=k, order=n.order or 100}) 
+            count = count + 1 
+        end 
+end
+
+
+
+把if改为
+if n.title and n.target and not n.hidden then
+
+，即判断节点的hidden属性。

@@ -1,0 +1,64 @@
+--[[
+原型：string.match(s, pattern [, init])
+解释：在字符串s中查找满足参数pattern的匹配子串，如果找到了一个匹配就返回这个匹配子串，若没找到则返回nil，
+      如果参数pattern没有指定匹配参数，则返回nil
+      
+      另外，一个数字形参数init用来指定查找字符串的其实位置，这个参数默认为1，当然也可以设置为负数，
+      即-n表示从字符串尾部向前数n个字符开始查找。
+      
+      注意：match匹配失败返回nil             gsub替换失败返回原字符串
+      注意：match匹配成功返回首次匹配字符    gsub替换成功返回替换字符串和替换次数
+      注意：match匹配成功不返回位置信息      find查找成功返回位置信息
+      注意：match和gsub只能进行模式匹配      find可以字面字符和模式匹配两种形式
+      注意：match和find可以指定开始位置      gsub和gmatch不支持设定开始位置
+      注意：match和find查找的一个匹配项      gsub默认替换所有匹配项；gmatch返回匹配迭代函数
+      注意：string.match相对find而言，返回的是目标字符串中与模式相匹配的那部分子串
+      (捕获)
+      注意：match没有捕获时候，返回匹配的模式子串；match有捕获时候，仅仅返回设定捕获子串
+            find 没有捕获时候，返回匹配成功的开始结束位置； find有捕获时候，返回匹配成功的开始结束位置；和设定捕获的子串
+--]]
+
+local sourcestr = "ehre99wj=--=-*-/4mdqwl\0ds123fef"
+print("sourcestr %s ="..tostring(sourcestr))
+print("sourcestr %q ="..string.format("%q", sourcestr))
+
+-- 1. 模式匹配
+print("\n1.patern for match:")
+local match_ret = string.match(sourcestr, "%d%d%d")                             -- 模式匹配
+print("(%d%d%d) is \t\t"..match_ret)                                            -- 123
+
+match_ret = string.match(sourcestr, "%d%a%a")                                   -- 模式匹配，返回首次匹配
+print("(%d%a%a) is \t\t"..match_ret)                                            -- 9wj 
+
+match_ret = string.match(sourcestr, "")                                         -- 模式匹配，空匹配返回空
+print("() is \t\t"..match_ret)                                                  --     
+
+match_ret = string.match(sourcestr, "%d%d")                                     -- 模式匹配，返回首次匹配
+print("(%d%d) is \t\t"..match_ret)                                              -- 99  
+
+match_ret = string.match(sourcestr, "%d%d", 10)                                 -- 模式匹配，init指定起始位置
+print("(%d%d) init=10 is \t"..match_ret)                                        -- 12  
+
+-- 2. 字面字符串匹配
+print("\n2.plain for match:")
+print('"hello,world","hello"'..string.match("hello,world","hello"))             -- 字面字符匹配
+
+-- 3. 模式捕获
+print("\n1.capture for match:")
+print(string.match("I have 2 questions for you.", "(%d+ %a+)"))                 -- 整体捕获 一个字符串
+print(string.match("I have 2 questions for you.", "%d+ %a+"))                   -- 整体捕获 一个字符串
+print(string.match("I have 2 questions for you.", "(%d+) (%a+)"))               -- 独立捕获 两个字符串
+print(string.match("I have 2 questions for you.", "((%d+) (%a+))"))             -- 独立捕获 三个字符串
+
+print("\n2.capture for match:")
+local date="now is 2016/8/9 10:51"                                              -- 
+print(string.match(date,"%d+/%d+/%d+"))                                         -- 日期捕获
+print(string.match(date,"(%d+)/(%d+)/(%d+)"))                                   -- 日期捕获
+
+-- 4. 捕获副本
+s=[[then he said: "it's all right'"!]]                                          -- match使用捕获副本
+-- q, quotedPart = string.match(s, "([\"'])(.-)([\"'])")
+q, quotedPart = string.match(s, "([\"'])(.-)%1")
+print("\nmatch using 'capture copy' ")
+print("string"..s, "pattern".. "([\"'])(.-)%1")
+print(quotedPart)

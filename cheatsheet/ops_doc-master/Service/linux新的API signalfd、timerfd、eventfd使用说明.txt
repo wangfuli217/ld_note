@@ -1,0 +1,62 @@
+三种新的fd加入linux内核的的版本：
+
+signalfd：2.6.22
+
+timerfd：2.6.25
+
+eventfd：2.6.22
+三种fd的意义：
+
+signalfd：传统的处理信号的方式是注册信号处理函数；由于信号是异步发生的，要解决数据的并发访问，可重入问题。signalfd可以将信号抽象为一个文件描述符，当有信号发生时可以对其read，这样可以将信号的监听放到select、poll、epoll等监听队列中。
+
+timerfd：可以实现定时器的功能，将定时器抽象为文件描述符，当定时器到期时可以对其read，这样也可以放到监听队列的主循环中。
+
+eventfd：实现了线程之间事件通知的方式，eventfd的缓冲区大小是sizeof(uint64_t)；向其write可以递增这个计数器，read操作可以读取，并进行清零；eventfd也可以放到监听队列中，当计数器不是0时，有可读事件发生，可以进行读取。
+
+三种新的fd都可以进行监听，当有事件触发时，有可读事件发生。
+signalfd涉及API：
+
+    #include <sys/signalfd.h>  
+    int signalfd(int fd, const sigset_t *mask, int flags);  
+
+参数fd：如果是-1则表示新建一个，如果是一个已经存在的则表示修改signalfd所关联的信号；
+
+参数mask：信号集合；
+
+参数flag：内核版本2.6.27以后支持SFD_NONBLOCK、SFD_CLOEXEC；
+
+成功返回文件描述符，返回的fd支持以下操作：read、select(poll、epoll)、close
+timerfd涉及的API
+
+    #include <sys/timerfd.h>  
+    int timerfd_create(int clockid, int flags);  
+    int timerfd_settime(int fd, int flags,  
+                        const struct itimerspec *new_value,  
+                        struct itimerspec *old_value);  
+    int timerfd_gettime(int fd, struct itimerspec *curr_value);  
+
+
+    timerfd_create：创建一个timerfd；返回的fd可以进行如下操作：read、select(poll、epoll)、close  
+    timerfd_settime：设置timer的周期，以及起始间隔  
+    timerfd_gettime：获取到期时间。  
+
+
+    函数参数中数据结构如下：  
+    struct timespec  
+    {  
+        time_t tv_sec;                /* Seconds */  
+        long   tv_nsec;               /* Nanoseconds */  
+    };  
+      
+    struct itimerspec  
+    {  
+        struct timespec it_interval;  /* Interval for periodic timer */  
+        struct timespec it_value;     /* Initial expiration */  
+    };  
+
+eventfd涉及API：
+
+    #include <sys/eventfd.h>  
+    int eventfd(unsigned int initval, int flags);  
+
+创建一个eventfd，这是一个计数器相关的fd，计数器不为零是有可读事件发生，read以后计数器清零，write递增计数器；返回的fd可以进行如下操作：read、write、select(poll、epoll)、close

@@ -1,0 +1,82 @@
+https://blog.csdn.net/bluishglc/article/details/42398811
+======================================
+可以通过以下三条配置文件来控制用户切换目录
+======================================
+
+# 如果激活，您可以在登录时提供其主目录中放置在chroot()jail中的本地用户列表。
+# 如果chroot_local_user设置为YES，则含义略有不同。在这种情况下，列表将成为不被放置在chroot()jail中的用户列表。
+# 默认情况下，包含此列表的文件是/etc/vsftpd.chroot_list，但您可以使用chroot_list_file 设置覆盖它 。
+# 默认值：NO
+chroot_list_enable
+
+# 如果设置为YES，则登录后本地用户(默认情况下)将放置在其主目录中的chroot()jail中。
+# 警告： 此选项具有安全隐患，尤其是在用户具有上载权限或shell访问权限的情况下。
+# 只有在您知道自己在做什么时才启用。请注意，这些安全隐患不是特定于vsftpd的。
+# 它们适用于所有提供将本地用户放在chroot()jail中的FTP守护进程。
+# 默认值：NO
+chroot_local_user
+
+# 该选项是包含本地用户列表的文件的名称，该列表将放置在其主目录中的chroot()jail中。
+# 仅当 启用了选项chroot_list_enable时，此选项才有意义 。如果 启用了选项 chroot_local_user，
+# 则列表文件将成为不放置在chroot() jail中的用户列表。
+# 默认值：/etc/vsftpd.chroot_list
+chroot_list_file
+
+# 此选项应该是空目录的名称。此外，ftp用户不应该写入该目录。此目录有时用作安全chroot()jail，vsftpd不需要文件系统访问。
+secure_chroot_dir
+
+
+# 网友说明
+chroot_local_user  #是否将所有用户限制在主目录,YES为启用 NO禁用
+(该项默认值是NO,即在安装vsftpd后不做配置的话，ftp用户是可以向上切换到要目录之外的)
+
+chroot_local_user总是一个全局性的设定
+chroot_local_user=YES # 全部用户被锁定于主目录
+chroot_local_user=NO  # 全部用户不被锁定于主目录
+
+chroot_list_enable=YES 时，表示我们"需要例外"。而"例外"的含义总是有一个上下文的，即，
+当"全部用户被锁定于主目录"时  (即chroot_local_user=YES)，"例外"就是：不被锁定的用户是哪些；
+当"全部用户不被锁定于主目录"时(即chroot_local_user=NO)，"例外"就是：要被锁定的用户是哪些。
+
+chroot_list_enable #是否启动限制用户的名单 YES为启用  NO禁用
+chroot_list_file=/etc/vsftpd/chroot_list #是否限制在主目录下的用户名单，至于是限制名单还是排除名单，这取决于chroot_local_user的值
+
+# 自己说明
+chroot_local_user        YES   锁定于主目录；|  NO 不被锁定于主目录    | 
+chroot_list_enable=YES  提供不锁定用户；     |  提供 锁定用户,         | 用户存在chroot_list_file指定目录
+chroot_list_enable=NO   完全 锁定于主目录    |  完全 不被锁定于主目录  | 
+                                             
+===============================================================================
+如果设置为
+chroot_local_user＝YES
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd.chroot_list
+希望某用户浏览其主目录上级目录中的内容, 然后在文件vsftpd.chroot_list中添加该用户即可.
+
+1.所有用户都被限制在其主目录下 
+2.使用chroot_list_file指定的用户列表，这些用户作为"例外"，不受限制
+===============================================================================
+如果设置为
+chroot_local_user＝NO
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd.chroot_list
+不希望某用户浏览其主目录之上的各目录权限的用户添加到文件vsftpd.chroot_list
+
+1.所有用户都不被限制其主目录下 
+2.使用chroot_list_file指定的用户列表，这些用户作为"例外"，受到限制
+===============================================================================
+
+chroot_local_user=YES
+chroot_list_enable=NO
+chroot_list_file=/etc/vsftpd.chroot_list # 无效
+1.所有用户都被限制在其主目录下 
+2.不使用chroot_list_file指定的用户列表，没有任何"例外"用户
+===============================================================================
+
+chroot_local_user=NO
+chroot_list_enable=NO
+chroot_list_file=/etc/vsftpd.chroot_list # 无效
+1.所有用户都不被限制其主目录下 
+2.不使用chroot_list_file指定的用户列表，没有任何"例外"用户
+===============================================================================
+

@@ -1,0 +1,145 @@
+https://blog.csdn.net/liang19890820/article/details/50352131
+
+
+1. Qt 之密码框不可选中、复制、粘贴、无右键菜单等
+    在做用户登录、修改密码的时候，往往会用到密码框，其中一些功能要求与普通的输入框不同，
+例如：不能选中、复制、粘贴、无右键菜单等功能，当然设置密码不可见是必须的！
+
+1.1 基础部分
+
+//设置无右键菜单
+setContextMenuPolicy(Qt::NoContextMenu);
+
+//设置无输入时提示信息
+setPlaceholderText(QStringLiteral("请输入密码"));
+
+//设置密码效果模式
+setEchoMode(QLineEdit::Password);
+
+//设置最大输入长度16位
+setMaxLength(16);
+
+enum QLineEdit::EchoMode
+这个枚举值描述输入框如何显示内容。
+常数                            值  描述
+QLineEdit::Normal               0   输入时，正常显示字符，默认值
+QLineEdit::NoEcho               1   不显示任何信息，密码长度、信息需要保密时比较适用
+QLineEdit::Password             2   显示平台相关的密码掩码字符，而非实际的字符输入
+QLineEdit::PasswordEchoOnEdit   3   编辑时候显示字符，编辑结束后和QLineEdit::Password效果一样
+
+1.2 事件过滤器
+接口说明
+首先看下接口说明：
+void QObject::installEventFilter(QObject * filterObj)
+为对象安装一个filterObj事件过滤器，例如：
+monitoredObj->installEventFilter(filterObj);
+
+    事件过滤器对象接受发送到被观察者对象的所有事件，可以停止事件或将其转发到被观察者对象。
+事件过滤器对象通过eventFilter() 来接受事件，如果指定的事件被过滤则必须返回true，否则返回false。
+
+    如果一个对象安装多个事件过滤器，那么，最后安装的过滤器首先被激活。
+警告：如果在eventFilter()函数中删除接收对象，一定要返回true。如果返回false，Qt给已删除的对象发送事件，程序会crash。
+    注意，过滤器对象必须和被观察者对象处于同一线程。如果过滤器对象在不同的线程，这个函数什么都不做。
+如果在调用这个函数之后，过滤器对象或被观察者对象被移动到不同的线程，事件过滤器将不会被调用，直到两个对象再处于相同的线程中。
+
+================================================================================
+https://zhuanlan.zhihu.com/p/28820009
+
+
+1 alignment:：设置输入文字的方向
+水平方向
+    Qt::AlignLeft 文字左对齐，从左往右输入。
+    Qt::AlignRight 文字右对齐，从右往左输入。
+    Qt::AlignHCenter 文字水平居中
+    Qt::AlignJustify 等同于Qt::AlignLeft 
+垂直方向
+    Qt::AlignTop 文字上对齐
+    Qt::AlignBottom 文字下对齐
+    Qt::AlignVCenter 文字垂直居中
+    Qt::AlignBaseline 以基准线对齐
+    
+2 clearButtonEnabled：清空按钮是否可见
+    如果设置为true，会在行编辑器右侧多出一个清空按钮，点击该按钮，内容会被清空。
+    
+3. echoMode：输入模式。
+    QLineEdit::Normal：按照输入的字符，显示字符。
+    QLineEdit::NoEcho：不显示输入字符，这种模式适合于密码和密码长度都保密的情况。
+    QLineEdit::Password：使用平台相关的掩码来代替输入字符显示。
+    QLineEdit::PasswordEchoOnEdit：编辑时显示字符，结束编辑则显示掩码。
+    
+4 displayText：显示文字。区别与text。
+    如果echoMode设置为Normal，则返回原文本；
+    如果EchoMode设置为Password或PasswordEchoOnEdit，它将返回一个与平台相关的密码掩码字符，比如“* * * * * *”；
+    如果EchoMode设置为NoEcho，则返回空字符串。
+    
+5 inputMask 掩码。
+    用于设置有效输入。比如，LineEdit只允许输入数字或字母等。
+    还可以调用setValidator()设置验证器。
+  
+    Character Meaning
+    A         ASCII alphabetic character required. A-Z, a-z.
+    a         ASCII alphabetic character permitted but not required.
+    N         ASCII alphanumeric character required. A-Z, a-z, 0-9.
+    n         ASCII alphanumeric character permitted but not required.
+    X         Any character required.
+    x         Any character permitted but not required.
+    9         ASCII digit required. 0-9.
+    0         ASCII digit permitted but not required.
+    D         ASCII digit required. 1-9.
+    d         ASCII digit permitted but not required (1-9).
+    #         ASCII digit or plus/minus sign permitted but not required.
+    H         Hexadecimal character required. A-F, a-f, 0-9.
+    h         Hexadecimal character permitted but not required.
+    B         Binary character required. 0-1.
+    b         Binary character permitted but not required.
+    >         All following alphabetic characters are uppercased.
+    <         All following alphabetic characters are lowercased.
+    !         Switch off case conversion.
+    \         Use \ to escape the special characters listed above to use them as separators.
+    
+000.000.000.000;_                   IP address; blanks are _.
+HH:HH:HH:HH:HH:HH;_                 MAC address
+0000-00-00                          ISO Date; blanks are space
+>AAAAA-AAAAA-AAAAA-AAAAA-AAAAA;#    License number; blanks are - and all (alphabetic) characters are converted to uppercase.
+
+
+    
+6 placeholderText：占位字符串。
+    当编辑框为空时，会有一个灰色的字符串用来提示用户需要输入的内容。
+
+7 readOnly：只读。
+    只能用来显示，不能修改。
+
+8 selectedText：被选中的字符串。
+
+# 接口
+1.setValidator() 设置验证器，类似于inputMask。
+
+    QIntValidator 只接受整数，并且可以设置整数范围
+    QDoubleValidator 接受双精度浮点数，并且可设置范围。
+    QRegExpValidator 接受符合正则表达式规则的字符。
+
+2 setCompleter()。
+    这个函数比较重要，通过此函数可以使编辑器拥有提示或记忆功能。具体用法我会在下边的示例中给出。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

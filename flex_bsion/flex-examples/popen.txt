@@ -1,0 +1,132 @@
+
+
+
+POPEN(3)	    Linux Programmer's Manual		 POPEN(3)
+
+
+NAME
+       popen, pclose - process I/O
+
+SYNOPSIS
+       #include <stdio.h>
+
+       FILE *popen(const char *command, const char *type);
+
+       int pclose(FILE *stream);
+
+DESCRIPTION
+       The  popen()  function opens a process by creating a pipe,
+       forking, and invoking the shell.	 Since a pipe is by defi­
+       nition  unidirectional, the type argument may specify only
+       reading or writing, not both; the resulting stream is cor­
+       respondingly read-only or write-only.
+
+       The  command  argument  is  a pointer to a null-terminated
+       string containing a shell command line.	This  command  is
+       passed  to  /bin/sh  using the -c flag; interpretation, if
+       any, is performed by the shell.	The mode  argument  is	a
+       pointer	to  a null-terminated string which must be either
+       `r' for reading or `w' for writing.
+
+       The return value from popen() is	 a  normal  standard  I/O
+       stream  in  all	respects save that it must be closed with
+       pclose() rather than fclose().  Writing to such	a  stream
+       writes to the standard input of the command; the command's
+       standard output is the same as that of  the  process  that
+       called  popen(),	 unless	 this  is  altered by the command
+       itself.	Conversely, reading  from  a  ``popened''  stream
+       reads  the  command's  standard	output, and the command's
+       standard input is the same as that  of  the  process  that
+       called popen.
+
+       Note  that  output  popen  streams  are	fully buffered by
+       default.
+
+       The pclose function waits for the  associated  process  to
+       terminate  and  returns	the exit status of the command as
+       returned by wait4.
+
+RETURN VALUE
+       The popen function returns NULL if the fork(2) or  pipe(2)
+       calls fail, or if it cannot allocate memory.
+
+       The  pclose function returns -1 if wait4 returns an error,
+       or some other error is detected.
+
+ERRORS
+       The popen function does not set errno if memory allocation
+       fails.  If the underlying fork() or pipe() fails, errno is
+       set appropriately.  If the mode argument is  invalid,  and
+       this condition is detected, errno is set to EINVAL.
+
+
+
+BSD MANPAGE		    7 May 1998				1
+
+
+
+
+
+POPEN(3)	    Linux Programmer's Manual		 POPEN(3)
+
+
+       If  pclose()  cannot obtain the child status, errno is set
+       to ECHILD.
+
+CONFORMING TO
+       POSIX.2
+
+BUGS
+       Since the standard input of a command opened  for  reading
+       shares  its  seek  offset  with	the  process  that called
+       popen(), if the original process has done a buffered read,
+       the command's input position may not be as expected.  Sim­
+       ilarly, the output from a command opened for  writing  may
+       become  intermingled  with  that	 of the original process.
+       The latter can be  avoided  by  calling	fflush(3)  before
+       popen.
+
+       Failure to execute the shell is indistinguishable from the
+       shell's failure to execute command, or an  immediate  exit
+       of the command.	The only hint is an exit status of 127.
+
+HISTORY
+       A  popen()  and	a pclose() function appeared in Version 7
+       AT&T UNIX.
+
+SEE ALSO
+       fork(2), sh(1), pipe(2), wait4(2),  fflush(3),  fclose(3),
+       fopen(3), stdio(3), system(3).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+BSD MANPAGE		    7 May 1998				2
+
+

@@ -1,0 +1,272 @@
+socket选项总结setsocketopt
+
+功能描述：
+        获取或者设置与某个套接字关联的选 项。选项可能存在于多层协议中，它们总会出现在最上面的套接字层。当操作套接字选项时，选项位于的层和选项的名称必须给出。为了操作套接字层的选项，应该 将层的值指定为SOL_SOCKET。为了操作其它层的选项，控制选项的合适协议号必须给出。例如，为了表示一个选项由TCP协议解析，层应该设定为协议号TCP。
+用法：
+
+int getsockopt(int sock, int level, int optname, void *optval, socklen_t *optlen);
+int setsockopt(int sock, int level, int optname, const void *optval, socklen_t optlen);
+
+参数：  
+sock：将要被设置或者获取选项的套接字。
+level：选项所在的协议层。
+optname：需要访问的选项名。
+optval：对于getsockopt()，指向返回选项值的缓冲。对于setsockopt()，指向包含新选项值的缓冲。
+optlen：对于getsockopt()，作为入口参数时，选项值的最大长度。作为出口参数时，选项值的实际长度。对于setsockopt()，现选项的长度。
+
+
+返回说明：  
+
+
+成功执行时，返回0。失败返回-1，errno被设为以下的某个值  
+EBADF：sock不是有效的文件描述词
+EFAULT：optval指向的内存并非有效的进程空间
+EINVAL：在调用setsockopt()时，optlen无效
+ENOPROTOOPT：指定的协议层不能识别选项
+ENOTSOCK：sock描述的不是套接字
+
+
+参数详细说明：
+
+level指定控制套接字的层次.可以取三种值:
+1)SOL_SOCKET:通用套接字选项.
+2)IPPROTO_IP:IP选项.
+3)IPPROTO_TCP:TCP选项.　
+optname指定控制的方式(选项的名称),我们下面详细解释　
+
+optval获得或者是设置套接字选项.根据选项名称的数据类型进行转换　
+
+
+选项名称　　　　　　　　说明　　　　　　　　　　　　　　　　　　数据类型
+========================================================================
+　　　　　　　　　　　　SOL_SOCKET
+------------------------------------------------------------------------
+SO_BROADCAST　　　　　　允许发送广播数据　　　　　　　　　　　　int
+# 设置或获取广播标识.当选择此选项时,数据报套接字接收向广播地址发送的数据包, 并且可以向广播地址发送数据包.这一选项对于面向流的套接字无效.
+SO_DEBUG　　　　　　　　允许调试　　　　　　　　　　　　　　　　int
+SO_DONTROUTE　　　　　　不查找路由　　　　　　　　　　　　　　　int
+# 不通过网关发送, 只能发送给直接连接的主机.可以通过在套接字的send(2)操作上设置MSG_DONTROUTE标志来实现相同的效果.其值为布尔型整数的标识.
+SO_ERROR　　　　　　　　获得套接字错误　　　　　　　　　　　　　int
+# 取得并清除未解决的套接字错误. 只有在getsockopt.  时有效. 是一个整数值.
+SO_KEEPALIVE　　　　　　保持连接　　　　　　　　　　　　　　　　int
+# 允许在面向连接的套接字上发送 keep-alive 消息的功能.是一个布尔整数
+SO_LINGER　　　　　　　 延迟关闭连接　　　　　　　　　　　　　　struct linger
+struct linger {
+    int   l_onoff;    /* 延时状态（打开/关闭） */
+    int   l_linger;   /* 延时多长时间 */
+};
+# 如果选择此选项,close(2)或shutdown(2)将等到所有套接字里排队的消息成功发送或到达延迟时间后 才会返回.否则,
+# 调用将立即返回. 而 closing 操作将在后台 进行. 如果套接字是 exit(2), 的一部分关闭时, 它总是在后台延迟进行的.
+SO_OOBINLINE　　　　　　带外数据放入正常数据流　　　　　　　　　int
+# 如果打开这个选项，带外（Out-of-Band）数据可以直接放入接收数据流。否则，只有接收时打开MSG_OOB标志,才接收带外数据.
+SO_RCVBUF　　　　　　　 接收缓冲区大小　　　　　　　　　　　　　int
+# 设置或得到套接字发送缓冲区的最大字节数. 其默认值由 wmem_default sysctl 设置,最大允许值由 wmem_max sysctl 设置.
+SO_SNDBUF　　　　　　　 发送缓冲区大小　　　　　　　　　　　　　int
+# 设置或得到套接字接收缓冲区的最大字节数。其默认值由 rmem_default sysctl设置,最大允许值由 rmem_max sysctl 设置.
+SO_RCVLOWAT　　　　　　 接收缓冲区下限　　　　　　　　　　　　　int
+SO_SNDLOWAT　　　　　　 发送缓冲区下限　　　　　　　　　　　　　int
+# 传递数据之前缓冲区内的最小字节数. 在Linux中这两个值是不可改变的, 固定为1字节.可以用getsockopt用来读取它们的值; 
+SO_RCVTIMEO　　　　　　 接收超时　　　　　　　　　　　　　　　　struct timeval
+SO_SNDTIMEO　　　　　　 发送超时　　　　　　　　　　　　　　　　struct timeval
+# 发送和接收时的超时设定, 并在超时时报错. 在Linux中由协议指定,不能被读写. 它们的功能可用alarm(2)或者setitimer(2).  来模拟.
+SO_REUSERADDR　　　　　 允许重用本地地址和端口　　　　　　　　　int
+# 表示在一个bind(2)调用中对提供给它的地址使用的确认规则应该允许重复使用本地地址. 对于PF_INET套接字,
+# 这表示该套接字可以绑定, 除非已有一个活跃的侦听套接口绑定到此地址上. 如果这个侦听套接字和一个指定端口绑定为
+# INADDR_ANY 时, 它就不能再绑定到任何本地地址的此端口.
+
+# 除非你设置了S0_REUSEADDR标识，否则一个已绑定的TCP本地套接字地址在关闭后的一段时间内不可用．
+# 使用该标识的时候要小心，因为它会使 TCP 变得不可靠．
+
+SO_TYPE　　　　　　　　 获得套接字类型　　　　　　　　　　　　　int
+# 按整数返回套接字类型（如 SOCK_STREAM） 只能通过 getsockopt 读取.
+SO_BSDCOMPAT　　　　　　与BSD系统兼容　　　　　　　　　　　　　 int
+SO_PRIORITY
+# 设置在此套接字发送的所有包的协议定义优先权.  Linux 通过这一值来排列网络队列:根据所选设备排队规则,
+# 具有更高优先权的包可以先被处理.对于 ip(7), 同时也设置了输出包的 IP 服务类型（TOS）的域.
+SO_BINDTODEVICE
+# 将此套接字绑定到一个特定的设备上, 如"eth0", 做为指定的接口名字传递.  如果名称是空字符串或此项长度为 0,
+# 则套接字设备绑定被取消. 过去的选项是一个变长的空零结尾的接口名称的字符串, 其最大长度为IFNAMSIZ.
+# 如果一个套接字被绑定至一接口, 只有由这个特定接口接收的信息包可以由此套接字处理.
+========================================================================
+　　　　　　　　　　　　IPPROTO_IP
+------------------------------------------------------------------------
+IP_HDRINCL　　　　　　　在数据包中包含IP首部　　　　　　　　　　int
+IP_OPTINOS　　　　　　　IP首部选项　　　　　　　　　　　　　　　int
+IP_TOS　　　　　　　　　服务类型
+
+IP_TTL　　　　　　　　　生存时间　　　　　　　　　　　　　　　　int
+IP_TTL 设置或者检索从此套接字发出的包的当前生存时间字段.
+
+IP_PKTINFO 传递一条包含pktinfo结构(该结构提供一些来访包的相关信息)的IP_PKTINFO辅助信息.这个选项只对数据报类的套接字有效．
+struct in_pktinfo
+{
+  unsigned int ipi_ifindex; /* 接口索引 */
+  struct in_addr ipi_spec_dst; /* 路由目的地址 */
+  struct in_addr ipi_addr; /* 头标识目的地址 */
+};
+ipi_ifindex指的是接收包的接口的唯一索引．     
+ipi_spec_dst 指的是路由表记录中的目的地址，
+ipi_addr指的是包头中的目的地址． 
+如果给 sendmsg(2)传递了IP_PKTINFO，那么外发的包会通过在ipi_ifindex中指定的接口发送出去，同时把 ipi_spec_dst 设置为目的地址．
+
+IP_RECVTTL:当设置了该标识时，传送一条带有用一个字节表示的接收包生存时间（time to live）字段的IP_RECVTTL控制信息．
+此选项还不支持 SOCK_STREAM 套接字
+========================================================================
+　　　　　　　　　　　　IPPRO_TCP
+------------------------------------------------------------------------
+TCP_MAXSEG　　　　　　　TCP最大数据段的大小　　　　　　　　　　 int
+TCP_MAXSEG    设置或接收最大出站 TCP数据段尺寸。如果这个选项在建立连接前的设置，
+              它将改变发送到另一端初始信息包中的 MSS值。这个值大于 MTU 接口值将被忽略而不起作用。
+TCP_NODELAY　　　　　　 不使用Nagle算法　　　　　　　　　　　　 int
+TCP_NODELAY 关闭Nagle算法。这意味着数据包将尽可能快地被发送而没有因有网络中更多的数据包造成的延时，
+            期待一个整数表示的布尔标志。
+TCP_CORK    设置此项将不发送部份帧。所有排队的部份帧只在此项清除后，才能发送。在调用sendfile(2)
+            前准备数据报头或对网络吞吐量进行优化有用处。 此选项不能与 TCP_NODELAY 联用.
+
+========================================================================
+
+SO_RCVBUF和SO_SNDBUF每个套接口都有一个发送缓冲区和一个接收缓冲区，使用这两个套接口选项可以改变缺省缓冲区大小。
+
+// 接收缓冲区
+int nRecvBuf=32*1024;         //设置为32K
+setsockopt(s,SOL_SOCKET,SO_RCVBUF,(const char*)&nRecvBuf,sizeof(int));
+
+
+//发送缓冲区
+int nSendBuf=32*1024;//设置为32K
+setsockopt(s,SOL_SOCKET,SO_SNDBUF,(const char*)&nSendBuf,sizeof(int));
+
+注意：
+  当设置TCP套接口接收缓冲区的大小时，函数调用顺序是很重要的，因为TCP的窗口规模选项是在建立连接时用SYN与对方互换得到的。对于客户，O_RCVBUF选项必须在connect之前设置；对于服务器，SO_RCVBUF选项必须在listen前设置。
+
+结合原理说明：
+        1.每个套接口都有一个发送缓冲区和一个接收缓冲区。 接收缓冲区被TCP和UDP用来将接收到的数据一直保存到由应用进程来读。 TCP：TCP通告另一端的窗口大小。 TCP套接口接收缓冲区不可能溢出，因为对方不允许发出超过所通告窗口大小的数据。 这就是TCP的流量控制，如果对方无视窗口大小而发出了超过窗口大小的数据，则接 收方TCP将丢弃它。 UDP：当接收到的数据报装不进套接口接收缓冲区时，此数据报就被丢弃。UDP是没有流量控制的；快的发送者可以很容易地就淹没慢的接收者，导致接收方的UDP丢弃数据报。
+        2.我们经常听说tcp协议的三次握手,但三次握手到底是什么，其细节是什么，为什么要这么做呢?
+        第一次:客户端发送连接请求给服务器，服务器接收;
+        第二次:服务器返回给客户端一个确认码,附带一个从服务器到客户端的连接请求,客户机接收,确认客户端到服务器的连接.
+        第三次:客户机返回服务器上次发送请求的确认码,服务器接收,确认服务器到客户端的连接.
+        我们可以看到:
+        1. tcp的每个连接都需要确认.
+        2. 客户端到服务器和服务器到客户端的连接是独立的.
+        我们再想想tcp协议的特点:连接的,可靠的,全双工的,实际上tcp的三次握手正是为了保证这些特性的实现.
+
+
+3.setsockopt的用法
+
+1.closesocket（一般不会立即关闭而经历TIME_WAIT的过程）后想继续重用该socket：
+BOOL bReuseaddr=TRUE;
+setsockopt(s,SOL_SOCKET ,SO_REUSEADDR,(const char*)&bReuseaddr,sizeof(BOOL));
+
+
+2. 如果要已经处于连接状态的soket在调用closesocket后强制关闭，不经历TIME_WAIT的过程：
+BOOL bDontLinger = FALSE;
+setsockopt(s,SOL_SOCKET,SO_DONTLINGER,(const char*)&bDontLinger,sizeof(BOOL));
+
+
+3.在send(),recv()过程中有时由于网络状况等原因，发收不能预期进行,而设置收发时限：
+int nNetTimeout=1000;//1秒
+//发送时限
+setsockopt(socket，SOL_S0CKET,SO_SNDTIMEO，(char *)&nNetTimeout,sizeof(int));
+//接收时限
+setsockopt(socket，SOL_S0CKET,SO_RCVTIMEO，(char *)&nNetTimeout,sizeof(int));
+
+
+4.在send()的时候，返回的是实际发送出去的字节(同步)或发送到socket缓冲区的字节
+(异步);系统默认的状态发送和接收一次为8688字节(约为8.5K)；在实际的过程中发送数据
+和接收数据量比较大，可以设置socket缓冲区，而避免了send(),recv()不断的循环收发：
+// 接收缓冲区
+int nRecvBuf=32*1024;//设置为32K
+setsockopt(s,SOL_SOCKET,SO_RCVBUF,(const char*)&nRecvBuf,sizeof(int));
+//发送缓冲区
+int nSendBuf=32*1024;//设置为32K
+setsockopt(s,SOL_SOCKET,SO_SNDBUF,(const char*)&nSendBuf,sizeof(int));
+
+
+5. 如果在发送数据的时，希望不经历由系统缓冲区到socket缓冲区的拷贝而影响
+程序的性能：
+int nZero=0;
+setsockopt(socket，SOL_S0CKET,SO_SNDBUF，(char *)&nZero,sizeof(nZero));
+
+
+6.同上在recv()完成上述功能(默认情况是将socket缓冲区的内容拷贝到系统缓冲区)：
+int nZero=0;
+setsockopt(socket，SOL_S0CKET,SO_RCVBUF，(char *)&nZero,sizeof(int));
+
+
+7.一般在发送UDP数据报的时候，希望该socket发送的数据具有广播特性：
+BOOL bBroadcast=TRUE;
+setsockopt(s,SOL_SOCKET,SO_BROADCAST,(const char*)&bBroadcast,sizeof(BOOL));
+
+
+8.在client连接服务器过程中，如果处于非阻塞模式下的socket在connect()的过程中可以设置connect()延时,直到accpet()被呼叫(本函数设置只有在非阻塞的过程中有显著的作用，在阻塞的函数调用中作用不大)
+BOOL bConditionalAccept=TRUE;
+setsockopt(s,SOL_SOCKET,SO_CONDITIONAL_ACCEPT,(const char*)&bConditionalAccept,sizeof(BOOL));
+
+
+9.如果在发送数据的过程中(send()没有完成，还有数据没发送)而调用了closesocket(),以前我们一般采取的措施是"从容关闭"shutdown(s,SD_BOTH),但是数据是肯定丢失了，如何设置让程序满足具体应用的要求(即让没发完的数据发送出去后在关闭socket)？
+struct linger {
+u_short l_onoff;
+u_short l_linger;
+};
+linger m_sLinger;
+m_sLinger.l_onoff=1;//(在closesocket()调用,但是还有数据没发送完毕的时候容许逗留)
+// 如果m_sLinger.l_onoff=0;则功能和2.)作用相同;
+m_sLinger.l_linger=5;//(容许逗留的时间为5秒)
+setsockopt(s,SOL_SOCKET,SO_LINGER,(const char*)&m_sLinger,sizeof(linger));
+
+ 
+
+注意：两种套接口的选项：一种是布尔型选项，允许或禁止一种特性；另一种是整形或结构选项。允许一个布尔型选项，则将optval指向非零整形数；禁止一个选项optval指向一个等于零的整形数。对于布尔型选项，optlen应等于sizeof(int)；对其他选项，optval指向包含所需选项的整形数或结构，而optlen则为整形数或结构的长度。SO_LINGER选项用于控制下述情况的行动：套接口上有排队的待发送数据，且closesocket()调用已执行。参见closesocket()函数中关于SO_LINGER选项对closesocket()语义的影响。应用程序通过创建一个linger结构来设置相应的操作特性：
+   struct linger {
+int l_onoff;
+int l_linger;
+   };
+   为了允许SO_LINGER，应用程序应将l_onoff设为非零，将l_linger设为零或需要的超时值（以秒为单位），然后调用setsockopt()。为了允许SO_DONTLINGER（亦即禁止SO_LINGER），l_onoff应设为零，然后调用setsockopt()。
+   缺省条件下，一个套接口不能与一个已在使用中的本地地址捆绑（参见bind()）。但有时会需要“重用”地址。因为每一个连接都由本地地址和远端地址的组合唯一确定，所以只要远端地址不同，两个套接口与一个地址捆绑并无大碍。为了通知套接口实现不要因为一个地址已被一个套接口使用就不让它与另一个套接口捆绑，应用程序可在bind()调用前先设置SO_REUSEADDR选项。请注意仅在bind()调用时该选项才被解释；故此无需（但也无害）将一个不会共用地址的套接口设置该选项，或者在bind()对这个或其他套接口无影响情况下设置或清除这一选项。 
+   一个应用程序可以通过打开SO_KEEPALIVE选项，使得套接口实现在TCP连接情况下允许使用“保持活动”包。一个套接口实现并不是必需支持“保持活动”，但是如果支持的话，具体的语义将与实现有关。
+
+   TCP_NODELAY选项禁止Nagle算法。Nagle算法通过将未确认的数据存入缓冲区直到蓄足一个包一起发送的方法，来减少主机发送的零碎小数据包的数目。但对于某些应用来说，这种算法将降低系统性能。所以TCP_NODELAY可用来将此算法关闭。应用程序编写者只有在确切了解它的效果并确实需要的情况下，才设置TCP_NODELAY选项，因为设置后对网络性能有明显的负面影响。TCP_NODELAY是唯一使用IPPROTO_TCP层的选项，其他所有选项都使用SOL_SOCKET层。
+   如果设置了SO_DEBUG选项，套接口供应商被鼓励（但不是必需）提供输出相应的调试信息。但产生调试信息的机制以及调试信息的形式已超出本规范的讨论范围。
+  setsockopt()支持下列选项。其中“类型”表明optval所指数据的类型。
+
+
+
+
+
+在TCP连接中，recv等函数默认为阻塞模式(block)，即直到有数据到来之前函数不会返回，而我们有时则需要一种超时机制使其在一定时间后返回而不管是否有数据到来，这里我们就会用到setsockopt()函数：
+    int  setsockopt(int  s, int level, int optname, void* optval, socklen_t* optlen);
+    这里我们要涉及到一个结构：
+    struct timeval
+    {
+            time_t tv_sec;
+            time_t tv_usec;
+    };
+    这里第一个域的单位为秒，第二个域的单位为微秒。
+    struct timeval tv_out;
+    tv_out.tv_sec = 1;
+    tv_out.tv_usec = 0;
+    填充这个结构后，我们就可以以如下的方式调用这个函数：
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv_out, sizeof(tv_out));(具体参数可以man一下，或查看MSDN)
+    这样我们就设定了recv()函数的超时机制，当超过tv_out设定的时间而没有数据到来时recv()就会返回0值。
+
+    第二个我们要介绍的是多路复用机制，也就是同时监听多个套接字连接。
+    int select(int n, fd_set* readfds, fd_set* writefds, fd_set* exceptfds, struct timeval* timeout);
+    这里涉及到了fd_set结构：
+    typedef struct fd_set
+    {
+            u_int fd_count;
+            int fd_array[FD_SETSIZE];
+    }
+    fd_count为fd_set结构中包含的套接字个数，fd_array唯一个int 数组，包含了我们要监听的套接字。
+    首先我们需要使用FD_SET将我们要监听的套接字添加到fd_set结构中：
+    fd_set readfd;
+    FD_SET(fd, &readfd);
+    然后我们这样调用select函数：
+    select(max_fd + 1, &readfd, NULL, NULL, NULL);(具体参数可以man一下，或查看MSDN)
+    FD_ISSET(fd, &readfd);
+    其中max_fd为我们要监听的套接字中值最大的一个，同时在调用select是要将其加1，readfd即为我们监听的要进行读操作的套接字连接，第三个参数是我们监听的要进行写操作的套接字连接，第四个参数用于异常，而最后一个参数可以用来设定超时，这里同样使用了struct timeval结构，可以实现与前面介绍的同样的效果。这里如果连接进来的话select即返回一个大于零的值，然后我们调用FD_ISSET宏来检测具体是那一个套接字有数据进来(FD_ISSET返回非零值)。
+
+    最后介绍的是另一种实现非阻塞的方法，这种方法在有些应用中会起到一定作用，尤其是在select()函数监听的套接字个数超过1024个时(因为fd_set结构在大部分UNIX系统中都对其可以监听的套接字个数作了1024的限制，如果要突破这个限制，必须修改头文件并重新编译内核)，我们就不能使用select多路复用机制。
+    拿recv()函数来说，我们可以这样进行调用：
+    recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
+    注意到我们这里采用了MSG_DONTWAIT标志，它的作用是告诉recv()函数如果有数据到来的话就接受全部数据并立刻返回，没有数据的话也是立刻返回，而不进行任何的等待。采用这个机制就可以在多于1024个套接字连接时使用for()循环对全部的连接进行监听。

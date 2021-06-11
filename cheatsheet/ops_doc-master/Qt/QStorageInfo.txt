@@ -1,0 +1,48 @@
+https://qtguide.ustclug.org/
+
+存储器信息类
+    存储器信息类 QStorageInfo 是从 Qt 5.4.0 版本开始新增的类，主要用于枚举存储器分区列表。
+枚举分区的时候要区分存储器分区和文件系统两个 概念
+  对于 Windows 系统，通常每个磁盘分区对应一个文件系统根，如 C:、D:、E: 等就是分区的挂载点(也是多个文件系统根)
+  对于 Linux 系统，各个磁盘分区通常挂载到文件夹，文件系统根只有一个 / ，/ 既是文件系统根，也是操作系统安装的根：
+  
+    Qt 类库中，QDir 和 QFileInfo 等类只与文件系统有关，而不关心磁盘分区有几个。
+QStorageInfo 就是专门查询存储器信息，包括磁盘、 光盘、U盘等分区信息。
+  
+1. 静态函数
+QList<QStorageInfo> QStorageInfo::​mountedVolumes() 该函数返回存储器分区列表，列表每个元素对应一个分区
+QStorageInfo QStorageInfo::​root()                  操作系统安装的根分区
+
+2. 构造函数
+QStorageInfo::​QStorageInfo(const QString & path)
+QStorageInfo::​QStorageInfo(const QDir & dir)
+根据一个文件路径，构造 QStorageInfo 对象，查询包含该路径的存储器分区信息
+除了构造函数设置文件路径，setPath() 函数也可以改变要查询的文件路径：
+void QStorageInfo::​setPath(const QString & path)
+  
+3. 成员函数
+bool QStorageInfo::​isValid() const          //当前分区是否已挂载到文件系统
+bool QStorageInfo::​isReady() const          //当前分区的文件系统是否正常工作
+qint64 QStorageInfo::​bytesTotal() const     //分区总大小，单位字节
+qint64 QStorageInfo::​bytesFree() const      //分区剩余空闲空间，单位字节
+qint64 QStorageInfo::​bytesAvailable() const //当前用户可以使用该分区中多大空闲空间，单位字节
+
+QByteArray QStorageInfo::​fileSystemType() const //Windows常见的文件系统类型是NTFS，Linux常用ext3等
+QString QStorageInfo::​name() const //比如 C: 盘标签叫 System，D: 盘标签叫 Programs，标签名有可能为空
+QString QStorageInfo::​displayName() const //有标签名就显示标签名，没标 签名显示盘符名
+bool QStorageInfo::​isReadOnly() const //是否为只读分区或者无权限写入，如光盘分区
+bool QStorageInfo::​isRoot() const //是否为操作系统安装的根
+QByteArray QStorageInfo::​device() const //设备名，Linux系统常见为 /dev/sda* ，Windows 是一长串设备代码
+QString QStorageInfo::​rootPath() const //分区的挂载点
+
+
+
+
+
+
+
+
+
+
+
+  

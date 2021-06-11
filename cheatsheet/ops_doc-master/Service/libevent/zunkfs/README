@@ -1,0 +1,191 @@
+
+I. Prerequisites:
+=================
+- FUSE
+- libevent >= 1.4.1 (http://monkey.org/~provos/libevent/) [1]
+- sqlite3
+- openssl
+
+Centos:
+	yum install fuse dkms-fuse fuse-devel
+	yum install sqlite-devel
+	yum install openssl-devel
+	# add your user to the fuse group - logout/login
+
+Gentoo:
+	emerge -va sys-fs/fuse
+
+Ubuntu/Debian:
+	apt-get install libfuse-dev
+	apt-get install libsqlite3-dev
+	apt-get install libssl-dev
+
+OSX + MacPorts:
+	port install libfuse
+	port install libevent
+	port install sqlite3
+
+[1] Unfortunately, libevent 1.4.x is not included in Ubuntu Hardy,
+    CentOS 5, and others. But it is needed for zunkfs, which 
+    relies heavily on event_base_* functionality.  Those peeps
+    should take a look at using local_libevent_installer.sh
+    (just need to have a ~/usr or a ~/local dir as a target)
+
+II. Buildling
+==============
+
+  make  # hopefully that just works and you don't have any errors
+
+If you installed an alternate libevent other than what your system provides,
+make sure to set the environment variable LIBEVENT_PREFIX. For example:
+
+	export LIBEVENT_PREFIX=/usr/local
+
+Then set LD_LIBRARY_PREFIX so that your dynamic linker knows which libevent
+to use:
+
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+
+III. Getting Started
+====================
+
+Fetch sample file system root from http://drze.net/junk/testfs
+Or create your own using mkfs.zunkfs.
+
+Create a place for your chunks, and mount the file system.
+
+$ wget http://drze.net/junk/testfs
+$ mkdir .chunks
+$ mkdir mnt
+$ ./zunkfs --chunk-db=rw,dir:$PWD/.chunks --chunk-db=ro,cmd:$PWD/fetch.sh \
+		      ./testfs ./mnt
+
+Now you can go into mnt and explore.
+
+IV. Chunk storage
+=================
+Zunkfs supports multiple back-ends for chunk storage (aka, chunk-db.)
+Chunk-dbs are specified as:
+
+	--chunk-db=<rw|ro>,[wt,][nc,]<method:info>
+
+More thank one chunk-db may be specified at the command line. As chunks
+are needed, the dbs will be processed in order. Once a chunk is found,
+it is written into all preceeding, writable, chunk-dbs that are not
+marked as not-a-cache (nc). For examlpe:
+
+	--chunk-db=rw,dir:$PWD/.chunks --chunk-db=ro,cmd:$PWD/fetch.sh
+
+will first try to find a chunk in a local directory $PWD/.chunks. If that
+fails it'll try to launch fetch.sh to get the chunk. If fetch.sh gets
+the chunk, the chunk will be written to $PWD/.chunks.
+
+Writable DBs stop writing as soon as one succeeds, unless it is marked
+as write-through (wt). 
+
+ChunkDB backends
+----------------
+
+* cmd:/path/to/command
+	This will launch command with one argument -- a hex representation
+	of the chunk name (SHA1 digest.)
+	It expects that the command will spew out chunk contents to stdout.
+	(See sample fetch.sh)
+
+	This method is read only.
+
+	Example:
+		./zunkfs --chunk-db=ro,cmd:$PWD/fetch.sh ./myfs /mount/point
+
+* dir:/path/to/chunks/dir
+	This will use a local filesystem for storing chunks.
+	It can be read-only or read-write.
+
+	Exmaple:
+		mkdir $PWD/.chunks
+		./zunkfs --chunk-db=rw,dir:$PWD/.chunks ./myfs /mount/point
+
+* map:/path/to/sqlite/database
+	A database that stores a mapping between normal file system files,
+	and chunks that compose them. 
+	This is read-only. The database must include a table with the following
+	schema:
+		CREATE TABLE chunk_map (
+			hash CHAR(20) PRIMARY KEY,
+			path VARCHAR(1024),
+			chunk_nr INTEGER
+		);
+
+	Example:
+		./zunkfs --chunk-db=ro,map:$PWD/map.db ./myfs /mount/point
+
+* mem:[max count]
+	Stores chunks in memory. Read/write. Can limit the maximum # of
+	chunks stored by passing in the number.
+
+* sqlite:/path/to/sqlite/database
+	Stores chunks in an sqlite database. Read/write. Schema is:
+		CREATE TABLE chunk (
+			hash CHAR(20) PRIMARY KEY UNIQUE,
+			data BLOB
+		);
+
+	Example:
+		./zunkfs --chunk-db=rw,sqlite:$PWD/chunk.db ./myfs /mount/point
+
+* zunkdb:ip:port,timeout=<seconds>,use_store
+	Uses a ZunkDB to store and retrieve chunks. Initial zunkdb node is
+	passed in as <ip|name>:port. Options include:
+		timeout=<seconds>	Request timeout.
+		use_store		Use STORE instead of FORWARD to
+					send chunks to zunkdb. Use this only
+					if you have a fast uplink, as it will
+					end up sending the same chunk to
+					multiple zunkdb nodes.
+	Usage example:
+		./zunkfs --chunk-db=rw,zunkdb:127.0.0.1:9876 ./myfs /mount/point
+
+* file:/path/to/database/file
+	Uses a specially formatted file for chunk storage. If the file
+	does not exist, it'll be created. The first 512MB of the file are
+	reserved for the chunk index. After that, it's all just chunks.
+
+	Usage example:
+		./zunkfs --chunk-db=rw,file:/path/to/foo/chunk.db
+
+
+V. ZunkDB usage
+===============
+ZunkDB is the distributed chunk database for zunkfs. It's protocol is briefly
+discussed in the HACKING document. Just like zunkfs, zunkdb can use other
+methods for actually storing chunks. So all of the above listed backends work
+with it too. A simple zunkdb node may use just memory backing for chunks:
+
+	zunkdb --chunk-db rw,mem:100
+
+Since zunkdb is meant to be distributed, it needs to know a starting point
+from which it can discover other nodes:
+
+	zunkdb --chunk-db rw,mem:100 --peer other.host:port
+
+By default, zunkdb listens on port 9876, but it can be told to listen to
+other ports:
+
+	zunkdb --addr [ip]:port --chunk-db rw,mem:100 --peer other.host:port
+
+
+VI. Hints and other Usage Notes
+===============================
+
+Use mem: chunk-db as a cache
+----------------------------
+Since zunkfs will cache chunks found on db N on dbs 1...N-1, it's helpful
+to always use a memory based db as a cache:
+
+	zunkfs --chunk-db=rw,wt,mem:100 --chunk-db=rw,zunkdb:some.host.com:9876\
+			  ./myfs /my/mount/point
+
+This way, any chunk found in a possibly remote zunkdb node will be cached in
+memory by zunkfs. Any writes to zunkfs will end up in both the in-memory cache,
+and on some zunkdb nodes.
+

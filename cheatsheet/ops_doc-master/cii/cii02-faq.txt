@@ -1,0 +1,106 @@
+2.1 原本可使用预处理器宏和条件编译指令如 #if，来指定 Arith_div 和 Arith_mod 中如何处理除法的舍入操作。
+解释为什么对 -13/5 == -2 的显示测试是实现上述判断的更好的方法。
+答：使用显示测试而不使用预处理条件编译符合「一份程序应对不同情况」的原则，使得编译好的程序更加灵活，
+而不需要针对不同的目标机器重新编译。
+
+2.2 对于 Arith_div 和 Arith_mod 来说，仅当用于编译 airth.c 的编译器执行算术操作的方式与 Arith_div 和
+Arith_mod 被调用的目标机器相同时，这两个函数中所用的 -13/5 == -2 测试才是有效的。但这个条件可能不成立，例如如
+果 arith.c 由运行在机器 X 上交叉编译器编译，针对机器 Y 生成代码。不使用条件编译指令，请改正 arith.c，
+使得交叉编译生成的代码也保证可以工作。
+答： C 语言的常量表达式会在编译时就会计算出结果并用结果替代，这样一来目标程序中的结果就变成常量而不会再去计算。
+在交叉编译（程序由器不同架构的机器编译和运行）时测试表达式便会失效。
+
+答：常量表达式在编译时会被计算，将 arith.c 的测试表达式用变量表示：
+int a = -13;
+int b = 5;
+<division truncates toward 0 14> ≡
+  a / b == -2
+  
+2.3 如同本书所有的 ADT，Stack 接口也省略了下述规格说明：「将外部的 Stack_T 传递给本接口中任何例程，都是未检查的
+运行时错误」。外部的 Stack_T，意味着不是由 Stack_new 产生的 Stack_T。修正 stack.c 使其可以在某些情况下检查到
+这种错误。例如，一种方法是向 Stack_T 结构添加一个字段，对于 Stack_new 返回的 Stack_T，该字段包含一个特有的位模式。
+答：按照题目提示，向 Stack_T 结构添加一个字段 check，其合法值（即由 Stack_new 返回的 Stack_T 所指向）为 0x66，在对 Stack_T 操作的其余各函数中增加 STACK_T_IS_LEGAL 断言检查其合法性。
+
+#include <stddef.h>
+#include "assert.h"
+#include "mem.h"
+#include "stack.h"
+
+#define T Stack_T
+#define LEGAL 0x66
+#define STACK_T_IS_LEGAL (((stk) != NULL)&&((stk->check) == LEGAL))
+
+struct T {
+    int count;
+    struct elem {
+        void *x;
+        struct elem *link;
+    } *head; 
+    unsigned char check;
+};
+
+T Stack_new(void) {
+    T stk;
+
+    NEW(stk);
+
+    stk->count = 0;
+    stk->head = NULL;
+    stk->check = LEGAL;
+
+    return stk;
+}
+
+int Stack_empty(T stk) {
+    assert(STACK_T_IS_LEGAL)
+    return stk-> count == 0;
+}
+
+2.4 通常有可能会检测到某些无效指针。例如，如果一个非空指针指定的地址在客户程序地址空间之外，那么该指针就是无效
+的，而且指针通常会受到对齐约束，例如，在某些系统上，指向 double 的指针，指向的地址必定是 8 的倍数。请设计一个特
+定于系统的宏 isBadPtr(p)，在 p 为无效指针时为 1，这样 assert(ptr) 之类的断言都可以替换为类似 assert(!isBadPtr(ptr)) 的断言。
+答：#define isBadPtr(p) (((p) == (NULL)) || ((((unsigned int)(p)) % (sizeof(T))) != (0)))
+
+
+2.5 对栈来说，有许多可行的接口。为 Stack 接口设计并实现一些备选方案。例如，一种方案是在为 Stack_new 
+增加一个参数，用于指定栈的最大容量。
+答：向 Stack_T 结构添加一个字段 max_size 保存栈的最大容量，修改 Stack_new 和 Stack_push 方法，
+初始化时指定栈的最大容量并保存到 max_size 字段中，入栈时检查栈大小是否超出最大容量。
+struct T {
+    int count;
+    int max_size;
+    struct elem {
+        void *x;
+        struct elem *link;
+    } *head; 
+    unsigned char check;
+};
+
+T Stack_new(int max) {
+    T stk;
+
+    NEW(stk);
+
+    stk->count = 0;
+    stk->max_size = max;
+    stk->head = NULL;
+    stk->check = LEGAL;
+
+    return stk;
+}
+
+void Stack_push(T stk, void *x) {
+    struct elem *t;
+
+    assert(STACK_T_IS_LEGAL);
+    assert(stk->count < stk->max_size)
+    
+    NEW(t);
+    t->x = x;
+    t->link = stk->head;
+    stk->head = t;
+    stk->count++;
+}
+
+
+

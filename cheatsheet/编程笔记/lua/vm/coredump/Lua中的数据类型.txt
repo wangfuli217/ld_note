@@ -1,0 +1,176 @@
+lua_TValue 统一表示所有在lua虚拟机中需要保存的数据类型。
+  需要一个字段来存储数据的类型
+  需要存储不同的数据类型的数据
+方法1：                  方法2:
+struct base {            struct string {
+int type;                int len
+};                       char *data[0];
+                         };
+struct string {          
+struct base info;        struct number {
+int len;                 double num;
+char *data[0];           }
+};                       
+                         struct value {
+struct number {          int type;
+struct base info;        union {
+double num;              struct string str;
+}                        struct number num;
+                         }value;
+                         }
+
+在Lua中,分为以下几种数据类型:
+(lua.h)  宏                      类型              对应数据结构
+#define LUA_TNONE   (-1)         无类型            无
+                                                   
+#define LUA_TNIL    0            空类型            无
+#define LUA_TBOOLEAN    1        布尔类型          无
+#define LUA_TLIGHTUSERDATA  2    指针              void*
+#define LUA_TNUMBER   3          数组              lua_Number
+#define LUA_TSTRING   4          字符串            TString
+#define LUA_TTABLE    5          表                Table
+#define LUA_TFUNCTION   6        函数              CClosure、LClosure
+#define LUA_TUSERDATA   7        指针              void*
+#define LUA_TTHREAD   8          lua虚拟机、协程   lua_State
+Lua内部用一个宏,表示哪些数据类型需要进行gc操作的:
+(lobject.h)
+189 #define iscollectable(o)  (ttype(o) >= LUA_TSTRING)
+可以看到,LUA_TSTRING(包括LUA_TSTRING)之后的数据类型,都需要进行gc操作.
+
+这些需要gc的数据类型,都会有一个CommonHeader的成员,并且这个成员在结构体定义的最开始部分,如:
+(lobject.h)
+typedef struct Table {
+  CommonHeader;
+  lu_byte flags;  /* 1<<p means tagmethod(p) is not present */
+  lu_byte lsizenode;  /* log2 of size of `node' array */
+  struct Table *metatable;
+  TValue *array;  /* array part */
+  Node *node;
+  Node *lastfree;  /* any free position is before this position */
+  GCObject *gclist;
+  int sizearray;  /* size of `array' array */
+} Table;
+
+其中CommonHeader的定义如下:
+
+(lobject.h)
+/*
+** Common Header for all collectable objects (in macro form, to be
+** included in other objects)
+*/
+#define CommonHeader  GCObject *next; lu_byte tt; lu_byte marked
+1. next(指向下一个gc对象),
+2. tt 表示类型，
+3. marked用来标记这个对象的使用
+
+同时,还有一个名为GCheader的结构体,其中的成员只有CommonHeader:
+
+(lobject.h)
+/* 
+** Common header in struct form
+*/             
+typedef struct GCheader {
+  CommonHeader;
+} GCheader;   
+
+于是,在Lua中就使用了一个GCObject的union将所有可gc类型囊括了进来:
+
+(lstate.h)
+/*
+** Union of all collectable objects
+*/
+union GCObject {
+  GCheader gch;
+  union TString ts;
+  union Udata u;
+  union Closure cl;
+  struct Table h;
+  struct Proto p;
+  struct UpVal uv;        
+  struct lua_State th;  /* thread */
+};
+
+# 任何需要gc的Lua数据类型,必然以CommonHeader做为该结构体定义的最开始部分.如果熟悉C++类实现原理的人,可
+# 以将CommonHeader这个成员理解为一个基类的所有成员,而其他需要gc的数据类型均从这个基类中继承下来,所以它
+# 们的结构体定义开始部分都是这个成员.
+
+# GCObject这个union,将所有需要gc的数据类型全部囊括其中,这样在定位和查找不同类型的数据时就来的方便多了,而如
+# 果只想要它们的GC部分,可以通过GCheader gch,如:
+(lobject.h) 
+#define gcvalue(o) check_exp(iscollectable(o), (o)->value.gc)
+
+仅表示了需要gc的数据类型还不够,还有几种数据类型是不需要gc的,Lua中将GCObject和它们一起放在了union Value中:
+(lobject.h)
+/* 
+** Union of all Lua values
+*/ 
+typedef union {           
+  GCObject *gc;           
+  void *p;
+  lua_Number n;           
+  int b;
+} Value;
+到了这一步,已经差不多可以表示所有在Lua中存在的数据类型了,但是还欠缺一点东西,就是这些数据到底是什么类型的.
+于是Lua代码中又有了一个TValuefields将Value和类型结合在一起:
+
+(lobject.h)
+#define TValuefields  Value value; int tt
+这些合在一起,最后形成了Lua中的TValue结构体,在Lua中的任何数据都可以通过该结构体进行表示:
+
+(lobject.h)
+typedef struct lua_TValue {
+  TValuefields;           
+} TValue;
+
+# lua_Number转换为TValue的宏setnvalue代码如下
+#define setnvalue(obj,x) \
+  { TValue *i_o=(obj); i_o->value.n=(x); i_o->tt=LUA_TNUMBER; }
+
+1. GCObject 对象组成
+      ┌──────────┐           --------
+      │GCObject* │ next         |
+      ├──────────┤              |
+      │ lu_byte  │ tt        CommonHeader       LUA_TNONE | LUA_TNUMBER | LUA_TSTRING | LUA_TTABLE | LUA_TFUNCTION | LUA_TBOOLEAN | LUA_TUSERDATA | LUA_TTHREAD | LUA_TLIGHTUSERDATA
+      ├──────────┤               |
+      │ lu_byte  │ marked        |
+      ├──────────┤           --------
+
+2.  TString,Udata,Closure,Table,Proto,UpVal,lua_State 等类型扩展部分
+    TString LUA_TSTRING     Udata LUA_TUSERDATA       Closure                 Table LUA_TTABLE                 Proto               UpVal                    
+                                                                                                                                                               
+  │ L_Umaxalign │ dummy    │ L_Umaxalign │ dummy      │ CClosure    │ c    │ lu_byte     │ flags      │ TValue*     │ k              │ TValue*     │ v     
+  ├─────────────┤          ├─────────────┤            ├─────────────┤      ├─────────────┤            ├─────────────┤                ├─────────────┤           
+  │   lu_byte   │ reserved │struct Table*│ metatable  │ LClosure    │ l    │ lu_byte     │ lsizenode  │Instruction* │ code           │ TValue      │ value 
+  ├─────────────┤          ├─────────────┤            └─────────────┘      ├─────────────┤            ├─────────────┤                ├─────────────┤           
+  │unsigned int │ hash     │struct Table*│ env                             │struct Table*│ metatable  │structProto**│ p              │struct UpVal*│ prev        
+  ├─────────────┤          ├─────────────┤                                 ├─────────────┤            ├─────────────┤                ├─────────────┤           
+  │    size_t   │ len      │    size_t   │ len                             │   TValue*   │ array      │   int *     │ lineinfo       │struct UpVal*│ next  
+  └─────────────┘          └─────────────┘                                 ├─────────────|            ├─────────────|                ├─────────────|     
+                                                                           │    Node*    │ node       │struct LocVar│ locvars        
+    CClosure                        LClosure                               ├─────────────|            ├─────────────|                
+  │lua_CFunction │ f            │struct Proto* │ p                         │    Node*    │ lastfree   │ TString **  │ upvalues       
+  ├─────────────-┤              ├─────────────-┤                           ├─────────────|            ├─────────────|                
+  │  TValue      │ upvalue[1];  │  TValue      │ upvalue[1];               │ GCObject*   │ gclist     │ TString  *  │ source         
+  └─────────────-┘              └─────────────-┘                           ├─────────────|            ├─────────────|                
+                                                                           │    int      │ sizearray  │    int      │ sizeupvalues   
+                                                                           └────────────-┘            └────────────-┘
+
+Lua中的所有字符串存在一个全局的地方，globale_state的str里面，是一个hash数组
+
+3. Value部分 (将可以gc和不需要gc的类型进行囊括)
+                         
+│ GCObject *  │ gc    
+├─────────────┤          
+| void *      │ p   light userdata
+├─────────────┤          
+│lua_Number   │ n    数值double  
+├─────────────┤          
+│  int        │ b    boolean  
+└─────────────┘
+4. TValuefields (TValuefields则将Value和类型再进行结合，该类型可以表示任意的结构体数据)
+#define TValuefields    Value value; int tt
+typedef struct lua_TValue { // 堆栈中的元素
+  TValuefields;
+} TValue;
+
+   

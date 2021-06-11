@@ -1,0 +1,52 @@
+-- http://www.cnblogs.com/AUOONG/archive/2012/05/24/2516663.html
+
+在页面操作中，我们经常会碰到需要保存一段文本。而这段文本中会有<>'"&等符号。如果将这些符号存入config是行不通的，一般需要转换成&lt;&gt;等。而&又是特殊字符，在这里可以使用#38来代替这个&符号。
+
+在js中我们可以使用以下两个函数来转换（不包含回车换行，需要重新replace一下）：
+
+ 
+复制代码
+
+function encodeSpecialChars(str /* String */) {
+        return str.replace(/&/g, '#38amp;').replace(/</g, '#38lt;').replace(/>/g, '#38gt;').replace(/'/g, '#38acute;').replace(/"/g, '#38quot;');
+    }
+
+    function decodeSpecialChars(str /* String */) {
+        return str.replace(/#38quot;/g, '"').replace(/#38acute;/g, '\'').replace(/#38gt;/g, '>').replace(/#38lt;/g, '<').replace(/#38amp;/g, '&');
+    }
+
+复制代码
+
+以下是一段提交页面中content时的示例代码：
+复制代码
+
+XHR.get('<%=REQUEST_URI%>', {
+        act          : 'add',
+        title        : $('title').value,
+        content      : encodeSpecialChars($('content').value.replace(/\r?\n/g, '<br />'))
+    },
+    function(x, data) {
+        if (data.state) {
+            if (data.info == "ok") {
+                alert('保存成功！');
+            } else {
+                alert('更新失败！');
+            }
+        } else {
+            alert('发送数据失败！错误代码：' + data.info);
+        }
+        obj.disabled = false;
+    });
+
+复制代码
+
+用于保存config数据的代码：
+复制代码
+
+    local title, content = c.get('title'), c.get('content')
+    local uci = require "luci.model.uci".cursor()
+
+    uci.set('welcomeinfo', 'welcomeinfo', 'title', title)
+    uci.set('welcomeinfo', 'welcomeinfo', 'content', content)
+
+    uci.commit('welcomeinfo')

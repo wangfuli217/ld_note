@@ -1,0 +1,47 @@
+--[[
+  os.remove()
+  原型：os.remove (filename)
+  解释：删除文件或一个空目录，若函数调用失败则返加nil加上错误信息。
+--]]
+
+-- 删除存在的文件
+os.execute("touch remove_test.txt")
+local rm_file = os.remove("remove_test.txt");
+print("remove exist file ret:")
+print(rm_file)
+print("\n")
+
+-- 删除不存在的文件
+local rm_notexist_file = os.remove("remove_test2.txt");
+print("remove don't exist file ret:")
+print(rm_notexist_file)
+print("\n")
+
+-- 删除存在的目录
+os.execute("mkdir mydir")
+local rm_dir = os.remove("mydir")
+print("remove exist dir ret:")
+print(rm_dir)
+print("\n")
+
+-- 删除不存在的目录
+local rm_notexist_dir = os.remove("mydir2")
+print("remove don't exist dir ret:")
+print(rm_notexist_dir)
+print("\n")
+
+-- 终极杀招 调用系统命令删目录
+local cmd_rm = os.execute("rm -f mydir")
+print("remove exist dir with sys cmd ret:")
+print(cmd_rm)
+if cmd_rm == 0 then
+    print("remove exist dir with sys cmd success")
+end
+
+--[[
+1. 由运行结果的前两组可以看出：当要删除的文件存在时，调用os.remove()会成功删除文件并且返回true，
+   而当要删除的文件不存在时，函数返回nil这是符合预期结果的。
+2. 由运行结果第3、4组可以看出无论要删除的目录是否存在，执行函数后均无法成功删除目录返回nil
+   先来看看Lua 5.0，这压根就没提到可以删除目录的事情啊
+3. os.remove(filename)正如他的参数名字一样，删除文件是没问题的，但是删除目录就看情况了。
+--]]

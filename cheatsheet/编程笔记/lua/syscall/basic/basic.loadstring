@@ -1,0 +1,61 @@
+--[[
+  loadstring(string [,chunkname]) -> Lua bytecode
+  解释：函数会从所给的字符串中来加载程序块并运行，常使用这种构造式来调用assert(loadstring(s))()，
+        如果省略参数chunkname，那么它默认为所给的字符串。
+
+      string : compiled Lua bytecode or Lua source code
+
+注意：loadstring：与loadfile类似，只是从一个字符串(而不是文件)中加载代码，编译之，将编译结果作为函数返回。
+      loadstring不会引发错误，只会返回nil和错误信息。
+      loadstring(s)()  编译并执行
+      assert(loadstring(s))() 处理错误并执行
+      
+      loadstring的期望输入是一个块，如果只有一个表达式，务必在前面添加return构成一条语句。
+
+      
+注意：相对于loadfile和loadstring，真正原始的函数是load，与接收文件和字符串不同，
+      它接收的是"读取器函数"(reader function)，读取器分几次返回程序块，load反复调用它，直至它
+      返回nil为止，当程序块不在文件中或过大无法一次性载入内存时有用。
+      load和loadfile、loadstring一样，不会引发错误，只会返回nil和错误信息。
+      
+注意：lua将所有独立的程序块视为一个匿名函数的body，而该匿名函数用可变参数作为参数表。
+      
+f = loadstring("i = i + 1")  基本等价于 f=function(...) i = i + 1 end，区别是后者更快(已编译)和有词法域。
+--]]
+
+local ret = loadstring("print(\"first test loadstring function.\")")   -- 简单测试
+print("\nthe result ret is", ret)
+print("the result of running ret() is:")                               -- 运行返回值
+ret();
+
+
+print("\nthe result of running common test is:")                       -- 使用常用的方式
+assert(loadstring("print(\"common test loadstring function.\")"))()
+
+
+-- 直接生成一个全局函数
+local func = loadstring("function func_test(str) print(\"str = \", str) end")
+
+print("\nbefore run func, functest =", func_test)
+func()                                                                 -- 测试函数是否生成
+print("after run func, functest =", func_test, "\n")
+
+-- 测试参数chunkname的作用
+i = 1 -- local i = 1 将使得下面不能执行
+f = loadstring("i = i + 1") 
+f(); print(i) --> 2  loadstring返回的是一个函数。
+f(); print(i) --> 3
+
+local i = 0
+f = loadstring("i = i + 1; print(i)")
+g = function() i = i + 1; print(i) end
+f()  --> 4  loadstring在全局环境中编译，无词法域
+g()  --> 1
+
+--[[
+由结果一可知，函数loadstring()与函数loadfile()一样，都是返回一个函数。
+由结果二可知，返回函数的内容就是字符串参数string的内容，执行返回的函数时，字符串中的代码就被执行了。
+结果三展示了这个函数的一般使用方法。
+结果四展示了如何通过字符串生成一个全局函数，但是无法生成局部函数，并且生成的函数func_test()在调用完函数func()之后才被创建出来
+最后一个例子展示了参数chunkname的作用，就是在错误的提示信息中起到提示作用。
+--]]

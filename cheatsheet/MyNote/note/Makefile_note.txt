@@ -1,0 +1,584 @@
+可以在make的时候加上make CFLAGS="-g -O0"
+
+make最多允许4个编译命令同时执行,可以使用make -j4来并行编译
+
+Makefile规则
+target...:prerequisites...
+	command
+	...
+	...
+	
+也可以
+target...:prerequisites;command;command
+	
+target也就是一个目标文件,可以是Object File,也可以是执行文件,还可以是一个标签(Label),target可以是多个
+prerequisites就是要生成那个target所需要的文件或是目录
+command也就是make需要执行的命令(任意的Shell命令),如果不在一行一定要以TAB开头,在command前加一个"-"号,表示这条命令如果出现问题,不要管,继续做后面的事,如果在一行则用分号作分隔符,make的命令默认是被/bin/sh执行的
+makefile里的command每一行是一个进程,不同行之间变量值不能传递
+
+这是一个文件的依赖关系,也就是说,target这一个或多个目标文件依赖于prerequisites中的文件,其生成规则定义在command中,prerequisites中如果有一个以上的文件比target文件要新或者target不存在的话,command所定义的命令就会被执行
+
+在Makefile中声明了一个变量,在后续就可以用"$(objects)"的方式来使用这个变量
+
+自动推导
+只要make看到一个.o文件,它就会自动的把.c文件加在依赖关系中,如果make找到一个whatever.o,那么whatever.c,就会是whatever.o的依赖文件.并且cc -c whatever.c也会被推导出来
+
+.PHONY : clean  表示,clean是个伪目标文件,它用来指定一个假想的工作目标,也就是说它后面的并不是一个实际文件,而且肯定要视为未更新(也就是说条件总是满足,需要处理)
+作用:	
+1.避免和同名文件冲突,若执行make的目录中出现了目标文件,则目标文件始终是最新的,命令永远不会执行,为避免这个问题,可使用.PHONY
+2.phony目标可以有依赖关系,当一个目录中有多个程序,将其放在一个makefile中会更方便,因为缺省上档是makefile中的第一个目标,能常将这个phony目标叫做"all",其依赖文件为各个程序
+all : prog1 prog2 prog3
+.PHONY : all
+...
+
+include关键字可以把别的Makefile包含进来,被包含的文件会原模原样的放在当前文件的包含位置
+语法: include filename        #filename可以是当前操作系统shell的文件模式(可以包含路径和通配符)
+include前面可以有一些空字符,但是绝不能是TAB键开始
+make命令开始时,会先找寻include包含的其他makefile,并替换到当前位置,会在当前目录下首先寻找,如果没有找到,还会在下面的几个目录下找
+1. 如果make执行时,有"-I'或"--include-dir"参数,那么make就会在这个参数所指定的目录下寻找
+2. 如果目录/include(一般是:/usr/local或/usr/include)存在的话,make也会去找
+如果文件没有找到的话,make会生成一条警告信息,但不会马上出现致命错误,它会继续载入其他的文件,一旦完成makefile的读取,make会再重试这些没有找到的文件,或是不能读取的文件,如果还是不行,make才会出现一条致命信息,如果下面有规则可以创建include的文件,会先调用规则创建文件,再include
+
+环境变量MAKEFILES
+如果当前环境中定义了环境变量MAKEFILES,那么,make会把这个变量中的值做一个类似于include的动作,这个变量的值是其它的makefile,用空格分隔,只是,它和include不同的是,从这个环境变量中引入的makefile的"目标"不会起作用,如果环境变量中定义的文件发现错误,make也不理,不建议使用
+
+GNU的make的工作的执行步骤:
+1. 依次读取变量“MAKEFILES”定义的makefile文件列表
+2. 读取工作目录下的makefile文件（缺省的是根据命名的查找顺序“GNUmakefile”，“makefile”，“Makefile”，首先找到那个就读取那个）
+3. 依次读取工作目录makefile文件中使用指示符“include”包含的文件
+4. 查找重建所有已读取的makefile文件的规则（如果存在一个目标是当前读取的某一个makefile文件，则执行此规则重建此makefile文件，完成以后从第一步开始重新执行）
+5. 初始化变量值并展开那些需要立即展开的变量和函数并根据预设条件确定执行分支
+6. 根据“终极目标”以及其他目标的依赖关系建立依赖关系链表
+7. 执行除“终极目标”以外的所有的目标的规则（规则中如果依赖文件中任一个文件的时间戳比目标文件新，则使用规则所定义的命令重建目标文件）
+8. 执行“终极目标”所在的规则
+如果在第1条规则中,定义的变量被使用了,那么,make会把其展开在使用的位置,但make并没有完全马上展开,而是使用的拖延战术,如果变量出现在依赖的规则中,那么仅当这条依赖被决定要使用了,变量才会在其内部展开
+
+make支持三种通配符"*","?","[...]",也支持目录~
+
+文件搜寻
+Makefile文件中的特殊变量"VPATH",如果没有指定这个变量,make只会在当前的目录中寻找依赖文件和目标文件,如果定义了这个变量,那么,make就会在当前目录找不到的情况下,就会到变量"VPATH"中指定的目录下寻找文件了,这个变量中路径以":"分隔,当前目录永远是最高优先搜索的地方
+另一个设置搜索路径的方法是使用make的"vpath"关键字(全小写),这不是变量,这是make的一个关键字,它和变量"VPATH"很类似,但是更灵活,它可以指定不同的文件在不同的搜索目录中,使用方法有三种
+1.  vpath <pattern> <directories>   为符合模式<pattern>的文件指定搜索目录<directories>
+2.	vpath <pattern>					清除符合模式<pattern>的文件的搜索目录
+3.	vpath							清除所有已被设置好了的文件搜索目录
+vpath使用方法中的<pattern>需要包含"%"字符,"%"的意思是匹配零或若干字符
+
+静态模式可以理加容易地定义多目标的规则,规则存在多个目标,并且不同的目标可以根据目标文件的名字来自动构造出依赖文件
+<targets...>:<target-pattern>:<prereq-patterns...>
+	<commands>
+	...
+targets定义了一系列的目标文件,可以有通配符,是目标的一个集合,通配符用%
+target-pattern是指明了targets的模式,也就是目标集模式
+prereq-patterns是目标的依赖模式,它对target-pattern形成的模式再进行一次依赖目标的定义
+例子:
+objects = foo.o bar.o
+    all: $(objects)
+    $(objects): %.o: %.c
+            $(CC) -c $(CFLAGS) $< -o $@
+
+一般文件依赖性要自己生成.d文件
+
+在命令前加@表示make时不会将这个命令显示出来
+例如
+@echo 正在编译xxx模块
+不加@时
+echo 正在编译xxx模块
+正在编译xxx模块
+加@时
+正在编译xxx模块
+
+如果要让上一条命令的结果应用在下一条命令里头,应该使用分号分隔这两条命令,例
+exec:
+	cd /home/hchen
+	pwd
+exec:
+	cd /home/hchen;pwd
+第二条才是正确的
+
+总控makefile
+如果我们有一个子目录叫subdir,这个目录下有个Makefile文件,那总控makefile可以这样写
+subsystem:
+	cd subdir && $(MAKE)
+其等价于:
+subsystem:
+	$(MAKE) -C subdir
+总控Makefile的变量可以传递到下级的Makefile中(如果显示的声明),但是不会覆盖下层所定义的变量,除非指定了-e参数,有两个变量,一个是SHELL,一个是MAKEFLAGS,这2个变量不管是否export,总是会传递到下层makefile中
+如果要传递变量到下级makefile,那么可以这样声明
+export<variable...>
+如果不想让某些变量传递到下级makefile,
+unexport<variable...>
+如果要传递所有变量,那么
+export
+
+定义命令包
+如果makefile中出现一些相同命令序列,那么可以为这些相同的命令序列定义一个变量,以define开始,以endef结束,命令包里命令必须以TAB开头,否则就是普通的行了,如
+define run-yacc
+	yacc $(firstword $^)
+	mv y.tab.c $@
+endef
+run-yacc是这个命令包的名字
+
+变量的值可以在定义的变量后面定义
+好的地方在于变量的真实值可以到后面定义
+坏的地方在于递归定义,如
+CFLAGS = $(CFLAGS) -O
+或
+A = $(B)
+B = $(A)
+
+:=操作符,使用这个符号前面的变量不能使用后面的变量
+MAKELEVEL变量,如果make有一个嵌套执行的动作,那么,这个变量记录了当前Makefile的调用层数
+?=操作符,foo?=bar,含义是如果foo没有被定义过,那么foo=bar,如果foo定义过了,则这条语句什么也不做
++=可以给变量追加值,如果变量之前没定义过,那么"+="会自动变成"=",如果前面变量有定义,那么"+="会继承于前次操作的赋值符,如果前一次是":=",那么"+="会以":="作为其赋值符,如果是=,由于前次的赋值符是"=”，所以"+=”也会以"=”来做为赋值，那么岂不会发生变量的递补归定义，这是很不好的，所以make会自动为我们解决这个问题，我们不必担心这个问题
+
+$(var:a=b)或是${var:a=b},意思是,把变量var中所有以a字串结尾的a替换成b,这里的结尾是空格或者是结束符
+$(foo:%.o=%.c)	静态模式替换
+
+x=y
+y=z
+a:=$($(x))  #把变量的值再当成变量值
+
+如果有变量是通过make的命令行参数设置的,那么Makefile中对这个变量的赋值会被忽略,如果想在Makefile中设置这类参数的值,那么可以使用"override"指示符,语法:
+override <variable> = <value>
+override <variable>:= <value>
+override <variable>+=<more text>
+对于多行的变量定义,使用define指示符,在define指示符前,也可以使用override指示符
+override define foo
+bar
+enddef
+
+目标变量
+<target...>:<variable-assignment>				#variable-assignment可以是前面提到过的各种赋值表达式,如"=",":=","?=","+="
+<target...>: overide<variable-assignment>
+
+模式变量
+例 %.o : CFLAGS= -O
+
+条件表达式语法
+<conditional-directive>
+<text-if-true>
+endif
+以及
+<conditional-directive>
+<text-if-true>
+else
+<text-if-false>
+endif
+其中,<conditional-directive>表示条件关键字,有4个
+ifeq(<arg1>,<arg2>)
+ifeq '<arg1>' '<arg2>'
+ifeq "<arg1>" "<arg2>"
+ifeq "<arg1>" '<arg2>'
+ifeq '<arg1>' "<arg2>"
+
+ifneq...
+ifdef...
+ifndef...
+make是在读取Makefile时就计算表达式的值,并根据条件表达式的值来选择语句,所以,最好不要把自动化变量(如"$@"等)放入条件表达式中,因为自动化变量是在运行时才有的
+
+函数调用
+语法: $(<function> <arguments>)或是${<function> <arguments>}
+参数间以逗号分隔,函数名与参数间以空格分隔
+
+字符串处理函数
+$(subst <from>,<to>,<text>)		#字符串替换函数,把字符串<text>中的<from>替换成<to>,返回被替换过后的字符串
+$(patsubst <pattern>,<replacement>,<text>)	#模式字符串替换函数,查找<text>中的单词是否符合<pattern>,如果匹配的话,则以<replacement>替换,返回被替换过后的字符串
+$(strip <string>)				#去空格函数,去掉<string>字串中开头和结尾的空字符,返回被去掉空格的字符串
+$(findstring <find>,<in>)		#查找字符串函数,在字符串<in>中查找<find>,如果找到,返回<find>,否则返回空字符串
+$(filter <pattern>,<text>)		#以<pattern>模式过滤<text>中的单词,保留符合模式<pattern>的单词,返回符合模式的字串
+$(filter-out <pattern>,<text>)	#反过滤函数,和上个函数相反
+$(sort <list>)					#排序函数,给字符串list中的单词排序(升充),返回排序后的字符串
+$(word <n>,<text>)				#取单词函数,取<text>中的第<n>个单词,返回第<n>个单词,若n比单词个数大,则返回空
+$(wordlist <s>,<e>,<text>)		#取单词串函数,从字符串<text>中取从<s>开始到<e>的单词串,<s>和<e>是一个数字,返回字符串<text>中从<s>到<e>的单词字串,如果<s>比<text>中的单词数要大，那么返回空字符串,如果<e>大于<text>的单词数，那么返回从<s>开始，到<text>结束的单词串
+$(words <text>)					#单词个数统计函数,返回<text>中的单词数
+$(firstword <text> )			#首单词函数,取字符串<text>中的第一个单词,返回字符串<text>的第一个单词
+
+文件名操作函数
+$(dir <names...> )				#取目录函数,从文件名序列<names>中取出目录部分,目录部分是指最后一个反斜杠（"/”）之前的部分,如果没有反斜杠，那么返回"./”
+$(notdir <names...> )			#取文件函数,从文件名序列<names>中取出非目录部分,非目录部分是指最后一个反斜杠（"/”）之后的部分,返回文件名序列<names>的非目录部分
+$(suffix <names...> )			#取后缀函数,从文件名序列<names>中取出各个文件名的后缀,返回文件名序列<names>的后缀序列，如果文件没有后缀，则返回空字串
+$(basename <names...> )			#取前缀函数,从文件名序列<names>中取出各个文件名的前缀部分,返回文件名序列<names>的前缀序列，如果文件没有前缀，则返回空字串
+$(addsuffix <suffix>,<names...> )	#加后缀函数,把后缀<suffix>加到<names>中的每个单词后面,返回加过后缀的文件名序列
+$(addprefix <prefix>,<names...> )	#加前缀函数,把前缀<prefix>加到<names>中的每个单词前面,返回加过前缀的文件名序列
+$(join <list1>,<list2> )		#连接函数,把<list2>中的单词对应地加到<list1>的单词后面,如果<list1>的单词个数要比<list2>的多,那么,<list1>中的多出来的单词将保持原样。如果<list2>的单词个数要比<list1>多,那么,<list2>多出来的单词将被复制到<list1>中
+
+foreach 函数
+$(foreach <var>,<list>,<text> )		#把参数<list>中的单词逐一取出放到参数<var>所指定的变量中,然后再执行<text>所包含的表达式,每一次<text>会返回一个字符串,循环过程中，<text>的所返回的每个字符串会以空格分隔,最后当整个循环结束时,<text>所返回的每个字符串所组成的整个字符串（以空格分隔）将会是foreach函数的返回值
+
+if函数
+$(if <condition>,<then-part> ) 或 $(if <condition>,<then-part>,<else-part> )
+#<condition>参数是if的表达式,如果其返回的为非空字符串,那么这个表达式就相当于返回真,于是,<then-part>会被计算,否则<else-part> 会被计算,如果<condition>为真（非空字符串）,那个<then- part>会是整个函数的返回值,如果<condition>为假（空字符串）,那么<else-part>会是整个函数的返回值,此时如果<else-part>没有被定义,那么,整个函数返回空字串
+
+call函数
+call函数是唯一一个可以用来创建新的参数化的函数。你可以写一个非常复杂的表达式，这个表达式中，你可以定义许多参数，然后你可以用call函数来向这个表达式传递参数。其语法是：
+$(call <expression>,<parm1>,<parm2>,<parm3>...)
+#当 make执行这个函数时，<expression>参数中的变量，如$(1)，$(2)，$(3)等，会被参数<parm1>，<parm2>，<parm3>依次取代。而<expression>的返回值就是 call函数的返回值
+
+origin函数
+$(origin <variable> )		#注意，<variable>是变量的名字，不应该是引用,返回值有undefined,default,environment,file,command line,override,automatic
+
+shell函数
+shell 函数也不像其它的函数。顾名思义，它的参数应该就是操作系统Shell的命令。它和反引号"`”是相同的功能。这就是说，shell函数把执行操作系统命令后的输出作为函数
+返回。于是，我们可以用操作系统命令以及字符串处理命令awk，sed等等命令来生成一个变量，如：
+contents := $(shell cat foo)
+
+这个函数会新生成一个Shell程序来执行命令,所以要注意其运行性能，如果Makefile中有一些比较复杂的规则，并大量使用了这个函数，那么对于系统性能是有害的
+这个函数会新生成一个Shell程序来执行命令,所以要注意其运行性能，如果Makefile中有一些比较复杂的规则，并大量使用了这个函数，那么对于系统性能是有害的
+
+控制make运行的函数
+$(error <text ...> )		#产生一个致命的错误，<text...>是错误信息。注意，error函数不会在一被使用就会产生错误信息，所以如果你把其定义在某个变量中，并在后续的脚本中使用这个变量，那么也是可以的
+$(warning <text ...> )		#这个函数很像error函数，只是它并不会让make退出，只是输出一段警告信息，而make继续执行
+
+make的退出码
+0 —— 表示成功执行。
+1 —— 如果make运行时出现任何错误，其返回1。
+2 —— 如果你使用了make的"-q”选项，并且make使得一些目标不需要更新，那么返回2。
+
+make中有个环境变量叫MAKECMDGOALS,这个变量中会存放你所指定的终极目标的列表,如果在命令行上，你没有指定目标，那么，这个变量是空值
+
+检查规则
+"-n"
+"--just-print"
+"--dry-run"
+"--recon"
+不执行参数，这些参数只是打印命令，不管目标是否更新，把规则和连带规则下的命令打印出来，但不执行
+
+“-t”
+“--touch”
+这个参数的意思就是把目标文件的时间更新，但不更改目标文件。也就是说，make假装编译目标，但不是真正的编译目标，只是把目标变成已编译过的状态
+
+“-q”
+“--question”
+这个参数的行为是找目标的意思，也就是说，如果目标存在，那么其什么也不会输出，当然也不会执行编译，如果目标不存在，其会打印出一条出错信息。
+
+“-W <file>”
+“--what-if=<file>”
+“--assume-new=<file>”
+“--new-file=<file>”
+这个参数需要指定一个文件。一般是是源文件（或依赖文件），Make会根据规则推导来运行依赖于这个文件的命令，一般来说，可以和“-n”参数一同使用，来查看这个依赖文件
+所发生的规则命令
+
+make的参数
+
+下面列举了所有GNU make 3.80版的参数定义。其它版本和产商的make大同小异，不过其它产商的make的具体参数还是请参考各自的产品文档。
+
+“-b”
+“-m”
+这两个参数的作用是忽略和其它版本make的兼容性。
+
+“-B”
+“--always-make”
+认为所有的目标都需要更新（重编译）。
+
+“-C <dir>”
+“--directory=<dir>”
+指定读取makefile的目录。如果有多个“-C”参数，make的解释是后面的路径以前面的作为相对路径，并以最后的目录作为被指定目录。如：“make –C ~hchen/test –C prog”
+等价于“make –C ~hchen/test/prog”。
+
+“—debug[=<options>]”
+输出make的调试信息。它有几种不同的级别可供选择，如果没有参数，那就是输出最简单的调试信息。下面是<options>的取值：
+a —— 也就是all，输出所有的调试信息。（会非常的多）
+b —— 也就是basic，只输出简单的调试信息。即输出不需要重编译的目标。
+v —— 也就是verbose，在b选项的级别之上。输出的信息包括哪个makefile被解析，不需要被重编译的依赖文件（或是依赖目标）等。
+i —— 也就是implicit，输出所以的隐含规则。
+j —— 也就是jobs，输出执行规则中命令的详细信息，如命令的PID、返回码等。
+m —— 也就是makefile，输出make读取makefile，更新makefile，执行makefile的信息。
+
+“-d”
+相当于“--debug=a”。
+
+“-e”
+“--environment-overrides”
+指明环境变量的值覆盖makefile中定义的变量的值。
+
+“-f=<file>”
+“--file=<file>”
+“--makefile=<file>”
+指定需要执行的makefile。
+
+“-h”
+“--help”
+显示帮助信息。
+
+“-i”
+“--ignore-errors”
+在执行时忽略所有的错误。
+
+“-I <dir>”
+“--include-dir=<dir>”
+指定一个被包含makefile的搜索目标。可以使用多个“-I”参数来指定多个目录。
+
+“-j [<jobsnum>]”
+“--jobs[=<jobsnum>]”
+指同时运行命令的个数。如果没有这个参数，make运行命令时能运行多少就运行多少。如果有一个以上的“-j”参数，那么仅最后一个“-j”才是有效的。（注意这个参数在MS-DOS中是无用的）
+
+“-k”
+“--keep-going”
+出错也不停止运行。如果生成一个目标失败了，那么依赖于其上的目标就不会被执行了。
+
+“-l <load>”
+“--load-average[=<load]”
+“—max-load[=<load>]”
+指定make运行命令的负载。
+
+“-n”
+“--just-print”
+“--dry-run”
+“--recon”
+仅输出执行过程中的命令序列，但并不执行。
+
+“-o <file>”
+“--old-file=<file>”
+“--assume-old=<file>”
+不重新生成的指定的<file>，即使这个目标的依赖文件新于它。
+
+“-p”
+“--print-data-base”
+输出makefile中的所有数据，包括所有的规则和变量。这个参数会让一个简单的makefile都会输出一堆信息。如果你只是想输出信息而不想执行 makefile，你可以使用“make -q
+p”命令。如果你想查看执行makefile前的预设变量和规则，你可以使用“make –p –f /dev/null”。这个参数输出的信息会包含着你的makefile文件的文件名和行号，所以，用
+这个参数来调试你的makefile会是很有用的，特别是当你的环境变量很复杂的时候。
+
+“-q”
+“--question”
+不运行命令，也不输出。仅仅是检查所指定的目标是否需要更新。如果是0则说明要更新，如果是2则说明有错误发生。
+
+“-r”
+“--no-builtin-rules”
+禁止make使用任何隐含规则。
+
+“-R”
+“--no-builtin-variabes”
+禁止make使用任何作用于变量上的隐含规则。
+
+“-s”
+“--silent”
+“--quiet”
+在命令运行时不输出命令的输出。
+
+“-S”
+“--no-keep-going”
+“--stop”
+取消“-k”选项的作用。因为有些时候，make的选项是从环境变量“MAKEFLAGS”中继承下来的。所以你可以在命令行中使用这个参数来让环境变量中的“-k”选项失效。
+
+“-t”
+“--touch”
+相当于UNIX的touch命令，只是把目标的修改日期变成最新的，也就是阻止生成目标的命令运行。
+
+“-v”
+“--version”
+输出make程序的版本、版权等关于make的信息。
+
+“-w”
+“--print-directory”
+输出运行makefile之前和之后的信息。这个参数对于跟踪嵌套式调用make时很有用。
+
+“--no-print-directory”
+禁止“-w”选项。
+
+“-W <file>”
+“--what-if=<file>”
+“--new-file=<file>”
+“--assume-file=<file>”
+假定目标<file>需要更新，如果和“-n”选项使用，那么这个参数会输出该目标更新时的运行动作。如果没有“-n”那么就像运行UNIX的“touch”命令一样，使得<file>的修改时
+间为当前时间。
+
+“--warn-undefined-variables”
+只要make发现有未定义的变量，那么就输出警告信息
+
+自动化变量
+$@ 		#表示规则中的目标文件集。在模式规则中，如果有多个目标，那么，"$@"就是匹配于目标中模式定义的集合
+$%		#仅当目标是静态库文件时，表示规则中的目标成员名。例如，如果一个目标是"foo.a(bar.o)"，那么，"$%"就是"bar.o"，"$@"就是"foo.a"。如果目标不是静态库文件（Unix下是[.a]，Windows下是[.lib]），那么，其值为空。
+$<		#依赖目标中的第一个目标名字。如果依赖目标是以模式（即"%"）定义的，那么"$<"将是符合模式的一系列的文件集。注意，其是一个一个取出来的。
+$?		#所有比目标新的依赖目标的集合。以空格分隔
+$^		#所有的依赖目标的集合。以空格分隔。如果在依赖目标中有多个重复的，那个这个变量会去除重复的依赖目标，只保留一份
+$+		#这个变量很像"$^"，也是所有依赖目标的集合。只是它不去除重复的依赖目标
+$*		#这个变量表示目标模式中"%"及其之前的部分。如果目标是"dir/a.foo.b"，并且目标的模式是"a.%.b"，那么，"$*"的值就是"dir /a.foo"
+
+在上述所列出来的自动量变量中。四个变量（$@、$<、$%、$*）在扩展时只会有一个文件，而另三个的值是一个文件列表。这七个自动化变量还可以取得文件的目录名或是在当前目录下的符合模式的文件名，只需要搭配上"D"或"F"字样。这是GNU make中老版本的特性，在新版本中，我们使用函数"dir"或"notdir"就可以做到了。"D"的含义就是Directory，就是目录，"F"的含义就是File，就是文件。
+
+上述都是gmake内容,下面为cmake内容
+一般默认名称为CMakeLists.txt
+用法:cmake path	  会寻找path路径下的CMakeLists.txt
+cmake命令不区分大小写(参数区分),命令由命令,参数列表组成,参数之间使用空格进行分隔
+
+自定义变量
+隐式定义:	例PROJECT指令,它会隐式的定义<projectname>_BINARY_DIR和<projectname>_SOURCE_DIR两个变量
+显示定义:	set指令,SET(HELLO_SRC main.c),就可以通过${HELLO_SRC}来引用这个自定义变量了
+
+常用指令:
+	set(var value1 value2)			定义变量var为value1 value2
+	message(var)					输出var的值
+	if(expression)					分支控制,如果expression为on yes true y 非0的数表示真(不区分大小写),为0、OFF、NO、FALSE、N、IGNORE、空字符串、以 -NOTFOUND 结尾的字符串则表示假,若不符合这2种情况表示变量,以变量值若为上述否的规则则为假,其他为真
+		...
+	elseif(expression2)
+		...
+	else()
+		...
+	endif							
+	
+cmake_minimum_required(VERSION 2.8)  	指定运行此cmake的最低版本,若低于这个版本则会报错
+set(YES 0),如果用if($(YES))就是假的了,此功能在cmake2.8才引用
+	
+操作符优先级:  一元操作符>二元操作符>NOT>AND.OR
+COMMAND  command-name				存在command-name命令,宏或函数且能够被调用,则为真,否则为假
+EXISTS 	 name						存在name的文件或者目录(应该使用绝对路径)则为真,否则为假
+file1 IS_NEWER_THAN file2			file1比file2新或者file1,file2中有一个文件不存在(应该使用绝对路径)则为真,否则为假
+IS_DIRECTORY directory-name			directory-name表示的是一个目录(应该使用绝对路径)则为真,否则为假	
+variable|string MATHCES regex		变量值或字符串匹配regex正则表达式则为真,否则为假,MATHCES可以换成LESS,GREATER,EQUAL,为真就是字符串的数字满足小于,大于,等于,STRLESS,STRGREATER,STREQUAL则是按字典序比较
+DEFINED  variable					变量被定义了则为真,否则为假
+
+set(VAR a b c)
+foreach(f ${VAR}					循环
+	message(${f})
+endforeach()
+
+set(VAR 5)
+while(${VAR} GREATER 0)
+	message(${VAR})
+	math(EXPR VAR "${VAR}-1")
+endwhile()
+
+宏定义				宏使用的是全局作用域
+macro(hello MESSAGE)			调用宏hello,hello("hello world")
+	message(${MESSAGE})
+endmacro()
+
+定义函数
+function(hello MESSAGE)			调用函数hello,hello("hello world")
+	message(${MESSAGE})
+endfunction()
+函数和宏可以通过命令return()返回,但是函数和宏的返回值必须通过参数传递出去
+
+变量引用方式
+	使用${}进行变量的引用,在if等语句中,是直接使用变量名而不通过${}取值
+	
+常用命令
+	option(<option_variable> "help string describing option" [initial value])	提供选项让用户选择是ON还是OFF
+	project(<projectname> [languageName1 languageName2...])						用于指定项目的名称
+	cmake_minimum_required(VERSION major[.minor[.patch][.tweak]]][FATAL_ERROR])	用于指定需要的CMake的最低版本
+	aux_source_directory(<dir> <variable>)										用于将dir目录下的所有源文件的名字保存在变量variable中
+	add_executable(<name> [WIN32][MACOSX_BUNDLE][EXCLUDE_FROM_ALL] source1 source2... sourceN)  用于指定从一组源文件source1 source2...sourceN编译出一个可执行文件且命名为name
+	add_library(<name> [STATIC|SHARED|MODULE|EXCLUDE_FROM_ALL] source1 source2...sourceN)	用于指定从一组源文件source1 source2...sourceN编译出一个库文件且命名为name
+	add_dependencies(target-name depend-target1 depend-target2...)				用于指定某个目标(可执行文件或者库文件)依赖于其他的目标,这里的目标必须是add_executable,add_library,add_custom_target命令创建的目标
+	add_subdirectory(source_dir [binary_dir][EXCLUDE_FROM_ALL])					用于添加一个需要进行构建的子目录
+	target_link_libraries(<target> [item1 [item2 [...]]][[debug|optimized|general]]...)		用于指定target需要链接item1 item2..这里target必须已经被创建,链接的item可以是已经存在的target(依赖关系会自动添加)
+	set(<variable> <value> [[CACHE <type><docstring> [FORCE]]|PARENT_SCOPE])	用于设定变量variable的值为value,如果指定了CACHE变量将被放入Cachek 
+	unset(<variable> [CACHE])													用于移除变量variable,如果指定了CACHE变量将被从Cache中移除
+	message([STATUS|WARNING|AUTHOR_WARNING|FATAL_ERROR|SEND_ERROR] "message todisplay"...)	用于输出信息
+	include(<file|module> [OPTIONAL] [RESULT_VARIABLE <VAR>] [NO_POLICY_SCOPE])	include从给定的文件中读取CMake的列表文件,在清单文件中的命令会被立即处理,就像它们是写在这条include命令展开的地方一样
+																				如果指定了OPTIONAL选项，那么如果被包含文件不存在的话，不会报错。如果指定了RESULT_VARIABLE选项，那么var或者会被设置为被包含文件的完整路径，或者是NOTFOUND，表示没有找到该文件
+																				如果指定的是一个模块（module）而不是一个文件，查找的对象会变成路径CMAKE_MODULE_PATH下的文件<modulename>.camke。
+																				OPTIONAL 参数的作用是文件不存在也不会产生错误。
+																				可以指定载入一个文件,如果定义的是一个模块,那么将在 CMAKE_MODULE_PATH 中搜索这个模块并载入。
+载入的内容将在处理到 INCLUDE 语句是直接执行。
+	include_directories([AFTER|BEFORE|] [SYSTEM] dir1 dir2...)					用于设定目录,这些设定的目录将被编译器用来查找include文件
+	find_path(<VAR> name1 [path1 path2...])										用于查找包含文件name1的路径,如果找到则将路径保存在VAR中(此路径为绝对路径),如果没有找到则结果为<VAR>-NOTFOUND,默认情况下,VAR会被保存在Cache中,这时候需要清除VAR才可以进行下一次查询(使用unset命令)
+	find_library(<VAR> name1 [path1 path2...])									用于查找库文件name1的路径,如果找到则将路径保存在VAR中(此路径为绝对路径),如果没有找到则结果为<VAR>-NOTFOUND
+	add_definitions(-DFOO -DBAR...)												用于添加编译器命令行标志选项,通常用来添加预处理器定义
+	execute_process(COMMAND <cmd1>[args1...]]									用于执行一个或多个外部命令,每一个命令的标准输出通过管道转为下一个命令的标准输入
+					[COMMAND <cmd2>[args2...] [...]]
+                    [WORKING_DIRECTORY<directory>]								用于指定外部命令的工作目录
+                    [TIMEOUT <seconds>]
+                    [RESULT_VARIABLE<variable>]									用于指定一个变量保存外部命令执行的结果,这个结果可能是最后一个执行的外部命令的退出码或者是一个描述错误条件的字符串
+                    [OUTPUT_VARIABLE<variable>]									和下面的ERROR_VARIABLE用于指定一个变量保存标准输出或者标准错误
+                    [ERROR_VARIABLE<variable>]
+                    [INPUT_FILE <file>]
+                    [OUTPUT_FILE <file>]
+                    [ERROR_FILE <file>]
+                    [OUTPUT_QUIET]												和下面的ERROR_QUIET用于忽略标准输出和标准错误
+                    [ERROR_QUIET]
+					[OUTPUT_STRIP_TRAILING_WHITESPACE]
+					[ERROR_STRIP_TRAILING_WHITESPACE])
+	file(GLOB variable [RELATIVE path][globbing expressions]...)				GLOB用于产生一个文件(目录)路径列表保存在variable中,路径列表中的每个文件的文件名都能匹配globbing expression(非正则表达式,但是类似),如果指定了RELATIVE路径,那么返回的文件路径列表中的路径为相对于RELATIVE的路径
+	
+	
+常用变量
+	CMAKE_BINARY_DIR 
+	PROJECT_BINARY_DIR 
+	< projectname >_BINARY_DIR 
+	这三个变量指代的内容是一致的，如果是in-source编译，指得就是工程顶层目录；如果是out-of-source编译，指的是工程编译发生的目录
+	
+	CMAKE_SOURCE_DIR 
+	PROJECT_SOURCE_DIR 
+	< projectname >_SOURCE_DIR 
+	这三个变量指代的内容是一致的，不论采用何种编译方式，都是工程顶层目录。也就是在in-source编译时,他跟CMAKE_BINARY_DIR等变量一致
+	
+	CMAKE_CURRENT_SOURCE_DIR 
+	当前处理的CMakeLists.txt所在的路径
+	
+	CMAKE_CURRRENT_BINARY_DIR 
+	如果是in-source编译，它跟CMAKE_CURRENT_SOURCE_DIR一致；如果是out-of-source编译，指的是target编译目录。使用ADD_SUBDIRECTORY(src bin)可以更改这个变量的值。使用SET(EXECUTABLE_OUTPUT_PATH <新路径>)并不会对这个变量造成影响,它仅仅修改了最终目标文件存放的路径。
+	
+	CMAKE_CURRENT_LIST_FILE 
+	输出调用这个变量的CMakeLists.txt的完整路径
+	
+	CMAKE_CURRENT_LIST_LINE 
+	输出这个变量所在的行
+	
+	CMAKE_MODULE_PATH 
+	这个变量用来定义自己的cmake模块所在的路径。如果工程比较复杂，有可能会自己编写一些cmake模块，这些cmake模块是随工程发布的，为了让cmake在处理CMakeLists.txt时找到这些模块，你需要通过SET指令将cmake模块路径设置一下。比如SET(CMAKE_MODULE_PATH,${PROJECT_SOURCE_DIR}/cmake) 
+	这时候就可以通过INCLUDE指令来调用自己的模块了。
+	
+	EXECUTABLE_OUTPUT_PATH 
+	新定义最终结果的存放目录
+	
+	LIBRARY_OUTPUT_PATH 
+	新定义最终结果的存放目录
+	
+	PROJECT_NAME 
+	返回通过PROJECT指令定义的项目名称
+	
+	UNIX 如果为真，表示为 UNIX-like 的系统，包括 AppleOS X 和 CygWin
+
+	WIN32 如果为真，表示为 Windows 系统，包括 CygWin
+	
+	APPLE 如果为真，表示为 Apple 系统
+	
+	CMAKE_SIZEOF_VOID_P 表示 void* 的大小（例如为 4 或者 8），可以使用其来判断当前构建为 32 位还是 64 位
+	
+	CMAKE_CURRENT_LIST_DIR 表示正在处理的CMakeLists.txt 文件的所在的目录的绝对路径（2.8.3 以及以后版本才支持）
+	
+	CMAKE_ARCHIVE_OUTPUT_DIRECTORY 用于设置 ARCHIVE 目标的输出路径
+	
+	CMAKE_LIBRARY_OUTPUT_DIRECTORY 用于设置 LIBRARY 目标的输出路径
+	
+	CMAKE_RUNTIME_OUTPUT_DIRECTORY 用于设置 RUNTIME 目标的输出路径
+	
+调用环境变量
+	使用$ENV{NAME}指令调用系统环境变量,设置环境变量的方式是SET(ENV{变量名} 值)
+	
+构建类型
+	CMake 为我们提供了四种构建类型：
+		Debug
+		Release
+		MinSizeRel
+		RelWithDebInfo
+
+如果使用 CMake 为 Windows MSVC 生成 projects/workspaces 那么我们将得到上述的 4 种解决方案配置。
+如果使用 CMake 生成 Makefile 时，我们需要做一些不同的工作。CMake 中存在一个变量 CMAKE_BUILD_TYPE 用于指定构建类型，此变量只用于基于 make 的生成器。我们可以这样指定构建类型：
+
+$ CMake -DCMAKE_BUILD_TYPE=Debug .			//可以使用gdb调试
+这里的 CMAKE_BUILD_TYPE 的值为上述的 4 种构建类型中的一种。
+
+编译和链接标志
+C 编译标志相关变量：
+	CMAKE_C_FLAGS
+	CMAKE_C_FLAGS_[DEBUG|RELEASE|MINSIZEREL|RELWITHDEBINFO]
+C++ 编译标志相关变量：
+	CMAKE_CXX_FLAGS
+	CMAKE_CXX_FLAGS_[DEBUG|RELEASE|MINSIZEREL|RELWITHDEBINFO]
+	CMAKE_C_FLAGS 或CMAKE_CXX_FLAGS 可以指定编译标志
+	CMAKE_C_FLAGS_[DEBUG|RELEASE|MINSIZEREL|RELWITHDEBINFO]或 CMAKE_CXX_FLAGS_[DEBUG|RELEASE|MINSIZEREL|RELWITHDEBINFO] 则指定特定构建类型的编译标志，这些编译标志将被加入到 CMAKE_C_FLAGS 或 CMAKE_CXX_FLAGS 中去，例如，如果构建类型为 DEBUG，那么 CMAKE_CXX_FLAGS_DEBUG 将被加入到 CMAKE_CXX_FLAGS中去
+链接标志相关变量：
+	CMAKE_EXE_LINKER_FLAGS
+	CMAKE_EXE_LINKER_FLAGS_[DEBUG|RELEASE|MINSIZEREL|RELWITHDEBINFO]
+	CMAKE_MODULE_LINKER_FLAGS
+	CMAKE_MODULE_LINKER_FLAGS_[DEBUG|RELEASE|MINSIZEREL|RELWITHDEBINFO]
+	CMAKE_SHARED_LINKER_FLAGS
+	CMAKE_SHARED_LINKER_FLAGS_[DEBUG|RELEASE|MINSIZEREL|RELWITHDEBINFO]
+
+它们类似于编译标志相关变量
+生成Debug和Release版本
+在 Visual Studio 中我们可以生成 debug 版和 release 版的程序,使用 CMake 我们也可以达到上述效果。debug 版的项目生成的可执行文件需要有调试信息并且不需要进行优化,而 release 版的不需要调试信息但需要优化。这些特性在 gcc/g++ 中是通过编译时的参数来决定的,如果将优化程度调到最高需要设置参数-O3,最低是 -O0 即不做优化;添加调试信息的参数是 -g -ggdb ,如果不添加这个参数,调试信息就不会被包含在生成的二进制文件中。
+CMake 中有一个变量CMAKE_BUILD_TYPE ,可以的取值是 Debug、Release、RelWithDebInfo 和 MinSizeRel。当这个变量值为 Debug 的时候,CMake 会使用变量 CMAKE_CXX_FLAGS_DEBUG 和 CMAKE_C_FLAGS_DEBUG中的字符串作为编译选项生成Makefile ,当这个变量值为 Release 的时候,工程会使用变量 CMAKE_CXX_FLAGS_RELEASE 和CMAKE_C_FLAGS_RELEASE 选项生成 Makefile。
+

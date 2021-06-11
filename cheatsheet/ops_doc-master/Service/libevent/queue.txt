@@ -1,0 +1,845 @@
+节点的类型和位置决定了节点的操作复杂度，
+添加: 头部添加，向后添加(向尾添加，向中间节点添加)  尾部添加
+删除: 头部删除，尾部删除(删除之后不再有节点), 后向删除，前向删除
+
+first next prev last引用节点的时候，确认被引用节点不为空
+如果有前向指针，则插入关系到前驱节点，节点自身，后继节点。指针调整顺序是: 节点自身，后继节点，前驱节点
+如果没有前向指针，则插入不关系后继节点。指针调整顺序是: 节点自身，前驱节点
+如果是队列链表，则插入和删除过程，关系到尾指针的修改情况。
+
+封装性的操作: 将多个操作封装，简化操作也使得REMOVE时，不在链表内就会崩溃
+
+/*
+ * This file defines five types of data structures: singly-linked lists,
+ * lists, simple queues, tail queues, and circular queues.
+ *
+ * # SLIST_HEAD
+ * A singly-linked list is headed by a single forward pointer. The
+ * elements are singly linked for minimum space and pointer manipulation
+ * overhead at the expense of O(n) removal for arbitrary elements. New
+ * elements can be added to the list after an existing element or at the
+ * head of the list.  Elements being removed from the head of the list
+ * should use the explicit macro for this purpose for optimum
+ * efficiency. A singly-linked list may only be traversed in the forward
+ * direction.  Singly-linked lists are ideal for applications with large
+ * datasets and few or no removals or for implementing a LIFO queue.
+ * Head ->  struct type *slh_first;
+ * ENTRY -> struct type *sle_next;
+ * 
+ * #LIST_HEAD
+ * A list is headed by a single forward pointer (or an array of forward
+ * pointers for a hash table header). The elements are doubly linked
+ * so that an arbitrary element can be removed without a need to
+ * traverse the list. New elements can be added to the list before
+ * or after an existing element or at the head of the list. A list
+ * may only be traversed in the forward direction.
+ * Head ->  struct type *lh_first;
+ * ENTRY -> struct type *le_next;
+ * ENTRY -> struct type **le_prev; 
+ * 
+ * STAILQ_HEAD
+ * A simple queue is headed by a pair of pointers, one the head of the
+ * list and the other to the tail of the list. The elements are singly
+ * linked to save space, so elements can only be removed from the
+ * head of the list. New elements can be added to the list after
+ * an existing element, at the head of the list, or at the end of the
+ * list. A simple queue may only be traversed in the forward direction.
+ * Head -> struct type *stqh_first
+ * Head -> struct type **stqh_last;
+ * ENTRY -> struct type *stqe_next; 
+ * 
+ * TAILQ_HEAD
+ * A tail queue is headed by a pair of pointers, one to the head of the
+ * list and the other to the tail of the list. The elements are doubly
+ * linked so that an arbitrary element can be removed without a need to
+ * traverse the list. New elements can be added to the list before or
+ * after an existing element, at the head of the list, or at the end of
+ * the list. A tail queue may be traversed in either direction.
+ *
+ * CIRCLEQ_HEAD
+ * A circle queue is headed by a pair of pointers, one to the head of the
+ * list and the other to the tail of the list. The elements are doubly
+ * linked so that an arbitrary element can be removed without a need to
+ * traverse the list. New elements can be added to the list before or after
+ * an existing element, at the head of the list, or at the end of the list.
+ * A circle queue may be traversed in either direction, but has a more
+ * complex end of list detection.
+ *
+ * For details on the use of these macros, see the queue(3) manual page.
+ *                        SLIST    LIST   STAILQ  TAILQ  CIRCLEQ
+ *
+ * _HEAD                    +       +       +       +       +
+ * _HEAD_INITIALIZER        +       +       +       +       +
+ * _ENTRY                   +       +       +       +       +
+ *
+ * _INIT                    +       +       +       +       +
+ * _INSERT_HEAD             +       +       +       +       +
+ * _INSERT_TAIL             -       -       +       +       +
+ * _INSERT_BEFORE           -       +       -       +       +
+ * _INSERT_AFTER            +       +       +       +       +
+ * _CONCAT                  -       -       +       +       -
+ * _REMOVE_HEAD             +       -       +       -       -
+ * _REMOVE_HEAD_UNTIL       -       -       +       -       -
+ * _REMOVE_TAIL             -       -       -       -       -
+ * _REMOVE_TAIL_UNTIL       -       -       -       -       -
+ * _REMOVE_BEFORE           -       -       -       -       -
+ * _REMOVE_AFTER            +       -       +       -       -
+ * _REMOVE                  +       +       +       +       +
+ * _REPLACE                 -       +       -       +       +
+ * _SWAP                    +       +       +       +       -
+ *
+ * _FIRST                   +       +       +       +       +
+ * _LAST                    -       -       +       +       +
+ * _NEXT                    +       +       +       +       +
+ * _PREV                    -       +       -       +       +
+ * _EMPTY                   +       +       +       +       +
+ * _FOREACH                 +       +       +       +       +
+ * _FOREACH_SAFE            +       +       +       +       +
+ * _FOREACH_REVERSE         -       -       -       +       +
+ * _FOREACH_REVERSE_SAFE    -       -       -       +       +
+ */
+
+最完备的: V:\rtu\otdr\crosstool\cheatsheet\ops_doc-master\Service\libevent\dstest\queue\queue.h
+
+功能支持        SLIST   LIST    STAILQ  TAILQ   CIRCLEQ
+EMPTY           +       +       +       +       +
+FIRST           +       +       +       +       +
+NEXT            +       +       +       +       +
+PREV                                    +       +
+LOOP_NEXT                                       +
+LOOP_PREV                                       +
+LAST                            +       +       +
+FOREACH         +       +       +       +       +
+FOREACH_SAFE    +       +       +       +       +
+FOREACH_REVERSE                         +       +
+FOREACH_REVERSE_SAFE                    +       +
+INSERT_HEAD     +       +       +       +       +
+INSERT_BEFORE           +               +       +
+INSERT_AFTER    +       +       +       +       +
+INSERT_TAIL                     +       +       +
+CONCAT                          +       +       
+REMOVE_HEAD     +               +               
+REMOVE          +       +       +       +       +
+REMOVE_AFTER    +               +
+SWAP            +       +       +       +
+REPLACE                 +               +       +
+
+
+支持: SLIST_FOREACH_SAFE             可以调用 SLIST_REMOVE_HEAD 和 SLIST_REMOVE
+      LIBXL_SLIST_FOREACH_PREVPTR
+
+
+ 1.
+circular queue              CIRCLEQ_HEAD     A circle queue
+doubly-linked list          LIST_HEAD        A list
+doubly-linked tail queue    TAILQ_HEAD       A tail queue
+singly-linked list          SLIST_HEAD       A singly-linked list 
+singly-linked queue         SIMPLEQ_HEAD     A simple queue
+singly-linked tail queue    STAILQ_HEAD      
+
+共有宏指令
+XXXX_ENTRY,   XXXX_HEAD,   XXXX_HEAD_INITIALIZER,   XXXX_FIRST,   XXXX_NEXT,   XXXX_EMPTY,   XXXX_FOREACH,   XXXX_FOREACH_SAFE,   XXXX_INIT
+SLIST_ENTRY,  SLIST_HEAD,  SLIST_HEAD_INITIALIZER,  SLIST_FIRST,  SLIST_NEXT,  SLIST_EMPTY,  SLIST_FOREACH,  SLIST_FOREACH_SAFE,  SLIST_INIT,
+SIMPLEQ_ENTRY SIMPLEQ_HEAD SIMPLEQ_HEAD_INITIALIZER SIMPLEQ_FIRST SIMPLEQ_NEXT SIMPLEQ_EMPTY SIMPLEQ_FOREACH SIMPLEQ_FOREACH_SAFE SIMPLEQ_INIT
+LIST_ENTRY,   LIST_HEAD,   LIST_HEAD_INITIALIZER,   LIST_FIRST,   LIST_NEXT,   LIST_EMPTY,   LIST_FOREACH,   LIST_FOREACH_SAFE,   LIST_INIT
+TAILQ_ENTRY,  TAILQ_HEAD,  TAILQ_HEAD_INITIALIZER,  TAILQ_FIRST,  TAILQ_NEXT,  TAILQ_EMPTY   TAILQ_FOREACH,  TAILQ_FOREACH_SAFE,  TAILQ_INIT
+
+
+SLIST 特有宏
+SLIST_INSERT_AFTER,   SLIST_INSERT_HEAD,   SLIST_REMOVE_AFTER,   SLIST_REMOVE_HEAD,  SLIST_REMOVE
+SIMPLEQ_INSERT_AFTER, SIMPLEQ_INSERT_HEAD, SIMPLEQ_REMOVE_AFTER, SIMPLEQ_REMOVE_HEAD               + SIMPLEQ_INSERT_TAIL,SIMPLEQ_CONCAT
+LIST_INSERT_AFTER     LIST_INSERT_HEAD,                                                            + LIST_INSERT_BEFORE LIST_REMOVE LIST_REPLACE
+TAILQ_INSERT_AFTER,   TAILQ_INSERT_HEAD,   TAILQ_INSERT_BEFORE,                                    + TAILQ_INSERT_TAIL, TAILQ_REMOVE, TAILQ_REPLACE, TAILQ_CONCAT
+TAILQ_FOREACH_REVERSE, TAILQ_FOREACH_REVERSE_SAFE, TAILQ_LAST, TAILQ_PREV,
+
+比对1 
+STAILQ_操作上比SIMPLEQ_增加了 STAILQ_CONCAT
+CIRCLEQ_ 操作上比TAILQ_ 增加了 CIRCLEQ_LOOP_NEXT和CIRCLEQ_LOOP_PREV， 但是缺少了 TAILQ_CONCAT
+LIST_ 操作上比 SLIST_ 增加了 LIST_INSERT_BEFORE, 并且简化 SLIST_REMOVE_HEAD 和 SLIST_REMOVE 为 LIST_REMOVE
+比对2 
+TAILQ(LIST) TAILQ_INSERT_TAIL  TAILQ_LAST TAILQ_PREV TAILQ_FOREACH_REVERSE TAILQ_CONCAT
+LIST(SLIST) LIST_INSERT_BEFORE LIST_REMOVE LIST_REPLACE
+TAILQ(STAILQ) TAILQ_INSERT_BEFORE TAILQ_LAST TAILQ_PREV TAILQ_FOREACH_REVERSE # TAILQ不存咋STAILQ_REMOVE_HEAD
+CIRCLEQ(LIST) CIRCLEQ_LOOP_NEXT, CIRCLEQ_LOOP_PREV
+
+
+定义          初始化                        判空       遍历(手动遍历，自动遍历)
+XXXX_ENTRY
+XXXX_HEAD  XXXX_INIT|XXXX_HEAD_INITIALIZER  XXXX_EMPTY (XXXX_FIRST, XXXX_NEXT) XXXX_FOREACH
+
+          头                 尾              节点自身   前驱                   后继
+插入     XXXX_INSERT_HEAD  XXXX_INSERT_TAIL            XXXX_INSERT_AFTER  XXXX_INSERT_BEFORE
+删除     XXXX_REMOVE_HEAD                   XXXX_REMOVE                   XXXX_REMOVE_AFTER
+
+      正向         逆向 
+遍历 XXXX_FOREACH  XXXX_FOREACH_REVERSE
+
+
+LIFO                  SLIST(头插入，向后插入，不支持尾插入，不支持向前插入) 
+                          +(头删除，从头节点遍历删除)
+                          +(FIRST_NEXT_null和SLIST_FOREACH遍历)
+                          +(判空)
+                      # 中间添加和中间删除难，头添加删除容易。     优点: 头添加头删除， 栈
+FIFO                  SIMPLEQ(头插入，向后插入，尾插入，不支持向前插入)  尾添加节点或尾连接另一个链表
+                            +(头删除，从头节点遍历删除)
+                            +(FIRST_NEXT_null和SIMPLEQ_FOREACH遍历)
+                            +(判空)
+                      # 中间添加和中间删除难，头尾添加，头删除容易，优点: 尾部添加头部删除， 队列
+traversed backwards   LIST (头插入，向后插入，向前插入)
+                          +(头删除，删除指定节点)  栈(支持随机插入)
+                          +(判空)
+                      # 中间添加和中间删除简单。头添加和删除容易。    优点: 除尾添加删除容易，
+尾部删除和添加        TAILQ(头插入，向后插入，向前插入，尾插入)          尾添加节点或尾连接另一个链表，支持逆向遍历
+                          +(头删除，删除指定节点)  队列(支持随机插入)
+                          +(判空)
+                      # 中间添加和中间删除简单。头添加和删除容易。    优点: 尾添加删除容易，
+SYNOPSIS
+     #include <sys/queue.h>
+SLIST(API){
+     SLIST_ENTRY(TYPE);
+     SLIST_HEAD(HEADNAME, TYPE);
+     SLIST_HEAD_INITIALIZER(SLIST_HEAD head);
+     
+     struct TYPE *SLIST_FIRST(SLIST_HEAD *head);
+     struct TYPE *SLIST_NEXT(struct TYPE *listelm, FIELDNAME);
+     int SLIST_EMPTY(SLIST_HEAD *head);
+
+     SLIST_FOREACH(VARNAME, SLIST_HEAD *head, FIELDNAME);
+     SLIST_FOREACH_SAFE(VARNAME, SLIST_HEAD *head, FIELDNAME, TEMP_VARNAME);
+
+     void SLIST_INIT(SLIST_HEAD *head);
+     void SLIST_INSERT_AFTER(struct TYPE *listelm, struct TYPE *elm, FIELDNAME);
+     void SLIST_INSERT_HEAD(SLIST_HEAD *head, struct TYPE *elm, FIELDNAME);
+     void SLIST_REMOVE_AFTER(struct TYPE *elm, FIELDNAME);
+     void SLIST_REMOVE_HEAD(SLIST_HEAD *head, FIELDNAME);
+     void SLIST_REMOVE(SLIST_HEAD *head, struct TYPE *elm, TYPE, FIELDNAME);
+}
+LIST(API){
+     LIST_ENTRY(TYPE);
+     LIST_HEAD(HEADNAME, TYPE);
+     LIST_HEAD_INITIALIZER(LIST_HEAD head);
+
+     struct TYPE *LIST_FIRST(LIST_HEAD *head);
+     struct TYPE *LIST_NEXT(struct TYPE *listelm, FIELDNAME);
+     int LIST_EMPTY(LIST_HEAD *head);
+
+     LIST_FOREACH(VARNAME, LIST_HEAD *head, FIELDNAME);
+     LIST_FOREACH_SAFE(VARNAME, LIST_HEAD *head, FIELDNAME, TEMP_VARNAME);
+
+     void LIST_INIT(LIST_HEAD *head);
+     void LIST_INSERT_AFTER(struct TYPE *listelm, struct TYPE *elm, FIELDNAME);
+     void LIST_INSERT_BEFORE(struct TYPE *listelm, struct TYPE *elm, FIELDNAME);
+     void LIST_INSERT_HEAD(LIST_HEAD *head, struct TYPE *elm, FIELDNAME);
+     void LIST_REMOVE(struct TYPE *elm, FIELDNAME);
+     void LIST_REPLACE(struct TYPE *elm, struct TYPE *elm2, FIELDNAME);
+}
+SIMPLEQ(API){
+     SIMPLEQ_ENTRY(TYPE);
+     SIMPLEQ_HEAD(HEADNAME, TYPE);
+     SIMPLEQ_HEAD_INITIALIZER(SIMPLEQ_HEAD head);
+
+     struct TYPE *SIMPLEQ_FIRST(SIMPLEQ_HEAD *head);
+     struct TYPE *SIMPLEQ_NEXT(struct TYPE *listelm, FIELDNAME);
+     int SIMPLEQ_EMPTY(SIMPLEQ_HEAD *head);
+
+     SIMPLEQ_FOREACH(VARNAME, SIMPLEQ_HEAD *head, FIELDNAME);
+     SIMPLEQ_FOREACH_SAFE(VARNAME, SIMPLEQ_HEAD *head, FIELDNAME, TEMP_VARNAME);
+
+     void SIMPLEQ_INIT(SIMPLEQ_HEAD *head);
+     void SIMPLEQ_INSERT_AFTER(SIMPLEQ_HEAD *head, struct TYPE *listelm,
+            struct TYPE *elm, FIELDNAME);
+     void SIMPLEQ_INSERT_HEAD(SIMPLEQ_HEAD *head, struct TYPE *elm, FIELDNAME);
+     void SIMPLEQ_INSERT_TAIL(SIMPLEQ_HEAD *head, struct TYPE *elm, FIELDNAME);
+     void SIMPLEQ_REMOVE_AFTER(SIMPLEQ_HEAD *head, struct TYPE *elm, FIELDNAME);
+     void SIMPLEQ_REMOVE_HEAD(SIMPLEQ_HEAD *head, FIELDNAME);
+     SIMPLEQ_CONCAT(SIMPLEQ_HEAD *head1, SIMPLEQ_HEAD *head2);
+}
+TAILQ(API){
+     TAILQ_ENTRY(TYPE);
+     TAILQ_HEAD(HEADNAME, TYPE);
+     TAILQ_HEAD_INITIALIZER(TAILQ_HEAD head);
+
+     struct TYPE *TAILQ_FIRST(TAILQ_HEAD *head);
+     struct TYPE *TAILQ_NEXT(struct TYPE *listelm, FIELDNAME);
+     struct TYPE *TAILQ_LAST(TAILQ_HEAD *head, HEADNAME);
+     struct TYPE *TAILQ_PREV(struct TYPE *listelm, HEADNAME, FIELDNAME);
+     int TAILQ_EMPTY(TAILQ_HEAD *head);
+
+     TAILQ_FOREACH(VARNAME, TAILQ_HEAD *head, FIELDNAME);
+     TAILQ_FOREACH_SAFE(VARNAME, TAILQ_HEAD *head, FIELDNAME, TEMP_VARNAME);
+     TAILQ_FOREACH_REVERSE(VARNAME, TAILQ_HEAD *head, HEADNAME, FIELDNAME);
+     TAILQ_FOREACH_REVERSE_SAFE(VARNAME, TAILQ_HEAD *head, HEADNAME,
+	     FIELDNAME, TEMP_VARNAME);
+
+     void TAILQ_INIT(TAILQ_HEAD *head);
+     void TAILQ_INSERT_AFTER(TAILQ_HEAD *head, struct TYPE *listelm,
+	     struct TYPE *elm, FIELDNAME);
+
+     void TAILQ_INSERT_BEFORE(struct TYPE *listelm, struct TYPE *elm, FIELDNAME);
+     void TAILQ_INSERT_HEAD(TAILQ_HEAD *head, struct TYPE *elm, FIELDNAME);
+     void TAILQ_INSERT_TAIL(TAILQ_HEAD *head, struct TYPE *elm, FIELDNAME);
+     void TAILQ_REMOVE(TAILQ_HEAD *head, struct TYPE *elm, FIELDNAME);
+     void TAILQ_REPLACE(TAILQ_HEAD *head, struct TYPE *elm, struct TYPE *elm2,
+	     FIELDNAME);
+     TAILQ_CONCAT(TAILQ_HEAD *head1, TAILQ_HEAD *head2, FIELDNAME);
+}
+
+DESCRIPTION
+general(func){
+     These macros define and operate on four types of data structures: singly-
+     linked lists, simple queues, lists, and tail queues.  All four structures
+     support the following functionality:
+	   1.	Insertion of a new entry at the head of the list.
+	   2.	Insertion of a new entry after any element in the list.
+	   3.	Removal of an entry from the head of the list.
+	   4.	Forward traversal through the list.
+}
+SLIST(func){
+     Singly-linked lists are the simplest of the four data structures and sup-
+     port only the above functionality.	 Singly-linked lists are ideal for
+     applications with large datasets and few or no removals, or for imple-
+     menting a LIFO queue.
+}
+SIMPLEQ(func){
+     Simple queues add the following functionality:
+	   1.	Entries can be added at the end of a list.
+
+     However:
+	   1.	All list insertions must specify the head of the list.
+	   2.	Each head entry requires two pointers rather than one.
+	   3.	Code size is about 15% greater and operations run about 20%
+		slower than singly-linked lists.
+
+     Simple queues are ideal for applications with large datasets and few or
+     no removals, or for implementing a FIFO queue.
+}
+LIST(func){
+     All doubly linked types of data structures (lists and tail queues) addi-
+     tionally allow:
+	   1.	Insertion of a new entry before any element in the list.
+	   2.	Removal of any entry in the list.
+
+     However:
+	   1.	Each element requires two pointers rather than one.
+	   2.	Code size and execution time of operations (except for
+		removal) is about twice that of the singly-linked data-struc-
+		tures.
+
+     Lists are the simplest of the doubly linked data structures and support
+     only the above functionality over singly-linked lists.
+}
+
+TAILQ(){
+     Tail queues add the following functionality:
+	   1.	Entries can be added at the end of a list.
+	   2.	They may be traversed backwards, at a cost.
+     However:
+	   1.	All list insertions and removals must specify the head of the
+		list.
+	   2.	Each head entry requires two pointers rather than one.
+	   3.	Code size is about 15% greater and operations run about 20%
+		slower than singly-linked lists.
+}
+     An additional type of data structure, circular queues, violated the C
+     language aliasing rules and were miscompiled as a result.	All code using
+     them should be converted to another structure; tail queues are usually
+     the easiest to convert to.
+
+struct(TYPE HEADNAME){
+     In the macro definitions, TYPE is the name tag of a user defined struc-
+     ture that must contain a field of type SLIST_ENTRY, LIST_ENTRY,
+     SIMPLEQ_ENTRY, or TAILQ_ENTRY, named FIELDNAME.  The argument HEADNAME is
+     the name tag of a user defined structure that must be declared using the
+     macros SLIST_HEAD(), LIST_HEAD(), SIMPLEQ_HEAD(), or TAILQ_HEAD().	 See
+     the examples below for further explanation of how these macros are used.
+}
+
+SLIST(api){
+SINGLY-LINKED LISTS
+     A singly-linked list is headed by a structure defined by the SLIST_HEAD()
+     macro.  This structure contains a single pointer to the first element on
+     the list. The elements are singly linked for minimum space and pointer
+     manipulation overhead at the expense of O(n) removal for arbitrary ele-
+     ments.  New elements can be added to the list after an existing element
+     or at the head of the list.  A SLIST_HEAD structure is declared as fol-
+     lows:
+
+	   SLIST_HEAD(HEADNAME, TYPE) head;
+
+     where HEADNAME is the name of the structure to be defined, and struct
+     TYPE is the type of the elements to be linked into the list.  A pointer
+     to the head of the list can later be declared as:
+
+	   struct HEADNAME *headp;
+
+     (The names head and headp are user selectable.)
+
+     The HEADNAME facility is often not used, leading to the following bizarre(奇异的；古怪的)
+     code:
+
+	   SLIST_HEAD(, TYPE) head, *headp;
+
+     The SLIST_ENTRY() macro declares a structure that connects the elements
+     in the list.
+
+     The SLIST_INIT() macro initializes the list referenced by head.
+
+     The list can also be initialized statically by using the
+     SLIST_HEAD_INITIALIZER() macro like this:
+
+	   SLIST_HEAD(HEADNAME, TYPE) head = SLIST_HEAD_INITIALIZER(head);
+
+     The SLIST_INSERT_HEAD() macro inserts the new element elm at the head of
+     the list.
+
+     The SLIST_INSERT_AFTER() macro inserts the new element elm after the ele-
+     ment listelm.
+
+     The SLIST_REMOVE_HEAD() macro removes the first element of the list
+     pointed by head.
+
+     The SLIST_REMOVE_AFTER() macro removes the list element immediately fol-
+     lowing elm.
+
+     The SLIST_REMOVE() macro removes the element elm of the list pointed by
+     head.
+
+     The SLIST_FIRST() and SLIST_NEXT() macros can be used to traverse the
+     list:
+
+	   for (np = SLIST_FIRST(&head); np != NULL; np = SLIST_NEXT(np, FIELDNAME))
+     Or, for simplicity, one can use the SLIST_FOREACH() macro:
+	   SLIST_FOREACH(np, head, FIELDNAME)
+
+     The macro SLIST_FOREACH_SAFE() traverses the list referenced by head in a
+     forward direction, assigning each element in turn to var. However,
+     unlike SLIST_FOREACH() it is permitted to remove var as well as free it
+     from within the loop safely without interfering with the traversal.
+
+     The SLIST_EMPTY() macro should be used to check whether a simple list is
+     empty.
+}
+SIMPLEQ(test){ SINGLY-LINKED LIST EXAMPLE
+    SLIST_HEAD(slisthead, entry) head = 
+        SLIST_HEAD_INITIALIZER(head); 
+        
+    struct slisthead *headp;		/* Singly-linked List head. */ 
+    struct entry { 
+    	... 
+    	SLIST_ENTRY(entry) entries;	/* Singly-linked List. */ 
+    	... 
+    } *n1, *n2, *n3, *np; 
+     
+    SLIST_INIT(&head);			/* Initialize the list. */ 
+     
+    n1 = malloc(sizeof(struct entry));	/* Insert at the head. */ 
+    SLIST_INSERT_HEAD(&head, n1, entries); 
+     
+    n2 = malloc(sizeof(struct entry));	/* Insert after. */ 
+    SLIST_INSERT_AFTER(n1, n2, entries); 
+     
+    SLIST_REMOVE(&head, n2, entry, entries);/* Deletion. */ 
+    free(n2); 
+     
+    n3 = SLIST_FIRST(&head); 
+    SLIST_REMOVE_HEAD(&head, entries);	/* Deletion from the head. */ 
+    free(n3); 
+    					/* Forward traversal. */ 
+    SLIST_FOREACH(np, &head, entries) 
+    	np-> ... 
+    					/* Safe forward traversal. */ 
+    SLIST_FOREACH_SAFE(np, &head, entries, np_temp) { 
+    	np->do_stuff(); 
+    	... 
+    	SLIST_REMOVE(&head, np, entry, entries); 
+    	free(np); 
+    } 
+     
+    while (!SLIST_EMPTY(&head)) {		/* List Deletion. */ 
+    	n1 = SLIST_FIRST(&head); 
+    	SLIST_REMOVE_HEAD(&head, entries); 
+    	free(n1); 
+    }
+}
+
+
+LISTS(api){
+     A list is headed by a structure defined by the LIST_HEAD() macro. This
+     structure contains a single pointer to the first element on the list.
+     The elements are doubly linked so that an arbitrary element can be
+     removed without traversing the list.  New elements can be added to the
+     list after an existing element, before an existing element, or at the
+     head of the list. A LIST_HEAD structure is declared as follows:
+
+	   LIST_HEAD(HEADNAME, TYPE) head;
+
+     where HEADNAME is the name of the structure to be defined, and struct
+     TYPE is the type of the elements to be linked into the list.  A pointer
+     to the head of the list can later be declared as:
+
+	   struct HEADNAME *headp;
+     (The names head and headp are user selectable.)
+
+     The HEADNAME facility is often not used, leading to the following bizarre
+     code:
+
+	   LIST_HEAD(, TYPE) head, *headp;
+
+     The LIST_ENTRY() macro declares a structure that connects the elements in
+     the list.
+
+     The LIST_INIT() macro initializes the list referenced by head.
+
+     The list can also be initialized statically by using the
+     LIST_HEAD_INITIALIZER() macro like this:
+
+	   LIST_HEAD(HEADNAME, TYPE) head = LIST_HEAD_INITIALIZER(head);
+
+     The LIST_INSERT_HEAD() macro inserts the new element elm at the head of
+     the list.
+
+     The LIST_INSERT_AFTER() macro inserts the new element elm after the ele-
+     ment listelm.
+
+     The LIST_INSERT_BEFORE() macro inserts the new element elm before the
+     element listelm.
+
+     The LIST_REMOVE() macro removes the element elm from the list.
+
+     The LIST_REPLACE() macro replaces the list element elm with the new ele-
+     ment elm2.
+
+     The LIST_FIRST() and LIST_NEXT() macros can be used to traverse the list:
+
+	   for (np = LIST_FIRST(&head); np != NULL; np = LIST_NEXT(np, FIELDNAME))
+     Or, for simplicity, one can use the LIST_FOREACH() macro:
+	   LIST_FOREACH(np, head, FIELDNAME)
+
+     The macro LIST_FOREACH_SAFE() traverses the list referenced by head in a
+     forward direction, assigning each element in turn to var.	However,
+     unlike LIST_FOREACH() it is permitted to remove var as well as free it
+     from within the loop safely without interfering with the traversal.
+
+     The LIST_EMPTY() macro should be used to check whether a list is empty.
+}
+LIST(test){ LIST EXAMPLE
+    LIST_HEAD(listhead, entry) head = 
+        LIST_HEAD_INITIALIZER(head); 
+    struct listhead *headp;			/* List head. */ 
+    struct entry { 
+    	... 
+    	LIST_ENTRY(entry) entries;	/* List. */ 
+    	... 
+    } *n1, *n2, *n3, *np, *np_temp; 
+     
+    LIST_INIT(&head);			/* Initialize the list. */ 
+     
+    n1 = malloc(sizeof(struct entry));	/* Insert at the head. */ 
+    LIST_INSERT_HEAD(&head, n1, entries); 
+     
+    n2 = malloc(sizeof(struct entry));	/* Insert after. */ 
+    LIST_INSERT_AFTER(n1, n2, entries); 
+     
+    n3 = malloc(sizeof(struct entry));	/* Insert before. */ 
+    LIST_INSERT_BEFORE(n2, n3, entries); 
+     
+    LIST_REMOVE(n2, entries);		/* Deletion. */ 
+    free(n2); 
+    					/* Forward traversal. */ 
+    LIST_FOREACH(np, &head, entries) 
+    	np-> ... 
+     
+    					/* Safe forward traversal. */ 
+    LIST_FOREACH_SAFE(np, &head, entries, np_temp) { 
+    	np->do_stuff(); 
+    	... 
+    	LIST_REMOVE(np, entries); 
+    	free(np); 
+    } 
+     
+    while (!LIST_EMPTY(&head)) {		/* List Deletion. */ 
+    	n1 = LIST_FIRST(&head); 
+    	LIST_REMOVE(n1, entries); 
+    	free(n1); 
+    } 
+     
+    n1 = LIST_FIRST(&head);			/* Faster List Deletion. */ 
+    while (n1 != NULL) { 
+    	n2 = LIST_NEXT(n1, entries); 
+    	free(n1); 
+    	n1 = n2; 
+    } 
+    LIST_INIT(&head);
+}
+SIMPLEQ(api){
+SIMPLE QUEUES
+     A simple queue is headed by a structure defined by the SIMPLEQ_HEAD()
+     macro.  This structure contains a pair of pointers, one to the first ele-
+     ment in the simple queue and the other to the last element in the simple
+     queue.  The elements are singly linked.  New elements can be added to the
+     queue after an existing element, at the head of the queue or at the tail
+     of the queue.  A SIMPLEQ_HEAD structure is declared as follows:
+
+	   SIMPLEQ_HEAD(HEADNAME, TYPE) head;
+
+     where HEADNAME is the name of the structure to be defined, and struct
+     TYPE is the type of the elements to be linked into the queue.  A pointer
+     to the head of the queue can later be declared as:
+
+	   struct HEADNAME *headp;
+
+     (The names head and headp are user selectable.)
+
+     The SIMPLEQ_ENTRY() macro declares a structure that connects the elements
+     in the queue.
+
+     The SIMPLEQ_INIT() macro initializes the queue referenced by head.
+
+     The queue can also be initialized statically by using the
+     SIMPLEQ_HEAD_INITIALIZER() macro like this:
+
+	   SIMPLEQ_HEAD(HEADNAME, TYPE) head = SIMPLEQ_HEAD_INITIALIZER(head);
+
+     The SIMPLEQ_INSERT_AFTER() macro inserts the new element elm after the
+     element listelm.
+
+     The SIMPLEQ_INSERT_HEAD() macro inserts the new element elm at the head
+     of the queue.
+
+     The SIMPLEQ_INSERT_TAIL() macro inserts the new element elm at the end of
+     the queue.
+
+     The SIMPLEQ_REMOVE_AFTER() macro removes the queue element immediately
+     following elm.
+
+     The SIMPLEQ_REMOVE_HEAD() macro removes the first element from the queue.
+
+     The SIMPLEQ_CONCAT() macro concatenates all the elements of the queue
+     referenced by head2 to the end of the queue referenced by head1, emptying
+     head2 in the process.  This is more efficient than removing and inserting
+     the individual elements as it does not actually traverse head2.
+
+     The SIMPLEQ_FIRST() and SIMPLEQ_NEXT() macros can be used to traverse the
+     queue.  The SIMPLEQ_FOREACH() is used for queue traversal:
+
+	   SIMPLEQ_FOREACH(np, head, FIELDNAME)
+
+     The macro SIMPLEQ_FOREACH_SAFE() traverses the queue referenced by head
+     in a forward direction, assigning each element in turn to var.  However,
+     unlike SIMPLEQ_FOREACH() it is permitted to remove var as well as free it
+     from within the loop safely without interfering with the traversal.
+
+     The SIMPLEQ_EMPTY() macro should be used to check whether a list is
+     empty.
+}
+SIMPLEQ(test){ Singly-Linked Tail Queue Example
+
+    STAILQ_HEAD(stailhead, entry) head = 
+        STAILQ_HEAD_INITIALIZER(head); 
+    struct stailhead *headp;		/* Singly-linked tail queue head. */ 
+    struct entry { 
+    	... 
+    	STAILQ_ENTRY(entry) entries;	/* Tail queue. */ 
+    	... 
+    } *n1, *n2, *n3, *np; 
+     
+    STAILQ_INIT(&head);			/* Initialize the queue. */ 
+     
+    n1 = malloc(sizeof(struct entry));	/* Insert at the head. */ 
+    STAILQ_INSERT_HEAD(&head, n1, entries); 
+     
+    n1 = malloc(sizeof(struct entry));	/* Insert at the tail. */ 
+    STAILQ_INSERT_TAIL(&head, n1, entries); 
+     
+    n2 = malloc(sizeof(struct entry));	/* Insert after. */ 
+    STAILQ_INSERT_AFTER(&head, n1, n2, entries); 
+    					/* Deletion. */ 
+    STAILQ_REMOVE(&head, n2, entry, entries); 
+    free(n2); 
+    					/* Deletion from the head. */ 
+    n3 = STAILQ_FIRST(&head); 
+    STAILQ_REMOVE_HEAD(&head, entries); 
+    free(n3); 
+    					/* Forward traversal. */ 
+    STAILQ_FOREACH(np, &head, entries) 
+    	np-> ... 
+    					/* Safe forward traversal. */ 
+    STAILQ_FOREACH_SAFE(np, &head, entries, np_temp) { 
+    	np->do_stuff(); 
+    	... 
+    	STAILQ_REMOVE(&head, np, entry, entries); 
+    	free(np); 
+    } 
+    					/* TailQ Deletion. */ 
+    while (!STAILQ_EMPTY(&head)) { 
+    	n1 = STAILQ_FIRST(&head); 
+    	STAILQ_REMOVE_HEAD(&head, entries); 
+    	free(n1); 
+    } 
+    					/* Faster TailQ Deletion. */ 
+    n1 = STAILQ_FIRST(&head); 
+    while (n1 != NULL) { 
+    	n2 = STAILQ_NEXT(n1, entries); 
+    	free(n1); 
+    	n1 = n2; 
+    } 
+    STAILQ_INIT(&head);
+}
+TAILQ(api){
+TAIL QUEUES
+     A tail queue is headed by a structure defined by the TAILQ_HEAD() macro.
+     This structure contains a pair of pointers, one to the first element in
+     the tail queue and the other to the last element in the tail queue.  The
+     elements are doubly linked so that an arbitrary element can be removed
+     without traversing the tail queue.	 New elements can be added to the
+     queue after an existing element, before an existing element, at the head
+     of the queue, or at the end of the queue.	A TAILQ_HEAD structure is
+     declared as follows:
+
+	   TAILQ_HEAD(HEADNAME, TYPE) head;
+
+     where HEADNAME is the name of the structure to be defined, and struct
+     TYPE is the type of the elements to be linked into the tail queue.	 A
+     pointer to the head of the tail queue can later be declared as:
+
+	   struct HEADNAME *headp;
+
+     (The names head and headp are user selectable.)
+
+     The TAILQ_ENTRY() macro declares a structure that connects the elements
+     in the tail queue.
+
+     The TAILQ_INIT() macro initializes the tail queue referenced by head.
+
+     The tail queue can also be initialized statically by using the
+     TAILQ_HEAD_INITIALIZER() macro.
+
+     The TAILQ_INSERT_HEAD() macro inserts the new element elm at the head of
+     the tail queue.
+
+     The TAILQ_INSERT_TAIL() macro inserts the new element elm at the end of
+     the tail queue.
+
+     The TAILQ_INSERT_AFTER() macro inserts the new element elm after the ele-
+     ment listelm.
+
+     The TAILQ_INSERT_BEFORE() macro inserts the new element elm before the
+     element listelm.
+
+     The TAILQ_REMOVE() macro removes the element elm from the tail queue.
+
+     The TAILQ_REPLACE() macro replaces the list element elm with the new ele-
+     ment elm2.
+
+     The TAILQ_CONCAT() macro concatenates all the elements of the tail queue
+     referenced by head2 to the end of the tail queue referenced by head1,
+     emptying head2 in the process.  This is more efficient than removing and
+     inserting the individual elements as it does not actually traverse head2.
+
+     TAILQ_FOREACH() and TAILQ_FOREACH_REVERSE() are used for traversing a
+     tail queue.  TAILQ_FOREACH() starts at the first element and proceeds
+     towards the last.	TAILQ_FOREACH_REVERSE() starts at the last element and
+     proceeds towards the first.
+
+	   TAILQ_FOREACH(np, &head, FIELDNAME)
+	   TAILQ_FOREACH_REVERSE(np, &head, HEADNAME, FIELDNAME)
+
+     The macros TAILQ_FOREACH_SAFE() and TAILQ_FOREACH_REVERSE_SAFE() traverse
+     the list referenced by head in a forward or reverse direction respec-
+     tively, assigning each element in turn to var.  However, unlike their
+     unsafe counterparts, they permit both the removal of var as well as free-
+     ing it from within the loop safely without interfering with the traver-
+     sal.
+
+     The TAILQ_FIRST(), TAILQ_NEXT(), TAILQ_LAST() and TAILQ_PREV() macros can
+     be used to manually traverse a tail queue or an arbitrary part of one.
+
+     The TAILQ_EMPTY() macro should be used to check whether a tail queue is
+     empty.
+}
+
+TAILQ(test){ Tail Queue Example
+    TAILQ_HEAD(tailhead, entry) head = 
+        TAILQ_HEAD_INITIALIZER(head); 
+    struct tailhead *headp;			/* Tail queue head. */ 
+    struct entry { 
+    	... 
+    	TAILQ_ENTRY(entry) entries;	/* Tail queue. */ 
+    	... 
+    } *n1, *n2, *n3, *np; 
+     
+    TAILQ_INIT(&head);			/* Initialize the queue. */ 
+     
+    n1 = malloc(sizeof(struct entry));	/* Insert at the head. */ 
+    TAILQ_INSERT_HEAD(&head, n1, entries); 
+     
+    n1 = malloc(sizeof(struct entry));	/* Insert at the tail. */ 
+    TAILQ_INSERT_TAIL(&head, n1, entries); 
+     
+    n2 = malloc(sizeof(struct entry));	/* Insert after. */ 
+    TAILQ_INSERT_AFTER(&head, n1, n2, entries); 
+     
+    n3 = malloc(sizeof(struct entry));	/* Insert before. */ 
+    TAILQ_INSERT_BEFORE(n2, n3, entries); 
+     
+    TAILQ_REMOVE(&head, n2, entries);	/* Deletion. */ 
+    free(n2); 
+    					/* Forward traversal. */ 
+    TAILQ_FOREACH(np, &head, entries) 
+    	np-> ... 
+    					/* Safe forward traversal. */ 
+    TAILQ_FOREACH_SAFE(np, &head, entries, np_temp) { 
+    	np->do_stuff(); 
+    	... 
+    	TAILQ_REMOVE(&head, np, entries); 
+    	free(np); 
+    } 
+    					/* Reverse traversal. */ 
+    TAILQ_FOREACH_REVERSE(np, &head, tailhead, entries) 
+    	np-> ... 
+    					/* TailQ Deletion. */ 
+    while (!TAILQ_EMPTY(&head)) { 
+    	n1 = TAILQ_FIRST(&head); 
+    	TAILQ_REMOVE(&head, n1, entries); 
+    	free(n1); 
+    } 
+    					/* Faster TailQ Deletion. */ 
+    n1 = TAILQ_FIRST(&head); 
+    while (n1 != NULL) { 
+    	n2 = TAILQ_NEXT(n1, entries); 
+    	free(n1); 
+    	n1 = n2; 
+    } 
+    TAILQ_INIT(&head);
+}
+
+SEE ALSO
+     tree(3)
+
+NOTES
+     It is an error to assume the next and previous fields are preserved after
+     an element has been removed from a list or queue.	Using any macro
+     (except the various forms of insertion) on an element removed from a list
+     or queue is incorrect.  An example of erroneous usage is removing the
+     same element twice.
+
+     The SLIST_END(), LIST_END(), SIMPLEQ_END() and TAILQ_END() macros are
+     deprecated; they provided symmetry with the historical CIRCLEQ_END() and
+     just expand to NULL.
+
+     Trying to free a list in the following way is a common error:
+
+	   LIST_FOREACH(var, head, entry)
+		   free(var);
+	   free(head);
+
+     Since var is free’d, the FOREACH macros refer to a pointer that may have
+     been reallocated already.	A similar situation occurs when the current
+     element is deleted from the list.	In cases like these the data struc-
+     ture’s FOREACH_SAFE macros should be used instead.
+
+HISTORY
+     The queue functions first appeared in 4.4BSD.  The historical circle
+     queue macros were deprecated in OpenBSD 5.5.
+
+BSD				March 13, 2019				   BSD

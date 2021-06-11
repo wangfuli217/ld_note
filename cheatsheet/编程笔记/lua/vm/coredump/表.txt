@@ -1,0 +1,69 @@
+(lobject.h)
+/*
+** Tables
+*/
+
+typedef union TKey {
+  struct {
+    TValuefields;
+    struct Node *next;  /* for chaining */
+  } nk;
+  TValue tvk;
+} TKey;
+
+
+typedef struct Node {
+  TValue i_val;
+  TKey i_key;
+} Node;
+
+
+typedef struct Table {
+  CommonHeader;
+  lu_byte flags;  /* 1<<p means tagmethod(p) is not present */
+  lu_byte lsizenode;  //该Lua表Hash桶大小的log2值,同时有此可知,Hash桶数组大小一定是2的次方,
+  // 即如果Hash桶数组要扩展的话,也是以每次在原大小基础上乘以2的形式扩展.
+  struct Table *metatable;     // 存放该Lua表的meta表,这在后面再做讲解.
+  TValue *array;               // 指向该Lua表的数组部分起始位置的指针.
+  Node *node;                  // 指向该Lua表的Hash桶数组起始位置的指针.
+  Node *lastfree;   // 指向该Lua表Hash桶数组的最后位置的指针.
+  GCObject *gclist; // GC相关的链表,在后面GC部分再回过头来讲解相关的内存.
+  int sizearray;    // Lua表数组部分的大小.
+} Table;
+
+flags:这是一个byte类型的数据,用于表示在这个表中提供了哪些meta method.在最开始,
+     这个flags是空的,也就是为0,当查找了一次之后,如果该表中存在某个meta method,
+     那么将该meta method对应的flag bit置为1,这样下一次查找时只需要比较这个bit就可以知道了.
+     每个meta method对应的bit定义在ltm.h文件中:
+(ltm.h)
+/*
+* WARNING: if you change the order of this enumeration,
+* grep "ORDER TM"
+*/
+typedef enum {
+  TM_INDEX,
+  TM_NEWINDEX,
+  TM_GC,
+  TM_MODE,
+  TM_EQ,  /* last tag method with `fast' access */
+  TM_ADD,
+  TM_SUB,
+  TM_MUL,
+  TM_DIV,
+  TM_MOD,
+  TM_POW,
+  TM_UNM, 
+  TM_LEN,
+  TM_LT,
+  TM_LE,
+  TM_CONCAT,
+  TM_CALL,
+  TM_N    /* number of elements in the enum */
+} TMS;
+
+# 先来看看查找算法,如果将其他的细枝末节去掉,在Lua表中查找一个数据的伪代码如下:
+# 如果输入的Key是一个正整数,并且它的值 > 0 && <= 数组大小
+#     尝试在数组部分查找
+# 否则尝试在Hash部分进行查找:
+#     计算出该Key的Hash值,根据此Hash值访问node数组得到Hash桶所在位置
+#     遍历该Hash桶下的所有链表元素,直到找到该Key为止

@@ -1,0 +1,131 @@
+https://blog.csdn.net/komtao520/article/details/80264203
+
+    字符串常量、"中文"是传统的char类型的窄字符串、在使用的时候只需要告诉QString这
+两个汉字采用的编码构造QString。
+
+const char * str = "中文";
+QString qstr = str;   //相当于调用QString::QString(const char * str)初始化一个QString
+
+概念1：源文件是有编码的
+    "中文" 在不同的编码下对应不同的二进制形式
+    在GBK编码下是：ce d2 ca c7
+    在Latin-1编码下可能是：3f 3f 3f 3f
+
+概念2：QString内部采用的是Unicode
+    一个问题，源代码中假如有4个字节"\xce\xd2\xca\xc7“该怎么转换成Unicode并存储在QString内。按照GBK、BIG5、Latin-1还是其他方式...
+    在你不告诉它的情况下，它默认选择了Latin-1（qtcreator中随源文件编码而定），于是4个字符"ÎÒÊÇ"的unicode码被存进了QString中。
+最终，4个Latin字符出现在你期盼看到2中文字符的地方，所谓的乱码出现了。
+
+
+解决方式
+    问题很简单，当你需要从窄字符串 char* 转成Unicode的QString字符串的，你需要告诉QString你的这串char* 中究竟是什么编码？GBK、BIG5、Latin-1
+    理想情况就是：将char* 传给QString时，同时告诉QString自己的编码是什么
+
+就像下面的函数一样，QString的成员函数知道按照何种编码来处理 C 字符串
+QString QString::fromAscii ( const char * str, int size = -1 )
+QString QString::fromLatin1 ( const char * str, int size = -1 ) 
+QString QString::fromLocal8Bit ( const char * str, int size = -1 )
+QString QString::fromUtf8 ( const char * str, int size = -1 )
+QString 只提供了这几个成员函数，远远满足不了大家的需求，比如，在简体中文Windows下，local8Bit是GBK，可是有一个char串是 BIG5 或 Latin-2怎么办？
+
+可以使用强大的QTextCodec，首先QTextCodec肯定知道自己所负责的编码的，当你把一个char串送给它，就能正确将其转成Unicode
+QString QTextCodec::toUnicode ( const char * chars ) const
+
+可是这个调用太麻烦了
+想直接
+QString a= str;
+QString a(str);
+ 
+这样一来肯定没办法同时告诉 QString 你的str是何种编码了，只能通过其他方式了。
+QTextCodec::setCodecForCStrings(QTextCodec::codecForName("GBK"));
+QTextCodec::setCodecForCStrings(QTextCodec::codecForName("UTF-8"));
+    设置QString默认采用的编码。而究竟采用哪一个，一般来说就是源代码是GBK，就用GBK，
+源代码是UTF-8就用UTF-8。但有一个例外，如果你保存成了带BOM的UTF-8而且用的微软的cl编译器，此时仍是GBK。
+
+QTextCodec::setCodecForTr(QTextCodec::codecForName("GBK"));
+QTextCodec::setCodecForTr(QTextCodec::codecForName("UTF-8"));
+
+总结
+QString内部采用的是 Unicode，它可以同时存放GBK中的字符"我是汉字",BIG5中的字符"扂岆犖趼" 以及Latin-1中的字符"ÎÒÊÇºº×Ö"。
+当你需要从窄字符串 char* 转成Unicode的QString字符串的，你需要告诉QString你的这串char* 中究竟是什么编码？GBK、BIG5、Latin-1？
+在你不告诉它的情况下，它默认选择了Latin-1，于是8个字符"ÎÒÊÇºº×Ö"的unicode码被存进了QString中。最终，8个Latin字符出现在你期盼看到4中文字符的地方，
+所谓的乱码出现了。
+
+网上有很多方法介绍直接在main.cpp里设置：
+    QTextCodec *codec = QTextCodec::codecForName("UTF-8");
+    QTextCodec::setCodecForTr(codec);
+    QTextCodec::setCodecForLocale(codec);
+    QTextCodec::setCodecForCStrings(codec);
+
+其实这在某些情况下也是有问题的，因为程序可能读到系统的中文路径，或者调用中文路径下的外部程序，这时候如果系统是gb2312就有问题了。
+因为中文路径的编码是采用utf-8存到QString里的，系统读中文路径解码的时候采用的却是系统的gb2312，所以会调不起带中文路径的外部程序。
+以上问题下面方法可以解决：
+    QTextCodec *codec = QTextCodec::codecForName("UTF-8");
+    QTextCodec::setCodecForTr(codec);
+    QTextCodec::setCodecForLocale(QTextCodec::codecForLocale()); //设置GBK到本地
+    QTextCodec::setCodecForCStrings(QTextCodec::codecForLocale());
+
+对于外部字符串编码解码全部采用本地编码。
+    在QT5中，加上这句，源文件使用UTF-8编码，不带BOM
+    QApplication a(argc, argv);
+    QTextCodec::setCodecForLocale(QTextCodec::codecForName("UTF-8"));
+
+================================================================================
+https://blog.csdn.net/leo115/article/details/7533463
+
+QTextCodec::setCodecForTr(QTextCodec::codecForName("UTF-8"));
+只与这个相关QString str = tr("中文");
+注意,相关的是转换过程,QString本身是unicode,不会影响到QString
+
+QTextCodec::setCodecForCStrings(QTextCodec::codecForName("UTF-8"));
+只与这个相关QString str = QString("中文");
+注意,相关的是转换过程,QString本身是unicode,不会影响到QString
+
+QTextCodec::setCodecForLocale(QTextCodec::codecForName("UTF-8"));
+只与这个相关QString str = QString::fromLocal8Bit("中文");
+
+常规做法举例之GB2312,注意"UTF-16"的输入是要带BOM的
+QTextCodec *pCodec = QTextCodec::codecForName("GB2312");// "UTF-8", "UTF-16"
+GB2312转QString: pCodec->toUnicode();
+QString转GB2312: pCodec->fromUnicode();
+
+另外QString类分别针对"UTF-8", "UTF-16"做了专门的函数, 当然结果同常规做法是一样的
+UTF-8转QString: QString::fromUtf8();
+QString转UTF-8: QString.toUtf8();
+UTF-16转QString: QString::fromUtf16(); 这个带2个字节的BOM头; [0xFF 0xFE](61,00) [0xFE 0xFF](00,61)
+QString转UTF-16:  QString.utf16(); 返回以0结尾的ushot数组 
+
+文本文件的编码
+windows平台文本文件有BOM
+        ANSI:没有文件头,2字节/汉字,1字节/英文
+        UTF-8:文件头[0xEF,0xBB,0xBF],3字节/汉字,1字节/英文
+        Unicode:文件头[0xFF,0xFE],2字节/汉字,2字节/英文
+        Unicode big endian :文件头[0xFE,0xFF],同Unicode,字节序相反
+Linux平台UTF-8和GB2312文件都没有BOM
+Linux平台UTF-16同windows一样,有BOM且相同
+
+================================================================================
+QTextCodec::setCodecForLocale(QTextCodec::codecForName("GBK"));
+
+QString str1("你好Hello");
+QByteArray bLocal = str1.toLocal8Bit(); // 受setCodecForLocale影响，会转换为设定的编码。如果本机不支持指定编码，则会按toLatin1处理
+QByteArray baLatin1 = str1.toLatin1();  // 不受setCodecForLocale影响，强制转换为ISO-8859-1编码
+QByteArray bUtf8 = str1.toUtf8();       // 不受setCodecForLocale影响，强制转换为UTF-8编码
+qDebug() << str1;                       // 正常，Qt会将UTF-16转换为UTF-8输出
+qDebug() << baLatin1;                   // 乱码，用UTF-8编码输出Latin1字节流
+qDebug() << bLocal;                     // 乱码，用UTF-8编码输出GBK字节流
+qDebug() << bUtf8;                      // 正常，用UTF-8编码输出UTF-8字节流
+
+QString str2 = QString::fromLocal8Bit(bLocal);
+qDebug() << str2;                       // 正常，因为上面显式指定字节流来自本机编码，而bLocal正是本机编码GBK
+
+str2 = QString::fromLatin1(bLocal);
+qDebug() << str2;                       // 乱码，bLocal是GBK编码，但却指定了以Latin1方式去读取，肯定会乱码
+
+// 字节流来自UTF-8
+str2 = QString::fromUtf8("\xE4\xBD\xA0\xE5\xA5\xBD\x48\x65\x6C\x6C\x6F");
+qDebug() << str2;                       // 正常
+
+// Qt默认采用UTF-8处理字符串，所以不用显式地去调用fromUtf8
+str2 = QString("\xE4\xBD\xA0\xE5\xA5\xBD\x48\x65\x6C\x6C\x6F");
+qDebug() << str2;                       // 正常

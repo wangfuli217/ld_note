@@ -1,0 +1,186 @@
+﻿
+实例：
+一、设定超连接文字的颜色：
+     1.以 <body> 标签来设定
+        <body link="blue"  alink="red" vlink="black">
+        其中，link是未连接状态的颜色；alink是连接中状态的颜色；vlink是已连接过状态的颜色
+     2.以 Style Sheet 来设定
+       <style type="text/css">
+       <!--
+         A:link    { color: #0000ff; }     /*未连接状态的颜色*/
+         A:active  { color: red;     }     /*连接中状态的颜色*/
+         A:hover   { COLOR: red;     }     /*??连接中状态的颜色*/
+         A:visited { color: #808000; }     /*已连接过状态的颜色*/
+       -->
+       </style>
+
+
+二、用文本替换图片
+    <img alt="清空" src="../images/btn_blank.gif" onclick="resetForm();"/>
+    <span class="btn" onclick="resetForm();">清 空</span>
+    用一个 span 替换图片,背景加入图片即可,这里显示出来一个按钮的图标(背景是个按钮)
+
+	样式：
+	<style type="text/css">
+	/* 按鈕 */
+	.btn {
+	  font-size:13px;
+	  background:url(../images/btn_blank.gif) no-repeat;
+	  width:54px;
+	  height:22px;
+	  line-height:22px;
+	  display:inline-block;
+	  margin-right:10px;
+	  padding:2px 0 0 0;
+	  text-align:center;
+	  vertical-align:middle;
+	  cursor:pointer;
+	  text-autospace:ideograph-space;
+	}
+	</style>
+
+
+三、类选择器与包含选择器
+    “#content_area .pagetitle{}” 与 “#content_area.pagetitle{}”所定义的对象是不同的。
+    中间有空格时是包含选择，没空格是类选择
+    前一个选择的是： <div id="content_area"><span class="pagetitle" >test</span></div> 里面的span元素
+    后一个选择的是： <div id="content_area" class="pagetitle" >test</div>
+
+四、网页变黑白的css
+    html{filter:gray}
+
+
+五、浏览器兼容
+    div类
+      1. 居中问题
+        div里的内容，IE默认为居中，而FF默认为左对齐
+        可以尝试增加代码margin:auto
+
+      2. 高度问题
+        两上下排列或嵌套的div，上面的div设置高度(height)，如果div里的实际内容大于所设高度，在FF中会出现两个div重叠的现象；但在IE中，下面的div会自动给上面的div让出空间
+        所以为避免出现层的重叠，高度一定要控制恰当，或者干脆不写高度，让他自动调节，比较好的方法是 height:100%;
+        但当这个div里面一级的元素都float了的时候，则需要在div块的最后，闭和前加一个沉底的空div，对应CSS是：
+        .float_bottom {clear:both;height:0px;font-size:0px;padding:0;margin:0;border:0;line-height:0px;overflow:hidden;}
+
+      3. clear:both;
+        不想受到float浮动的，就在div中写入clear:both;
+
+      4. IE浮动 margin 产生的双倍距离
+        #box {
+        float:left;
+        width:100px;
+        margin:0 0 0 100px; /* 这种情况之下IE会产生200px的距离 */
+        display:inline; //使浮动忽略
+        }
+
+      5. padding 问题
+        FF设置 padding 后，div会增加 height 和 width，但IE不会 （* 标准的 XHTML1.0 定义 dtd 好像一致了）
+        高度控制恰当，或尝试使用 height:100%;
+        宽度减少使用 padding
+        但根据实际经验，一般FF和IE的 padding 不会有太大区别，div 的实际宽 = width + padding ，所以div写全 width 和 padding，width 用实际想要的宽减去 padding 定义
+
+      6. div嵌套时 y 轴上 padding 和 marign 的问题
+        FF里 y 轴上 子div 到父div 的距离为 父padding + 子marign
+        IE里 y 轴上 子div 到父div 的距离为 父padding 和子marign 里大的一个
+        FF里 y 轴上 父padding=0 且 border=0 时，子div 到父div 的距离为0，子marign 作用到 父div 外面
+
+      7. padding，marign，height，width 的傻瓜式解决技巧
+        注意是技巧，不是方法：
+        写好标准头
+        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+        <html xmlns="http://www.w3.org/1999/xhtml">
+        高尽量用padding，慎用margin，height尽量补上100%，父级height有定值子级height不用100%，子级全为浮动时底部补个空clear:both的div
+        宽尽量用margin，慎用padding，width算准实际要的减去padding
+
+
+    列表类
+      1. ul 标签在FF中默认是有 padding 值的，而在IE中只有margin有值
+        先定义 ul {margin:0;padding:0;}
+
+      2. ul和ol列表缩进问题
+        消除ul、ol等列表的缩进时，样式应写成: {list-style:none;margin:0px;padding:0px;}
+
+
+    显示类
+      1. display:block,inline 两个元素
+        display:block; //可以为内嵌元素模拟为块元素
+        display:inline; //实现同一行排列的的效果
+        display:table; //for FF,模拟table的效果
+        display:block 块元素，元素的特点是：
+        总是在新行上开始；
+        高度，行高以及顶和底边距都可控制；
+        宽度缺省是它的容器的100%，除非设定一个宽度
+        <div>，<p>，<h1>，<form>，<ul> 和 <li> 是块元素的例子
+        display:inline 就是将元素显示为行内元素，元素的特点是：
+        和其他元素都在一行上；
+        高，行高及顶和底边距不可改变；
+        宽度就是它的文字或图片的宽度，不可改变。
+        <span>，<a>，<label>，<input>，<img>，<strong> 和 <em> 是 inline 元素的例子
+
+      2. 鼠标手指状显示
+        全部用标准的写法 cursor: pointer;
+
+
+    背景、图片类
+      1. background 显示问题
+        全部注意补齐 width，height 属性
+
+      2. 背景透明问题
+        IE: filter: progid: DXImageTransform.Microsoft.Alpha(style=0,opacity=60);
+        IE: filter: alpha(opacity=10);
+        FF: opacity:0.6;
+        FF: -moz-opacity:0.10;
+        最好两个都写，并将opacity属性放在下面
+
+
+    关于IE6，IE7，IE8，Firefox兼容的css hack
+      IE浏览器都能识别“*” “\9”;标准浏览器(如FF)不能识别“*”;
+      IE6能识别“_” “+” “#” “@”, 同一属性有两个的只看后者 无论有没有 如果是两句它就能识别“!important”;
+      IE7能识别“+” “#” “@” “!important”，不能识别“_”;
+      FF能识别“!important”，不能识别“_” “+” “#” “@”;
+      注:不管是什么方法，书写的顺序都是firefox的写在前面，IE7的写在中间，IE6的写在最后面。
+      例如:
+        select{
+            Color:blue; /* 所有浏览器 */
+            Color:yellow\9; /* 所有IE浏览器 */
+            *Color:red; /* forIE7 */
+            _color:green; /* forIE6 */
+        }
+        .test{
+            color:#000000; /* Firefox,Opera 支持 */
+            color:#0000FF\9; /* IE6,IE7,IE8；但是IE8不能识别“*”和“_”的css hack；*/
+            color:#0000FF\0; /* IE8支持；“\0”的写法只被IE8识别，ie6，ie7都不能识别 */
+            [color:#000000;color:#00FF00; /* Safari,Chrome 支持 */
+            *color:#FFFF00; /* IE7支持 */
+            _color:#FF0000; /* IE6支持 */
+        }
+
+
+六、记录
+    1. css 中的js执行
+       利用 url 可以执行代码的特性：
+       body {background-image:url('javascript:alert(55)')} /* 里面的js代码任意写，这里仅做示例 */
+
+    2.表单控制
+        <style>
+            .sub-th {
+                width: 65px;
+                font-weight:bold;  /* 字体加粗 */
+                text-align:center; /* 文字居中, 比元素上的 align 属性级别更高 */
+                font-size: 14px;   /* 字体大小 */
+
+                BORDER-LEFT: #000000 1px solid;  /* 表格左边框为1px，如果不想显示就为0px */
+                BORDER-RIGHT: #000000 1px solid; /* 右边框 */
+                border-top: 1px #fff  solid;     /* 上边框 */
+                BORDER-BOTTOM: #000000 0px solid;/* 下边框 */
+                }
+        </style>
+
+        <table>
+            <tr>
+                <th class='sub-th' align="right">缴纳月份</th>
+            </tr>
+            <tr>
+                <td class='sub-td'>缴纳月份</td>
+            </tr>
+        </table>

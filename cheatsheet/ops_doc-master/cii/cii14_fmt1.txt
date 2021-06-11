@@ -1,0 +1,90 @@
+格式化定义
+-------------------
+C标准库函数:
+	printf: 将数据格式化到控制台，显示器
+		extern void printf(const char *format, ...);
+	fprintf(vfprintf): 将数据格式化到流/文件(FILE *, stdout, stderr)
+		int fprintf (FILE* stream, const char *format, ...)
+	vprintf: stdout
+		printf的功能就是用它来实现的，所不同的是，它用一个参数取代了变长参数表，且此参数是通过调用va_start宏进行初始化
+		int vprintf(char *format, va_list param);
+	sprintf(vsprintf): 将数据格式化到字符串缓冲区
+		int sprintf(char *buffer, const char *format, ...);
+		
+存在问题：
+	1.转换说明符的设置是固定的，无法提供专门基于用户程序的灵活性
+	2.被格式化的结果，只能在字符串中被打印或存储，无法定义基于用户程序的输出程序
+	3.sprintf、vsprintf是不安全的，可能试图输出比缓冲区能够存储的字符，更多的字符
+	4.参数列表的变量部分，传递的参数无法进行格式检查
+    
+格式化接口
+-------------------
+    定义了转换函数的类型，当格式串中出现转换限定符时，由fmt函数调用相关联的转换函数。
+在这里和下文中，都是调用put(c,c1)来输出各个被格式化的字符c。表14-1汇总了最初定义的转换
+限定符集合。向任何fmt函数传递的put、buf或fmt为NULL，或格式串使用了没有关联转换函数的
+转换限定符，都是已检查的运行时错误。
+typedef void (*T)(int code, 
+                    va_list *app,
+                    int (*put)(int c, void *cl),
+                    void *cl,
+                    unsigned char flags[256],
+                    ssize_t width,
+                    ssize_t precision);
+                    
+extern  char       *fmt_flags = "+-0";  指向转换限定符中可能出现的标志字符。
+如果一个标志字符在一个限定符中出现多于255次，则是已检查的运行时错误
+如果字段宽度或精度显示为星号(*)，那么假定下一个参数为整数，且用作宽度或精度。
+因而，一个限定符可能消耗掉零或多个参数，这取决于星号的出现与否以及格式码关联的具体转换函数。
+如果指定的宽度或精度值等于INT_MIN(最小的负整数)，则是已检查的运行时错误。
+
+fmt_flags 的初始值指向字符串"-+ 0"，其中的字符是有效的标志字符。
+  - 使得被转换的字符串按给定的字段宽度向左对齐，否则，字符串将向右对齐
+  + 使得符号转换的结果以-或+开始
+  空格使得符号转换的结果以空格开始(如果是正的)。
+  0 使得数字转换的结果在前部用0对齐，直至达到字段宽度为止，否则使用空格补齐。
+  负数宽度解释为-标识加上对应的正数宽度值。负数精度解释为没有指定精度。
+  
+extern  const except_t  OverflowException;
+
+fmt不是一个抽象数据类型，但它确实导出一个类型fmt_t，定义了与每个格式化代码关联的格式转换函数的类型。
+
+参数c1可以指向客户程序提供的数据，它会直接传递给客户程序提供的put函数而不作解释。
+put返回一个整数，通常是其参数。
+void fmt_fmt(int (*put)(int c, void *cl),  按照第三个参数fmt给出的格式化串来格式化第四个和后续参数
+             void *cl,                     并调用put(c,c1)来输出每个格式化完毕的字符c；c当做unsigned char处理
+             const char *fmt, ...);        因此传递给put的c值总是正的
+void fmt_vfmt(int (*put)(int c, void *cl), 按照第三个参数fmt给出的格式化串来格式化ap指向的各个参数。
+             void *cl,
+             const char *fmt, 
+             va_list ap);
+            
+fmt_fmt((int(*)(int, void*)fputc), stdout, "The %s interface has %d functions\n", name, count);
+                       int fputc(int c, FILE *stream);
+
+void fmt_fprint(FILE *stream, const char *fmt, ...)
+void fmt_print(const char *fmt, ...) 根据fmt格式化输出可变部分的参数，fmt_fprint写出到流，而fmt_print输出到stdout.
+
+void fmt_putd(const char *str, int len,
+              int put(int c, void *c1), void *cl,
+              unsigned char flags[256], int width, int precision)
+void fmt_puts(const char *str, int len,
+              int put(int c, void *c1), void *cl,
+              unsigned char flags[256], int width, int precision) 根据fmt的默认值(参见表14-1)和flags、width和precision
+              的值，格式化并输出str[0..len-1]中转换过的数值(使用fmt_putd输出)或字符串(使用fmt_puts输出)。
+              如果str=NULL或len<0，或flags=NULL，均为已检查的运行时错误。
+              
+T fmt_register(int code, T cvt) 将cvt关联到格式化code，并返回此前设定的转换函数。如果code<0或code>255，则为已检查的运行时错误
+
+int fmt_sfmt(char *buf, int size, const char *fmt, ...) 根据fmt，将参数的可变 部分格式化到buf[0..size-1]中，
+并添加一个0字符，最后返回buf的长度。如果size<=0，则为已检查的运行时错误。如果需要输出的字节数目大于size-1，则引发fmt_overflow异常。
+int fmt_vsfmt(char *buf, int size, const char *fmt, va_list ap)
+
+char *fmt_string(const char *fmt, ...) 根据fmt，将参数的可变部分格式化为一个0结尾的字符串，并返回该字符串
+char *fmt_vstring(const char *fmt, va_list ap) 
+
+
+注意 next/blackbag-14/format 部分                       
+
+monit:
+char *Fmt_bytes2str(double bytes, char s[static 10]) # bytes -> B KB MB GB TB PB ZB
+char *Fmt_time2str(double milli, char s[static 11])  # time  -> ms s m h d y

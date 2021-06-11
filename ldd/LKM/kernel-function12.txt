@@ -1,0 +1,121 @@
+PC兼容系统的音频连接情况：南桥上的音频控制器与外部编解码器(codec)一起，与模拟音频电路实现对接。
+音频编解码器将数字音频信号转换成扬声器播放所需要的模拟声音信号，而通过麦克风录音时则执行相反的过程。
+其他常见的与编解码器连接的音频输入输出包括头戴式耳麦、耳机、话筒、音频输入输出线。
+编解码器也提供混音器(mixer)功能：将所有这些音频输入和输出混合，并控制有关音频信号的音量。
+
+数字音频数据是通过PCM(Pluse Code Modulation脉冲编码调制)技术对模拟声音信号以某个比特率采用得到的。
+编解码器的任务就是以支持的PCM比特率采用和记录音频，并能以不同PCM比特率播放采样的音频。
+
+一个声卡可能同时支持一个或多个编解码器，每个编解码器反过来也以单声道或立体声的方式支持一个或多个音频子流。
+
+AC97和I2S总线是连接音频控制器和编解码器的工业标准接口的一个例子。
+AC97: http://download.intel.com
+I2S : www.nxp.com/acrobat_download/various/I2SBUS.pdf
+
+AC97
+1996年6月，5家PC领域中颇具知名度和权威性的软硬件公司(Intel、Creative Labs、Analog Device、NS和Yamaha)共同提出了一种全新思路的芯片级PC音源结构，
+也就是我们现在所见的"AC97"标准(Audio Codec97)。AC97并不是某种声卡的代称，而是一种标准。
+
+I2S
+I2S(Inter—IC Sound)总线, 又称 集成电路内置音频总线，是飞利浦公司为数字音频设备之间的音频数据传输而制定的一种总线标准，该总线专责于音频设备之间
+的数据传输，广泛应用于各种多媒体系统。它采用了沿独立的导线传输时钟与数据信号的设计，通过将数据和时钟信号分离，避免了因时差诱发的失真，为用户节
+省了购买抵抗音频抖动的专业设备的费用。
+
+ALSA(Advanced Linux Sound Architecture 高级Linux声音架构) OSS(Open Sound System开放声音系统) ALSA提供了OSS模拟。
+
+1、声音核心：它是代码基石，由例程和结构体组成，Linux声音层的其他部分均可调用。就像其他驱动程序子系统的核心层一样，声音核心有一定程度的隔离，
+使得声音子系统的每个部件都与其他部件无关。核心也提供了向应用层输出ALSA API的重要功能。/dev/snd/*设备节点由ALSA核心创建和管理；/dev/snd/controlC0
+是一个控制节点，/dev/snd/pcmC0D0p是播放设备(设备名的最后字符p表示播放)，/dev/snd/pcmC0D0c是录音设备(设备名的最后字符c表示捕获)。这些设备命中，
+C后的整数是卡号，D后的是设备号。一个话音编解码器和立体声音编解码器的ALSA驱动程序可能会为前者输出用于读音频流的/dev/snd/pcmC0D0p。
+为后者输出用于生成音乐声道的/dev/snd/pcmC0D1p
+2、与控制器硬件相关的音频控制器驱动程序。比如为驱动Intel ICH南桥芯片组中的音频控制器，使用snd_intel8x0驱动程序。
+3、协助控制器和编解码器之间的音频编解码接口。对AC097编解码器，使用snd_ac97_codec和ac97_bus模块。
+4、在OSS应用程序和由ALSA启用的内核之间驱动当通道的OSS模拟层。允许OSS不修改就在ALSA上运行。
+5、procfs和sysfs接口实现，用于通过/proc/asound和/sys/class/sound获取信息。
+6、用户空间ALSA库alsa-lib，他提供了libasound.so对象。这个库提供一些访问ALSA驱动程序的封装例程，使用ALSA应用程序编写者工作起来更加容易。
+7、alsa-utils工具包，包括alsamixer、amixer、alsactl、aplay等工具。alsamixer或amixer用于改变音频信号的音量，
+   alsactl用于控制ALSA驱动程序的设置。aplay用于在ALSA上播放音频。
+   
+http://blog.csdn.net/droidphone/article/details/6271122
+http://www.alsa-project.org/
+sourceforge.net/projects/mad
+
+bash > lsmod | grep snd
+snd_hda_codec_hdmi     49152  1                                                                      
+snd_hda_codec_analog    16384  1                                                                     
+snd_hda_codec_generic    65536  1 snd_hda_codec_analog                                               
+snd_hda_intel          32768  4 snd_hda_codec_hdmi                                                   
+snd_hda_controller     32768  1 snd_hda_intel                                                        
+snd_hda_codec         122880  5 snd_hda_codec_hdmi,snd_hda_codec_generic,snd_hda_intel,              
+                                snd_hda_controller,snd_hda_codec_analog                              
+snd_hwdep              16384  1 snd_hda_codec                                                        
+snd_pcm                94208  4 snd_hda_codec_hdmi,snd_hda_codec,snd_hda_intel,snd_hda_controller    Core layer
+snd_seq_midi           16384  0                                                                      
+snd_seq_midi_event     16384  1 snd_seq_midi                                                         
+snd_rawmidi            28672  1 snd_seq_midi                                                         
+snd_seq                57344  2 snd_seq_midi_event,snd_seq_midi                                      
+snd_seq_device         16384  3 snd_seq,snd_rawmidi,snd_seq_midi                                     
+snd_timer              28672  2 snd_pcm,snd_seq                                                      Core layer
+snd                    69632  17 snd_hwdep,snd_timer,snd_hda_codec_hdmi,snd_pcm,snd_seq,             Core layer
+                                 snd_rawmidi,snd_hda_codec_generic,snd_hda_codec,                    
+                                 snd_hda_intel,snd_seq_device,snd_hda_codec_analog                   
+soundcore              16384  2 snd,snd_hda_codec                                                    Core layer
+
+MP3
+1、解码从CF盘读取的MP3文件并将其转换成原始PCM码流的用户程序。要自己编写ALSA解码器程序。你可以利用alsa-lib库提供的函数接口。
+你也可以定制适合此设备的公共领域MP3播放器，比如madplay(sourceforge.net/projects/mad)
+2、一个底层内核ALSA音频驱动程序。
+
+一个音频驱动程序由3各主要部分构成：
+1、处理播放的例程
+2、处理音频的例程
+3、混音器控制功能
+
+
+
+调试：
+在内核配置菜单中，按Device Drivers->Sound->Advanced Linux Sound Architecture-的顺序操作内核配置选项可以包含ALSA调试代码
+CONFIG_SND_DEBUG、详细的printk打印信息CONFIG_SND_VERBOSE_PRINTK以及详细的procfs内容CONFIG_SND_VERBOSE_PROCFS以辅助ALSA
+的调试。
+
+ALSA驱动程序的procfs信息存于/proc/asound目录。查看/sys/class/sound/可获得与各音频类设备有关的设备模型信息。
+如果你发现了ALSA驱动程序的bug，将它发送到alsa-devel邮件列表，http://mailman.alsa-project.org/mailman/listinfo/alsa-devel.
+linux-audio-dev邮件列表http://music.columbia.edu/mailman/listinfo/linux-audio-dev/ 也称为Linux音频开发者列表。
+
+查看源代码
+声音核心、音频总线、架构以及已过时的OSS套件在sound/目录下都有各自分开的子目录。对AC97接口实现，请看sound/pci/ac97/。
+对基于i2S的音频驱动程序的例子，请查看sound/soc/at91/at9-ssc.c，它是基于ARM的嵌入式SoC中Atmel AT91系列的音频驱动程序。
+如果你找不到最接近的驱动程序，用sound/drivers/dummy.c作为开发自己的ALSA驱动的起点。
+
+documentation/sound/*包含了ALSA和OSS驱动程序的信息。
+Madplay是一个MP3软件解码器和播放器，他同时支持ALSA和OSS： sourceforge.net/projects/mad
+两个可用于基本播放和录音的简单OSS工具是rawplay和rawrec，  rawrec.sourceforge.net
+
+
+snd_card             /include/sound/core.h       表示一块网卡
+snd_pcm              /include/sound/pcm.h        PCM对象实例
+snd_pcm_ops          /include/sound/pcm.h        用于将操作与一个PCM对相关联
+snd_pcm_substream    /include/sound/pcm.h        当前音频流信息
+snd_pcm_runtime      /include/sound/pcm.h        音频流运行时的细节
+snd_kcontrol_new     /include/sound/control.h    表示一个ALSA控制元素
+
+snd_card_new()                            sound/core/init.c           创建一个snd_card结构体实例
+snd_card_free()                           sound/core/init.c           释放一个snd_card结构体实例
+snd_card_register()                       sound/core/init.c           注册一个ALSA声卡
+snd_pcm_lib_preallocate_pages_for_all()   sound/core/pcm_memory.c     为一块声卡预分配缓冲区
+snd_pcm_lib_malloc_pages()                sound/core/pcm_memory.c     为一块声卡预分配DMA缓冲区
+snd_pcm_new()                             sound/core/pcm.c            创建一个PCM对象实例
+snd_pcm_set_ops()                         sound/core/pcm_lib.c        将播放和录音操作函数与PCM对象绑定
+snd_ctl_add()                             sound/core/control.c        将混音器元素与声卡绑定
+snd_ctl_new1()                            sound/core/control.c        分配结构体snd_kcontrol并用支持的控制操作函数初始化
+snd_card_proc_new()                       sound/core/info.c           创建/proc/入口并将其指定为一个卡实例
+
+
+
+
+
+
+
+
+
+

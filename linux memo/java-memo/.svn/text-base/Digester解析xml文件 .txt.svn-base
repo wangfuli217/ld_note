@@ -1,0 +1,193 @@
+一般用来读取xml文件的工具包有DOM、SAX和JDOM等，但用过的人都知道，它们属于比较底层的API，写起来
+代码量很大，而且如果修改了xml文件的格式，代码也要做大幅度的改动。而使用Apache Jakarta的Digester，
+解析XML文件非常方便且不需要过多的关心底层的具体解析过程。Digester本来仅仅是Jakarta Struts中的一个
+工具，用于处理struts-config.xml配置文件。显然，将XML文件转换成相应的Java对象是一项很通用的功能，
+这个工具理应具有更广泛的用途，所以很快它就在Jakarta Commons项目(用于提供可重用的Java组件库)中有了
+一席之地。Digester由"事件"驱动，通过调用预定义的规则操作对象栈，将XML文件转换为Java对象。
+
+工作原理如下: Digester底层采用SAX(Simple API for XML)析XML文件，所以很自然的，对象转换由"事件"驱动，
+在遍历每个节点时，检查是否有匹配模式，如果有，则执行规则定义的操作，比如创建特定的Java对象，或调用
+特定对象的方法等。此处的XML元素根据匹配模式(matching pattern)识别，而相关操作由规则(rule)定义。
+
+    如下xml代码，右边是左边元素对应的匹配模式：
+<datasources>          'datasources' 
+  <datasource>         'datasources/datasource' 
+    <name/>            'datasources/datasource/name' 
+    <driver/>          'datasources/datasource/driver'  
+  </datasource> 
+  <datasource>         'datasources/datasource' 
+    <name/>            'datasources/datasource/name' 
+    <driver/>          'datasources/datasource/driver'  
+  </datasource> 
+</datasources> 
+
+例子1：
+
+下面介绍解析xml文件的代码
+
+下面是存放地址及编码的xml文件viewcache.xml(片段)：
+    
+<?xml version="1.0" encoding="UTF-8" ?>
+<viewcache>
+	<areas>
+		<area>
+			<id>1098</id>
+			<parentId>1001</parentId>
+			<areaType>province</areaType>
+			<name>北京</name>
+			<ordering>1867</ordering>
+		</area>
+		<area>
+			<id>1099</id>
+			<parentId>1098</parentId>
+			<areaType>capital</areaType>
+			<name>北京</name>
+			<ordering>1868</ordering>
+			<phoneArea>010</phoneArea>
+		</area>
+		<area>
+			<id>4476</id>
+			<parentId>1099</parentId>
+			<areaType>county</areaType>	
+			<name>北京市朝阳区</name>
+			<ordering>1869</ordering>
+			<phoneArea>010</phoneArea>
+		</area>
+		<area>
+			<id>4477</id>
+			<parentId>1099</parentId>
+			<areaType>county</areaType>
+			<name>北京市崇文区</name>
+			<ordering>1870</ordering>
+			<phoneArea>010</phoneArea>
+		</area>
+		<area>
+			<id>4478</id>
+			<parentId>1099</parentId>
+			<areaType>county</areaType>
+			<name>北京市大兴区</name>
+			<ordering>1871</ordering>
+			<phoneArea>010</phoneArea>
+		</area>
+	</areas>
+</viewcache>
+
+此xml文件分3层结构，分别为：
+<viewcache>节点 其下包含1个<areas>节点
+<areas>节点 其下包含多个<area>节点
+<area>节点，其下包含各种信息节点 ： 如：<id> 、<name>等。 
+我们的操作目标是把area中的信息节点的内容提取出来。 
+把每个<arrea>看做为一个对象，<area>中信息节点的内容为对象中的元素。 
+设定一个类Area.java 其内容如下： 
+
+public class Area {
+    private int    id;
+    private String name;
+    private String areaType;
+    private int    parentId;
+    private int    ordering;
+    private String zip;
+    
+    private String phoneArea;
+    
+    public int getOrdering() {
+        return ordering;
+    }
+    public void setOrdering(int ordering) {
+        this.ordering = ordering;
+    }
+    public String getAreaType() {
+        return areaType;
+    }
+    public void setAreaType(String areaType) {
+        this.areaType = areaType;
+    }
+    public int getId() {
+        return id;
+    }
+    public void setId(int id) {
+        this.id = id;
+    }
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public int getParentId() {
+        return parentId;
+    }
+    public void setParentId(int parentId) {
+        this.parentId = parentId;
+    }
+    
+    public String getZip() {
+        return zip;
+    }
+    
+    public void setZip(String zip) {
+        this.zip = zip;
+    }
+    
+    public String getPhoneArea() {
+        return phoneArea;
+    }
+    
+    public void setPhoneArea(String phoneArea) {
+        this.phoneArea = phoneArea;
+    }
+}
+
+创建一个ViewCache类，用来保存解析后的所有对象：
+
+public class ViewCache {
+    private List areaList             = new ArrayList();
+    public List getAreaList() {
+        return areaList;
+    }
+    public void setAreaList(List areaList) {
+        this.areaList = areaList;
+    }
+    
+    // 供Digester调用的方法
+    public void addArea(Area area) {
+        this.areaList.add(area);
+    }
+}
+
+创建一个类AreaDigester，对xml文件进行解析：
+public class AreaDigester {
+    
+    public ViewCache digester() throws Exception {
+        Digester digester = new Digester();
+        digester.setValidating(false);
+        digester.addObjectCreate("viewcache/areas", ViewCache.class);
+		// 指明匹配模式和要创建的类 
+        digester.addObjectCreate("viewcache/areas/area", Area.class);
+		// 设置对象属性,与xml文件对应,不设置则是默认
+        digester.addBeanPropertySetter("viewcache/areas/area/id", "id");
+        digester.addBeanPropertySetter("viewcache/areas/area/parentId", "parentId");
+        digester.addBeanPropertySetter("viewcache/areas/area/name", "name");
+        digester.addBeanPropertySetter("viewcache/areas/area/areaType", "areaType");
+        digester.addBeanPropertySetter("viewcache/areas/area/ordering", "ordering");
+        digester.addBeanPropertySetter("viewcache/areas/area/zip", "zip");
+        digester.addBeanPropertySetter("viewcache/areas/area/phoneArea", "phoneArea");
+		// 当移动到下一个标签中时的动作
+        digester.addSetNext("viewcache/areas/area", "addArea");
+        
+        ViewCache vc = null;
+        try {
+            vc = (ViewCache) digester.parse("viewcache.xml");
+        } catch (IOException e) {
+            throw new Exception(e);
+        } catch (SAXException e) {
+            throw new Exception(e);
+        }
+        return vc;
+    }
+}
+
+
+   
+    
+    

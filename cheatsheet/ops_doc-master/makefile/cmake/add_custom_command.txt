@@ -1,0 +1,38 @@
+add_custom_command(OUTPUT output1 [output2 ...]
+                     COMMAND command1[ARGS] [args1...]
+                     [COMMAND command2 [ARGS] [args2...] ...]
+                     [MAIN_DEPENDENCYdepend]
+                     [DEPENDS[depends...]]
+                     [IMPLICIT_DEPENDS<lang1> depend1 ...]
+                     [WORKING_DIRECTORYdir]
+                     [COMMENT comment] [VERBATIM] [APPEND])
+
+ add_custom_command(TARGET target
+                     PRE_BUILD | PRE_LINK| POST_BUILD
+                     COMMAND command1[ARGS] [args1...]
+                     [COMMAND command2[ARGS] [args2...] ...]
+                     [WORKING_DIRECTORYdir]
+                     [COMMENT comment][VERBATIM])
+                     
+-------------------------------------------------------------------------------
+set(TEST_FILE "log.txt")
+add_custom_command(OUTPUT  ${TEST_FILE}
+  COMMAND echo "Generating log.txt file..."
+  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_FILE} ${TEST_FILE}
+  COMMENT  "This is a test"
+ )
+add_custom_target(Test1 ALL DEPENDS ${TEST_FILE})
+
+add_custom_command(TARGET Test1
+  PRE_BUILD 
+  COMMAND echo "executing a fake command"
+  COMMENT "This command will be executed before building target Test1"
+ )
+
+
+结果：
+[100%] This is a test
+Generating log.txt file...
+This command will be executed before building target Test1
+executing a fake command
+[100%] Built target Test1

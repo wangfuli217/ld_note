@@ -1,0 +1,117 @@
+.\" This man page is Copyright (C) 2009 Ronald Huizer.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.TH iv_inotify 3 2009-02-07 "ivykis" "ivykis programmer's manual"
+.SH NAME
+IV_INOTIFY_INIT, iv_inotify_register, iv_inotify_unregister, IV_INOTIFY_WATCH_INIT, iv_inotify_watch_register, iv_inotify_watch_unregister \- ivykis
+.BR inotify (7)
+wrapper
+.SH SYNOPSIS
+.nf
+.B #include <iv_inotify.h>
+.sp
+.nf
+struct iv_inotify {
+};
+.fi
+.sp
+.BI "void IV_INOTIFY_INIT(struct iv_inotify *" inotify ");"
+.br
+.BI "int iv_inotify_register(struct iv_inotify *" inotify ");
+.br
+.BI "void iv_inotify_unregister(struct iv_inotify *"inotify ");
+.br
+.nf
+.sp
+struct iv_inotify_watch {
+        struct iv_inotify       *inotify;
+        const char              *pathname;
+        uint32_t                mask;
+        void                    *cookie;
+        void                    (*handler)(void *, struct inotify_event *);
+};
+.fi
+.sp
+.BI "void IV_INOTIFY_WATCH_INIT(struct iv_inotify_watch *" watch ");"
+.br
+.BI "int iv_inotify_watch_register(struct iv_inotify_watch *" watch ");"
+.br
+.BI "int iv_inotify_watch_unregister(struct iv_inotify_watch *" watch ");"
+.br
+.SH DESCRIPTION
+The
+.B iv_inotify_register
+function registers an
+.B iv_inotify
+instance with the
+.BR iv_inotify (3)
+module.  The
+.B inotify
+parameter is a pointer to the
+.B iv_inotify
+structure to be registered.
+.PP
+The
+.B iv_inotify_unregister
+function unregisters an
+.B iv_inotify
+instance from the
+.BR iv_inotify (3)
+module.  The
+.B inotify
+parameter is a pointer to the
+.B iv_inotify
+structure to be unregistered.
+.PP
+The
+.B iv_inotify_watch_register
+function adds a watch to the registered
+.B iv_inotify
+instance specified by the
+.B ->inotify
+member.
+.PP
+The
+.B iv_inotify_watch_unregister
+function removes a watch from the
+.BR iv_inotify
+instance specified by the
+.B ->inotify
+member.
+.PP
+In the
+.B iv_inotify_watch
+structure used in these functions, the
+.B ->pathname
+and
+.B ->mask
+members correspond to the members of struct inotify_watch as described
+in
+.BR inotify (7).
+.B ->handler
+is the event handler called when this watch triggers.  The arguments
+to this handler function are the pointer stored in the
+.B ->cookie
+member of the
+.B iv_inotify_watch
+structure and a pointer to an inotify_event structure as described in
+.BR inotify (7).
+.SH "RETURN VALUE"
+.B iv_inotify_register
+and
+.B iv_inotify_watch_register
+return zero on success.  On error, \-1 is returned, and errno is set
+appropriately.
+.SH "ERRORS"
+iv_inotify will return errors returned by
+.BR inotify_init (3)
+and
+.BR inotify_add_watch (3).
+.SH "SEE ALSO"
+.BR ivykis (3),
+.BR inotify (7),
+.BR inotify_init (3),
+.BR inotify_add_watch (3),
+.BR inotify_rm_watch (3)

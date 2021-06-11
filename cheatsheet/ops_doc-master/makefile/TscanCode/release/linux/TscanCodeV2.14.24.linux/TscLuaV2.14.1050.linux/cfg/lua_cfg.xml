@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<def format="1">
+  <section name="CodeTrace" value="1"/>
+  <section name="PathToIgnore">
+    <!--path name="F:\testlua\test.lua"></path-->
+  </section>
+  <section name="Checks">
+    <id name="logic" value="1">
+      <subid name="lua_AssignOrTrue" value="1" severity="Warning" rule_name="lua初始化为a=a or true" desc="local a = b or true;不管b是true还是false,a总是为true"/>
+      <subid name="lua_RenameLocalVariable" value="0" severity="Warning" rule_name="lua重复定义局部变量" desc="重复定义了某个local var;这是不推荐的写法，可能出现了笔误"/>
+      <subid name="lua_RenameUnusedLocalVariable" value="0" severity="Warning" rule_name="重新定义未使用变量" desc="一个变量还没有使用过，就被重新定义了，有一行可能是无用的或者出现笔误"/>
+      <subid name="lua_SingleFileGlobal" value="0" severity="Warning" rule_name="lua全局变量仅在单文件使用" desc="这条规则不建议使用"/>
+      <subid name="lua_SingleScopeGlobal" value="0" severity="Warning" rule_name="lua全局变量仅在单一作用域使用" desc="只在一个作用域使用的变量，建议使用local"/>
+      <subid name="lua_VarAssginByDifferentTypes" value="0" severity="Information" rule_name="lua变量被赋予不同类型值" desc="变量同时被赋值多种类型，这是不推荐的写法"/>
+      <subid name="lua_RenameGlobalVariable" value="0" severity="Warning" rule_name="lua重新定义了全局变量" desc="这条规则已经废弃，不能使用"/>
+      <subid name="lua_VarTypeMixUsage" value="1" severity="Serious" rule_name="变量被当做多种类型使用" desc="一个变量被当做不同类型的变量使用，这里很可能出现了错误"/>
+      <subid name="lua_UnusedFunctionParam" value="0" severity="Information" rule_name="未使用函数参数" desc="函数的参数定义了却没有使用，有可能出现笔误"/>
+      <subid name="lua_UnusedForVariable" value="0" severity="Information" rule_name="未使用的循环变量" desc="for循环变量定义了却没有使用，有可能出现笔误"/>
+      <subid name="lua_UnusedLocalVar" value="0" severity="Information" rule_name="未使用的局部变量" desc="局部变量定义了却没有使用，有可能出现笔误"/>
+      <subid name="lua_UseVarIfNil" value="1" severity="Critical" rule_name="变量为nil时使用" desc="检测一个变量值为nil仍然使用，会导致程序异常中断"/>
+      <subid name="lua_UseVarAfterCheck" value="1" severity="Critical" rule_name="变量判空范围外使用" desc="前面代码判定变量是否为nil，后续代码没有检查直接使用"/>
+      <subid name="lua_UseVarBeforeCheck" value="1" severity="Critical" rule_name="变量先使用，然后检查是否为nil" desc="后面的代码判定是否为nil，前面存在代码没有检查"/>
+      <subid name="lua_RecursiveFunc" value="1" severity="Critical" rule_name="lua函数递归调用" desc="出现了简单的递归调用。lua没有函数重载的概念，使用c++、c#转换的代码可能出现这种情况"/>
+      <subid name="lua_ArgumentMismatch" value="0" severity="Warning" rule_name="lua函数参数不配" desc="调用函数的参数数量和函数定义不匹配"/>
+      <subid name="lua_ColonDotMix" value="0" severity="Warning" rule_name="函数调用时点和冒号混用" desc="函数定义时使用冒号/点,但是调用时使用的是点/冒号, 这可能导致函数参数错位"/>
+      <subid name="lua_VarSpellWrongError" value="1" severity="Critical" rule_name="lua变量名拼写错误" desc="lua变量可能的手误错误，这类错误后果严重并且不易排查"/>
+      <subid name="lua_KeywordSpellWrongError" value="1" severity="Critical" rule_name="lua关键字拼写错误" desc="lua关键字可能的手误错误，这类错误后果严重并且不易排查"/>
+      <subid name="lua_VarDeclaredInSubScope" value="1" severity="Critical" rule_name="变量作用域失效错误" desc="lua变量在作用域外使用，可能导致不可预期的错误"/>
+    </id>
+    <id name="intercall" value="1">
+      <subid name="lua_LuaFuncMiss" value="1" severity="Critical" rule_name="被c++或c#使用的lua函数未定义" desc="c#使用了未定义的lua函数"/>
+      <subid name="lua_LuaFuncRetNil" value="1" severity="Critical" rule_name="被c++或c#使用的lua函数会返回空" desc="c#使用了可能返回nil的lua函数的返回值"/>
+      <subid name="lua_UseObsolete" value="0" severity="Information" rule_name="使用废弃的c#方法" desc="lua使用了Unity或者c#中标记为[Obsolete]的类或者方法"/>
+    </id>
+    <id name="uninit" value="1">
+      <subid name="lua_Uninitvar" value="1" severity="Critical" rule_name="lua变量未初始化" desc="使用了未初始化变量"/>
+      <subid name="lua_UndeclaredVar" value="1" severity="Critical" rule_name="lua未声明的变量" desc="使用了未声明的变量。出现这种情况很可能出现了拼写错误"/>
+      <subid name="lua_UndeclaredArgument" value="0" severity="Critical" rule_name="未定义的变量作为函数参数" desc="未声明的变量用作函数参数"/>
+      <subid name="lua_UndeclaredTableValue" value="1" severity="Critical" rule_name="未定义变量作为table的键值" desc="未声明的变量用作table的键值"/>
+      <subid name="lua_UndelaredVarAssign" value="1" severity="Critical" rule_name="未定义变量赋值给其他变量" desc="未声明的变量用作等号右值"/>
+      <subid name="lua_PossibleUndeclaredVar" value="0" severity="Information" rule_name="lua变量可能未声明" desc="可疑的未声明变量"/>
+      <subid name="lua_PossibleVarUseBeforeDeclare" value="0" severity="Information" rule_name="lua变量先使用后赋值" desc="变量先使用后声明。不建议开启"/>
+      <subid name="lua_PossibleAssignUninitVar" value="0" severity="Information" rule_name="lua未初始化变量被赋值" desc="可以的未初始化化变量赋值"/>
+      <subid name="lua_FuncRetNil" value="0" severity="Information" rule_name="lua函数返回值可能为nil" desc="直接使用可能返回nil函数的返回值"/>
+      <subid name="lua_UninitMacroLikeVar" value="0" severity="Information" rule_name="lua像宏的变量未初始化" desc="未初始化的变量。这个变量很可能是c++中的宏"/>
+      <subid name="lua_PossibleUninitVarAsTableKey" value="0" severity="Information" rule_name="初始化有问题变量作为table的值" desc="可疑的未声明变量"/>
+    </id>
+    <id name="syntax" value="1">
+      <subid name="lua_SyntaxError" value="0" severity="Critical" rule_name="" desc="语法错误。只检测有限的语法错误"/>
+    </id>
+  </section>
+  <!--variable of the name or starting with the name will not be checked /-->
+  <section name="initval">
+    <var name="CS" type="table"/>
+    <var name="null" type="nil"/>
+    <var name="GDK" type="table"/>
+    <var name="UnityEngine" type="table"/>
+    <var name="ngx" type="table"/>
+    <var name="Text" type="table"/>
+    <var name="libtdrlua" type="table"/>
+    <var name="System" type="table"/>
+    <var name="winapi" type="table"/>
+    <var name="wxLua" type="table"/>
+    <var name="Candellight" type="table"/>
+    <var name="lfs" type="table"/>
+    <var name="bit" type="table"/>
+    <!--older lua version support this-->
+    <var name="xlua" type="table"/>
+    <var name="perf" type="table"/>
+    <var name="Slua" type="table"/>
+    <var name="Lplus" type="table"/>
+    <var name="Linq" type="table"/>
+    <var name="json" type="table"/>
+    <var name="base64" type="table"/>
+  </section>
+  <section name="extraRequire">
+    <!--path name="F:\csharp.lua" /-->
+  </section>
+  <section name="IgnoreFileExtension">
+    <ext name=".pb.*"/>
+    <!--pb.lua, pb.wlua etc. is ignored-->
+    <ext name="_pb.*"/>
+    <!--pb.lua, pb.wlua etc. is ignored-->
+  </section>
+  <!-- ext must start with dot -->
+  <section name="luaExtension">
+    <ext name=".lua"/>
+    <ext name=".wlua"/>
+    <ext name=".glua"/>
+    <ext name=".gluaw"/>
+    <ext name=".mlua"/>
+    <ext name=".clua"/>
+    <ext name=".lua.txt"/>
+  </section>
+  <!--  enumABC but enumabc, enum_abc, g_abc, g_abc, g__abc will be ignored -->
+  <section name="ignoreVarWithPrefix">
+    <prefix name="global"/>
+    <prefix name="G"/>
+    <prefix name="g_"/>
+    <prefix name="k"/>
+    <prefix name="enum"/>
+  </section>
+  <!--if same names related to rule are reported -->
+  <section name="ruleFilter">
+    <rule name="Undeclared" filter="8"/>
+    <rule name="ArgumentMismatch" filter="5"/>
+  </section>
+  <!-- warning, please do not change this, if you are not aware what you are doing -->
+  <section name="misc">
+    <entry name="ifAssign" filter="256" totalVar="4096"/>
+    <entry name="camelCaseLen" filter="24"/>
+    <!--camel name must start with capital letter unless it is longer than this filter-->
+  </section>
+</def>

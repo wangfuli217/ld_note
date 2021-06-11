@@ -1,0 +1,559 @@
+kubernetes是一个基于容器的分布式架构解决方案
+	将集群中的机器划分为一个Master节点和一群工作节点Node,在Master节点上运行着集群管理相关的一组进程,kube-apiserver,kube-controller-manager,kube-scheduler,这些进程实现了整个集群的资源管理,Pod调度,弹性伸缩,安全控制,系统监控和纠错等管理功能
+	Node作为集群中的工作节点,运行真正的应用程序,在Node上Kubernetes管理的最小单位是Pod,Node上运行着kubernetes的kubelet,kube-proxy服务进程,这些服务进程负责Pod的创建,启动,监控,重启,销毁以及实现软件模式的负载均衡器
+	在kubernetes集群中,只需为需要扩容的Service关联的Pod创建一个Replication Controller(简称RC),则该Service的扩容以至于后来的Service升级问题都将迎刃而解,在一个RC定义文件中包括以下3个关键信息
+		目标Pod的定义
+		目标Pod需要运行的副本数量(Replicas)
+		要监控的目标Pod的标签(Label)
+		
+公共配置,即kube-apiserver,kube-controller-manager,kube-scheduler,kubelet,kube-proxy都用的配置
+	--logtostderr				设置为false表示将日志写入文件,不写入stderr
+	--log-backtrace-at=0		记录日志每到"file:行号"时打印一次stack trace
+	--log-flush-frequency=5s	设置flush日志文件的时间间隔
+	--alsologtostderr=false		设置为true则表示将日志输出到文件的同时输出到stderr
+	--stderrthreshold=2			将该threshold级别之上的日志输出到stderr
+	--vmodule					glog基于模块的详细日志级别
+	--version=[false]			设置为true则将打印版本信息然后退出
+	--log-dir					日志目录
+	--v=0						日志级别
+	
+		
+Master节点进程
+	kube-apiserver是kubernetes里所有资源的增,删,改,查等操作的唯一接口,也是集群控制的入口进程
+		--insecure-bind-address=127.0.0.1	apiserver绑定主机的非安全地址
+		--insecure-port=8080				apiserver绑定主机的非安全端口号,默认为8080
+		--service-cluster-ip-range=<nil>	kubernetes集群中Service的虚拟IP地址段范围,以CIDR格式表示,例如 169.169.0.0/16,不能与物理机的真实IP段有重合
+		--service-node-port-range			kubernetes集群中Service可映射的物理机端口号范围,默认为30000~32767
+		--client-ca-file					指定CA根证书文件
+		--tls-cert-file						包含X509证书文件的路径,用于HTTPS认证
+		--tls-private-key-file				包含X509与tls-cert-file对应的私钥文件路径
+		--service-account-key-file  		包含PEM-encoded x509 RSA私钥的文件路径，用于验证Service Account的token，如果不指定，则使用--tls-private-key-file指定的文件
+		--service-account-lookup[=false]	设置为true时,系统会到etcd验证ServiceAccount token是否存在
+		--etcd-cafile						到etcd安全连接使用的SSL CA根证书文件
+		--etcd-certfile						到etcd安全连接使用的SSL 证书文件
+		--etcd-keyfile						到etcd安全连接使用的SSL key文件
+		--etcd-prefix="/registry"			在etcd中保存kubernetes集群数据的根目录名,默认为/registry
+		--etcd-quorum-read[=false]			设置为true表示启用quorum read机制
+		--etcd-servers=[]					以逗号分隔的etcd服务URL列表,etcd服务以http[s]://ip:port形式表示
+		--etcd-servers-overrides=[]			按资源覆盖etcd服务的设置,以逗号分隔,单个覆盖格式为: group/resource#servers,其中,servers格式为http[s]:ip:port,以分号分隔
+		--kubelet-https=true				指定kubelet是否使用https连接
+		--basic-auth-file					指定HTTP BASE的认证方式的配置文件来提供安全认证,文件里的格式如:admin,admin,1(用户名和密码都是名文)
+		--token-auth-file					指定TOKEN的认证方式的配置文件来提供安全认证,文件里的格式如:admin,admin,1(用户名和密码都是名文)
+		--admission-control="AlwaysAdmit"	对发送给API Server的任何请求进行准入控制,配置一个"准入控制器"的列表,多个准入控制器时以逗号分隔,多个准入控制器将按顺序对发送给API Server的请求进行拦截和过滤,若某个准入控制器不允许该请求通过,则API Server拒绝该请求
+			AlwaysAdmit					允许所有请求
+			AlwaysPullImages			在启动容器前总是去下载镜像,相当于在每个容器的配置项imagePullPolicy=Always
+			AlwaysDeny					禁止所有请求,一般用于测试
+			DenyExecOnPrivileged		它会拦截所有想在privileged container上执行命令的请求
+			ServiceAccount				将serviceAccounts实现了自动化
+			ServiceContextDeny			这个插件将使用了SecurityContext的Pod中定义的选项全部失效
+			NamespaceLifecycle			如果尝试在一个不存在的namespace中创建对象,则该创建请求将被拒绝,当删除一个namespace时,将会删除该namespace中的所有对象
+			NamespaceExists(已过时)		对所有请求检验namespace是否已存在,如果不存在则拒绝该请求,已合并至NamespaceLifecycle	
+			LimitRanger					用于配额管理,作用于Pod和Container上,确保Pod与Container上的配额不会超标
+			ResourceQuota				用于配额管理,作用于Namespace上,它会观察所有的请求,确保在namespace上的配额不会超标,推荐在参数列表中最后一个
+		--admission-control-config-file=	与准入控制规则相关的配置文件
+		--advertise-address					用于广播给集群的所有成员自己的IP地址,不指定该地址的话将使用"--bind-address"
+		--allow-privileged=false			如果设置为true,则kubernetes将允许在Pod中运行拥有系统特权的容器应用,与docker run --privileged功效相同
+		--apiserver-count=1					集群中运行的API Server数量
+		--authentication-token-webhook-cache-ttl=2m0s	将webhook token authenticator返回的响应保存在缓存内的时间,默认为两分钟
+		--authentication-token-webhook-config-file=""	Webhook相关的配置文件,将用于token authentication
+		--authorization-mode="AlwaysAllow"	到API Server的安全访问的认证模式列表,以逗号分隔,可选值包括:AlwaysAllow,AlwaysDeny,ABAC,Webhook,RBAC(Role-Based Access Control-基于角色的权限访问控制)
+		--authorization-policy-file=""		当--authorization-mode设置为ABAC时使用的csv格式的授权配置文件
+		--authorization-rbac-super-user=""	当--authorization-mode设置为RBAC时使用的超级用户名,使用该用户名可以不进行RBAC认证
+		--authorization-webhook-cache-authorized-ttl=5m0s  将webhook authorizer返回的"已授权"响应保存在缓存内的时间,默认为5分钟
+		--authorization-webhook-cache-unauthorized-ttl=30s 将webhook authorizer返回的"未授权"响应保存在缓存内的时间,默认为30秒
+		--authorization-webhook-config-file=""			当--authorization-mode设置为webhook时使用的授权配置文件
+		--bind-address=0.0.0.0				绑定的本地地址,0.0.0.0表示绑定本机所有ip
+		--cert-dir="/var/run/kubernetes"	TLS证书所在的目录,默认为/var/run/kubernetes,如果设置了--tls-cert-file和--tls-private-key-file,则该设置将被忽略
+		--cloud-config=""					云服务商的配置文件路径,不配置则表示不使用云服务商的配置文件
+		--cloud-provider=""					云服务商的名称,不配置则表示不使用云服务商
+		--cors-allowed-origins=[]			CORS(跨域资源共享)设置允许访问的资源列表,用逗号分隔,并可使用正则表达式匹配子网,如果不指定,则表示不启用CORS
+		--delete-collection-workers=1		启动DeleteCollection的工作线程数,用于提高清理namespace的效率
+		--deserialization-cache-size=50000	设置内存中缓存的JSON对象个数
+		--enable-garbage-collector[=false]	设置为true表示启用垃圾回收器,必须与kube-controller-manager的该参数设置为相同的值
+		--enable-swagger-ui[=false]			设置为true表示启用swagger ui网页,可通过API Server的URL/swagger-ui访问
+		--event-ttl=1h0m0s					kubernetes API Server中各种事件(通常用于审计和追踪)在系统中保存的时间,默认为1小时
+		--experimental-keystone-url=""		设置kubernetes鉴权插件地址,实验用
+		--external-hostname=""				用于生成该Master的对外URL地址,例如用于swagger api文档中的URL地址
+		--ir-data-source="influxdb"			设置InitialResources使用的数据源,可配置包括influsdb,gcm
+		--ir-dbname="k8s"					InitialResources所需指标保存在influxdb中的名称,默认为k8s
+		--ir-hawkular=""					设置Hawkular的URL地址
+		--ir-influxdb-host="localhost:8080/api/v1/proxy/namespaces/kube-system/services/monitoring-influxdb:api"	InitialResources所需指标所在influxdb的URL地址,默认为前面这个值
+		--ir-namespace-only[=false]			设置为true表示从相同的namespace内的数据进行估算
+		--ir-user="root"					连接influxdb数据库的用户名
+		--ir-password="root"				连接influxdb数据库的密码
+		--ir-percentile=90					InitialResources进行估算时的采样百分比,实验用
+		--kubelet-certificate-authority=""	用于CA授权的cert文件路径
+		--kubelet-client-key=""				用于TLS的客户端key文件路径
+		--kubelet-client-certificate=""		用于TLS的客户端证书文件路径
+		--kubelet-timeout=5s				kubelet执行操作的超时时间
+		--kubernetes-service-node-port=0	设置Master服务是否使用NodePort模式,如果设置,则Master服务将映射到物理机的端口号,设置为0表示以ClusterIP的形式启动Master服务
+		--long-running-request-regexp=""	以正则表达式匹配哪些需要长时间执行的请求不会被系统进行超时处理
+		--master-service-namespace="default"设置Master服务所在的namespace,默认为default
+		--max-connection-bytes-per-sec=0	设置为非0的值表示限制每个客户端连接的带宽为xx字节/秒,目前仅用于需要长时间执行的请求
+		--max-requests-inflight=400			同时处理的最大请求数量,默认为400,超过该请求数量的请求将被拒绝,设置为0表示无限制
+		--min-request-timeout=1800			最小请求处理超时时间,单位为秒,默认为1800秒,目前仅用于watch request handler,其将会在该值上加上一个随机时间作为请求的超时时间
+		--oidc-ca-file=""					该文件内设置鉴权机构,OpenID Server的证书将被其中一个机构进行验证,如果不设置,则将使用主机的root CA证书
+		--oidc-client-id=""					OpenID Connect的客户端ID,在oidc-issuer-url设置时必须设置
+		--oidc-groups-claim=""				定制的OpenID Connect用户组声明的设置,以字符串数组的形式表示,实验用
+		--oidc-issuer-url=""				OpenID发行者的URL地址,仅支持HTTPS scheme,用于验证OIDC JSON Web Token(JWT)
+		--oidc-username-claim="sub"			OpenID claim的用户名,默认为"sub",实验用
+		--profiling=true					打开性能分析,可以通过<host>:<port>/debug/pprof/地址查看程序栈,线程等系统信息
+		--repair-malformed-updates[=true]	设置为true表示服务器将尽可能修复无效或格式错误的update request,以通过正确性检验
+		--runtime-config					一组key=value用于运行时的配置信息,apis/<group Version>/<resource>可用于打开或关闭对某个API版本的支持,api/all和api/legacy特别用于支持所有版本的API或支持旧版的API
+		--secure-port=6443					设置APIServer使用的HTTPS安全模式端口号,设置为0表示不启用HTTPS
+		--ssh-keyfile=""					如果指定,则通过SSH使用指定的秘钥文件对Node进行访问
+		--ssh-user=""						如果指定,则通过SSH使用指定的用户名对Node进行访问
+		--storage-backend=""				设置持久化存储类型,可选项为etcd2(默认),etcd3
+		--storage-media-type="application/json"	持久化存储中的保存格式,默认为application/json,某些资源类型只能使用application/json格式进行保存,将忽略这个参数的设置
+		--storage-versions=""				持久化存储的资源版本号,以分组形式标记,--storage-backend=etcd3默认是etcd2
+		--watch-cache[=true]				设置为true表示将watch进行缓存
+		--watch-cache-size=[]				设置各资源对象watch缓存大小的列表,以逗号分隔,每个资源对象的设置格式为resource#size,当--watch-cache为true时才生效
+		kube-apiserver 1.6 版本开始使用 etcd v3 API 和存储格式
+		--authorization-mode=RBAC 指定在安全端口使用RBAC 授权模式，拒绝未通过授权的请求
+		kube-scheduler、kube-controller-manager 一般和 kube-apiserver 部署在同一台机器上，它们使用非安全端口和 kube-apiserver通信
+		kubelet、kube-proxy、kubectl 部署在其它 Node 节点上，如果通过安全端口访问 kube-apiserver，则必须先通过 TLS 证书认证，再通过 RBAC 授权
+		kube-proxy、kubectl 通过使用证书里指定相关的 User、Group 来达到通过 RBAC 授权的目的
+		如果使用了 kubelet TLS Boostrap 机制，则不能再指定 --kubelet-certificate-authority、--kubelet-client-certificate 和 --kubelet-client-key 选项，否则后续 kube-apiserver 校验 kubelet 证书时出现 ”x509: certificate signed by unknown authority“ 错误
+		--admission-control 值必须包含 ServiceAccount，否则部署集群插件时会失败
+		--bind-address 不能为 127.0.0.1
+		--service-node-port-range=${NODE_PORT_RANGE} 指定 NodePort 的端口范围
+		缺省情况下 kubernetes 对象保存在etcd/registry 路径下，可以通过 --etcd-prefix 参数进行调整
+		kube-apiserver 1.8版本后需要在--authorization-mode参数中添加Node，即：--authorization-mode=Node,RBAC，否则Node 节点无法注册
+	
+	kube-controller-manager是所有资源对象的自动化控制中心,依赖于kube-apiserver
+		--master								指定apiserver的URL地址,设置后不再使用kubeconfig中设置的值
+		--service-account-private-key-file		指定kube-apiserver设定的服务端私钥文件
+		--root-ca-file							指定kube-apiserver设定的服务端证书文件,将被用于Service Account的token secret中
+		--kubeconfig							指定kubeconfig配置文件路径,在配置文件中包括Master地址信息及必要的认证信息
+		--address=0.0.0.0						监听的主机IP地址,默认为0.0.0.0表示使用全部网络接口
+		--cluster-signing-cert-file=			指定签名的CA机构根证书，用来签名为 TLS BootStrap 创建的证书和私钥
+		-cluster-signing-key-file=				指定签名的CA机构私钥，用来签名为 TLS BootStrap 创建的证书和私钥
+		--service-account-private-key-file=		同上
+		-root-ca-file=							根CA证书文件路径 ，用来对 kube-apiserver 证书进行校验，指定该参数后，才会在Pod 容器的 ServiceAccount 中放置该 CA 证书文件
+		--allocate-node-cidrs=false				设置为true表示使用云服务商为Pod分配的CIDRs,仅用于公有云
+		--cloud-config=""						云服务商的配置文件路径,仅用于公有云
+		--cloud-provider=""						云服务商的名称,仅用于公有云
+		--cluster-cidr=<nil>					集群中Pod的可用CIDR范围
+		--cluster-name="kubernetes"				集群的名称,默认为kubernetes
+		--concurrent-deployment-syncs=5			设置允许的并发同步deployment对象的数量,值越大表示同步操作越快,但将会消耗更多的CPU和网络资源
+		--concurrent-endpoint-syncs=5			设置并发执行Endpoint同步操作的数量,值越大表示同步操作越快,但将会消耗更多的CPU和网络资源
+		--concurrent-rc-syncs=5					并发执行RC同步操作的线程数,值越大表示同步操作越快,但将会消耗更多的CPU和网络资源
+		--concurrent-namespace-syncs=2			设置允许并发同步namespace对象的数量,值越大表示同步操作越快,但将会消耗更多的CPU和网络资源
+		--concurrent-replicaset-syncs=5			设置允许的并发同步replica set对象的数量,值越大表示同步操作越快,但将会消耗更多的CPU和网络资源
+		--concurrent-resource-quota-syncs=5		设置允许的并发同步resource quota对象的数量,值越大表示同步操作越快,但将会消耗更多的CPU和网络资源
+		--configure-cloud-routes[=true]			设置为true表示使用allocate-node-cidrs进行CIDRs的分配,仅用于公有云
+		--controller-start-interval=0			启动各个controller manager的时间间隔,默认为0秒
+		--daemonset-lookup-cache-size=1024		DaemonSet的查询缓存大小,默认为1024,值越大表示DaemonSet响应越快,内存消耗也越大
+		--deleting-pods-burst=10				如果一个Node节点失败,则会批量删除在上面运行的Pod实例的信息,此值定义了突发最大删除的Pod的数量,与deleting-pods-qps一起作为调度中的限流因子
+		--deleting-pods-qps=0.1					当Node失效时,每秒删除其上的多少个Pod实例
+		--deployment-controller-sync-period=30s	同步deployments的时间间隔,默认为30秒
+		--enable-dynamic-provisioning[=true]	设置为true表示启用动态provisioning(需环境支持)
+		--enable-garbage-collector[=false]		设置为true表示启用垃圾回收机制,必须与kube-apiserver设置为相同的值
+		--enable-hostpath-provisioner[=false]	设置为true表示启用hostPath PV provisioning机制,仅用于测试,不可用于多Node集群环境
+		--flex-volume-plugin-dir="/usr/libexec/kubernetes/kubelet-plugins/volume/exec/"	设置flex volume插件应搜索其他第三方volume插件的全路径
+		--horizontal-pod-autoscaler-sync-period=30s	Pod自动扩容器的Pod数量的同步时间间隔,默认为30s
+		--kube-api-burst=30						发送到API Server的每秒的请求数量,默认为30
+		--kube-api-content-type="application/vnd.kubernetes.protobuf"	发送到API Server的请求内容类型
+		--kube-api-qps=20						与API Server通信的QPS值,默认为20
+		--leader-elect[=false]					设置为true表示进行leader选举,用于多个Master组件的高可用部署
+		--leader-elect-lease-duration=15s		leader选举过程中非leader等待选举的时间间隔,默认为15秒,当leader-elect为true时才生效
+		--leader-elect-renew-deadline=10s		leader选举过程中在停止leading角色之前再次renew的时间间隔,应小于或等于leader-elect-lease-duration的时间,默认为10秒,当leader-elect=true时才生效
+		--leader-elect-retry-period=2s			leader选举过程中在获取leader角色和renew之间的等待时间,默认为2秒,当leader-elect=true时才生效
+		--min-resync-period=12h0m0s				最小重新同步的时间间隔,实际重新同步的时间为MinResyncPeriod(默认为12小时)到2*MinResyncPeriod(默认24小时)之间的一个随机数
+		--namespace-sync-period=5m0s			namespace生命周期更新的同步时间间隔,默认为5分钟
+		--node-cidr-mask-size=24				Node CIDR的子网掩码设置,默认为24
+		--node-monitor-grace-period=40s			监控Node状态的时间间隔,默认为40秒,超过该设置时间后,controller-managger会把Node标记为不可用状态,此值的设置有如下要求,它应该被设置为kubelet汇报的Node状态时间间隔(参数--node-status-update-frequency=10s)的N倍,N为kubelet状态汇报的重试次数
+		--node-monitor-period=5s				同步NodeStatus的时间间隔,默认为5秒
+		--node-startup-grace-period=1m0s		Node启动的最大允许时间,超过此时间无响应则会标记Node为不可用状态(启动失败),默认为1分钟
+		--node-sync-period=10s					Node信息发生变化时(例如新Node加入集群)controller-manager同步各Node信息的时间间隔,默认为10秒
+		--pod-eviction-timeout=5m0s				在发现一个Node失效后,延迟一段时间,在超过这个参数指定的时间后,删除此Node上的Pod,默认为5分钟
+		--port=10252							controller-manager监听的主机端口号,默认为10252
+		--profiling=true						打开性能分析,可以通过<host>:<port>/debug/pprof/地址查看程序栈,线程等系统运行信息
+		--pv-recycler-increment-timeout-nfs=30	使用nfs scrubber的Pod每增加1Gi空间在ActiveDeadlineSeconds上增加的时间,默认为30秒
+		--pv-recycler-minimum-timeout-hostpath=60	使用hostPath recycler的Pod的最小ActiveDeadlineSeconds秒数,默认为60秒,实验用
+		--pv-recycler-minimum-timeout-nfs=300	使用nfs recycler的Pod的最小ActiveDeadlineSeconds秒数,默认为300秒
+		--pv-recycler-pod-template-filepath-hostpath=""	使用hostPath recycler的Pod的模板文件全路径,仅用于实验
+		--pv-recycler-pod-template-filepath-nfs=""		使用nfs recycler的Pod的模板文件全路径
+		--pv-recycler-timeout-increment-hostpath=30	使用hostPath scrubber的Pod每增加1Gi空间在ActiveDeadlineSeconds上增加的时间,默认为30秒,实验用
+		--pvclaimbinder-sync-period=15s			同步PV和PVC(容器声明的PV)的时间间隔
+		--replicaset-lookup-cache-size=4096		设置replica sets查询缓存的大小,默认为4096,值越大表示查询操作越快,但将会消耗更多的内存
+		--replication-controller-lookup-cache-size=4096	设置replication controller查询缓存的大小,默认为4096,值越大表示查询操作越快,但将会消耗更多的内存
+		--resource-quota-sync-period=5m0s		resource quota使用信息同步的时间间隔,默认为5分钟
+		--service-cluster-ip-range=""			Service的IP范围
+		--service-sync-period=5m0s				同步service与外部load balancer的时间间隔,默认为5分钟
+		--terminated-pod-gc-threshold=12500		设置可保存的终止Pod的数量,超过该数量,垃圾回收器将开始进行删除操作,设置为不大于0的值表示不启用该功能
+	
+	kube-scheduler负责资源调度(Pod调度),依赖于kube-apiserver
+		--master								指定apiserver的URL地址,设置后不再使用kubeconfig中设置的值
+		--address=0.0.0.0						监听的主机IP地址,默认为0.0.0.0表示使用全部网络接口
+		--kubeconfig							指定kubeconfig配置文件路径,在配置文件中包括Master地址信息及必要的认证信息
+		--algorithm-provider="DefaultProvider"	设置调度算法,默认为DefaultProvider
+		--failure-domains="kubernetes.io/hostname,failure-domain.beta.kubernetes.io/zone,failure-domain.beta.kubernetes.io/region"	表示Pod调度时的亲和力参数,在调度Pod时,如果两个Pod有相同的亲和力参数,那么这两个Pod会被调度到相同的Node上,如果两个Pod有不同的亲和力参数,那么这两个Pod不会被调度到相同的Node上
+		--hard-pod-affinity-symmetric-weight=1	表示Pod调度规则亲和力的权重值,取值范围为0~100,RequiredDuringScheduling亲和性是非对称的,但对每一个RequiredDuringScheduling亲和性都存在一个对应的隐式PreferredDuringScheduling亲和性规则,该设置表示隐式PreferredDuringScheduling亲和性规则的权重值,默认为1
+		--kube-api-burst=100					发送到API Server的每秒请求数量,默认为100
+		--kube-api-content-type="application/vnd.kubernetes.protobuf"	发送到API Server的请求内容类型
+		--kube-api-qps=50						与API Server通信的QPS值,默认为50
+		--leader-elect[=false]					设置为true表示进行leader选举,用于多个Master组件的高可用部署
+		--leader-elect-lease-duration=15s		leader选举过程中非leader等待选举的时间间隔,默认为15秒,当leader-elect为true时才生效
+		--leader-elect-renew-deadline=10s		leader选举过程中在停止leading角色之前再次renew的时间间隔,应小于或等于leader-elect-lease-duration的时间,默认为10秒,当leader-elect=true时才生效
+		--leader-elect-retry-period=2s			leader选举过程中在获取leader角色和renew之间的等待时间,默认为2秒,当leader-elect=true时才生效
+		--policy-config-file=""					调度策略配置文件的路径
+		--port=10251							scheduler监听的主机端口号,默认为10251
+		--profiling=true						打开性能分析,可以通过<host>:<port>/debug/pprof/地址查看程序栈,线程等系统运行信息
+		--scheduler-name="default-scheduler"	调度器名称,用于选择哪些Pod将被该调度器进行处理,选择的依据是Pod的annotation设置,包含key='scheduler.alpha.kubernetes.io/name'的annotation
+	
+	一般etcd服务也会位于Master节点
+	
+	
+Node节点进程
+	kubelet负责Pod对应容器的创建,启停等任务,同时与Master节点密切协作,实现集群管理的基本功能,依赖于Docker服务
+	kubelet 启动时向kube-apiserver 发送TLS bootstrapping 请求，需要先将bootstrap token 文件中的kubelet-bootstrap 用户赋予system:node-bootstrapper 角色，然后kubelet 才有权限创建认证请求(certificatesigningrequests)
+		kubectl create clusterrolebinding kubelet-bootstrap --clusterrole=system:node-bootstrapper --user=kubelet-bootstrap
+		另外1.8 版本中还需要为Node 请求创建一个RBAC 授权规则：
+			kubectl create clusterrolebinding kubelet-nodes --clusterrole=system:node --group=system:nodes
+	创建kubelet bootstapping kubeconfig 文件
+	设置集群参数
+		kubectl config set-cluster kubernetes --certificate-authority=/etc/kubernetes/ssl/ca.crt --embed-certs=true --server=${KUBE_APISERVER} --kubeconfig=bootstrap.kubeconfig
+	设置客户端认证参数
+		kubectl config set-credentials kubelet-bootstrap --token=${BOOTSTRAP_TOKEN} --kubeconfig=bootstrap.kubeconfig
+	设置上下文参数
+		kubectl config set-context default --cluster=kubernetes --user=kubelet-bootstrap --kubeconfig=bootstrap.kubeconfig
+	设置默认上下文
+		kubectl config use-context default --kubeconfig=bootstrap.kubeconfig
+		mv bootstrap.kubeconfig /etc/kubernetes/
+		--address=0.0.0.0			绑定的主机IP地址,默认为0.0.0.0表示使用全部网络接口
+		--allow-privileged[=false]	是否允许以特权模式启动容器,默认为false
+		--api-servers=[]			API Server地址列表,以ip:port格式表示,以逗号分隔
+		--application-metrics-count-limit=100	为每个容器保存的性能指标的最大数量,默认为100
+		--boot-id-file="/proc/sys/kernel/random/boot_id"	以逗号分隔的文件列表,使用第一个存在boot-id的文件
+		--cadvisor-port=4194		本地cAdvisor监听的端口号,默认为4194
+		--cert-dir="/var/run/kubernetes"	TLS证书所有的目录,默认为/var/run/kubernetes,如果设置了--tls-cert-file和--tls-private-key-file,则该设置将被忽略
+		--cgroup-root=""			为pods设置的root cgroup,如果不设置,则将使用容器运行时的默认配置
+		--chaos-chance=0			随机产生客户端错误的概率,仅用于测试,默认为0,即不产生
+		--cloud-config=""			云服务商的配置文件路径
+		--cloud-provider="auto-detect"	云服务商的名称,默认将自动检测,设置为空表示无云服务商
+		--cluster-dns=""			集群内DNS服务的IP地址
+		--cluster-domain=""			集群内DNS服务所用域名
+		--config=""					kubelet配置文件的路径或目录名
+		--configure-cbr0[=false]	设置为true表示kubelet将会根据Node.Spec.PodCIDR的值来配置cbr0
+		--container-hints="/etc/cadvisor/container_hints.json"	容器hints文件所在的全路径
+		--container-runtime="docker" 容器类型,目前支持Docker,rkt,默认为docker
+		--containerized[=false]		将kubelet运行在容器中,仅供测试使用,默认为false
+		--cpu-cfs-quota[=true]		设置为true表示启用CPU CFS quota,用于设置容器的CPU限制
+		--docker-endpoint="unix:///var/run/docker.sock"		Docker服务的Endpoint地址
+		--docker-env-metadata-whitelist=""	Docker容器需要使用的环境变量key列表,以逗号分隔
+		--docker-exec-handler="native"	进入Docker容器中执行命令的方式,支持native,nsenter,默认为native
+		--docker-only[=false]		设置为true,表示仅报告Docker容器的统计信息而不再报告其他统计信息
+		--docker-root="/var/lib/docker"	Docker根目录的全路径,不再使用,将通过docker info获取该信息
+		--enable-controller-attach-detach[=true]	设置为true表示启用Attach/Detach Controller进行调度到该Node的volume的attach与detach操作,同时禁用kubelet执行attach,detach的操作
+		--enable-custom-metrics[=false]	设置为true表示启用采集自定义性能指标
+		--enable-debugging-handlers=false	设置为true表示提供远程访问本节点容器的日志,进入容器执行命令等相关Rest服务
+		--enable-load-reader[=false]	设置为true表示启用CPU负载的reader
+		--enable-server[=true]		启动kubelet上的http rest server,此server提供了获取本节点上运行的Pod列表,Pod状态和其他管理监控相关的Rest接口
+		--event-burst=10			临时允许的Event记录突发的最大数量,默认为10,当event-qps>0时生效
+		--event-qps=5				设置大于0的值表示限制每秒能创建出的Event数量,设置为0表示不限制
+		--event-storage-age-limit="default=0"		保存Event的最大时间,按事件类型以key=value格式表示,以逗号分隔,事件类型包括creation,oom等,default表示所有事件的类型
+		--event-storage-event-limit="default=0"		保存Event的最大数量,按事件类型以key=value格式表示,以逗号分隔,事件类型包括creation,oom等,default表示所有事件的类型
+		--eviction-hard=""			触发Pod Eviction操作的一组硬门设置,例如可用内存<1Gi
+		--eviction-max-pod-grace-period=0	终止Pod操作给Pod自行停止预留的时间,单位为秒,时间到达时,将触发Pod Eviction操作,默认值为0,设置为负数表示使用Pod中指定的值
+		--eviction-pressure-transition-period=5m0s	kubelet在触发PodEviction操作之前等待的最长时间,默认为5分钟
+		--eviction-soft=""			触发Pod Eviction操作的一组软门限设置,例如可用内存<1.5Gi,与grace-period一起生效,当Pod的响应时间超过grace-period后进行触发
+		--eviction-soft-grace-period=""		触发Pod Eviction操作的一组软门限等待时间限制,例如memory.available=1m30s
+		--exit-on-lock-contention[=false]	设置为true表示当有文件锁存在时kubelet也可以退出
+		--experimental-flannel-overlay[=false]	实验性功能,用于kubelet启动时自动支持flannel覆盖网络,默认值为false
+		--experimental-nvidia-gpus=0		本节点上NVIDIA GPU的数量,目前仅支持0或1,默认为0
+		--file-check-frequency=20s	在File Source作为Pod源的情况下,kubelet定期重新检查文件变化的时间间隔,文件发生变化后,kubelet重新加载更新的文件内容
+		--global-housekeeping-interval=1m0s	全局housekeeping的时间间隔,默认为1分钟
+		--google-json-key=""		用于谷歌的云平台Service Account进行用于鉴权的JSON key
+		--hairpin-mode="promiscuous-bridge"	设置hairpin模式,表示kubelet设置hairpin NAT的方式,该模式允许后端Endpoint在访问其本身Service时能够再次loadbalance回自身,可选项包括promiscuous-bridge,hairpin-veth和none
+		--healthz-bind-address=127.0.0.1	healthz服务监听的IP地址,默认为127.0.0.1
+		--healthz-port=10248		本地healthz服务监听的端口号,默认为10248
+		--host-ipc-sources="*"		kubelet允许Pod使用宿主机ipc namespace的列表,以逗号分隔
+		--host-network-sources="*"	kubelet允许Pod使用宿主机network的列表,以逗号分隔
+		--host-pid-sources="*"		kubelet允许Pod使用宿主机pid namespace的列表,以逗号分隔
+		--hostname-override			设置本Node在集群中的主机名,不设置将使用本机hostname
+		--housekeeping-interval=10s	对容器做housekeeping操作的时间间隔,默认为10秒
+		--http-check-frequency=20s	HTTP URL Source作为Pod源的情况下,kubelet定期检查URL返回的内容是否发生变化的周期,作用同file-check-frequency参数
+		--image-gc-high-threshold=90	镜像垃圾回收上限,磁盘使用空间达到该百分比时,镜像垃圾回收将持续工作
+		--image-gc-low-threshold=80		镜像垃圾回收下限,磁盘使用空间在达到该百分比之前,镜像垃圾回收将不启用
+		--kube-api-burst=10			发送到API Server的每秒请求数量,默认为10
+		--kube-api-content-type="application/vnd.kubernetes.protobuf"	发送到API Server的请求内容类型
+		--kube-api-qps=5			与API Server通信的QPS值,默认为5
+		--kube-reserved=			kubernetes系统预留的资源配置,以一组ResourceName=ResourceQuantity格式表示,例如cpu=200m,memory=150G,目前仅支持CPU和内存的设置
+		--kubeconfig="/var/lib/kubelet/kubeconfig"		指定kubeconfig配置文件路径,在配置文件中包括Master地址信息及必要的认证信息
+		--kubelet-cgroups=""		kubelet运行所需的cgroups名称
+		--lock-file=""				kubelet使用的lock文件,Alpha版本
+		--log-cadvisor-usage[=false]设置为true表示将cAdvisor容器的使用情况进行日志记录
+		--low-diskspace-threshold-mb=256	本Node最低磁盘可用空间,单位MB,当磁盘空间低于该阈值,kubelet将拒绝创建新的Pod,默认值为256MB
+		--machine-id-file="/etc/machine-id,/var/lib/dbus/machine-id"	用于查找machine-id的文件列表,使用找到的第一个值
+		--manifest-url=""			为HTTP URL Source源类型时,kubelet用来获取Pod定义的URL地址,此URL返回一组Pod定义
+		--manifest-url-header=""	访问menifest URL地址时使用的HTTP头信息,以key:value格式表示
+		--master-service-namespace="default"	Master服务的命名空间,默认为default
+		--max-open-files=1000000	kubelet打开的最大文件数量
+		--max-pods=110				kubelet能运行的最大Pod数量
+		--maximum-dead-containers=240	在本Node上保留的已停止的容器的最大数量,由于停止的容器也会消耗磁盘空间,所以超过该上限后,kubelet会自动清理已停止的容器以释放磁盘空间
+		--maximum-dead-containers-per-container=2	以Pod为单位可以保留的已停止的(属于同一Pod的)容器集的最大数量
+		--minimum-container-ttl-duration=1m0s		已停止的容器在被清理之前的最小存活时间,例如300ms,10s或2h45m,超过此存活时间的容器将被标记为可被GC清理,默认值为1分钟
+		--minimum-image-ttl-duration=2m0s			不再使用的镜像在被清理之前的最小存活时间,超过此存活时间的镜像被标记为可被GC清理,默认值为2分钟
+		--network-plugin=""			自定义的网络插件的名字,Pod的生命周期中相关的一些事件会调用此网络插件进行处理,为Alpha测试版功能
+		--network-plugin-dir="/usr/libexec/kubernetes/kubelet-plugins/net/exec/"	扫描网络插件的目录,为Alpha测试版功能
+		--node-ip=""				设置本Node的IP地址
+		--node-labels=				kubelet注册本Node时设置的Labels,label以key=value的格式表示,多个label以逗号分隔,为Alpha测试版功能
+		--node-status-update-frequency=10s	kubelet向Master汇报Node状态的时间间隔,与controller-manager的--node-monitor-grace-period参数共同起作用
+		--non-masquerade-cidr="10.0.0.0/8"			kubelet向该IP段之外的IP地址发送的流量将使用IP Masquerade技术
+		--oom-score-adj=-999		kubelet进程的oom_score_adj参数值,有效范围为[-1000,1000]
+		--outofdisk-transition-frequency=5m0s	触发磁盘空间耗尽操作之前的等待时间,默认为5分钟
+		--pod-cidr=""				用于给Pod分配IP地址的CIDR地址池,仅在单机模式中使用,在一个集群中,kubelet会从API Server中获取CIDR设置
+		--pod-infra-container-image	在kubelet创建Pod时,需要一个名为google_containers/pause的镜像来实现Pod的概念,在内网中,无法访问internet,因此需要手动指定此镜像的地址
+		--pods-per-core=0			该kubelet上每个core可运行的Pod数量,最大值将被max-pods参数限制,默认为0表示不限制
+		--port=10250				kubelet服务监听的本机端口号,默认为10250
+		--read-only-port=10255		kubelet服务监听的"只读"端口号,默认为10255,设置为0表示不启用
+		--really-crash-for-testing=false	设置为true表示发生panics情况时崩溃,仅用于测试 
+		--reconcile-cidr[=true]		根据API Server指定的CIDR重排Node的CIDR地址,如果register-node或configure-cbr0设置为false,则表示不启用,默认为true
+		--reconcile-node[=true]		将本Node注册到API Server
+		--register-schedulable[=true]	将本Node状态标记为schedulable,设置为false表示通知Master本Node不可进行调度
+		--register-burst=10			最多同时拉取镜像的数量,默认值为10
+		--registry-qps=5			在Pod创建过程中容器的镜像可能需要从Registry中拉取,由于拉取镜像过程中会消耗大量带宽,因此可能需要限速,此参数与registry-burst一起用来限制每秒拉取多少个镜像,默认不限速,如果设置为5,则表示平均每秒允许拉取5个镜像
+		--resolv-conf="/etc/resolv.conf"	命名服务配置文件,用于容器内应用的DNS解析,默认为/etc/resolv.conf
+		--rkt-api-endpoint="localhost:15441"	rktAPI服务的URL地址,--container-runtime='rkt'时生效
+		--rkt-path=""				rkt二进制文件的路径,不指定的话从环境变量$PATH中查找,--container-runtime='rkt'时生效
+		--root-dir="/var/lib/kubelet"	kubelet运行根目录,将保持Pod和volume的相关文件,默认为/var/lib/kubelet
+		--runonce=false				设置为true表示创建完Pod之后立即退出kubelet进程,与--api-servers的--enable-server参数互斥
+		--runtime-cgroups=""		为容器runtime设置的cgroup
+		--runtime-request-timeout=2m0s	除了长时间运行的request,对其他request的超时时间设置,包括pull,logs,exec,attach等操作,当超时时间到达时,请求会被杀掉,抛出一个错误并会重试
+		--seccomp-profile-root="/var/lib/kubelet/seccomp"	seccomp配置文件目录
+		--serialize-image-pulls[=true]	按顺序挨个pull镜像,建议Docker低于<1.9版本或使用Aufs storage backend时设置为true
+		--storage-driver-buffer-duration=1m0s	将缓存数据写入后端存储的时间间隔
+		--storage-driver-db="cadvisor"	后端存储的数据库名称,默认为cadvisor
+		--storage-driver-host"localhost:8086"	后端存储的数据库连接URL地址
+		--storage-driver-password="root"		后端存储的数据库密码
+		--storage-driver-secure[=false]	后端存储的数据库是否用安全连接
+		--storage-driver-table="stats"	后端存储的数据库表名
+		--storage-driver-user="root"	后端存储的数据库用户名
+		--streaming-connection-idle-timeout=4h0m0s	在容器中执行命令或者进行端口转发的过程中会产生输入,输出流,这个参数用来控制连接空闲超时而关闭的时间,如果设置为5m,则表示连接超过5分钟没有输入,输出的情况下就被认为是空闲的,而会被自动关闭,默认为4小时
+		--sync-frequency=1m0s			同步运行中容器的配置的频率,默认为1分钟
+		--system-cgroups=""				kubelet为运行非kernel进程设置的cgroups名称
+		--system-reserved=				系统预留的资源配置,以一组ResourceName=ResourceQuantity格式表示,例如cpu=200m,memory=150G,目前仅支持CPU与内存的设置
+		--tls-cert-file=""				包含x509证书的文件路径,用于HTTPS认证
+		--tls-private-key-file=""		包含x509与tls-cert-file对应的私钥文件路径
+		--volume-plugin-dir="/usr/libexec/kubernetes/kubelet-plugins/volume/exec/"	搜索第三方volume插件的目录,为Alpha测试版功能
+		--volume-stats-agg-period=1m0s	kubelet计算所有Pod和volume的磁盘使用情况聚合值的时间间隔,设置为0表示不启用该计算功能
+	
+	kube-proxy实现Service的通信与负载均衡的重要组件,依赖于network服务
+		首先要生成kubeconfig文件
+			设置集群参数
+				kubectl config set-cluster kubernetes --certificate-authority=/etc/kubernetes/ssl/ca.crt --embed-certs=true --server=${KUBE_APISERVER} --kubeconfig=kube-proxy.kubeconfig
+			设置客户端认证参数
+				kubectl config set-credentials kube-proxy --client-certificate=/etc/kubernetes/ssl/kube-proxy.crt --client-key=/etc/kubernetes/ssl/kube-proxy.key --embed-certs=true --kubeconfig=kube-proxy.kubeconfig
+			设置上下文参数
+				kubectl config set-context default --cluster=kubernetes --user=kube-proxy --kubeconfig=kube-proxy.kubeconfig
+			设置默认上下文
+				kubectl config use-context default --kubeconfig=kube-proxy.kubeconfig
+		--bind-address=0.0.0.0			kube-proxy绑定主机的IP地址,默认为0.0.0.0表示绑定主机所有IP地址
+		--cleanup-iptables[=false]		设置为true表示清除iptables规则后退出
+		--cluster-cidr=""				集群中Pod的CIDR地址范围,用于桥接集群外部流量到内部,用于公有云环境
+		--config-sync-period=15m0s		从API Server更新配置的时间间隔,默认为15分钟,必须大于0
+		--conntrack-max=0				跟踪NAT连接的最大数量,默认为0表示不限制
+		--contrack-max-per-core=32768	跟踪每个CPU core的NAT连接的最大数量,仅当conntrack-max设置为0时才生效
+		--contrack-tcp-timeout-established=24h0m0s	建立TCP连接的超时时间,设置为0表示无限制
+		--healthz-bind-address=127.0.0.1	healthz服务绑定主机IP地址
+		--healthz-port=10249			healthz服务监听的主机端口号
+		--hostname-override=""			设置本Node在集群中的主机名,不设置将使用本机hostname
+		--iptables-masquerade-bit=14	iptables masquerade的fwmark位设置,有效范围为[0,31]
+		--iptables-sync-period=30s		刷新iptables规则的时间间隔,必须大于0
+		--kube-api-burst=10				发送到API Server的每秒发请求数量
+		--kube-api-content-type="application/vnd.kubernetes.protobuf"	发送到API Server的请求内容类型
+		--kube-api-qps=5				与API Server通信的QPS值
+		--kubeconfig					指定kubeconfig配置文件路径,在配置文件中包括Master地址信息及必要的认证信息
+		--masquerade-all[=false]		设置为true表示使用纯iptables代理,所有网络包都将做SNAT转换
+		--master						指定apiserver的URL地址
+		--oom-score-adj=-999			kube-proxy进程的oom_score_adj参数值,有效范围为[-1000,1000]
+		--proxy-mode=""					代理模式,可选项为iptables或userspace,默认为iptables,转发速度更快,当操作系统kernel版本或iptables版本不够新时,将自动降级为userspace模式
+		--proxy-port-range=				进行Service代理的本地端口范围,格式为begin-end,含两端,未指定则采用随机选择的系统可用的端口号
+		--udp-timeout=250ms				保持空闲UDP连接的时间,例如250ms,2s,必须大于0,仅当proxy-mode=userspace时生效
+	
+		
+etcd是一个分布式高性能的,持久化缓存,基于key-value,kubernetes里所有资源对象数据全保存在etcd中
+	--name 							本节点名称
+	--data-dir						指定节点数据存储目录,这些数据包括节点ID,集群ID,集群初始化配置,Snapshot文件
+	–wal-dir 						指定节点的was文件存储目录，若指定了该参数，wal文件会和其他数据文件分开存储
+	--initial-advertise-peer-urls	建议用于节点之间通信的url，节点间将以该值进行通信.告知集群其他节点url,其他节点通过该地址与本节点交互信息,一定要保证其他节点可以访问该地址,静态配置方式下,该参数的值一定要同时在--initial-cluster参数中存在,一般是tcp2380端口用于集群通信
+	--listen-peer-urls				本节点使用,用于监听其他节点发送信息的地址,监听的用于节点之间通信的url，可监听多个，集群内部将通过这些url进行数据交互(如选举，数据同步等)
+	--listen-client-urls			监听的用于客户端通信的url,同样可以监听多个。
+	--advertise-client-urls			建议使用的客户端通信url,该值用于etcd代理或etcd成员与etcd节点通信,本节点使用,用于监听etcd客户端发送信息的地址,就是告知客户端的url,也就是服务的url,tcp2379端口用于监听客户请求
+	--initial-clsuter-token			集群的ID,设置该值后集群将生成唯一id,并为每个节点也生成唯一id,当使用相同配置文件再启动一个集群时，只要该token值不一样，etcd集群就不会相互影响。
+	--initial-cluster				本节点使用,描述集群中所有节点的信息,本节点根据此信息去联系其他节点,也就是集群中所有的initial-advertise-peer-urls 的合集
+	--initial-cluster-state new		用于指示本次是否为新建集群,有2个取值new和existing,如果填为existing,则该节点启动时会尝试与其他节点交互,集群初次建立时,要填new,经尝试最后一个节点填existing也正常，其他节点不能填为existing。集群运行过程中，一个member故障后恢复时填为existing，经尝试填为new也正常。
+	--cert-file ''					客户端证书
+		path to the client server TLS cert file.
+	--key-file ''					客户端秘钥
+		path to the client server TLS key file.
+	--client-cert-auth 'false'		是否开启客户端证书认证
+		enable client cert authentication.
+	--trusted-ca-file ''			根证书
+		path to the client server TLS trusted CA key file.
+	--peer-cert-file ''				集群中其他节点来认证的证书
+		path to the peer server TLS cert file.
+	--peer-key-file ''				集群中其他节点来认证的秘钥
+		path to the peer server TLS key file.
+	--peer-client-cert-auth 'false'	是否开启其他节点证书认证功能
+		enable peer client cert authentication.
+	--peer-trusted-ca-file ''		其他节点认证根证书
+		path to the peer server TLS trusted CA file.
+	ETCD_CERT_FILE="/etc/ssl/etcd/server.pem"
+	ETCD_KEY_FILE="/etc/ssl/etcd/server-key.pem"
+	ETCD_TRUSTED_CA_FILE="/etc/ssl/etcd/ca.pem"
+	ETCD_CLIENT_CERT_AUTH="true"
+	ETCD_PEER_CERT_FILE="/etc/ssl/etcd/member1.pem"
+	ETCD_PEER_KEY_FILE="/etc/ssl/etcd/member1-key.pem"
+	ETCD_PEER_TRUSTED_CA_FILE="/etc/ssl/etcd/ca.pem"
+	ETCD_PEER_CLIENT_CERT_AUTH="true"
+	后续要增加member走"运行中改配扩容"流程，即先add  member，然后启动新etcd。加入后都是正式member，不存在降为proxy的机制
+	--initial- 前缀类参数的使用
+     所有带此前缀的选项在集群启动后就没用了，member故障后再重起不用带，带了也没影响。
+	
+etcdctl是etcd的命令行工具
+	注意,若一台机器上开始部署过etcd,现在ip变了,重新部署时运行etcd会报错,此时应该先删掉原来etcd的数据目录
+	在使用etcdctl(etcd的客户端命令行)之前设置环境变量ETCDCTL_API=3，否则默认的API版本为2
+	Etcd v2 和 v3 本质上是共享同一套 raft 协议代码的两个独立的应用，接口不一样，存储不一样，数据互相隔离。也就是说如果从 Etcd v2 升级到 Etcd v3，原来v2 的数据还是只能用 v2 的接口访问，v3 的接口创建的数据也只能访问通过 v3 的接口访问
+	etcdctl member list 		显示组成etcd集群的机器ip信息
+	etcdctl cluster-health		显示健康状况
+	etcdctl member remove 1609b5a3a078c227  	从集群中删除节点
+	etcdctl member add <name> <peerURL> 		向集群中加入节点
+	
+
+flannel-在多个Node组成的kubernetes集群内,跨主机的容器间网络互通是kubernetes能正常工作的前提,kubernetes本身并不会对跨主机容器网络进行设置,这需要额外的工具,如flannel,open vSwitch,Weave,Calio
+	flannel采用覆盖网络(Overlay Network)模型来完成对网络的打通,flannel使用etcd作为数据库,所以需要预先装好etcd,每台Node都要安装flannel
+	flannel工作原理,容器->veth->docker0->flanneld
+	flannel修改了docker启动参数的bip参数,它限制了所在节点容器获得的IP范围,所以如果Docker服务已启动,需要先停止Docker服务
+	Flannel默认有几种工作模式： 
+		udp - 默认 （只能测试，性能较差）
+		vxlan （推荐）
+		host-gw （推荐）
+		aws 
+		gce 
+		alloc 
+	容器网卡通过docker0桥接到flannel0网卡，而每个host对应的flannel0网段为 10.1.x.[1-255]/24，而flannel所组成的一个跨host的网段为10.1.x.x/16，而flannel0则为flanneld 进程虚拟出来的网卡。 
+	docker0的地址是由 /run/flannel/subnet.env 的 FLANNEL_SUBNET 参数决定的 
+	HostA的Container(cache1)和HostB的Container(backend2)如何通信 
+	host A的container1请求host B的container2的的数据时，流程如下： 根据host A的路由规则 "10.1.15.0 0.0.0.0 255.255.255.0 U 0 0 0 docker0“ 数据交给docker0处理。 
+	docker0会收到数据，然后根据路由规则 ”10.1.0.0 0.0.0.0 255.255.0.0 U 0 0 0 flannel0" 数据被交由给flannel0网卡处理。 flanneld会把数据封包然后送给eth0，用udp协议发送到对方host的eth0网卡。 
+	host B的 eth0网卡收到后，根据路由规则 10.1.0.0 0.0.0.0 255.255.0.0 U 0 0 0 flannel0" 则交给flannel0网卡处理。 
+	flanneld会把数据解包，根据路由规则 “10.1.20.0 0.0.0.0 255.255.255.0 U 0 0 0 docker0" 交给docker0处理。 
+	则host B的container 2 将会收到数据。 
+	至此网路通信解释完毕。 
+	需要先在etcd中写入flannel网络配置:例
+		etcdctl put /kube-centos/network/config '{"Network":"172.17.0.0/16","SubnetLen":24,"Backend":{"Type":"vxlan"}}'
+		写入的 Pod 网段(${CLUSTER_CIDR}，172.17.0.0/16) 必须与 kube-controller-manager 的 --cluster-cidr 选项值一致；
+		注意,put是v3的写入方法,本人部署时flanneld要用其他命令
+		etcdctl set /kube-centos/network/config '{"Network":"172.17.0.0/16","SubnetLen":24,"Backend":{"Type":"vxlan"}}'
+
+使用 kubeadm 管理令牌
+你可以使用 kubeadm 工具管理正在运行集群的令牌。它会从 kubeadm 创建的集群(/etc/kubernetes/admin.conf) 自动抓取默认管理员密码。你可以通过参数 --kubeconfig 对下面命令指定一个另外的 kubeconfig 文件抓取密码。
+	kubeadm token list 列举了令牌，同时显示了它们的过期时间和用途。
+	kubeadm token create 创建一个新令牌。
+		--description 设置新令牌的描述。
+		--ttl duration 设置令牌从 “现在” 起到过期时间的差值。 默认是 0 ，也就是不过期。
+		--usages 设置令牌被使用的方式。默认是 signing,authentication。用途在上面已经描述。
+	kubeadm token delete <token id>|<token id>.<token secret> 删除令牌。 令牌可以只用 ID 来确认，也可以用整个令牌的值。如果只用 ID 的情况下，密文不匹配的令牌也会被删除。
+
+kubectl是Kubernetes集群的命令行工具，通过kubectl能够对集群本身进行管理，并能够在集群上进行容器化应用的安装部署
+	先生成证书后,初始化,会在~/.kube下生成config文件
+			kubectl config set-cluster kubernetes --certificate-authority=/etc/kubernetes/ssl/ca.crt --embed-certs=true --server=https://10.112.69.106:6443
+		设置客户端认证参数
+			kubectl config set-credentials admin --client-certificate=/etc/kubernetes/ssl/admin.crt --embed-certs=true --client-key=/etc/kubernetes/ssl/admin.key --token=${BOOTSTRAP_TOKEN}
+		设置上下文参数
+			kubectl config set-context kubernetes --cluster=kubernetes --user=admin
+		设置默认上下文
+			kubectl config use-context kubernetes
+	kubectl默认从~/.kube/config配置文件中获取访问kube-apiserver 地址、证书、用户名等信息，需要正确配置该文件才能正常使用kubectl命令。
+	kubectl [command] [TYPE] [NAME] [flags]
+	comand：指定要对资源执行的操作，例如create、get、describe和delete
+		version  		显示客户端和服务器侧版本信息
+		api-versions	以group/version的格式显示服务器侧所支持的API版本
+		explain			显示资源文档信息,如kubectl explain deployment可以了解deployment的yaml文件该怎么写
+		get 			取得确认对象详细列表
+		describe		取得确认对象的详细信息
+		logs			取得pod中容器的log信息
+		exec			在pod执行一条命令
+		cp				在pod容器中考入或考出文件
+		cluster-info	查看整个集群的大概信息
+	TYPE：指定资源类型，资源类型是大小学敏感的，开发者能够以单数、复数和缩略的形式
+	NAME：指定资源的名称，名称也大小写敏感的。如果省略名称，则会显示所有的资源
+	flags：指定可选的参数。例如，可以使用-s或者–server参数指定Kubernetes API server的地址和端口,--namespace=名字查看某个命名空间下的特定资源,否则,显示的是default下的资源
+	--certificate-authority: 指定CA授权的证书
+	--client-certificate: 客户端证书
+	--client-key: 客户端密钥
+	--username:	指定HTTP BASE认证的用户名
+	--password: 指定HTTP BASE认证的密码
+	kubectl run NAME --image=image [--env="key=value"] [--port=port] [--replicas=replicas] [--dry-run=bool] [--overrides=inline-json] [--command] -- [COMMAND] [args...]
+			create
+			delete
+	例: kubectl create -f nginx-deployment.yaml 根据配置文件创建一个nginx部署对象
+		kubectl get rc    列出rc对象,查看pos可以kubectl get pods,1.2版本后要使用kubectl get rs
+		kubectl get csr		查询未授权的CSR请求
+		kubectl certificate approve		接受请求
+		kubectl get nodes	查看集群中有多少个node
+		kubectl describe node nodeName	可以获取某个nodeName的详细信息
+		kubectl get endpoints  获取Pod暴露的ip和端口
+		kubectl get svc		   获取Service暴露的Cluster IP和端口
+		kubectl get namespace  获取命名空间信息
+		kubectl get componentstatus  获取组件状态
+		kubectl get pods	   获取default namespace下所有pods信息
+			-n 			指定namespace
+			-o wide		查看pod位于哪台机器上运行
+		kubectl get pods --all-namespaces 获取所有名字空间下的pod信息
+		kubectl delete  
+			-f  文件名    支持json或yaml格式,可以删除pod
+		kubectl cordon    对节点进行隔离
+		kubectl uncordon  对节点进行恢复
+		kubectl exec -ti gpu2bin-4159198737-lbc00 -n root bash    可以进入pod查看信息
+		kubectl scale --replicas=3 -f *.yaml		更改pod数量
+	
+label是一个key=value的键值对,其中key与value由用户自己指定,label可以附加到各种资源对象上,例如Node,Pod,Service,RC等,一个资源对象可以写意任意数量的label,同一个label也可以被添加到任意数量的资源上
+	label通常在资源对象定义时确定,也可以在对象创建后动态添加或者删除
+	
+Annotation(注解)与Label类似,也使用key/value的键值对,不同的是Label具有严格的命名规则,它定义的是kubernetes对象的元数据,并且用于Label Selector
+	Annotation则是用户任意定义的"附加"信息,以便于外部工具进行查找
+	
+RC(Replication Controller)定义了一个期望的场景,即声明某种Pod的副本数量在任意时刻都符合某个预期值
+	由于与kubernetes中Replication Controller模块名字相同,因此,1.2版本后,RC被更名为Replica Set
+	Replica Set与Deployment这两个重要资源对象逐步替换了之前的RC的作用,是kubernetes1.3及1.3以后Pod自动扩容(伸缩)告警功能实现的基础
+	Replica Set与RC的区别就是前者支持基于集合的Label selector,而RC只支持基于等式的Label selector
+	RC的定义包括如下几个部分
+		Pod期待的副本数(replicas)
+		用于筛选目标Pod的Label Selector
+		当Pod的副本数量小于预期数量的时候,用于创建新的Pod的Pod模板(template)
+		
+Deployment是kubernetes 1.2引入的新概念,引入的目的是为了更好地解决Pod的编排问题,为些,Deployment内部使用了Replica Set来实现目的
+	无论从Deployment的作用与目的,它的YAM定义,还是从它的具体命令行操作来看,都可以将Deployment看作RC的一次升级,两者相似度超过90%
+	Deployment对RC最大的一个升级是可以随时知道当前Pod"部署"的进度
+	
+HPA(Horizontal Pod Autoscaling)意思是Pod横向自动扩容,也是一种资源对象
+
+Service是分布式集群架构的核心,一个Service对象拥有如下关键特征
+	拥有一个唯一指定的名字(比如mysql-server)
+	拥有一个虚拟IP(Cluster IP,Service IP 或 VIP)和端口号,Service一旦创建,在整个生命周期里,它的Cluster IP不会发生改变,Service可以定义多个端口
+	能够提供某种远程服务能力
+	被映射到了提供这种服务能力的一组容器应用上
+	
+Pod	将每个服务进程包装到相应的Pod中,为了建立Service与Pod的关联关系,会首先给一个Pod贴上一个标签Label
+	每个Pod中运行着一个特殊的被称为Pause的容器,其他容器称为业务容器,这些业务容器共享Pause容器的网络栈和Volume挂载卷
+	并不是每个Pod和他里面运行的容器都能被"映射"到一个Service上,只有那些提供服务的(无论是对内还是对外)的一组Pod才会被映射成一个Service
+	Pod的Endpoint(ip+port)会随着Pod的销毁和创建而发生改变
+	在kubernetes中对长时间运行容器的要求是:其主程序需要一直在前台执行,如果我们创建的Docker镜像启动命令是nohup ./start.sh &则在kubelet创建这个容器的Pod运行完该命令,即认为Pod结束
+	对于无法改造为前台的应用,也可以使用开源工具Supervisor辅助进行前台运行的功能,Supervisor提供了一种可以同时启动多个后台应用,并保持Supervisor自身在前台执行的机制
+	yaml文件中的apiVersion必须是 kubectl api-versions的结果
+	
+PV(Persistent Volume)可以理解为kubernetes集群中的某个网络存储中对应的一块存储,它与Volume很类似,但有以下区别
+	PV只能是网络存储,不属于任何Node,但可以在每个Node上访问
+	PV并不是定义在Pod上,而是独立于Pod之外定义
+	PV目前只有几种类型:GCE Persistent Disks,NFS,RBD,iSCSCI,AWS ElasticBlockStore,GlusterFS等
+	PV是有状态的对象,有以下几种状态
+		Available:	空闲状态
+		Bound:		已经绑定到某个PVC上
+		Released:	对应的PVC已经删除,但资源还没有被集群收回
+		Failed:		PV自动回收失败
+		
+Namespace命名空间在很多情况下用于实现多租户的资源隔离,Namespace通过将集群内部的资源对象"分配"到不同的Namespace中,形成逻辑上分级的不同项目,小组或用户组
+	kubernetes集群启动后,会创建一个名为"default"的Namespace,如果不特别指明Namespace,则用户创建的Pod,RC,Service都将被创建到default命名空间

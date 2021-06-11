@@ -1,0 +1,151 @@
+.TH ICONT 1 "4 June 2013" "University of Arizona"
+.SH NAME
+icont \- translate Icon program
+.SH SYNOPSIS
+\fBicont\fP [ option ... ] file ... [ \fB\-x\fP arg ... ]
+.SH DESCRIPTION
+Icont translates and links programs written in the Icon language.
+Translation produces \fIucode\fP files, suffixed \fB.u1\fP and \fB.u2\fP,
+which are linked to produce executable files.
+Icon executables are shell scripts containing binary data; this data is
+interpreted by \fBiconx\fP, which must be present at execution time.
+.PP
+File names ending in \fB.icn\fP are Icon source files;
+the \fB.icn\fP suffix may be omitted from command arguments.
+An argument of \fB\-\fP reads from standard input.
+A name ending in \fB.u\fP, \fB.u1\fP, or \fB.u2\fP selects both files
+of a ucode pair.
+The specified files are combined to produce a single program,
+which is named by removing the suffix from the first input file.
+.PP
+An argument of \fB\-x\fP may appear \fIafter\fP the file arguments
+to execute the linked program.
+Any subsequent arguments are passed to the program.
+.PP
+Ucode files produced by translation are normally deleted after linking.
+If the \fB\-c\fP option is given, processing stops after translation
+and the ucode files are left behind.
+A directory of such files functions as a linkable library.
+.SH OPTIONS
+The following options are recognized by \fIicont\fP:
+.TP 4
+\fB\-c\fP
+Stop after producing ucode files.
+.TP
+\fB\-f s\fP
+Enable full string invocation by preserving unreferenced procedures
+during linking.
+.TP
+\fB\-o \fIfile\fP
+Write the executable program to the specified file.
+.TP
+\fB\-p\fP
+Enable execution-time profiling;
+implied if \fBICONPROFILE\fP is set and not empty.
+.TP
+\fB\-s\fP
+Suppress informative messages during translation and linking.
+.TP
+\fB\-t\fP
+Activate runtime tracing by
+arranging for \fB&trace\fP to have an initial value of \-1
+upon execution.
+.TP
+\fB\-u\fP
+Diagnose undeclared identifiers.
+.TP
+\fB\-v \fIi\fP
+Set verbosity level of informative messages to \fIi\fB.
+.TP
+\fB\-E\fP
+Direct the results of preprocessing to standard output and inhibit
+further processing.
+.TP
+\fB\-N\fP
+Don't embed \fBiconx\fP path in executable file.
+.TP
+\fB\-V\fP
+Announce version and configuration information on standard error.
+.SH "TRANSLATION ENVIRONMENT"
+Two environment variables control file search paths during
+translation and linking.
+These variables contain blank- or colon-separated lists of directories
+to be searched after the current directory
+and before the standard library.
+.TP 4
+\fBIPATH\fP
+Directories to search for for ucode files
+specified in \fBlink\fP directives and on the command line.
+.TP 4
+\fBLPATH\fP
+Directories to search for source files
+specified in preprocessor \fB$include\fP directives.
+.SH "EXECUTION ENVIRONMENT"
+Several environment variables control the execution of an Icon program.
+Values in parentheses are the default values.
+.TP 4
+\fBBLKSIZE\fP (500000)
+The initial size, in bytes, of the allocated block region.
+.TP
+\fBCOEXPSIZE\fP (2000)
+The size, in words, of each co-expression stack.
+.TP
+\fBICONCORE\fP
+If set, a core dump is produced for error termination.
+.TP 4
+\fBICONPROFILE\fP
+If set, specifies a file to which profiling data is written
+upon termination of a program linked with the \fB\-p\fP option.
+The output reports timer ticks and visit counts for each line executed.
+.TP 4
+\fBICONX\fP
+The location of \fBiconx\fP, the icon interpreter,
+overriding the value built into the executable by \fBicont\fP.
+Not required if the configuration is unchanged since build time
+or if \fBiconx\fP is in the same directory as the executable.
+.TP
+\fBMSTKSIZE\fP (10000)
+The size, in words, of the main interpreter stack for \fBicont\fP.
+.TP
+\fBNOERRBUF\fP
+By default, \fB&errout\fP is buffered.  If this variable is set, \fB&errout\fP
+is not buffered.
+.TP
+\fBQLSIZE\fP (5000)
+The size, in bytes, of the region used for pointers
+to strings during garbage collection.
+.TP
+\fBSTRSIZE\fP (500000)
+The initial size, in bytes, of the string space.
+.TP
+\fBTRACE\fP
+The initial value of \fB&trace\fP.
+If this variable has a value, it overrides the translation-time
+\fB\-t\fP
+option.
+.SH SEE ALSO
+\fBicon\fP(1), a simpler command interface
+for embedding Icon programs in scripts.
+.LP
+\fIThe Icon Programming Language\fP.
+.br
+Griswold and Griswold, Peer-to-Peer, third edition, 1996.
+.br
+http://www.cs.arizona.edu/icon/lb3.htm.
+.LP
+\fIGraphics Programming in Icon\fP.
+.br
+Griswold, Jeffery, and Townsend, Peer-to-Peer, 1998.
+.br
+http://www.cs.arizona.edu/icon/gb/index.htm.
+.LP
+\fIVersion 9.5.1 of Icon\fP.
+.br
+http://www.cs.arizona.edu/icon/v951.
+.SH "CAVEATS"
+.LP
+Icon executables are not self-sufficient, but require the \fBiconx\fP
+interpreter.
+When distributing an Icon program in executable form, include a copy
+of \fBiconx\fP in the same directory.
+

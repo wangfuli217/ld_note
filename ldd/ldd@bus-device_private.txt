@@ -1,0 +1,22 @@
+http://blog.chinaunix.net/uid-27664726-id-3334878.html
+
+struct device_private {
+    struct klist klist_children;       //子设备的链表
+    struct klist_node knode_parent;    //连接到父设备的klist_childern时所用的节点
+    struct klist_node knode_driver;    //连接到驱动的设备时用到得节点
+    struct klist_node knode_bus;       //连接到总线时所用的节点
+    void *driver_data;                 //用于在设备结构中存放相关的驱动信息
+    struct device *device;             //指向属于有的device
+};
+#define to_device_private_parent(obj)    \
+    container_of(obj, struct device_private, knode_parent)//从父设备的klist_children上节点，获取相应的private
+#define to_device_private_driver(obj)    \
+    container_of(obj, struct device_private, knode_driver)//从驱动链表上获得private
+#define to_device_private_bus(obj)    \
+    container_of(obj, struct device_private, knode_bus) //从总线上获得private
+	
+从数据结构上看出，device也有和bus总线一样的。
+
+同bus过程一样，device的初始化也是在driver_init完成初始化的
+
+	

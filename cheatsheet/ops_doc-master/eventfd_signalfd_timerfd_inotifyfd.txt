@@ -1,0 +1,66 @@
+1. eventfd
+较新版本的 Linux 内核（2.6.22 之后）提供了一个新的系统调用 eventfd() 来实现事件通知：
+#include <sys/eventfd.h>
+int eventfd(unsigned int initval, int flags);  # wait/notify 机制
+  函数返回一个可用于read()/write()/epoll()/close()的fd，
+  fd包含一个由内核维护的8字节的无符号整数(uint64_t)，初始值由第一个参数initval制定。
+  
+  write()的buffer大小都限定为8字节，如果buffer大小不等于8字节则会返回错误，
+  如果提供给read()的大小小于8字节也会报错。
+  每次对fd执行write()的时候相当于这个值加上写入的buffer的值，而read() 
+的时候则会把这个值读到buffer中，且原来的值会被清零(未设置EFD_SEMAPHORE)或者减1(设置了EFD_SEMAPHORE)。
+  当值被清零后，如果fd没有设置非阻塞，继续调用read()会被阻塞。
+  
+  第二个参数是一些标记，可以是下面这些值的或组合：
+    EFD_CLOEXEC：设置 close-on-exec 描述符，即执行 exec() 之后，之前的 fd 会自动关掉；
+    EFD_NONBLOCK：设置 read() 的时候为非阻塞模式，这样值被清零后 read() 立刻返回；
+    EFD_SEMAPHORE：控制 read() 的行为。如果打开了这个标志，read()/write() 类似信号量的行为，
+每次 read() 只对变量值减 1；否则会把变量值清零。
+
+
+2. timerfd
+#include <sys/timerfd.h>
+
+int timerfd_create(int clockid, int flags);
+int timerfd_settime(int fd, int flags,
+                    const struct itimerspec *new_value,
+                    struct itimerspec *old_value);
+int timerfd_gettime(int fd, struct itimerspec *curr_value);
+    这三个函数分别对应 timer_create()，timer_settime() 和 timer_gettime()。不同之处在于，
+这三个函数返回的是一个 fd，和普通文件的 fd 类似，可用于 read()/epoll()/close()。
+    timerfd_create() 的第一个参数取值为 CLOCK_REALTIME 或 CLOCK_MONOTONIC。
+    这两个参数主要是在调用 clock_gettime() 的时候使用的。调用 timer_settime() 
+的参数可以通过调用 clock_gettime() 得到，而 clock_gettime() 的参数要和 timerfd_create() 的参数对应。
+  CLOCK_REALTIME 表示相对时间，即获取的时间是从 1970.1.1 到现在的时间，如果更改系统时间，那么获取到的时间值也不一样；
+  CLOCK_MONOTONIC 是绝对时间，表示从电脑启动到目前为止的时间，和系统的时间没关系。
+
+timerfd_create() 的第二个参数用于设置 fd 的一些属性，可取值有 TFD_NONBLOCK 和 TFD_CLOEXEC，含义和 eventfd() 一样。
+
+其余两个函数用到了下面两个结构体：
+struct timespec {
+    time_t tv_sec;           /* Seconds */
+    long   tv_nsec;          /* Nanoseconds */
+};
+struct itimerspec {
+    struct timespec it_interval;  /* Interval for periodic timer */
+    struct timespec it_value;     /* Initial expiration */
+};
+timerfd_gettime() 获取 fd 指向的定时器的状态。其中 it_value 的值是距离下次触发剩下的时间，it_invertal 返回间隔时间。
+
+timerfd_settime() 的第二个参数取值可能为 0 或者 TFD_TIMER_ABSTIME，分别表示设置超时类型是相对时间还是绝对时间。
+  如果取值为 0，表示下一次的超时时间为当前时间加上 new_value.it_value 的值；
+  如果为 TFD_TIMER_ABSTIME 表示超时时间点就是 new_value.it_value 的值。
+  如果 old_value 不为 NULL 则返回旧的设置，返回值同 timerfd_gettime()。
+  如果 new_value.it_value 的两个域都为 0 表示停掉这个定时器；
+  如果 new_value.it_interval 的两个域均为 0 表示这个定时器只触发一次。
+
+
+3. signalfd
+#include <sys/signalfd.h>
+int signalfd(int fd, const sigset_t *mask, int flags);
+这个函数可以用来代替 sigwaitinfo() 或者 sigaction()/signal() 中的信号处理回调函数。
+如果第一个参数 fd 是 -1，signalfd() 会创建一个新的 fd 并且和信号集 mask 关联，
+如果 fd 是一个有效的 signal fd，则会使用新的 mask 替换原来的信号集。
+第三个参数和上面介绍的函数类似，可以取值为 SFD_NONBLOCK 或 SFD_CLOEXEC。
+第二个参数设置这个 fd 可以接收哪些信号，这些信号通过 sigsetops(3) 来生成。
+如果失败函数返回 -1，成功返回有效的 fd（新的 fd 或者要设置的 fd）。

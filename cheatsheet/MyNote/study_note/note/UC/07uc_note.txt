@@ -1,0 +1,95 @@
+文件操作
+	fcntl()函数
+		F_SETLK - 给文件进行加锁/解锁
+	测试结果：
+		加完读锁之后，还是向文件写入数据的，结果说明锁是独立于文件的，并没有真正锁定对文件的读写操作，也就是说锁只能锁定其他的锁，换句话说，如果加了一把锁，可以导致第二个加锁失败（两个读锁除外）
+	思考：
+		如何使用文件锁来控制是否可以对文件进行读写操作呢？
+	实现方法：
+		在执行读操作之前尝试加读锁，在执行写操作之前尝试加写锁，根据能否加锁成功来决定是否进行读写操作即可！
+	释放文件锁
+		进程结束，自动释放所有文件锁
+		将文件锁的类型设置为F_UNLCK,使用fcntl重新设置来实现解锁效果
+		
+		F_SETLKW - 功能与F_SETLK类似,所不同的是加不上锁会等待，直到锁能加上为止
+		
+		F_GETLK	- 测试一下参数锁能否加上，如果能加上，则不会去加锁，而是将锁的锁的类型改成F_UNLCK;如果不能加上则将文件中已经存在的锁信息通过参数锁带出来,并且将l_pid设置为真正给文件加锁的进程号，所以可以使用l_pid判断锁能否加上
+
+	stat()/fstat()函数
+		#include <sys/types.h>
+		#include <sys/stat.h>
+		#include <unistd.h>
+		int stat(const char *path, struct stat *buf);
+		int fstat(int fd, struct stat *buf);
+		第一个参数：文件的路径/文件描述符
+		第二个参数：结构体指针，结构体变量的地址
+		struct stat
+		{
+			mode_t	st_mode;	文件的类型和权限
+			off_t	st_size;	文件的大小
+			time_t	st_mtime;	文件的最后修改时间
+		}
+	#include<time.h>
+	char *ctime(const time_t *timep);	主要用于将整数类型的时间转换为字符串形式的时间
+	struct tm *localtime(const time_t *temep);	主要用于将整数形式的时间转换为结构体指针类型
+	结构体的类型
+		struct tm
+		{
+			int tm_sec;  //秒数
+			int tm_min;	 //分钟
+			int tm_hour; //小时
+			int tm_mday; //日
+			int tm_mon;	 //月	得到的数据需加1
+			int tm_year; //年   得到的数据加1900
+			int tm_wday; //星期几	0表示星期天
+			int tm_yday; //一年中的第几天	0到365,可以加1
+			int tm_isdst;//夏令时
+		}
+
+access函数
+	#include<unistd.h>
+	int access(const char *pathname,int mode);
+	第一个参数：文件的路径和文件名
+	第二个参数：操作模式
+		F_OK  判断文件是否存在
+		R_OK  判断文件是否可读
+		W_OK  判断文件是否可写
+		X_ok  判断文件是否可执行
+	函数功能
+		主要用于文件是否存在以及对应的权限
+
+chmod函数和truncate函数
+	#include<sys/stat.h>
+	int chmod(const char *path,mode_t mode);
+	int fchmode(int fd,mode_t mode);
+	函数功能
+		主要用于将参数指定的文件权限修改为参数二指定的值
+	#include<unistd.h>
+	#include<sys/types.h>
+	int truncate(const char *path,off_t length);
+	int ftruncate(int fd,off_t length);
+	函数功能
+		主要用于将参数一指定的文件大小截取到参数二指定的大小，如果文件变小则多余数据丢弃，如果文件变大则扩展出来的区域用'\0'填充
+
+umask函数
+	include <sys/types.h>
+	#include <sys/stat.h>
+	mode_t umask(mode_t mask);
+	函数功能
+		主要用于设置创建文件时需要屏蔽的权限，返回之前屏蔽的权限
+
+mmap函数和munmap函数
+	
+其他处理函数
+	link() - 主要用于创建硬链接
+	unlink() - 主要用于删除硬链接
+	rename() - 主要用于重命名
+	remove() - 主要用于删除指定的文件
+
+作业
+	编写函数generator_id实现自动生成账号的功能,其中账号从100000开始,依次递增，采用文件来保存账号实现递增效果
+
+明日预报
+	目录操作
+	进程管理
+

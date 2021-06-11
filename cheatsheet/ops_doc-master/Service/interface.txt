@@ -1,0 +1,64 @@
+API在模块间扮演双重角色，在 实现层 面，作为模块间的滞塞点(check point)，阻止各自的内部细节被相邻模块知晓；在 设计层 面，正是API真正定义了整个体系
+
+interface(){
+1. 响应=api(请求)                                     同步
+2. ret=api(请求) ret=api(响应)                        异步
+3. ret=api(reg,privdata) reg(privdata)                同步
+4. ret=api(callback,privdata) callback(pridata)       异步
+5. ret=api(desc,serve) desc(pridata) serve(pridata)   异步
+
+1. 同步调用(系统调用) -- 输入参数，输出参数，返回值 与 函数功能 (资源的分配和释放) + (资源的设置和获取)
+2，异步调用(chunk.c和matocsserv之间) --- 调用方：输入参数，返回值 与 函数功能。 响应方：输入参数 与 函数功能。如果牵涉到资源分配和释放，需要有超时等待响应注册。
+3. 同步注册调用(闭包)  -- 回调函数，私有数据(输入参数)，返回值 与 函数功能
+4. 异步注册调用cb(privdata) 强调privdata或者cb函数； 回调函数是为了处理数据。 -- 回调函数，输入参数，私有数据，返回值 与 函数功能
+5. 异步双注册调用 reg(desc,serve) -- 回调函数 之间关系 与 函数功能
+6. 异步注册调用cb(privdata) 强调cb(privdata)返回值； 回调函数是为了分配释放或获得privdata值的排序关系。 --- 回调函数，私有数据(输入参数)，返回值 与 函数功能
+}
+interface(){
+1. format
+1.1 format 格式化到缓冲区或者输出流
+int fprintf(FILE *stream, const char *format, ...);
+void oplog_printf(const struct fuse_ctx *ctx,const char *format,...) 
+void changelog(const char *format,...) __printflike(1, 2);
+
+1.2 format 格式化到指定缓冲区
+size_t strftime(char *s, size_t max, const char *format, const struct tm *tm);
+
+1.3 format 格式化到连接上下文
+int redisvAppendCommand(redisContext *c, const char *format, va_list ap);
+int redisAppendCommand(redisContext *c, const char *format, ...);
+
+1.4 format 格式化到连接上下文 请求 并等待响应
+int redisvAsyncCommand(redisAsyncContext *ac, redisCallbackFn *fn, void *privdata, const char *format, va_list ap);
+int redisAsyncCommand(redisAsyncContext *ac, redisCallbackFn *fn, void *privdata, const char *format, ...);
+
+2. vararg
+2.1 vararg 按照name namelen方式格式化输入
+#define calloc_a(len, ...) __calloc_a(len, ##__VA_ARGS__, NULL) -> void *__calloc_a(size_t len, ...);
+
+2.2 
+
+
+3. 获取分配大小和获取数据内容
+uint32_t hdd_get_damaged_chunk_count(void);
+void hdd_get_damaged_chunk_data(uint8_t *buff); 
+
+获取数据内容及其大小
+int asprintf(char **strp, const char *fmt, ...);
+int vasprintf(char **strp, const char *fmt, va_list ap);
+
+}
+
+阻塞: 程序在执行某个操作后,如未返回,自身无法继续干别的事情,强调的是程序在等待结果时的状态
+非阻塞:程序在执行某个操作后,立即返回,自身可以继续干别的事情,强调的是程序在等待结果时的状态
+同步: 程序在执行某个操作后,如未返回,主动轮询等待结果,强调的是消息通知的机制
+异步: 程序在执行某个操作后,立即返回,后续回调通知结果,强调的是消息通知的机制
+
+
+
+moosefs(main){
+
+
+
+
+}

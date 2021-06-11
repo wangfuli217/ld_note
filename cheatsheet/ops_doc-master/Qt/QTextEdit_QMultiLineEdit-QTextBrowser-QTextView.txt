@@ -1,0 +1,47 @@
+
+如果你想要一个有更多导航的文本浏览器，请使用QTextBrowser。
+如果你只是想显示一小条多信息文本，请使用QLabel或者QSimpleRichText。
+
+
+http://www.kuqin.com/qtdocument/qtextedit.html
+
+1. QTextEdit是一个高级的所见即所得的支持使用HTML风格标记的多信息文本格式的查看器/编辑器。
+   它对于处理大文档和快速相应用户的输入进行了优化。
+2. QTextEdit操作的三个模式
+2.1 一般文本编辑器 
+   setTextFormat(PlainText) 
+   使用setText()设置文本，text()可以返回一般文本。文本属性(比如颜色)可以被设置，但是一般文本总是被返回。
+2.2 多信息文本编辑器
+   setTextFormat(RichText)
+   使用setText()设置文本，text()可以返回多信息文本。多信息文本编辑是相当受限制的。
+   例如你不能设置边白或者插入图片(尽管你可以读取并且正确地显示具有边白和包含图片的文件)
+2.3 文本查看器
+   setReadOnly(TRUE) 
+   使用setText()或append()来设置文本，text()根据textFormat()返回一般文本或者多信息文本。这个模式可以正确显示HTML中一个比较大的子集。
+   
+    我们建议你总是调用setTextFormat()来设置你想使用的模式。如果你是用AutoText，那么setText()和append()将会试图决定
+给定的文本是一般文本还是多信息文本。如果你使用RichText，那么setText()和append()总是假设给定的文本是多信息文本。
+insert()简单的插入给定的文本。
+   
+    QTextEdit在段落和字符上工作。段落就是被自动换行来适应窗口部件的宽度的被格式化的字符串。默认情况下当读取一般文本时，
+两个换行符确定一个段落。一个文档由零或更多个段落组成，索引从0开始。字符是基于每一个段落来被索引的，也是从0开始。
+段落中的单字根据段落的alignment()进行对齐。段落被硬换行分隔。段落中的字符都有自己的属性，例如字体和颜色。
+    QTextEdit可以显示图像，列表和表格。如果文本太大而无法在文本编辑的视口中查看，则会出现滚动条。文本编辑可以
+加载纯文本和富文本文件。富文本使用HTML 4标记的子集进行描述，在文本小部件中使用HTML标记。小部件自动检测HTML标记
+并相应地显示丰富的文本。 例如，使用字符串"<b>Hello </ b> <i>xdbcb8！</ i>"设置标签的文本属性将导致标签显示
+如下所示的文本：Helloxdbcb8！
+
+
+
+https://zhuanlan.zhihu.com/p/34549578
+    通过setFontItalic()，setFontWeight()，setFontUnderline()，setFontFamily()，setFontPointSize()，setTextColor()和setCurrentFont()
+设置当前字符格式的属性。当前段落的对齐方式使用setAlignment()进行设置。
+    文本的选择由QTextCursor类处理，该类提供创建选择，检索文本内容或删除选择的功能。您可以使用textCursor()方法检索与用户可见光标
+对应的对象。如果要在QTextEdit中设置选择，只需在QTextCursor对象上创建一个选择，然后使用setTextCursor()将该游标设置为可见光标。
+选择可以通过copy()复制到剪贴板，也可以用cut()剪切到剪贴板。整个文本可以使用selectAll()来选择。
+
+    当游标移动并且底层格式属性发生变化时，会发出currentCharFormatChanged()信号以反映新光标位置处的新属性。
+    textChanged()信号在文本更改时发出（哪怕是由setText()设置的）。
+    QTextEdit包含一个可以使用document()方法检索的QTextDocument对象。您也可以使用setDocument()设置自己的文档对象。
+    QTextDocument提供了一个isModified()函数，如果文本在被加载后或者自从上次调用setModified以False作为参数后被修改，
+则该函数将返回True。另外它提供了撤销和重做的方法。

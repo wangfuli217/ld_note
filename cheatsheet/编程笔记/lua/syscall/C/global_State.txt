@@ -1,0 +1,49 @@
+global_State
+  一个lua虚拟机中只有一个, 它管理着lua中全局唯一的信息, 主要是以下功能
+  1. 内存分配策略及其参数, 在调用lua_newstate的时候配置它们. 也可以通过lua_getallocf和lua_setallocf随时获取和修改它
+  2. 字符串的hashtable, lua中所有的字符串都会在该hashtable中注册.
+  3. gc相关的信息. 内存使用统计量.
+  4. panic, 当无保护调用发生时, 会调用该函数, 默认是null, 可以通过lua_atpanic配置.
+  5. 注册表, 注意, 注册表是一个全局唯一的table.
+  6. 记录lua中元方法名称 和 基本类型的元表[注意, lua中table和userdata每个实例可以拥有自己的独特的元表--记录在table和userdata的mt字段, 其他类型是每个类型共享一个元表--就是记录在这里].
+  7. upvalue链表.
+  8. 主lua_State, 一个lua虚拟机中, 可以有多个lua_State, lua_newstate会创建出一个lua_State, 并邦定到global_state的主lua_State上.
+  global_State主要是管理lua虚拟机的全局环境.
+
+
+lua_State
+1. 要注意的是, 和nil, string, table一样, lua_State也是lua中的一种基本类型, lua中的表示是TValue {value = lua_State, tt = LUA_TTHREAD}
+2. lua_State的成员和功能
+  a. 栈的管理, 包括管理整个栈和当前函数使用的栈的情况.
+  b. CallInfo的管理, 包括管理整个CallInfo数组和当前函数的CallInfo.
+  c. hook相关的, 包括hookmask, hookcount, hook函数等.
+  d. 全局表l_gt, 注意这个变量的命名, 很好的表现了它其实只是在本lua_State范围内是全局唯一的的, 和注册表不同, 注册表是lua虚拟机范围内是全局唯一的.
+  e. gc的一些管理和当前栈中upvalue的管理.
+  f. 错误处理的支持.
+3. 从lua_State的成员可以看出来, lua_State最主要的功能就是函数调用以及和c的通信.
+lua_State主要是管理一个lua虚拟机的执行环境, 一个lua虚拟机可以有多个执行环境.
+
+lua_newstate函数的流程
+经过上面的分析, 可以看出newstate = [new 一个 global_state] + [new 一个 lua_State], 现在看一下它的流程, 很简单
+1. 新建一个global_state和一个lua_State.
+2. 初始化, 包括给g_s创建注册表, g_s中各个类型的元表的默认值全部置为0.
+3. 给l_s创建全局表, 预分配l_s的CallInfo和stack空间.
+4. 其中涉及到了内存分配统统使用lua_newstate传进来的内存分配器分配.
+
+
+2. 创建新lua执行环境
+lua_State *luaE_newthread (lua_State *L)
+    创建一个新的lua_State, 预分配CallInfo和stack空间, 并共享l_gt表, 注意, 虽然每个lua_State都有自己的l_gt, 
+但是这里是却将新建的lua_State的l_gt都指向主lua_State的l_gt.
+
+    注意, lua_State是lua运行的基础[CallInfo]和与c通信的基础[stack], 在新的lua_State上操作不会影响到原来的
+lua_State:), 这个是协程实现的基础. 这里顺便提一下协程, 这里先引一段lua创始人的话:" 我们不信任基于抢占式
+内存共享的多线程技术. 在 HOPL 论文中, 我们写道: "我们仍然认为, 如果在连 a=a+1 都没有确定结果的语言中, 
+无人可以写出正确的程序." 我们可以通过去掉抢占式这一点, 或是不共享内存, 就可以回避这个问题."协程的基础就是"
+去掉抢占式, 但共享内存", 这里的共享是在lua虚拟机的层面上的, 而不是通常意义上的share memory, 这里的共享内存
+直接就指的是不同线程[lua_State]之间, 共享lua_State.l_gt全局表, 全局表可以作为不同协程之间的通信环境, 
+当然也可以用lua_xmove函数, 协程的事先说到这里.
+
+一个和多lua_State相关的函数是: 在同一个lua虚拟机里传递不同lua_State的值
+void lua_xmove (lua_State *from, lua_State *to, int n)
+把from栈上的前n个值弹出, 并压入到to栈中.

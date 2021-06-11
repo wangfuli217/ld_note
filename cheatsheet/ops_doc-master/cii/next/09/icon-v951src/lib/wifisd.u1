@@ -1,0 +1,2320 @@
+proc wif2isd
+	filen	wifisd.icn
+	local	0,001000,file
+	local	1,001000,title
+	local	2,000020,section
+	local	3,000020,line
+	local	4,000020,i
+	local	5,000020,colors
+	local	6,000020,information_sections
+	local	7,000020,data_sections
+	local	8,000020,color_range
+	local	9,000020,information
+	local	10,000020,data
+	local	11,000020,tieup
+	local	12,000020,lst
+	local	13,000020,x
+	local	14,000020,k
+	local	15,000020,r
+	local	16,000020,g
+	local	17,000020,b
+	local	18,000020,color
+	local	19,000020,opts
+	local	20,000020,j
+	local	21,000020,tie
+	local	22,000020,lift
+	local	23,000020,range
+	local	24,000020,format
+	local	25,000020,color_set
+	local	26,000020,color_tbl
+	local	27,000020,symbols
+	local	28,000020,maxi
+	local	29,000020,colors_in
+	local	30,000020,liftplan
+	local	31,000020,lift_set
+	local	32,000020,lift_list
+	local	33,000020,lifting
+	local	34,000020,lift_table
+	local	35,000020,draft
+	local	36,000020,threads
+	local	37,000000,data_default
+	local	38,000000,table
+	local	39,000000,data_entries
+	local	40,000000,sections
+	local	41,000000,wif
+	local	42,000000,trim
+	local	43,000000,read
+	local	44,000000,put
+	local	45,000000,map
+	local	46,000000,tab
+	local	47,000000,upto
+	local	48,000000,name
+	local	49,000000,info
+	local	50,000000,isd
+	local	51,000000,decode_data
+	local	52,000000,abort
+	local	53,000000,set
+	local	54,000000,repl
+	local	55,000000,move
+	local	56,000000,member
+	local	57,000000,insert
+	local	58,000000,possym
+	local	59,000000,stop
+	local	60,000000,max
+	local	61,000000,pat2tier
+	local	62,000000,tie2pat
+	local	63,000000,xencode
+	con	0,010000,8,165,156,164,151,164,154,145,144
+	con	1,002000,1,0
+	con	2,010000,3,167,151,146
+	con	3,010000,8,143,157,156,164,145,156,164,163
+	con	4,010000,12,164,162,141,156,163,154,141,164,151,157,156,163
+	con	5,010000,13,143,157,154,157,162,040,160,141,154,145,164,164,145
+	con	6,010000,19,167,141,162,160,040,163,171,155,142,157,154,040,160,141,154,145,164,164,145
+	con	7,010000,19,167,145,146,164,040,163,171,155,142,157,154,040,160,141,154,145,164,164,145
+	con	8,010000,4,164,145,170,164
+	con	9,010000,7,167,145,141,166,151,156,147
+	con	10,010000,4,167,141,162,160
+	con	11,010000,4,167,145,146,164
+	con	12,010000,12,142,151,164,155,141,160,040,151,155,141,147,145
+	con	13,010000,11,142,151,164,155,141,160,040,146,151,154,145
+	con	14,010000,5,156,157,164,145,163
+	con	15,010000,8,154,151,146,164,160,154,141,156
+	con	16,010000,11,143,157,154,157,162,040,164,141,142,154,145
+	con	17,010000,17,167,141,162,160,040,163,171,155,142,157,154,040,164,141,142,154,145
+	con	18,010000,17,167,145,146,164,040,163,171,155,142,157,154,040,164,141,142,154,145
+	con	19,010000,9,164,150,162,145,141,144,151,156,147
+	con	20,010000,14,167,141,162,160,040,164,150,151,143,153,156,145,163,163
+	con	21,010000,19,167,141,162,160,040,164,150,151,143,153,156,145,163,163,040,172,157,157,155
+	con	22,010000,12,167,141,162,160,040,163,160,141,143,151,156,147
+	con	23,010000,17,167,141,162,160,040,163,160,141,143,151,156,147,040,172,157,157,155
+	con	24,010000,11,167,141,162,160,040,143,157,154,157,162,163
+	con	25,010000,12,167,141,162,160,040,163,171,155,142,157,154,163
+	con	26,010000,9,164,162,145,141,144,154,151,156,147
+	con	27,010000,14,167,145,146,164,040,164,150,151,143,153,156,145,163,163
+	con	28,010000,19,167,145,146,164,040,164,150,151,143,153,156,145,163,163,040,172,157,157,155
+	con	29,010000,12,167,145,146,164,040,163,160,141,143,151,156,147
+	con	30,010000,17,167,145,146,164,040,163,160,141,143,151,156,147,040,172,157,157,155
+	con	31,010000,11,167,145,146,164,040,143,157,154,157,162,163
+	con	32,010000,12,167,145,146,164,040,163,171,155,142,157,154,163
+	con	33,010000,17,142,151,164,155,141,160,040,151,155,141,147,145,040,144,141,164,141
+	con	34,010000,5,164,151,145,165,160
+	con	35,010000,7,160,162,151,166,141,164,145
+	con	36,002000,1,1
+	con	37,010000,1,133
+	con	38,020000,1,135
+	con	39,010000,8,164,162,145,141,144,154,145,163
+	con	40,010000,7,164,150,162,145,141,144,163
+	con	41,010000,7,145,156,164,162,151,145,163
+	con	42,010000,0
+	con	43,010000,5,143,157,154,157,162
+	con	44,020000,1,054
+	con	45,010000,5,167,150,151,164,145
+	con	46,010000,5,142,154,141,143,153
+	con	47,010000,6,163,150,141,146,164,163
+	con	48,002000,1,3
+	con	49,010000,1,060
+	con	50,010000,1,061
+	con	51,010000,17,052,052,052,040,155,141,163,153,151,156,147,040,145,162,162,157,162
+	declend
+	line	59
+	colm	11
+	mark	L1
+	pnull
+	pnull
+	var	1
+	line	67
+	colm	4
+	null
+	str	0
+	line	67
+	colm	11
+	asgn
+	unmark
+lab L1
+	mark	L2
+	pnull
+	var	28
+	int	1
+	line	69
+	colm	9
+	asgn
+	unmark
+lab L2
+	mark	L3
+	pnull
+	var	6
+	pnull
+	str	2
+	str	3
+	str	4
+	str	5
+	str	6
+	str	7
+	str	8
+	str	9
+	str	10
+	str	11
+	str	12
+	str	13
+	line	71
+	colm	28
+	llist	12
+	line	71
+	colm	25
+	asgn
+	unmark
+lab L3
+	mark	L4
+	pnull
+	var	7
+	pnull
+	str	14
+	str	15
+	str	16
+	str	17
+	str	18
+	str	19
+	str	20
+	str	21
+	str	22
+	str	23
+	str	24
+	str	25
+	str	26
+	str	27
+	str	28
+	str	29
+	str	30
+	str	31
+	str	32
+	str	33
+	str	34
+	str	35
+	line	86
+	colm	21
+	llist	22
+	line	86
+	colm	18
+	asgn
+	unmark
+lab L4
+	mark	L5
+	pnull
+	var	37
+	var	38
+	line	111
+	colm	25
+	invoke	0
+	line	111
+	colm	17
+	asgn
+	unmark
+lab L5
+	mark	L6
+	pnull
+	var	39
+	var	38
+	line	112
+	colm	25
+	invoke	0
+	line	112
+	colm	17
+	asgn
+	unmark
+lab L6
+	mark	L7
+	pnull
+	var	40
+	var	38
+	line	114
+	colm	21
+	invoke	0
+	line	114
+	colm	13
+	asgn
+	unmark
+lab L7
+	mark	L8
+	pnull
+	var	9
+	var	38
+	line	115
+	colm	24
+	invoke	0
+	line	115
+	colm	16
+	asgn
+	unmark
+lab L8
+	mark	L9
+	pnull
+	var	10
+	var	38
+	line	116
+	colm	17
+	invoke	0
+	line	116
+	colm	9
+	asgn
+	unmark
+lab L9
+	mark	L10
+	pnull
+	var	41
+	pnull
+	line	118
+	colm	11
+	llist	0
+	line	118
+	colm	8
+	asgn
+	unmark
+lab L10
+	mark	L11
+lab L12
+	mark0
+	pnull
+	var	3
+	var	42
+	var	43
+	var	0
+	line	122
+	colm	27
+	invoke	1
+	line	122
+	colm	22
+	invoke	1
+	line	122
+	colm	15
+	asgn
+	unmark
+	mark	L12
+	mark0
+	pnull
+	pnull
+	var	3
+	line	123
+	colm	10
+	size
+	int	1
+	line	123
+	colm	16
+	numgt
+	unmark
+	var	44
+	var	41
+	var	3
+	line	123
+	colm	28
+	invoke	2
+lab L13
+	unmark
+	goto	L12
+lab L14
+	unmark
+lab L11
+	mark	L15
+	mark0
+	pnull
+	var	4
+	pnull
+	int	36
+	pnull
+	var	41
+	line	127
+	colm	20
+	size
+	push1
+	line	127
+	colm	17
+	toby
+	line	127
+	colm	12
+	asgn
+	pop
+	mark0
+	pnull
+	var	41
+	var	4
+	line	128
+	colm	10
+	subsc
+	line	128
+	colm	14
+	bscan
+	mark0
+	pnull
+	str	37
+	line	129
+	colm	13
+	tabmat
+	unmark
+	mark	L18
+	pnull
+	var	2
+	var	45
+	var	46
+	var	47
+	cset	38
+	line	130
+	colm	36
+	invoke	1
+	line	130
+	colm	31
+	invoke	1
+	line	130
+	colm	27
+	invoke	1
+	line	130
+	colm	21
+	asgn
+	unmark
+lab L18
+	pnull
+	pnull
+	var	40
+	var	2
+	line	131
+	colm	21
+	subsc
+	var	4
+	line	131
+	colm	31
+	asgn
+	line	128
+	colm	14
+	escan
+	unmark
+lab L16
+	efail
+lab L17
+	unmark
+lab L15
+	mark	L19
+	mark0
+	pnull
+	var	48
+	pnull
+	var	6
+	line	138
+	colm	18
+	bang
+	line	138
+	colm	15
+	asgn
+	pop
+	mark0
+	pnull
+	pnull
+	var	9
+	var	48
+	line	139
+	colm	18
+	subsc
+	var	49
+	var	48
+	line	139
+	colm	32
+	invoke	1
+	line	139
+	colm	25
+	asgn
+	unmark
+lab L20
+	efail
+lab L21
+	unmark
+lab L19
+	mark	L22
+	pnull
+	pnull
+	var	39
+	str	34
+	line	143
+	colm	16
+	subsc
+	pnull
+	pnull
+	pnull
+	var	9
+	str	9
+	line	143
+	colm	42
+	subsc
+	line	143
+	colm	30
+	nonnull
+	str	39
+	line	143
+	colm	54
+	subsc
+	line	143
+	colm	26
+	asgn
+	unmark
+lab L22
+	mark	L23
+	pnull
+	pnull
+	var	39
+	str	15
+	line	144
+	colm	16
+	subsc
+	pnull
+	pnull
+	pnull
+	var	9
+	str	11
+	line	144
+	colm	45
+	subsc
+	line	144
+	colm	33
+	nonnull
+	str	40
+	line	144
+	colm	54
+	subsc
+	line	144
+	colm	29
+	asgn
+	unmark
+lab L23
+	mark	L24
+	pnull
+	pnull
+	var	39
+	str	16
+	line	145
+	colm	16
+	subsc
+	pnull
+	pnull
+	pnull
+	var	9
+	str	5
+	line	145
+	colm	48
+	subsc
+	line	145
+	colm	36
+	nonnull
+	str	41
+	line	145
+	colm	66
+	subsc
+	line	145
+	colm	32
+	asgn
+	unmark
+lab L24
+	mark	L25
+	pnull
+	pnull
+	var	39
+	str	17
+	line	146
+	colm	16
+	subsc
+	pnull
+	pnull
+	pnull
+	var	9
+	str	6
+	line	147
+	colm	20
+	subsc
+	line	147
+	colm	8
+	nonnull
+	str	41
+	line	147
+	colm	44
+	subsc
+	line	146
+	colm	38
+	asgn
+	unmark
+lab L25
+	mark	L26
+	pnull
+	pnull
+	var	39
+	str	18
+	line	148
+	colm	16
+	subsc
+	pnull
+	pnull
+	pnull
+	var	9
+	str	7
+	line	149
+	colm	20
+	subsc
+	line	149
+	colm	8
+	nonnull
+	str	41
+	line	149
+	colm	44
+	subsc
+	line	148
+	colm	38
+	asgn
+	unmark
+lab L26
+	mark	L27
+	pnull
+	pnull
+	var	39
+	str	19
+	line	150
+	colm	16
+	subsc
+	pnull
+	pnull
+	pnull
+	var	9
+	str	10
+	line	150
+	colm	46
+	subsc
+	line	150
+	colm	34
+	nonnull
+	str	40
+	line	150
+	colm	55
+	subsc
+	line	150
+	colm	30
+	asgn
+	unmark
+lab L27
+	mark	L28
+	pnull
+	pnull
+	var	39
+	str	24
+	line	151
+	colm	16
+	subsc
+	pnull
+	pnull
+	pnull
+	var	9
+	str	10
+	line	151
+	colm	48
+	subsc
+	line	151
+	colm	36
+	nonnull
+	str	40
+	line	151
+	colm	57
+	subsc
+	line	151
+	colm	32
+	asgn
+	unmark
+lab L28
+	mark	L29
+	pnull
+	pnull
+	var	39
+	str	26
+	line	152
+	colm	16
+	subsc
+	pnull
+	pnull
+	pnull
+	var	9
+	str	11
+	line	152
+	colm	46
+	subsc
+	line	152
+	colm	34
+	nonnull
+	str	40
+	line	152
+	colm	55
+	subsc
+	line	152
+	colm	30
+	asgn
+	unmark
+lab L29
+	mark	L30
+	pnull
+	pnull
+	var	39
+	str	31
+	line	153
+	colm	16
+	subsc
+	pnull
+	pnull
+	pnull
+	var	9
+	str	11
+	line	153
+	colm	48
+	subsc
+	line	153
+	colm	36
+	nonnull
+	str	40
+	line	153
+	colm	57
+	subsc
+	line	153
+	colm	32
+	asgn
+	unmark
+lab L30
+	mark	L31
+	pnull
+	pnull
+	var	37
+	str	34
+	line	155
+	colm	16
+	subsc
+	str	42
+	line	155
+	colm	26
+	asgn
+	unmark
+lab L31
+	mark	L32
+	pnull
+	pnull
+	var	37
+	str	15
+	line	156
+	colm	16
+	subsc
+	str	42
+	line	156
+	colm	29
+	asgn
+	unmark
+lab L32
+	mark	L33
+	pnull
+	pnull
+	var	37
+	str	14
+	line	157
+	colm	16
+	subsc
+	str	42
+	line	157
+	colm	26
+	asgn
+	unmark
+lab L33
+	mark	L34
+	pnull
+	pnull
+	var	37
+	str	24
+	line	158
+	colm	16
+	subsc
+	pnull
+	pnull
+	pnull
+	var	9
+	str	10
+	line	158
+	colm	48
+	subsc
+	line	158
+	colm	36
+	nonnull
+	str	43
+	line	158
+	colm	57
+	subsc
+	line	158
+	colm	32
+	asgn
+	unmark
+lab L34
+	mark	L35
+	pnull
+	pnull
+	var	37
+	str	31
+	line	159
+	colm	16
+	subsc
+	pnull
+	pnull
+	pnull
+	var	9
+	str	11
+	line	159
+	colm	48
+	subsc
+	line	159
+	colm	36
+	nonnull
+	str	43
+	line	159
+	colm	57
+	subsc
+	line	159
+	colm	32
+	asgn
+	unmark
+lab L35
+	mark	L36
+	pnull
+	pnull
+	pnull
+	var	37
+	str	24
+	line	160
+	colm	17
+	subsc
+	line	160
+	colm	4
+	nonnull
+	sdup
+	line	160
+	colm	33
+	bscan
+	var	46
+	var	47
+	cset	44
+	line	161
+	colm	16
+	invoke	1
+	line	161
+	colm	11
+	invoke	1
+	line	160
+	colm	33
+	escan
+	asgn
+	unmark
+lab L36
+	mark	L37
+	pnull
+	pnull
+	pnull
+	var	37
+	str	31
+	line	163
+	colm	17
+	subsc
+	line	163
+	colm	4
+	nonnull
+	sdup
+	line	163
+	colm	33
+	bscan
+	var	46
+	var	47
+	cset	44
+	line	164
+	colm	16
+	invoke	1
+	line	164
+	colm	11
+	invoke	1
+	line	163
+	colm	33
+	escan
+	asgn
+	unmark
+lab L37
+	mark	L38
+	pnull
+	var	35
+	var	50
+	line	170
+	colm	16
+	invoke	0
+	line	170
+	colm	10
+	asgn
+	unmark
+lab L38
+	mark	L39
+	mark0
+	pnull
+	var	48
+	pnull
+	var	7
+	line	172
+	colm	18
+	bang
+	line	172
+	colm	15
+	asgn
+	pop
+	mark0
+	pnull
+	pnull
+	var	10
+	var	48
+	line	173
+	colm	11
+	subsc
+	var	51
+	var	48
+	line	173
+	colm	32
+	invoke	1
+	line	173
+	colm	18
+	asgn
+	unmark
+lab L40
+	efail
+lab L41
+	unmark
+lab L39
+	mark	L42
+	pnull
+	pnull
+	var	35
+	line	177
+	colm	9
+	field	color_list
+	mark	L43
+	pnull
+	pnull
+	var	10
+	str	16
+	line	177
+	colm	29
+	subsc
+	line	177
+	colm	24
+	nonnull
+	esusp
+	goto	L44
+lab L43
+	pnull
+	str	45
+	str	46
+	line	177
+	colm	47
+	llist	2
+lab L44
+	line	177
+	colm	21
+	asgn
+	unmark
+lab L42
+	mark	L45
+	pnull
+	pnull
+	var	35
+	line	181
+	colm	9
+	field	name
+	var	1
+	line	181
+	colm	15
+	asgn
+	unmark
+lab L45
+	mark	L46
+	pnull
+	pnull
+	var	35
+	line	183
+	colm	9
+	field	shafts
+	mark	L47
+	pnull
+	pnull
+	pnull
+	var	9
+	str	9
+	line	183
+	colm	33
+	subsc
+	line	183
+	colm	21
+	nonnull
+	str	47
+	line	183
+	colm	45
+	subsc
+	esusp
+	goto	L48
+lab L47
+	var	52
+	int	48
+	line	183
+	colm	63
+	invoke	1
+lab L48
+	line	183
+	colm	17
+	asgn
+	unmark
+lab L46
+	mark	L49
+	pnull
+	pnull
+	var	35
+	line	184
+	colm	9
+	field	treadles
+	mark	L50
+	pnull
+	pnull
+	pnull
+	var	9
+	str	9
+	line	184
+	colm	35
+	subsc
+	line	184
+	colm	23
+	nonnull
+	str	39
+	line	184
+	colm	47
+	subsc
+	esusp
+	goto	L51
+lab L50
+	var	52
+	int	48
+	line	184
+	colm	67
+	invoke	1
+lab L51
+	line	184
+	colm	19
+	asgn
+	unmark
+lab L49
+	mark	L52
+	pnull
+	pnull
+	var	35
+	line	186
+	colm	9
+	field	warp_colors
+	pnull
+	pnull
+	var	10
+	str	24
+	line	186
+	colm	30
+	subsc
+	line	186
+	colm	25
+	nonnull
+	line	186
+	colm	22
+	asgn
+	unmark
+lab L52
+	mark	L53
+	pnull
+	pnull
+	var	35
+	line	188
+	colm	9
+	field	weft_colors
+	mark	L54
+	pnull
+	pnull
+	var	10
+	str	31
+	line	188
+	colm	30
+	subsc
+	line	188
+	colm	25
+	nonnull
+	esusp
+	goto	L55
+lab L54
+	pnull
+	var	35
+	line	188
+	colm	53
+	field	warp_colors
+lab L55
+	line	188
+	colm	22
+	asgn
+	unmark
+lab L53
+	mark	L56
+	mark0
+	pnull
+	pnull
+	var	35
+	line	197
+	colm	12
+	field	liftplan
+	pnull
+	pnull
+	var	10
+	str	15
+	line	197
+	colm	30
+	subsc
+	line	197
+	colm	25
+	nonnull
+	line	197
+	colm	22
+	asgn
+	unmark
+	mark	L57
+	pnull
+	var	33
+	str	42
+	line	198
+	colm	15
+	asgn
+	unmark
+lab L57
+	mark	L58
+	pnull
+	var	31
+	var	53
+	line	199
+	colm	22
+	invoke	0
+	line	199
+	colm	16
+	asgn
+	unmark
+lab L58
+	mark	L59
+	pnull
+	var	32
+	pnull
+	line	200
+	colm	20
+	llist	0
+	line	200
+	colm	17
+	asgn
+	unmark
+lab L59
+	mark	L60
+	pnull
+	var	34
+	var	38
+	line	201
+	colm	26
+	invoke	0
+	line	201
+	colm	18
+	asgn
+	unmark
+lab L60
+	mark	L61
+	pnull
+	var	14
+	int	1
+	line	202
+	colm	9
+	asgn
+	unmark
+lab L61
+	mark	L62
+	pnull
+	var	36
+	mark	L63
+	pnull
+	pnull
+	pnull
+	var	9
+	str	11
+	line	203
+	colm	31
+	subsc
+	line	203
+	colm	19
+	nonnull
+	str	40
+	line	203
+	colm	40
+	subsc
+	esusp
+	goto	L64
+lab L63
+	var	52
+	int	48
+	line	203
+	colm	59
+	invoke	1
+lab L64
+	line	203
+	colm	15
+	asgn
+	unmark
+lab L62
+	mark0
+	pnull
+	var	4
+	pnull
+	int	36
+	var	36
+	push1
+	line	204
+	colm	20
+	toby
+	line	204
+	colm	15
+	asgn
+	pop
+	mark0
+	mark	L67
+	pnull
+	var	3
+	var	54
+	str	49
+	pnull
+	var	35
+	line	205
+	colm	33
+	field	treadles
+	line	205
+	colm	22
+	invoke	2
+	line	205
+	colm	15
+	asgn
+	unmark
+lab L67
+	mark	L68
+	mark0
+	pnull
+	pnull
+	pnull
+	var	35
+	line	206
+	colm	19
+	field	liftplan
+	var	4
+	line	206
+	colm	28
+	subsc
+	line	206
+	colm	13
+	nonnull
+	unmark
+	pnull
+	pnull
+	var	35
+	line	207
+	colm	18
+	field	liftplan
+	var	4
+	line	207
+	colm	27
+	subsc
+	line	207
+	colm	31
+	bscan
+lab L69
+	mark0
+	pnull
+	var	20
+	var	46
+	mark	L72
+	var	47
+	cset	44
+	line	208
+	colm	35
+	invoke	1
+	esusp
+	goto	L73
+lab L72
+	int	1
+lab L73
+	line	208
+	colm	30
+	invoke	1
+	line	208
+	colm	24
+	asgn
+	unmark
+	mark	L69
+	mark	L74
+	mark0
+	pnull
+	pnull
+	var	20
+	line	209
+	colm	22
+	size
+	int	1
+	line	209
+	colm	25
+	numgt
+	unmark
+	pnull
+	pnull
+	var	3
+	var	20
+	line	209
+	colm	38
+	subsc
+	str	50
+	line	209
+	colm	42
+	asgn
+	unmark
+lab L74
+	mark	L75
+	var	55
+	int	36
+	line	210
+	colm	23
+	invoke	1
+	esusp
+	goto	L76
+lab L75
+	unmark
+	pnull
+	goto	L71
+lab L76
+lab L70
+	unmark
+	goto	L69
+lab L71
+	line	207
+	colm	31
+	escan
+	unmark
+lab L68
+	mark	L77
+	mark0
+	mark	L78
+	var	56
+	var	31
+	var	3
+	line	214
+	colm	23
+	invoke	2
+	unmark
+	efail
+lab L78
+	pnull
+	unmark
+	mark	L79
+	var	57
+	var	31
+	var	3
+	line	215
+	colm	19
+	invoke	2
+	unmark
+lab L79
+	mark	L80
+	pnull
+	var	14
+	dup
+	int	36
+	line	216
+	colm	15
+	plus
+	asgn
+	unmark
+lab L80
+	pnull
+	pnull
+	var	34
+	var	3
+	line	217
+	colm	23
+	subsc
+	mark	L81
+	var	58
+	var	14
+	line	217
+	colm	39
+	invoke	1
+	esusp
+	goto	L82
+lab L81
+	var	59
+	str	51
+	line	217
+	colm	49
+	invoke	1
+lab L82
+	line	217
+	colm	30
+	asgn
+	unmark
+lab L77
+	mark	L83
+	var	44
+	var	32
+	var	3
+	line	219
+	colm	13
+	invoke	2
+	unmark
+lab L83
+	pnull
+	var	33
+	dup
+	pnull
+	var	34
+	var	3
+	line	220
+	colm	33
+	subsc
+	line	220
+	colm	18
+	cat
+	asgn
+	unmark
+lab L65
+	efail
+lab L66
+	unmark
+lab L56
+	mark	L84
+	pnull
+	pnull
+	var	35
+	line	224
+	colm	9
+	field	threading
+	pnull
+	pnull
+	var	10
+	str	19
+	line	224
+	colm	28
+	subsc
+	line	224
+	colm	23
+	nonnull
+	line	224
+	colm	20
+	asgn
+	unmark
+lab L84
+	mark	L85
+	pnull
+	pnull
+	var	35
+	line	225
+	colm	9
+	field	shafts
+	var	60
+	pnull
+	var	35
+	line	225
+	colm	31
+	field	threading
+	invoke	-1
+	line	225
+	colm	17
+	asgn
+	unmark
+lab L85
+	mark	L86
+	pnull
+	pnull
+	var	35
+	line	228
+	colm	9
+	field	treadling
+	mark	L87
+	pnull
+	pnull
+	var	10
+	str	26
+	line	228
+	colm	28
+	subsc
+	line	228
+	colm	23
+	nonnull
+	esusp
+	goto	L88
+lab L87
+	pnull
+	var	35
+	line	228
+	colm	49
+	field	threading
+lab L88
+	line	228
+	colm	20
+	asgn
+	unmark
+lab L86
+	mark	L89
+	pnull
+	pnull
+	var	35
+	line	229
+	colm	9
+	field	treadles
+	var	60
+	pnull
+	var	35
+	line	229
+	colm	33
+	field	treadling
+	invoke	-1
+	line	229
+	colm	19
+	asgn
+	unmark
+lab L89
+	mark	L90
+	pnull
+	pnull
+	var	39
+	str	34
+	line	231
+	colm	16
+	subsc
+	pnull
+	var	35
+	line	231
+	colm	34
+	field	treadles
+	line	231
+	colm	26
+	asgn
+	unmark
+lab L90
+	mark	L91
+	pnull
+	pnull
+	var	10
+	str	34
+	line	233
+	colm	8
+	subsc
+	var	51
+	str	34
+	line	233
+	colm	32
+	invoke	1
+	line	233
+	colm	18
+	asgn
+	unmark
+lab L91
+	mark	L92
+	mark0
+	pnull
+	var	11
+	pnull
+	pnull
+	var	10
+	str	34
+	line	235
+	colm	21
+	subsc
+	line	235
+	colm	16
+	nonnull
+	line	235
+	colm	13
+	asgn
+	unmark
+	mark	L93
+	pnull
+	var	21
+	str	42
+	line	236
+	colm	11
+	asgn
+	unmark
+lab L93
+	mark0
+	pnull
+	var	4
+	pnull
+	int	36
+	pnull
+	var	35
+	line	237
+	colm	28
+	field	treadles
+	push1
+	line	237
+	colm	20
+	toby
+	line	237
+	colm	15
+	asgn
+	pop
+	mark0
+	mark	L96
+	pnull
+	var	3
+	var	54
+	str	49
+	pnull
+	var	35
+	line	238
+	colm	33
+	field	shafts
+	line	238
+	colm	22
+	invoke	2
+	line	238
+	colm	15
+	asgn
+	unmark
+lab L96
+	mark	L97
+	mark0
+	pnull
+	pnull
+	var	11
+	var	4
+	line	239
+	colm	19
+	subsc
+	line	239
+	colm	13
+	nonnull
+	unmark
+	pnull
+	var	11
+	var	4
+	line	240
+	colm	18
+	subsc
+	line	240
+	colm	22
+	bscan
+lab L98
+	mark0
+	pnull
+	var	20
+	var	46
+	mark	L101
+	var	47
+	cset	44
+	line	241
+	colm	35
+	invoke	1
+	esusp
+	goto	L102
+lab L101
+	int	1
+lab L102
+	line	241
+	colm	30
+	invoke	1
+	line	241
+	colm	24
+	asgn
+	unmark
+	mark	L98
+	mark	L103
+	mark0
+	pnull
+	pnull
+	var	20
+	line	242
+	colm	22
+	size
+	int	1
+	line	242
+	colm	25
+	numgt
+	unmark
+	pnull
+	pnull
+	var	3
+	var	20
+	line	242
+	colm	38
+	subsc
+	str	50
+	line	242
+	colm	42
+	asgn
+	unmark
+lab L103
+	mark	L104
+	var	55
+	int	36
+	line	243
+	colm	23
+	invoke	1
+	esusp
+	goto	L105
+lab L104
+	unmark
+	pnull
+	goto	L100
+lab L105
+lab L99
+	unmark
+	goto	L98
+lab L100
+	line	240
+	colm	22
+	escan
+	unmark
+lab L97
+	pnull
+	var	21
+	dup
+	var	3
+	line	247
+	colm	14
+	cat
+	asgn
+	unmark
+lab L94
+	efail
+lab L95
+	unmark
+lab L92
+	mark	L106
+	pnull
+	pnull
+	var	35
+	line	251
+	colm	9
+	field	tieup
+	pnull
+	var	61
+	var	62
+	pnull
+	var	35
+	line	251
+	colm	41
+	field	shafts
+	pnull
+	var	35
+	line	251
+	colm	55
+	field	treadles
+	var	21
+	line	251
+	colm	35
+	invoke	3
+	line	251
+	colm	27
+	invoke	1
+	line	251
+	colm	71
+	field	matrix
+	line	251
+	colm	16
+	asgn
+	unmark
+lab L106
+	mark	L107
+	pnull
+	pnull
+	var	35
+	line	259
+	colm	9
+	field	liftplan
+	pnull
+	var	32
+	line	259
+	colm	22
+	nonnull
+	line	259
+	colm	19
+	asgn
+	unmark
+lab L107
+	mark	L108
+	var	63
+	var	35
+	line	261
+	colm	19
+	keywd	output
+	line	261
+	colm	11
+	invoke	2
+	unmark
+lab L108
+	pnull
+	line	263
+	colm	1
+	pfail
+	end
+proc abort
+	local	0,001000,i
+	local	1,000000,stop
+	con	0,010000,56,052,052,052,040,151,156,163,165,146,146,151,143,151,145,156,164,040,151,156,146,157,162,155,141,164,151,157,156,040,164,157,040,160,162,157,144,165,143,145,040,163,160,145,143,151,146,151,143,141,164,151,157,156,163,072,040
+	declend
+	line	265
+	colm	11
+	mark	L1
+	var	1
+	str	0
+	var	0
+	line	267
+	colm	8
+	invoke	2
+	unmark
+lab L1
+	pnull
+	line	269
+	colm	1
+	pfail
+	end
+proc info
+	local	0,001000,name
+	local	1,000020,i
+	local	2,000020,tbl
+	local	3,000020,keyname
+	local	4,000020,keyvalue
+	local	5,000020,line
+	local	6,000000,table
+	local	7,000000,sections
+	local	8,000000,wif
+	local	9,000000,map
+	local	10,000000,tab
+	local	11,000000,upto
+	local	12,000000,move
+	local	13,000000,trim
+	con	0,002000,1,1
+	con	1,020000,1,075
+	con	2,020000,1,073
+	con	3,002000,1,0
+	declend
+	line	271
+	colm	11
+	mark	L1
+	pnull
+	var	2
+	var	6
+	line	274
+	colm	16
+	invoke	0
+	line	274
+	colm	8
+	asgn
+	unmark
+lab L1
+	mark	L2
+	pnull
+	var	1
+	mark	L3
+	pnull
+	pnull
+	var	7
+	var	0
+	line	276
+	colm	18
+	subsc
+	line	276
+	colm	9
+	nonnull
+	esusp
+	goto	L4
+lab L3
+	line	276
+	colm	27
+	pfail
+lab L4
+	line	276
+	colm	6
+	asgn
+	unmark
+lab L2
+	mark	L5
+lab L6
+	mark	L6
+	mark	L9
+	pnull
+	var	1
+	dup
+	int	0
+	line	279
+	colm	8
+	plus
+	asgn
+	unmark
+lab L9
+	mark	L10
+	pnull
+	var	5
+	mark	L11
+	pnull
+	var	8
+	var	1
+	line	280
+	colm	17
+	subsc
+	esusp
+	goto	L12
+lab L11
+	mark	L13
+	var	2
+	line	280
+	colm	23
+	pret
+lab L13
+	pfail
+lab L12
+	line	280
+	colm	11
+	asgn
+	unmark
+lab L10
+	var	5
+	line	281
+	colm	11
+	bscan
+	mark	L14
+	mark	L16
+	mark	L17
+	pnull
+	var	3
+	var	9
+	var	10
+	var	11
+	cset	1
+	line	283
+	colm	35
+	invoke	1
+	line	283
+	colm	30
+	invoke	1
+	line	283
+	colm	26
+	invoke	1
+	line	283
+	colm	20
+	asgn
+	pop
+	var	12
+	int	0
+	line	284
+	colm	16
+	invoke	1
+	pop
+	pnull
+	var	4
+	var	13
+	var	10
+	mark	L19
+	var	11
+	cset	2
+	line	285
+	colm	37
+	invoke	1
+	esusp
+	goto	L20
+lab L19
+	int	3
+lab L20
+	line	285
+	colm	32
+	invoke	1
+	line	285
+	colm	28
+	invoke	1
+	line	285
+	colm	21
+	asgn
+	esusp
+	goto	L18
+lab L17
+	mark	L21
+	var	2
+	line	286
+	colm	16
+	pret
+lab L21
+	pfail
+lab L18
+	unmark
+lab L16
+	pnull
+	pnull
+	var	2
+	var	3
+	line	287
+	colm	12
+	subsc
+	var	4
+	line	287
+	colm	22
+	asgn
+	esusp
+	goto	L15
+lab L14
+	mark	L22
+	var	2
+	line	288
+	colm	13
+	pret
+lab L22
+	pfail
+lab L15
+	line	281
+	colm	11
+	escan
+lab L7
+	unmark
+	goto	L6
+lab L8
+	unmark
+lab L5
+	pnull
+	line	291
+	colm	1
+	pfail
+	end
+proc decode_data
+	local	0,001000,name
+	local	1,000020,i
+	local	2,000020,lst
+	local	3,000020,keyname
+	local	4,000020,keyvalue
+	local	5,000020,line
+	local	6,000020,size
+	local	7,000020,value
+	local	8,000000,sections
+	local	9,000000,data_default
+	local	10,000000,data_entries
+	local	11,000000,list
+	local	12,000000,wif
+	local	13,000000,integer
+	local	14,000000,tab
+	local	15,000000,upto
+	local	16,000000,move
+	local	17,000000,trim
+	local	18,000000,write
+	local	19,000000,stop
+	local	20,000000,put
+	con	0,002000,1,1
+	con	1,020000,1,075
+	con	2,020000,1,073
+	con	3,002000,1,0
+	con	4,010000,5,156,141,155,145,075
+	con	5,010000,27,052,052,052,040,156,157,040,144,145,146,141,165,154,164,040,167,150,145,162,145,040,156,145,145,144,145,144
+	declend
+	line	293
+	colm	11
+	mark	L1
+	pnull
+	var	1
+	mark	L2
+	pnull
+	pnull
+	var	8
+	var	0
+	line	296
+	colm	18
+	subsc
+	line	296
+	colm	9
+	nonnull
+	esusp
+	goto	L3
+lab L2
+	line	296
+	colm	27
+	pfail
+lab L3
+	line	296
+	colm	6
+	asgn
+	unmark
+lab L1
+	mark	L4
+	pnull
+	var	7
+	pnull
+	pnull
+	var	9
+	var	0
+	line	298
+	colm	26
+	subsc
+	line	298
+	colm	13
+	nonnull
+	line	298
+	colm	10
+	asgn
+	unmark
+lab L4
+	mark	L5
+	mark	L6
+	pnull
+	var	6
+	pnull
+	pnull
+	var	10
+	var	0
+	line	300
+	colm	28
+	subsc
+	line	300
+	colm	15
+	nonnull
+	line	300
+	colm	12
+	asgn
+	unmark
+	pnull
+	var	2
+	var	11
+	var	6
+	var	7
+	line	300
+	colm	51
+	invoke	2
+	line	300
+	colm	44
+	asgn
+	goto	L7
+lab L6
+	pnull
+	var	2
+	pnull
+	line	301
+	colm	16
+	llist	0
+	line	301
+	colm	13
+	asgn
+lab L7
+	unmark
+lab L5
+	mark	L8
+lab L9
+	mark	L9
+	mark	L12
+	pnull
+	var	1
+	dup
+	int	0
+	line	304
+	colm	8
+	plus
+	asgn
+	unmark
+lab L12
+	mark	L13
+	pnull
+	var	5
+	mark	L14
+	pnull
+	var	12
+	var	1
+	line	305
+	colm	17
+	subsc
+	esusp
+	goto	L15
+lab L14
+	mark	L16
+	var	2
+	line	305
+	colm	23
+	pret
+lab L16
+	pfail
+lab L15
+	line	305
+	colm	11
+	asgn
+	unmark
+lab L13
+	var	5
+	line	306
+	colm	11
+	bscan
+	mark	L17
+	mark	L18
+	pnull
+	var	3
+	mark	L19
+	var	13
+	var	14
+	var	15
+	cset	1
+	line	308
+	colm	39
+	invoke	1
+	line	308
+	colm	34
+	invoke	1
+	line	308
+	colm	30
+	invoke	1
+	esusp
+	goto	L20
+lab L19
+	mark	L21
+	var	2
+	line	308
+	colm	49
+	pret
+lab L21
+	pfail
+lab L20
+	line	308
+	colm	20
+	asgn
+	unmark
+lab L18
+	mark	L22
+	var	16
+	int	0
+	line	309
+	colm	16
+	invoke	1
+	unmark
+lab L22
+	mark	L23
+	pnull
+	var	4
+	var	17
+	var	14
+	mark	L24
+	var	15
+	cset	2
+	line	310
+	colm	37
+	invoke	1
+	esusp
+	goto	L25
+lab L24
+	int	3
+lab L25
+	line	310
+	colm	32
+	invoke	1
+	line	310
+	colm	28
+	invoke	1
+	line	310
+	colm	21
+	asgn
+	unmark
+lab L23
+	mark	L26
+	pnull
+	var	4
+	var	13
+	var	4
+	line	311
+	colm	31
+	invoke	1
+	line	311
+	colm	21
+	asgn
+	unmark
+lab L26
+	mark0
+	pnull
+	pnull
+	var	4
+	line	312
+	colm	15
+	size
+	int	3
+	line	312
+	colm	25
+	numeq
+	unmark
+	mark	L27
+	pnull
+	var	4
+	var	7
+	line	313
+	colm	24
+	asgn
+	unmark
+lab L27
+	mark0
+	pnull
+	var	4
+	line	314
+	colm	18
+	null
+	unmark
+	mark	L28
+	var	18
+	line	315
+	colm	25
+	keywd	errout
+	str	4
+	var	0
+	line	315
+	colm	24
+	invoke	3
+	unmark
+lab L28
+	var	19
+	str	5
+	line	316
+	colm	23
+	invoke	1
+	unmark
+lab L17
+	mark	L29
+	pnull
+	var	6
+	line	320
+	colm	12
+	null
+	unmark
+	var	20
+	var	2
+	var	4
+	line	320
+	colm	26
+	invoke	2
+	goto	L30
+lab L29
+	pnull
+	pnull
+	var	2
+	var	3
+	line	320
+	colm	50
+	subsc
+	var	4
+	line	320
+	colm	60
+	asgn
+lab L30
+	line	306
+	colm	11
+	escan
+lab L10
+	unmark
+	goto	L9
+lab L11
+	unmark
+lab L8
+	pnull
+	line	324
+	colm	1
+	pfail
+	end

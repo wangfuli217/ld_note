@@ -1,0 +1,581 @@
+-------------------------------------------------------------------------------
+--Name:	    List
+--Creator:  Yoko
+--Created:  2018/05/18
+--Func:     List, 类似C#中的List
+-------------------------------------------------------------------------------
+
+local List = {}
+
+--[[
+    @function: 创建一个List对象
+    @param: t, 可为空，不为空时必须为table类型，用于初始化值
+    @return: list table
+    @example: local listA = List:New() 或 local listA = List:New({1, 2, 3, 4})
+              可以直接通过list[i]取值
+--]]
+function List:New(t)
+    if (t ~= nil and type(t) ~= "table") then
+        return
+    end
+
+    local o = t or {}
+    setmetatable(o, self)
+    self.__index = self
+    return o
+end
+
+--[[
+    @function: 添加一个值到List中，默认添加到末尾
+    @param: v, 值要与List中的一致
+    @return: void 
+    @example: listA:Add(1)
+--]]
+function List:Add(v)
+    table.insert(self, v)
+end
+
+--[[
+    @function: 将指定表的元素添加到List的末尾
+    @param: v, table类型, table中的值要与List的一致
+    @return: void 
+    @example: listA:Add({1, 2, 3})
+--]]
+function List:AddRange(v)
+    if (type(v) ~= "table") then
+        return
+    end
+
+    for k, n in pairs(v) do
+        table.insert(self, n)
+    end
+end
+
+--[[
+    @function: 查询List的大小
+    @return: number
+    @example: listA:Count()
+--]]
+function List:Count()
+    return table.getn(self)
+end
+
+--[[
+    @function: 使用默认的比较器在整个已排序的List中搜索元素，
+               并返回该元素从零开始的索引。
+    @param: v, 需要查找的元素，类型需要为List的类型一致
+    @return: number, 如果返回值为-1代表未查找到
+    @example: listA:BinarySearch("D")
+--]]
+function List:BinarySearch(v)
+    local left = 1
+    local right = table.getn(self)
+
+    while left ~= mid do
+        mid = math.ceil((left + right) / 2)
+        if (self[mid] == v) then
+            return mid
+        elseif (self[mid] < v) then
+            left = mid + 1
+        else
+            right = mid - 1
+        end
+    end
+    return -1
+end
+
+--[[
+    @function: 清空List
+    @return: void 
+    @example: listA:Clear()
+--]]
+function List:Clear()
+    local count = self:Count()
+    for i = count, 1, -1 do
+        table.remove(self)
+    end
+end
+
+--[[
+    @function: 确定某元素是否在List中
+    @param: 需要确定的元素
+    @return: boolean 
+    @example: listA:Contains(1)
+--]]
+function List:Contains(v)
+    local count = self:Count()
+
+    for i = 1, count do
+        if (self[i] == v) then
+            return true
+        end
+    end
+
+    return false
+end
+
+--[[
+    @function: 从目标数组的指定索引处开始，将元素的范围从List复制到指定table中
+    @param: index, List的指定索引 number类型，为空或者超出List的范围会置为1
+            t, 需要复制到的指定table
+            tIndex, 指定table的起始下标 number类型，为空或<1会置为1
+            count, 需要复制的个数
+    @return: void 
+    @example: listA:CopyTo(1, a, 1, 4)
+--]]
+function List:CopyTo(index, t, tIndex, count)
+    if (type(t) ~= "table" or type(index) ~= "number" 
+    or type(tIndex) ~= "number" or type(count) ~= "number") then
+        return
+    end
+
+    if (index == nil or index < 1 or index > table.getn(self)) then
+        index = 1
+    end
+    if (tIndex == nil or tIndex < 1) then
+        tIndex = 1
+    end
+    if (count == nil or count == 0 or count > table.getn(self)) then
+        count = table.getn(self)
+    end
+
+    index = math.floor(index)
+    tIndex = math.floor(tIndex)
+    count = math.floor(count)
+
+    local tI = tIndex
+    for i = index, index + count - 1 do
+        t[tI] = self[i]
+        tI = tI + 1
+    end
+end
+
+--[[
+    @function: 搜索与指定谓词所定义的条件相匹配的元素，
+               并返回整个List中的第一个匹配元素
+    @param: match 匹配函数，该函数需要返回boolean
+    @return: List中的某个值或者nil 
+    @example: listA:Find(function(x) return x == "B" end)
+--]]
+function List:Find(match)
+    if (match == nil or type(match) ~= "function") then
+        return
+    end
+
+    for k, v in pairs(self) do
+        if (match(v)) then
+            return v
+        end
+    end
+    return nil
+end
+
+--[[
+    @function: 检索与指定谓词定义的条件匹配的所有元素
+    @param: match 匹配函数，该函数需要返回boolean
+    @return: List中的某几个值或者nil 
+    @example: listA:Findll(function(x) return x == "A" end)
+--]]
+function List:FindAll(match)
+    if (match == nil or type(match) ~= "function") then
+        return
+    end
+
+    local t = {}
+    for k, v in pairs(self) do
+        if (match(v)) then
+            table.insert(t, v)
+        end
+    end
+
+    if (table.getn(t) ~= 0) then
+        return t
+    else
+        return nil
+    end
+end
+
+--[[
+    @function: 搜索与指定谓词所定义条件相匹配的一个元素，并返回List中从指定的索引开始、
+               包含指定元素个数的元素范围内第一个匹配项的从零开始的索引
+    @param: match 匹配函数，该函数需要返回boolean, 不可省略
+            startIndex 开始搜索的起始索引, 可省略
+            count 要搜索部分的元素数, 可省略
+    @return: 如果找到与match定义的条件相匹配的第一个元素，则为该元素的从零开始的索引
+             否则为 -1
+    @example: listA:FindIndex(function(x) return x == "A" end) 
+              或 listA:FindIndex(function(x) return x == "A" end, 3, 5)
+--]]
+function List:FindIndex(match, startIndex, count)
+    if (match == nil or type(match) ~= "function" 
+    or type(startIndex) ~= "number" or type(count) ~= "number") then
+        return -1
+    end
+
+    if (startIndex == nil or startIndex < 1 or startIndex > table.getn(self)) then
+        startIndex = 1
+    end
+    if (count == nil or count == 0 or count > table.getn(self)) then
+        count = table.getn(self)
+    end
+
+    startIndex = math.floor(startIndex)
+    count = math.floor(count)
+
+    for i = startIndex, startIndex + count - 1 do
+        if (match(self[i])) then
+            return i
+        end
+    end
+    return -1
+end
+
+--[[
+    @function: 搜索与指定谓词所定义条件相匹配的元素，
+               并返回整个List中的最后一个匹配元素
+    @param: match 匹配函数，该函数需要返回boolean
+    @return: List中的某个值或者nil 
+    @example: listA:FindLast(function(x) return x == "B" end)
+--]]
+function List:FindLast(match)
+    if (match == nil or type(match) ~= "function") then
+        return
+    end
+
+    for i = table.getn(self), 1, -1 do
+        if (match(self[i])) then
+            return self[i]
+        end
+    end
+    return nil
+end
+
+--[[
+    @function: 搜索与指定谓词所定义的条件相匹配的元素，并返回List中包含指定元素个数、
+               到指定索引结束的元素范围内最后一个匹配项的从零开始的索引
+    @param: match 匹配函数，该函数需要返回boolean, 不可省略
+            startIndex 开始搜索的起始索引, 可省略
+            count 要搜索部分的元素数, 可省略
+    @return: 如果找到与match定义的条件相匹配的第一个元素，则为该元素的从零开始的索引
+             否则为 -1
+    @example: listA:FindLastIndex(function(x) return x == "A" end) 
+              或 listA:FindLastIndex(function(x) return x == "A" end, 3, 5)
+--]]
+function List:FindLastIndex(match, startIndex, count)
+    if (match == nil or type(match) ~= "function" or (startIndex ~= nil 
+    and type(startIndex) ~= "number") or (count ~= nil 
+    and type(count) ~= "number")) then
+        return -1
+    end
+
+    if (startIndex == nil or startIndex < 1 or index > table.getn(self)) then
+        startIndex = 1
+    end
+    if (count == nil or count == 0 or count > table.getn(self)) then
+        count = table.getn(self)
+    end
+
+    startIndex = math.floor(startIndex)
+    count = math.floor(count)
+
+    local s = startIndex + count - 1
+    if (s >= table.getn(self)) then
+        s = table.getn(self)
+    end
+    for i = s, startIndex, -1 do
+        if (match(self[i])) then
+            return i
+        end
+    end
+
+    return -1
+end
+
+--[[
+    @function: 对List的每个元素执行指定操作
+    @param: action 指定操作函数, 需要符合List中的元素类型才可执行， 不可省略
+    @return: 如果返回nil说明执行失败，不返回值说明执行成功
+    @example: listA:ForEach(function(x) print(x == "A") end) 
+--]]
+function List:ForEach(action)
+    if (action == nil or type(action) ~= "function") then
+        return
+    end
+
+    for k, v in pairs(self) do
+        action(v)
+    end
+end
+
+--[[
+    @function: 在源List中创建元素范围的表复制
+    @param: index 开始的索引 number型
+            count 复制元素数 number型
+    @return: table类型，指定索引以及个数的表复制
+    @example: listA:GetRange(1, 3) 
+--]]
+function List:GetRange(index, count)
+    if ((index ~= nil and type(index) ~= "number")
+    or (count ~= nil and type(count) ~= "number")) then
+        return
+    end
+
+    if (index == nil or index < 1 or index > table.getn(self)) then
+        index = 1
+    end
+    if (count == nil or count == 0 or count > table.getn(self)) then
+        count = table.getn(self)
+    end
+
+    local t = {}
+    local tIndex = 1
+    index = math.floor(index)
+    count = math.floor(count)
+
+    for i = index, index + count - 1 do
+        if (i <= table.getn(self)) then
+            t[tIndex] = self[i]
+            tIndex = tIndex + 1
+        end
+    end
+    return t
+end
+
+--[[
+    @function: 搜索指定对象并返回List中从指定索引开始并包含指定元素数的这部分元素
+               中第一个匹配项的从零开始索引
+    @param: v 指定对象
+            index 开始的索引 number型
+            count 复制元素数 number型
+    @return: number, 匹配的索引，返回-1说明未找到
+    @example: listA:IndexOf("E", 1, 5) 或listA:IndexOf("E") 
+              或listA:IndexOf("E", 2)
+--]]
+function List:IndexOf(v, index, count)
+    if ((index ~= nil and type(index) ~= "number")
+    or (count ~= nil and type(count) ~= "number")) then
+        return
+    end
+
+    if (index == nil or index < 1 or index > table.getn(self)) then
+        index = 1
+    end
+    if (count == nil or count > table.getn(self)) then
+        count = table.getn(self)
+    end
+
+    index = math.floor(index)
+    count = math.floor(count)
+
+    for i = index, index + count - 1 do
+        if (self[i] == v) then
+            return i
+        end
+    end
+    return -1
+end
+
+--[[
+    @function: 搜索指定对象并返回List中到指定索引为止包含指定元素数的这部分元素
+               中最后一个匹配项的从零开始索引
+    @param: v 指定对象
+            index 开始的索引 number型
+            count 复制元素数 number型
+    @return: number, 匹配的索引，返回-1说明未找到
+    @example: listA:LastIndexOf("E", 1, 5) 或listA:LastIndexOf("E") 
+              或listA:LastIndexOf("E", 2)
+--]]
+function List:LastIndexOf(v, index, count)
+    if ((index ~= nil and type(index) ~= "number")
+    or (count ~= nil and type(count) ~= "number")) then
+        return
+    end
+
+    if (index == nil or index < 1 or index > table.getn(self)) then
+        index = 1
+    end
+    if (count == nil or count > table.getn(self)) then
+        count = table.getn(self)
+    end
+
+    index = math.floor(index)
+    count = math.floor(count)
+
+    for i = index + count - 1, index, -1 do
+        if (self[i] == v) then
+            return i
+        end
+    end
+    return -1
+end
+
+--[[
+    @function: 将元素插入List的指定索引处
+    @param: index 插入的索引
+            v 要插入的对象
+    @return: void
+    @example: listA:Insert(2, "E")
+--]]
+function List:Insert(index, v)
+    if (index == nil or type(index) ~= "number") then
+        return
+    end
+
+    if (index < 1) then
+        index = table.getn(self) + 1
+    end
+    index = math.floor(index)
+
+    table.insert(self, index, v)
+end
+
+--[[
+    @function: 从List中移除特定对象的第一个匹配项
+    @param: v 要移除的对象
+    @return: void
+    @example: listA:Remove("E")
+--]]
+function List:Remove(v)
+    local index = self:IndexOf(v)
+    if (index > 0) then
+        table.remove(self, index)
+    end
+end
+
+--[[
+    @function: 移除List的指定索引处的元素
+    @param: index 要移除的索引
+    @return: void
+    @example: listA:RemoveAt(2)
+--]]
+function List:RemoveAt(index)
+    if (index == nil or type(index) ~= "number") then
+        return
+    end
+
+    if (index < 1 or index > table.getn(self)) then
+        index = table.getn(self)
+    end
+    index = math.floor(index)
+
+    table.remove(self, index)
+end
+
+--[[
+    @function: 移除与指定的谓词所定义的条件相匹配的所有元素
+    @param: index 要移除的索引
+    @return: 从List中移除的元素数
+    @example: listA:RemoveAll(function(x) return x == "A" end)
+--]]
+function List:RemoveAll(match)
+    if (match == nil or type(match) ~= "function") then
+        return 0
+    end
+
+    local count = 0
+    for i = table.getn(self), 1, -1 do
+        if (match(self[i])) then
+            table.remove(self, i)
+            count = count + 1
+        end
+    end
+    return count
+end
+
+--[[
+    @function: 从List移除一定范围的元素
+    @param: index 开始的索引 number型
+            count 移除元素数 number型
+    @return: void
+    @example: listA:RemoveRange(3, 3) 
+--]]
+function List:RemoveRange(index, count)
+    if ((index == nil and type(index) ~= "number")
+    or (count == nil and type(count) ~= "number")) then
+        return
+    end
+
+    index = math.floor(index)
+    count = math.floor(count)
+
+    for i = index + count - 1, index, -1 do
+        if (i <= table.getn(self)) then
+            table.remove(self, i)
+        end
+    end
+end
+
+--[[
+    @function: 将整个List中元素的顺序反转
+    @param: index, 要反转的范围的开始索引
+    @return: void
+    @example: listA:Reverse() 
+--]]
+function List:Reverse(index, count)
+    if ((index ~= nil and type(index) ~= "number")
+    or (count ~= nil and type(count) ~= "number")) then
+        return
+    end
+
+    if (index == nil or index < 1 or index > table.getn(self)) then
+        index = 1
+    end
+    if (count == nil or count == 0 or count > table.getn(self)) then
+        count = table.getn(self)
+    end
+
+    index = math.floor(index)
+    count = math.floor(count)
+
+    local num = index
+    local num2 = index + count - 1
+
+    if (self ~= nil) then
+        while (num < num2) do
+            local temp = self[num]
+            self[num] = self[num2]
+            self[num2] = temp
+            num = num + 1
+            num2 = num2 - 1
+        end
+    end
+end
+
+--[[
+    @function: 使用指定的Comparison, 对整个List中的元素进行排序
+    @param: comparison, 比较元素时使用的Comparison
+            comparison必须返回boolean，并且不能使用<=或>=会造成死循环
+    @return: void
+    @example: listA:Sort()或listA:Sort(function(x,y) return x.n > y.n end)
+--]]
+function List:Sort(comparison)
+    if (comparison ~= nil and type(comparison) ~= "function") then
+        return
+    end
+
+    if (comparison == nil) then
+        table.sort(self)
+    else
+        table.sort(self, comparison)
+    end
+end
+
+--[[
+    @function: 将List中的元素复制到新table中
+    @return: 返回带有List元素的table
+    @example: listA:ToTable()
+--]]
+function List:ToTable()
+    local t = {}
+    for k, v in pairs(self) do
+        t[k] = v
+    end
+
+    if (table.getn(t) > 0) then
+        return t
+    else
+        return nil
+    end
+end
+
+return List

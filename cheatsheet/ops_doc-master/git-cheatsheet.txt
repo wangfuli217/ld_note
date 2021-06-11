@@ -1,0 +1,89 @@
+GIT cheat sheet
+---------------
+Help : git command --help
+Config : git config (--local/--global) --help
+Global config is stored in '~/.gitconfig'
+Local config is stored in '.git/config'
+---------------
+Local/Remote
+    init    init a repository in an existing local directory
+            git init --bare : initialize a "bare" repository
+    clone   clone a distant repository
+            git clone --mirror [URL] : backup a "bare" repository
+    fetch   fetch distant updates in local storage
+            git fetch --all : fetch distant updates for all branches
+    rebase  insert distant updates in local history & sources
+            git rebase origin/[branch] : insert updates in [branch]
+    pull    fetch & insert distant updates (via merge)
+    push    push local commits to distant repository
+
+Branches/Tags
+    branch  get branches info
+            git branch --all : get a list of all branches, local and distant
+            git branch -d [BRANCH] : delete [BRANCH]
+            git branch -m [OLD] [NAEW] : rename [OLD] to [NEW]
+            git branch --track --force local-branch origin/remote-branch
+    checkout    
+            git checkout [BRANCH] : switch to [BRANCH]
+            git checkout -b [BRANCH] : create branch [BRANCH] & switch to it
+            git checkout --orphan [BRANCH] : create a new blank branch [BRANCH]
+            git checkout -- [FILE] : get [FILE] to current repository state
+            git checkout [HASH] [FILE] : get [FILE] to [HASH] commit repository state
+    tag     manage tags
+            git tag : list all tags
+            git tag -a [NAME] -m [MSG] : create a new tag named [NAME] with commit message [MSG]
+            git tag -a [NAME] -m [MSG] -u [GPGKEY] : sign a tag
+            git tag -d [NAME] : delete tag named [NAME]
+
+Commit/Sources
+    add     add a file/path to be tracked
+            git add -N [file] : add [file] but not its content
+            git add -p [file] : choose some updates in [file] to commit
+    rm      remove a tracked file from sources
+            git rm -f [file] : remove [file] from tracked sources & from filesystem
+            git rm -r [dir] : remove [dir] contents
+    commit  actually make a commit (EDITOR will be opened to write the commite message)
+            git commit -m "[message]" : add a message without EDITOR
+            git commit -a --amend : edit last commit
+            git commit --amend -c <SHA> : edit commit SHA
+
+History
+    log     see current branch's commits history
+            git log -- [file/dir] : see history only for [file/dir]
+            git log --graph --oneline --date-order --decorate --color --all : tree history
+    diff    see a diff patch from history reference
+            git diff --name-status [BRANCH1]..[BRANCH2] : see files modified between 2 branches
+            git diff --name-only --diff-filter=U : see conflicts files
+    show    show a specific commit (info + diff)
+            git show [HASH] : show the [HASH] commit
+            git show [HASH]:[FILE] : show the [HASH] commit for [FILE]
+    blame   see history by author
+    reset   reset local updates to go back to last commit state
+            git reset --hard : reset all sources to last commit
+    revert  revert commits creating a new one (anti-commit)
+            git revert HEAD : revert last commit
+            git revert [HASH] : revert [HASH] commit
+    cherry-pick insert a commit (from other branch)
+            git cherry-pick --continue : end a cherry-pick after conflicts resolving
+
+Submodules
+    submodule add [URL] [PATH] : add the new [URL] submodule in [PATH]    
+    submodule init : initialize existing submodules after clone creation
+    submodule update : fetch submodules updates
+
+Config
+    ~/.gitconfig        : global user configuration file
+    .../.git/config     : per-project configuration file
+    .../.gitignore      : per-project ignore masks
+    .../.gitmodules     : per-project submodules references
+    git config --help   : see all configuration entries
+
+Aliases
+    # gitk emulation
+    git log --oneline --decorate --pretty=tformat:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)%cN <%cE>%Creset' --graph --date-order --full-history --all --color
+    # thiner for current branch only
+    git log --oneline --decorate --pretty=tformat:'%Cred%h%Creset -%C(bold yellow)%d%Creset %s %Cgreen(%ci) %C(bold blue)%cN%Creset'
+    # changelog history
+    git log --oneline --decorate --pretty=tformat:'* %Cred%h%Creset -%C(bold yellow)%d%Creset %s (%C(bold blue)%cN <%cE>%Creset)' --first-parent --no-merges
+    # current branch
+    git rev-parse --abbrev-ref HEAD

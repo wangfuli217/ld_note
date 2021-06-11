@@ -1,0 +1,1 @@
+#SUBDIRS=[LibraryName] ### Add sub-Libraries here!!

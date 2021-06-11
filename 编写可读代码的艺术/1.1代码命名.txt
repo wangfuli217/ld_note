@@ -1,0 +1,154 @@
+关键思想
+  把信息装入名字中。把名字当做一条小小的注释。 -> 有目的的使用大小写、下划线等 -> 是什么，做什么，怎么用
+    1. 选择专业的词 <-> 避免使用空洞的词
+    2. 避免泛泛的名字
+    3. 用具体的名字替代抽象的名字
+    4. 使用前缀或者后缀给名字附带更多信息
+    5. 决定名字的长度
+    6. 利用名字的格式来表达含义
+    7. ext.使用读的出来的名称
+           使用可搜索的名称（便于搜索）
+           类名应该是名词或名词短语：Customer、WikiPage、Account和AddressParser。避免使用Manager、Processor、Data或Info这样的类名
+           方法名应当是动词或动词短语：postPayment、deletePage或save
+           每个概念对应一个词 : 使用函数的参数列表中形参的名称，概念会更统一
+           别用双关语 : 避免将同一单词用于不同目的。否则，会造成理解和使用的不便。
+           使用计算机领域术语 : 尽管用计算机术语，算法名，模式名，数学术语把。因为程序是给程序员看的
+           如果不能使用计算机领域术语，就是用问题域术语
+    8. 取好名字最难的地方在于需要良好的描述技巧和共有文化背景。
+  2->清晰和精确比装可爱好。
+    1. 好的名字应当描述变量的目的或者它所承载的值。
+    2. retval没有包含很多信息。用一个描述该变量的值的名字来代替它
+    3. tmp_<type> 只应用于短期存在且临时性为其主要存在因素的变量
+    4. <type>i 或者<type>_i 应用于多层遍历
+  3->为名字附带更多的信息
+    hex_id, start_ms, plainttext_password, unescaped_comment html_utf8 data_urlenc
+    1. 如果这是一个需要理解的关键信息，那就把它放在名字里。
+  5-> 在小作用域中使用短的名字，相反在大作用域中使用长名字
+    1. 团队的新成员能否理解这个名字的含义? 缩略词和缩写
+  ext.名副其实
+      一旦发现有更好的名称，就换掉旧的
+      如果名称需要注释来补充，那就不算是名副其实
+      
+代码命名
+  选择专业的词
+    get 根据情境，用FetchPage()或者DownloadPage()代替getPage()
+    size() 在树中应该用height()表示高度，numNodes()表示节点数，用memoryBytes()表示内存中所占的空间
+    getPage -> 空洞的词 ->FetchPage或者DownloadPage从互联网获得。
+        loadPage                从本地缓存获取一个
+        queryPage               从数据库获取一个
+        fetchPage|downloadPage  在互联网上抓取一个
+    BinaryTree::size  -> 空洞的词 -> 树的高度，节点数，内存中所占的空间?
+        height                  高度
+        NumNodes                节点数
+        MemoryBytes             树在内存中所占的空间
+    Thread::Stop                
+        kill                    重量级操作，不能恢复
+        pause                   如果有方法可以resume
+    找到更有表现力的词
+      send     deliver 分发、dispatch 派遣、announce 宣布、distribute 分布，散布、route 路由按路线可达
+      find     search查找、extract 提取、locate 定位、recover 恢复，重新获得
+      start    launch 启动、create、begin、open
+      make     create、set up、build、generate、compose 构成，作曲、add、new
+    避免像泛泛的名字 -> 像tmp、retval、foo，除非使用它们有特殊的理由。
+      某些情况使用空泛的名字也有好处，比如说在交换两个变量的时候使用tmp，在循环迭代器中使用i、j、iter，
+      但是在嵌套的循环中，加上有意义的前缀使之更能相互区分
+    用具体的名字代替抽象的名字 ServerCanStart() 这个名字就比CanListenOnPort更不清楚
+      DISALLOW_EVIL_CONSTRUCTORS(ClassName) EVIL表达意义不明确
+      DISALLOW_COPY_AND_ASSIGN(ClassName)   COPY_AND_ASSIGN表达清晰
+    为名字附带更多的信息  -> 
+      如果一个id是十六进制的，可以命名为hexId  格式信息
+      带单位的值最好附带上单位                 单位信息
+      函数参数 	                    带单位的参数
+      start(int delay) 	            delay --> delay_secs
+      createCache(int size) 	    size --> size_mb
+      throttleDownload(float limit) limit --> max_kbps
+      rotate(float angle) 	        angle --> degree_cw
+      
+      附带额外信息不仅限于单位，比如其他属性：
+      情形 	变量名 	更好的名字
+      一个"纯文本"格式的代码，需要加密后才能进一步使用 	password 	plaintext_password
+      一条用户提供的注释，需要转义之后才能用于显示 	    comment 	unescaped_comment
+      已转化为UTF-8格式的html字节 	                    html 	    html_utf8
+      以"url方式编码"的输入数据 	                    data 	    data_urlenc
+        
+    名字的长度
+      d, days, days_since_last_update
+      1. 在小作用域中使用短的名字，相反在大作用域中使用长名字
+      2. 现代编辑器能方便使你键入长名字
+      doc代替document、str代替string、eval代替evaluation
+      3. 首字母缩略词和单词缩写应该是大家普遍接受和理解的，
+      toString代替ConvertToString、ServeLoop代替DoServeLoop、作为类，Product替代ProductData和ProductInfo
+      4. 丢掉没用的词，这样也没有丢失任何信息 
+          ext. 做有意义的区分
+          只要体现出区别，a, the 这样的前缀就没错。比如a要做局部变量的前缀，the用作参数的前缀。
+          但是如果已经有了zork的变量，再有theZork的变量，麻烦就来了
+      5. 利用名字的格式来传递含义 Google开源项目格式规范c++规范
+    
+    不会误解的名字
+      1. 关键思想：要仔细审视名字，"这个名字会被别人误解成其他含义吗"
+      result = Database.all_objects.filter("year <= 2011")
+        年份小于或等于2011年的对象？
+        年份不小于或等于2011年的对象？
+      def Clip(text, length) -> Truncate(text, length) -> max_length -> max_chars
+        从尾部删除Length的长度
+        截掉最大长度为length的一段
+      1. 当要定一个值的上线或者下限时，max_和min_是很好的前缀  用于判断
+      2. 对于包含的范围，使用first和last是很好的选择           用于遍历
+      3. 对于包含/排除的范围，begin和end是常用的选择           时间比较
+      4. 命名应与使用者的期望相匹配，例如：get*()|size()是个"轻量级访问器"，list.size()应该是一个*O(1)*复杂度的操作
+      5. 很多单词在用来编程时是多义性的，例如filter、length和limit
+      6. 给布尔值命名
+      变量命名：need, user_is 最好避免使用反义词disable_ssl，use_ssl更简单易读
+      1. 所有字符都使用小写
+         含义多的可以用 _ 进行辅助
+         以 = 为标准进行对齐
+         类型， 变量名左对齐。
+         等号左右两端，最少有一个空格。
+         # 为了防止指针声明定义时候出错，将 * 紧贴着变量名总不会出错。
+      函数命名：加上像is, has, can should这些词，可以把布尔值变得更明确
+      template 指代抽象事物，必须先填充之后才会变得具体
+      reuse    重复使用  reuse_id
+      copy     copy_experiment
+      inherit  继承之后可以重复修改
+      1. 前缀：
+        set 可以表示设置一个参数为某值
+        get 可以表示获取某一个参数的值
+        is 可以表示询问是否是这种情况
+      2. 后缀：
+        max/min 可以表示某种操作的最大(小)次数
+        cnt 可以表示当前的操作次数
+        key 某种关键值
+            size_t get_counts(); 
+            size_t retry_max(); 
+            int is_empty();
+        尽量不要让函数返回值直接作为条件语句的判断，这样会极大降低可读性
+      define
+        所有字符都是用大写，并用 _ 进行分割
+        如果多于一个语句，使用　do{...}while(0) 进行包裹，防止 ; 错误。
+      enum
+        所有字符都是用大写，并用 _ 进行分割
+        与 define 相比，enum适用于同一类型的常量声明，而不是单一独立的常量。往往出现都是成组。
+      switch
+        一定要放一个 default 在最后，即使它永远不会用到。
+        每个 case 如果需要使用新变量，可以用 {} 包裹起来，并在里面完成所有操作。
+      浮点数
+         万万记住不要再使用浮点数比较彼此是否相等或不等。
+         不把无符号类型变量和有符号类型变量放于同一运算中，时刻记得保持式子的类型一致是设计时的保障。
+    ext.避免误导
+     必须避免留下掩藏代码本意的错误线索。
+        例如hp, aix, sco都不该用作变量名，因为它们都是UNIX平台或类UNIX平台的专有名称。所以不该作为变量，比如三角计算程序
+        别用accoutList来指代一组账号，除非他真是List类型。直接用accounts更好更直接。
+      避免使用不同之处较小的名称，区分会很难
+      以同样的方式拼写出同样的概念才是信息，拼写前后不一致就是误导。
+    ext.避免使用编码
+      1. 在计算机硬件不成熟的年代，有对变量名长度的约束，而且不进行类型检测。
+         所以出现了匈牙利语标记法，即类型加数字。
+         但是现在的强类型语言会知道类型而且编译器会优化变量长度。继续使用这种编码命名会带来更改的困难和阅读的困难。
+      2. 如果无法区分接口和实现类，那么把接口命名为原名称，实现类加后缀 Impl
+    ext.添加有意义的语境
+      1. 分散的名称很难自我说明，所以需要良好命名的类，函数或名称空间来放置名称。
+         例如，firstName，lastName，street，houseNumber，city，state，zipcode放在一起很明确构成地址，
+         但是分散开便不知其意。可以使用addr前缀标明他们的意义，但是不便于搜索，更好的方式是添加Address类。
+      2. 不要添加没用的语境
+         增加检索难度
+        

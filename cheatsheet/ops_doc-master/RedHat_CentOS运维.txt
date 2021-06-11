@@ -1,0 +1,254 @@
+
+linker：http://www.talkwithtrend.com/Article/178137
+        https://linux.cn/article-5670-1.html
+        
+安装部署
+    方式：U盘，光盘和网络安装
+    其中网络安装已经成为了目前批量部署的首选方式：主要工具有Cobbler和PXE+kickstart
+    可以参考如下链接内容：
+    http://www.cnblogs.com/mchina/p/centos-pxe-kickstart-auto-install-os.html
+    
+初始化配置
+    禁用服务
+        chkconfig --level 35 iptables off
+        chkconfig --level 35 ip6tables off
+        service iptables stop
+        chkconfig --level 35 postfix off
+    禁用SeLinux
+        vi /etc/selinux/config SELINUX=disabled
+    配置YUM源配置
+        [root@rhel63 yum.repos.d]# vi local.repo 
+        [local]
+        name=local
+        baseurl=file:///mnt/Server
+        enabled=1
+        gpgcheck=0
+        可以配置为光盘，内部YUM源或EPEL等
+
+    常用软件安装
+        # yum install ftp telnet make imake gcc compat-libstdc++-33 gcc-c++ libstdc++ libXp kernel kernel-devel kernel-headers rsh ksh lsof openssh-clients -y
+        # yum install iptraf.x86_64 unzip.x86_64 libaio.x86_64 eject sysfsutils dmidecode pciutils dstat lsscsi -y
+    安装xwindows
+        # yum groupinstall "X Window System" -y
+        # yum groupinstall Desktop -y (可以不安装桌面） 
+        # yum install xorg-x11-apps -y (包含xclock）
+    配置ntp
+        */10 * * * * /usr/sbin/ntpdate 10.0.0.1
+        Crontab 添加如上记录，指定内部ntp服务器
+    SSH 登录设置
+        修改ssh 禁用DNS 选项:
+        echo "UseDNS no" >> /etc/ssh/sshd_config service sshd restart
+        添加允许指定用户登录：
+        echo "AllowUsers user1" >> /etc/ssh/sshd_config
+        service sshd restart
+    上传扫描工具
+        rescan-scsi-bus.sh
+        网络上有该脚本，下载自行使用
+    修改历史记录格式
+        echo "export HISTTIMEFORMAT='%F %T'" >> /etc/profile
+安全加固
+    本次安全加固内容主要参考的是Redhat和Centos系列版本系统：
+    参考链接
+    http://www.centoscn.com/CentosSecurity/CentosSafe/2015/0315/4881.html
+    
+    注释掉系统不需要的用户和用户组
+        注意：不建议直接删除，当你需要某个用户时，自己重新添加会很麻烦。
+        cp  /etc/passwd  /etc/passwdbak   #修改之前先备份
+        vi /etc/passwd  #编辑用户，在前面加上#注释掉此行
+        #adm:x:3:4:adm:/var/adm:/sbin/nologin
+        #lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+        #sync:x:5:0:sync:/sbin:/bin/sync
+        #shutdown:x:6:0:shutdown:/sbin:/sbin/shutdown
+        #halt:x:7:0:halt:/sbin:/sbin/halt
+        #uucp:x:10:14:uucp:/var/spool/uucp:/sbin/nologin
+        #operator:x:11:0:operator:/root:/sbin/nologin
+        #games:x:12:100:games:/usr/games:/sbin/nologin
+        #gopher:x:13:30:gopher:/var/gopher:/sbin/nologin
+        #ftp:x:14:50:FTP User:/var/ftp:/sbin/nologin#注释掉ftp匿名账号 
+        cp /etc/group   /etc/groupbak   #修改之前先备份
+        vi /etc/group  #编辑用户组，在前面加上#注释掉此行
+        #adm:x:4:root,adm,daemon
+        #lp:x:7:daemon,lp
+        #uucp:x:14:uucp
+        #games:x:20:
+        #dip:x:40:
+    
+    关闭系统不需要的服务
+        service acpid stop  chkconfig acpid off   #停止服务，取消开机启动  #电源进阶设定，常用在 Laptop 上
+        service autofs stop  chkconfig autofs off  #停用自动挂载档桉系统与週边装置
+        service bluetooth stop  chkconfig  bluetooth  off #停用Bluetooth蓝芽
+        service cpuspeed stop  chkconfig  cpuspeed  off   #停用控制CPU速度主要用来省电
+        service cups stop   chkconfig cups off    #停用 Common UNIX Printing System 使系统支援印表机
+        service ip6tables stop  chkconfig ip6tables off   #禁止IPv6
+        如果要恢复某一个服务，可以执行下面操作
+        service acpid start  chkconfig acpid on
+        ## 禁止非root用户执行/etc/rc.d/init.d/下的系统命令禁止非root用户执行/etc/rc.d/init.d/下的系统命令
+        chmod -R 700 /etc/rc.d/init.d/*
+        chmod -R 777 /etc/rc.d/init.d/*    #恢复默认设置
+        
+    给下面的文件加上不可更改属性，从而防止非授权用户获得权限
+        chattr +i /etc/passwd
+        chattr +i /etc/shadow
+        chattr +i /etc/group
+        chattr +i /etc/gshadow
+        chattr +i /etc/services    #给系统服务端口列表文件加锁,防止未经许可的删除或添加服务  
+        lsattr  /etc/passwd   /etc/shadow  /etc/group  /etc/gshadow   /etc/services   #显示文件的属性 
+        注意：执行以上权限修改之后，就无法添加删除用户了。
+        如果再要添加删除用户，需要先取消上面的设置，等用户添加删除完成之后，再执行上面的操作  
+        chattr -i /etc/passwd     #取消权限锁定设置
+        chattr -i /etc/shadow
+        chattr -i /etc/group
+        chattr -i /etc/gshadow
+        chattr -i /etc/services   #取消系统服务端口列表文件加锁
+        现在可以进行添加删除用户了，操作完之后再锁定目录文件
+        
+    限制不同文件的权限
+        chattr +a .bash_history           #避免删除.bash_history或者重定向到/dev/null
+        chattr +i .bash_history 
+        chmod 700 /usr/bin                恢复  chmod 555 /usr/bin 
+        chmod 700 /bin/ping              恢复  chmod 4755 /bin/ping
+        chmod 700 /usr/bin/vim         恢复  chmod 755 /usr/bin/vim
+        chmod 700 /bin/netstat          恢复  chmod 755 /bin/netstat
+        chmod 700 /usr/bin/tail          恢复  chmod 755 /usr/bin/tail
+        chmod 700 /usr/bin/less         恢复  chmod 755 /usr/bin/less
+        chmod 700 /usr/bin/head       恢复  chmod 755 /usr/bin/head
+        chmod 700 /bin/cat                恢复  chmod 755 /bin/cat
+        chmod 700 /bin/uname          恢复  chmod 755 /bin/uname
+        chmod 500 /bin/ps                 恢复  chmod 755 /bin/ps
+        
+    禁止使用Ctrl+Alt+Del快捷键重启服务器
+        cp /etc/inittab  /etc/inittabbak
+        vi /etc/inittab    #注释掉下面这一行
+        #ca::ctrlaltdel:/sbin/shutdown -t3 -r now
+        
+    使用yum update更新系统时不升级内核，只更新软件包
+        注意：由于系统与硬件的兼容性问题，有可能升级内核后导致服务器不能正常启动，这是非常可怕的，没有特别的需要，建议不要随意升级内核。
+        cp /etc/yum.conf    /etc/yum.confbak
+        1、修改yum的配置文件 vi /etc/yum.conf  在的最后添加 exclude=kernel*
+        2、直接在yum的命令后面加上如下的参数：
+        yum --exclude=kernel* update
+        查看系统版本  cat /etc/issue
+        查看内核版本  uname –a
+        
+    关闭Centos自动更新
+        chkconfig --list yum-updatesd  #显示当前系统状态
+        yum-updatesd    0:关闭  1:关闭  2:启用  3:启用  4:启用  5:启用  6:关闭    
+        service yum-updatesd stop      #关闭  开启参数为start
+        停止 yum-updatesd：                                        [确定] 
+        service yum-updatesd status   #查看是否关闭
+        yum-updatesd 已停 
+        chkconfig --level 35 yum-updatesd off  #禁止开启启动（系统模式为3、5）
+        chkconfig yum-updatesd off  #禁止开启启动（所有启动模式全部禁止）  
+        chkconfig --list yum-updatesd  #显示当前系统状态
+        yum-updatesd    0:关闭  1:关闭  2:启用  3:关闭  4:启用  5:关闭  6:关闭
+        
+    关闭多余的虚拟控制台
+    我们知道从控制台切换到 X 窗口，一般采用 Alt-F7 ，为什么呢？因为系统默认定义了 6 个虚拟控制台，
+    所以 X 就成了第7个。实际上，很多人一般不会需要这么多虚拟控制台的，修改/etc/inittab ，注释掉那些你不需要的。
+        cp  /etc/inittab  /etc/inittabbak
+        vi /etc/inittab
+        # Run gettys in standard runlevels
+        1:2345:respawn:/sbin/mingetty tty1
+        #2:2345:respawn:/sbin/mingetty tty2
+        #3:2345:respawn:/sbin/mingetty tty3
+        #4:2345:respawn:/sbin/mingetty tty4
+        #5:2345:respawn:/sbin/mingetty tty5
+        #6:2345:respawn:/sbin/mingetty tty6
+        
+    修改history命令记录   
+        cp /etc/profile   /etc/profilebak
+        vi /etc/profile
+        找到 HISTSIZE=1000 改为 HISTSIZE=50
+
+    隐藏服务器系统信息
+    在缺省情况下，当你登陆到linux系统，它会告诉你该linux发行版的名称、版本、内核版本、服务器的名称。
+    为了不让这些默认的信息泄露出来，我们要进行下面的操作，让它只显示一个"login:"提示符。
+    删除/etc/issue和/etc/issue.net这两个文件，或者把这2个文件改名，效果是一样的。
+        mv  /etc/issue /etc/issuebak
+        mv  /etc/issue.net   /etc/issue.netbak
+        
+    优化Linux内核参数
+        cp /etc/sysctl.conf  /etc/sysctl.confbak
+        vi /etc/sysctl.conf    #在文件末尾添加以下内容
+        net.ipv4.tcp_max_syn_backlog = 65536
+        net.core.netdev_max_backlog =  32768
+        net.core.somaxconn = 32768
+        net.core.wmem_default = 8388608
+        net.core.rmem_default = 8388608
+        net.core.rmem_max = 16777216
+        net.core.wmem_max = 16777216
+        net.ipv4.tcp_timestamps = 0
+        net.ipv4.tcp_synack_retries = 2
+        net.ipv4.tcp_syn_retries = 2
+        net.ipv4.tcp_tw_recycle = 1
+        #net.ipv4.tcp_tw_len = 1
+        net.ipv4.tcp_tw_reuse = 1
+        net.ipv4.tcp_mem = 94500000 915000000 927000000
+        net.ipv4.tcp_max_orphans = 3276800
+        #net.ipv4.tcp_fin_timeout = 30
+        #net.ipv4.tcp_keepalive_time = 120
+        net.ipv4.ip_local_port_range = 10024  65535  #（表示用于向外连接的端口范围。缺省情况下很小：32768到61000  注意：这里不要将最低值设的太低，否则可能会占用掉正常的端口！ ）
+        /sbin/sysctl -p   #使配置立即生效
+        
+    系统优化
+        cp  /etc/profile  /etc/profilebak2
+        vi /etc/profile      #在文件末尾添加以下内容
+        ulimit -c unlimited
+        ulimit -s unlimited
+        ulimit -SHn 65535   
+        source  /etc/profile    #使配置立即生效
+        ulimit -a    #显示当前的各种用户进程限制
+        
+    服务器禁止ping
+        cp  /etc/rc.d/rc.local  /etc/rc.d/rc.localbak     
+        vi  /etc/rc.d/rc.local        #在文件末尾增加下面这一行
+        echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_all
+        参数0表示允许   1
+        
+    检查口令策略设置是否符合复杂度要求
+        cp -p /etc/pam.d/system-auth /etc/pam.d/system-auth_bak
+        vi /etc/pam.d/system-auth
+        可使用pam pam_cracklib module或pam_passwdqc module实现密码复杂度，两者不能同时使用
+        password    requisite     pam_cracklib.so dcredit=-1 ucredit=-1 lcredit=-1 ocredit=-1 minclass=2 minlen=8
+        password    sufficient    pam_unix.so md5 shadow nullok try_first_pass use_authtok
+        
+    检查登录提示-是否设置登录成功后警告Banner
+    修改文件/etc/motd的内容，如没有该文件，则创建它。
+        #echo " Authorized users only. All activity may be monitored and reported " > /etc/motd
+
+    检查是否设置登录超时
+        执行备份：
+            cp -p /etc/profile /etc/profile_bak
+            cp -p /etc/csh.cshrc /etc/csh.cshrc_bak
+        修改/etc/csh.cshrc文件，添加如下行：
+        set autologout=30
+        改变这项设置后，重新登录才能有效
+        
+五 多路径设置
+    随着X86 环境的普及化，Linux 的市场占有率也越来越高，为了方便后续的设备管理我们和Linux 自带多路径软件的成熟化，我们在日常的设备多路径软件选择方面经常会首先考虑使用DM 软件，本次多路径设置主要是结合REDHAT和CENTOS自带软件DM--- Multipath
+    参考链接：
+    http://www.aixchina.net/Question/229227
+    
+    
+OS 系统异常性能指标获取
+    CPU占用最高的10个进程
+        ps axww -o user,pid,pcpu,pmem,start,time,comm | head -1;ps axww -o user,pid,pcpu,pmem,start,time,comm  | grep -v PID |  sort -nr -k 3 | head
+        ps aux|head -1;ps aux|grep -v PID|sort -rn -k +3|head
+        ps auxw|head -1;ps auxw|sort -rn -k3|head -10
+    内存占用最高的10个进程
+        ps axww -o user,pid,pcpu,pmem,start,time,comm | head -1 ;ps axww -o user,pid,pcpu,pmem,start,time,comm  | grep -v PID |  sort -nr -k 4 | head
+        ps aux|head -1;ps aux|grep -v PID|sort -rn -k +4|head
+        ps auxw|head -1;ps auxw|sort -rn -k4|head -10
+    虚拟内存使用最多的前10个进程
+        ps auxw|head -1;ps auxw|sort -rn -k5|head -10
+    查看系统负载
+        dstat --top-mem --top-io --top-cpu --nocolor 1 10
+    统计当前连接数
+        ss -an | grep -v "State" | awk '{++S[$1]} END {for(a in S) print a, S[a]}'
+        netstat -tan  | awk '/^tcp/ {++S[$NF]} END {for(a in S) print a, S[a]}'
+    当前连接数最多的10个进程
+        ss -tnp | grep -v "State" | awk '{print $6}' | awk -F '"' '{print $2}' | awk '{++S[$1]} END {for(a in S) print a, S[a]}' | sort -nr -k2 | head
+        netstat -tnp | grep -v "Active" | grep -v "TIME_WAIT" | grep -v "State" | awk -F '/' '{print $NF}' | awk '{++S[$1]} END {for(a in S) print a, S[a]}' | sort -nr -k2 | head
+        
+        
+        

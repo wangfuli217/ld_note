@@ -1,0 +1,310 @@
+http://www.cplusplus.com/   所有C++11的新特性都可以在这个网址找到example
+《Effective Modern C++》
+<C+++Primer>中文第5版
+
+
+
+C++11的三个重点特性：1)资源管理 RAII (smart pointer/ shared_ptr ), 再也不用担心内存泄露，RAII的核心是构造和析构函数的自动调用；
+                    2)回调函数(bind/function):做到真正的面向接口编程，摆脱了classType&&functionName&&functionParameters的约束，避免引入继承耦合, 不再需要多态, 这个feature使得task(回调函数)的传递非常方便,在多线程编程的Reactor模式中得到最佳应用；
+回调：用户实现回调函数，框架来调用它，回调函数的实参由2个地方提供：调用方 和 bind(),  因为function对象具有保存数据的功能；
+                     3)移动语义：移动对象，而非拷贝对象 ，本质是接管动态内存，极大提升STL容器和算法的性能，这样某些情况下Func(T)的效率和Func(const T&) 一样了，自定义类需要定义移动拷贝函数才能发挥作用；
+  
+用的比较多的C++11特性: auto, nullptr, using, initializelist{}, lambda function, shared_ptr/unique_ptr, std::move()/rvalue;
+   auto 关键字是非常方便的，也是用的最多的，编译器在编译期间会自动推导出auto类型；decltype用于推断函数类型。
+  其它新增关键字如： default/delete(构造析构函数)，  初始化列表 { } 用在对容器初始化非常方便。
+ 
+0. smart pointer: shared_ptr, weak_ptr, uqique_ptr, ;这些都是值语义， 用来管理动态资源，包括内存，socket connection, 
+   shared_ptr<T> : 有多个owner,可拷贝， 有一个构造函数是模板函数，可以接收用户定义的delete函数对象，但这个delete不能直接保存(因为类没有定义模板参数)，而是转换为函数对象，因为函数对象的本质就是提供了一个函数地址(&operator())+对象数据;
+   unique_ptr<T, DELETE>：有唯一的owner, 不可拷贝，但支持移动拷贝(std::move(unique_ptr))，和shared_ptr不同，因为提供了DELETE模板参数，可以直接保存delete函数对象；
+   如果要支持多态，在容器中应该保留智能指针而非对象，且T类型是接口类型，eg: vector<shared_ptr<T>>;  好于 vector<T*>; 不建议使用: vector<T>
+   shared_ptr: 应用于多线程时，可有效防止资源泄露，不过需要加锁来访问共享资源；
+   shared_ptr<T>本身析构时，会递减引用计数，如果计数递减到0，则会进一步析构所指对象T;  shared_ptr  support operator-> and operator*;
+   weak_ptr: 可拷贝，用在避免循环引用的场景，和shared_ptr配合； weak_ptr don't support operator-> and operator*;
+   auto_ptr : 过时了，在C++11中，auto_ptr不支持了；
+   scoped_ptr: 在C++11中不存在，只有boost支持，等效于 const unique_ptr;
+   记住：一定不要用shared_ptr创建匿名对象，否则立马就释放资源，不要这样做： shared_ptr<T>(new T(x));  应该这样：shared_ptr<T> ptrName(new T(x));
+   比较不同pointer:  unique_ptr, shared_ptr, weak_ptr, scoped_ptr, raw pointers : https://www.fluentcpp.com/2017/08/25/knowing-your-smart-pointers/ 
+   注意：1.不要这样使用： shared_ptr<T>* p = new shared_ptr<T>(new Foo); 直接定义shared_ptr 对象就好了，因为它们都是值语义 ；
+             2.如果这些智能指针是对象X的成员，而模板参数T是forward declare，那么X的析构函数不能是默认的或者内联的，必须在cpp中显示定义，否则会有编译错误或者运行错误；
+             3.shared_ptr本身的线程安全和STL容器一样，如果多个线程同时访问同一个shared_ptr（比如全局shared_ptr）, 则需要加锁，参考《muduo》;
+             4.shared_ptr不能跨进程（不能跨OS，不能跨网络），因为内部有个指针，必须要在同一个进程地址空间才有意义；
+             5.shared_ptr<void> , tie 用于延长生命期??
+
+1.type traits(decltype): Type traits are series of classes that provide information about types at compile time.
+
+1.static_assert(), 编译期assert， eg: static_assert(Size < 3, "Size is too large"); include <type_traits>
+
+2.Lambdas expressions replace function object(匿名函数对象), 定义一个lambda表达式，[]{}是必不可少的, ()可以没有;
+  eg:
+    auto is_odd = [](int n) {return n%2==1;};  
+    auto pos = std::find_if(std::begin(v), std::end(v), is_odd);
+    auto valid = [this](size_t i){ return i < this->size(); } ; 在成员函数内部定义的lambdas如果要调用本类的成员函数，必须捕获this;
+    [](int x) -> int {return x*x;}
+    其实C++11里面最好用的还是std::function/bind,   mem_fn(), 可以做到真正的面向接口编程，而不用受对象类型的约束；   
+    bind()的本质是把代码和数据保存，对象以参数的方式传入。bind可以嵌套，分步传递参数 bind(bind(&func, _1,_2), value,_1);
+    mem_fn()只适用成员函数， std::function/bind 适用C函数，Static函数，成员函数。
+   C++不支持函数内定义有名函数，但是可以在函数内定义lambda表达式，得到匿名函数并返回给外界使用，比如decorator模式的替换实现：
+function func_make(func1)
+{
+  auto fun2 = [](args) -> returnType
+     {
+      //extra code
+     //func1(args)
+     //extra code
+     }
+  return func2;
+}
+
+2.bind/function: bind可以剥离class类型和方法名的约束(这些方法甚至可以有不同的参数个数)，让不同class的方法对用户提供一致接口调用，比如bind(&classA::funcA, &objA, _1), bind(&classB::funcB, &objB, _1)得到的是一样的类型function<void fun(arg)>，用户使用function的时候完全看不到classA,classB的存在，那function是怎么知道要执行classA还是B的函数呢，是因为function内部保存了函数地址和数据指针；function支持拷贝和移动，可以当做一个task放入taskQueue；
+function<out (in)>是个模板类，只关注输入输出，内部会分配动态内存来保存bind的参数，可以用容器保存function对象, eg: vector<std::function<void ()>>, 这就是一个taskQueue;
+function的数据成员就是2个指针，一个指向函数，一个指向数据，function执行完后数据会自动释放；陷阱：如果在bind时传递shared_ptr可能会导致内存泄露???
+function支持bool判断，if(funcObj) 对于默认构造的function,if不成立；bind可以嵌套使用；有了function,那些依赖继承的设计模式都不需要了。
+function初始化接收callable对象：
+  std::function<int(int)> fn0 = nullptr;                    //nullptr  or :    std::function<int(int)> fn0
+  std::function<int(int)> fn1 = half;                    // c function
+  std::function<int(int)> fn2 = &half;                   // c function pointer
+  std::function<int(int)> fn3 = Half();                  // function object
+  std::function<int(Class&)> fn4 = &Class::half;  // C++ member function
+  using Comparator = std::function<bool (const T&, const T&)>;
+
+//////////example : bind rvalue 这个例子是性能比较好的，避免msg拷贝的方式
+void TcpConnection::send(std::string&& msg) //用户把消息发出去就不再使用msg了，所以用&&
+{
+    loop_->runInLoop(std::bind(&TcpConnection::sendInLoop, this, std::move(msg))); //这里使用move把msg移到拷贝到function对象内部;
+}
+
+void TcpConnection::sendInLoop(const std::string & msg) //这里的msg在运行时引用function对象内部保存的msg,  可以是&, 但不能是&&; 函数执行完function对象的数据会自动释放；
+{
+}
+
+3.overide/final keyword in base/derived class: enhance security, eg: virtual void f(short) override /*final*/{} ;
+  final: prohibit derive class from this class; 这是在模仿java;
+
+4. range_for: 非常好的一个特性，可以用于 ： 自定义array, vector, string,map,set . 不适合stack,因为stack没有迭代器.
+
+    for (auto& v : container) // v 是container 里面的元素，如果container 为空，则不会执行；container 可以是自定义array, vector;    auto& 是建议用法；
+    {
+        os << v << ' ';
+    }
+    std::begin()/end() works with all STL container;
+    用range_for处理多维数组的时候，除了最内层的循环，其它所有循环的控制变量的类型都应该是引用类型；
+
+5.枚举：enum 全局作用域，enum class 限定作用域
+  enum class" to support same name in different enum class:
+  enum class CAR_ENUM {MIN, MID, BIG}; //usage:  CAR_ENUM car = CAR_ENUM::MIN
+  enum class BIKE_ENUM {MIN, MID, BIG}; // compile pass
+  循环里用enum: for(auto e = enum_start; e < enum_last; e = static_cast<enumX>(e + 1))
+
+6. “default” and “delete” keyword in class design, eg:
+    class X
+    {
+    public:
+        X() = default;
+        X(const X&) = delete; //equal to set private;
+        const X& operator=(const X&) = delete;
+
+        ~X() = default;
+
+    }   
+
+7.decltype 获取变量类型（静态）:
+  typedef decltype(C::member) type;
+  decltype((variable))总是表示引用类型，而 decltype(variable) 只有当variable本身是引用类型时才是引用，所以decltype很危险；
+  for(decltype(s.size()) i=0; i<s.size(); ++i) s[i] = toupper(s[i]); 把字符串改成大写
+
+  auto&&decltype区别: auto是根据右值来推断左值类型且无歧义，用auto定义的变量必须初始化， 而 decltype定义的变量不需要初始化；
+  区别举例:  int a[]={1,2}; auto b(a);等效于auto b(&a[0]),b is int*; decltype(a) c={3,4}; c is int array;
+  联合使用： auto i = func(); decltype(i) j = {1,2};//这里不能使用auto j = {1,2}; 因为j 可能是vector<int>也可能是pair<int,int>;
+
+ typeof(((structA*)0)->b) c = 1; //typeof() 是静态编译期获取类型；
+
+  typedef ClassA::ClassB  ClassC; //类型成员
+
+7.typeid: 运行时获取对象的类型 typeid(*ptr) 是ptr真实指向的对象的类型, 而 decltype 是静态的获取对象的类型；
+  if(typeid(*ptr) == typeid(ClassA)) //判断ptr是否指向了一个ClassA实例；
+
+8.自定义类型(using&&typedef) : 尽量用using, 不用typedef
+  typedef unsigned int u32; 等效于 using u32 = unsigned int; 注意template在using前面
+   template<typename Compare> using PrioQueue = std::priority_queue<int, vector<int>, Compare>;
+   template<size_t M, size_t N, typename T> using ArrayMN = std::array<std::array<T,N>, M>; //ArrayMN<3,2,int> arr ==== int arr[3][2];
+
+9.sizeof(classA::member): 通过作用域来获取成员大小，C++11支持；
+
+10.委托构造函数(链构造函数，复用)：C++11支持在构造函数初始值列表中(不是在构造函数体)调用本类的其它构造函数；
+    C++11统一使用{}来构造初始化对象: class obj = {args};
+
+11.尾部返回类型: 把函数的返回类型放在 ->后面，在原来的位置用auto，一般用于返回类型比较复杂的地方
+   eg1： auto func(int)  ->  int (*)[10]; 返回一个指针，指向数组int[10]
+
+eg2:  返回元素拷贝
+template<typename It>
+  auto func(It iter)  ->  typename remove_reference<decltype(*iter)>::type
+  { return *iter;}
+
+12.nullptr: <cstdlib> 代替NULL, 可以和shared_ptr使用： shared_ptr<T> sp(nullptr); if(sp == nullptr); sp = nullptr;
+
+13.begin()/end(): 非成员函数，对所有容器适用,不过优先使用容器提供的成员函数版本；
+
+14.可变模板参数: variable template;
+template<typename T, typename Args...>
+ostream& print(ostream& os, const T& t, const Args&... rest)
+{
+  os<< t;
+  return print(os, rest...); //递归调用自己，每次递归调用，rest的个数少1. 必须要再定义一个print(ostream&, const T&)函数来结束递归调用。
+}
+
+15.缺省函数: 编译器会自动生成: 1"拷贝构造"，2"拷贝赋值"，3"nonVirtual析构"，4"默认构造"(这一个前提:没有自定义任何构造), 所有编译器自动添加的函数都是public && inline.
+实际项目中大部分class都是不支持拷贝的，所以需要显示的把这些函数声明private or =delete, 来阻止编译器自动生成；
+最佳实践：所有这些函数都应该显示的声明为 =default or = delete;不要依赖编译器;
+  C++11: 构造函数T() + 拷贝构造函数T(const T&)+  拷贝赋值T& operator=(const T&)  +  析构函数~T()  + 移动构造 T(T&&)  +  移动赋值T& operator=(T&&)
+    这些操作应视为一个整体；
+     派生类中的这些函数都会自动调用基类中对应的函数（无论是否virtual）
+    移动构造：让新对象接管原对象的动态内存，对原对象析构仍然是安全的;
+当一个类的所有数据成员都支持移动操作，且该类没有定义（拷贝构造函数 ||  拷贝赋值  ||  析构函数 ），编译器就才会生成默认的 （移动构造 移动赋值  ）；
+对于自定义类，最好是显示定义 移动构造 和 移动赋值；
+3个构造函数：默认构造，拷贝构造，移动构造，它们之间的关系是重载，本质都是构造，所以都需要在初始化列表中显示调用直接基类和子对象的对应构造函数；
+此外，派生类的赋值运算符内也必须显示调用直接基类的赋值运算符: Base::operator=(rhs);
+派生类的析构函数会隐式调用基类和子对象析构函数；
+
+15.移动语义：对资源的控制权从源对象 移动 到 新对象 ！对STL容器的性能提升非常明显。
+                         自C++11， 标准STL容器都定义了“移动构造函数” 和 “移动赋值运算符”， 所以性能提升了一大截；
+                      对于自定义类，需要定义这2个函数来支持移动语义，从源对象“窃取”资源，同时要让源对象不再操作这些资源，而且保证源对象的析构是安全的， 如果类成员包含了const或者引用，那就不支持移动操作；
+eg: 
+Class(Class&& src) noexcept //移动构造函数 不能抛出异常, 参数是右值引用，std::move() 可以得到&&类型；
+: ptr(src.ptr)   //不分配新的内存给新对象，而是接管src的内存；
+{
+  src.ptr = nullptr; //让源对象不再管理内存，同时保证源对象可以安全销毁；
+}
+
+class& operator= (class&& ) noexcept ;
+
+Class a, b;
+a = std::move(b);//移动赋值，要使用std::move()函数，obj必须要支持移动构造和移动赋值, std::move()的参数可以是左值或右值类型；
+a = b; //拷贝赋值
+
+比如： 当vector capacity不够时，插入新元素会导致内存扩张，并拷贝之前的元素，如果元素类型支持移动语义，性能就非常高；
+
+19.右值引用(&&)：为了支持 C++11移动语义  而引入的 ， 只能绑定到一个将要销毁的匿名对象
+     这意味着：使用右值引用的代码就是为了接管被引用对象的资源！
+     左值：【有名字的对象】,  eg: [int& L = i;]  [error: int& L = 3;] [error: int& L = i*42;] [ok: const int& L = i*42; ] 
+     右值： 【匿名对象】（表达式求值过程中创建的，生存期只有1行代码） 或者 字面常量  ，  eg: [int && r = i*42;],[int&& r = 42;],  [error: int&& r = i;]
+     转换： int&& r = std::move(i); //把一个右值引用绑定到一个左值上，但是之后不能再使用i, 不过可以正常销毁(析构) i ; std::move()返回&&
+
+      可以将一个左值引用绑定到一个返回左值表达式的函数：operator=, operator[], operator*；
+      可以将一个右值引用绑定到一个返回右值表达式的函数：operator+/-, 以及返回值类型的函数，以及匿名对象；可以传递1个匿名对象到Func(T&&);
+      不能把一个右值引用 直接绑定 到一个有名字的变量，即使这个变量也是右值引用类型，但是可以通过std::move()转换；
+      func(T)   实参可以是左值或右值！
+      func(const T&)  实参可以是任意类型，左值或右值都可以，这是个万能的模板匹配，eg: func(const bool& flag = false) or func(false);
+      func(T&) 实参只能是左值
+      func(T&&) 当T不是模板参数时， 实参只能是右值,eg:  func(std::move(obj)); 如果T是模板参数则可以接收任意类型的实参。
+
+
+万能模板定义：
+template<typename T>void f3(T &&);可以接收任意类型的实参，尽管参数是右值引用，但因为是模板函数，可以通过"引用折叠"接收左值实参: 参考16.2.5节；引用折叠只能出现在模板参数和类型别名中 ！
+实例化: int i; f3(i);  ==> f3<int&>(int&);  // T 被实例化为 int &
+    const int i;f3(i); ==> f3<const int & >(const int &); //  T 被实例化为const int &
+
+18.移动与拷贝： 标准库容器，string, shared_ptr 支持移动和拷贝，IO类和unique_ptr可以移动，但不能拷贝；
+
+16.delete  VS private: 不要把析构函数=delete,因为设置为delete的话任何方式都无法调用了，但可以声明为private，可以被本类的其它函数调用；
+
+17.constexpr VS const
+    int sz;
+   const auto arraysize = sz;//ok
+   std::array<int, arraysize> data;//error,because compile can't determin value of arraysize
+
+17.C++11支持very large/little numbers directly ??
+
+
+	1. noexcept: 显示告诉编译器函数不会抛出异常，在声明和定义时都要说明，对于移动构造函数加上noexcept 后才能保证实际运行过程中确实是移动而非拷贝，否则编译器会采取保守的方式用拷贝操作 ；
+
+
+
+19.重载(page483)： 在成员函数名后面放置引用限定符(&, &&)可以 控制 该函数 被左值 还是右值对象调用，这个是C++11引入的新函数重载形式：
+class Foo
+{
+  T  func()  ; //左值，右值 对象都可以调用本函数；
+  T  func() const ; //不能修改non-mutable成员
+    T  func() & ; //只有左值对象 可以调用本函数
+  T  func() const & ;  //只有左值对象 可以调用本函数，但不能修改成员
+  T func() &&; //只有右值对象 可以调用本函数
+  T func() const &&;// error, const 不能和 && 一起使用，因为右值对象是肯定要被修改的；
+  
+};
+
+20.匿名的namespace 作用类似于static, 里面的符号仅在当前文件可见，用来代替C语言的全局static;
+
+21.C++11支持的multi-thread 多线程类:
+<atomic> 原子类，针对多核并发执行，本质是：并行操作串行化，内部实现用的是CAS(compareAndSwap);
+<thread> 线程类
+<mutex> 互斥锁
+<condition_variable> 条件变量
+<future> futex ?
+
+22.C++11支持union中含有自定义构造函数的成员（不过需要专门的类来管理，不能简单的直接对成员赋值），以前的版本只支持基本类型；
+
+23.模板显示实例化控制(16.1.5)：
+    C++11支持extern template：好处是可以在cpp文件中实现模板类的成员函数，只要在cpp文件中显示实例化就行，然后其它地方加extern声明，避免重复实例化；
+    C++0x 只支持用extern 修饰变量和函数，C++11支持extern修饰template class;
+eg:
+  template bool compare(const int&, const int&);//实例化模板函数
+  extern template bool compare(const int&, const int&);//声明，这时模板参数都实例化了
+   template class Sample<string> //实例化模板类
+   extern template class Sample<string> //声明，模板类Sample<T>的实例化Sample<string>在别处，这里只声明
+
+24.元组 tuple:  使用场景： 组合多个不同类型的数据为单一对象，避免自己定义结构体
+     一个元素用 T element;
+    二个元素用 pair<T1, T2>，本质是个struct模板：  template <class T1, class T2> struct pair;
+    三个及以上元素用 tuple<T1, T2, T3> ：  template <class... Types> class tuple;  其实tuple可以替代pair; 
+    如果元素类型相同，用vector<T>
+举例：tuple的example参考C++官网
+ auto bar = std::make_tuple ("test", 3.1, 14, 'y');
+  std::get<2>(bar) = 100;    // 14 ->100
+  std::tie (std::ignore, std::ignore, myint, mychar) = bar;  // unpack (with ignore)
+
+
+25.C++11支持int类型或数组在类内初始化（double不行），不需要在构造函数中初始化；
+
+26.哈希表: 1)unordered_set; 2)unordered_map
+eg: unordered_map<Key, Value, decltype(myhash)*> umap(5, myhash);//为Key自定义哈希函数: size_t myhash(Key&);
+
+26.随机数：C++包含随机数引擎类 和 分布类， 都是函数对象类；需要结合使用； include< random>
+C++程序不要再使用库函数rand, 应使用default_random_engine类和恰当的分布类对象。
+操作： Engine e; Engine e(s);  e.seed(s);  e.min(), e.max(),  s 是种子，unsigned int,  eg: Engine e(time(0)); //include <ctime>
+随机送引擎的输出范围比较大，不能直接使用，正确使用方法如下：
+uniform_int_distribution<unsigned> u(0,9); default_random_engine e; cout<<u(e); 生成[0,9]之间均匀分布的整数；
+uniform_real_distribution<double> u(0,1); default_random_engine e; cout<<u(e); 生成[0,1]之间均匀分布的浮点数；
+normal_distribution<> n(4, 1.5); 正态分布，均值4，标准差1.5， default_random_engine e; cout<<lround(n(e));//舍入到最接近的整数；
+bernoulli_distribution b(0.5);default_random_engine e; bool first = b(e); 以0.5的概率返回true;
+注意：一个函数如果定义了局部的随机数生成器，应该定义为static对象，特别是engine, 否则每次调用都会生成相同的序列（不过对于调试很有帮助）；
+
+27.std::thread is not a template class, but has template constructor: http://www.cplusplus.com/reference/thread/thread/thread/
+explicit thread (Fn&& fn, Args&&... args);
+std::vector<std::thread> threads;
+threads.push_back(std::thread(increase_global,1000));
+threads.push_back(std::thread(increase_reference,std::ref(foo),1000));
+threads.push_back(std::thread(&C::increase_member,std::ref(bar),1000));
+
+28.摘自<effective moder c++>
+Item 7:区别使用()和{}创建对象
+Item 8:优先考虑nullptr而非0和NULL
+Item 9:优先考虑using别名声明而非typedef
+Item 10:优先考虑限域枚举enum class而非未限域枚举enum
+Item 11:优先考虑使用delete而非使用未定义的private声明
+Item 12:使用override覆盖虚函数
+Item 13:优先考虑const_iterator而非iterator
+Item 14:如果函数不抛出异常请使用noexcept
+Item 15:尽可能的使用constexpr
+Item 16:确保const成员函数线程安全
+
+29.vector:  T* firstPtr = vector<T>.data() ; or T* firstPtr = &vector[0];
+/////////////////////////////////////////////////////////
+shared_ptr 的内部实现（来自muduo）： 有一个共享中间层(包含2个数据: rawpointer + referenceCount), shared_ptr对象的内部指针指向这个中间层；
+shared_ptr<T> obj(nullptr)  等价于 shared_ptr<T> obj;
+if(obj == nullptr) 等价于 if(!obj);
+
+class God: public std::enable_shared_from_this<God>
+{
+ std::shared_ptr<God> getptr() { return shared_from_this();} //ok 
+  return std::shared_ptr<God>(this);//error !
+}

@@ -1,0 +1,340 @@
+列表控件 QListWidget、表格控件 QTableWidget 和树形控件 QTreeWidget
+
+1. 这些控件的特点是都用于显示由数据单元(或叫条目 item)组成的数据合集。
+2. 列表控件的每一行都对应一个数据单元，即 QListWidgetItem 对象。
+3. 表格控件根据行号和列号定位到单元格，单元格对应的就是 QTableWidgetItem 对象。
+4. 树形控件每个树形节点对应一个数据单元，对应 QTreeWidgetItem 对象。
+
+列表控件 QListWidget 和它的数据条目 QListWidgetItem，列表控件的条目只有一列，可以有很多行。
+表格控件 QTableWidget 和它的单元格 QTableWidgetItem，表格控件一般有多行多列，可以设置表头。
+树形控件 QTreeWidget 和它的树形节点 QTreeWidgetItem，树形控件节点可以有多层、多个子节点，
+如果将子节点全部展开，那么一行就是一个数据条目。
+
+# QListWidget 主要的函数是围绕条目添加、删除、选中条目、显示模式等功能以及相关的信号和槽，
+
+构造函数
+------------------
+QListWidget 的基类是 QListView 视图类
+QListWidget 的构造函数很简单：
+    QListWidget(QWidget * parent = 0)
+    parent 是父窗口指针，如果用设计师拖控件，一般也不用手动调用构造函数。
+
+添加条目的函数   # 参数为QListWidgetItem、QString、QStringList
+------------------
+void QListWidget::​addItem(QListWidgetItem * item)
+这个添加函数需要实现 new 一个 QListWidgetItem 条目对象，然后添加到列表控件末尾，
+
+void QListWidget::​addItem(const QString & label)
+功能是将字符串 label 添加到列表控件末尾显示，其实该函数内部会自动根据字符串 new 一个条目对象添加到列表控件。
+
+如果有设置好的字符串列表，那么可以通过如下函数把多个字符串全部添加到列表控件：
+void QListWidget::​addItems(const QStringList & labels)
+
+add* 函数是将条目添加到末尾，如果要将条目插入到指定行 row 位置，则使用 insert* 函数：
+void QListWidget::​insertItem(int row, QListWidgetItem * item)      //插入条目到第 row 行
+void QListWidget::​insertItem(int row, const QString & label)       //插入字符串到第 row 行
+void QListWidget::​insertItems(int row, const QStringList & labels) //插入多个字符串到从 row 行开始的多个行
+
+获取列表控件里面的条目计数使用如下函数：
+int QListWidget::count() const
+
+
+删除函数 # 清空或者一次根据需要删除一个 int index
+------------------
+因为是基于条目的控件，所以列表控件的删除单个条目函数名字是 takeItem()：
+QListWidgetItem * QListWidget::​takeItem(int row)
+takeItem() 根据行号从列表控件移除一个条目，并返回该条目指针，如果行号不合法，返回 NULL 指针。
+
+    如果返回的是实际存在的条目，那么需要注意，返回的条目指针需要手动 delete 掉，
+因为列表控件不再拥有该条目，该条目不会由列表控件析构时自动删除。
+
+如果要清空整个列表控件，删除之前添加的所有条目，可以调用槽函数：
+void QListWidget::​clear()
+
+
+条目访问函数 # int index <-> QListWidgetItem * item 
+             # QPoint控件坐标位置 <-> QListWidgetItem * item
+------------------
+根据行号获取条目对象的指针，使用如下函数：
+QListWidgetItem * QListWidget::​item(int row) const
+如果已知列表控件含有的条目对象指针，反查当前行号，使用如下函数：
+int QListWidget::​row(const QListWidgetItem * item) const
+
+在图形界面，如果希望根据列表控件在屏幕显示的相对坐标位置(以列表控件内部左上角为原点)来获取条目，使用如下函数：
+QListWidgetItem * QListWidget::​itemAt(const QPoint & p) const
+QListWidgetItem * QListWidget::​itemAt(int x, int y) const
+反过来，如果根据已知条目，获取这个条目占据的矩形区域，使用如下函数：
+QRect QListWidget::​visualItemRect(const QListWidgetItem * item) const
+
+
+
+当前选中条目的操作  # 当前 int index 或者 QListWidgetItem * item
+                    # 获取当前 index 或者 item; 设置当前 index 或者 item; 取消当前index 或者 item选中
+                    # 当前选中的发生变化 1. currentItemChanged 2. currentRowChanged 3. currentTextChanged
+                    # SelectionMode  单选模式 多选模式 行选模式 列选模式
+------------------
+获取列表控件当前选中条目的函数如下：
+QListWidgetItem * QListWidget::​currentItem() const //当前选中条目
+int QListWidget::​currentRow() const  //当前选中的行号
+如果当前没有选中的条目，那么返回的指针为 NULL，返回的序号为 -1 ，代码里要注意判断返回值。
+
+设置已存在的某个条目为选中状态，使用函数：
+void QListWidget::​setCurrentItem(QListWidgetItem * item)    //设置当前选中条目为 item
+void QListWidget::​setCurrentItem(QListWidgetItem * item, QItemSelectionModel::SelectionFlags command)
+void QListWidget::​setCurrentRow(int row, QItemSelectionModel::SelectionFlags command) //设置当前选中行为 row
+void QListWidget::​setCurrentItem(QListWidgetItem * item, QItemSelectionModel::SelectionFlags command)
+第二个和第四个设置函数有个 SelectionFlags 类型的参数 command，这个参数决定选中的方式，
+是要选中QItemSelectionModel::Select ，
+还是取消选中 QItemSelectionModel::Deselect，
+还有其他选中方式，等到表格控件一节再详细列出来。
+
+如果当前选中的条目发生变化，会触发如下三个信号，可以根据实际用途选择合适的信号：
+void QListWidget::​currentItemChanged(QListWidgetItem * current, QListWidgetItem * previous)
+void QListWidget::​currentRowChanged(int currentRow)
+void QListWidget::​currentTextChanged(const QString & currentText)
+注意参数里的指针有可能为空值，序号可能为 -1，字符串也可能是空串，一定要注意判断非法的参数值。
+
+
+单选模式 多选模式 行选模式 列选模式
+--------------------------------
+三个控件都可以设置选中模式，比如单选模式，一次只能选中一个条目，多选模式，一次可以选中多个条目等等，
+    如果需要用到多选模式，可以设置 selectionMode 属性为 QAbstractItemView::ExtendedSelection，
+这种扩展选中模式类似常见的文件资源管理器的选中模式，可以使用 Ctrl 或 Shift 加鼠标点击实现多选：
+
+void setSelectionMode(QAbstractItemView::SelectionMode mode)  //设置选中模式
+QAbstractItemView::SelectionMode    selectionMode() const     //获取选中模式
+
+    QAbstractItemView 是本章所有控件的抽象基类，本章后面控件也有类似的选中模式设置，
+如果把列表控件设置成多选模式，那么可以用如下函数获取同时选中的多个条目：
+    QList<QListWidgetItem *> QListWidget::​selectedItems() const
+不论单选还是多选模式，条目选中情况有任何变化时，会触发如下信号：
+    void QListWidget::​itemSelectionChanged()
+
+条目查找和排序  # findItems
+                # 排序
+------------------
+1. 查找
+如果需要根据文本查找匹配的条目，使用如下函数：
+QList<QListWidgetItem *> QListWidget::​findItems(const QString & text, Qt::MatchFlags flags) const
+    该函数第一个参数 text 是要查找的模板子串，第二个参数是匹配标志，Qt::MatchFlags 
+是非常通用的枚举类型，不仅可用于字符串匹配，还能用于其他类型变量的匹配，Qt::MatchFlags 
+包含关于查找匹配的多种方式的枚举值。
+
+Qt::MatchFlags 枚举常量 数值  描述
+Qt::MatchExactly        0     精确匹配，执行基于 QVariant 的匹配。                                               
+Qt::MatchFixedString    8     执行基于字符串的匹配，如果不指定 MatchCaseSensitive，默认是大小写不敏感。          
+Qt::MatchContains       1     条目包含要查找的模板子串。                                                         
+Qt::MatchStartsWith     2     条目以要查找的模板子串打头。                                                       
+Qt::MatchEndsWith       3     条目以要查找的模板子串结尾。                                                       
+Qt::MatchCaseSensitive  16    查找时大小写敏感。
+Qt::MatchRegExp         4     根据正则表达式模板子串匹配字符串。                                                 
+Qt::MatchWildcard       5     根据通配符模板子串(如 *.txt)匹配字符串。                                         
+Qt::MatchWrap           32    执行回绕查找，当查找到最后一个条目时返回到第一个的条目继续查找，直到所有的条目都检查一遍。 
+Qt::MatchRecursive      64    递归查找，遍历所有子条目。
+
+2. 排序
+列表控件的自动排序是通过 sortingEnabled 属性来控制，获取和设置函数如下：
+bool isSortingEnabled() const
+void setSortingEnabled(bool enable)
+列表控件条目默认是不排序的，如果希望自动按照字典序排序，调用 setSortingEnabled(true) 即可。另外还可以手动对列表控件现有条目排序：
+void QListWidget::​sortItems(Qt::SortOrder order = Qt::AscendingOrder)
+Qt::AscendingOrder 是按升序排列，Qt::DescendingOrder 是按降序排列。
+
+
+条目显示和运行时条目编辑
+------------------
+1. 条目显示
+    条目 QListWidgetItem 仅仅是数据，不是控件或子控件，列表控件根据多个 QListWidgetItem 对象，
+来呈现条目里的数据，只有列表控件自己是控件实体。
+    列表控件默认以自己的方式呈现条目数据，比如白底黑字的普通条目显示，如果要按照特殊的子控件来显示字符串
+比如用 QLabel 对象显示条目数据，可以用如下函数：
+void QListWidget::​setItemWidget(QListWidgetItem * item, QWidget * widget)
+    列表控件会同时拥有 item 数据条目和用于显示 item 的子控件 widget。
+注意这里的子控件 widget 只有静态显示功能，如果用按钮作为显示子控件，那么按钮是不可点击的。
+
+如果要获取 ​setItemWidget() 函数指定某个条目的显示子控件，使用如下函数：
+    QWidget * QListWidget::​itemWidget(QListWidgetItem * item) const
+如果要删除上面 ​setItemWidget() 指定的特殊显示控件，使用函数：
+    void QListWidget::​removeItemWidget(QListWidgetItem * item)
+特殊的显示子控件移除后，该条目就还按照列表控件原来的普通条目显示。
+
+2.运行时条目编辑
+如果希望在程序运行时编辑列表控件的条目，有两种方式，
+手动打开条目的文本编辑器
+void QListWidget::​openPersistentEditor(QListWidgetItem * item)
+这个函数名是打开条目的持续编辑器，持续的意思是如果不调用关闭函数，该条目的编辑器会一直开启，关闭这个持续编辑器使用如下函数：
+void QListWidget::​closePersistentEditor(QListWidgetItem * item)
+    一般可以在检测到条目激活信号(itemActivated)时调用打开函数 ​openPersistentEditor() ，
+在当前条目变化(currentItemChanged)时调用关闭函数 ​closePersistentEditor() 。
+
+条目标 志位和 QListWidget::​editItem(QListWidgetItem * item) 实现条目的可编辑功能。
+
+
+其他信号和槽函数  信号和槽  ​itemActivated  ​itemChanged  ​itemClicked  ​itemDoubleClicked  ​itemEntered  ​itemPressed
+------------------
+除了上面关于当前条目变化和选中条目变化的信号，条目还有激活、单击、双击等信号，罗列如下：
+void QListWidget::​itemActivated(QListWidgetItem * item)  //激活信号
+    当用户点击或双击条目时，条目会被激活，具体哪些操作会激活条目，要根据操作系统设置来定，
+比如 Windows 一般是双击打开激活，KDE 桌面通常是单击打开激活。
+系统的快捷键也可以激活条目，如 Windows 和 Linux X11 桌面是回车键激活，Mac OS X 是 Ctrl+0 ，一般激活信号用于开启编辑等操作。
+
+void QListWidget::​itemChanged(QListWidgetItem * item)   //条目内容发生变化
+注意这是条目内容变化的信号，不是选中状态变化，程序如果在运行时改变了条目文本内容，比如持续编辑器修改了文本，会触发这个信号。
+
+void QListWidget::​itemClicked(QListWidgetItem * item)          //条目单击信号
+void QListWidget::​itemDoubleClicked(QListWidgetItem * item)    //条目双击信号
+void QListWidget::​itemEntered(QListWidgetItem * item)          //鼠标追踪时进入条目的信号，一般用不着
+void QListWidget::​itemPressed(QListWidgetItem * item)          //鼠标按键在条目上处于按下状态时发的信号
+
+列表控件自带滚动条，当条目总数超出控件矩形能呈现的数目时，滚动条自动出现，通过滚动条支持更多的条目显示。
+使用如下槽函数可以让列表控件滚动到想显示的某个条目位置：
+void QListWidget::​scrollToItem(const QListWidgetItem * item, QAbstractItemView::ScrollHint hint = EnsureVisible)
+    第一个参数 item 就是想显示出来的条目，第二个参数是滚动显示方式，
+默认是 QAbstractItemView::EnsureVisible，即保证指定条目显示出来，还有其他的滚动显示方式：
+
+QAbstractItemView::​ScrollHint 枚举常量  数值 描述
+QAbstractItemView::EnsureVisible        0    滚动到指定条目能显示出来即可。
+QAbstractItemView::PositionAtTop        1    滚动直到将指定条目显示到可视区域的顶部。
+QAbstractItemView::PositionAtBottom     2    滚动直到将指定条目显示到可视区域的底部。
+QAbstractItemView::PositionAtCenter     3    滚动直到将指定条目显示到可视区域的中间。 
+
+================================================================================
+
+QListWidgetItem
+------------------
+    QListWidgetItem 专门用于表示列表控件 QListWidget 的数据条目，
+注意 QListWidgetItem 是一个纯数据类，不是控件，没有基类，也就没有信号和槽函数。
+    QListWidgetItem 可以直接用数据流 QDataStream 读写。
+
+QListWidgetItem 不单单有字符串，还可以有自己的图标、复选框等特性，列表控件会根据条目对象的丰富特性来呈现数据并进行交互操作。
+
+构造函数
+------------------
+首先来看看列表控件条目的构造函数：
+QListWidgetItem(QListWidget * parent = 0, int type = Type)
+QListWidgetItem(const QString & text, QListWidget * parent = 0, int type = Type)
+QListWidgetItem(const QIcon & icon, const QString & text, QListWidget * parent = 0, int type = Type)
+
+icon 是条目显示的图标，text 是条目文本，parent 是条目隶属的列表控件，type 是条目的自定义类型。
+
+    如果在构造函数指定了条目隶属的列表控件，那么这个条目会自动添加到列表控件末尾，
+而不需要调用列表控件的 add*() 和 insert*()函数，比如：
+    new QListWidgetItem(tr("Hazel"), listWidget);
+新建的条目自动添加并显示在末尾。
+
+条目的复制方式，有三个函数可以实现：
+QListWidgetItem(const QListWidgetItem & other)              //复制构造函数
+QListWidgetItem & operator=(const QListWidgetItem & other)  // = 赋值函数
+virtual QListWidgetItem *  clone() const                    //克隆函数
+复制构造函数和 = 赋值函数 函数原理是一样的，它们除了 type() 和 listWidget() 函数指定的两个数据不复制，其他的数据都复制。
+type() 是条目的自定义类型，listWidget() 是该条目所隶属的列表控件。
+
+克隆函数 clone() 会精确复制所有数据，如果原条目隶属某个列表控件，克隆出来的也会自动隶属该列表控件，自定义条目类型也一样。
+
+virtual bool operator<(const QListWidgetItem & other) const
+    只有一个小于号函数，是比较列表条目文本的字典序先后关系，没有等于号函数和大于号函数，
+如果确实用到条目文本比较，建议直接用 QString 变量进行比较。
+
+QListWidgetItem 的功能函数与内部数据
+------------------
+QListWidgetItem 内部的数据大致分为两类：
+第一类是以数据角色形式管理的通用数据，这些数据自动参与 QDataStream 数据流的读写；
+第二类是非通用数据，不参与数据流读写，与 QListWidgetItem 和 QListWidget 自身特性有关。
+
+第一类：QListWidgetItem 的通用数据
+获取函数            设置函数                                数据角色                 描述                                                       
+text()              setText(const QString &text)            Qt::DisplayRole         条目显示的文本。                           
+icon()              setIcon(const QIcon &icon)              Qt::DecorationRole      条目显示的图标。                           
+statusTip()         setStatusTip(const QString &statusTip)  Qt::StatusTipRole       如果主界面有状态栏，鼠标悬停在该条目上时显示该状态信息到状态栏。
+toolTip()           setToolTip(const QString &toolTip)      Qt::ToolTipRole         鼠标悬停在该条目上时显示的工具提示信息。
+whatsThis()         setWhatsThis(const QString &whatsThis)  Qt::WhatsThisRole       如果主界面窗口标题栏有？帮助按钮，点击帮助按钮再点击该条目会显示该帮助信息。
+font()              setFont(const QFont &font)              Qt::FontRole            显示条目文本用的字体。                             
+textAlignment()     setTextAlignment(int alignment)         Qt::TextAlignmentRole   文本的对齐方式。   
+backgroundColor()   setBackgroundColor(const QColor &color) Qt::BackgroundColorRole 文本背景色。
+textColor()         setTextColor(const QColor &color)       Qt::TextColorRole       文字颜色。                 
+background()        setBackground(const QBrush &brush)      Qt::BackgroundRole      条目的背景画刷。           
+foreground()        setForeground(const QBrush &brush)      Qt::ForegroundRole      条目的前景画刷。           
+checkState()        setCheckState(Qt::CheckState state)     Qt::CheckStateRole      条目自带的复选框选中状态，可以是三态复选框。
+sizeHint()          setSizeHint(const QSize &size)          Qt::SizeHintRole        条目显示的建议尺寸。
+
+QListWidgetItem 可以直接用数据流 QDataStream 读写，涉及到读写的内部数据就是上表所列举的以角色形式表述的数据，QListWidgetItem 通过两个外部全局运算符重载函数支持 QDataStream 数据流读写：
+QDataStream &operator<<(QDataStream &out, const QListWidgetItem &item)
+QDataStream &operator>>(QDataStream &in, QListWidgetItem &item)
+使用运算符的形式比较方便，当然也可以用 QListWidgetItem 内部的读写函数：
+void QListWidgetItem::​read(QDataStream & in)
+void QListWidgetItem::​write(QDataStream & out) const
+
+QListWidgetItem 内部采用私有的 QVector 向量存储通用数据的 role 和 value 对：
+QVector<QWidgetItemData> values;
+
+第二类：QListWidgetItem 的非通用数据
+条目自定义类型：
+int QListWidgetItem::​type() const
+这个条目类型只能在构造函数指定，指定之后不能修改，默认值为 QListWidgetItem::Type(数值 0)，
+如果程序员希望自己区分列表控件条目的类型，那么可以自己定义大于 QListWidgetItem::UserType(数值 1000)的类型值，
+一般用在 QListWidgetItem 派生类里面。
+
+条目所隶属的列表控件：
+QListWidget * QListWidgetItem::​listWidget() const
+条目自身不能修改所隶属的列表控件，要通过列表控件的删除函数 QListWidget::​takeItem(int row) 才能解除隶属关系。
+
+列表条目本身的选中状态(与复选框无关，是用户在列表控件点击条目的高亮选中状态)：
+void QListWidgetItem::setSelected(bool select)
+bool QListWidgetItem::isSelected() const
+一般是用户在列表控件图形界面点击哪个条目，哪个条目就处于高亮选中状态，这里可以用条目自身的函数设置高亮选中状态。
+
+条目在列表控件里面显示或者隐藏：
+void QListWidgetItem::​setHidden(bool hide)
+bool QListWidgetItem::​isHidden() const
+
+条目的特性标志：
+void QListWidgetItem::​setFlags(Qt::ItemFlags flags)
+Qt::ItemFlags QListWidgetItem::​flags() const
+flags 会决定条目的工作特性，比如是否有三态复选框，是否在用户双击该条目时开启文本编辑器等等，Qt::ItemFlags 枚举值见下面表格
+
+Qt::ItemFlags 枚举常量    数值 描述
+Qt::NoItemFlags           0    不设置任何特性，条目会处于完全的不可用状态。                                       
+Qt::ItemIsSelectable      1    条目本身可以被高亮选中。                                                           
+Qt::ItemIsEditable        2    条目可以被编辑，比如用户双击条目时自动启用文本编辑器。                             
+Qt::ItemIsDragEnabled     4    条目可以被拖拽出去。                                                               
+Qt::ItemIsDropEnabled     8    条目可以作为拖拽的目的地。                                                         
+Qt::ItemIsUserCheckable   16   条目可以有复选框，用户能勾选复选框。                                       
+Qt::ItemIsEnabled         32   条目处于可用状态。
+Qt::ItemIsTristate        64   条目的复选框可以有三种勾选状态：选中、非选中、部分选中。                           
+Qt::ItemNeverHasChildren  128  条目不能有子条目(指树形控件)。   
+
+表格条目和树形条目也都有一样的条目标志位设置函数，功能与本节列表条目一样，参数也一样。
+列表控件条目默认的特性标志为同时启用四个：
+Qt::ItemIsSelectable | Qt::ItemIsUserCheckable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled
+
+按照默认标志位，列表条目是可以有复选框进行勾选的，调用 QListWidgetItem::​setCheckState() 函数可以让列表条目的复选框显示出来。
+如果要设置三态复选框，可以使用下面的代码：
+    item->setFlags( (item->flags()) | Qt::ItemIsTristate ); //开启三态复选
+    item->setCheckState( Qt::Unchecked );  //显示复选框
+
+如果希望用户在双击条目时，自动开启条目文本的编辑器，可以用下面代码：
+    item->setFlags( (item->flags()) | Qt::ItemIsEditable ); //双击条目会自动 开启文本编辑器
+
+    因为可以设置条目的 Qt::ItemIsEditable 标志位，所以列表控件 QListWidget 的一对持续编辑器函数
+openPersistentEditor() 和 closePersistentEditor() 一般不需要手动调用，直接设置条目自身的可编辑标志位就行了。
+    对于启用可编辑标志位的条目，如果希望通过代码开启条目的编辑，可以调用列表控件的 ​
+editItem() 函数来实现，而不需要使用一对开关持续编辑器函数那么麻烦：
+    void QListWidget::​editItem(QListWidgetItem * item)
+
+这里说明一下：列表条目本身是可以存储复选框的勾选状态数值，而条目显示的复选框是由列表控件绘制并提供，
+列表条目自身不是控件，也不包含子控件。类似地，列表控件根据 Qt::ItemIsEditable 标志位检查是否需要为条目提供文本编辑器。
+
+
+================================================================================
+void setSelectionMode(QAbstractItemView::SelectionMode mode)  //设置选中模式
+QAbstractItemView::SingleSelection      单选     只能有一个项目被选中
+QAbstractItemView::ContiguousSelection  连续选   只能够被连续选中，例如按下shift后的效果
+QAbstractItemView::ExtendedSelection    拓展选   效果和ContiguousSelection一样，同时支持按键支持其他功能，ctrl,shift
+QAbstractItemView::MultiSelection       多选     效果和按着ctrl一样，当你单击一个项目，再单击另外项目，之前的那条不会被取消选中
+QAbstractItemView::NoSelection          无法选中 无法被选中
+
+
+
+
+
+

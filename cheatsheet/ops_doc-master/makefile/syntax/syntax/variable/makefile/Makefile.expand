@@ -1,0 +1,34 @@
+ifeq ($(SIMPLY), 1)
+# := 是覆盖之前的值
+# ?= 是如果没有被赋值过就赋予等号后面的值
+# Simply Expanded Variables
+QUX := "qux := "
+BAR ?= "bar ?= "
+FOO := $(QUX)
+BAZ := $(FOO)
+FOO := "foo := "
+
+else
+# 递归方式扩展的变量; 
+# 变量的定义是通过"="或者使用指示符"define"定义的变量。
+# 这种类型变量的定义时，可以引用其它的之前没有定义的变量
+# 其缺点是：
+# 可能会由于出现变量的递归定义而导致 make 陷入到无限的变量展开过程中，最终使 make 执行失败
+# 变量的定义中如果使引用了某一个函数，那么函数总会在其被引用 的地方被执行
+
+# Recursively Expanded Variable
+QUX  = "qux  = "
+BAR  = "bar  = "
+FOO  = $(BAR)
+BAZ  = $(FOO)
+BAR  = $(QUX)
+
+endif
+
+all:
+	@echo "[1;35m\$$(QUX)[0m = \"$(QUX)\""
+	@echo "[1;35m\$$(FOO)[0m = \"$(FOO)\""
+	@echo "[1;35m\$$(BAR)[0m = \"$(BAR)\""
+	@echo "[1;35m\$$(BAZ)[0m = \"$(BAZ)\""
+	@echo ""
+

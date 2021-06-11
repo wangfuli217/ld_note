@@ -1,0 +1,170 @@
+
+Qt Network模块提供的类允许编写TCP/IP Client和Server，其中包含的类有：
+低级别类：QTcpSocket、QTcpServer、QUdpSocket；
+高级别类：QNetworkRequest、QNetworkReply、QNetworkAccessManager；（使用常见的协议）
+其他类：QNetworkConfiguration、QNetworkConfigurationManager、QNetworkSession；（承载管理）
+
+QT += network          project
+#include <QtNetwork>   header
+
+1 主机信息查询
+1.1 QHostInfo类
+    查询一个主机的域名和IP地址。
+    QHostInfo类：
+QString name = QHostInfo::localHostName()  //返回本机主机名
+QHostInfo fromName(QString &name)          //返回指定主机的IP地址
+int lookupHost(QString &name,QObject *receiver,char *member) //以异步方式根据主机名查找主机IP地址，并返回一个表示本次查找的ID，可用于abortHostLookup()
+
+QString QHostInfo::localDomainName() [static]                                            // 返回域名
+QString QHostInfo::localHostName() [static]                                              // 返回主机名
+QHostInfo QHostInfo::fromName(const QString & name) [static]                             // 阻塞方式返回主机名对应IP地址
+int QHostInfo::lookupHost(const QString & name, QObject * receiver, const char * member) // 非阻塞方式返回主机名对应IP地址
+QHostInfo::lookupHost("www.kde.org",this, SLOT(lookedUp(QHostInfo)));                    // 非阻塞方式实例
+QHostInfo::lookupHost("qt.nokia.com", this, SLOT(printResults(QHostInfo)));  // hostname -> IP
+QHostInfo::lookupHost("4.2.2.1", this, SLOT(printResults(QHostInfo)));       // IP -> hostname
+void QHostInfo::abortHostLookup(int id) [static]                                         // 非阻塞方式终止调用
+
+QList<QHostAddress> addresses() const  // 地址列表
+QString hostName() const               // 主机名
+QString errorString() const            // 错误字符串
+HostInfoError QHostInfo::error() const // 错误枚举值
+
+QHostAddress(QHostAddress::LocalHost)
+
+================================================================================
+1.2 QNetworkInterface类
+    提供本机的IP地址序列和网络接口名序列
+​ QNetworkInterface类：
+QNetworkInterface::allInterfaces()   //获取所有网络接口的列表
+
+QNetworkInterface::allAddresses()    //获取IP地址
+QList<QNetworkAddressEntry> QNetworkInterface::addressEntries() const // 获取IP地址以及组播、多播地址、地址掩码
+
+QString QNetworkInterface::hardwareAddress() const // 获取MAC地址
+
+
+2. QTcpServer类的接口函数：
+2.1 公共函数
+void close()                            //关闭服务器，停止网络监听
+bool listen(const QHostAddress & address = QHostAddress::Any, quint16 port = 0) //在给定IP地址和端口上开始监听，若成功就返回true
+bool isListening()                      //返回true表示服务器处于监听状态
+QHostAddress serverAddress()            //如果服务器处于监听状态，返回服务器地址
+quint16 serverPort()                    //如果服务器处于监听状态，返回服务器监听端口
+
+QTcpSocket *nextPendingConnection()     //返回下一个等待接入的连接
+bool waitForNewConnection()             //以阻塞方式等待新的连接
+
+2.2 信号
+void acceptError(QAbstractSocket::SocketError socketError)  //当接受一个新的连接发生错误时发射此信号，参数socketError描述了错误信息
+void newConnection()                //当有新的连接时发射此信号
+
+2.3 保护函数
+void incomingConnection(qintptr socketDescriptor)   
+//当有一个新的连接可用时，QTcpServer内部调用此函数，创建一个QTcpSocket对象，添加到内部可用新连接列表，然后发射newConnection()信号。用户若从QTcpServer继承定义类，可以重定义此函数，但必须调用addPendingConnection()
+
+void addPendingConnection(QTcpSocket *socket)       //由incomingConnection()调用，将创建的QTcpSocket添加到内部新可用连接列表。
+在客户端和服务器建立TCP连接后，具体的数据通信是通过QTcpSocket完成的。
+
+3. QTcpSocket类
+    QTcpSocket类提供了TCP协议的接口，可用实现标准的网络通信协议，也可以自定义协议。
+    QTcpSocket是从QIODevice间接继承的类，具有流读写的功能。
+    QTcpSocket类除了构造和析构函数，其他函数都是从QAbstractSocket继承或重定义的。
+    
+————————————————公共函数——————————————————
+void connectToHost(QHostAddress &address,quint16 port,)
+//以异步方式连接到指定IP地址和端口的TCP服务器，连接成功后会发射connected()信号
+
+void disconnectFromHost()   //断开socket,关闭成功后发射disconnected()信号
+bool waitForConnected()     //等待直到建立socket连接
+bool waitForDisconnected()  //等待直到断开socket连接
+
+QHostAddress localAddress() //返回本socket的地址
+quint16 localPort()         //返回本socket的端口
+
+QHostAddress peerAddress()  //在已连接状态下，返回对方socket的地址
+QString peerName()          //返回connectToHost()连接到的对方的主机名
+quint16 peerPort()          //在已连接状态下，返回对方socket的端口
+
+qint64 readBufferSize()     //返回内部读取缓冲区的大小，该大小决定了read()和readAll()函数能读出的数据的大小
+void setReadBufferSize(qint64 size) //设置内部读取缓冲区大小
+qint64 bytesAvailable()     //返回需要读取的缓冲区的数据的字节数
+bool canReadLine()          //如果有行数据要从socket缓冲区读取，就返回true
+SocketState state()         /返回socket当前的状态
+
+——————————————信号————————————————————————
+void connected()            //connectToHost()成功连接到服务器后发射此信号
+void disconnected()         //当socket断开连接后发射此信号
+void error(QAbstractSocket::SocketError socketError)	//当socket发生错误时发射此信号
+void hostFound()            //调用connectToHost()找到主机后发射此信号
+void stateChanged(QAbstractSocket::SocketState socketState)	
+//当socket的状态变化时发射此信号，参数socketState表示了socket当前的状态
+
+void readyRead()            //当缓冲区有新数据需要读取时发射此信号，在此信号的槽函数里读取缓冲区的数据
+
+​ connectToHost()是异步方式连接服务器，不会阻塞程序运行，连接后发射connected()信号。
+
+
+%% network/loopback      创建了本地的server和client,client发送数据，server接收数据
+%% network/fortuneclient 创建了client,client接收数据
+%% network/fortuneserver 创建了server,server发送数据
+
+1. 客户端错误(主动请求)
+connect(tcpSocket, SIGNAL(error(QAbstractSocket::SocketError)),this, SLOT(displayError(QAbstractSocket::SocketError)));
+2. 服务器端错误(被动accept)
+connect(tcpServerConnection, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(displayError(QAbstractSocket::SocketError)));
+
+# QNetworkConfigurationManager
+    承载管理控制设备的连接状态，这样，应用程序可以启动或停止网络接口，并且在接入点之间透明地游荡。
+    QNetworkConfigurationManager 类管理已知设备的网络配置列表，网络配置由 QNetworkConfiguration 类表示，
+描述了一组用于启动网络接口的参数。
+    通过打开基于一个网路配置的 QNetworkSession，一个网络接口被打开。大多数情况，创建一个基于平台指定
+默认网络配置的网络会话是合适的。默认网络配置由 QNetworkConfigurationManager::defaultConfiguration() 函数返回。
+    某些平台上，在执行任何网络操作之前，要求应用程序打开网络会话。可以通过QNetworkConfigurationManager::capabilities()
+函数返回的值进行测试，判断是否包含给出的QNetworkConfigurationManager::NetworkSessionRequired标志。
+
+
+    该QNetworkConfigurationManager类管理系统所提供的网络配置。
+    QNetworkConfigurationManager提供对系统已知的网络配置，并允许应用程序在运行时，
+检测系统的能力(与问候网络会话)。
+    A QNetworkConfiguration抽象一组描述如何在网络接口必须被配置为连接到一个特定的目标网络的配置选项。 
+QNetworkConfigurationManager维护和更新QNetworkConfigurations的全局列表。应用程序可以通过访问和过滤此
+列表allConfigurations() 。如果一个新的配置添加或现有被删除或更改configurationAdded() configurationRemoved()
+和configurationChanged()信号被分别发射。
+    该defaultConfiguration()可以打算立即创建一个新的网络会话无需关心特定配置时使用。它返回一个
+QNetworkConfiguration.Discovered配置。如果没有任何发现的人则返回一个无效的配置。
+    一些配置更新可能需要一些时间来执行更新。例如，WLAN扫描就是这样一个例子。除非该平台进行内部更新，
+可能需要通过手动触发配置更新QNetworkConfigurationManager.updateConfigurations()。更新过程的完成是由
+发光的起诉updateCompleted()信号。更新过程，确保每一个现有的QNetworkConfiguration实例更新。有没有必要
+通过索要重新配置清单allConfigurations()。
+
+
+
+QDnsDomainNameRecord        存储关于域名记录的信息
+QDnsHostAddressRecord       存储关于主机地址记录的信息
+QDnsLookup                  表示一个DNS查询
+QDnsMailExchangeRecord      存储有关 DNS MX 记录的信息
+QDnsServiceRecord           存储有关 DNS SRV 记录的信息
+QDnsTextRecord              存储有关 DNS TXT 记录的信息
+QHostAddress                IP地址
+QHostInfo                   主机名查询静态函数
+QNetworkAddressEntry        存储一个 IP 地址，通过网络接口的支持，连同相关的网络掩码和广播地址
+
+QLocalServer                本地 socket 依赖的 server
+QLocalSocket                本地 socket
+
+QNetworkAccessManager       允许程序发送网络请求和接收响应
+QNetworkReply               包含 QNetworkAccessManager 发送的请求数据和消息头
+QNetworkRequest             持有一个 QNetworkAccessManager 发送的请求
+
+QNetworkConfiguration           一个或多个配置接入点的抽象概念
+QNetworkConfigurationManager    管理由系统提供的网络配置
+
+QNetworkInterface               主机的IP地址和网络接口列表
+
+QTcpServer                  基于 TCP 的 server
+QTcpSocket                  TCP socket
+QUdpSocket                  UDP socket
+
+
+
+

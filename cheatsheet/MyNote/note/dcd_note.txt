@@ -1,0 +1,101 @@
+FILE	//描述一个话单文件的开始
+{
+	PROPERTY	//描述一个话单文件的属性
+	{
+		PROPERTY_FILE_CHECK = NO		//文件级检查,缺省值为NO
+		PROPERTY_FILTER_CHECK = YES		//是否在stat文件中输出过滤码的信息,缺省值为NO
+		
+		PROPERTY_ENCODE_TYPE = ASCII/BCD/BER    //编码方式
+		PROPERTY_STACK_ENABLE = NO	            //试图是否需要栈维护,但不保证一定使用栈,具体还需要看编码方式是否支持,目前仅ASN1.0规则的BER编码可能需要记录中间状态信息，多见于复合话单,缺省为NO
+		
+		PROPERTY_BLOCK_SIZE				//块长度,一般用在BCD和ASN.1的编码格式的原始数据上
+		PROPERTY_PADDING_VALUE 			//块填充字符
+		PROPERTY_XDR_DR_TYPE			//多模板时的详单类型,缺省时为配置的详单类型
+		
+		PROPERTY_FILENAME_EXPR			//文件正则匹配规则
+		PROPERTY_GROUP_ENABLE			//一旦设置了该标志域，将插入当前记录数，从1开始计数，忽略头尾记录(RECORD_TYPE为HEAD、和TAIL的记录)，并且错单号将转化为集团公司规定的标准，以’F’打头，以及插入文件到达时间,缺省为NO
+	}
+	RECORD   	//描述话单文件中记录信息的
+	{
+		RECORD_NAME						//定义记录名称
+		RECORD_TYPE	= CONTROL/BILL/HEAD/TAIL	//记录类型,非control类型的都会在rcd_algorithm.cpp进入bill逻辑
+		
+		RECORD_CONVERT_FUNC				//记录数据的调整函数,可以有多个,根据需要配置,注意顺序
+		RECORD_XDR_OUTPUT				//定义某些不能从话单中解析的但是需要填充到XDR输出记录的字段,可以有多个,注意顺序
+		
+		RECORD_NEXT_RECORD				//多记录话单的下条话单,该配置项只在CONTROL_RECORD记录中使用,用以解析多种记录格式组成的话单
+		RECORD_LENGTH					//某些编码方式,如BCD编码类型必须设置
+		
+		FIELD	//描述了话单中某个字段的解码、处理、过滤、校验操作的属性和动作
+		{
+			FIELD_NAME					//字段名称,不能重复
+			FIELD_LEAF					//是否为叶子字段,只有叶子字段才会对内容解码,缺省为YES
+			
+			FIELD_NEXT_FIELD			//定义下一个解码的字段
+			FIELD_DEFAULT_VALUE			//字段的缺省值,ASN1.0编码方式,只有当TAG匹配时,默认值才有效,否则缺省无效
+			
+			FIELD_XDR_KEY				//输出到XDR话单的字段名称
+			FIELD_PROPERTY = CHOICE\SEQUENCE\SEQUENCEOF\SET\SETOF			//字段依赖性,缺省为SEQUENCE,表示字段的依赖关系是顺序,CHOICE表示多选一,SEQUENCEOF,SET,SETOF表示集合,SEQUENCEOF表示按顺序,SET和SETOF表示dcd里field的顺序可以和实际话单中的字段顺序不一致
+			
+			FIELD_OPTIONAL				//字段是否可选,缺省为YES
+			FIELD_INFO					//是否信息字段,缺省为NO
+			
+			ASN							//用于说明ASN编码的字段的信息说明
+			{
+				ASN_TAGNUM=				//Tag标识的个数
+				ASN_TAG1=				//第一个tag标识,以16进制格式配置,下面一样
+				ASN_TAG2=				//第二个tag标识
+				ASN_TAG3=				//若有则填第三个tag标识
+				ASN_TAG4=				//若有则填第四个tag标识
+			}
+			
+			DECODE	//解码规则的指定
+			{
+				DECODE_FUNC_TYPE		//解码函数名称
+				DECODE_ORDER			//正序NORMAL,反序REVERSE,缺省为NORMAL,对于ASN1.0编码的字段,该属性指定为单字节的低四位和高四位的解码顺序,正常的是低四位先解,反之则先解高四位
+				DECODE_START			//起始位置,缺省为0
+				DECODE_SPLIT			//字段间的分割符
+				DECODE_LENGTH			//字段的长度,解码以分隔符优先,没有分割符,则按长度解码,ASN1.0编码的话单,长度可以自动解析到,不用指定
+				DECODE_INCREMENT								//定义该字段解码后,数据块是否要移进位置,用于多个字段在同一个数据内容上解析时,解码后不移进位置,缺省为YES,移进数据位置
+			}
+			
+			DEAL	//定义对该字段格式转换的操作内容
+			{
+				DEAL_FUNC_TYPE			//处理函数名称
+				DEAL_PARA1				//为修理函数需要传递的外部参数,参数指定按各个处理函数的定义
+				DEAL_PARA2
+				DEAL_PARA3
+			}
+			
+			FILTER	//定义对该字段过滤的操作内容
+			{
+				FILTER_FUNC_TYPE		//过滤函数名称
+				FILTER_PARA1			//参数1
+				FILTER_PARA2			//参数2
+				FILTER_PARA3			//参数3
+				FILTER_CAUSE = Fxxx		//过滤码
+			}
+			
+			CHECK	//定义对该字段的检验的操作内容
+			{
+				CHECK_FUNC_TYPE			//功能函数
+				CHECK_CAUSE				//校验代码
+				CHECK_CONTENT			//无效时的错误输出信息
+				CHECK_PARA1				//参数1
+				CHECK_PARA2				//参数2
+				CHECK_PARA3				//参数3
+			}
+			
+			
+		}
+		
+		FIELD...
+	}
+	
+	RECORD...
+}
+
+identifier 		[a-zA-Z][a-zA-Z0-9_]*		英文关键词(包括_)
+space			[ \t\r]
+sstring			\"[^\"\n]*[\"]				双引号开头,后面紧跟非双引号,非换行,以双引号结尾的字符串
+symb			[^ =\"\n\t\r\{\}]+			非空格,等号,双引号,制表符,回车符,换行符,{,}连续的字符串

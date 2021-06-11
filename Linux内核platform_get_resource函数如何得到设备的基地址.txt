@@ -1,0 +1,139 @@
+Linux内核platform_get_resource函数如何得到设备的基地址.
+以I2c-s3c2410.c驱动为例：
+
+/* map the registers */
+ res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+ if (res == NULL) {
+  dev_err(&pdev->dev, "cannot find IO resource\n");
+  ret = -ENOENT;
+  goto err_clk;
+ }
+
+ i2c->ioarea = request_mem_region(res->start, (res->end-res->start)+1,
+      pdev->name);
+
+ if (i2c->ioarea == NULL) {
+  dev_err(&pdev->dev, "cannot request IO\n");
+  ret = -ENXIO;
+  goto err_clk;
+ }
+
+ i2c->regs = ioremap(res->start, (res->end-res->start)+1);
+……
+最终得到了IIC的基地址：i2c->regs
+
+以后只需要在基地址的基础上加上偏移量即可得到相应的寄存器，偏移量和寄存器操作宏 定义在regs-iic.h中：
+
+寄存器：
+
+#define S3C2410_IICREG(x) (x)
+
+#define S3C2410_IICCON    S3C2410_IICREG(0x00)
+#define S3C2410_IICSTAT   S3C2410_IICREG(0x04)
+#define S3C2410_IICADD    S3C2410_IICREG(0x08)
+#define S3C2410_IICDS     S3C2410_IICREG(0x0C)
+#define S3C2440_IICLC   S3C2410_IICREG(0x10)
+
+操作宏：
+
+#define S3C2410_IICCON_ACKEN  (1<<7)
+#define S3C2410_IICCON_TXDIV_16  (0<<6)
+#define S3C2410_IICCON_TXDIV_512 (1<<6)
+#define S3C2410_IICCON_IRQEN  (1<<5)
+#define S3C2410_IICCON_IRQPEND  (1<<4)
+#define S3C2410_IICCON_SCALE(x)  ((x)&15)
+#define S3C2410_IICCON_SCALEMASK (0xf)
+
+……
+
+现在遇到的问题是：为什么通过platform_get_resource、ioremap等一系列函数就能得到I2C寄存器的基地址呢？
+
+解答：
+
+ 因为通过platform_get_resource，返回一个resource结构指针，我们来看一下这个结构指针：
+
+struct resource {
+ resource_size_t start;
+ resource_size_t end;
+ const char *name;
+ unsigned long flags;
+ struct resource *parent, *sibling, *child;
+};
+再来看一下arch\arm\plat-s3c24xx目录下的devs.c文件是如何定义I2C资源的:
+
+static struct resource s3c_i2c_resource[] = {
+ [0] = {
+  .start = S3C24XX_PA_IIC,
+  .end   = S3C24XX_PA_IIC + S3C24XX_SZ_IIC - 1,
+  .flags = IORESOURCE_MEM,
+ },
+ [1] = {
+  .start = IRQ_IIC,
+  .end   = IRQ_IIC,
+  .flags = IORESOURCE_IRQ,
+ }
+
+};
+
+其中，S3C24XX_PA_IIC就是S3C24XX系列芯片的I2c基地址，它的定义在arch\arm\mach-s3c2410\include\mach目录下的map.h文件中，具体如下
+……
+#define S3C2410_PA_IIC    (0x54000000)
+……
+#define S3C24XX_PA_IIC      S3C2410_PA_IIC
+……
+基地址为0x54000000，这样就与芯片手册对应了起来。
+
+
+################################  神奇的platform_get_resource函数   ################################
+阅读platformdriver的代码时，发现在probe函数直接调用platform_get_resource从pdev中获取io内存，但却没有判断传给probe的pdev是否
+属于这个驱动!
+后来发现原来在arch目录下的对应目录里面有个devs.c文件（这个文件可能因不同的架构而不一样），这个文件里面声明了一个platform设备
+的资源数组foo_devices，原型如下：
+static struct platform_device* foo_devices[] __initdata;
+
+这个数组里面包含了所有platform设备的资源信息。例如：一个设备的资源声明如下：
+static struct resource foo_resource[] =
+{
+[0] =
+{
+.start = (FOO_BASE_PA),
+.end = (FOO_BASE_PA) + (0x0008000),
+.flags = IORESOURCE_MEM,
+},
+[1] =
+{
+.start = (IRQ_FOO),
+.end = (IRQ_FOO),
+.flags = IORESOURCE_IRQ,
+},
+};
+
+static struct platform_device device_foo =
+{
+.name = "device_foo",
+.id = 0,
+.resource = foo_resource,
+.num_resources = ARRAY_SIZE(foo_resource),
+.dev =
+{
+//根据源代码，这两个成员置成0表示不起作用
+.dma_mask = 0x0,
+.coherent_dma_mask = 0x0,
+},
+};
+
+那么将这个device_foo加入foo_devices数组，就能直接在probe函数中用platform_get_resource获取资源了，但是要注意驱动的
+name成员必须和platform_device结构中的name成员完全相同。
+
+那为什么加入foo_devices数组后就能直接访问了呢？
+在 相关体系的machine_desc结构体中（对于每个特定平台都有一个MACHINE_START宏用来定义machine_desc结构体），有一个 接口
+init_machine，这个接口中会调用platform_add_devices添加foo_devices。例如：
+
+platform_add_devices(foo_devices);
+
+################################  platform_get_resource 如何获取资源   ################################
+在platform机制下，板级文件BSP一般定义了设备的资源，在系统初始化的过程便对platform_device进行注册，接着注册platform_driver,
+两者都注册完毕之后哦，platform_driver便去probe，在probe的过程中，会使用platform_get_resource函数来获取设备资源，那么它究竟
+是怎么获取资源的，platform_get_resource函数的每一个参数都代表什么意思呢？
+
+

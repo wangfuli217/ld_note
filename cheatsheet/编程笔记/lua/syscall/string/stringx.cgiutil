@@ -1,0 +1,71 @@
+-- CGI Header
+print "Content-type: text/html; charset=iso-8859-1\r\n\r\n"
+
+-- Parse POST variables
+-- Written by RiciLake.
+-- The author places the code into the public domain, renouncing all rights and responsibilities.
+-- Replace + with space and %xx with the corresponding character.
+local function cgidecode(str)
+  return (str:gsub('+', ' '):gsub("%%(%x%x)", function(xx) return string.char(tonumber(xx, 16)) end))
+end
+
+-- Main function
+-- Sample invocation:  cgivals = parsecgi(str, {count = 10, start = 1, names = {}})
+function parsecgi(str, keys, ignore_invalid)
+  local keyfound = {}
+  for pair in str:gmatch"[^&]+" do
+    local key, val = pair:match"([^=]*)=(.*)"
+    if not key then error"Invalid query string" end
+    local default = keys[key]
+    if default == nil then
+      if not ignore_invalid then error"Invalid query string" end
+    else
+      if type(default) == "table" then default[#default+1] = cgidecode(val)
+      elseif keyfound[key] then error"Invalid query string"
+      else
+        keyfound[key] = true
+        keys[key] = cgidecode(val)
+      end
+    end
+  end
+  return keys
+end
+
+-- Parse GET variables
+str = os.getenv("QUERY_STRING")
+
+
+-- Handle SCGI Requests
+-- Assigns header information to variable "l", and returns "Hello!" back as the webpage content.
+-- This could use some cleaning up - error checking, removal of repetition, improved scoping.
+
+-- The SCGI protocol has the HTTP requests forwarded to a specified port (default 4000), with
+-- headers passed directly through TCP (and an ASCII string length prefix followed by a ":", 
+-- with the key-value pairs of the header seperated by null characters "\0")
+
+-- With no parsing, this code handles about 950 requests per second on a 2 year old laptop.
+
+local socket = require("socket")
+local host = host or "*"
+local port = port or 4000
+local s = assert(socket.bind(host, port))
+local i, p   = s:getsockname()
+assert(i, p)
+print("Waiting on " .. i .. ":" .. p .. "...")
+while 1 do
+  c = assert(s:accept())
+  print("Connection requested.")
+  len = ""
+  l, e = c:receive(1)
+  while not e do
+    if l == ":" then header_len = tonumber(len) ; break end
+    len = len .. l
+    l, e = c:receive(1)
+  end
+  l,e = c:receive(header_len)
+  c:send("Status: 200 OK\r\n")
+  c:send("Content-Type: text/plain\r\n")
+  c:send("\r\n")
+  c:send("Hello!")
+  c:close()
+end

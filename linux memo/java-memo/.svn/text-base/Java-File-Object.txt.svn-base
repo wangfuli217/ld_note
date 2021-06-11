@@ -1,0 +1,150 @@
+1、一个File类的对象，表示了磁盘上的文件或目录。
+2、File类提供了与平台无关的方法来对磁盘上的文件或目录进行操作。因为不同的系统平台对文件路径的描述不尽相同，
+   所以为了做到平台无关，在Java语言中，使用抽象路径等概念。Java自动进行不同系统平台的文件路径描述与抽象文件
+   路径之间的转换。
+   
+3、File类没有指定信息怎样从文件读取或向文件存储。
+4、File类描述了文件本身的属性。（读写属性等）。
+5、File对象用来获取或处理与磁盘文件相关的信息，例如权限，时间，日期和目录路径。
+6、File类还可以浏览子目录层次结构。   
+
+
+File类有四个构造函数：
+　　File(String pathname)
+　　File(File parent, String child)
+　　File(String parent, String child)
+　　File(URI uri)
+　　利用构造方法，指定路径名、文件名等来构造File类的对象，之后调用该对象的createNewFile()方法就可以创建出相应的文件。
+　　parent指定路径（父目录），可以是File类对象也可以是字符串，child中也可以加入路径层级，但要注意，所用的路径必须存在，不存在的路径不会新建。
+
+
+　　关于斜杠和反斜杠，只能如下生硬地先记住吧：
+　　\\：右手用两个，比如new File("D:\\abc\\" + "Test.txt");
+　　/：左手用一个。比如new File("D:/abc/" + "Test.txt");
+
+　　一个File类对象既可以表示目录也可以表示文件。
+　　有两个函数用于判断File类的对象到底表示什么：
+　　public boolean isDirectory()
+　　public boolean isFile()
+　　它们的名称和返回值都很显然，就不多做解释了。
+
+
+目录管理
+
+　　目录操作的主要方法为：
+　　public boolean mkdir()
+　　public boolean mkdirs()
+　　根据抽象路径名创建目录。它们俩的区别下面会做解释。
+　　public String[] list()
+　　返回抽象路径名表示目录下的文件名和目录名。
+　　public File[] listFiles()
+　　返回抽象路径名下的所有文件。与list()方法的不同之处在于一个返回的是字符串，另一个返回的是File类对象。
+
+    前面提到File类对象既可以是文件也可以是目录，创建文件是createNewFile()方法，相对应的，创建目录即调用
+    mkdir()方法。
+    
+    File file = new File("D:/abc/xyz/hello");
+    file.mkdir();
+    
+    假设D盘下abc目录已经存在，但xyz目录不存在，则不能成功创建hello目录。
+　　要用mkdir()创建目录，必须上一级目录存在，即最底层目录前面的目录全都存在。
+　　要想把File对象包含的目录一次性全都创建好，可以使用mkdirs()方法。
+　　如果目录已经存在，不用创建，则返回false。
+　　注意mkdirs()方法即便返回false，也可能新创建了一些必要的父目录。
+
+
+文件管理
+　　在进行文件操作时，常需要知道一个关于文件的信息。
+　　Java的File类提供了方法来操纵文件和获得一个文件的信息。如getName()返回文件名，getParent()返回父目录名，exists()测试文件或目录是否存在。
+　　然而，File类是不对称的，说它不对称，意思是虽然存在允许验证一个简单文件对象属性的很多方法，但是没有响应的方法来修改这些属性，即有get无set。
+　　另外，File类还可以对目录和文件进行删除、属性修改等工作。方法名都比较直观，在此不多做介绍了。
+
+    public String getName()：获取当前文件对象的名字(不包括路径)
+    public long length()：获取当前文件对象的长度
+    public boolean canRead()：判断当前文件对象是否是可读的
+    public boolean canWrite()：判断当前文件对象是否可被写入
+    public boolean isFile()：判断当前文件对象是否是一个正常文件，而不是目录
+    public boolean isDirectory()：判断当前文件对象是否是一个目录
+    public String getAbsolutePath()：获取当前文件对象的绝对路径
+    public String getParent()：获取当前文件对象的父目录
+    public boolean exits()：判断当前文件对象是否存在
+    public boolean isHidden()：判断当前文件对象的属性是否是隐藏的
+    public boolean delete()：删除当前文件对象所指向的文件或目录
+    public boolean createNewFile()：当前文件对象所指向的文件不存在时，调用该方法可以创建这个文件；创建成功，返回true
+                                  否则返回false
+    public boolean mkdir()：当前目录文件对象所指向的文件不存在时，调用该方法可以创建这个目录；创建成功，返回true；
+                                       否则返回false
+
+使用FilenameFilter
+　　希望能够限制由list()方法返回的文件，使它仅返回那些与一定的文件名方式或者过滤器（filter）相匹配的文件。
+　　为达到这样的目的，必须使用list()方法的带参数的重载形式：
+　　public String[] list(FilenameFilter filter)
+　　在该形式中，filter是一个实现了FilenameFilter接口的类的对象。
+　　该接口中有一个accept()方法，只有该方法判断为true的文件名会被list方法返回。所以可以在accept方法中设置筛选规则。（这里使用了策略模式，可以回想一下Java集合中的比较器）。
+
+    public String[] list()：用字符串形式返回当前目录对象所指向的目录下的所有文件
+    public File[] listFiles()：用File对象形式返回当前目录对象所指向的目录下的全部文件
+    public String[] list(FilenameFilter obj)：用字符串形式返回当前目录对象所指向的目录下的指定类型的所有文件
+                                 FilenameFilter是一个接口，该接口中有一个方法：public boolean accept(Filter dir,String name)
+                                 dir：为调用list方法的当前目录对象
+                                 name：是被实例化目录中的一个文件名
+                                 当接口方法返回true时，list方法就将目录中的文件存放到返回的数组中
+    public File[] listFiles(FilenameFilter obj)：用File对象形式返回目录下的指定类型的全部文件
+
+
+
+文件名显示程序
+
+import java.io.File;
+import java.io.FilenameFilter;
+
+public class FileTest4
+{
+
+    public static void main(String[] args)
+    {
+        File file = new File("D:/abc");
+        String[] names = file.list();
+
+        // 列出所有文件及路径
+        for (String name : names)
+        {
+            System.out.println(name);
+        }
+        System.out.println("-----------------------");
+        System.out.println("-------所有文件名为.java结尾的文件-----------");
+        // 选择.java结尾的文件
+        for (String name : names)
+        {
+            if (name.endsWith(".java"))
+            {
+                System.out.println(name);
+            }
+        }
+
+        // 使用文件过滤器
+        String[] selectedNames = file.list(new FilenameFilter()
+        {
+            // 匿名内部类实现了FilenameFilter接口
+
+            // 实现接口中的方法
+
+            @Override
+            public boolean accept(File dir, String name)
+            {
+                if (name.endsWith(".java")) { return true; }
+                return false;
+            }
+        });
+        // 只有accept返回true的文件名会被返回到selectedNames数组中
+
+        System.out.println("-----------------------");
+        System.out.println("-------所有文件名为.java结尾的文件-----------");
+        for (String name : selectedNames)
+        {
+            System.out.println(name);
+        }
+
+    }
+}
+

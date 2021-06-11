@@ -1,0 +1,21 @@
+    在 YACC 文件中，你写自己 main() 函数，调用 yyparse() 函数。yyparse() 函数被 YACC 创建，在 y.tab.c 中结束。
+    yyparse() 从 yylex() 中读取必须提供的 token/value 流。你也可以自己编写这个函数，或者让 Lex 为你生成。
+在我们的示例中，我们选择让 Lex 帮我们做。
+    yylex() 被 Lex 生成，从文件指针 yyin 读取字符串，如果你没有设置 yyin，它默认为标准输入，输出到文件指针 yyout，
+如果没有设置，默认为标准输出。你也可以在到文件尾才调用的 yywrap() 函数中修改 yyin，它允许你打开另外一个文件，然后继续解析。
+    如果是这种情况（继续解析文件），让它返回0，如果你想结束解析这个文件，让它返回1。
+    每次调用 yylex() 会返回一个表示一个标示类型的数值。告诉 YACC 什么标示被读取。
+这个标示可能有值，如果有的话它的值会被放在 yylval 中。
+    yylval 默认的类型是 int。但是你可以在 YACC 文件中通过 #define YYSTYPE 来重新定义它。
+    词法分析需要访问变量 yylval，所以你需要在词法分析器中申明它为一个扩展变量。
+基本的 YACC 是没有为你做这些的，所以你必须自己添加如下的代码到词法分析器中， 在 #include <y.tab.h>后面：
+extern YYSTYPE yylval;
+    
+    标示值
+    我们之前提到的，yylex() 需要返回它遇到的标示和把它的值赋值给 yylval。当这些标示通过 %token 命令定义的时候，
+它们被分配了一个 id。这个 id 从 256 开始。
+
+debug # http://www.cs.man.ac.uk/~pjj/cs2121/debug.html
+int yydebug = 1;
+
+example # https://ds9a.nl/lex-yacc/#download

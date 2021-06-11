@@ -1,0 +1,501 @@
+Java语言：Java语言规范
+JVM     ：JVM规范
+生态系统：开放式架构
+字节码是什么？Javac是编译器吗？为什么叫"字节码"？字节码是优化过的代码吗？字节码真的是与设备无关的吗？那字节顺序呢？
+Java是解释性语言吗？其他语言可以在JVM中运行吗？
+
+Java                                         
+Java面向对象，C面向过程                       Java的对象模型比C++简单                        
+Java通过类文件实现可移植性，C语言重新编译     Java默认使用虚分派                             
+Java为运行时提供了全面的检测程序              Java始终使用值传递                             
+Java没有指针，也没有指针对等性运算            Java不完全支持多重继承                         
+Java通过垃圾回收提供了自动内存管理功能        Java的泛型没有C++的模板强大，不过危害性较小    
+Java无法从底层布局内容（没有结构体）          Java无法重载运算符                             
+Java没有预处理器。                                                                           
+Java没有C和C++中的unsigned关键字
+Java采用的默认计算优先级和C语言兼容
+Java从C继承了条件运算符
+Java从C继承了i++;++i;--i;i--;
+
+Java是静态类型语言，PHP是动态类型语言         Java是静态类型语言，Javascript是动态类型语言                                                                                      
+Java有JIT，PHP没有                            Java使用基于类的对象，JavaScript使用基于原型的对象
+Java是通用语言，PHP在网站技术之外很难见到     Java提供良好的对象封装，JavaScript没有提供
+Java支持多线程，PHP不支持                     Java有命名空间，JavaScript没有
+                                              Java支持多线程，JavaScript不支持
+
+1、Java使用Unicode字符编写
+2、区分大小写和空白
+3、注释 
+3.1        // 单行
+3.2         /* 多行
+            *
+            */
+3.3         /** 文档注释 javadoc
+            *
+            */
+保留字：
+标识符：
+字面量： 1  1.0 '1' "one" true false null
+标点符号： ( ) [ ] {} ... @ :: ; , .
+#################### 基本类型 ######################  
+boolean  true|false   false     1位     NA    唯一一种不能和其他基本类型之间相互转换的基本类型
+char     Unicode字符  \u0000    16位    \u0000-\uffff--十六进制  {\xxx}--八进制
+byte     有符号的整数  0        8位     -128~127
+short    有符号的整数  0        16位    -32768~32767
+int      有符号的整数  0        32位    -2147483648~2147483647 
+long     有符号的整数  0        64位     
+float    有符号的浮点数  0.0    32位     
+double   有符号的浮点数  0.0    64位    -2147483648~2147483647 
+
+char：使用Unicode字符编写，javac的输入中，标识符使用UTF-8编码，但内部使用定长编码表示字符。 Character类
+Character类：isDigit  isJavaLetter isLowerCase toUpperCase [字符可以装换成整数类型，也可以从整数类型转换过来]
+String类：
+
+byte short int long： Byte Short Integer Long类 MIN_VALUE MAX_VALUE
+0xff       十六进制
+0377       八进制
+0b00101111  二进制
+0xCAFEBABE  十六进制
+整数字面量是32位int类型，如果以L或l结尾，就表示64位long类型 1234[int类型] 1234L[long类型] 0x1234L [long类型]
+Byte.parseByte() Integer.parseInt()
+
+float double MIN_VALUE MAX_VALUE NEGATIVE_INFINITY(-1.0/0.0) POSITIVE_INFINITY(1.0/0.0) NaN(0.0/0.0)
+123.45   0.0   .01  1.2345E02  1e-6   6.02e23 
+默认情况下为double
+double d = 3.04e23
+float f = 6.023e23
+Float.isNaN() Double.isNaN()
+
+
+基本类型之间转换：Math.round()  Math.floor()   Math.ceil()
+int i = 13;                        int i = 13;                                 short s =(short)0xffff 
+byte b = i; //编译器不允许怎么做   byte b = (byte)i; //把int强制转换为byte     char c = '\uffff' 
+                                   i = (int)13.456;  //把double强制转换为int   int i1 = s;
+                                                                               int i2 = c;
+#################### 基本操作 ######################                                                           
+instanceof操作符：与对象和Java的类型系统联系紧密。instanceof操作符的左侧操作数是对象或数组，右侧操作数是引用类型。
+"string" instanceof String  true
+"" instanceof String        true
+null instanceof String      false
+Object o = new int[] {1,2,3};
+o instanceof int[];     true
+o instanceof byte[];    false
+o instanceof object[];  true     
+
+表达式        副作用         var = expr; expr++; method(); new Type()
+复合语句      语句组         {statement}
+空语句        无作用         ;
+标注          为语句命名     label: statement 标注语句就是有名称的语句，命名方法是，在语句前加上一个标识符和一个冒号。
+变量          声明变量       [final] type name[=value][,name[=value]]
+if            条件判断       
+switch        条件判断       
+while         循环           
+do            循环           
+for           简单循环       
+遍历          迭代集合       
+break         退出块         
+continue      重新开始循环   
+return        结束方法       
+synchronized  临界区         synchronized (expr) {statement}
+throw         抛出异常       throw expression #expression必须是一个异常对象。
+try           处理异常       
+assert        验证不变式    assert invariant [:error]
+
+Java允许在关联的表达式中使用包装类型Boolean代替基本类型boolean,此时，包装对象会自动拆包。
+switch语句以一个表达式开始，这个表达式的返回值是int、short、char、byte、String、或枚举类型。不支持浮点和布尔类型。
+switch语句的case部分可以使用break、return和throw三种方式退出。不能有多个case标注使用同一个值，default标注不能超过一个。
+do while(expression); do循环的结尾需要使用分号。;
+for(initialize; test; update)    initialize;        for(int count=0; count<10; count++)
+    statement;                   while(test)        for(Node n = listHead; n!=null; n = n.nextNode())
+                                 {                  for( declaration: expression)
+                                     statement;
+                                     update;
+                                 }
+使用遍历循环迭代集合中的元素也有类似的问题，使用遍历循环迭代数组时无法获取当前元素的索引，同样使用遍历循环迭代集合也无法获取列举集合元素的Iterator对象。
+
+#################### try/cacth/finally ######################
+
+throw:异常是一种信号，表明发生了某种异常状态或错误，抛出异常的目的是发出信号，表示有异常状态发生。捕获异常的目的是处理异常，使用必要的操作修复。
+throw用于抛出异常。IllegalArgumentException("x must be >=0") java.io.FileNotFoundException NullPointerException
+try/catch/finally; catch块能处理的类型必须是Throwable的子类。
+try{
+// 正常情况下，这里的代码从上到下运算，没有问题
+//但是，有时可能抛出异常
+//可能是throw语句直接抛出
+//也可以是调用的方法间接抛出
+// 如果因为return continue break语句而离开try块，会先执行finally,然后再转向新目标代码。
+}
+catch(SomeException e1){  -- 异常处理
+//这段代码中的语句用于处理SomeException或其子类类型的异常对象
+//在这段代码中，可以使用名称为e1引用那个异常对象
+}
+catch(AnotherException | YetAnotherException e2){ -- 异常处理
+//这段代码中的语句用于处理AnotherException和YetAnotherException
+//或二者的子类类型的异常，在这段代码中，使用名称e2引用传入的异常对象
+}
+finally{  -- 清理操作
+//不管try子句的结束方式如何，这段代码中的语句都会执行；
+// 1)正常结束；到代开的结尾
+// 2)由break;continue或return throw语句导致
+// 3)抛出异常，由上述catch子句处理
+// 4)抛出异常，未被捕获处理
+// 但是，如果在try子句中调用System.exit(),解释器会立即退出
+// 不执行finally子句。
+}
+    正常情况下，执行到try块的末尾后会继续执行finally块，作必要的清理工作。如果因为return,confitnue,break语句而离开try块，
+会先执行finally块然后再转向新的目标代码。
+    如果try块抛出了异常，而且有处理该异常的catch块，那么先执行catch块，然后再执行finally块。如果本地没有能处理该异常的catch块，
+先执行finally块，然后再转向上冒泡到能处理该异常最近的catch子句。
+    如果finally块使用return,continue,break,throw语句，或者调用的方法抛出了异常，从而转移了控制权，那么待转移的控制终止，
+改为执行新的控制权转移，例如：如果finally子句抛出了异常，这个异常会取代任何正在抛出的异常。如果finally子句使用了return语句，
+就算抛出的异常没有处理，方法也会正常返回。
+    try和finally子句可以放在一起使用，不处理异常，也没有catch子句，此时，finally块只负责清理的代码，不管try子句中有没有
+break,continue,return语句，都会执行。
+
+
+              优先级                                 结合性                             操作数的数量和类型                   副作用 
+//类校正和成员访问结合在一起                  大多数运算由左至右结合，即从左向后计算    一元运算符                           ++ --
+((Integer)o).intValue();                      赋值和一元运算符由右向左结合              二元运算符                           （）
+//赋值和比较结合在一起                                                                  三元运算符  从C语言继承而来          new
+while((line = in.readline())!= null) {...}                                              数字、整数、引用类型、变量            
+//位运算和比较结合在一起                                                                比较、相等性和逻辑运算始终返回布尔值
+if((flags&(PUBLIC|PROTECTED)) !=0 ) {...}                                               返回int类型就算两个操作数都是byte\short或char类型，都扩大为int
+
+#################### 运算符 ######################
+算术运算符可用于整数、浮点数和字符（除了布尔类型之外的所有基本类型），如果其中有个操作数是浮点数，就按浮点算术运算；
+                                                                      否则安整数算术运算。
+                                                                      除法的运算方式，以及上溢、下溢的处理方式。
+                                                                      
++还能连接字符串。如果+号的操作数中有一个是字符串，另一个也会转换成字符串。
+/两个整数相除时，如果除数是0，抛出ArithmeticException异常， 对于浮点数，如果除以0，得到的是无穷大或NaN。                                                                     
+%也可以使用浮点数，4.3%2.1=0.1，如果操作数是整数，计算0的模数会抛出ArithmeticException异常，如果操作数是浮点数，
+ 计算0.0的模数得到的结果是NaN，计算无穷大和任何数的模数得到的结果都是NaN。
+Java解释器原生支持把所有基本类型转换成字符串，对象装换成字符时，调用的是对象的toString()方法。有些类自定义了toString()方法，所以这些类的
+对象可以使用这种方法轻易地转换为字符串。
+
+比较运算符：两个值是否相等和测试有序类型数据之间大小关系的关系运算符。结果都是布尔类型。
+==：引用类型，两个操作数是否指向同一个对象或数组。注意：不能测试两个字符串是否相等。
+对于浮点数来书，特殊的负零和正零相等；特殊的NaN和任何数，包括NaN自己，都不相等。如果测试浮点数是否NaN Float.isNaN() Double.isNaN()
+关系运算符可用于数字和字符。但不能用于布尔值、对象和数组。
+
+&如果操作数数布尔值，&运算符的行为和&&运算符类似。不过这个运算符几乎都用作位运算符，处理整数操作数。
+位操作：& | ^ ~ <<(左移) >>(带符号右移) >>>(不带符号右移)
+. 访问对象成员 [] 访问数组中的元素 () 调用方法 lambda -> new 创建对象 ()类型转换或校正
+
+#################### 断言 ######################
+AssertionError表名程序员的假想之一没有实现。不要尝试捕获这个异常。
+如果想为系统类之外的所有类启用断言，使用-ea参数，如果想为系统类启用断言，使用-esa参数。如果想为某个具体的类启用断言，使用-ea参数
+后跟一个冒号和类名：
+java -ea:com.example.sorters.MergeSort com.example.sorters.Test
+如果想为包中的所有类和子包中启动断言，在-ea参数后面加上冒号、包名和三个点号
+java -ea:com.example.sorters... com.example.sorters.Test
+使用-da参数，通过相同的方式可以禁用断言
+java -ea:com.example.sorters... -da:com.example.sorters.QuickSort
+java -ea:com.example.sorters... -da:com.example.sorters.plugins..
+
+
+#################### 方法签名 ######################
+1) 方法的名称
+2) 方法所用参数的数量、顺序、类型和名称
+3) 方法的返回值
+4) 方法能抛出的已检异常(签名还能列出未检出异常，不过不是必需的)
+5) 提供方法额外信息的多个方法修饰符。
+modifiers type name (paramlist) [throws exceptions]
+和某些其他语言不同，Java没有匿名方法。
+如果Java方法没有实参，其形参列表时()，而不是(void)。c和c++程序员特别注意，Java不把void当做一种类型。
+如果方法抛出的异常类型不止一个，要使用逗号分隔异常类的名称，
+
+abstract:使用abstract修饰的方法没有实现实体，组成普通方法主体的花括号和Java语句使用一个分号代替。
+如果类中有使用abstract修饰的方法，类本身也必须使用abstract声明，这种类不完整，不能实例化。
+final：  使用final修饰的方法不能被子类覆盖和隐藏，能获得普通方法无法得到的编译器优化，所有使用private
+修饰的方法都隐式添加了final修饰符；使用final声明的任何类，其中的所有方法也都隐式添加final修饰符。
+native ： native修饰符表明方法的实现使用某种"本地"语言编写，例如C语言，并且开放给Java程序使用，native
+修饰的方法好abstract修饰的方法一样，没有主体：花括号使用一个分号代替。
+static ： 使用static声明的方法是类方法，关联在自己身上，而不是类的实例身上。
+strictfp: fp的意思是"浮点"，一般情况下，Java会利用运行时所在平台的浮点硬件提供的可用扩展精度。添加这个关键字后，运行
+strictfp修饰的方法时，Java会严格遵循标准，而且就算结果不精确，也只使用32位或64位浮点数格式进行浮点运算。
+synchronized: 线程安全的方法。
+
+已检异常和未检异常之间的差别在于异常在什么情况下抛出，已检异常在明确的特定情况下抛出，经常是应用能部分或完全恢复的情况。
+例如：FileNotFoundException。
+未检异常：OutOfMemoryError NullPointerException
+Thorwable类： Error未检异常：Exception(RuntimeException未检异常)  java.io.IOException MalformedURLException已检异常
+
+#################### 类 对象 ######################
+字符串字面量：String类使用一串字符表示文本。  字符字面量。
+类型字面量： 支持对象字面量句法的类型是class类。Class类的实例表示一种Java数据类型，而且包含所表示类型的元数据。
+若想在Java程序中使用Class对象字面量，要在数组类型的名称后面加上.class
+Class<?> typeInt = int.class；
+Class<?> typeIntArray = int[].class；
+Class<?> typePoint = Point.class；
+
+null引用
+
+#################### 数组 ######################
+数组类型不是类，但数组实例是对象。这意味着，数组从java.lang.Object类继承了方法。数组实现了Cloneable接口，而且覆盖了clone()方法，确保数组
+始终能被复制。而clone()方法从不抛出CloneNotSupportedException异常。
+byte b;
+byte[] arrayOfBytes;
+byte[][] arrayOfArrayOfBytes;
+String[] points;
+数据类型方法转换：
+String[] arrayOfStrings; //创建字符串数组
+byte[][] arrayOfArrayOfBytes;　//创建int二维数组
+//String可以指定给Object ，因此String[] 可以指定给Object{}
+Object[] oa = arrayOfStrings;
+//String实现了Comparable[] ，因此String可以视作Comparable[] 
+Comparable[] ca = arrayOfStrings;
+// byte[] 是Object类对象，因此byte[][]可以指定给Object[] 
+Object[] o2 = arrayOfArrayOfBytes;
+所有数组都是可以复制和序列化的对象
+Object o = arrayOfStrings;
+Cloneable c = arrayOfArrayOfBytes;
+Serializable s = arrayOfArrayOfBytes[0];
+
+//默认值初始化
+byte[] buffer = new byte[1024];
+string[] lines = new String[50];
+//定值初始化
+String[] greetings = new String[]{"hello", "Hi", "Howdy"};
+int[] smallPrimes = new int[]{2, 3, 5, 7, 11, 13 15, 17, 19, };
+//传入方法初始化
+String response = askQuestion("Do you wang to quit?", new String[]{"Yes", "No"});
+double d = computeAreaOfTriangle(new Pont[] { new Point(1,2), new Point(3,4), new Point(5,6)})
+//后续初始化
+int[] perfectNumbers = new int[2];
+perfectNumbers[0] = 6;
+perfectNumbers[1] = 28;
+
+ArrayIndexOutOfBoundException
+java.util.Arrays
+
+#################### 装包和拆包转换 ######################
+Boolean、Byte、Short、Character、Integer、Long、Float、Double
+boolean、byte、short、char、     int、    long、float、double
+基本类型和引用类型的表现完全不同，有时需要把基本值当成对象，为此，Java平台为每一种基本类型都提供了包装类。
+每个实例只保存一个基本值。包装值一般在把基本值存储在集合中时使用，例如java.util.List
+List numbers = New ArrayList(); //创建一个List集合
+numbers.add(new Integer(-1)); //存储一个包装类表示的基本值
+int i = ((Integer)numbers.get(0)).intValue(); // 取出这个基本值。
+装包转化是把一个基本值转换成对应的包装对象，拆包转换是把一个包装对象转换成对应的基本值。
+
+#################### 包和Java命名空间 ######################
+Java平台的核心类放在一些名称以java开头的包中。
+java.lang
+java.util
+java.io
+java.net
+java.lang.reflect
+java.util.regex
+甲骨文标准化的Java平台扩展一般在名称以javax开头的包中,甲骨文控制着所有以java,javax和sun开头的包名。
+javax.swing
+org.w3c
+org.omg
+声明包 package org.apache.comms.net;
+java.util.List  java.awt.List
+apache项目开发了一个网络库： http://commons.apache.org 网络库包名是org.apache.commons.net
+导入包：import java.io.FIle; import java.io.*;
+import java.util.*;
+import java.ast.*;
+import java.util.List;
+导入静态成员： import static java.lang.System.out; 导入类型中的静态成员。
+import static java.lang.System.out;
+import static java.lang.Math.*;
+import static的重要作用是将常量导入代码；
+
+#################### Java文件的结构 ######################
+一个可选的package指令
+零个或多个import或import static指令
+一个或多个类型定义
+
+在大多数系统中，类文件都存储在包名称对应的目录中，因此，com.davidflanagan.examples.Point 类在com/davidflanagan/examples/Point.class文件
+中定义。
+Java解释器知道标准系统类的类文件存储的位置，需要时会加载这些类文件。解释器运行程序时，如果需要使用名为com.davidflanagan.examples.Point
+的类，它知道这个类的代码存储在名为com/davidflanagan/examples/的目录中，默认情况下，解释器会在当前目录中寻找这个子文件。如果想告诉
+解释器在当前目录之外的位置寻找，调用解释器时必须使用-classpath选项，或者设定CLASSPATH环境变量。
+
+
+#################### 定义并运行Java程序 ######################
+public static void main(String[ ] args)
+java -classpath /opt/Jude com.davidflanagan.jude.Jude datafile.jude
+-classpath /opt/Jude：告诉编译器在哪里寻找类文件
+com.davidflanagan.jude.Jude是要运行的程序名(即包含main()方法的类名)
+datafile.jude是一个字符串，作为字符串数组的一个元素，传给main()方法。
+
+java -jar /usr/local/Censum/cesum.jar #把程序及其所有辅助类都正确打包到一个Java档案文件中，那么JAR文件就可以作为运行程序。
+
+%/usr/local/Cesum/cesum.jar #某些操作系统中，JAR文件能自动执行。
+
+#################### 面向对象 ######################
+接口可以使用关键字default指明其中的方式是可选的。如果方法是可选的，接口文件必须包含默认的实现；所有实现这个接口的类，
+如果没有实现可选的方法，就是用接口中默认的实现。
+实现接口的类必须为接口的非默认方法提供的主体，实现某个接口的类的实例，也是这个接口类型的实例。
+类、接口、数组、枚举、注解类型是Java定义的五种基本引用类型中最重要。
+public class Integer extends Number implements Serializable， Comparable
+{
+
+}
+class：        class关键字前面可以放修饰符关键字和注解；
+extend：       如果类扩展其他类，类名后面要加上extends关键字和扩展的类名。
+implements:    如果类实现一个或多个接口，类名或extends子句只有要加上implements关键字和用逗号分割的接口名。
+
+abstract：为完全实例化，不能实例化
+final   ：类无法被扩展。类不能同时声明为abstract和final，字段一旦初始化，就不会改变
+strictfp：如果类声明为strictfp，那么其中所有的方法都声明为strictfp.
+static  : 属于类自身，而不属于实例
+transient：字段不是对象持久状态的一部分，无需跟对象的其他内容一起序列化。
+volatile：可被两个或多个线程同时使用。字段的值必须始终从主存储器中读取和释放，不能被线程缓存。
+
+public static final double PI = 3.14159；
+
+在一个构造方法中调用另一个构造方法： public Cicle() {this(1.0)};
+
+#################### 子类和继承 ######################
+public class PlaneCircle extends Circle{
+... ...
+}
+如果声明类时使用了final修饰符，那么这个类无法被扩展或定义子类。
+public class PlaneCircle extends Circle{  ... ... }
+
+java.lang.Object 是特殊的类；
+它是Java中唯一一个没有超类的类；
+所有Java类都从Object类中继承方法。
+super(r) ## 在子类的构造函数中调用父类的构造函数。
+this(r)  ## 在子类中调用自身的构造函数
+
+r      //引用PlaneCircle的字段
+this.r //引用PlaneCircle的字段
+super.r //引用Circle的字段
+
+x               C类的x字段
+this.x          C类的x字段
+super.x         B类的x字段
+((B)this).x     B类的x字段
+((A)this).x     A类的x字段
+super.super.x   非法，
+
+
+能否访问                               成员可见性
+                         公开         受保护       默认          私有
+定义成员的类             是           是           是            是
+统一包中的类             是           是           是            否
+不同包中的子类           是           是           否            否
+不同的包，也不是子类     是           否           否            否
+
+
+#################### 泛型 ######################
+List<CenteredCircle> shapes = new ArrayList<CenteredCircle>();
+shapes.add(new CenteredCircle(1.0, 1.0, 1.0));
+shapes.add(new CenteredCircle(2.0, 2.0, 2.0));
+CenteredCircle c = shapes.get(0);
+CenteredCircle c = shapes.get(1);
+
+List shapes = new ArrayList();
+shapes.add(new CenteredCircle(1.0, 1.0, 1.0));
+shapes.add(new CenteredCircle(1.0, 1.0, 1.0));
+CenteredCircle c = (CenteredCircle)shapes.get(0);
+CenteredCircle c = (CenteredCircle)shapes.get(1);
+
+List<?> unknownList = ArrayList<?>();       //不会编译
+List<Object> shapes = new ArrayList<String>(); //不会编译
+List<?> shapes = new ArrayList<String>(); //合法
+
+ArrayList<?> mysteryList = unknownList();
+object o = mysteryList.get(0);
+
+mysteryList.add(new Object()); // 不会编译。
+
+
+
+编译时和运行时类型
+List<String> l = new ArrayList<>();
+System.out.printfln(l);
+l是什么类型？答案取决于在编译时(即javac看到的类型)还是运行时(JVM看到的类型)问这个问题。
+javac把l看成List-of-String类型，而且会用这个类型信息仔细检查局发错误，例如不能使用add()方法添加不合法的类型。
+JVM把l看成ArrayList类型的对象，这一点可以从println()语句的输出中证实，因为要擦除类型，所以运行时l是原始类型。
+因此，编译时和运行时的类型稍微有些不同。某种程度上，这个不同点是，运行时类型既比编译时精确，又没有编译时类型精确。
+运行时类型没有编译时类型精确，因为没有负载类型的信息---这个信息被擦除了，得到的运行时类型时类型只是原始类型。
+编译时类型没有运行时类型精确，因为我们不知道l的具体类型到底是什么，只知道是一种和List兼容的类型。
+
+#################### 枚举和注解 ######################
+枚举是类的变种，功能有限，而且允许使用的值很少；
+public enum PrimaryColor{
+// 实例列表末尾的分号是可选的
+RED, GREEN, BLUE
+}
+PrimaryColor类型的实例可以按照静态字段的方式引用：PrimaryColor.RED PrimaryColor.GREEN PrimaryColor.BLUE
+
+和其他语言中，例如C++，枚举一般使用整数常量实现，但Java采用的方式能提供更好的类型安全性和灵活性。例如因为枚举是特殊的类，
+所以可以拥有成员，即字段和方法。如果字段或方法有主体，那么实例列表后面必须加上分号。
+
+public enum RegularPolygon{
+TRIANGLE(3), SQUARE(4), PENTAGON(5), HEXAGON(6);
+
+private Shape shape;
+    public Shape getShape(){
+        shape;
+    }
+
+    private RegularPolygon(int sides){
+        switch(sides)
+        case 3:
+            shape = new Triangle(1,1,1,60,60,60);
+            break;
+        case 4:
+            shape = new Rectangle(1,1);
+            break;    
+        case 5:
+            shape = new Pentagon(1,1,1,1,1,1,108,108,108,108,108,108);
+            break;   
+        case 6:
+            shape = new Hexagon(1,1,1,1,1,1,120,120,120,120,120,120);
+            break;          
+    }
+}
+都(隐式)扩展java.lang.Enum类； 不能泛型化； 可以实现接口； 不能被扩展； 如果枚举中的所有值都有实现主体，那么只能定义抽象类型； 
+只能有一个私有的构造方法。
+
+
+注解是一种特殊的接口，如名称所示，其中作用是注解Java程序的某个部分。
+1、注解：什么作用也没有，
+2、注解能为编译器和集成开发环境提供有用的提示，如果开发者把方法的名称拼写错了，而这个方法本来是要覆盖超类的方法，
+   那么。这个名称拼错的方法上使用了@Override注解，可以提醒编译器什么地方出错了。
+3、注解不能改变程序的语义，只能提供可选的元信息，严格说来，这意味着注解不能影响程序的执行，只能为编译器和其他预执行阶段提供信息。
+
+@Override注解：只是为注解的方法提供额外的信息，注明这方法覆盖了超类中的方法。
+@Deprecated注解：方法废弃了；
+@SuppressWarnings注解：静默编译器的告警。
+@SafeVarargs注解：为变长参数方法提供增强的告警静默功能。
+@FunctionalInterface注解：表示接口可以用作lamdba表达式的目标。
+
+都(隐式)扩展java.lang.annotation.Annotation接口； 不能泛型化； 不能扩展其他接口； 只能定义没有参数的接口； 不能定义会抛出异常的方法
+方法的返回类型有限制； 方法可以有一个默认返回值。
+
+
+#################### 嵌套类型 ######################
+静态成员类型、非静态成员类型、局部类、匿名类。
+
+
+
+#################### Java实现内存管理和并发编程的方式 ######################
+不同的虚拟机使用不同的方式实现垃圾回收，而且规范没有对如何实现垃圾回收器做强制的要求。 HotSpotJVM。
+如果不再使用的对象存在有效的引用，仍然会发生内存泄露。
+new 手动申请 null手动回收；很像C++吧。
+
+JVM确切知道它分配了哪些对象和数组，这些对象和数组存储在某种内部数据结构中，我们称这种数据结构为分配表。JVM还能区分每个栈帧里的
+局部变量指向堆里的那个对象或数组，最后，JVM能跟踪堆中对象和数组保存的引用，不管引用多么迂回，都能找到所有仍然被引用的对象和数组。
+
+在应用线程的堆栈跟踪中，从其中一个方法的某个局部变量开始，沿着引用链，如果最终能找到一个对象，
+我们称这个对象为可达对象，这种对象也叫对象。
+除了局部变量外，引用连还可以从其他几个地方开始，通过可达对象的引用链根部一般称为GC Root。
+
+#################### 基本标记清除算法 ######################
+迭代分配表，把每个对象都标记为"已死亡"
+从指向堆的局部变量开始，顺着遇到的每个对象的全部引用向下，没遇到一个之前没见到过的对象或数组，就把它标记为"存活"。像这样一直向下
+知道找出能从局部变量到达的所有引用为止。
+再次迭代分配表，回收所有没标记为"存活"的对象在堆中占用的内存，然后把这些内存放回可用内存列表中，最后把这些对象从分配表中删除。
+
+STW(Stop-The-World)
+
+
+

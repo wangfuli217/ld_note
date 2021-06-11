@@ -1,0 +1,68 @@
+#!/usr/bin/env bash                                                                          # &解释器说明
+set -e                                                                                       # &解释器配置
+
+encode_name() {                                                                              # &函数
+  local name="$1"
+  local result="test_"
+
+  if [[ ! "$name" =~ [^[:alnum:]\ _-] ]]; then
+    name="${name//_/-5f}"
+    name="${name//-/-2d}"
+    name="${name// /_}"
+    result+="$name"
+  else
+    local length="${#name}"
+    local char i
+
+    for ((i=0; i<length; i++)); do
+      char="${name:$i:1}"
+      if [ "$char" = " " ]; then # 普通匹配
+        result+="_"
+      elif [[ "$char" =~ [[:alnum:]] ]]; then # regular模式匹配
+        result+="$char"
+      else
+        result+="$(printf -- "-%02x" \'"$char")"
+      fi
+    done
+  fi
+
+  echo "$result"
+}
+
+# 通过正则表达式实现了自定义方式 转变 成shell函数定义函数
+# 通过encode_name 实现了字符串描述 转变 成shell函数名称字符串
+# 该文件实现 自定义模式 转变成 标准shell模式，且记录待执行函数
+tests=()
+index=0
+pattern='^ *@test  *([^ ].*)  *\{ *(.*)$' # 模式匹配 () 为匹配单元，
+#     @test     "no arguments prints usage instructions"  {
+# ^ * @test   * ([^ ].*)                                *\{ *(.*)
+# ^ *      -- 行开头有0个或多个空格
+# @test    -- 在0个或多个空格之后是@test
+#   *      -- 在@test之后有0个或多个空格
+# ([^ ].*) -- 非空格开头后面所有字符
+#   *\{    -- 0个或多个空格之后是{
+#  *(.*)   -- 非空格的0个或多个字符
+
+#IFS 内部字段分隔符 Internal Field Separator 用来在扩展之后进行分词，
+#    使用内部命令read将行划分成词。默认值是''<space><tab><newline>’
+# BASH_REMATCH 在 [[ =~ ]] 之后使用，用于捕获模式匹配字符串
+while IFS= read -r line; do                  # 通过管道获得输入，相当于 cat file | while read ; do done
+  let index+=1
+  if [[ "$line" =~ $pattern ]]; then         # =~ regular模式匹配，模式参数不能使用""
+    quoted_name="${BASH_REMATCH[1]}"         # ([^ ].*) 捕获
+    body="${BASH_REMATCH[2]}"                # (.*)     捕获
+    name="$(eval echo "$quoted_name")"       # 函数名中可以有全局变量或者环境变量
+    encoded_name="$(encode_name "$name")"
+    tests["${#tests[@]}"]="$encoded_name"
+    echo "${encoded_name}() { bats_test_begin ${quoted_name} ${index}; ${body}"
+                            # bats_test_begin "no arguments prints usage instructions" 6;
+# encoded_name -- test_no_arguments_prints_usage_instructions
+  else
+    printf "%s\n" "$line"
+  fi
+done
+
+for test_name in "${tests[@]}"; do          # 执行函数定义 bats_test_function test_no_arguments_prints_usage_instructions
+  echo "bats_test_function ${test_name}"
+done

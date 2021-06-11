@@ -1,0 +1,168 @@
+process/thread:
+    "ONLY thing task_struct has is pid&tgid, no tid"
+    man 2 gettid
+           #define _GNU_SOURCE
+           #include <unistd.h>
+           #include <sys/syscall.h>
+           #include <sys/types.h>
+           int main(int argc, char *argv[])
+           {
+               pid_t tid;
+               tid = syscall(SYS_gettid);
+           }
+    can't use gettid() directly
+
+    kern/include/asm-generic/unistd.h       check syscall num, told u where is the source, like /* kernel/timer.c */
+
+    for POSIX 
+        getpid() -> tgid
+        gettid() -> pid         for all, pid is unique while threads share one tgid
+    The tgid and
+     * the pid are identical unless CLONE_THREAD was specified on clone() in
+     * which case the tgid is the same in all threads of the same group.
+     in pthread(POSIX thread), getpid() returns same as its parent's, gettid() returns the different
+
+     "VM is also a kind of resource, like fs/files/sighands"
+
+    void * stack = malloc(10240);                    //分配线程堆栈 
+    clone(&clone_func, stack+10240, CLONE_VM, NULL); //没有考虑文件相关的东西       diff pid&tgid
+    clone(&clone_func, stack+10240, CLONE_VM|CLONE_SIGHAND, NULL);                  diff pid&tgid
+    clone(&clone_func, stack+10240, CLONE_THREAD|CLONE_VM|CLONE_SIGHAND, NULL);     diff pid; same tgid
+    CLONE_THREAD -> CLONE_SIGHAND -> CLONE_VM       3 in a pair
+    here thread's stack is in process's heap
+    but pthread库是通过调用mmap()来为新的线程创建栈空间的，可以在细看一下它的参数，它使用了flag
+    MAP_ANONYMOUS和MAP_PRIVATE，而且fd参数中用了-1，这样调用的结果是在进程空间中创建一个匿名的
+    线性区，这样就有了栈空间，而且这个空间也在原来的mm_struct里面
+
+    if only CLONE_VM, it's 2 diff procs which share the same VM, one EXEC, no effect on the other
+    CLONE_VM | CLONE_THREAD | CLONE_SIGHAND, in reality, threads not procs, any one EXEC, all other threads exit
+    EXEC作用就是蒸发地址空间
+    
+    multithread then fork, child process clones all locks but discards all threads
+    从OS看，每个锁有一个所有者，即最后一次lock它的线程。
+    多线程程序 fork 前，应该由发起 fork 的线程 lock 所有子进程可能用到的锁，fork 后，把它们一一 unlock 
+    当然，这样的做法就隐含了锁的次序。如果次序和平时不同，那么就会死锁。
+
+    fork() copy socket (as fs) to child, so 2 connection, need to close both
+
+    /proc/pid/status
+    /proc/pid/task/all tid
+
+ascii/unicode:
+    linux wchar_t 是4字节(int)... gcc下一般是 UTF-8编码, 汉字 2-3 字节
+    wchar_t wc[]= L"测试";   len 2, size 12
+    char c[]= "测试";        len 6, size 7
+    printf("%d,%d\n", wcslen(wc),strlen(c));    2, 6
+    printf("%d,%d\n", sizeof(wc),sizeof(c));    12, 7
+
+bytes order:
+    htons():将16位无符号整数从本地字节序转换成网络字节序
+    htonl():将32位无符号整数从本地字节序转换成网络字节序
+    ntohs():将16位无符号整数从网络字节序转换成本地字节序
+    ntohl():将32位无符号整数从网络字节序转换成本地字节序
+
+
+int access(const char *path, int mode)
+    F_OK/R_OK/W_OK/X_OK
+int unlink(const char *path);
+
+getrlimit/setrlimit     resource limit
+
+openlog()
+syslog()
+closelog()
+
+define NOFILE 256 (file descriptor, fd)
+
+pthread:
+            if(pthread_create(&t_id, NULL, (void*)work_thread, request) != 0)
+                    printf("Can't create thread.%d\n", (int)t_id);
+            else if(pthread_detach(t_id) != 0)
+                    printf("Can't detach the thread.\n");
+    1st pthread_cancel(tid); 2nd pthread_join(tid, NULL);
+    当mutex以extern或者static存储时，可以用PTHREAD_MUTEX_INITIALIZER初始化，此时该mutex使用默认属性
+    typedef struct my_struct_tag {  
+        pthread_mutex_t mutex;  
+        int value;  
+    } my_struct_t;  
+    my_struct_t data = {PTHREAD_MUTEX_INITIALIZER, 0};  
+    如果线程不希望被阻塞，则可以调用pthread_mutex_trylock尝试对互斥量进行加锁，当互斥量没有被加锁，则函数返回0，并锁住互斥量，否则会失败，返回EBUSY
+    mutex应该多大？这里的大小是相对的，如mutex锁定到解锁之间的代码只有一行，比起有10行的就小了。 原则是：尽可能大，但不要太大
+    考虑下面的因素：1> mutex并不是免费的，是有开销的，不要太小了，太小了程序只忙于锁定和解锁了。
+                    2> mutex锁定的区域是线性执行的，若太大了，没有发挥出并发的优越性
+    一般用于遍历数据结果（树，链表），一个用于锁定指针，一个锁定数据. 注意，锁定链往往会出现大量的锁定和解锁操作，有时会得不偿失
+
+    Linux下的线程有两种状态，joinable和unjoinable。线程默认为joinable的，这样方便在线程退出后，主线程通过join操作去获取线程状态
+    这样就带了一个问题，如果不去join这个子线程的话，子线程资源就一直得不到释放，等待在这里，造成了内存泄漏。
+    防止线程结束后内存泄漏的解决方法有三个:
+    1. 线程里面调用 pthread_detach(pthread_self()) 这个方法最简单
+    2. 创建线程后用 pthread_join() 一直等待子线程结束
+       这个函数是一个线程阻塞的函数，调用它的函数将一直等待到被等待的线程结束为止
+       此函数用于进程和线程的同步，防止主线程提前结束，致使其它线程无法执行
+       join() is a method of "waiting & process<->threads synchronization"
+    3. 在创建线程的设置PTHREAD_CREATE_DETACHED属性
+       pthread_attr_t attr;
+       pthread_t thread;
+       pthread_attr_init (&attr);
+       pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
+       pthread_create (&thread, &attr, &thread_function, NULL);
+       pthread_attr_destroy (&attr);
+
+    kill a thread which in a finite loop:
+	pthread_setcancelstate (PTHREAD_CANCEL_ENABLE, NULL);
+	pthread_setcanceltype (PTHREAD_CANCEL_DEFERRED, NULL); + pthread_testcancel()
+        when process calls pthread_cancel(), thread exit at textcancel points, rather than exit directly
+	pthread_setcanceltype (PTHREAD_CANCEL_ASYNCHRONOUS, NULL); needs no pthread_testcancel()
+	while (1) {
+            ...
+	    pthread_testcancel ();
+	}
+    avoid dead lock:
+        pthread_mutext_lock(&lock);
+        pthread_cleanup_push(pthread_mutex_unlock, &lock);
+        ...
+        pthread_mutex_unlock(&lock);    /* haven't canceled yet, unlock oourselves */
+        pthread_cleanup_pop(0);         /* pop the registered unlock */
+        
+
+pcap:
+    pcap is a copy of network main stream
+    socket(PF_PACKET
+    pcap_loop(handle, 0, callback, NULL);       sniff forever, because count is 0
+
+
+socket:
+    1. 阻塞（send recv 最好用select封装起来）
+    2. 使用同一个套接字的时候（维持链接），注意避免多线程操作。。
+
+    内核实现新的sockopt命令字有两类，一类是添加完整的新的协议后引入，一类是在原有协议命令集的基础上增加新的命令字
+    sockopt命令字定义没有什么特别之处，就是一个整数，只要对这个协议内部是一个唯一的的即可，不象ioctl的命令字还有一定格式要求
+    可以在同一个socket中对不同的命令传送不同的数据结构
+    netfilter提供的动态登记opt命令字可以动态添加删除sockopt操作命令字，而且不用修改内核原有的程序
+
+    int len = sizeof(buf); 
+    int *lenp = &len;
+    getsockopt(skfd, IPPROTO_IP, DDOS_GET_LOG, buf, (socklen_t *__restrict__)lenp);
+    when return, len will be set to the actually filled bytes, thus new len <= original len.
+    if len has an invalid value, 'invalid argument' happens
+
+    
+signal:
+    sleep(n) == signal(SIG_ALARM, handler) + alarm(n) + pause()
+    postpone an alarm
+        int leaving_time = alarm(0); ....
+        alarm(leaving_time);
+
+    struct sigaction sig;
+    sig.sa_handler = sig_handler;
+    sigemptyset(&sig.sa_mask);
+    /* sigaddset(&sig.sa_mask, SIGINT); */      is just a set, to be used somewhere
+    /* sigaddset(&sig.sa_mask, SIGTERM); */
+    sig.sa_flags = 0;
+    if (sigaction(SIGINT, &sig, NULL) < 0) {    this is the right way to set a certain signal handler
+        TRACE_WARN("failed to register signal handler for SIGNIT\n");
+    }
+    /* default signal of start-stop-daemon --stop */
+    if (sigaction(SIGTERM, &sig, NULL) < 0) {
+        TRACE_WARN("failed to register signal handler for SIGNIT\n");
+    }

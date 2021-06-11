@@ -1,0 +1,303 @@
+输入输出库简介
+    I/O库为文件操作提供了两种不同的模型，简单模型和完整模型。
+简单模型: I/O库将当前输入文件作为标准输入(stdin)，将当前输出文件作为标准输出(stdout)。
+         执行io.read，就是在标准输入中读取一行。
+         使用io.input和io.output函数来改变当前文件。
+         如果你想直接控制错误必须使用完全模式中io.read函数。
+         简单模型所有操作都有表io.提供。
+         
+完整模型: 使用显式的文件句柄，并将所有的操作定义为文件句柄上的方法。
+         完全模式的核心在于文件句柄(file handle)。
+         完整模型所有操作都有file描述符提供。
+         
+当使用隐式文件句柄时，所有的操作都由表 io 提供。  io.stdin io.stdout io.stderr
+若使用显式文件句柄，io.open 会返回一个文件句柄，且所有的操作都由该文件句柄的方法来提供。
+除非另有说明，I/O函数在出错时都返回nil(第二个返回值为错误消息，第三个返回值为系统相关的错误码)。成功时返回与nil不同的值
+
+1. 简单模型： io.input(filename)  io.output(filename) io.lines(filename)
+    I/O库会将进程标准输入输出作为其缺省的输入文件和输出文件。
+    我们可以通过io.input(filename)和io.output(filename)这两个函数来改变当前的输入输出文件。
+    1) io.write函数：
+    函数原型为io.write(...)。该函数将所有参数顺序的写入到当前输出文件中。如：
+    io.write("hello","world") --写出的内容为helloworld
+    
+    ------------------简单模型-----------------
+    --读
+    local file1=io.input("1.txt")  --当前目录"1.txt"要存在，不然出错
+    local str=io.read("*a")
+    print(str)
+    --写
+    local file2=io.output("2.txt") --当前目录"2.txt"不需要存在
+    io.write(str)
+    io.flush()
+    io.close()
+    
+    --利用这几个函数可以做一个文件复制的函数
+    function copy(fileA,fileB)
+    local file1=io.input(fileA) 
+    if not file1 then print(fileA.."不存在") return end
+    local str=io.read("*a")
+    local file2=io.output(fileB)
+    io.write(str)
+    io.flush()
+    io.close()  
+    end
+    
+    for line in io.lines("1.txt") do
+        print(line)
+    end
+
+2). io.read函数：
+    返回值： 1. 字符串 "*all"  "*line" <num> 
+             2. 数值    
+             3. nil    根据指定格式未读到数据
+    下表给出了该函数参数的定义和功能描述：
+        参数字符串      含义
+        "*all"          读取整个文件            -- 第2次调用返回空字符串；而不是nil
+        "*line"         读取下一行    默认方式  -- 结尾返回nil
+        "*number"       读取一个数字            -- 结尾返回nil
+        123456.7  1a23456.7  0x111  0111 1.2e10     -0x100 abc -- 空格分割
+        123456.7  1          273    111  1200000000 -256   nil -- 转换成可读实数或整数
+        <num>           读取一个不超过<num>个字符的字符串 -- 结尾返回nil
+ 
+    Lua中读取整个文件要比一行一行的读取一个文件快的多。
+    
+    1.  调用io.read("*all")会读取当前输入文件的所有内容，以当前位置作为开始。如果当前位置处于文件的末尾，或者文件为空，那个该调用返回一个空字符串。
+        由于Lua可以高效的处理长字符串，因此在Lua中可以先将数据从文件中完整读出，之后在通过Lua字符串库提供的函数进行各种处理。
+        t = io.read("*all")
+        t = string.gsub(t, "([\128-\255=])", function (c)
+            return string.format("=%02X", string.byte(c))
+        end)
+        io.write(t)
+
+    2.  调用io.read("*line")会返回当前文件的下一行，但不包含换行符。当到达文件末尾时，该调用返回nil。如：
+        for count = 1,math.huge do
+            local line = io.read("*line") --如果不传参数，缺省值也是"*line"
+            if line == nil then
+                break
+            end
+            io.write(string.format("%6d  ",count),line,"\n")
+        end
+        
+        local count = 1
+        while true do
+            local line = io.read()
+            if line == nil then break end
+            io.write(string.format("%6d  ", count), line, "\n")
+            count = count + 1
+        end
+    3.  如果只是为了迭代文件中的所有行，可以使用io.lines函数，以迭代器的形式访问文件中的每一行数据，如：
+        local lines = {}
+        for line in io.lines() do    --通过迭代器访问每一个数据
+            lines[#lines + 1] = line -- table.insert(lines, line)
+        end
+        table.sort(lines)  --排序，Lua标准库的table库提供的函数。
+        for _,l in ipairs(lines) do
+            io.write(l,"\n")
+        end
+     4. 调用io.read("*number")会从当前输入文件中读取一个数字。此时read将直接返回一个数字，而不是字符串。
+        "*number"选项会忽略数字前面所有的空格，并且能处理像-3、+5.2这样的数字格式。
+        如果当前读取的数据不是合法的数字，read返回nil。在调用read是可以指定多个选项，函数会根据每个选项参数返回相应的内容。如：
+        --[[
+            6.0  -3.23   1000
+            ... ...
+            下面的代码读取注释中的数字
+        --]]
+        while true do
+            local n1,n2,n3 = io.read("*number","*number","*number")
+            if not n1 then
+                break
+            end
+            print(math.max(n1,n2,n3))
+        end
+
+        在任何情况下，都应该考虑选择使用io.read函数的 " *.all " 选项读取整个文件，然后使用gfind函数来分解：
+        local pat = "(%S+)%s+(%S+)%s+(%S+)%s+"
+        for n1, n2, n3 in string.gfind(io.read("*all"), pat) do
+            print(math.max(n1, n2, n3))
+        end
+
+    5. 调用io.read(<num>)会从输入文件中最多读取n个字符，如果读不到任何字符，返回nil。否则返回读取到的字符串。如：
+        while true do
+            local block = io.read(2^13)
+            if not block then
+                break
+            end
+            io.write(block)
+        end
+    6. io.read(0)是一种特殊的情况，用于检查是否到达了文件的末尾。如果没有到达，返回空字符串，否则nil。
+    
+2. 完整I/O模型：
+    io.open 模式字符串可以是 "r"(读模式)，"w"(写模式，对数据进行覆盖)，或者是 "a"(附加模式)
+                字符 "b" 可附加在后面表示以二进制形式打开文件
+    如果发生错误，则返回nil，以及一个错误信息和错误代码。错误代码的定义由系统决定。
+
+    I/O库提供三种预定义的句柄：io.stdin、io.stdout和io.stderr。因此可以用如下代码直接发送信息到错误流。
+    io.stderr:write(message)
+
+    ------------------完整模型----------------- 字符文档
+    local f=io.open("3.txt","a+")
+    f:write("Happy New Year!")
+    f:flush()
+    
+    f:seek("end",-1) --定位到文件末尾前一个字节
+    local str=f:read(1) --读取一个字符
+    print(str) --输出"!"
+    f:close()
+    ------------------完整模型----------------- bin文档 make-color-table.lua
+    local f = assert(io.open(arg[1], "rb"))
+    local block = 3
+    local num
+    while true do
+        --每次读取3个字节
+        local bytes = f:read(block)
+        if not bytes then break end
+        io.write("{")
+        for b in string.gfind(bytes, ".") do
+            num=tonumber(string.byte(b))*4 --把每个字节转化为number*4
+        io.write(tostring(num)..",")
+        end
+        io.write("},")
+    end
+    
+    f:close()
+
+    Lua中完整I/O模型的使用方式非常类似于C运行时库的文件操作函数，它们都是基于文件句柄的。
+    1). 通过io.open函数打开指定的文件，并且在参数中给出对该文件的打开模式，其中"r"表示读取，"w"表示覆盖写入，即先删除文件原有的内容，"a"表示追加式写入，"b"表示以二进制的方式打开文件。在成功打开文件后，该函数将返回表示该文件的句柄，后面所有基于该文件的操作，都需要将该句柄作为参数传入。如果打开失败，返回nil。其中错误信息由该函数的第二个参数返回，如：
+    assert(io.open(filename,mode))  --如果打开失败，assert将打印第二个参数给出的错误信息。
+    
+    2). 文件读写函数read/write。这里需要用到冒号语法，如：
+        local f = assert(io.open(filename,"r"))
+        local t = f:read("*all")    --对于read而言，其参数完全等同于简单模型下read的参数。
+        f:close()
+
+    此外，I/O库还提供了3个预定义的文件句柄，即io.stdin(标准输入)、io.stdout(标准输出)、io.stderr(标准错误输出)。如：
+    io.stderr:write("This is an error message.")
+    事实上，我们也可以混合使用简单模式和完整模式，如：
+        local temp = io.input()   --将当前文件句柄保存
+        io.input("newInputfile")  --打开新的输入文件
+        io.input():close()        --关闭当前文件
+        io.input(temp)            --恢复原来的输入文件
+
+    3). 性能小技巧：
+    由于一次性读取整个文件比逐行读取要快一些，但对于较大的文件，这样并不可行，
+    因此Lua提供了一种折中的方式，即一次读取指定字节数量的数据，如果当前读取中的最后一行不是完整的一行，
+    可通过该方式将该行的剩余部分也一并读入，从而保证本次读取的数据均为整行数据，以便于上层逻辑的处理。如：
+    local lines,rest = f:read(BUFSIZE,"*line") --rest变量包含最后一行中没有读取的部分。
+    下面是Shell中wc命令的一个简单实现。
+        local BUFSIZE = 8192
+        local f = io.input(arg[1])  --打开输入文件
+        local cc, lc, wc, = 0, 0, 0  --分别计数字符、行和单词    
+        while true do
+            local lines,rest = f:read(BUFSIZE,"*line")
+            if not lines then
+                break
+            end
+            if rest then
+                lines = lines .. rest .. "\n"
+            end
+            cc = cc + #lines
+            --计算单词数量
+            local _, t = string.gsub(lines."%S+","")
+            wc = wc + t
+            --计算行数
+            _,t = string.gsub(line,"\n","\n")
+            lc = lc + t
+        end
+        print(lc,wc,cc)
+
+    4). 其它文件操作：
+    如io.flush函数会将io缓存中的数据刷新到磁盘文件上。
+    io.close函数将关闭当前打开的文件。
+    io.seek函数用于设置或获取当前文件的读写位置，
+        其函数原型为f:seek(whence,offset)，
+            如果whence的值为"set"，offset的值则表示为相对于文件起始位置的偏移量。
+            如为"cur"(默认值),offset则为相对于当前位置的偏移量，
+            如为"end"，则为相对于文件末尾的偏移量。
+            函数的返回值与whence参数无关，总是返回文件的当前位置，即相对于文件起始处的偏移字节数。
+            offset的默认值为0。如：
+        function fsize(file)
+            local current = file:seek()   --获取当前位置
+            local size = file:seek("end") --获取文件大小
+            file:seek("set",current)      --恢复原有的当前位置
+            return size
+        end
+    最后需要指出的是，如果发生错误，所有这些函数均返回nil和一条错误信息。
+    
+    
+另外一些常用的方法：
+    io.tmpfile():返回一个可读写的临时文件，程序结束时该文件被自动删除。
+    io.type(file):检测输入参数是否为可用的文件句柄。返回 "file" 表示一个打开的句柄；"closed file" 表示已关闭的句柄；nil 表示不是文件句柄。
+    io.flush():清空输出缓冲区。
+    io.lines(optional file name): 返回一个通用循环迭代器以遍历文件，每次调用将获得文件中的一行内容,当到文件尾时，将返回nil。若显示提供了文件句柄，则结束时自动关闭文件；使用默认文件时，结束时不会自动关闭文件。
+    
+    
+1. 文件读存：
+FileSaveLoad
+    -- 似乎不支持大文件(不能超过9k?)
+    function FileSaveLoad()
+        local file = io.open("c:\\in.lua", "r");
+        assert(file);
+        local data = file:read("*a"); -- 读取所有内容
+        file:close();
+        file = io.open("c:\\out.lua", "w");
+        assert(file);
+        file:write(data);
+        file:close();
+    end
+    FileSaveLoad();
+
+二、非循环表格处理：
+SaveTable
+    HERO = 1;
+    MONSTER = 2;
+    BUILDING = 3;
+    SUMUNIT = 4;
+    cha = {};
+    cha[1] =
+    {
+        basic = 
+        {
+        Name = "农民",    --NPC名字
+        cha_type = HERO,  --NPC模型
+        },
+        combat = 
+        {
+        acquire = 600.00,  --主动攻击范围
+        basic_def = 10,   --基础防御
+        },
+    };
+    
+    function SaveTableContent(file, obj)
+        local szType = type(obj);
+        print(szType);
+        if szType == "number" then
+                file:write(obj);
+        elseif szType == "string" then
+                file:write(string.format("%q", obj));
+        elseif szType == "table" then
+                --把table的内容格式化写入文件
+                file:write("{\n");
+                for i, v in pairs(obj) do
+                    file:write("[");
+                    SaveTableContent(file, i);
+                    file:write("]=\n");
+                    SaveTableContent(file, v);
+                    file:write(", \n");
+                end
+                file:write("}\n");
+        else
+        error("can't serialize a "..szType);
+        end
+    end
+    
+    function SaveTable()
+        local file = io.open("e:\\00_00_00_海外组_学习\\写入.txt", "w");
+        assert(file);
+        file:write("cha = {}\n");
+        file:write("cha[1] = \n");
+        SaveTableContent(file, cha[1]);
+        file:write("}\n");
+        file:close();
+    end
+    SaveTable();

@@ -1,0 +1,333 @@
+http://www.kuqin.com/qtdocument/qmessagebox.html
+
+https://blog.csdn.net/liang19890820/article/details/50586031 # Qt 之自定义界面（QMessageBox）
+
+返回值是 : QMessageBox::Yes 之类的值
+1. 通过 critical | warning | information 静态函数的参数，确定按键显示个数和按键显示内容，ESC按键和Enter按键与 按键的关联关系。
+   函数返回内容是0,1,2 按键序号 或者是 QMessageBox::Retry 或 QMessageBox::Abort 等 系统配置按键
+2. 执行Dialog步骤，声明QMessageBox实例，调用mb.setButtonText函数设置按钮和对应返回值，调用mb.exec()执行
+3. QMessageBox msgBox;
+   msgBox.setText(tr("The document has been modified."));
+   msgBox.setInformativeText(tr("Do you want to save your changes?"));
+   msgBox.setDetailedText(tr("Differences here..."));
+   msgBox.setStandardButtons
+4. about函数
+
+QMessageBox类提供了一个有一条简短消息、一个图标和一些按钮的模式对话框。
+消息框用于提供情报信息并且问一些简单的问题。
+QMessageBox提供了一个不同信息的范围，大致按两个轴进行排列：严重程度和复杂程度。
+按严重程度分： 
+    信息  用于普通操作的一部分的消息框
+    警告  用于告诉用户一些不常出现的错误的消息框
+    严重  用于告诉用户严重的错误的消息框 
+对于每一个严重程度，消息框都有不同的图标。
+按复杂程度分为一个按钮(确定)的简单消息、或者用于提问的两个或者甚至三个按钮。
+还有一些用于常用情况的静态函数。 
+
+--------------------------------------------------------------------------------
+
+int QMessageBox::critical ( QWidget * parent, const QString & caption, const QString & text, 
+                            int button0, int button1, int button2 = 0 ) [静态]
+打开一个标题为caption并且文本为text的严重消息框。这个对话框最多有三个按钮。每个按钮参数button0、button1和button2被设置为下列各值之一：
+    QMessageBox::NoButton
+    QMessageBox::Ok
+    QMessageBox::Cancel
+    QMessageBox::Yes
+    QMessageBox::No
+    QMessageBox::Abort
+    QMessageBox::Retry
+    QMessageBox::Ignore 
+如果你不想要三个按钮，设置最后一个按钮或者最后两个按钮为QMessageBox::NoButton。
+返回被点击的按钮地标识(QMessageBox::Ok或QMessageBox::No等等)。
+如果parent为0，消息框变为应用程序全局的模式对话框。如果parent为一个窗口部件，消息框变为相对于parent的模式对话框。
+
+int QMessageBox::critical ( QWidget * parent, const QString & caption, const QString & text, 
+                            const QString & button0Text = QString::null, const QString & button1Text = QString::null, 
+                            const QString & button2Text = QString::null, int defaultButtonNumber = 0, int escapeButtonNumber = -1 ) [静态]
+这是一个重载成员函数，提供了方便。它的行为基本上和上面的函数相同。
+显示一个标题为caption、文本为text并且按钮分别为1、2、3的严重消息对话框。返回被点击的按钮的数字(0、1或2)。
+
+
+    QMessageBox定义了两个枚举变量：Icon和没有名称的按钮类型。Icon为每一个图形用户界面风格定义了
+Information、Warning和Critical图标。它被构造函数和information()、warning()和critical()静态函数使用。
+叫做standardIcon()的函数让你能够访问不同的图标。
+按钮类型有：
+    Ok - 单按钮消息框地默认值
+    Cancel - 注意这个不是自动和Escape关联的
+    Yes
+    No
+    Abort
+    Retry
+    Ignore 
+
+按钮类型可以由上述类型和下面两个修饰成分使用或“|”来进行组合。
+    Default - 让按Enter键等于点击这个按钮。通常用于OK、Yes或者其它相似的。
+    Escape - 让按Escape键等于点击这个按钮。通常用于Abort、Cancel或者其它相似的。
+    
+text()、icon()和iconPixmap()函数提供了对消息框的当前文本和像素映射的访问。
+    setButtonText()和buttonText()提供了对按钮的访问。setText()、setIcon()和setIconPixmap()让你能够修改它。
+setIcon()和setIconPixmap()的不同是前者接受QMessageBox::Icon并且用于设置标准图标，而后者接受QPixmap并且用于设置自定义图标。
+QMessageBox没有信号和槽。
+
+QMessageBox msgBox;
+msgBox.setWindowTitle("Take out")
+msgBox.setText("Food is coming.");
+msgBox.exec();
+
+--------------------------------------------------------------------------------
+
+1. 实例：
+如果程序不能找到一个支持文件，但是能在没有它的情况在做得很好：
+int warning ( QWidget * parent, const QString & caption, const QString & text, int button0, int button1, int button2 = 0 )
+int warning ( QWidget * parent, const QString & caption, const QString & text, const QString & button0Text = QString::null, 
+              const QString & button1Text = QString::null, const QString & button2Text = QString::null, int defaultButtonNumber = 0, 
+              int escapeButtonNumber = -1 )
+
+
+QMessageBox::information( this, "Application name",
+    "Unable to find the user preferences file.\n"
+    "The factory default will be used instead." );`
+
+warning()可以用于告诉用户一些不常出现的错误，或者不容易被修复的错误：
+switch( QMessageBox::warning( this, "Application name",
+        "Could not connect to the <mumble> server.\n"
+        "This program can't function correctly "
+        "without the server.\n\n",
+        "Retry",
+        "Quit", 0, 0, 1 ) )
+    case 0: // 用户点击"再试"或者按下回车键
+        // 再次尝试
+        break;
+    case 1: // 用户点击"退出"或者按下Esc键
+        // 退出
+        break;
+}
+
+所有消息框的消息的文本部分都可以是多信息文本或者一般文本。
+如果拟制定一个多信息文本格式字符串，它将会被使用默认样式单来呈现。详细情况请参考QStyleSheet::defaultSheet()。
+对于包含XML元字符的特定字符串，自动多信息文本检测可能会失败，会把一般文本不正确地解释为多信息文本。
+在这种情况下，可以使用QStyleSheet::convertFromPlainText()来把你的一般文本字符串转化为在视觉上一致的多信息文本或者明确地通过setTextFormat()设置文本格式。
+
+退出程序是正常操作的一部分。如果存在没有保存地数据，用户可能应该被被询问他们是否想保存数据。例如：
+
+int information ( QWidget * parent, const QString & caption, const QString & text, int button0, int button1 = 0, int button2 = 0 )
+int information ( QWidget * parent, const QString & caption, const QString & text, const QString & button0Text = QString::null, 
+                  const QString & button1Text = QString::null, const QString & button2Text = QString::null, 
+                  int defaultButtonNumber = 0, int escapeButtonNumber = -1 )
+
+switch( QMessageBox::information( this, "Application name here",
+        "The document contains unsaved changes\n"
+        "Do you want to save the changes before exiting?",
+        "&Save", "&Discard", "Cancel",
+        0,      // Enter == button 0
+        2 ) ) { // Escape == button 2
+    case 0: // Save被点击或者Alt+S被按下或者Enter被按下。
+        // 保存
+        break;
+    case 1: // Discard被点击或者Alt+D被按下。
+        // 不保存但退出
+        break;
+    case 2: // Cancel被点击或者Alt+C被按下或者Escape被按下。
+        // 不退出
+        break;
+}
+为了和微软的建议一致，应用程序的名称被作为窗口标题。
+
+
+ switch( QMessageBox::warning( this, "Application name here",
+            "Could not save the user preferences,\n"
+            "because the disk is full.  You can delete\n"
+            "some files and press Retry, or you can\n"
+            "abort the Save Preferences operation.",
+            QMessageBox::Retry | QMessageBox::Default,
+            QMessageBox::Abort | QMessageBox::Escape )) {
+        case QMessageBox::Retry: // Retry被点击或者Enter被按下。
+            // 再次尝试
+            break;
+        case QMessageBox::Abort: // Abort被点击或者Escape被按下。
+            // 放弃
+            break;
+    }
+
+
+critical()函数应用被用于保留严重错误。在这个实例中，errorDetails是QString或者const char*，并且QString被用于连接几个字符串：
+QMessageBox::critical( 0, "Application name here",
+        QString("An internal error occurred. Please ") +
+        "call technical support at 123456789 and report\n"+
+        "these numbers:\n\n" + errorDetails +
+        "\n\n<Application> will now exit." );
+
+
+QMessageBox提供了一个非常简单的关于框，可以显示你提供的适当的图标和文本。
+QMessageBox::about( this, "About <Application>",
+        "<Application> is a <one-paragraph blurb>\n\n"
+        "Copyright 1951-2002 Such-and-such.  "
+        "<License words here.>\n\n"
+        "For technical support, call 123456789 or see\n"
+        "http://www.such-and-such.com/Application/\n" );
+
+
+
+    如果你想让用户知道这个应用程序是使用Qt构建的（这样他们就会知道你使用的是高质量的工具）：
+你也许喜欢在帮助菜单下的“关于Qt”菜单选项来调用aboutQt()。
+如果没有任何标准消息框是合适地，你可以自己手工创建一个QMessageBox并且自己定义按钮文本：
+QMessageBox mb( "Application name here",
+        "Saving the file will overwrite the original file on the disk.\n"
+        "Do you really want to save?",
+        QMessageBox::Information,
+        QMessageBox::Yes | QMessageBox::Default,
+        QMessageBox::No,
+        QMessageBox::Cancel | QMessageBox::Escape );
+mb.setButtonText( QMessageBox::Yes, "Save" );
+mb.setButtonText( QMessageBox::No, "Discard" );
+switch( mb.exec() ) {
+    case QMessageBox::Yes:
+        // 保存并且退出
+        break;
+    case QMessageBox::No:
+        // 不保存退出
+        break;
+    case QMessageBox::Cancel:
+        // 不保存并且不退出
+        break;
+}
+
+
+
+if (QMessageBox::Yes == QMessageBox::question(this,
+                                              tr("Question"),
+                                              tr("Are you OK?"),
+                                              QMessageBox::Yes | QMessageBox::No,
+                                              QMessageBox::Yes)) {
+    QMessageBox::information(this, tr("Hmmm..."), tr("I'm glad to hear that!"));
+} else {
+    QMessageBox::information(this, tr("Hmmm..."), tr("I'm sorry!"));
+}
+
+
+QMessageBox msgBox;
+msgBox.setText(tr("The document has been modified."));
+msgBox.setInformativeText(tr("Do you want to save your changes?"));
+msgBox.setDetailedText(tr("Differences here..."));
+msgBox.setStandardButtons(QMessageBox::Save
+                          | QMessageBox::Discard
+                          | QMessageBox::Cancel);
+msgBox.setDefaultButton(QMessageBox::Save);
+int ret = msgBox.exec();
+switch (ret) {
+case QMessageBox::Save:
+    qDebug() << "Save document!";
+    break;
+case QMessageBox::Discard:
+    qDebug() << "Discard changes!";
+    break;
+case QMessageBox::Cancel:
+    qDebug() << "Close document!";
+    break;
+}
+
+设置其主要文本信息为“The document has been modified.”，informativeText 则是会在对话框中显示的简单说明文字。
+下面我们使用了一个detailedText，也就是详细信息，当我们点击了详细信息按钮时，对话框可以自动显示更多信息。
+我们自己定义的对话框的按钮有三个：保存、丢弃和取消。然后我们使用了exec()是其成为一个模态对话框，根据其返回值进行相应的操作。
+
+
+
+void about(QWidget * parent, const QString & title, const QString & text)：
+显示关于对话框。这是一个最简单的对话框，其标题是 title，内容是 text，父窗口是 parent。对话框只有一个 OK 按钮。
+
+void aboutQt(QWidget * parent, const QString & title = QString())：
+显示关于 Qt 对话框。该对话框用于显示有关 Qt 的信息。
+
+StandardButton critical(QWidget * parent, const QString & title, const QString & text, 
+                        StandardButtons buttons = Ok, StandardButton defaultButton = NoButton)：
+显示严重错误对话框。这个对话框将显示一个红色的错误符号。我们可以通过 buttons 参数指明其显示的按钮。
+默认情况下只有一个 Ok 按钮，我们可以使用StandardButtons类型指定多种按钮。
+
+
+
+如果三个以上按钮
+----------------------
+QMessageBox msgBox;
+msgBox.setIcon(QMessageBox::Warning);
+msgBox.setWindowTitle(tr("警告！"));
+msgBox.setText(tr("警告，请正确选择！"));
+QPushButton *Button1 = msgBox.addButton(tr("确定"),QMessageBox::AcceptRole);
+QPushButton *Button2 = msgBox.addButton(tr("取消"),QMessageBox::RejectRole);
+QPushButton *Button3 = msgBox.addButton(tr("是"),QMessageBox::YesRole);
+QPushButton *Button4 = msgBox.addButton(tr("否"),QMessageBox::NoRole);
+msgBox.exec();
+
+然后
+if (msgBox.clickedButton() == Button1)
+{
+//do...
+}
+else if (msgBox.clickedButton() == Button2)
+{
+//do...
+}
+.........
+
+
+================================================================================
+# 方式1
+static int critical(QWidget *parent, const QString &title,
+                    const QString& text,
+                    int button0, int button1, int button2 = 0);
+
+
+# 方式2  --- 自定义按钮
+static int critical(QWidget *parent, const QString &title,
+                    const QString& text,
+                    const QString& button0Text,
+                    const QString& button1Text = QString(),
+                    const QString& button2Text = QString(),
+                    int defaultButtonNumber = 0,
+                    int escapeButtonNumber = -1);
+QMessageBox::critical(this, pCodec->toUnicode("危险"), 
+                    pCodec->toUnicode("修路危险"), 
+                    pCodec->toUnicode("返回"), 
+                    pCodec->toUnicode("步行"), 
+                    pCodec->toUnicode("无视"));
+QMessageBox::critical(this, tr("打开失败"),
+                    tr("打开图片失败，文件名为：\r\n%1").arg(strFileName));
+
+QMessageBox::warning(this, pCodec->toUnicode("路径不存在"), strResult);
+
+QMessageBox::information(this, pCodec->toUnicode("通知"), 
+                         pCodec->toUnicode("会有个女朋友吗"), 
+                         pCodec->toUnicode("不可能"), 
+                         pCodec->toUnicode("真不可能"));
+
+# 方式3  --- 标准系统按钮
+inline static int critical(QWidget *parent, const QString &title,
+                           const QString& text,
+                           StandardButton button0, StandardButton button1)
+
+reply = QMessageBox::critical(this, tr("QMessageBox::critical()"),
+                                    MESSAGE,
+                                    QMessageBox::Abort | QMessageBox::Retry | QMessageBox::Ignore);
+
+QMessageBox::critical(0, tr("Cannot open database"),
+            tr("Unable to establish a database connection.\n"
+               "This example needs SQLite support. Please read "
+               "the Qt SQL driver documentation for information how "
+               "to build it."), 
+               QMessageBox::Cancel);
+
+QMessageBox::question(this, pCodec->toUnicode("问题"),
+                    pCodec->toUnicode("喜欢身材好的还是颜值高的"),
+                    QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+                    
+
+# 方式 4 --- 支持错误细节描述
+QMessageBox msgBox(QMessageBox::Warning, pCodec->toUnicode("警告"),
+                       pCodec->toUnicode("不要调戏女朋友"), 0, this);
+    msgBox.setDetailedText(pCodec->toUnicode("真的别"));
+    msgBox.addButton(pCodec->toUnicode("Save &Again"), QMessageBox::AcceptRole);
+    msgBox.addButton(pCodec->toUnicode("&Continue"), QMessageBox::RejectRole);
+    if (msgBox.exec() == QMessageBox::AcceptRole)
+        qDebug() << "accept";
+
+# QErrorMessage
+QErrorMessage message.showMessage(pCodec->toUnicode("恭喜你中了5个亿，不好意思，系统出错"));

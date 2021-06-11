@@ -1,0 +1,193 @@
+https://wuzhiwei.net/lua_make_class/
+
+Lua中没有类的概念，但我们可以利用Lua本身的语言特性来实现类。
+
+类是什么？
+  类，就是一个自己定义的变量类型。它约定了一些它的属性和方法，是属性和方法的一个集合。
+  
+  所有的方法都需要一个名字，即使是匿名函数实际上也有个名字。这就形成了方法名和方法函
+  数的键值映射关系，即方法名为键，映射的值为方法函数。
+  
+  理解了类实际上是一个键值对的集合，我们不难想到用Lua中自带的表来实现类。
+  
+实例是什么？
+  实例就是具有类的属性和方法的集合，也是一个表了。
+  
+  类全局只有一个集合，相当于上帝，全局只有一块内存；而实例就普通了，普天之下有那么多
+  人，你可以叫A说一句话，A便执行了他的说话方法，但是不会影响B的说话。因为他们是实
+  例，彼此分配着不同的内存。
+  
+两个语法糖
+  试着创建一个人类 Person
+  Person = {name="这个人很懒"}
+  以上代码将Person初始化为一个表，这个表拥有一个为name的键，其默认值是"这个人很懒"。
+
+  说成白话就是人类拥有一个叫名字的属性。
+  那就再赋予人类一个说话的功能吧。
+  Person.talk = function(self, words)
+    print(self.name.."说:"..words) 
+  end
+  以上代码在Person表中加入一个键值对，键为talk，值为一个函数。
+  
+  好了，只要调用，Person.talk(Person, "你好")，将会打印出：这个人很懒说:你好
+  不过在写程序时，大家都习惯把function放在前面，这就是函数的语法糖：
+  function Person.talk(self, words)
+    print(self.name.."说:"..words) 
+  end
+  这与上面的函数定义是等价的，但是这么写你就很难看出来talk其实是Person表中的一个
+  键，其对应的值为一个函数。
+  
+  当然嘴巴都是长在自己身上的，说话只能自己说，不可能自己张嘴别人说话，所以每次都传个
+  self参数实在是有点不美观，于是冒号语法糖上场
+  
+  我们还可以这么定义人类的说话功能：
+  function Person:talk(words)
+    print(self.name.."说:"..words) 
+  end
+  这与上面两段代码都是等价的，它的变化是少了self的参数，将点Person.talk改为了冒
+  号Person:talk。
+  
+  但是函数体内，却依然可以使用self，在使用:代替.时，函数的参数列表的第一个参数
+  不再是words，Lua会自动将self做为第一个参数。这个self参数代表的意思就是这个函
+  数的实际调用者。
+  
+  所以我们调用Person:talk("你好")与Person.talk(Person, "你好")是等价的，这就是
+  冒号语法糖带来的便利。
+  
+如何查找表中的元素？
+  下面我们需要理解在Lua的表中是怎么查找一个键所对应的值的。
+  假设我们要在表p中查找talk这个键所对应的值，请看下面的流程图：
+  p中有没有talk这个键? 有 --> 返回talk对应的值
+          |
+         没有
+          |
+  p中是否设置过metatable? 否 -->  返回nil
+          |
+          有
+          |
+  在p的metatable中有没有__index这个键? 没有 -->  返回nil
+          |
+          有
+          |      
+  在p的metatable中的__index这个键对应的表中有没有talk这个键? 没有 --> 返回nil
+          |
+          有，返回getmetatable(p).__index.talk
+  理解以上内容是本文的重点，反复阅读直至你记住了。
+  
+  可以看到，由于metatable和__index这两个神奇的东西，Lua能在当前表中不存在这个键的
+  时候找到其返回值。
+  下面将会讲一讲metatable这个语言特性。
+  
+对metatable的理解
+  metatable是什么？
+    metatable的中文名叫做元表。它不是一个单独的类型，元表其实就是一个表。
+    我们知道在Lua中表的操作是有限的，例如表不能直接相加，不能进行比较操作等等。
+    元表的作用就是增加和改变表的既定操作。只有设置过元表的表，才会受到元表的影响而改变自身的行为。
+    通过全局方法setmetatable(t, m)，会将表t的元表设置为表m。通过另一个全局方法getmetatable(t)则会返回它的元表m。
+    注意：所有的表都可以设置元表，然而新创建的空表如果不设置，是没有元表的。
+  元方法
+    元表作为一个表，可以拥有任意类型的键值对，其真正对被设置的表的影响是Lua规定的元方法键值对。
+    这些键值对就是Lua所规定的键，比如前面说到的__index，__add，__concat等等。这些
+    键名都是以双下划线__为前缀。其对应的值则为一个函数，被称为元方法（metamethod），
+    这些元方法定义了你想对表自定义的操作
+    
+    例如：前面所说的__index键，在Lua中它所对应的元方法执行的时机是当查找不存在于
+    表中的键时应该做的操作。考虑以下代码：
+    --定义元表m
+    m = {}
+    --定义元表的__index的元方法
+    --对任何找不到的键，都会返回"undefined"
+    m.__index = function ( table, key )
+    return "undefined"
+    end   
+    
+    --表pos
+    pos = {x=1, y=2}
+    --初始没有元表，所以没有定义找不到的行为
+    --因为z不在pos中，所以直接返回nil
+    print(pos.z) -- nil
+    --将pos的元表设为m
+    setmetatable(pos, m)
+    --这是虽然pos里仍然找不到z，但是因为pos有元表，
+    --而且元表有__index属性，所以执行其对应的元方法，返回"undefined"
+    print(pos.z) -- undefined
+    
+    pos表中本没有z这个键，通过设置pos的元表为m，并设置m的__index对应的方法，
+    这样所有取不到的键都会返回"undefined"了。
+    以上我们了解到，元表的__index属性实际上是给表配备了找不到键时的行为。
+    
+    注意：元表的__index属性对应的也可以为一个表。
+    
+    
+  再举个栗子，希望能够加深对元表和元方法的理解，__add键，考虑以下代码：
+    --创建元表m，其中有__add键和其定义的方法
+    local m = {
+    __add = function(t1, t2)
+        local sum = {}
+        for key, value in pairs(t1) do
+        sum[key] = value
+        end
+    
+        for key, value in pairs(t2) do
+        if sum[key] then
+            sum[key] = sum[key] + value
+        else
+            sum[key] = value
+        end
+        end
+        return sum
+    end
+    }
+    
+    --将table1和table2都设置为m
+    local table1 = setmetatable({10, 11, 12}, m)
+    local table2 = setmetatable({13, 14, 15}, m)
+    
+    --表本来是不能执行 + 操作的，但是通过元表，我们做到了！
+    for k, v in pairs(table1 + table2) do
+    print(k, v)
+    end
+    --print
+    --1 23
+    --2 25
+    --3 27
+    
+    表本身是不能用+连起来计算的，但是通过定义元表的__add的方法，并setmetatable
+    到希望有此操作的表上去，那些表便能进行加法操作了。
+    
+    因为元表的__add属性是给表定义了使用+号时的行为。
+    
+类的实现手段
+  我们的类是一个表，它定义了各种属性和方法。我们的实例也是一个表，然后我们类作为
+  一个元表设置到实例上，并设置类的__index值为自身。
+    --设置Person的__index为自身
+    Person.__index = Person 
+    --p是一个实例
+    local p = {}
+    
+    --p的元表设置为Person
+    setmetatable(p, Person)
+    
+    p.name = "路人甲"
+    --p本来是一个空表，没有talk这个键
+    --但是p有元表，并且元表的__index属性为一个表Person
+    --而Person里面有talk这个键，于是便执行了Person的talk函数
+    --默认参数self是调用者p，p的name属性为"路人甲"
+    p:talk("我是路人甲") 
+    --于是得到输出
+    --路人甲说:我是路人甲
+    
+    为了方便，我们给人类一个创建函数create:
+    function Person:create(name)
+        local p = {}
+        setmetatable(p, Person)
+        p.name = name
+        return p
+    end
+    
+    local pa = Person:create("路人甲")
+    local pb = Person:create("路人乙")
+    pa:talk("我是路人甲") --路人甲说:我是路人甲
+    pb:talk("我是路人乙") --路人乙说:我是路人乙
+  
+  这样我们可以很方便用Person类创建出pa和pb两个实例，这两个实例都具备Person的属性和方法。

@@ -1,0 +1,29 @@
+--[[
+  使用事件驱动逆序一个文件
+--]]
+
+local lib = require "async-lib"
+
+function run(code)
+  local co = coroutine.wrap(function()
+  code()
+  lib.stop()
+  end)
+  co()
+  lib.runloop()
+end
+
+function putline(stream, line)
+  local co = coroutine.running()
+  local callback = (function() coroutine.resume(co) end)
+  lib.writeline(stream, line, callback)
+  corountine.yield()
+end
+
+function getline(stream, line)
+  local co = coroutine.running()
+  local callback = (function(l) coroutine.resume(co,l) end)
+  lib.readline(stream, callback)
+  local line = coroutine.yield()
+  return line
+end

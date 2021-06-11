@@ -1,0 +1,28 @@
+2013-05-09更新
+
+1、UDP校验和错误
+现象：可以用netstat -su 查看到有UDP错包。
+tcpdump捕包，在wireshark打开捕获的udp报文，开启校验和选项，若有错包。
+方案：查找链路故障。
+
+2、防火墙开启
+现象：特定端口的包收不到
+方案：使用service iptables stop关闭。
+
+3、rp_filter开启
+现象：tcpdump有包，协议栈收不到。某个地址发送的包一个包都收不到，而另一地只发过来的没问题。
+方案：将/etc/sysctl.conf中rp_filter设为0，然后通过sysctl -p命令使修改生效，并注意命令执行后的是否报错。
+如果只能修改net.ipv4.default.rp_filter
+，则需要重启机器后才会生效。
+rp_filter将IP报文的原目的IP对调后查找路由，如果查找到的网卡与收包网卡不一致，就会把报文丢弃。
+参见：http://serverfault.com/questions/163244/linux-kernel-not-passing-through-multicast-udp-packets
+校验包的源地址与其网卡地址的开关，防止IP欺骗，linux 2.6.32默认开启。
+
+4、系统缓冲区满
+现象：可以用netstat -su 查看到有UDP receive errors
+方案：
+使用网络性能测试工具iperf进行测试，如果测试结果显示不丢包，则可以排除硬件和网络问题，查找应用和系统原因。首先尝试增加系统缓冲区，利用sysctl命令增加 net.core.rmem_max、net.core.rmem_default 的数值。
+
+5、应用程序性能问题，缓冲区满
+现象：可以用netstat -su 查看到有UDP
+方案：使用vmstat、top、strace、ltrace等命令发现程序瓶颈，判断是否有cpu或IO过载。增大缓冲区，优化程序。

@@ -1,0 +1,288 @@
+回顾：
+1.ARM指令集
+  1.1.跳转指令
+      b
+      bl:mov pc,lr
+      bx
+      blx
+      +-32M
+  1.2.加s影响cpsr的两种情况
+      1.首先看指令是否添加s
+      2.最后看目的寄存器是否是pc
+        mov  pc, lr
+        movs pc, lr
+        movs r0, #0x80
+  1.3.数据处理指令
+      lsl lsr asr ror rrx
+      又分：
+      明确：这些指令仅仅是ARM核内部玩！
+      数据传送指令：mov mvn 0x00~0xff
+      算术运算指令: add adc sub sbc
+      位操作指令:and orr eor bic
+2.数据处理指令之比较测试指令
+  比较指令：cmp,cmn
+  无需添加s,也会影响cpsr
+  例如：
+  	cmp  r0, r1 //本质上：运算结果=r0-r1
+  		      结果=0：CPSR的Z=1
+ 	cmn  r0, r1 //本质上：运算结果=r0-(-r1)=r0+r1
+  
+  位测试指令：tst
+  tst r0, #0x80 //本质上：r0 & 0x80 测试r0的bit7是否0
+  		  r0[7]=0,Z=1 相等
+  		  r0[7]=1,Z=0 不相等
+  例子：
+  vim tst.s
+  .text
+  .code 32
+  .global _start
+  _start:
+  	mov r0, #10
+  	tst r0, #0x80
+  .end
+  qemu-arm ...测试
+  info reg //查看CPSR
+  		 NZCV
+  		 0100
+        
+  相等测试指令：teq
+  例如：
+  teq r0, #0x80 //本质上：r0 ^ 0x80
+  moveq ...
+  如果测试bit7为1,Z=1,mov指令就被执行
+  
+3.ARM加载和存储指令
+  问：我们现在仅仅学到数据处理指令,但是这些指令仅仅是在
+      ARM核内部玩,如果将来我想利用指令来访问某个外设
+      如何做到呢？又有哪些指令呢？
+  答：如果想利用汇编来访问外设,必须掌握存储和加载指令
+  这些指令的本质目的就是实现CPU和外设的通信！
+  C语言的[]:先求地址,在取数据
+  
+  加载指令：从外设读取数据到ARM核的寄存器中
+  ldr:从外设读取4字节到ARM核寄存器
+  ldrb:1字节
+  ldrh:2字节
+  
+  例如：
+  mov r1, #0x20008000 //将内核地址0x20008000给r1
+  ldr r0, [r1] //将内存0x20008000地址开始的4字节数据读到
+  		 ARM核的r0寄存器中
+  ldrb r0, [r1] //将内存0x20008000地址开始的1字节数据读到
+  		 ARM核的r0寄存器中
+  		 
+  存储指令：从ARM核寄存器中将数据写回到外设
+  str:将ARM核寄存器的数据(4字节)写回到外设
+  strb:1字节
+  strh:2字节
+  mov r1, #0x20008000 //将内核地址0x20008000给r1
+  str r0, [r1] //将ARM核r0寄存器的数据写回到内存的0x20008000
+                 写回4字节 
+  strb r0, [r1] ////将ARM核r0寄存器的数据写回到内存的0x20008000
+                 写回1字节 
+  画出内存操作图
+  
+  案例：实现两个字符串的比较strcmp.s
+  提示：
+  str1: //标签是有地址,标签的地址就是标签的名称(函数名)
+  	.ascii "hello\0"
+  str2:
+  	.ascii "hallo\0"
+
+4.ARM 栈操作指令
+  栈：栈用来存储保存数据信息
+      例如：A函数调用B函数,在调用B之前要压栈
+            从B函数返回,弹栈
+  栈：存在于内存中,将内存的某块区域作为栈
+  栈地址：用sp=r13来保存
+  
+  栈的种类：
+  减栈：栈指针sp向内存的低地址变化
+  加栈：栈指针sp向内存的高地址变化
+  空栈：先压数然后再调整sp
+  满栈：先调整sp然后再压数
+  
+  组合操作：
+  FD:满减栈
+  ED:空减栈
+  FA:满加栈
+  EA:空加栈
+  
+  一般来说大家使用的都是FD
+  
+  满减栈操作指令：stmfd = push(压栈) ldmfd=pop(弹栈)
+  stmfd sp!, {r4-r7,lr}/push {r4-r7,lr}
+  说明：
+  将r4,r5,r6,r7和lr(返回地址)进行压栈(保存)
+  注意：寄存器小标号的数据放到低地址处
+  
+  ldmfd sp!, {r4-r7,pc} / pop {r4-r7,lr}
+  说明：
+  将栈中的数据恢复到r4,r5,r6,r7和pc(mov pc,lr)
+  
+  画出内存压栈和弹栈操作图
+              
+5.CPSR/SPSR操作指令
+  mrs r0, cpsr //cpsr->r0
+  mrs r1, spsr //spsr->r1
+  
+  msr:
+  f域：标志位
+  c域：控制位
+  
+  例如：
+  mrs r0, cpsr //读取cpsr到r0
+  bic r0,r0,0xf0000000 //将r0高4位清0
+  msr cpsr_f, r0 //将r0写回到cpsr,只影响控制域
+  
+6.ARM伪指令
+  "伪指令"：就是ARM不认识的指令,ARM不会直接去处理这个指令
+            通过汇编器将伪指令翻译成ARM真正能够识别的指令
+  优点：能够让程序设计变得简单方便
+        一条伪指令可以替代多条真实的ARM指令
+  
+  伪指令之adr:
+  例如：
+  程序编写adr.s：
+  ...
+  adr r0, Delay //把Delay标签的地址给r0
+  ...
+  Delay:
+  	mov r1, r2 //这条指令的地址就是Delay标签的地址
+  注意：ARM核不会直接去处理adr指令
+  
+  经过汇编器翻译以后,真实的指令：
+  指令地址      真实的指令
+  0x20		add r0, pc, #0x3c ->adr r0, Delay
+  0x24          ...
+  0x28          ...
+  ....
+  0x64		mov r1,r2
+  
+  问：如何计算出0x64呢？
+  1.当add在执行的时候
+    pc=0x20 + 8
+  2.add r0, pc, #0x3c->r0=pc+0x3c=>r0=0x64	
+  
+  例子：
+  vim adr.s
+  .text
+  .code 32
+  .global _start
+  _start:
+  	adr r0, Delay
+  	mov r1, #2
+  	sub r1, r1, #1
+ 
+ Delay:
+ 	b .
+ .end
+ 编译得到adr可执行程序
+ arm-linux-objdump -D adr > adr.dis
+ 通过看反汇编,查看汇编器对adr的翻译
+ 
+ 伪指令之ldr:
+ 特点：不仅仅是真实指令还是伪指令
+       关键看怎么用？
+ 真实指令：ldr r0,[r1]
+ 伪指令：
+ 	例如：
+ 	情形1
+ 	mov r0, #0x1ff //编译报错
+        解决办法：利用ldr伪指令特性
+        ldr r0, =0x1ff //直接将0x1ff立即数写到r0 合法 
+  	
+  	情形2：
+  	ldr r0, =testdata //将testdata标签的地址给r0
+  	ldr r1, [r0] //将标签testdata的内容给r1
+  	...
+  	testdata:
+  		.word 0x12345678//分配4字节的内存,并且
+  		                 初始化为0x12345678
+  		.word 类似 int
+  	情形3：
+  	ldr r0, testdata //直接将标签testdata里的内容给r0
+  	...
+  	testdata:
+  		.word 0x12345678
+    例子：
+    vim ldr.s
+    .text
+    .code 32
+    .global _start
+    _start:
+    	@mov r0, #0x1ff //报错
+    	ldr r0, =0x1ff @伪指令,翻译结果：ldr r0,[pc,#xxx]
+    	
+    	ldr r1, =testdata @伪指令
+    	ldr r2,[r1] 
+    	
+    	ldr r3, testdata @伪指令
+    	 		
+    testdata:
+    	.word 0x12345678
+    .end
+    
+    编译
+    利用qemu-arm查看各个寄存器的值
+    
+    拔高：查看反汇编，查看翻译的结果
+
+7.GNU ARM伪操作
+  GNU ARM伪操作全部信息和用法：
+  https://sourceware.org/binutils/docs-2.20/as
+  常用的伪操作：
+  .equ
+  	.equ TEST, #0x20 //软件直接访问TEST即可
+  例如：LED各个寄存器
+  .equ GPC1CON, 0xE0200080   
+  .global
+  .extern
+  .byte
+  .word
+  .int
+  .hword
+  .short
+  .long
+  .ascii
+  .asciz
+  .string
+  .space
+  .skip
+  .arm
+  .thumb
+  .code 32
+  .code 16
+  .text
+  .data
+  .bss
+  .section
+  
+  案例：利用汇编实现开关灯
+  实施步骤：
+  1.编写代码
+  2.编译
+    arm-linux-gcc -nostdlib -c led.s -o led.o
+    arm-linux-ld -nostartfiles -nostdlib 
+    	-Ttext=0x20008000 -emain led.o -o led.elf
+    arm-linux-objcopy -O binary led.elf led.bin
+    arm-linux-objdump -D led.elf > led.dis
+    cp led.bin /tftpboot/
+    开发板测试：
+    tftp 20008000 led.bin
+    go 20008000
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    
+    
+    
+  		  
+      
+       

@@ -1,0 +1,222 @@
+--[[
+Lua中的协同程序类似于多线程概念中的线程：
+逐行执行，有自己独立的栈空间、局部变量、指令指针；
+协程又与其他协程共享了全局变量和其他几乎一切资源。 
+
+协程可以颠倒调用者和被调用者的关系，灵活性解决了软件架构中：
+1. 事件驱动编程
+2. 通过构造器构建迭代器
+3. 协作式多线程
+-- 非对称协程 asymmetric coroutine ; semi-coroutines
+-- 对称协程   symmetric  coroutine ; 
+Lua语言提供的是所谓的非对称协程(asymmetric coroutine),也就是说：需要两个函数来控制
+协程的执行，一个用于挂起协程的执行，另一个用于恢复协程的执行。
+其他一些语言提供的是对称协程(symmeteric coroutine)，只提供一个函数用于在协程和另一个
+协程之间切换控制权
+
+唤醒者和被唤醒者使用的函数是不同的,也就是说，Lua提供了两个函数来控制协同程序的执行，一个用于挂起执行，另一个用于恢复执行。
+
+强调点：yield函数栈间传值和resume函数的保护模式
+    (1)第一次调用resume时，所有传递给resume的额外参数将视为协同程序主函数的参数。
+    (2)调用yield时，所有传递给yield的参数将视为resume的第二个开始的返回值，resume的
+        第一个返回值为true表示没有错误，否则返回false和一条错误消息。
+    (3)第二次开始调用resume时，所有传递给resume的额外参数将视为yield的返回值。
+    (4)协同程序执行完毕后，它的主函数返回值将视为resume的第二个开始的返回值。
+--]]
+
+--[[
+1. Lua 支持协程，也叫 协同式多线程。 一个协程在 Lua 中代表了一段独立的执行线程。 
+   然而，与多线程系统中的线程的区别在于， 协程仅在显式调用一个让出（yield）函数时才挂起当前的执行。
+2. 调用函数 coroutine.create 可创建一个协程。 其唯一的参数是该协程的主函数。
+   create 函数只负责新建一个协程并返回其句柄 （一个 thread 类型的对象）； 而不会启动该协程。
+3. 调用 coroutine.resume 函数执行一个协程。 第一次调用 coroutine.resume 时，
+   第一个参数应传入 coroutine.create 返回的线程对象，然后协程从其主函数的第一行开始执行。 
+   传递给 coroutine.resume 的其他参数将作为协程主函数的参数传入。 
+   协程启动之后，将一直运行到它终止或让出。
+4. 协程的运行可能被两种方式终止：正常途径是主函数返回 （显式返回或运行完最后一条指令）非正常途径是发生了一个未被捕获的错误。
+   对于正常结束， coroutine.resume 将返回 true， 并接上协程主函数的返回值。
+   当错误发生时， coroutine.resume 将返回 false 与错误消息。 
+5. 通过调用 coroutine.yield 使协程暂停执行，让出执行权。
+   协程让出时，对应的最近 coroutine.resume 函数会立刻返回，即使该让出操作发生在内嵌函数调用中（即不在主函数，但在主函数直接或间接调用的函数内部）。
+   在协程让出的情况下， coroutine.resume 也会返回 true， 并加上传给 coroutine.yield 的参数。
+   当下次重启同一个协程时， 协程会接着从让出点继续执行。 此时，此前让出点处对 coroutine.yield 的调用 会返回，返回值为传给 coroutine.resume 的第一个参数之外的其他参数。
+6. 与 coroutine.create 类似， coroutine.wrap 函数也会创建一个协程。
+   不同之处在于，它不返回协程本身，而是返回一个函数。 调用这个函数将启动该协程。
+   传递给该函数的任何参数均当作 coroutine.resume 的额外参数。
+   coroutine.wrap 返回 coroutine.resume 的所有返回值，除了第一个返回值（布尔型的错误码）。
+   和 coroutine.resume 不同， coroutine.wrap 不会捕获错误； 而是将任何错误都传播给调用者。
+   
+7. 你也可以通过 C API 来创建及操作协程： 参见函数 lua_newthread， lua_resume， 以及 lua_yield。
+--]]
+
+--[[ 
+消费者驱动式
+--]]
+
+function producer()
+  while true do
+    local x = io.read()
+    send(x)
+  end
+end
+
+function consumer()
+  while true do
+    local x = receive()
+    io.write(x, '\n')
+  end
+end
+
+function receive()
+  local status, value = coroutine.resume(producer)
+  return value
+end
+
+function send(x)
+  coroutine.yield(x)
+end
+
+producer = coroutine.create(producer)
+-- consumer()
+
+--[[
+使用过滤器的生产者和消费者
+过滤器(filter)是一种位于生产者和消费者之间的处理功能，它既是一个生产者也是一个消费者。
+--]]
+function receive(prod)
+  local status, value = coroutine.resume(prod)
+  return value
+end
+
+function send(x)
+  coroutine.yield(x)
+end
+
+function producer()
+  return coroutine.create(function()
+    while true do
+      local x = io.read()
+      send(x)
+    end
+  end)
+end
+
+function filter(prod)
+  return coroutine.create(function()
+    for line = 1,math.huge do
+      local x = receive(prod)
+      x = string.format("%5d %s", line, x)
+      send(x)
+    end
+  end)
+end
+
+function consumer(prod)
+  while true do
+    local x = receive(prod)
+    io.write(x, '\n')
+  end
+end
+
+-- consumer(filter(producer()))
+--[[
+1. producer() 先执行返回thread实例；filter(thread)再执行返回thread实例；最后consumer(thread)执行。
+   consumer进入for循环调用receive，执行resume恢复filter协程执行(自身挂起)，filter协程进入for循环。filter协程
+   在for循环中调用receive(producer)恢复producer协程执行，此时，producer协程进入while循环。
+   producer协程在循环中阻塞在io.read()函数中；
+2. 当io.read()有数据返回x，producer调用send(x)将数据发送给filter(prod)协程；filer(prod)
+   协程在for循环中接收到x，重新格式化x后调用send(x)将数据发送给consumer(proc)协程；
+   consumer(prod)协程通过receive从filter接收到x之后，将x输出到标准输出。consumer重新调用
+   resume恢复filter协程执行(自身挂起)，filter在for循环中，filter(prod)在for循环中调用
+   receive(prod)恢复producer协程执行，producer()协程在while循环中阻塞在io.read()函数中
+--]]
+
+
+--[[
+ 迭代器实现排列
+--]]
+function permgen(a,n)
+  n = n or #a
+  if n <= 1 then
+    printResult(a)
+  else
+    for i = 1,n do
+      a[n], a[i] = a[i], a[n]
+      permgen(a,  n-1)
+      a[n], a[i] = a[i], a[n]
+    end
+  end
+end
+function printResult(a)
+  for i = 1,#a do io.write(a[i], " ") end
+  io.write("\n")
+end
+
+-- permgen({1,2,3,4})
+function permgen2(a,n)
+  n = n or #a
+  if n <= 1 then
+    coroutine.yield(a) --< 将此处的printResult换成了 coroutine.yield即可 
+  else
+    for i = 1,n do
+      a[n], a[i] = a[i], a[n]
+      permgen2(a,  n-1)
+      a[n], a[i] = a[i], a[n]
+    end
+  end
+end
+
+function permutations(a)
+   local co = coroutine.create(function() permgen2(a) end)
+   return function()
+     local  code, res = coroutine.resume(co)
+     return res
+   end
+end
+
+-- function permutations(a)
+--   return coroutine.wrap(function  permgen2(a) end)
+-- end
+
+for p in permutations{'a','b','c'} do
+  printResult(p)
+end
+
+--[[
+异步IO库的简单实现
+--]]
+
+local cmdQueue = {}
+
+local lib = {}
+
+function lib.readline(stream, callback)
+  local nextCmd = function()
+    callback(stream:read())
+  end
+  table.insert(cmdQueue, nextCmd)
+end
+
+function lib.writeline(stream, line, callback)
+  local nextCmd = function()
+    callback(stream:write(line))
+  end
+  table.insert(cmdQueue, nextCmd)
+end
+
+function lib.stop()
+  table.insert(cmdQueue, "stop")
+end
+
+function lib.runloop()
+  while true do
+    local nextCmd = table.remove(cmdQueue,1)
+    if nextCmd == "stop" then
+      break
+    else
+      nextCmd()
+    end
+  end
+end
+
+return lib

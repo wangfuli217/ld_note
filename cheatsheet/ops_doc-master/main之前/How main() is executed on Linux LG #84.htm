@@ -1,0 +1,397 @@
+<!--startcut  ==============================================-->
+<!-- *** BEGIN HTML header *** -->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML><HEAD>
+<title>How main() is executed on Linux LG #84</title>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#0000FF" VLINK="#0000AF"
+ALINK="#FF0000">
+<!-- *** END HTML header *** -->
+
+<!-- *** BEGIN navbar *** -->
+<IMG ALT="" SRC="../gx/navbar/left.jpg" WIDTH="14" HEIGHT="45" BORDER="0" ALIGN="bottom"><A HREF="dashti.html"><IMG ALT="[ Prev ]" SRC="../gx/navbar/prev.jpg" WIDTH="16" HEIGHT="45" BORDER="0" ALIGN="bottom"></A><A HREF="index.html"><IMG ALT="[ Table of Contents ]" SRC="../gx/navbar/toc.jpg" WIDTH="220" HEIGHT="45" BORDER="0" ALIGN="bottom" ></A><A HREF="../index.html"><IMG ALT="[ Front Page ]" SRC="../gx/navbar/frontpage.jpg" WIDTH="137" HEIGHT="45" BORDER="0" ALIGN="bottom"></A><IMG ALT="[ Talkback ]" SRC="../gx/navbar/talkback.jpg" WIDTH="121" HEIGHT="45" BORDER="0" ALIGN="bottom"  ><A HREF="../lg_faq.html"><IMG ALT="[ FAQ ]" SRC="./../gx/navbar/faq.jpg"WIDTH="62" HEIGHT="45" BORDER="0" ALIGN="bottom"></A><A HREF="okopnik.html"><IMG ALT="[ Next ]" SRC="../gx/navbar/next.jpg" WIDTH="15" HEIGHT="45" BORDER="0" ALIGN="bottom"  ></A><IMG ALT="" SRC="../gx/navbar/right.jpg" WIDTH="15" HEIGHT="45" ALIGN="bottom">
+<!-- *** END navbar *** -->
+
+<!--endcut ============================================================-->
+
+<TABLE BORDER><TR><TD WIDTH="200">
+<A HREF="http://www.linuxgazette.net/">
+<IMG ALT="LINUX GAZETTE" SRC="../gx/2002/lglogo_200x41.png" 
+	WIDTH="200" HEIGHT="41" border="0"></A> 
+<BR CLEAR="all">
+<SMALL>...<I>making Linux just a little more fun!</I></SMALL>
+</TD><TD WIDTH="380">
+
+
+<CENTER>
+<BIG><BIG><STRONG><FONT COLOR="maroon">How main() is executed on Linux</FONT></STRONG></BIG></BIG>
+<BR>
+<STRONG>By <A HREF="../authors/hawk.html">Hyouck "Hawk" Kim</A></STRONG>
+</CENTER>
+
+</TD></TR>
+</TABLE>
+<P>
+
+<!-- END header -->
+
+
+
+<h2>Starting</h2>
+ 
+<p> The question is simple: how does linux execute my main()?  <br>
+Through this document, I'll use the following simple C program to illustrate
+how it works. It's called "simple.c"  </p>
+<pre>main()<br>{<br>   return(0);<br>}<br></pre>
+  
+<h2>Build</h2>
+ 
+<p> </p>
+<pre>gcc -o simple simple.c<br></pre>
+  
+<h2>What's in the executable?</h2>
+ 
+<p> To see what's in the executable, let's use a tool "objdump"  </p>
+<pre>objdump -f simple<br><br>simple:     file format elf32-i386<br>architecture: i386, flags 0x00000112:<br>EXEC_P, HAS_SYMS, D_PAGED<br>start address 0x080482d0<br></pre>
+  The output gives us some critical information about the executable.<br>
+&nbsp;First of all, the file is "ELF32" format. Second of all, the start
+address is "0x080482d0"  
+<h2>What's ELF?</h2>
+ 
+<p> ELF is acronym for Executable and Linking Format. It's one of several
+object and executable file formats used on Unix systems. For our discussion,
+the interesting thing about ELF is its header format. Every ELF executable
+has ELF header, which is the following.  </p>
+<pre>typedef struct<br>{<br>	unsigned char	e_ident[EI_NIDENT];	/* Magic number and other info */<br>	Elf32_Half	e_type;			/* Object file type */<br>	Elf32_Half	e_machine;		/* Architecture */<br>	Elf32_Word	e_version;		/* Object file version */<br>	Elf32_Addr	e_entry;		/* Entry point virtual address */<br>	Elf32_Off	e_phoff;		/* Program header table file offset */<br>	Elf32_Off	e_shoff;		/* Section header table file offset */<br>	Elf32_Word	e_flags;		/* Processor-specific flags */<br>	Elf32_Half	e_ehsize;		/* ELF header size in bytes */<br>	Elf32_Half	e_phentsize;		/* Program header table entry size */<br>	Elf32_Half	e_phnum;		/* Program header table entry count */<br>	Elf32_Half	e_shentsize;		/* Section header table entry size */<br>	Elf32_Half	e_shnum;		/* Section header table entry count */<br>	Elf32_Half	e_shstrndx;		/* Section header string table index */<br>} Elf32_Ehdr;<br></pre>
+  In the above structure, there is "e_entry" field, which is starting address 
+of an executable.  
+<h2>What's at address "0x080482d0", that is, starting address?</h2>
+ 
+<p> For this question, let's disassemble "simple". There are several tools
+to disassemble an executable. I'll use objdump for this purpose.  </p>
+<pre>objdump --disassemble simple<br></pre>
+  The output is a little bit long so I'll not paste all the output from objdump.
+Our intention is see what's at address 0x080482d0. Here is the output.  
+<pre>080482d0 &lt;_start&gt;:<br> 80482d0:       31 ed                   xor    %ebp,%ebp<br> 80482d2:       5e                      pop    %esi<br> 80482d3:       89 e1                   mov    %esp,%ecx<br> 80482d5:       83 e4 f0                and    $0xfffffff0,%esp<br> 80482d8:       50                      push   %eax<br> 80482d9:       54                      push   %esp<br> 80482da:       52                      push   %edx<br> 80482db:       68 20 84 04 08          push   $0x8048420<br> 80482e0:       68 74 82 04 08          push   $0x8048274<br> 80482e5:       51                      push   %ecx<br> 80482e6:       56                      push   %esi<br> 80482e7:       68 d0 83 04 08          push   $0x80483d0<br> 80482ec:       e8 cb ff ff ff          call   80482bc &lt;_init+0x48&gt;<br> 80482f1:       f4                      hlt    <br> 80482f2:       89 f6                   mov    %esi,%esi<br></pre>
+  Looks like some kind of starting routine called "_start" is at the starting 
+address. What it does is clear a register, push some values into stack and
+call a function.  According to this instruction, the stack frame should look
+like this.  
+<pre>Stack Top	-------------------<br>		0x80483d<br>		-------------------<br>		esi<br>		-------------------<br>		ecx<br>		-------------------<br>		0x8048274<br>		-------------------<br>		0x8048420<br>		-------------------<br>		edx<br>		-------------------<br>		esp<br>		-------------------<br>		eax<br>		-------------------<br></pre>
+  
+<p>Now, as you already wonder,we've got a few questions regarding this stack 
+frame.<br>
+<br>
+</p>
+<ol>
+  <li>What are those hex values about?&nbsp;</li>
+  <li>What's at address 80482bc, which is called by _start?&nbsp;</li>
+  <li>Looks like the assembly instructions doesn't initialize any register
+with possibly meaningful values. Then who initializes the registers?  <br>
+  </li>
+</ol>
+<p>  </p>
+<p>Let's answer these questions one by one.  </p>
+<h2>Q1&gt;The hexa values.</h2>
+ 
+<p> If you look at disassembled output from objdump carefully, you can answer 
+this question easily.</p>
+<p>  Here is answer.  <br>
+</p>
+<p>0x80483d0		:&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; This is the address
+of our main() function.</p>
+<p>0x8048274		:&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; _init function.<br>
+</p>
+<p>0x8048420		:&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; _fini function  _init
+and _fini is initialization/finalization function provided by GCC.<br>
+</p>
+<p> Right now, let's not care about these stuffs.  And basically, all those
+hexa values are function pointers.  </p>
+<h2>Q2&gt;What's at address 80482bc?</h2>
+ 
+<p> Again, let's look for address 80482bc from the disassembly output.<br>
+ If you look for it, the assembly is  </p>
+<pre>80482bc:	ff 25 48 95 04 08    	jmp    *0x8049548<br></pre>
+<br>
+Here *0x8049548 is a pointer operation.<br>
+&nbsp;It just jumps to an address stored at address 0x8049548.  
+<h2><br>
+</h2>
+<h2>More about ELF and dymanic linking</h2>
+ 
+<p> With ELF, we can build an executable linked dynamically with libraries.<br>
+Here "linked dynamically" means the actual linking process happens at runtime.
+Otherwise we'd have to build a huge executable containing all the libraries it
+calls (a "statically-linked executable).
+If you issue the command 
+</p>
+<pre>"ldd simple"<br><br>	  libc.so.6 =&gt; /lib/i686/libc.so.6 (0x42000000)<br>	  /lib/ld-linux.so.2 =&gt; /lib/ld-linux.so.2 (0x40000000)<br><br></pre>
+  You can see all the libraries dynamically linked with simple.  And all
+the dynamically linked data and functions have "dynamic relocation entry". 
+ <br>
+<br>
+The concept is roughly like this. <br>
+<ol>
+  <li>We don't know actual address of a dynamic symbol at link time. We can
+know the actual address of the symbol only at runtime.</li>
+  <li>So for the dynamic symbol, we reserve a memory location for the actual 
+  address. <br>
+ The memory location will be filled with actual address of the   symbol
+at runtime by loader.&nbsp;</li>
+  <li>Our application sees the dynamic symbol indirectly with the momeory 
+  location by using kind of pointer operation.  In our case, at address 80482bc,
+there is just a simple jump instruction.<br>
+ And the jump location is stored at address 0x8049548 by loader during runtime.<br>
+ We can see all dynamic link entries with objdump command.  
+    <pre>objdump -R simple<br><br>	simple:     file format elf32-i386<br><br>	DYNAMIC RELOCATION RECORDS<br>	OFFSET   TYPE              VALUE <br>	0804954c R_386_GLOB_DAT    __gmon_start__<br>	08049540 R_386_JUMP_SLOT   __register_frame_info<br>	08049544 R_386_JUMP_SLOT   __deregister_frame_info<br>	08049548 R_386_JUMP_SLOT   __libc_start_main<br></pre>
+  Here address 0x8049548 is called "jump slot", which perfectly makes sense. 
+And according to the table, actually we want to call __libc_start_main.<br>
+  </li>
+</ol>
+   
+<h2>What's __libc_start_main?</h2>
+ 
+<p> Now the ball is on libc's hand. __libc_start_main is a function in libc.so.6. 
+ If you look for __libc_start_main in glibc source code, the prototype looks
+like this.  </p>
+<pre>extern int BP_SYM (__libc_start_main) (int (*main) (int, char **, char **),<br>		int argc,<br>		char *__unbounded *__unbounded ubp_av,<br>		void (*init) (void),<br>		void (*fini) (void),<br>		void (*rtld_fini) (void),<br>		void *__unbounded stack_end)<br>__attribute__ ((noreturn));<br></pre>
+  And all the assembly instructions do is set up argument stack and call
+__libc_start_main. <br>
+What this function does is setup/initialize some data structures/environments
+and call our main().  <br>
+Let's look at the stack frame with this function prototype.   <br>
+<br>
+Stack Top		&nbsp;&nbsp;&nbsp;	-------------------<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp; &nbsp;&nbsp; 0x80483d0						&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp; main<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp; ------------------- 						<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; esi								&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; argc<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp; ------------------- 						<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; ecx								&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp; argv 						<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; ------------------- 						<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; 0x8048274						&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; _init<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp; ------------------- 						<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; 0x8048420						&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; _fini<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp; ------------------- 						<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; edx								&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+_rtlf_fini<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp; ------------------- 						<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; esp								&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+stack_end<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp; ------------------- 						<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; eax								&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+this is 0<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp; -------------------  <br>
+<br>
+According to this stack frame, esi, ecx, edx, esp, eax registers should be 
+filled with appropriate values before __libc_start_main() is executed. And
+clearly this registers are not set by the startup assembly instructions shown
+before.  Then, who sets these registers? Now I guess the only thing left.
+The kernel.  <br>
+Now let's go back to our third question.  
+<h2>Q3&gt;What does the kernel do?</h2>
+ 
+<p> When we execute a program by entering a name on shell, this is what happens
+on Linux.<br>
+</p>
+<ol>
+  <li>The shell calls the kernel system call "execve" with argc/argv.&nbsp;</li>
+  <li>The kernel system call handler gets control and start handling the
+system call.   In kernel code, the handler is "sys_execve".      On x86, the
+user-mode application passes all required   parameters to kernel with the
+following registers.    		
+<UL>
+<LI> ebx : pointer to program name string 		
+<LI> ecx : argv array pointer 		
+<LI> edx : environment variable array pointer.
+</UL> 
+&nbsp;</li>
+  <li>The generic execve kernel system call handler, which is do_execve, is called.
+ What it does is set up a data structure and copy some data from user space 
+  to kernel space and finally calls search_binary_handler().  Linux can support
+more than one executable file format such as a.out and ELF at the same time.
+For this functionality, there is a data structure "struct linux_binfmt",
+which has a function pointer for each binary format loader.  And search_binary_handler()
+just looks up an appropriate handler and calls it.  In our case, load_elf_binary()
+is the handler.  To explain each detail of the function would be lengthy/boring
+work. So I'll not do that. If you are interested in it, read a book about it. As a picture
+tells a thousand words, a thousand lines of source code tells  ten thousand
+words (sometimes).  Here is the bottom line of the function. It first sets
+up kernel data structures for file operation to read the ELF executable image in. 
+Then it sets up a kernel data structure: code size, data segment start,
+stack segment start, etc. And it allocates user mode pages for this process and
+copies the argv and environment variables to those allocated page addresses.
+ Finally, argc, the argv pointer, and the envrioronment variable array pointer
+are pushed to user mode stack by create_elf_tables(), and  start_thread() starts the
+process execution rolling.  <br>
+  </li>
+</ol>
+<p><br>
+</p>
+<p>When the _start assembly instruction gets control of execution, the stack
+frame looks like this.  <br>
+</p>
+<p>Stack Top			&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; -------------<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; argc<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; -------------<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;argv pointer<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; -------------<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; env pointer<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; -------------  <br>
+</p>
+<p>And the assembly instructions gets all information from stack by  </p>
+<pre>pop %esi 		&lt;--- get argc<br>move %esp, %ecx		&lt;--- get argv<br>			  actually the argv address is the same as the current<br>			  stack pointer.<br></pre>
+  And now we are all set to start executing.  
+<h2>What about the other registers?</h2>
+ 
+<p>	 For esp, this is used for stack end in application program. After popping
+all necessary information, the _start rountine simply adjusts the stack
+pointer (esp) by turning off lower 4 bits from esp register.
+This perfectly makes sense since actually, to our main program, that is the
+end of stack.  For edx, which is used for rtld_fini, a kind of application 
+destructor, the kernel just sets it to 0 with the following macro.  </p>
+<pre>#define ELF_PLAT_INIT(_r)	do { \<br>	_r-&gt;ebx = 0; _r-&gt;ecx = 0; _r-&gt;edx = 0; \<br>	_r-&gt;esi = 0; _r-&gt;edi = 0; _r-&gt;ebp = 0; \<br>	_r-&gt;eax = 0; \<br>} while (0)<br></pre>
+ The 0 means we don't use that functionality on x86 linux.  
+<h2>About the assembly instructions</h2>
+ 
+<p> Where are all those codes from? It's part of GCC code. You can usually
+find all the object files for the code at <br>
+/usr/lib/gcc-lib/i386-redhat-linux/XXX and <br>
+/usr/lib where XXX is gcc version. <br>
+File names are crtbegin.o,crtend.o, gcrt1.o. </p>
+<p>  </p>
+<h2>Summing up</h2>
+ 
+<p> Here is what happens.&nbsp;</p>
+<ol>
+  <li>GCC build your program with crtbegin.o/crtend.o/gcrt1.o   And the other
+default libraries are dynamically linked by default.   Starting address of
+the executable is set to that of _start.</li>
+  <li>Kernel loads the executable and setup text/data/bss/stack,   especially,
+kernel allocate page(s) for arguments and environment   variables and pushes
+all necessary information on stack.</li>
+  <li>Control is pased to _start.   _start gets all information from stack
+setup by kernel,   sets up argument stack for __libc_start_main, and calls
+it.&nbsp;</li>
+  <li>__libc_start_main initializes necessary stuffs, especially C library(such 
+		as malloc) and thread environment and calls our main.&nbsp;</li>
+  <li>our main is called with main(argv, argv)   Actually, here one interesting
+point is the signature of main.   __libc_start_main thinks main's signature
+as 	  main(int, char **, char **)  If you are curious, try the following
+prgram.   
+    <pre>main(int argc, char** argv, char** env)<br>{<br>    int i = 0;<br>    while(env[i] != 0)<br>    {<br>       printf("%s\n", env[i++]);<br>    }<br>    return(0);<br>}</pre>
+  </li>
+</ol>
+<h2>Conclusion</h2>
+ 
+<p> On Linux, our C main() function is executed by the cooperative work of GCC, libc
+and Linux's binary loader.   </p>
+
+<h2>References</h2>
+ 
+<p> objdump					&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; "man objdump"&nbsp;</p>
+<p>ELF header				&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; /usr/include/elf.h&nbsp;</p>
+<p> __libc_start_main		&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;glibc
+source 							<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; ./sysdeps/generic/libc-start.c&nbsp;</p>
+<p>sys_execve				&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; linux kernel source code 							<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; arch/i386/kernel/process.c  <br>
+</p>
+<p>do_execve				&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;linux kernel source code 							<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; fs/exec.c  <br>
+</p>
+<p>struct linux_binfmt	&nbsp;&nbsp;&nbsp; &nbsp; linux kernel source code 
+							<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; include/linux/binfmts.h  <br>
+</p>
+<p>load_elf_binary		&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+linux kernel source code<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; fs/binfmt_elf.c  <br>
+</p>
+<p>create_elf_tables		&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; linux
+kernel source code 							<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; fs/binfmt_elf.c  <br>
+</p>
+<p>start_thread			&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp; linux kernel source code 							<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp; include/asm/processor.h </p>
+
+
+
+
+
+<!-- *** BEGIN copyright *** -->
+<hr>
+<CENTER><SMALL><STRONG>
+Copyright &copy; 2002, Hyouck "Hawk" Kim.
+Copying license <A HREF="../copying.html">http://www.linuxgazette.net/copying.html</A><BR> 
+Published in Issue 84 of <i>Linux Gazette</i>, November 2002
+</STRONG></SMALL></CENTER>
+<!-- *** END copyright *** -->
+<HR>
+
+<!--startcut ==========================================================-->
+<CENTER>
+<!-- *** BEGIN navbar *** -->
+<IMG ALT="" SRC="../gx/navbar/left.jpg" WIDTH="14" HEIGHT="45" BORDER="0" ALIGN="bottom"><A HREF="dashti.html"><IMG ALT="[ Prev ]" SRC="../gx/navbar/prev.jpg" WIDTH="16" HEIGHT="45" BORDER="0" ALIGN="bottom"></A><A HREF="index.html"><IMG ALT="[ Table of Contents ]" SRC="../gx/navbar/toc.jpg" WIDTH="220" HEIGHT="45" BORDER="0" ALIGN="bottom" ></A><A HREF="../index.html"><IMG ALT="[ Front Page ]" SRC="../gx/navbar/frontpage.jpg" WIDTH="137" HEIGHT="45" BORDER="0" ALIGN="bottom"></A><IMG ALT="[ Talkback ]" SRC="../gx/navbar/talkback.jpg" WIDTH="121" HEIGHT="45" BORDER="0" ALIGN="bottom"  ><A HREF="../lg_faq.html"><IMG ALT="[ FAQ ]" SRC="./../gx/navbar/faq.jpg"WIDTH="62" HEIGHT="45" BORDER="0" ALIGN="bottom"></A><A HREF="okopnik.html"><IMG ALT="[ Next ]" SRC="../gx/navbar/next.jpg" WIDTH="15" HEIGHT="45" BORDER="0" ALIGN="bottom"  ></A><IMG ALT="" SRC="../gx/navbar/right.jpg" WIDTH="15" HEIGHT="45" ALIGN="bottom">
+<!-- *** END navbar *** -->
+</CENTER>
+</BODY></HTML>
+<!--endcut ============================================================-->

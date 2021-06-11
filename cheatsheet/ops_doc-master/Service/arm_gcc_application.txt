@@ -1,0 +1,31 @@
+https://www.veryarm.com/563.html # bash
+
+http://www.gnu.org/software/bash/bash.html
+
+2 解压
+将下载的bash压缩包解压，命令：
+$ mkdir /home/veryarm/bash                      # 创建bash工作目录
+$ cp bash-4.2.tar.gz /home/veryarm/bash         # 复制安装包
+$ cd ~/bash                                     # 进入/home/veryarm/bash目录
+$ tar zxvf bash-4.2.tar.gz                      # 解压
+
+3. 配置
+编译之前，要进行配置，命令：
+$ mkdir install                                 # 创建安装目录
+$ cd bash-4.2                                   # 进入目录
+$ export PATH=$PATH:/usr/local/arm-2010q1/bin/  # 添加交叉编译器路径到PATH环境变量中
+$ ./configure CC=arm-none-linux-gnueabi-gcc --prefix=/home/veryarm/bash/install --host=arm-linux --target=arm-none-linux-gnueabi --enable-static-link --enable-history --without-bash-malloc
+其中：
+    CC：指定交叉编译工具；
+    --prefix：指定编译后镜像和库文件安装的位置，这些我们要放到目标板上的
+    
+3. 设置静态编译
+打开 Makefile 文件，
+$ vi Makefile
+在 Makefile 的 CFLAGS 后面加上 -static 选项：
+CFLAGS = -g -O2 -static
+然后按ESC返回命令模式，输入 x 回车，保存并退出vi。
+
+4. 编译
+编译并安装：
+$ make & make install

@@ -1,0 +1,80 @@
+LFS  创造自己的GNU/Linux系统      Linux From Scratch
+BLFS 提供大量的软件包的安装手册   Beyond Linux From Scratch
+CLFS 针对各种不同架构的平台       Cross Linux From Scratch
+HLFS x86手册，安全方面的构架指导  Hardened Linux From Scratch
+
+Debian      发行版中的常青树
+Redhat      Linux系统的代名词
+Slackware   古老而简洁的发行版
+Arch Linux  快速、轻量的发行版
+Gentoo      可高度定制的发行版
+
+PCTS (POSIX Conformance Test Suite)
+LSB  二进制程序不需要重新编译，就可以在其他发行版上运行
+FHS  文件存放标准
+
+http://www.linuxfromscratch.org
+http://www.linuxsir.org/bbs
+http://www.gentoo.org/doc/zh_cn/list.html
+http://lamp.linux.gov.cn/Linux/LFS-6.2/index.html
+
+Linux内核
+1. /sbin/init         : 标准的启动控制程序的启动位置以及命令名称
+2. initrd, /sbin/init ：小型的文件系统，内部包含了启动所需要的命令以及内核模块，内核将把文件镜像到/dev/ram0设备中， /linuxrc
+3. initramfs          : /init(一个由cpio打包的小型Linux系统)
+
+/sbin/init （sysvinit, upstart, systemd，busybox，toybox）
+
+主系统   :帮我们制作系统的系统
+目标系统 :我们要完成的系统
+临时系统 :在制作目标系统的过程中会需要一个小型的过度系统，这个系统在辅助完成目标系统制作后就不再使用了，成为临时系统
+编译工具 :Binutils GCC
+工具链
+    原工具链：主系统的工具链
+    预工具链：用于生产临时工具链的工具链
+    临时工具链：用于生成临时系统的工具链
+    目标工具链：用于生成目标系统的工具链
+辅助命令：make
+工具链环境：
+    预工具链环境：预工具链+主系统中的辅助命令及基本函数库。
+    临时工具链环境：临时工具链+临时系统中的辅助命令及基本函数库
+    目标工具链环境：目标工具链+目标系统中的辅助命令及基本函数库
+运行环境
+    主系统运行环境：以主系统所在的运行环境
+    目标系统运行环境：目标系统所在目录为根目录的运行环境
+纯净度：某个系统和其他系统的相关性。
+头文件：在编译时候所需要的，但本身都是一些文本文件，因此不存在运行的问题。
+
+工具链的原则：由某一个工具链编译出来的二进制程序文件或函数库文件必然连接到该工具链中的函数库，无论是静态链接方式还是动态链接方式。
+Glibc的自给自足：Glibc并不需要依赖其他的函数库文件就可以完成其编译链接。    
+工具链中的GCC,Binutils运行时需要依赖Glibc，GCC和Binutils依赖Glibc的两种方式：
+依赖工具链之外的Glibc(外部依赖)和依赖工具链中的Glibc(内部依赖)。
+
+          GCC_A         GCC_B               GCC_C     
+Glibc_A                           Glibc_B             
+          Binutils_A    Binutils_B          Binutils_C
+  工具链制作过程：
+1.工具链A生成了GCC_B和Binutils_B，由工具链的原则可知GCC_B和Binutils_B都是链接到工具链A中的Glibc_A上，
+  这个时候GCC_B和Binutils_B还不构成一个完整的工具链，Glibc具有的自给自足特性，通过GCC_B和Binutils_B
+  来创建一个Glib_B，这时工具链B才完整，工具链A中的GCC_A和Binutils_A使用工具链内部依赖，工具链B使用外部依赖，
+  依赖于工具链A中的Glibc_A.
+2. 工具链B的GCC_B和Binutils_B形成而Glibc_B还未编译的时候，实际上此时工具链B(暂时这样称呼)是内部依赖的，即此时
+   GCC_B、Binutils_B和Glibc_A形成一个工具链，用这个工具链去编一个程序，该程序将依赖Glibc_A.
+3. 在完成了glibc_B后，需要对GCC_B和Binutils_B进行一次工具链的调整，将其链接的对象设置为刚刚编译完成的glibc_B.
+   这个时候，GCC_B, Binutils_B和Glibc_B才形成真正工具链B，变为外部依赖的形式，这时编译的程序将依赖Glibc_B.
+4. 完成了工具链B后就可以去编译GCC_C和Binutils_C了，这里和工具链A生成了GCC_B，Binutils_B时的情况不太一样，
+   当完成GCC_C和Binutils_C后工具链C已经完整了，因此工具链C使用了工具链B中的glibc_B作为函数库。
+
+关键理解是：Glibc_B库由GCC_B和Binutils_B生成；但GCC_C和Binutils_C依赖于Glibc_B库
+
+制作流程分解
+1. 主系统的准备
+2. 预工具链的生成
+3. 临时工具链的生成
+4. 临时系统的生成
+5. 目标工具链的生成
+6. 目标工具链环境的生成
+7. 目标系统的生成
+8. 制作的阶段分解
+
+虚拟根目录：

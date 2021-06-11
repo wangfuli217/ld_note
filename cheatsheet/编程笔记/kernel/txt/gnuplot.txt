@@ -1,0 +1,91 @@
+http://matplotlib.sourceforge.net/api/pyplot_api.html
+python plot
+
+
+~/.gnuplot_history
+
+reset replot
+
+set key left/bottom/outside(only right outside) legend
+set key left bottom (simultaneously)
+set key 0.5 0.6 (long 50%, width 60%)
+set key bmargin center horizontal               legend out of image
+
+set surface/contour(等值线)
+set contour base
+set hidden3d (隐线消除)
+
+set grid
+
+xrange just output display range, set autoscale
+
+set xtics 1.0 %x轴的主刻度的宽度为1.0，同样可以为y轴定义ytics
+set mxtics 3 %x轴上每个主刻度中画3个分刻度，同样可以为y轴定义mytics
+x2tics，mx2tics，y2tics，my2tics all ok
+set xtics out (坐标轴标签向图里还是图外) offset x,y
+
+set arrow from 0.0,0.0 to 0.6,0.8 nohead lt 3 lw 2
+unset arrow 2 (unset the 2rd)
+
+set term x11 is default
+set term png color solid enh
+set term png size 800,600 (default is 640,400, so it's rectangle, not square) 
+    set size square 
+set term png xFEFEFE    background color
+set output 'a.png'
+
+set multiplot   multi graph in one
+
+set view 0,0
+
+1/0 means ignoring
+plot 'file' using 1:($3>10 ? $2 : 1/0)
+plot "~/tmp/his.log" using 1:(stringcolumn(2) eq "Server1" ? $3 : 1/0) title 'Server1' with linespoints,\
+     "~/tmp/his.log" using 1:(stringcolumn(2) eq "Server2" ? $3 : 1/0) title 'Server2' with linespoints
+plot "Data.dat" u ($1):($2 + 0.001) w l
+
+set xdata time  	# The x axis data is time
+set timefmt "%d-%b-%y"	# The dates in the file look like 10-Jun-04
+set format x "%b %d"	# On the x-axis, we want tics like Jun 10
+             12/31/2011 10:30
+set timefmt "%m/%d/%y %H:%M"
+
+set view map
+splot ... matrix with image
+
+
+A   149 127
+B   19  157
+C   49  127
+D   149 147
+plot "~/tmp/his.log" using ($2+3):($3+3):1 with labels, "~/tmp/his.log" using 2:3   
+    draw characters according to col 1, while characters are at (x+3)(y+3)
+
+staff   54
+apps    22
+sybgrp  12
+db2grp1 29
+set xtic rotate by 270
+plot "~/tmp/his.log"  using 2:xtic(1) title "apps group numbers"
+    x is names rotated by 270°, y is numeric according to x
+
+set pm3d map OR set view map && unset surface
+set pm3d at s
+set pm3d at base    a 3d and a base projection
+set pm3d == set pm3d explicit
+
+set style data lines/pm3d
+
+采样速度和绘图密度是由 samples 和 isosamples 决定
+show samples/isosamples/dgrid3d
+set samples 200,200
+set isosamples 200,200  slice map
+set dgrid3d 200,200     regard data as discrete grid
+
+cb... means color box, cbrange sets the range of values which are colored using the current palette
+
+
+Gnuplot.py:
+        g = Gnuplot.Gnuplot(debug=1)
+        g('set hidden3d')
+        g.plot(Gnuplot.File(filename))

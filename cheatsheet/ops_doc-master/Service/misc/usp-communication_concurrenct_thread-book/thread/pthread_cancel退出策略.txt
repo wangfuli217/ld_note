@@ -1,0 +1,92 @@
+# pthread_cancel调用并不等待线程终止，它只提出请求。
+# 线程取消的方法是向目标线程发Cancel信号，但如何处理Cancel信号则由目标线程自己决定，
+或者忽略、或者立即终止、或者继续运行至Cancelation-point(取消点)，由不同的Cancelation状态决定。
+# 通过 man pthread_setcancelstate 可以更好理解。 信号处理原则。
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+  
+void* func(void   *){
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);           //允许退出线程   
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS,   NULL);   //设置立即取消  
+    while (1) {
+    ;   
+    }   
+    return NULL;
+}
+
+int main(int argc, char *argv[]){
+    pthread_t   thrd;
+    pthread_attr_t   attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr,   PTHREAD_CREATE_DETACHED);
+  
+    if(pthread_create(&thrd,&attr,func,NULL)){
+        perror("pthread_create error ");
+        exit(EXIT_FAILURE);   
+    }
+      
+    if(!pthread_cancel(thrd)){   
+        printf("pthread_cancel OK\n ");
+    }   
+  
+    sleep(10);
+    return   0;
+}
+
+
+上面程序并不会将子线程取消，why?
+这是因为子线程一直在while()循环，没有挂起，所以不能将其取消；那么该如何才能取消呢？
+先来看一下pthread_cancel()的用法：
+    线程取消的方法是向目标线程发Cancel信号，但如何处理Cancel信号则由目标线程自己决定，
+或者忽略、或者立即终止、或者继续运行至Cancelation-point（取消点），由不同的Cancelation状态决定。
+    线程接收到CANCEL信号的缺省处理（即pthread_create()创建线程的缺省状态）是继续运行至取消点，
+也就是说设置一个CANCELED状态，线程继续运行，只有运行至Cancelation-point的时候才会退出。
+
+（1）什么是线程取消点   
+根据POSIX标准，pthread_join()、pthread_testcancel()、pthread_cond_wait()、pthread_cond_timedwait()、sem_wait()、sigwait()等函数以及read()、write()等会引起阻塞的系统调用都是Cancelation-point，而其他pthread函数都不会引起Cancelation动作。但是pthread_cancel的手册页声称，由于LinuxThread库与C库结合得不好，因而目前C库函数都不是Cancelation-point；但CANCEL信号会使线程从阻塞的系统调用中退出，并置EINTR错误码，因此可以在需要作为Cancelation-point的系统调用前后调用pthread_testcancel()，从而达到POSIX标准所要求的目标，即如下代码段：   
+pthread_testcancel();   
+retcode   =   read(fd,   buffer,   length);   
+pthread_testcancel();   
+
+（2）程序设计方面的考虑   
+如果线程处于无限循环中，且循环体内没有执行至取消点的必然路径，则线程无法由外部其他线程的取消请求而终止。
+因此在这样的循环体的必经路径上应该加入pthread_testcancel()调用。   
+
+（3）与线程取消相关的pthread函数   
+int   pthread_cancel(pthread_t   thread)   
+发送终止信号给thread线程，如果成功则返回0，否则为非0值。发送成功并不意味着thread会终止。   
+
+int   pthread_setcancelstate(int   state,   int   *oldstate)   
+设置本线程对Cancel信号的反应，state有两种值：PTHREAD_CANCEL_ENABLE（缺省）和PTHREAD_CANCEL_DISABLE，
+分别表示收到信号后设为CANCLED状态和忽略CANCEL信号继续运行；old_state如果不为NULL则存入原来的Cancel状态以便恢复。   
+
+int   pthread_setcanceltype(int   type,   int   *oldtype)   
+设置本线程取消动作的执行时机，type由两种取值：PTHREAD_CANCEL_DEFFERED和PTHREAD_CANCEL_ASYCHRONOUS，
+仅当Cancel状态为Enable时有效，分别表示收到信号后继续运行至下一个取消点再退出和立即执行取消动作（退出）；
+oldtype如果不为NULL则存入运来的取消动作类型值。   
+
+PTHREAD_CANCEL_DISABLE
+PTHREAD_CANCEL_ENABLE (PTHREAD_CANCEL_DEFFERED | PTHREAD_CANCEL_ASYCHRONOUS)
+
+
+void   pthread_testcancel(void)
+是说pthread_testcancel在不包含取消点，但是又需要取消点的地方创建一个取消点，以便在一个没有包含取消点的执行代码线程中响应取消请求.
+检查本线程是否处于Canceld状态，如果是，则进行取消动作，否则直接返回 
+
+按照以上的描述是不是说在linux下,pthread_join()、pthread_testcancel()、pthread_cond_wait()、
+pthread_cond_timedwait()、sem_wait()、sigwait()等函数以及read()、write()等会引起阻塞的系统调用
+在linux下并不是取消点啊?我不明白为什么可以在需要作为Cancelation-point的系统调用前后调用
+pthread_testcancel()，就可以达到POSIX标准所要求的目标,我还是不太理解取消点的内涵, 
+pthread_testcancel();   
+retcode   =   read(fd,   buffer,   length);   
+pthread_testcancel();   
+加两个pthread_testcancel();   是干什么的?特别是最后一个pthread_testcancel();按照上面的描述是不是线程运行到retcode   =   read(fd,   buffer,   length);   线程就终止了?那还要最后一个pthread_testcancel();做什么啊?
+
+另外，查阅里相关资料，有人这样说：
+
+首先，取消点并不是为了取消而存在的（pthread_testcancel除外），它们是等待其他信号的，比如pthread_cond_wait是等待某个条件的，sem_wait等待一个信号量。它们的共同点是“引起阻塞的系统调用”，在阻塞以后，除了等待的特定信号以外还可以处理一些公共信号，比如CANCEL信号。接收到特定信号后将恢复线程，而接收到CANCEL信号将退出线程（我理解为一个条件return）。 
+Read和Write在POSIX中是标准的取消点，因为它们也进行了“引起阻塞的系统调用”，但是因为Linux自身的问题，没有在这些函数中实现取消点，所以才需要添加pthread_testcancel来完成POSIX标准。按照你贴出的文字，C库函数都没有实现取消点，其他的pthread_开头的和wait结尾的应该都是实现了的。 
+至于后面也加pthread_testcancel，可能是进入和退出系统调用是两个独立的取消点吧，应对于I/O操作开始后但还未结束时的CANSEL信号，也许只是因为I/O比较费时间所以测试两次:)

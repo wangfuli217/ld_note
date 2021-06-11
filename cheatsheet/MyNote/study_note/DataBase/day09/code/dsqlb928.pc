@@ -1,0 +1,23 @@
+#include<stdio.h>
+exec sql include sqlca;
+int main(void)
+{
+	exec sql begin declare section;
+		char userpasswd[30]="tarena/tarena";
+		char sqlstr[100];
+		int id=1234;
+		char name[30]="test1234";
+		int rid=1;
+	exec sql end   declare section;
+	exec sql connect:userpasswd;
+	sprintf(sqlstr,"%s","insert into s_dept valuses(:b0,:b1,:b2)");
+	exec sql prepare s from :sqlstr;
+	exec sql execute s using :id,:name,:rid;
+	exec sql commit;
+	if(!sqlca.sqlcode)
+		printf("insert data success!\n");
+	else
+		printf("%s\n",sqlca.sqlerrm.sqlerrmc);
+	exec sql commit work release;
+	return 0;
+}

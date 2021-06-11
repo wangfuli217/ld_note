@@ -1,0 +1,50 @@
+https://github.com/zgsxwsdxg/makefile-notes
+
+https://github.com/parrotshen/makefile
+
+make -sf Makefile.$$i all SIMPLY=0 FOO="FOO from argument" ;
+
+-s, --silent, --quiet                   # do not print the commands as they are executed.
+-f file, --file=file, --makefile=FILE   # Use file as a makefile.
+all                     规则名称。
+SIMPLY=0                传递变量
+FOO="FOO from argument" 传递变量
+
+    make并不管命令是怎么工作的，他只管执行所定义的命令。
+    make会比较targets文件和prerequisites文件的修改日期，
+    如果prerequisites文件的日期要比targets文件的日期要新，
+    或者target不存在的话，那么，make就会执行后续定义的命令。
+
+    当没有prerequisites时，target就是一个lable，make就不会执行后面的command。
+    要让make去执行其后的command，必须在make命令后指出这个lable
+
+    在默认的方式下，也就是我们只输入make命令。那么，
+    1、make会在当前目录下找名字叫"Makefile"或"makefile"的文件。
+    2、如果找到，它会找文件中的第一个目标文件（target），并把这个文件作为最终的目标文件。
+    3、如果edit文件不存在，或是edit所依赖的后面的 .o 文件的文件修改时间要比edit这个文件新，
+       那么，他就会执行后面所定义的命令来生成edit这个文件。
+    4、make会一层又一层地去找文件的依赖关系，直到最终编译出第一个目标文件。
+       在找寻的过程中，如果出现错误，比如最后被依赖的文件找不到，那么make就会直接退出，并报错，
+       而对于所定义的命令的错误，或是编译不成功，make根本不理。
+
+    GNU的make工作时的执行步骤入下：
+    1、读入所有的Makefile。
+    2、读入被include的其它Makefile。
+    3、初始化文件中的变量。
+    4、推导隐晦规则、模式规则，并分析所有规则。
+    5、为所有的目标文件创建依赖关系链。
+    6、根据依赖关系，决定哪些目标要重新生成。
+    7、执行生成命令。
+    1-5步为第一个阶段，6-7为第二个阶段。
+    第一个阶段中，如果定义的变量被使用了，那么，make会把其展开在使用的位置。
+    但make并不会完全马上展开，make使用的是拖延战术，如果变量出现在依赖关系的规则中，
+    那么仅当这条依赖被决定要使用了，变量才会在其内部展开。
+
+2. 常用make命令行选项
+    -n          调试用，不执行命令，把规则和连带规则下的命令打印出来
+    -f=<file>   指定makefile
+    -B          重编译，认为所有的目标都需要更新
+    -C <dir>    指定读取makefile的目录
+    -d          调试模式，会输出很多很多信息
+    -j<n>       并行执行，指定同时运行命令的个数。和CPU个数相关
+    -w          显示make进入目录和退出目录的信息

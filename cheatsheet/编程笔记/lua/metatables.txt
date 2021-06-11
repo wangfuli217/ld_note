@@ -1,0 +1,212 @@
+Lua 元表 # MetaTable主要是用来做一些类似于C++重载操作符式的功能。
+    正如其名，元表也是表。不过，将元表与表相关联后，我们就可以通过设置元表的键和相关方法来改变表的行为。
+    元方法的功能十分强大，使用元方法可以实现很多的功能，比如：
+        修改表的操作符功能或为操作符添加新功能。
+        使用元表中的 __index 方法，我们可以实现在表中查找键不存在时转而在元表中查找键值的功能。
+
+    Lua 提供了两个十分重要的用来处理元表的方法，如下：
+        setmetatable(table,metatable):此方法用于为一个表设置元表。
+        getmetatable(table)：         此方法用于获取表的元表对象。
+    
+    首先，让我们看一下如何将一个表设置为另一个表的元表。示例如下：
+
+    mytable = {}
+    mymetatable = {}
+    setmetatable(mytable,mymetatable)
+    上面的代码可以简写成如下的一行代码：
+    mytable = setmetatable({},{})
+    
+__index
+    所谓__index，说得明确一点，如果我们有两个对象a和b，我们想让b作为a的prototype只需要：
+    setmetatable(a, {__index = b})
+    
+    如果__index包含一个函数的话，Lua就会调用那个函数，table和键会作为参数传递给函数。
+    __index 元方法查看表中元素是否存在，如果不存在，返回结果为 nil；如果存在则由 __index 返回结果。
+
+    下面的例子中，我们实现了在表中查找键不存在时转而在元表中查找该键的功能：
+    mytable = setmetatable({key1 = "value1"}, {
+      __index = function(mytable, key)
+        if key == "key2" then
+          return "metatablevalue"
+        else
+          return mytable[key]
+        end
+      end
+    })
+    
+    print(mytable.key1,mytable.key2)
+    
+    运行上面的程序，我们可以得到如下的输出结果：
+    
+    value1  metatablevalue
+    
+    Lua查找一个表元素时的规则，其实就是如下3个步骤:
+    1.在表中查找，如果找到，返回该元素，找不到则继续
+    2.判断该表是否有元表，如果没有元表，返回nil，有元表则继续。
+    3.判断元表有没有__index方法，如果__index方法为nil，则返回nil；如果__index方法是一个表，
+        则重复1、2、3；如果__index方法是一个函数，则返回该函数的返回值。
+        
+    上面的程序同样可以简化成如下的形式：
+    mytable = setmetatable({key1 = "value1"}, { __index = { key2 = "metatablevalue" } })
+    print(mytable.key1,mytable.key2)
+    
+实例： 
+    Window_Prototype = {x=0, y=0, width=100, height=100}            # 
+    MyWin = {title="Hello"}
+    setmetatable(MyWin, {__index = Window_Prototype})               
+    print(MyWin.x, MyWin.y, MyWin.width, MyWin.height, MyWin.title) 
+    -- 0       0       100     100     Hello                        # 元表会继承本表的数值
+    print(Window_Prototype.x, Window_Prototype.y, Window_Prototype.width, Window_Prototype.height, Window_Prototype.title)
+    -- 0       0       100     100     nil                          # 本表不继承元表的数值
+实例：
+    Person={}
+ 
+    function Person:new(p)
+        local obj = p
+        if (obj == nil) then
+            obj = {name="ChenHao", age=37, handsome=true} -- 默认构造函数
+        end
+        self.__index = self                               -- 自循环
+        return setmetatable(obj, self)                    -- 如果self不存在，则在obj中引用
+    end
+    
+    function Person:toString()
+        return self.name .." : ".. self.age .." : ".. (self.handsome and "handsome" or "ugly")
+    end
+    
+    me = Person:new()
+    print(me:toString())
+    kf = Person:new{name="King's fucking", age=70, handsome=false}
+    print(kf:toString())
+
+    Student = Person:new()
+    function Student:new()
+        newObj = {year = 2013}
+        self.__index = self
+        return setmetatable(newObj, self)
+    end
+    
+    function Student:toString()
+        return "Student : ".. self.year.." : " .. self.name
+    end
+_G
+    -- Lua 将所有的全局变量都存放在一个叫 _G 的 table 中，这个table称为“环境”。
+    -- 通常，可以通过对 _G 设置元表来控制对全局表的访问.
+    setmetatable(_G, {
+        __index = function(_, n)
+            error("attemp to read undeclared variable : " .. n, 2)
+        end,
+        __newindex = function(_, n)
+            error("attempt to write to undeclared variable : " .. n, 2)
+        end
+    })
+
+__newindex
+
+    为元表添加 __newindex 后，当访问的键在表中不存在时，此时添加新键值对的行为将由此元方法（__newindex）定义。
+    下面的例子中，如果访问的索引在表中不存在则在元表中新加该索引值，具体代码如下：
+    
+    mymetatable = {}
+    mytable = setmetatable({key1 = "value1"}, { __newindex = mymetatable })
+    
+    print(mytable.key1)                       # value1
+                                              # 
+    mytable.newkey = "new value 2"            # 
+    print(mytable.newkey, mymetatable.newkey) # nil new value 2
+                                              # 
+    mytable.key1 = "new value1"               # 
+    print(mytable.key1,mymetatable.newkey)    # new value1 nil
+    
+        可以看出，在上面的程序中，如果键存在于主表中，只会简单更新相应的键值。
+    而如果键不在表中时，会在另外的表 mymetatable 中添加该键值对。
+        在接下来这个例子中，我们用 rawset 函数在相同的表（主表）中更新键值，而不再是将新的键添加到另外的表中。
+    代码如下所示：
+    mytable = setmetatable({key1 = "value1"}, {
+      __newindex = function(mytable, key, value)
+            rawset(mytable, key, "\""..value.."\"")
+    
+      end
+    })
+    
+    mytable.key1 = "new value"
+    mytable.key2 = 4
+    
+    print(mytable.key1,mytable.key2)          # new value   "4"
+    rawset 函数设置值时不会使用元表中的 __newindex 元方法。
+    同样的，Lua 中也存的一个 rawget 方法，
+    该方法访问表中键值时也不会调用 __index 的元方法。
+    
+    
+为表添加操作符行为
+    使用 + 操作符完成两个表组合的方法如下所示（译注：可以看出重载的意思了）：
+    mytable = setmetatable({ 1, 2, 3 }, {
+      __add = function(mytable, newtable)
+        for i = 1, table.maxn(newtable) do
+          table.insert(mytable, table.maxn(mytable)+1,newtable[i])
+        end
+        return mytable
+      end
+    })
+
+    secondtable = {4,5,6}
+    
+    mytable = mytable + secondtable
+    for k,v in ipairs(mytable) do
+        print(k,v)
+    end
+
+    执行上面的的程序，我们可以得到如下的输出结果：
+    
+    1   1
+    2   2
+    3   3
+    4   4
+    5   5
+    6   6
+
+    元表中 __add 键用于修改加法操作符的行为。其它操作对应的元表中的键值如下表所示。
+    键           描述
+    __add       改变加法操作符的行为。
+    __sub       改变减法操作符的行为。
+    __mul       改变乘法操作符的行为。
+    __div       改变除法操作符的行为。
+    __mod       改变模除操作符的行为。
+    __unm       改变一元减操作符的行为。
+    __concat    改变连接操作符的行为。
+    __eq        改变等于操作符的行为。
+    __lt        改变小于操作符的行为。
+    __le        改变小于等于操作符的行为。
+    
+__call
+    使用 __call 可以使表具有像函数一样可调用的特性。
+    下面的例子中涉及两个表，主表 mytable 和 传入的实参表结构 newtable，程序完成两个表中值的求和。
+    mytable = setmetatable({10}, {
+        __call = function(mytable, newtable)
+            sum = 0
+            for i = 1, table.maxn(mytable) do
+                sum = sum + mytable[i]
+            end
+            for i = 1, table.maxn(newtable) do
+                sum = sum + newtable[i]
+            end
+            return sum
+        end
+    })
+    newtable = {10,20,30}
+    print(mytable(newtable))            # 70 相当于call调用
+    
+__tostring
+    要改变 print 语句的行为，我们需要用到 __tostring 元方法。下面是一个简单的例子：
+    mytable = setmetatable({ 10, 20, 30 }, {
+      __tostring = function(mytable)
+        sum = 0
+        for k, v in pairs(mytable) do
+            sum = sum + v
+        end
+        return "The sum of values in the table is " .. sum
+      end
+    })
+    print(mytable)                     # The sum of values in the table is 60
+
+    如果你完全掌握了元表的用法，你就可以实现很多看上面很复杂的操作。如果不使用元表，就不仅仅是看上去很复杂了，
+    而是真的非常复杂。所以，多做一些使用元表的练习，并熟练掌握所有元表的可选项，这会让你受益匪浅。

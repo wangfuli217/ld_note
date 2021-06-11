@@ -1,0 +1,23 @@
+:patch "insert crlf fix for automated uxtest"
+
+:root scripts
+
+:file 12-sub-test-ux.bat
+:from 
+$TEXE -nocol patch -qs ../scripts/50-patch-all-win.cpp >/dev/null
+:to
+$TEXE -nocol remcrlf ../scripts/50-patch-all-ux.cpp >/dev/null
+$TEXE -nocol patch -qs ../scripts/50-patch-all-ux.cpp >/dev/null
+:from
+$TEXE -nocol -spat filter -bin testfiles/Formats/14-all-codes.txt -nocasemin -rep "_/x01_Char01 replaced_" -rep "_/xFF_CharFF replaced_" >res-25.txt
+$TEXE -nocol -spat filter -bin testfiles/Formats/14-all-codes.txt -sep "/x20" -form "#col6" >>res-25.txt
+$TEXE -nocol test $TCMD T12.1.replacex res-25.txt
+:to
+$TEXE -nocol -spat filter -bin testfiles/Formats/14-all-codes.txt -nocasemin -rep "_\x01_Char01 replaced_" -rep "_\xFF_CharFF replaced_" >res-25.txt
+$TEXE -nocol -spat filter -bin testfiles/Formats/14-all-codes.txt -sep "\x20" -form "#col6" >>res-25.txt
+$TEXE -nocol test $TCMD T12.1.replacex res-25.txt
+:from
+$TEXE -nocol filt testfiles/Formats/23-filt-patterns.txt -spat "-+one /* two" "-+/?" >>res-60-1.txt
+:to
+$TEXE -nocol filt testfiles/Formats/23-filt-patterns.txt -spat "-+one \* two" "-+\?" >>res-60-1.txt
+:done

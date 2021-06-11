@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+#
+# <http://github.com/e-picas/bash-utils>
+# Copyright (c) 2015 Pierre Cassat & contributors
+# License Apache 2.0 - This program comes with ABSOLUTELY NO WARRANTY.
+# For the full copyright and license information, please view the LICENSE
+# file that was distributed with this source code or see <http://www.apache.org/licenses/LICENSE-2.0>.
+#
+# Bash init script template (using LSB library)
+#
+# See the facilities list at the bottom of this file
+#
+# Installation:
+# - move this to /etc/init.d/<PROGNAME>
+# - chmod +x this
+#
+
+### BEGIN INIT INFO
+# Provides:          <PROGNAME>
+# Required-Start:    $local_fs $remote_fs $network
+# Required-Stop:     $local_fs $remote_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start <PROGNAME>
+# Description:       Manage <PROGNAME> daemon
+### END INIT INFO
+
+set -e
+
+# include LSB library
+source /lib/lsb/init-functions || { echo "> ${BASH_SOURCE[0]}:${LINENO}: '/lib/lsb/init-functions' not found!" >&2; exit 1; };
+
+# display program name
+PROG_NAME='<PROGNAME>'
+
+# user to use with the program
+PROG_USER="$(whoami)"
+
+# program base directory
+PROG_DIR="/usr/local/<PROGNAME>"
+
+# /var/run/app must be writable by your user
+PROG_PIDFILE="/var/run/${PROG_NAME}.pid"
+
+# custom logfile
+PROG_LOGFILE="/var/log/${PROG_NAME}.log"
+
+# this is the command to be run, give the full pathname
+PROG_DAEMON='...'
+
+# options passed to the deamon above
+PROG_DAEMON_OPTS=" <options> "
+
+# if the daemon is not there, then exit
+test -x $PROG_DAEMON || exit 5;
+
+# process requested action
+case "$1" in
+    start)
+        log_daemon_msg "Starting ${PROG_NAME} ... "
+        start-stop-daemon --background --start --chdir "$PROG_DIR" --verbose --oknodo --make-pidfile --pidfile "$PROG_PIDFILE" --exec "$PROG_DAEMON" -- "$PROG_DAEMON_OPTS" >> "$PROG_LOGFILE"
+        log_end_msg $?
+        ;;
+    stop)
+        log_daemon_msg "Stopping ${PROG_NAME} ... "
+        start-stop-daemon --stop --chdir "$PROG_DIR" --verbose --pidfile "$PROG_PIDFILE" >> "$PROG_LOGFILE"
+        log_end_msg $?
+        ;;
+    restart)
+        $0 stop && sleep 2 && $0 start
+        ;;
+    force-reload)
+        $0 restart
+        ;;
+    status)
+        if status_of_proc -p "$PROG_PIDFILE" "$PROG_NAME" "$PROG_NAME" >/dev/null; then
+            echo "${PROG_NAME} is running"
+            exit 0
+        else
+            echo "${PROG_NAME} is NOT running"
+            exit 3
+        fi
+        ;;
+    *)
+        echo "usage: $0 {start|stop|restart|force-reload|status}" >&2
+        exit 1
+        ;;
+esac
+
+#######################
+## exit
+# an init script must always exit with a status (0 for no error)
+exit 0
+
+## List of available facilites:
+# $local_fs       local filesystems are mounted (scripts that write in /var/ need to depend on this)
+# $remote_fs      all filesystems are mounted
+# $network        low level networking are running (ethernet card; may imply PCMCIA running)
+# $named          daemons which may provide hostname resolution are running
+# $portmap        daemons providing SunRPC/ONCRPC portmapping service are running (RFC 1833)
+# $syslog         system logger is operational
+# $time           system time has been set
+# $all            start a script after all the scripts not depending on $all, at the end of the boot sequence
+
+# vim: autoindent tabstop=4 shiftwidth=4 expandtab softtabstop=4 filetype=sh

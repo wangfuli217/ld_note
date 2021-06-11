@@ -1,0 +1,73 @@
+#if 0
+    lua_type : [-0, +0, –]
+int lua_type (lua_State *L, int index);
+返回给定有效索引处值的类型， 当索引无效（或无法访问）时则返回 LUA_TNONE。 
+lua_type 返回的类型被编码为一些个在 lua.h 中定义的常量： 
+LUA_TNIL，LUA_TNUMBER，LUA_TBOOLEAN，LUA_TSTRING，LUA_TTABLE，LUA_TFUNCTION，LUA_TUSERDATA，LUA_TTHREAD，LUA_TLIGHTUSERDATA。
+
+    lua_typename : [-0, +0, –]
+const char *lua_typename (lua_State *L, int tp);
+返回 tp 表示的类型名， 这个 tp 必须是 lua_type 可能返回的值中之一。
+#endif
+
+
+#if 0
+    lua_toboolean : [-0, +0, –]
+int lua_toboolean (lua_State *L, int index);
+    把给定索引处的 Lua 值转换为一个 C 中的布尔量(0 或是 1)。 和 Lua 中做的所有测试一样， 
+lua_toboolean 会把任何不同于 false 和 nil 的值当作真返回； 否则就返回假。 
+(如果你想只接收真正的 boolean 值， 就需要使用 lua_isboolean 来测试值的类型。)
+
+    lua_tocfunction : [-0, +0, –]
+lua_CFunction lua_tocfunction (lua_State *L, int index);
+把给定索引处的 Lua 值转换为一个 C 函数。 这个值必须是一个 C 函数； 如果不是就返回 NULL 。
+
+    lua_tointeger : [-0, +0, –]
+lua_Integer lua_tointeger (lua_State *L, int index);
+等价于调用 lua_tointegerx， 其参数 isnum 为 NULL。
+
+    lua_tointegerx : [-0, +0, –]
+lua_Integer lua_tointegerx (lua_State *L, int index, int *isnum);
+    将给定索引处的 Lua 值转换为带符号的整数类型 lua_Integer。 这个 Lua 值必须是一个整数，
+或是一个可以被转换为整数的数字或字符串； 否则，lua_tointegerx 返回 0 。
+如果 isnum 不是 NULL， *isnum 会被设为操作是否成功。
+
+    lua_tolstring : [-0, +0, e]
+const char *lua_tolstring (lua_State *L, int index, size_t *len);
+    把给定索引处的 Lua 值转换为一个 C 字符串。 如果 len 不为 NULL ， 它还把字符串长度设到 *len 中。 
+这个 Lua 值必须是一个字符串或是一个数字； 否则返回返回 NULL 。 如果值是一个数字， lua_tolstring 还会 
+把堆栈中的那个值的实际类型转换为一个字符串。 （当遍历一张表的时候，若把 lua_tolstring 作用在键上， 
+这个转换有可能导致lua_next弄错。）
+    lua_tolstring 返回一个已对齐指针 指向 Lua 状态机中的字符串。 这个字符串总能保证（C要求的）
+最后一个字符为零 ('\0') ，而且它允许在字符串内包含多个这样的零。
+    因为 Lua 中可能发生垃圾收集， 所以不保证 lua_tolstring 返回的指针， 在对应的值从堆栈中移除后依然有效。
+
+    lua_tonumber : [-0, +0, –]
+lua_Number lua_tonumber (lua_State *L, int index);
+等价于调用 lua_tonumberx， 其参数 isnum 为 NULL。
+
+    lua_tonumberx : [-0, +0, –]
+lua_Number lua_tonumberx (lua_State *L, int index, int *isnum);
+    把给定索引处的 Lua 值转换为 lua_Number 这样一个 C 类型 （参见 lua_Number ）。 这个 Lua 值必须是一个数字或是
+一个可转换为数字的字符串 （参见 §3.4.3）； 否则， lua_tonumberx 返回 0 。
+如果 isnum 不是 NULL， *isnum 会被设为操作是否成功。
+
+    lua_topointer : [-0, +0, –]
+const void *lua_topointer (lua_State *L, int index);
+    把给定索引处的值转换为一般的 C 指针 (void*) 。 这个值可以是一个用户对象，表 ，线程或是一个函数；
+否则，lua_topointer 返回 NULL 。 不同的对象有不同的指针。 不存在把指针再转回原有类型的方法。
+这个函数通常只用于调试信息。
+
+    lua_tostring : [-0, +0, e]
+const char *lua_tostring (lua_State *L, int index);
+等价于调用 lua_tolstring ， 其参数 len 为 NULL 。
+
+    lua_tothread : [-0, +0, –]
+lua_State *lua_tothread (lua_State *L, int index);
+把给定索引处的值转换为一个 Lua 线程 （表示为 lua_State*）。 这个值必须是一个线程； 否则函数返回 NULL。
+
+    lua_touserdata : [-0, +0, –]
+void *lua_touserdata (lua_State *L, int index);
+    如果给定索引处的值是一个完全用户数据， 函数返回其内存块的地址。 如果值是一个轻量用户数据， 
+那么就返回它表示的指针。 否则，返回 NULL 。
+#endif

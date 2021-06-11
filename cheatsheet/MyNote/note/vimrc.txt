@@ -1,0 +1,248 @@
+1.注释
+	"		使用"注释
+	
+2.变量
+1)标题变量
+	命名方式为: 作用域:变量名
+	b:name		只对当前buffer有效的变量
+	w:name		只对当前窗口有效的变量
+	g:name		全局变量
+	v:name		vim预定义变量
+	a:name		函数的参变量
+	注意:引用标量变量的时候要包含作用域和冒号
+2)有特殊含义的变量
+	命名方式: Fun Character加上变量名
+	有三类
+	$NAME		环境变量(一般变量名是大写)
+	&name		选项(vim处理某些事情的时候的默认设置)
+	@r			register(寄存器,不是汇编里的eax,ebx...)
+	常见环境变量例子: $VIMRUNTIME   vim运行路径
+	常见选项例子: &ic	ignorecase(使用set选项可以改变选项设置,使用一个set可以查看当前所有选项及设置),使用set all查看所有set选项
+3)变量赋值
+	:let 变量名=值
+	注意:前面的冒号不仅是为了表示这是一个冒号命令,而且是必须的
+	释放变量:	:unlet! 变量名
+4)运算符
+	数学运算: +-*/%
+	逻辑运算: == != > >= < <= ?:
+	正则匹配运算: =~ !~
+	
+3.控制结构
+1) 	if 条件
+		语句块
+	elseif 条件
+		语句块
+	else
+		语句块
+	endif
+	注意: 条件表达式不需要小括号,语句块不需要大括号
+2)	while 条件
+		语句块
+		[break/continue]
+	endwhile
+	
+4.函数
+	定义:
+	function 函数名(参数)
+		函数体
+	endfunc
+	
+  调用
+	在脚本语句中使用call 函数名(参数)
+	在vim命令中使用:call 函数名(参数)
+	注:在函数体中使用参数需要在参数变量名称前加上a:,例如参数名为keyword,则在函数体中使用a:keyword来引用
+	注:function!后面的叹号表示如果存在此函数名的函数,则改写为现在的代码逻辑
+	
+5.执行命令,键盘绑定,命令行命令和自动命令
+1)执行命令
+	exec "命令"		用于在vim脚本中执行一系列vim命令
+	:!外部命令		这是一个vim命令行命令,功能是调用外部程序
+2)键盘绑定:help map-overview
+	这个功能允许把一个命令字符串绑定到一个按键/按键组合
+	<leader>就是一个前缀，输入命令时要加这个前缀然后是<leader>后面的指令,这个<leader>的是可以配置的,在脚本里面可以这样写,let mapleader=','
+	<silent>前缀,表示静默执行,即不回显
+	一般格式: nmap c ^i#<Esc>j
+	解释:映射normal模式下的按键c为:^i#<Esc>j,就是在该行开头加上#号,然后下移一行
+	常用映射命令:
+	map:全模式映射
+	nmap:normal模式映射
+	vmap:visual模式映射
+	imap:insert模式映射
+3)命令行命令
+	vim支持在启动的时候使用-c开关执行命令字符串，例如：
+	$ cat n
+	#!/bin/sh
+	vim -c "set filetype=$PERL" -c "s.$.#!/usr/bin/$PERL -w"r"r." -c
+	":nohlsearch" $1
+	设置文件类型 写入#!/usr/bin/perl -w
+	取消匹配加亮
+	$ n myperlfile
+4)自动命令
+	一般格式: autocmd 事件 文件类型 命令
+	例子: au BufNewFile,BufRead *.pl setf perl
+	解释:当事件BufNewFile和BufRead发生在*.pl文件上的时候,执行命令setf perl
+	
+常用系统函数:help function-list
+函数 返回值 解释
+
+(1)字符串操作
+char2nr( {expr}) Number {expr}中字符的ASCII值
+nr2char( {expr}) String {expr}中ASCII值对应的字符
+escape( {string}, {chars}) String 使用'"'对{string}中的字符
+{chars}进行转义
+strtrans( {expr}) String 把字符串转换成可打印字符串
+tolower( {expr}) String 将字符串{expr}小写
+toupper( {expr}) String 将字符串{expr}大写
+match( {expr}, {pat}[, {start}])
+Number {pat}在{expr}中的匹配位置
+matchend( {expr}, {pat}[, {start})
+Number {pat}在{expr}中的最后匹配位置
+matchstr( {expr}, {pat}[, {start}])
+String {pat}在{expr}中的匹配，成功返回{pat}，失败返回""
+stridx( {haystack}, {needle}) Number {needle}在{haystack}中的始索引位置
+strridx( {haystack}, {needle}) Number {needle}在{haystack}中的终索引位置
+strlen( {expr}) Number 字符串{expr}的长度
+substitute( {expr}, {pat}, {sub}, {flags})
+String 用{sub}替换{expr}中的模式{pat}
+submatch( {nr}) String ":substitute"的特殊匹配
+strpart( {src}, {start}[, {len}])
+String 子串函数，在{src}中从
+{start}开始取出{len}个字符
+expand( {expr}) String 扩展{expr}中的字符串
+type( {name}) Number 变量{name}的类型
+
+(2)操作当前缓冲区中的文本
+byte2line( {byte}) Number 字节数为{byte}的行
+line2byte( {lnum}) Number 行号为{lnum}的行的字节数
+col( {expr}) Number {expr}的列号：. 光标所在列$ 末列 "x 标记x所在位置
+virtcol( {expr}) Number {expr}的屏幕列号(screen column)
+line( {expr}) Number {expr}的行号
+wincol() Number {expr}的窗口列号(screen column)
+winline() Number {expr}的窗口行号(screen column)
+getline( {expr}) Number {expr}的行号
+setline( {lnum}, {line}) Number 把{line}写入{lnum}行
+append( {lnum}, {string}) Number 在{lnum}行下一行加入{string}
+indent( {lnum}) Number 缩进行{lnum}
+cindent( {lnum}) Number C格式缩进行{lnum}
+lispindent( {lnum}) Number Lisp格式缩进行{lnum}
+nextnonblank( {lnum}) Number 行号 >= {lnum} 的非空白行的行号
+prevnonblank( {lnum}) Number 行号 <= {lnum} 的非空白行的行号
+search( {pattern} [, {flags}]) Number 查找{pattern}
+searchpair( {start}, {middle}, {end} [, {flags} [, {skip}]]) Number 查找 始/末对 的另一个末端
+
+
+(3)系统函数和文件操作
+browse( {save}, {title}, {initdir}, {default})
+String 启动一个文件请求
+glob( {expr}]) String 展开一个fileglob {expr}
+globpath( {path}, {expr}) String 对{path}中的所有目录调用
+glob({expr})
+resolve( {filename}) String 得到符号链接的指向
+fnamemodify( {fname}, {mods}) String 更改文件名
+executable( {expr}) Number 如果{expr}存在且可执行，则真
+filereadable( {file}) Number 如果{file}可读，则真
+isdirectory( {directory}) Number 如果{directory}存在，则真
+getcwd() String 当前工作目录
+getfsize( {fname}) Number 文件字节数
+getftime( {fname}) Number 文件最终修改时间
+localtime() Number 当前时间
+strftime( {format}[, {time}]) String 格式化的时间
+tempname() String 生成一个临时文件名
+delete( {fname}) Number 删除文件{fname}
+rename( {from}, {to}) Number 重命名{from}成{to}
+system( {expr}) String 执行shell命令{expr}
+hostname() String 机器名
+
+(4)缓冲区，窗口，参数列表
+argc() Number 参数列表中的文件个数
+argidx() Number 参数列表中当前索引值
+argv( {nr}) String 参数列表中第{nr}个
+bufexists( {var}) Number 如果{var}存在则真
+buflisted( {expr}) Number 如果{expr}被列出则真
+bufloaded( {expr}) Number 如果{expr}被加载则真
+bufname( {expr}) String 缓冲{expr}的名字
+bufnr( {expr}) Number 缓冲{expr}的缓冲序号
+winnr() Number 当前窗口的窗口序号
+bufwinnr( {expr}) Number 指定缓冲的窗口序号
+winbufnr( {nr}) Number 指定窗口的缓冲序号
+getbufvar( {expr}, {varname}) 得到缓冲{expr}的特殊变量{varname}的值
+setbufvar( {expr}, {varname}, {val}) 设置缓冲{expr}的特殊变量{varname}的值为{val}
+getwinvar( {nr}, {varname}) 得到窗口{nr}的特殊变量{varname}的值
+setwinvar( {nr}, {varname}, {val}) 设置窗口{nr}的特殊变量{varname}的值为{val}
+
+(5)折叠(Folding)
+foldclosed( {lnum}) Number 如果{lnum}行的折叠闭合了，
+返回第一行
+foldlevel( {lnum}) Number {lnum}行的折叠级数
+foldtext( ) String 生成一个闭合折叠的表示
+
+(6)语法加亮
+hlexists( {name}) Number 如果命名为{name}的高亮组存
+在，则真
+hlID( {name}) Number 名字为{name}的高亮组的语法
+ID
+synID( {line}, {col}, {trans}) Number {line}行{col}列的语法ID
+synIDattr( {synID}, {what} [, {mode}])
+String 返回语法ID {synID}的{what}
+属性
+synIDtrans( {synID}) Number 翻译的语法ID {synID}
+
+(7)历史
+histadd( {history},{item}) String 向历史中增加一项
+histdel( {history} [, {item}]) String 在历史中删除一项
+histget( {history} [, {index}]) String 在历史中取出索引{index}的项
+histnr( {history}) Number 历史项最大索引
+
+(8)交互
+confirm( {msg} [, {choices} [, {default} [, {type}]]])
+Number 返回用户选择的项序号
+getchar( [expr]) Number 获得一个输入字符
+getcharmod( ) Number 修改最后一个输入的字符
+input( {prompt} [, {text}]) String 获得用户输入
+inputsecret( {prompt} [, {text}]) String 获得用户输入，但是不回显
+inputdialog( {prompt} [, {text}]) String 产生一个GUI对话框以获得用
+户输入
+
+(9)Vim服务器
+serverlist() String 返回一个可用的服务器列表
+remote_send( {server}, {string} [, {idvar}])
+String 送出key序列
+
+remote_expr( {server}, {string} [, {idvar}])
+String 送出表达式
+server2client( {serverid}, {string})
+Number 送出回复串
+remote_peek( {serverid} [, {retvar}])
+Number 检查回复串
+remote_read( {serverid}) String 读取回复串
+foreground( ) Number 把vim窗口带到前台
+remote_foreground( {server}) Number 把vim服务器带到前台
+
+(10)变量检查
+mode() String 返回当前编辑方式
+visualmode() String 返回最后一次visual模式的使
+用
+hasmapto( {what} [, {mode}]) Number 如果存在{what}的映射则真
+mapcheck( {name}[, {mode}]) String 检查所有被{name}匹配的映射
+名称
+maparg( {name}[, {mode}]) String 在模式{mode}下的映射{name}
+的rhs值
+exists( {var}) Number 如果{var}存在则真
+has( {feature}) Number 如果特性{feature}被支持则真
+cscope_connection( [{num} , {dbpath} [, {prepend}]])
+Number 检查是否存在cscope连接
+did_filetype( {name}) Number 设置文件类型的自动命令
+{name}存在则真
+eventhandler( ) Number 如果在一个事件处理中则真
+getwinposx() Number vim窗口在GUI模式下的X轴坐标
+象素数
+getwinposy() Number vim窗口在GUI模式下的Y轴坐标
+象素数
+winheight( {nr}) Number 窗口{nr}的高度
+winwidth( {nr}) Number 窗口{nr}的宽度
+libcall( {lib}, {func}, {arg}) String 使用参数{arg}调用在{lib}中
+的函数{func}
+libcallnr( {lib}, {func}, {arg})
+Number 和上一个函数相同，用于返回
+整数的函数
+

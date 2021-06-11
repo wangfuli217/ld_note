@@ -1,0 +1,49 @@
+--[[
+  原型：error(message [, level])
+  解释：终止程序最后的保护函数，并且返回参数message所代表的字符串作为出错信息，函数本身没有返回值。
+        一般函数error()会在错误信息的开头添加一些关于错误位置的信息，
+        参数level指定了怎样获得错误的位置。
+          Level=1[默认]：为调用error位置(文件+行号)
+          Level=2：指出哪个调用error的函数的函数
+          Level=0:不添加错误位置信息
+        通过将参数level设置为0可以避免在错误信息中添加额外的位置信息。
+--]]
+
+-- 模拟错误消息
+-- 第一测试
+function print_message(str)
+    if str == nil then
+        error("prompt a error message, output message is nil", 0)
+    end
+    print("Lua output : "..str)
+end
+
+-- 正常调用
+print("\n normal call print_message")
+print_message("the ret is right!")
+
+-- 错误调用, pcall保护
+print("\n normal call print_message with pcall")
+pcall(print_message())
+
+print("\n normal call print_message without pcall")
+-- 错误调用
+print_message()
+
+-- 第二组测试
+function print_error(type)
+    error("prompt a error message", type)
+end
+print_error(1)
+
+-- 第三组测试
+print_error(2)
+
+--[[
+1. 注意参数level的使用，设置为0时可以避免错误信息中出现有关错误位置描述。
+2. 参数level表示对函数error()调用的层级，数字越大表示调用的层级越深，类似于堆栈深度。
+3. 今天的例子不能一起执行，当运行一组示例时，请将其他error()函数的调用注释掉。
+4. 第一组示例函数error()一种常见的使用方法，为了怕后边的操作符..与nil连接，所以提前抛出确定的错误信息。
+5. 由第二组和第三组信息对比可以发现参数level的作用，注意错误信息中显示的出错的行数，其实就是显示不同调用层级的位置。
+
+--]]

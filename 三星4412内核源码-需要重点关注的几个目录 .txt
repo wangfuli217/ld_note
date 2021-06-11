@@ -1,0 +1,19 @@
+三星4412的源代码中，比较重要的几个文件路径下的代码可以注意一下：
+arch/arm/mach-exynos，尤其是mach-smdk4x12.c，这是板级文件，与开发板相关的设备驱动多在里面有定义；
+arch/arm/plat-samsung，
+arch/arm/plat-s5p，
+driver/video/sammsung，这是LCD驱动所在目录。
+drivers/tty/serial，串口驱动所在目录。
+GPS，只要相关的串口驱动是好的，底层并不需要特别的驱动，因为上层只需要去采集GPS串口的数据即可。
+
+
+注：三星公司把某些设备的定义放到了arch\arm\plat-samsung\目录及arch\arm\plat-s5p\目录下。
+
+在过去的ARM Linux中，arch/arm/plat-xxx和arch/arm/mach-xxx中充斥着大量的垃圾代码，相当多数的代码只是在描述板级细节，
+而这些板级细节对于内核来讲，不过是垃圾，如板上的platform设备、resource、i2c_board_info、spi_board_info以及各种硬件
+的platform_data。读者有兴趣可以统计下常见的s3c2410、s3c6410等板级目录，代码量在数万行。
+
+为了改变这种局面，于是PowerPC等其他体系架构下已经使用的Flattened Device Tree（FDT）进入ARM社区的视野。Device Tree是
+一种描述硬件的数据结构，它起源于 OpenFirmware (OF)。在Linux 2.6中，ARM架构的板极硬件细节过多地被硬编码在arch/arm/
+plat-xxx和arch/arm/mach-xxx，采用Device Tree后，许多硬件的细节可以直接透过它传递给Linux，而不再需要在kernel中进行
+大量的冗余编码。

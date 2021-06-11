@@ -1,0 +1,11 @@
+require "socket"
+host = "www.w3.org"
+file = "/TR/REC-html32.html"
+c = assert(socket.connect(host, 80))             --打开TCP连接
+c:send("GET " .. file .. " HTTP/1.0\r\n\r\n")    --发送请求
+while true do
+    local s, status, partial = c:receive(2^10)    --接收响应：块大小为1KB，成功返回一个字符串，失败返回nil(s)、错误代码(status)和出错前读取到的内容(partial)。
+    io.write(s or partial)
+    if status == "closed" then break end
+end
+c:close()    --关闭TCP连接

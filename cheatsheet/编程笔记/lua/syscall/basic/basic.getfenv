@@ -1,0 +1,57 @@
+--[[
+  原型：getfenv([f]) 返回函数f的当前环境表
+  解释：返回参数f所指定函数使用的当前环境，参数f可以是一个Lua函数也可以是一个指定函数调用层级的数字，
+        当参数为1时，表示正在调用函数getfenv()函数的函数。如果被指定的函数不是Lua函数，
+        或者是一个数字0，则函数getfenv()返回全局环境，这个数字默认为1。
+        
+        f可以为函数或调用栈的级别，级别1[默认]为当前的函数,级别0或其它值将返回全局环境_G
+E: level must be non-negative
+E: invalid level
+E: no function environment for tail call at level %d
+--]]
+
+-- 定义一个函数
+function print_message(str)
+    print("Lua output : "..str)
+end
+
+local ret = getfenv(print_message)
+
+print("print_message env is", ret)
+
+if ret.print_message then
+    print("print_message function is exist!")
+end
+
+local function test_level(level)
+    print("\nthis is function to test level")
+    _G["test_getfenv"] = true;
+    return getfenv(level)
+end
+
+function show_level(level)
+    local ret = test_level(level)
+    return ret
+end
+
+print("\nbegin _G[\"test_getfenv\"] =", _G.test_getfenv)
+
+-- 测试level参数第一组
+local ret1 = show_level(1)
+print("level = 1 , _G[\"test_getfenv\"] =", ret1.test_getfenv)
+
+-- 测试level参数第二组
+local ret2 = show_level(2)
+print("level = 2 , _G[\"test_getfenv\"] =", ret2.test_getfenv)
+
+-- 测试level参数第三组
+local ret3 = show_level(3)
+print("level = 3 , _G[\"test_getfenv\"] =", ret3.test_getfenv)
+
+--[[
+最开始的测试中getfenv(print_message)我们在打印结果时发现，函数print_message的环境中有了"print_message"这个值。
+后面的三组测试我原本是想测试不同层级的堆栈所处的环境是不同的，我在第2层函数里加入了_G["test_getfenv"] = true;结果发现每一层堆栈的环境中都有这个值。
+
+最近偶然间搞清楚了这个getfenv()函数为什么在函数不同的层级不起作用了，也就是总结中提问的问题，
+原因就是函数getfenv()函数生效的前提是先调用setfenv()函数设置环境，否则不同函数层级的环境都是全局环境_G，
+--]]

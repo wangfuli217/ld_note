@@ -1,0 +1,79 @@
+1. Java的日期/时间类的定义并不一致，在java.util和java.sql的包中都有日期类，此外用于格式化和解析的类在java.text包中定义。
+2. java.util.Date同时包含日期和时间，而java.sql.Date仅包含日期，将其纳入java.sql包并不合理。另外这两个类都有相同的名字，
+   这本身就是一个非常糟糕的设计。
+3. 对于时间、时间戳、格式化以及解析，并没有一些明确定义的类。对于格式化和解析的需求，我们有java.text.DateFormat抽象类，
+   但通常情况下，SimpleDateFormat类被用于此类需求。
+4. 所有的日期类都是可变的，因此他们都不是线程安全的，这是Java日期类最大的问题之一。
+5. 日期类并不提供国际化，没有时区支持，因此Java引入了java.util.Calendar和java.util.TimeZone类，但他们同样存在上述所有的问题。
+
+
+
+1. 不变性：新的日期/时间API中，所有的类都是不可变的，这对多线程环境有好处。
+2. 关注点分离：新的API将人可读的日期时间和机器时间（unix timestamp）明确分离，它为日期（Date）、时间（Time）、日期时间（DateTime）、
+   时间戳（unix timestamp）以及时区定义了不同的类。
+3. 清晰：在所有的类中，方法都被明确定义用以完成相同的行为。举个例子，要拿到当前实例我们可以使用now()方法，
+   在所有的类中都定义了format()和parse()方法，而不是像以前那样专门有一个独立的类。为了更好的处理问题，所有的类都使用了工厂模式和策略模式，
+   一旦你使用了其中某个类的方法，与其他类协同工作并不困难。
+4. 实用操作：所有新的日期/时间API类都实现了一系列方法用以完成通用的任务，如：加、减、格式化、解析、从日期/时间中提取单独部分，等等。
+5. 可扩展性：新的日期/时间API是工作在ISO-8601日历系统上的，但我们也可以将其应用在非IOS的日历上。
+
+
+Java日期/时间API包含以下相应的包。
+    java.time包：这是新的Java日期/时间API的基础包，所有的主要基础类都是这个包的一部分，如：LocalDate, LocalTime, LocalDateTime, Instant, 
+    Period, Duration等等。所有这些类都是不可变的和线程安全的，在绝大多数情况下，这些类能够有效地处理一些公共的需求。
+    
+    java.time.chrono包：这个包为非ISO的日历系统定义了一些泛化的API，我们可以扩展AbstractChronology类来创建自己的日历系统。
+    
+    java.time.format包：这个包包含能够格式化和解析日期时间对象的类，在绝大多数情况下，我们不应该直接使用它们，因为java.time包中
+    相应的类已经提供了格式化和解析的方法。
+    
+    java.time.temporal包：这个包包含一些时态对象，我们可以用其找出关于日期/时间对象的某个特定日期或时间，比如说，
+    可以找到某月的第一天或最后一天。你可以非常容易地认出这些方法，因为它们都具有“withXXX”的格式。
+    
+    java.time.zone包：这个包包含支持不同时区以及相关规则的类。
+
+
+package com.journaldev.java8.time;
+
+import java.time.LocalDate;
+import java.time.Month;
+import java.time.ZoneId;
+
+/**
+ * LocalDate Examples
+ * @author pankaj
+ *
+ */
+public class LocalDateExample {
+
+    public static void main(String[] args) {
+
+        //Current Date
+        LocalDate today = LocalDate.now();
+        System.out.println("Current Date="+today);
+
+        //Creating LocalDate by providing input arguments
+        LocalDate firstDay_2014 = LocalDate.of(2014, Month.JANUARY, 1);
+        System.out.println("Specific Date="+firstDay_2014);
+
+        //Try creating date by providing invalid inputs
+        //LocalDate feb29_2014 = LocalDate.of(2014, Month.FEBRUARY, 29);
+        //Exception in thread "main" java.time.DateTimeException: 
+        //Invalid date 'February 29' as '2014' is not a leap year
+
+        //Current date in "Asia/Kolkata", you can get it from ZoneId javadoc
+        LocalDate todayKolkata = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        System.out.println("Current Date in IST="+todayKolkata);
+
+        //java.time.zone.ZoneRulesException: Unknown time-zone ID: IST
+        //LocalDate todayIST = LocalDate.now(ZoneId.of("IST"));
+
+        //Getting date from the base date i.e 01/01/1970
+        LocalDate dateFromBase = LocalDate.ofEpochDay(365);
+        System.out.println("365th day from base date= "+dateFromBase);
+
+        LocalDate hundredDay2014 = LocalDate.ofYearDay(2014, 100);
+        System.out.println("100th day of 2014="+hundredDay2014);
+    }
+
+}

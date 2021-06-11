@@ -1,0 +1,2376 @@
+a. lua与其他语言的差异
+    C 语言不擅长的特性：提供更高的抽象(离硬件更远),动态结构,无冗余,易于测试与调试。
+    lua VS Python ..  : 可扩展性,简单,高效率,与平台无关(ANSI C，这意味着只要你有ANSI C编译器你就可以编译并使用Lua)
+    Java、C#、C/C++   : 可以将Lua作为其嵌入式脚本引擎
+    
+b. 语言特性
+  提供特性: MIT Licence; 脚本引擎; 提高程序的灵活性、扩展性和高可配置性。
+    语法简单(基于过程)、高效稳定(基于字节码)、可以处理复杂的数据结构、动态类型、以及自动内存管理(基于垃圾收集)等
+    1. Lua直接嵌入到我们的应用程序中,如游戏、监控服务器等。对于程序的最终用户而言是完全透明的,对于程序本身，其扩展性将会得到极大的增强。
+       利用lua的数据处理特性，(直接或插件)嵌入到应用程序中。redis，dnsmasq，OpenResty。
+    2. 将Lua视为一种独立的脚本语言，通过它来帮助我们完成一些软件产品的辅助性工具的开发。  数据|文件内容格式化，luci
+       利用lua的可扩展性,简单,高效率,与平台无关特性，在嵌入式中实现web和数据处理。
+    3. 将Lua应用于应用程序的动态配置部分。
+       利用lua的数据处理特性，简化应用程序开发。
+      最后需要特别指出的是，学习Lua对于我们知识的系统性和完整性而言将是非常重要的一环，特别是对那些致力于
+  软件架构设计和软件解决方案分析的高级软件专业人员而言就更是如此。因为在很多时候，如果我们能够很充分的
+  理解和驾驭Lua，它不仅可以为我们的软件产品增色很多，而且也可以为我们技术人员带来一些意想不到的收获。
+  
+c. 使用环境
+Lua 没有"main"程序的概念： 它只能嵌入一个宿主程序中工作.宿主程序可以调用函数执行一小段Lua代码，可以读写Lua变量，可以注册C函数让Lua代码调用。
+     使用Lua嵌入到其他应用中的、独立使用Lua的、将Lua和C混合使用的。
+  1. 使用Lua嵌入在应用程序:比如CGILua(搭建动态网页)、LuaOrb(访问CORBA对象。这些类型用Lua-API注册新函数，创建新类型，
+     通过配置Lua就可以改变应用宿主语言的行为。通常，这种应用的使用者并不知道Lua是一种独立的语言。
+     例如：CGILua用户一般会认为Lua是一种用于Web的语言。 OpenResty redis dnsmasq wireshark插件。
+  2. 作为一种独立运行的语言，Lua也是很有用的，主要用于文本处理或者只运行一次的小程序。这种应用Lua主要使用它的标准库
+     来实现，标准库提供模式匹配和其它一些字串处理的功能。我们可以这样认为：Lua是文本处理领域的嵌入式语言。 luci
+  3. 把Lua当作库使用。这些人大多使用C语言开发，但使用Lua建立简单灵活易于使用的接口。
+
+d. lua运行环境
+  Lua 主要包括两个部分：Lua 解释器部分以及运行软件系统。
+      运行软件系统是真正解释执行由 Lua 语言编写的程序的应用程序。
+      Lua解释器是由 ANSI C 编写的，因此它有很好的可移植性。
+      
+    Lua不仅可以是一个独立运行的程序包也可以是一个用来嵌入其他应用的程序库。
+    Lua解释器是一个使用Lua标准库实现的独立的解释器。
+    解释器负责程序和使用者的接口：从使用者那里获取文件或者字符串，并传给Lua标准库，Lua标准库负责最终的代码运行。
+    
+    C作为应用程序语言，Lua作为一个库使用； 
+    Lua作为程序语言，C作为库使用。
+    通过使用C函数，Lua 可以扩展以处理广泛的不同领域，从而创建定制的编程语言，共享语法框架。
+    
+    luac - Lua compiler   ： luac [ options ] [ filenames ]
+    lua - Lua interpreter ： lua [ options ] [ script [ args ] ]
+e. lua与数据结构
+   lua的table就是{}，可以用这个一个来定义类似python的list dict set三种类型。
+   Lua 将简单的过程语法与基于关联数组和可扩展语义的强大数据描述结构相结合 -- 过程语法 + 关联数组(可扩展的语义)
+   
+f. 解释器程序
+  Lua 是动态类型化的，通过使用基于寄存器的虚拟机解释字节码来运行
+  命令行用法如下：
+    lua [options] [lua-script [arguments] ]
+    该工具的命令行选项主要有以下3个：
+    -e: 可以直接执行命令行中Lua代码，如：lua -e "print(\"Hello World\")"
+    -l: 加载该选项后的Lua库文件，如：lua -l mylib -e "x = 10"，该命令在执行之前先将mylib中的Lua代码加载到内存中，在后面的命令中就可以直接使用该文件中定义的Lua函数了。
+    -i: 在执行完指定的Lua程序文件之后，并不退出解释器程序，而是直接进入该程序的交互模式。
+
+  -i和dofile在调试或者测试Lua代码时是很方便的。
+  lua lua-script.lua a b c
+    在该脚本的程序入口，lua解释器会将所有命令行参数创建一个名为arg的table。其中脚本名(lua-script.lua)位于table索引的0位置上。
+    全局变量arg存放Lua的命令行参数。
+    prompt> lua script a b c
+    在运行以前，Lua使用所有参数构造arg表。脚本名索引为0，脚本的参数从1开始增加。脚本前面的参数从-1开始减少。
+    prompt> lua -e "sin=math.sin" script a b -- 在交互式lua中arg不存在。
+    arg表如下：
+    arg[-3] = "lua"
+    arg[-2] = "-e"
+    arg[-1] = "sin=math.sin"
+    arg[0] = "script"
+    arg[1] = "a"
+    arg[2] = "b"
+    
+  lua -la -lb     -- 可以通过指定参数让Lua执行一系列Chunk。
+    命令首先在一个Chunk内先运行a然后运行b。
+    注意：-l选项会调用require，将会在指定的目录下搜索文件，如果环境变量没有设好，上面的命令可能不能正确运行。
+    
+  lua -i -la -lb  -- -i选项要求Lua运行指定Chunk后进入交互模式
+    将在一个Chunk内先运行a然后运行b，最后直接进入交互模式。
+  
+  另一个连接外部Chunk的方式是使用dofile函数，dofile函数加载文件并执行它
+    > dofile("config.lua")          -- 加载当前目录下config.lua文件
+    > dofile("http/protocol.lua")   -- 加载http目录下protocol.lua文件
+    > n = norm(3.4, 1.0)
+    > print(twice(n))        --> 7.0880180586677
+  Ctrl-D Ctrl-Z 或者os.exit()
+  
+  lua -i -l luci.sys -l luci.util -l i18n -l luci.tools.firewall 
+    lua -i -l luci.sys -l luci.util
+    log = require "log"
+    log.print_r(data)
+    
+    luci      table: 0x1ab1460
+    template  table: 0x1ae3f50
+    nixio     table: 0x1abf010
+    ubus      table: 0x1adc930
+    for k,v in pairs(package.loaded) do -- 对当前已加载模块可以看得更清楚点
+  
+  lua -l luci.sys -e 'for k, v in pairs(luci.sys.getenv()) do print(k, v) end'
+  
+g. 代码风格，代码规范
+    1. 字符串使用双引号，比如"literal strings";单字符使用单引号，比如'a';模式串也是用单引号，比如'[%w_]*'
+    2. 变量尽量用local限制作用域
+    3. 提取公共函数到本地变量。使用本地变量缓存函数指针，加速下次使用。
+    4. 函数名用小写，用_来分割。
+    5. 在Lua中还有一个特殊的规则，即以下划线(_)开头，后面紧随多个大写字母(_VERSION)，
+       这些变量一般被Lua保留并用于特殊用途，因此我们在声明变量时需要尽量避免这样的声明方式，
+       以免给后期的维护带来不必要的麻烦。
+    6. 能不用if的地方，少用if？
+    
+    7. Lua的多条语句之间并不要求任何分隔符，如C语言的分号(;)，其中换行符也同样能起到语句分隔的作用。因此下面的写法均是合法的。如：
+        a = 1
+        b = a * 2
+            
+        a = 1;
+        b = a * 2;
+            
+        a = 1; b = a * 2;
+        a = 1  b = a * 2
+        每个语句结尾的分号(;)是可选的，但如果同一行有多个语句最好用;分开
+    8. 通过dofile()方法引用其他Lua文件中的函数
+    function fact(n)
+        if n == 0 then
+            return 1
+        else
+            return n * fact(n - 1)
+        end
+    end
+    将上面的函数保存到test2.lua文件中。
+    /> lua
+    > dofile("d:/test2.lua")
+    > print(fact(4))
+    24
+    
+h. 语法约定
+    1. 大小写敏感 -- and是保留字。但是And和AND则不是Lua的保留字。
+       标符识总是以字母或者下划线开始，其后可以是零个或多个字母、下划线或数字。
+       下划线开头的一般是特殊变量，比如 _VERSION
+       单下划线 _ 常用作一个虚变量(dummy variable)
+       标识符用于命名变量，表格字段和标签。
+    2. 多行注释         所有注释都以 --[[ 开始，并以 --]]结束
+        -- lua的两种注释,第一种是直接用 符号" -- " ，从这个位置开始的本行剩余内容就是注释了
+        --[==[ 第二种是 " --[[ things ]] " 两个负号和两对方括号，实际上就是注释的"--"加上了字符串的"[[]]" 或 "]==]"
+        -- 而在上一行，我使用的是在 "--[[" 和"]]"两对方括号中间加上了 "=="等号 ，为了防止出现文本中出现了"]]"这样的文字提前结束了这块范围，可以选择在两边的方括号中间加入等量的等号
+        
+        --This is a single line comment.   单行注释
+        --[[ my first program in Lua --]]  多行注释，可用于注释单行。
+        --[[                               多行注释   --[==[
+        This is a multi-lines comment.
+        ]]                                            ]==]
+    
+        print("Test string") --[== [注释1[[注释2]] ]==]
+        print("Test string"  --[==[注释1[[注释2]]]==])
+    3.  ..在 Lua 中是字符串连接符，当在一个数字后面写..时，必须加上空格以防止被解释错。
+    4. 如果 Lua 程序中某一行只包含空格或者注释，那么这样的一行被称之为空行。 Lua 解释器将完全忽略这一行。
+        fruit = apples + oranges   --get the total fruit
+        fruit 与 = 之间以及 = 与 apples 之间的空白符都是可以没有的。但是为了程序的可读性目的，建议你在它们之间使用空白符。
+    5. 忽略语法元素(符记)间的空格(包括换行)和注释;仅把它们看作为名字和关键字间的分割符。
+    
+变量 = 值 -- 变量没有类型，只有值才有类型。
+    1. Lua是一种动态类型的语言。其语言本身没有提供类型定义的语法，每个值都"携带"了它自身的类型信息。
+    2. 所有值都是第一类对象，所有值都可以存储在变量中，作为参数传递给其他函数，并作为结果返回。
+    3. _ 只是一个哑元变量
+    4. NaN：Not a Number是一个特殊的数字，它用于表示未定义或表示不了的运算结果，比如 0/0。
+    5. type函数可以返回参数的类型，返回值为string类型。
+    6. Lua语言还支持十六进制的浮点数，这种十六进制浮点数由小数部分和以p或P开头的指数部分组成
+       可以使用%a参数，通过函数string.format对这种格式进行格式化输出。
+       
+    Lua 中有 8 个基本类型分别为:nil、boolean、number、string、userdata、function、thread和table。
+       表，函数，线程和(完整)用户数据值都是对象：变量实际上不包含这些值，只包含对它们的引用。
+       赋值，参数传递和函数返回总是处理对这些值的引用; 这些操作并不意味着任何形式的副本。
+    在控制结构的条件中除了false和nil为假，其他值都为真。所以 Lua 认为0和空串都是真。
+    对于字符串中含有引号的 情况还可以使用转义符\来表示 例如\n表示回车
+    还可以使用[[...]]表示字符串。这种形式的字符串可以包含多行,也可以嵌套且不会解释转义序列，如果第一个字符是换行符会被自动忽略掉。
+    
+        number 数字，无论是整数的1还是实数的1.01在lua里都是number。 整数和实数按需作自动转换
+                  -- 用于表示实数。Lua中没有专门的类型表示整数。表示实数(双精度浮点数)。
+                  a,b,c,d,e,f,g = 1,1.123,1E9,-123,.0008, 0xff,056
+                  标准Lua使用64位整数和双精度(64位)浮点数
+                  您也可以编译Lua，以便使用32位整数和/或单精度浮点数(32位)
+                  -- 内部以double表示
+        string 字符串: lua是8位字节，所以字符串可以包含任何数值，包括嵌入的0。-- 不像C字符串需要0作为结尾字符。
+            Lua是编码不可知的; 它不会假定字符串的内容。
+            Lua中的字符串不是以零为结束符的；它们依赖于一个明确的长度，因此可以包含任意的二进制数据。
+            字符串含义：
+                Lua中的字符串通常表示"一个字符序列"。这意味着你可以存储任意的二进制数据在一个字符串里。
+                字符串类型的变量是不可变的，因此不能像C语言中那样直接修改字符串的某一个字符，而是在修改的同时创建了新的字符串。
+            字符串定义：
+                1. a="双引号中可直接使用'单引号',但\"双引号\"要转义"             -- 转义字符有效, 可以表示'' 不可跨行
+                2. b='单引号中可直接使用"双引号",但\'单引号\'要转义'             -- 转义字符有效, 可以表示"" 不可跨行
+                3. c=[[双方括号中可以直接使用'单引号'和"双引号"，而且可以换行]]  -- 转义字符无效，           可以跨行  
+                    string1 = "Lua"
+                    print("\"String 1 is\"",string1) = print('\"String 1 is\"',string1) = print('"String 1 is"',string1)
+                    string2 = 'Tutorial'
+                    print('\'String 1 is\'',string2) = print('\'String 1 is\'',string2) = print("'String 1 is'",string2)
+                    string3 = [["Lua Tutorial\n"]] 或者 string3 = [==["Lua Tutorial\n]]"]==]    可以表示[[和]]
+                    print("String 3 is",string3)
+                    3.1 在Lua中还可以通过[[ all strings ]]的方式来禁用[[ ]]中转义字符
+                        page = [[ <html> <head> <title> An Html Page </title> </head> ]]
+                    如果多行字符串中的第一个字符是换行符，那么这个换行符会被忽略掉。
+                        
+                    3.2 如果两个方括号中包含这样的内容：a = b[c[i]]，这样将会导致Lua的误解析，
+                        因此在这种情况下，我们可以将其改为[===[ 和 ]===]的形式，从而避免了误解析的发生。
+                说明: "" 和 '' 不能跨行，如果需要跨行可以在字符串当行的最后面使用\延续
+                还可以在字符串中使用\ddd(ddd为三位十进制数字)方式表示字母。
+                a = 'alo\n123"'         <--> \转义数字
+                a = "alo\n123\""        <--> 
+                a = '\97lo\10\04923"'   <--> 
+                a = [[alo               <--> 
+                123"]]                  <--> 
+                4. 双方括号同时还支持嵌套，但需要给最外层的方括号加上等号，等号的个数任意，只要求数量相同即可
+                a = [=[one [[two]] one]=]     -- one [[two]] one
+                a = [===[one [[two]] one]===] -- one [[two]] one
+        table 表，允许存储任何类型的值，将Lua中table类型视为"关联数组"，
+              它可以存储除了 nil和NaN 外的任何值。
+              table没有固定的大小，可以动态的添加任意数量的元素到一个table中。
+              表，表示一般的数组，符号表，集合，记录，图，树等等，它还可以实现关联数组。
+                 语言提供了 a.name 这样的语法糖来替代 a["name"]。 
+                 2和2.0是相同的Lua值，因此表示相同的表项。
+                 2和"2"是不同的Lua值，因此表示不同的表项。
+        boolean 布尔值，分true和false两种值。但要注意Lua中所有的值都可以作为条件。
+          在Lua中只有当值是false和nil时才视为"假"，其它值均视为真，如数字零和空字符串，这一点和C语言是不同的。
+        function 函数，Lua可以调用(和操作)用Lua编写的函数和用C编写的函数。两者都由类型函数表示。
+          在lua中function是实实在在的一种变量类型，
+          函数可以存储在变量中，可以作为函数的参数，也可以作为函数的返回值。
+            一个程序可以重新定义函数增加新的功能.
+            为了避免运行不可靠代码创建安全运行环境而隐藏函数.
+            这特性在Lua实现面向对象中也起了重要作用.
+          1. 函数可以存储在变量中，2. 可以通过参数传递其它函数，3. 还可以作为其它函数的返回值。
+            a = { p = print }  # 1. 存储在变量中
+            a.p("Hello World") # 1. 存储在变量中
+            b = print          # 1. 存储在变量中
+            b("Hello World")   # 1. 存储在变量中
+            
+            list = {{3}, {5}, {2}, {-1}}
+            table.sort(list, function (a, b) return a[1] < b[1] end) # 2. 可以通过参数传递其它函数，
+            for i,v in ipairs(list) do print(v[1]) end
+            
+          Function多返回值 -- Lua 中的函数可以返回多个值：
+            f = function ()
+              return "x", "y", "z" -- 返回三个值
+            end
+            a, b, c, d = f()  -- 将三个值返回给四个变量，第四个会被设置成 nil
+            = a, b, c, d      --                                                  x y z nil
+            a, b = (f())      -- 使用括号包裹，会丢弃多余的返回值
+            = a, b            --                                                  x, nil
+            = "w"..f()        -- 使用函数作为一个子表达式，同样会丢弃多余的返回值 wx
+            print(f(), "w")   -- 作为另一个函数的参数时，也会丢弃多余的返回值     x w
+            print("w", f())   -- 但当函数调用是最后一个参数时，会返回所有返回值   w x y z
+            print("w", (f())) -- 这时使用括号包裹也会起作用                       w x
+            t = {f()}         -- 多个返回值可以直接被存储在 table 中
+            = t[1], t[2], t[3]                                                    x y z
+            
+          如果函数返回的值中有 nil，那使用 # 操作符获取 table 中值的数量时就不一定准确了：
+            f = function () return "x","y",nil,"z" end
+            t = {f()}
+            print(#t) -- 4
+
+        nil 空，nil是一种类型，它只有一个值nil，它的主要功能是由于区别其他任何值。
+            一个全局变量在第一次赋值前的默认值就是nil，将nil赋予一个全局变量等同于删除它。Lua将nil用于表示一种"无效值"的情况。
+            默认情况下，在被初始化或赋值前，所有变量都指向nil。 Lua中空字符串和零在条件检查时，都被当作真。
+            所以你在使用布尔运算的时候要特别注意。 
+        userdata(自定义类型) 
+           允许将 C 中的数据保存在 Lua 变量中。用户数据类型的值是一个内存块，有两种用户数据：
+           1. 完全用户数据 ，指一块由 Lua 管理的内存对应的对象；
+           2. 轻量用户数据 ，则指一个简单的 C 指针。 
+           在Lua中，这种类型没有太多预定义的操作，只能进行赋值和相等性测试。
+           通过使用元表，程序员可以给完全用户数据定义一系列的操作。你只能通过C API而无法在Lua代码中创建或者修改用户数据的值，这保证了数据仅被宿主程序所控制。
+
+        thread 线程，表示了一个独立的执行序列，被用于实现协程。
+    [[作用域：]]
+      局部变量可以被在它的作用范围内定义的函数自由使用。 
+      当一个局部变量被内层的函数中使用的时候， 它被内层函数称作上值，或是外部局部变量。
+        x = 10                -- 全局变量
+        do                    -- 新的语句块
+          local x = x         -- 新的一个 'x', 它的值现在是 10
+          print(x)            --> 10
+          x = x+1
+          do                  -- 另一个语句块
+            local x = x+1     -- 又一个 'x'
+            print(x)          --> 12
+          end
+          print(x)            --> 11
+        end
+        print(x)              --> 10(取到的是全局的那一个)
+    
+        在 Lua 语言中，虽然我们没有变量数据类型，但是依据变量的作用域我们可以将变量分为三类：
+            local num = 30
+　　　　    str = "hello lua" 　　　　
+            print(_G.num) --访问全局变量num，因为num被定义为局部变量。所以输出为nil 　　　　
+            print(_G.str) --访问全局变量str
+
+            _G全局环境表(全局变量)
+                功能：记录全局环境的变量值的表 _G._G = _G
+            getfenv([f])
+                功能：返回参数f所指定函数使用的当前环境，参数f可以是一个Lua函数也可以是一个指定函数调用层级的数字，
+                参数：getfenv 函数有一个参数，可以是一个函数，代表取这个函数中的环境，
+                也可以是数字，代表堆栈级别，0代表取全局环境，1代表取当前函数的环境，
+                                            2代表取调用当前函数的函数的环境，3代表更上一级，依此类推
+                                            数字默认为1。
+            setfenv(f, table) 设置参数f所指定函数使用的当前环境，参数f可以是一个Lua函数也可以是一个指定函数调用层级的数字，
+                当参数为1时，表示正在调用函数getfenv()函数的函数。这个函数的返回值是参数f所指定的函数。
+                有一种特殊情况就是当参数f是0的时候来改变函数所处的运行环境，这个函数setfenv不返回任何值。
+            -- @LUA 5.1 
+              print(getfenv(1) == _G) -- true
+              a = 1 
+              function f(t) 
+                  print = print       -- 改变环境表后就没有 print 函数了，所以这里提前定义一个内部的变量 
+                  setfenv(1, t)       -- 修改当前函数内的环境表为 t 
+                  print(getmetatable) -- false，因为当前的环境中没有 getmetatable 函数 
+                  a = 2               -- 定义当前环境中的全局变量，此变量不会影响到外部定义的 a 
+                  b = 3               -- 同上 
+              end 
+              t = {} 
+              f(t) 
+              print(a, b) -- 1 nil 
+              print(t.a, t.b) -- 2 3
+              
+            -- @LUA 5.1 
+            x = "xxx"
+            function test1()
+                a = 1
+                print("in test1:",a,b,x)
+            end
+            
+            function test2(f,env)
+                setfenv(f,env) -- 在 test2 中将 test1 函数的内部环境置为 env 表
+                b = 2
+                f()                                   -- 变量 b 只存在于 test2 函数内
+                print("in env:  ",env.a,env.b,env.x)  -- 变量 a 存在于 test1 函数内 及 test1 函数的环境内
+                print("in test2:",a,b,x)              -- 变量 x 可以 test2 函数内访问
+            end
+            
+            env = {print=print}
+            print("             ","a","b","x")
+            test2(test1,env)
+            --                 a       b       x
+            -- in test1:       1       nil     nil
+            -- in env:         1       nil     nil
+            -- in test2:       1       2       xxx
+            
+            -- @LUA 5.2 
+            print(_ENV == _G) -- true
+            a = 1
+            local function f(t)
+                local print = print
+                local _ENV = t
+                print(getmetatable) -- nil
+            
+                a = 2
+                b = 3
+            end
+            
+            local t = {}
+            f(t)
+            
+            print(a, b) -- 1 nil
+            print(t.a, t.b) -- 2 3
+        _ENV(lua 环境): print(_ENV == _G) -- true表示支持_ENV功能
+        对于制造一个安全的沙盒(或是实现 DSL)是一个很重要的语言特性
+            
+            
+            全局变量：除非显示的声明一个局部变量，否则所有的变量都被默认当作全局变量。
+                      没有local修饰的都是全局变量
+                    b="global"
+                    function myfunc()
+                        local b=" local variable"
+                        a="global variable"
+                        print(a,b)
+                    end
+                    myfunc()
+                    print(a,b)
+                1. 在Lua中全局变量不需要声明，直接赋值即可。如果直接访问未初始化的全局变量，Lua也不会报错，直接返回nil。
+                2. 如果不想再使用该全局变量，可直接将其置为nil。
+                print(b) -- nil
+                b = 10
+                print(b) -- 10
+                b = nil
+                print(b) -- nil
+                3. Lua将其所有的全局变量保存在一个常规的table中，这个table被称为"环境"。它被保存在全局变量_G中。
+            局部变量：如果我们将一个变量定义为局部变量，那么这么变量的作用域就被限制在函数内。
+                1. 局部变量与块 Chunk：Lua中的执行块可以为控制结构的执行体、函数执行体或者是一个程序块。
+                  如果Lua一行不是一个完整的Chunk时，他会等待继续输入直到得到一个完整的Chunk.
+                在Lua等待续行时，显示不同的提示符(一般是>>).
+                下面的x变量仅在while循环内有效。
+                 while i <= x do
+                     local x = i * 2
+                     print(x)
+                     i = i + 1
+                 end
+                 2. 交互模式下声明执行块
+                  do
+                      local a2 = 2 * a
+                      local d = (b ^ 2 - 4 * a) ^ (1 / 2)
+                      x1 = (-b + d) / a2
+                      x2 = (-b - d) / a2
+                  end --a2和d的作用域至此结束。
+
+            表字段：这种特殊的变量可以是除了 nil 以外的所有类型，包括函数。
+            theGlobalVar = 50
+            local theLocalVar = "local variable"
+          应该尽可能的使用局部变量，有两个好处：
+            1. 避免命名冲突
+            2. 访问局部变量的速度比全局变量更快.
+    [[赋值：]] 
+      a. 变量个数 > 值的个数             按变量个数补足nil
+      b. 变量个数 < 值的个数             多余的值会被忽略
+        一个变量定义包括一个可选的类型(type)以及该类型的一个或多个变量名的列表，
+        type variable_list;
+            local i, j 
+            local i 
+            local a,c
+        其中，type 是可以选择指定为 local 或者不指定使用默认值 global，variable_list 是包含一个或多个由逗号分隔的标识符名字。
+        type variable_list = value_list;
+        一些例子如下：
+            local d , f = 5 ,10 --声明局部变量 d，f。 
+            d , f = 5, 10;      --声明全局变量 d，f。 
+            d, f = 10           --[[声明全局变量 d，f，其中 f 的值是 nil--]]
+        如果只是定义没有初始化，则静态存储变量被隐式初始化为 nil。
+        
+        -- 变量定义: 
+        local a, b 
+        -- 初始化 
+        a = 10 
+        b = 30 
+        -- 多重赋值 : 多值赋值经常用来交换变量，或将函数调用返回给变量：
+          注意：Lua在赋值之前需要先计算等号右边的表达式，在每一个表达式都得到结果之后再进行赋值。
+        a, b = 10, 2 * x -- 等价于a = 10; b = 2 * x
+        -- 交换变量的值 
+        b, a = a, b 
+        f = 70.0/3.0 
+        print("value of f", f)
+        
+        赋值
+        > i = 7
+        > i, x = i + 1, i
+        > print(i, x) -- 右向左分配，x = 7，i = 8
+        
+        > a, a = 1, 2
+        > print(a)    -- Lua 会从右向左，先执行 a = 2，再执行 a = 1，所以最终 a 的值是1
+
+    [[lua的基本算数运算:]] 算术表达式
+        操作数都是实数
+        >print(6+2) -- 8
+        >print(6-2) -- 4
+        >print(6*2) -- 12
+        >print(6/2) -- 3 浮点除法
+        >print(6^2) -- 幂运算 # 36
+        >print(6%2) -- 取模运算，用途甚广，使用便捷 #  0
+        >print(-6+1)  -- -5 
+        >print(6+"1") -- 7 --没错，
+        # 在必要的时候lua会自动将string和number按照需求转换，但如果是不明确变量类型或其他特殊情况的时候最好使用tonumber()或tostring()进行转换.
+        >print(1.0-0.8 == 0.2) # false  --或许不能理解为什么这两个值无法相等，但事实就是如此，lua中的数一般都是浮点数，具体可以参考百度
+        >print(0x20)           # 32  --以0x为开头的数字是十六进制数，在运算时会被自动转换成十进制,例如:
+        >print(0x17^0x2)       # 529
+        >print("Te".."st")     # Test --字符串可以用 .. 连接
+        >a = "hello" print(#a) # 5 返回其后字符串的长度
+        [[lua % 操作符约定 ]]
+            取模运算符约定： a % b == a - floor(a / b) * b
+            由此可以推演出x % 1的结果为x的小数部分，            -- x = 3.1416  print(x % 1)        -- 0.1416
+            而x - x % 1的结果则为x的整数部分。                  -- x = 3.1416  print(x - x % 1)    -- 3
+            类似的，x - x % 0.01则是x精确到小数点后两位的结果。 -- x = 3.1416  print(x - x % 0.01) -- 3.14
+    [[强制转换]]
+        1. 位操作总是将浮点操作数转换成整数。
+        2. 幂操作和浮点除法会将整数转换成浮点，其他算术运算如果包含浮点和整数会将整数转换成浮点
+        3. 当操作需要数字时，Lua 还会把字符串转换为数字。
+        4. 从数字转换为字符串使用非指定的人可读的格式。 若想完全控制数字到字符串的转换过程， 可以使用字符串库中的 format 函数 
+        
+        1. 当把一个整数转换为浮点数时，若整数值恰好可以表示为一个浮点数，那就取那个浮点数。否则，转换会取最接近的较大值或较小值来表示这个数。这种转换是不会失败的。
+        2. 将浮点数转为整数的过程会检查 浮点数能否被准确的表达为一个整数(即，浮点数是一个整数值且在整数可以表达的区间)。 如果可以，结果就是那个数，否则转换失败。
+        
+        字符串连接操作除了字符串，也可以接受数字作为参数。
+        
+    [[比较操作符：]]  -- 所有这些操作符的结果均为true或false。
+        1. 操作符==用于相等性测试，操作符~=用于不等性测试。
+           说明：这两个操作符可以应用于任意两个值。
+           1.1. 如果两个值的类型不同，Lua就认为他们不等。如果使用了错误的类型，除 ==、~= 外，其他比较运算符还会抛出错误
+           1.2. nil值与其自身相等。
+           1.3. 对于table、userdata和函数，Lua是通过引用进行比较的。也就是说，只有当他们引用同一个对象时，才视为相等。
+           1.4. 对于字符串的比较，Lua是按照字符次序比较的，但是字母顺序依赖于本地环境。
+           1.5  比较运算符(==、~=、<、>、<=、>=)并不会强制转换字符串，
+           1.6  如果两个操作数都是整数， 它们按整数比较； 否则，它们先转换为浮点数，然后再做比较。
+           1.7  相同引用的闭包一定相等。 有任何可察觉的差异(不同的行为，不同的定义)一定不等。
+        >print(5==6) -- 等于：==     # false
+        >print(5~=6) -- 不等于：~=   # true
+        >print(5>6) -- 大于：>       # false
+        >print(5<6) -- 小于：<       # true
+        >print(5>=6) -- 大于等于 >=  # false
+        >print(5<=6) -- 小于等于：<= # true
+        >print(5=="string")          # false
+        >print(5>"string")           # attempt to compare string with number --不同种类的变量无法对比
+        >print("a">"b") # false      --事实上，lua中的比较运算符只有==和~=能跨类型对比，其他的比较运算符仅能用于类型相同的值
+        2. 对于字符串的比较，Lua是按照字符次序比较的。
+        print("str"=="string")       # false
+        print("str">"string")        # false
+        print("str">="string")       # false
+        print("str"<"string")        # true
+        print("str"~="string")       # true
+        print("str"<="string")       # true
+        3. 表对象比较
+        print({} == "table")         # false
+        print({} == {})              # false
+        test = {}
+        test2 = test
+        print(test == test2)         # true
+    [[逻辑运算符：]]  -- 与条件控制语句一样，所有的逻辑操作符都将false和nil视为假，其他的结果均为真。
+      逻辑运算符 and or not
+      逻辑运算符认为false和nil是假(false)，其他为真，0也是true.
+      and和or的运算结果不是true和false，而是和它的两个操作数相关。第二个操作数只在需要的时候去求值。
+    
+        10 or 20            --> 10
+        10 or error()       --> 10
+        nil or "a"          --> "a"
+        nil and 10          --> nil
+        false and error()   --> false
+        false and nil       --> false
+        false or nil        --> nil
+        10 and 20           --> 20
+
+      and和or都使用"短路求值"，也就是说，它们只会在需要时才去评估第二个操作数。
+      a and b 如果a为nil(false)，则返回a,否则返回b
+      a or b 如果a为nil(false),则返回b，否则返回a
+    
+      not的结果只返回false或者true
+        print(not nil)           --> true
+        print(not false)         --> true
+        print(not 0)             --> false
+        print(not not nil)       --> false
+
+        操作符     描述                                                                       示例
+        and     逻辑与运算符。如果两个操作数都非(false|nil)，则条件为真。                      (A and B) 为假。
+        or      逻辑或运算符。如果两个操作数中其中有一个非(false|nil)，则条件为真。            (A or B) 为真。
+        not     逻辑非运算符。翻转操作数的逻辑状态。如果条件是真，则逻辑非运算符会将其变成假。 !(A and B) 为真。
+        1. 短路原则 -- 等价性以及内在判断差异并存
+        "x = x or v" 它等价于：if not x then x = v end。 -- 条件是x为false或者nil的时候才将x初始化为v。
+        max = (x > y) and x or y  -- 这等价于C语言中max = (x > y) ? x : y。由于x和y均为数值，因此它们的结果将始终为true。 
+      not
+        print(true, false, not true, not false) -- true false false true
+        print(not nil)                          -- true
+        print(not not true)                     -- true
+        print(not "foo")                        -- false
+      and
+        print(false and true)                     -- false
+        print(true and true)                      -- true
+        print(1 and "hello", "hello" and "there") -- "hello" "there"
+        print(true and nil)                       -- nil
+        true and print("hello")                   -- "hello" 
+        assert(nil == print("hello"))             -- print("hello") 返回了 nil
+      or
+        print(true or false)                      -- true
+        print(true or nil)                        -- true
+        print("hello" or "there", 1 or 0)         -- hello   1
+        b = true or print("hello")                -- print("hello")未执行，b为true
+        当第一个参数为 false 或 nil 时，会返回第二个参数
+        = false or true   -- true
+        = nil or true     -- true
+        = nil or "hello"  -- hello
+        = false or print("hello") --print方法执行，并返回print("hello") hello nil
+        or 的这种特性可以用于设置默认值
+        function foo(x)
+            local value = x or "default"
+            print(value, x)
+        end
+        foo()        --  default nil
+        foo(1)       --  1       1
+        foo(true)    --  true    true
+        foo("hello") --  "hello" "hello"
+    [[连接运算符：]]
+        字符串连接，如果操作数为数字，Lua将数字转成字符串。
+        操作符     描述                                   示例
+        ..      连接两个字符串。                        若 a 为 "Hello"，b 为 "World",则 a..b 返回 "Hello World"。
+        print(0 .. 1)  --即使连接操作符的操作数为数值类型，在执行时Lua仍会将其自动转换为字符串。 -- 01
+        #       一元运算符，返回字符串或者表的长度。    #"Hello" 返回 5。
+    [[lua的一些特殊函数：]]
+        >print(type("test")) #  string
+        >print(type(5))      #  number
+        >print(type(true))   #  boolean
+        >print(type(print))  #  function
+        >print(type(type))   #  function  --如你所见，type函数返回值的类型是string，因此当使用条件判断时等式的另一边也务必使用正确类型的值
+        --在上文提到过的tonumber和tostring:
+        tonumber(e [, base])  这个函数会尝试将它的参数转换为数字，如果参数已经是一个数字或者是一个可以转换成数字的字符串，那么这个函数就会返回转换后的数字，否者返回nil表示无法转换。
+                              这个函数有一个额外的参数base可以来指定参数的进制，它的取值范围是[2,36]，当这个参数超过10的时候，使用A代表10（大小写都可以），B代表11，以此类推最后Z代表35，
+                              默认的这个参数是10，数字能有一个小数部分，也会有一个指数部分，只有可识别的整数可以被接受。
+        tostring (e)          这个函数能接收任何类型的参数，并且将参数转换成一个合理格式的字符串，如果想要完全的控制转换的逻辑，可以尝试使用string.format函数。
+                              另外，如果被传入的参数是一个包含元表的table，并且这个元表还正确的包含__tostring字段，
+                              那么当这个table被作为参数传入函数的时候就会调用__tostring对应的函数，同时使用e作为函数参数，并且将函数的返回值作为'tostring'的返回值。
+        type(v)               这个函数只有一个参数，调用后会返回这个参数类型所对应的字符串，
+                              这些类型字符串包括"nil", "number", "string", "boolean", "table", "function", "thread" 和 "userdata"。
+                              另外这个参数是必须给的，不然会报错误："bad argument #1 to 'type' (value expected)"。
+        >print(type(tonumber("5")),type(tostring(5)))             #  number string
+        >print(type(nil),type(tonumber(nil)),type(tostring(nil))) #  nil  nil  string --nil无法转换为一个数
+        >print(tostring(nil).." is a string now.")   # nil is a string now. --但是nil允许变成一个字符串，这个字符串的内容就是"nil"
+        print(type(nil))     #  nil
+        print(type(a))    --> nil   变量没有预定义的类型，每一个变量都可能包含任一种类型的值。
+    [[转义符号：]]
+        转义串 'z' 会忽略其后的一系列空白符，包括换行； 
+    它在你需要对一个很长的字符串常量断行为多行并希望在每个新行保持缩进时非常有用。
+        >print("\"Look!\"")
+        "Look!" --用转义符号告诉lua这个引号是一个字符串，而不是用来结束这块区域的功能符
+        --在字符串的""范围内如果输入了一个"那会导致这个字符串的区域提前结束，为了避免混淆，lua采用了转义符号
+        --与\"相似的还有 \' 和 \\ ，分别是单引号和斜杠
+        >print("Ready?\nGo!")
+        Ready?
+        Go! --转义符号\n换行符
+        >print("\123")
+        {  --有些字符是无法直接打出的，这时候需要用单斜杠，作用是将"\xxx"变成ASCII码为xxx的字符
+        --其他的转义符号在WL中是不会使用到的，因此无需理会
+    [[字符串操作：]]
+    1. 第1个字符为postion:1; 索引支持负数，负数被理解为反向索引；最后1个字符为postion:-1
+    2.  __index指向一个string表：可以在面向对象的风格中使用字符串函数。比如，string.byte(s,i)可以写成s:byte(i)
+        string.len(arg):返回输入字符串的长度。 --长度包括不可打印字符
+            print("Length of string1 is ",string.len(string1)) -- Length of string1 is    21
+            print(string.len("")) -- 0
+            print(string.len("a\000bc\000")) --5 内嵌的0作为长度一部分
+            print("a\000bc\000")             --abc
+            print(string.format("%q", "a\000bc\000")) --a\0bc\0
+        string.rep(s,n [,sep]): 将输入字符串s使用sep连接n次后返回。sep默认是空字符串；n为非正数返回空字符串
+            print(string.rep("lua", 3))      -- lualualua
+            print(string.rep("lua", 3, ",")) -- lua,lua,lua
+            print(string.rep("lua", 0, ",")) -- 
+        string.upper(argument):将输入参数全部字符转换为大写并返回。剩余字符保持不变。
+            print(string.upper("Lua--123")) --LUA--123
+        string.lower(argument):将输入参数全部字符转换为小写并返回。剩余字符保持不变。
+            print(string.lower("Lua--4#1~")) --lua--4#1~
+        string.sub (s,i[,j]) 提取字符串s的第i个到第j个字符。j的默认值是-1(字符串的长度). 
+        string.sub(s,i,j) i大于j返回空字符串
+        string.sub(s,1,j) 长度为j的字符串前缀；
+        string.sub(s, -i) 长度为i的字符串后缀
+            Lua中，第一个字符的索引值为1，最后一个为-1，以此类推，如：
+            print(string.sub("[hello world]",2,-2))      --hello world
+            print(string.sub("[hello world]",2))         --hello world]
+            print(string.sub("[hello world]",2,3))       --he
+            string.sub(s, 1, j)  返回字符串s的长度为j的前缀；
+            string.sub(s, j, -1) 返回从第j个字符开始的后缀
+            string.sub(s, 2, -2) 返回去除第一个和最后一个字符后的子串。
+
+            对简单模式而言，匹配的就是其本身
+            s = "hello world"
+            local i, j = string.find(s, "hello")    --> 1    5
+            string.sub(s, i, j)        --> hello
+        string.gsub (s, pattern, repl [, n]):将 mainString 中的所有 findString 用 replaceString 替换并返回结果。
+            gsub方法：l为被替换字符，m为要替换的字符，2为替换的次数，不写默认为全部替换
+　　　　    print(string.gsub("hello world java lua", "l", "m", 2)) --hemmo world java lua    2
+        string.reverse (s):将输入字符串颠倒并返回。
+            print(string.reverse("lua")) --aul
+            string.reverse("abcde")      -- edcba
+        string.format (formatstring, ···):返回格式化后的字符串。
+        格式化formatstring: 与ISO C sprintf类似，1. 不支持 *, h, L, l, n, 和 p； 2. 支持q
+        3. A, a, E, e, f, G, 和 g 期望 数值；4.  c, d, i, o, u, X, 和 x 期望 整数
+        5. s 期望 字符串 如果不是字符串，会试着调用 tostring 将其转换为字符串; 如果字符串包含\000，则不支持(flags, width, length)格式化参数
+            str = string.format("字符串：%s\n整数：%d\n小数：%f\n十六进制数：%X","qweqwe",1,0.13,348)
+            string.format("%%c: %c", 83) -- S
+            string.format("%+d", 17.0)       -- +17  
+            string.format("%05d", 17)        -- 00017  
+            string.format("%o", 17)          -- 21  
+            string.format("%u", 3.14)        -- 3  
+            string.format("%x", 13)          -- d  
+            string.format("%X", 13)          -- D  
+            string.format("%e", 1000)        -- 1.000000e+03  
+            string.format("%E", 1000)        -- 1.000000E+03  
+            string.format("%6.3f", 13)       -- 13.000  
+            string.format("%q", "One\nTwo")  -- "One                                          　　             
+            Two"  
+            string.format('%q', 'a string with "quotes" and \n new line')
+            "a string with \"quotes\" and \
+            new line"
+            string.format("%s", "monkey")    -- monkey  
+            string.format("%10s", "monkey")  --     monkey  
+            string.format("%5.3s", "monkey") --   mon
+            print(string.format("pi = %.4f",math.pi)) --pi = 3.1416
+            year = 2016; month = 4; day = 7 　　　　
+            print(string.format("日期格式化:%04d/%02d/%02d", year, month, day)) -- 2016/04/07
+          print 不用做格式化输出。完整的对输出的控制，请使用 string.format 以及 io.write。
+          print函数可以没有参数，默认会输出一个回车符。
+          print函数在输出时经常与..连用，此时要注意连接的两个内容必须为字符串，否则会发生错误
+          注意:格式化输出时与函数string.format连用会更加方便
+       "%q" 对于字符串值而言，原始的写法应该是：
+           if type(o) == "string" then
+               io.write("'", o, "'")
+           然而，如果字符串包含特殊字符(比如引号或者换行符)，产生的代码将不是有效的Lua程序。
+         这时候你可能用下面方法解决特殊字符的问题：
+           if type(o) == "string" then
+               io.write("[[", o, "]]")
+           千万不要这样做！双引号是针对手写的字符串的而不是针对自动产生的字符串。如果有人恶意的
+         引导你的程序去使用" ]]..os.execute('rm *')..[[ "这样的方式去保存某些东西你最终的chunk将是这个样子：
+           varname = [[ ]]..os.execute('rm *')..[[ ]]
+           为了以安全的方式引用任意的字符串，string标准库提供了格式化函数专门提供"%q"选项。它可以使用双引号
+         表示字符串并且可以正确的处理包含引号和换行等特殊字符的字符串。
+
+        string.char(...) 参数为0到多个整数，并将每个整数转换为对应的字符。然后返回一个由这些字符连接而成的字符串，如：
+            print(string.char(97,98,99))   --abc
+            print(string.char(97))         --a
+            print(string.char())           --
+        string.byte(s [, i [, j]]) 返回字符串s中s[i],s[i+1]...s[j]对应的characters值。
+        默认i值等于1，默认j值等于i。提取字符串s的第i个到第j个字符。
+            print(string.byte("abc"))      --97
+            print(string.byte("abc",-1))   --99
+            print(string.byte("abc",2,3))  --98 99
+        字节转换 
+            print(string.byte("Lua"))         -- 第一个字符
+            print(string.byte("Lua",3))       -- 第三个字符 
+            print(string.byte("Lua",-1))      -- 倒数第一个字符 
+            print(string.byte("Lua",2))       -- 第二个字符 
+            print(string.byte("Lua",-2))      -- 倒数第二个字符 
+        ..:连接两个字符串。
+            print("Concatenated string",string1..string2)  -- 用 .. 连接两个字符串 
+            print(10 .. 20)                                -- 1020 注意..和两边的数字之间必须留有空格，否则就会被Lua误解析为小数点儿
+                为了避免一些不可预测的行为发生，特别是因为Lua版本升级而导致的行为不一致现象。
+                如字符串转数字的函数tonumber()，或者是数字转字符串的函数tostring()。
+        注：由于字符串类型的变量都是不可变类型的变量，因此在所有和string相关的函数中，都无法改变参数中的字符串值，而是生成一个新值返回。
+        字符串长度：
+        关于Lua的字符串最后需要介绍的是"#"标识符，该标识符在字符串变量的前面将返回其后字符串的长度。
+            a = "hello"
+            print(#a)
+            
+    string.match (s, pattern [, init])
+    string.match()只寻找源字串str中的第一个配对. 参数init可选, 指定搜寻过程的起点, 默认为1.
+    在成功配对时, 函数将返回配对表达式中的所有捕获结果; 如果没有设置捕获标记, 则返回整个配对字符串. 当没有成功的配对时, 返回nil.
+        string.match("abcdaef", "a") -> a
+        
+    string.dump (function [,strip]) -- 
+      返回一个字符串，该字符串包含一个函数的二进制描述，之后可以用load加载这个函数的拷贝。
+      如果strip参数为true，那么函数拷贝为减少空间将不会包含任何调试信息。
+      函数只保存upvalues的数目。当重新加载时，所有的upvalue设置为nil。
+    
+    序列化 (Serialization)将对象的状态信息转换为可以存储或传输的形式的过程。
+      在序列化期间，对象将其当前状态写入到临时或持久性存储区。
+      以后，可以通过从存储区中读取或反序列化对象的状态，重新创建该对象。
+    
+    例：将一个函数转换成二进制码，输出；再换回来，输出；再执行。
+      function DumpTest()
+        print("string.dump test")
+      end
+      a = string.dump(DumpTest) --将函数DumpTest转换成二进制码
+      print(a)
+      b = loadstring(a) --loadstring(string)可以用来运行一段字符串代码.简单来说，就是把字符串转换成代码。
+      print(b)
+      b()
+    --string.dump可以实现函数序列化，函数可以传递，甚至把函数传递到另一个进程都可以的。可以实现在其他作用域访问不同的地方的函数。
+    --更多的是做框架的时候用的功能，一般写逻辑代码应该用不到。
+        
+      function test(n)
+          print("test:",n)
+      end
+      
+      a = string.dump(test, true);
+      b = load(a);
+      b(6)  -->test:6
+      可以看出函数能被当成参数进行传递!string.dump实现了函数的序列化，能在不同的作用域进行传递。
+        
+模式匹配函数：
+  string.find (字符串查找)                基于模式匹配的|字串匹配   返回起始和结束位置
+  string.find (s, pattern [, init [, plain]])
+  string.match (字符串查找)               基于模式匹配的            返回匹配字符串
+  string.match (s, pattern [, init])
+  string.gsub (全局字符串替换)            基于模式匹配的            返回结果串+匹配数
+  string.gsub (s, pattern, repl [, n])
+  string.gmatch (返回查找到字符串的迭代器) 基于模式匹配的            返回查找到字符串的迭代器
+  string.gmatch (s, pattern)
+  Lua的字符串库提供了一组强大的模式匹配函数，如find、match、gsub和gmatch。
+        
+  string.find (s, pattern [, init [, plain]])
+    查找位于字符串s中第一个符合pattern模式。如果找到符合模式，返回符合模式的start和end位置。否则返回nil
+    init:为可选数字，指定起始查找的位置。默认值是1，可以为负值。
+    plain:可选为true值，则关闭模式匹配查找模式，使用普通字符串查找。如果plain给予，则init必须给予
+    注意：如果模式包含捕获，成功返回的时候，被捕获的值一并返回。
+    
+    比如，模式'hello'仅仅匹配目标串中的"hello"。
+    当查找到模式的时候，函数返回两个值：匹配串开始索引和结束索引。
+    ① 子串匹配：
+    find方法：Java为要查找的字符串，1是索引，即查找从索引1开始查起，不存在则返回nil
+        print(string.find("hello world java lua", "java", 1))   --3    16  {指定开始位置}
+    在目标字符串中搜索一个模式，如果找到，则返回匹配的起始索引和结束索引，否则返回nil。如：
+        s = "hello world"
+        i, j = string.find(s,"hello")  {不指定开始位置}
+        print(i, j) --输出1  5
+        i, j = string.find(s,"l")      {不指定开始位置}
+        print(i, j) --输出3  3
+        print(string.find(s,"lll")) --输出nil {匹配失败}
+    string.find函数还有一个可选参数，它是一个索引，用于告诉函数从目标字符串的哪个位置开始搜索。
+    主要用于搜索目标字符串中所有匹配的子字符串，且每次搜索都从上一次找到的位置开始。如：
+      local t = {}
+      local i = 0
+      while true do
+          i = string.find(s,"\n",i+1)
+          if i == nil then
+              break
+          end
+          t[#t + 1] = i
+      end
+    ② 模式匹配：sting.sub + string.find
+        pair = " name = Anna "  
+        print(string.find(pair, "(%a+)%s*=%s*(%a+)") ---- 输出 2 12 name Anna  {捕获功能}
+        
+        s = "Deadline is 30/05/1999, firm"  
+        date = "%d%d/%d%d/%d%d%d%d"  
+        print(string.sub(s, string.find(s, date))) --> 30/05/1999              {sub截取}
+    
+    string.match (s, pattern [, init]) 在字符串s中捕获符合pattern的子串返回, 可以1次返回多个捕获；未设置捕获则返回所有符合条件的子串
+    如果没找到就返回nil
+    init : 设置从那个位置开始查找
+      该函数返回目标字符串中和模式字符串匹配的部分。如：
+        print(string.match("hello,world","hello")) --> hello      {简单匹配}
+        date = "Today is 2012-01-01"
+        d = string.match(date,"%d+-%d+-%d+")                      {模式匹配}
+        print(d)  --输出2012-01-01
+        
+    string.gsub (s, pattern, repl [, n]) 
+      返回字符串s的拷贝：该拷贝中所有符合pattern的子串都被repl替换；repl可以是字符串, table, 函数.
+      gsub第2个返回值是：符合pattern替换子串的次数。
+      
+    -- repl
+        当repl为字符串时, 所有成功配对的子字符串均会被替换成指定的repl字串. %是1个转义字符；%d(d从1到9)表示被捕获的字符串；%0表示符合pattern的整个字符串
+        当repl为table时,  每匹配一次就被查询一次，使用第1个被捕获的子串来查询table，进行替换。
+        当repl为函数时,   每个成功配对的所有被捕获的子字符串作为参数被传入到该函数中去.
+        在repl是table或函数时, 如果该table或函数返回了字串或数字的值, 
+              这个值依然会被用于替换副本字串中的配对子字串. 如果该table/函数返回的值为空, 将不发生替换.
+    -- n
+        n参数可选, 当它被指定时, string.gsub()函数只对源字符串中的前n个成功配对的成员进行操作.
+        print(string.gsub("hello world", "(%w+)", "%1 %1"))          -- hello hello world world 2 {%引用}
+        x = string.gsub("hello world", "%w+", "%0 %0", 1)            -- x="hello hello world"
+        x = string.gsub("hello world from Lua", "(%w+)%s*(%w+)", "%2 %1") -- x="world hello Lua from"
+        x = string.gsub("home = $HOME, user = $USER", "%$(%w+)", os.getenv) -- x="home = /home/roberto, user = roberto"
+        print(string.gsub("hello Lua", "(%w+)%s*(%w+)", "%2 %1"))    -- Lua hello 1               {%引用}
+        
+        string.gsub("hello world", "%w+", print)                     -- hello world 2             {回调函数}
+        x = string.gsub("4+5 = $return 4+5$", "%$(.-)%$", function (s)
+            return load(s)()
+            end)                                                      -- x="4+5 = 9"
+            
+        lookupTable = {["hello"] = "hola", ["world"] = "mundo"}      -- 
+        print(string.gsub("hello world", "(%w+)", lookupTable))      -- hola mundo 2              {表输入}
+        local t = {name="lua", version="5.3"}
+        x = string.gsub("$name-$version.tar.gz", "%$(%w+)", t) --> x="lua-5.3.tar.gz"
+     
+        该函数有3个参数，目标字符串、模式和替换字符串。基本用法是将目标字符串中所有出现模式的地方替换为替换字符串。如：
+            print(string.gsub("Lua is cute","cute","great"))  --输出Lua is great 1    {简单替换}
+        该函数还有可选的第4个参数，即实际替换的次数。
+            print(string.gsub("all lii","l","x",1))           --输出axl lii           {指定替换次数}
+            print(string.gsub("all lii","l","x",2))           --输出axx lii           {指定替换次数}
+        函数string.gsub还有另一个结果，即实际替换的次数。
+            count = select(2, string.gsub(str," "," "))       --输出str中空格的数量   {计算替换次数}
+            
+        print(string.gsub("hello, world", "o", "a"))    -- hella, warld  2    {不指定替换次数}
+        print(string.gsub("all lii", "l", "x", 2))      --  axx lii  2        {指定替换次数}
+        _, count = string.gsub(str, " ", " ")           —- 计算一个字符串中空格出现的次数  {计算替换次数}
+        print(string.gsub("hello Lua", "(%w+)%s*(%w+)", "%2 %1"))  --Lua hello 1  {模式匹配方式替换}
+        string.gsub("hello world", "%w+", print)        -- hello world 2      {回调函数}
+        s, n = string.gsub("hello world", "l+", function(s) return "xxx" end) {回调函数}
+        print(s, n)                                     -- hexxxo worxxxd 2  
+        lookupTable = {["hello"] = "hola", ["world"] = "mundo"}               {表输入}
+        print(string.gsub("hello world", "(%w+)", lookupTable))   -- hola mundo 2
+
+    string.gmatch (s, pattern)函数：
+        返回一个迭代器函数，通过这个返回的函数可以遍历到一个字符串中所有出现指定模式的地方。
+        如果指定模式中不包括捕获，则符合模式的作为一个整体返回。
+        如：
+        1. 不包含捕获
+        words = {}
+        s = "hello world"
+        for w in string.gmatch(s,"%a+") do -- {返回迭代器，迭代器每执行一次，返回下一个匹配串}
+            print(w)
+            words[#words + 1] = w
+        end
+        --输出结果为：
+        --hello
+        --world
+        2. 包含捕获
+        t = {}
+        s = "from=world, to=Lua"
+        for k, v in string.gmatch(s, "(%w+)=(%w+)") do
+          t[k] = v
+        end
+
+模式：
+    Lua 中的匹配模式直接用常规的字符串来描述。 
+    用于模式匹配函数 string.find, string.gmatch, string.gsub, string.match。
+    字符类 用于表示一个字符集合。 下列组合可用于字符类(A character class)：
+        模式元字符  描述
+        x          表示字符x自身(这里 x 不能是 魔法字符-magic characters ^$()%.[]*+-? 中的一员)
+        .          任何字符                    all characters.
+        %a         任何字母                    all letters
+        %c         任何控制字符                all control characters.
+        %d         任何数字                    all digits
+        %g         任何除空白符外的可打印字符。all printable characters except space.
+        %l         所有小写字母                all lowercase letters.
+        %p         所有标点符号                all punctuation characters
+        %s         所有空白字符                all space characters.
+        %u         所有大写字母                all uppercase letters.
+        %w         所有字母和数字字符          all alphanumeric characters
+        %x         所有十六进制数字            all hexadecimal digits
+        %z         内部表示为0的字符
+
+        %x: (这里的x是任意非字母或数字的字符)表示字符 x。 这是对魔法字符转义的标准方法。 
+             所有非字母或数字的字符(包括所有标点，也包括非魔法字符)都可以用前置一个 '%' 放在模式串中表示自身。
+        [set] : 所有字符联合组成的集合。
+        [^set]: 补集
+        
+    模式条目：
+    模式条目    可以是
+    单个字符类匹配该类别中任意单个字符；
+    单个字符类跟一个 '*'， 将匹配零或多个该类的字符。 这个条目总是匹配尽可能长的串；
+    单个字符类跟一个 '+'， 将匹配一或更多个该类的字符。 这个条目总是匹配尽可能长的串；
+    单个字符类跟一个 '-'， 将匹配零或更多个该类的字符。 和 '*' 不同， 这个条目总是匹配尽可能短的串；
+    单个字符类跟一个 '?'， 将匹配零或一个该类的字符。 只要有可能，它会匹配一个；
+    %n， 这里的 n 可以从 1 到 9； 这个条目匹配一个等于 n 号捕获物(后面有描述)的子串。
+
+        1. 交叉使用类和范围的行为未定义。 因此，像 [%a-z] 或 [a-%%] 这样的模式串没有意义。
+        2. 如何定义字母、空格、或是其他字符组取决于当前的区域设置。 特别注意：[a-z]　未必等价于 %l 。
+    1. 这些元字符的大写形式表示它们的补集，如%A，表示所有非字母字符。
+        print(string.gsub("hello, up-down!","%S","."))   --输出hello..up.down. 4
+    上例中的4表示替换的次数。
+    2. 除了上述元字符之外，Lua还提供了另外几个关键字符。如：( ) . % + - * ? [ ] ^ $
+    3. 其中%表示转义字符，如%.表示点(.)，%%表示百分号(%)。
+       转义字符 '%' 不仅可以用来转义特殊字符，还可以用于所有的非字母和数字的字符。当对一个字符有疑问的时候，为安全起见请使用转义字符转义他。
+    4. 方括号[]表示将不同的字符分类，即可创建出属于自己的字符分类，如[%w_]表示匹配字符、数字和下划线。
+       '[%w_]' 将匹配字母数字和下划线，
+       '[01]' 匹配二进制数字，
+       '[%[%]]' 匹配一对方括号。
+    5. 横线(-)表示连接一个范围，比如[0-9A-Z]
+    6. 如果^字符在方括号内，如[^\n]，表示除\n之外的所有字符，即表示方括号中的分类的补集。如果^不在方括号内，则表示以后面的字符开头，$和它正好相反，表示以前面的字符结束。如：^Hello%d$，匹配的字符串可能为Hello1、Hello2等。
+    7. 在Lua中还提供了4种用来修饰模式中的重复部分，如：+(重复1次或多次)、*(重复0次或多次)、-(重复0次或多次)和?(出现0或1次)。如：
+        print(string.gsub("one, and two; and three","%a+","word")) --输出word, word word; word word
+        print(string.match("the number 1298 is even","%d+")) --输出1298
+    8. 星号(*)和横线(-)的主要差别是，星号总是试图匹配更多的字符，而横线则总是试图匹配最少的字符。
+    +      匹配前一字符1次或多次 @ 总是进行最长的匹配。比如，模式串 '%a+' 匹配一个或多个字母或者一个单词：
+                                 @ '%d+' 匹配一个或多个数字(整数)
+    *      匹配前一字符0次或多次 @ '*' 与 '+' 类似，但是他匹配一个字符0次或多次出现.一个典型的应用是匹配空白。
+                                 @ ('%s*' 用来匹配0个或多个空白。
+                                 @ '[_%a][_%w]*' 匹配Lua程序中的标示符：字母或者下划线开头的字母下划线数字序列。
+                                 @ '[_%a][_%w]-' 来查找标示符，你将只能找到第一个字母，因为 '[_%w]-' 永远匹配空。
+                                 @ '.*' 进行的是最长匹配，这个模式将匹配程序中第一个 "/*" 和最后一个 "*/" 之间所有部分
+                                 @ 模式 '.-' 进行的是最短匹配，她会匹配 "/*" 开始到第一个 "*/" 之前的部分
+    -      匹配前一字符0次或多次 @  '[+-]?%d+' 查找一个数字
+    ?      匹配前一字符0次或1次
+    
+    test = "int x; /* x */  int y; /* y */"
+    print(string.gsub(test, "/%*.-%*/", "<COMMENT>"))
+    print(string.gsub(test, "/%*.*%*/", "<COMMENT>"))
+
+    %bxy， 这里的 x 和 y 是两个明确的字符；这个条目匹配以 x 开始 y 结束，且其中 x 和 y 保持 平衡 的字符串。
+      意思是，如果从左到右读这个字符串，对每次读到一个 x 就 +1 ，读到一个 y 就 -1， 最终结束处的那个 y 是第
+      一个记数到 0 的 y。 举个例子，条目 %b() 可以匹配到括号平衡的表达式。
+    print(string.gsub("a (enclosed (in) parentheses) line", "%b()", ""))  --> a line
+    常用的这种模式有：'%b()' ，'%b[]'，'%b%{%}' 和 '%b<>'。你也可以使用任何字符作为分隔符。
+    
+    %f[set]， 指 边境模式； 这个条目会匹配到一个位于 set 内某个字符之前的一个空串， 且这个位置的前一个字符不属于 set 。
+      集合 set 的含义如前面所述。 匹配出的那个空串之开始和结束点的计算就看成该处有个字符 '0' 一样。
+    
+模式注意：
+    定位符^告诉算法如果在第一个位置没有没找到匹配的子串就停止查找。
+    永远不要写一个以 '-' 开头或者结尾的模式，因为它将匹配空串。这个修饰符得周围总是需要一些东西来定位他的扩展。
+    相似的，一个包含 '.*' 的模式是一个需要注意的，因为这个结构可能会比你预算的扩展的要多。
+    
+捕获(capture)： http://www.cnblogs.com/whiteyun/archive/2009/09/02/1558934.html
+    模式可以在内部用小括号括起一个子模式；这些子模式被称为 捕获物。 当匹配成功时，由 捕获物 匹配到的字符串中
+    的子串被保存起来用于未来的用途。 
+    捕获物以它们左括号的次序来编号。
+        例如，对于模式 "(a(.)%w(%s))"，字符串中匹配到"a(.)%w(%s)"的部分保存在第一个捕获物中(因此是编号1)； 
+    由 "." 匹配到的字符是 2 号捕获物， 匹配到 "%s*" 的那部分是 3 号。
+        作为一个特例，空的捕获 () 将捕获到当前字符串的位置(它是一个数字)。 例如，如果将模式 "()aa()" 
+    作用到字符串 "flaaap" 上，将产生两个捕获物: 3 和 5 。
+    
+    即它会将目标字符串切成多个捕获到的部分。如：
+        pair = "name = Anna"
+        key,value = string.match(pair,"(%a+)%s*=%s*(%a+)")
+        print(key,value)  --输出name anna
+        
+        date = "Today is 2012-01-02"
+        y,m,d = string.match(date,"(%d+)%-(%d+)%-(%d+)")
+        print(y,m,d)      --输出2012    01      02
+    还可以对模式本身使用捕获。即%1表示第一个捕获，以此类推，%0表示整个匹配，如：
+        print(string.gsub("hello Lua","(.)(.)","%2%1"))  --将相邻的两个字符对调，输出为ehll ouLa  {拷贝捕获(%1-%9)}
+        print(string.gsub("hello Lua!","%a","%0-%0"))    --输出为h-he-el-ll-lo-o L-Lu-ua-a!       {拷贝捕获(%1-%9)}
+
+    -- 再说明
+    捕获是这样一种机制：可以使用模式串的一部分匹配目标串的一部分。将你想捕获的模式用圆括号括起来，就指定了一个捕获。
+    在string.find使用捕获的时候，函数会返回捕获的值作为额外的结果。这常被用来将一个目标串拆分成多个：
+    pair = "name = Anna"
+    _, _, key, value = string.find(pair, "(%a+)%s*=%s*(%a+)") -- '%a+' 表示菲空的字母序列；'%s*' 表示0个或多个空白。
+    print(key, value)    --> name  Anna
+    
+    date = "17/7/1990"
+    _, _, d, m, y = string.find(date, "(%d+)/(%d+)/(%d+)")   -- '%d'(d代表0-9的数字)表示第d个捕获的拷贝。
+    print(d, m, y)      --> 17 7 1990
+
+    # 在模式中使用向前引用，'%d'(d代表1-9的数字)表示第d个捕获的拷贝。
+    s = [[then he said: "it's all right"!]]
+    a, b, c, quotedPart = string.find(s, "(["'])(.-)%1") -- 第一个捕获是引号字符本身，第二个捕获是引号中间的内容('.-' 匹配引号中间的子串)。
+    print(quotedPart)    --> it's all right
+    print(c)             --> "
+    
+    # 顺便说一下，由于存在这些情况，替换串中的字符 '%' 必须用 "%%" 表示
+    print(string.gsub("hello Lua!", "(%a)", "%1-%1")) --> h-he-el-ll-lo-o L-Lu-ua-a!
+    对一个字符串中的每一个字母进行复制，并用连字符将复制的字母和原字母连接起来
+    print(string.gsub("hello Lua", "(.)(.)", "%2%1")) --> ehll ouLa
+    互换相邻的字符
+    
+    格式转换器：从命令行获取LaTeX风格的字符串
+        \command{some text}
+        将它们转换为XML风格的字符串：
+        <command>some text</command>
+        对于这种情况,下面的代码可以实现这个功能：
+        s = string.gsub(s, "\\(%a+){(.-)}", "<%1>%2</%1>")
+        比如，如果字符串s为：
+        the \quote{task} is to \em{change} that.
+        调用gsub之后，转换为：
+        the <quote>task</quote> is to change that.
+
+    去除字符串首尾的空格： 
+        function trim (s)
+            return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
+        end 
+        注意模式串的用法，两个定位符('^' 和 '$')保证我们获取的是整个字符串。因为，两个 '%s*' 
+        匹配首尾的所有空格，'.-' 匹配剩余部分。还有一点需要注意的是gsub返回两个值，我们使用额外
+        的圆括号丢弃多余的结果(替换发生的次数)。
+    gsub附带函数参数
+        function expand (s)
+            s = string.gsub(s, "$(%w+)", function (n)
+              return _G[n]
+            end)
+            return s
+        end
+        name = "Lua"; status = "great"
+        print(expand("$name is $status, isn't it?")) --> Lua is great, isn't it?
+        print("$name is $status, isn't it?")         --> $name is $status, isn't it?
+        
+    gsub关注到非string类型
+        如果你不能确定给定的变量是否为string类型，可以使用tostring进行转换：
+        function expand (s)
+            return (string.gsub(s, "$(%w+)", function (n)
+              return tostring(_G[n])
+            end))
+        end
+
+        print(expand("print = $print; a = $a")) --> print = function: 0x8050ce0; a = nil
+
+    使用loadstring来计算一段文本内$后面跟着一对方括号内表达式的值：
+        s = "sin(3) = $[math.sin(3)]; 2^5 = $[2^5]"
+        print((string.gsub(s, "$(%b[])", function (x)
+            x = "return " .. string.sub(x, 2, -2)
+            local f = loadstring(x)
+            return f()
+        end)))
+        --> sin(3) = 0.1411200080598672; 2^5 = 32
+        第一次匹配是 "$[math.sin(3)]"，对应的捕获为 "[math.sin(3)]"，调用string.sub去掉首尾的方括号，
+        所以被加载执行的字符串是 "return math.sin(3)"，"$[2^5]" 的匹配情况类似。
+
+        我们常常需要使用string.gsub遍历字符串，而对返回结果不感兴趣。比如，我们收集一个字符串中所有的
+    单词，然后插入到一个表中：
+        words = {}
+        string.gsub(s, "(%a+)", function (w)
+            table.insert(words, w)
+        end)
+        
+        如果字符串s为 "hello hi, again!"，上面代码的结果将是： 
+        {"hello", "hi", "again"}
+        
+        使用string.gfind函数可以简化上面的代码：
+        words = {}
+        for w in string.gfind(s, "(%a)") do
+            table.insert(words, w)
+        end
+        gfind函数比较适合用于范性for循环。他可以遍历一个字符串内所有匹配模式的子串。
+        我们可以进一步的简化上面的代码，调用gfind函数的时候，如果不显示的指定捕获，
+        函数将捕获整个匹配模式。所以，上面代码可以简化为：
+        words = {}
+        for w in string.gfind(s, "%a") do
+            table.insert(words, w)
+        end
+
+URL编码 -- 解码
+    URL编码是HTTP协议来用发送URL中的参数进行的编码。这种编码将一些特殊字符(比如 '='、'&'、'+')
+    转换为 "%XX" 形式的编码，其中XX是字符的16进制表示，然后将空白转换成 '+'。比如，将字符串 
+    "a+b = c" 编码为 "a%2Bb+%3D+c"。最后，将参数名和参数值之间加一个 '='；在name=value对之间加一个
+    "&"。比如字符串：
+        name = "al"; query = "a+b = c";  q="yes or no"
+    被编码为：
+        name=al&query=a%2Bb+%3D+c&q=yes+or+no
+    现在，假如我们想将这URL解码并把每个值存储到表中，下标为对应的名字。下面的函数实现了解码功能：
+    function unescape (s)
+        s = string.gsub(s, "+", " ")
+        s = string.gsub(s, "%%(%x%x)", function (h)
+        return string.char(tonumber(h, 16))
+        end)
+        return s
+    end
+    print(unescape("a%2Bb+%3D+c"))    --> a+b = c
+    对于name=value对，我们使用gfind解码，因为names和values都不能包含 '&' 和 '='我们可以用模式 '[^&=]+' 匹配他们：
+    cgi = {}
+    function decode (s)
+        for name, value in string.gfind(s, "([^&=]+)=([^&=]+)") do
+        name = unescape(name)
+        value = unescape(value)
+        cgi[name] = value
+        end
+    end
+
+URL编码 -- 编码
+    与解码对应的编码也很容易实现。首先，我们写一个escape函数，这个函数将所有的特殊字符转换成 '%' 
+    后跟字符对应的ASCII码转换成两位的16进制数字(不足两位，前面补0)，然后将空白转换为 '+'：
+    function escape (s)
+        s = string.gsub(s, "([&=+%c])", function (c)
+        return string.format("%%%02X", string.byte(c))
+        end)
+        s = string.gsub(s, " ", "+")
+        return s
+    end
+    编码函数遍历要被编码的表，构造最终的结果串：
+    function encode (t)
+        local s = ""
+        for k,v in pairs(t) do
+        s = s .. "&" .. escape(k) .. "=" .. escape(v)
+        end
+        return string.sub(s, 2)    -- remove first `&'
+    end
+    t = {name = "al", query = "a+b = c", q="yes or no"}
+    print(encode(t)) --> q=yes+or+no&query=a%2Bb+%3D+c&name=al
+    
+处理CSV(逗号分割)的文件 -- 编解码
+    {'a b', 'a,b', 'a,"b"c', 'hello "world"!', }
+    可以看作为：
+    a b,"a,b"," a,""b""c", hello "world"!,
+    将一个字符串数组转换为CSV格式的文件是非常容易的。我们要做的只是使用逗号将所有的字符串连接起来：
+    function toCSV (t)
+        local s = ""
+        for _,p in pairs(t) do
+        s = s .. "," .. escapeCSV(p)
+        end
+        return string.sub(s, 2)    -- remove first comma
+    end
+    如果一个字符串包含逗号活着引号在里面，我们需要使用引号将这个字符串引起来，并转义原始的引号：
+    function escapeCSV (s)
+        if string.find(s, '[,"]') then
+        s = '"' .. string.gsub(s, '"', '""') .. '"'
+        end
+        return s
+    end
+
+    function fromCSV (s)
+        s = s .. ','      -- ending comma
+        local t = {}      -- table to collect fields
+        local fieldstart = 1
+        repeat
+        -- next field is quoted? (start with `"'?)
+        if string.find(s, '^"', fieldstart) then
+        local a, c
+        local i = fieldstart
+        repeat
+            -- find closing quote
+            a, i, c = string.find(s, '"("?)', i+1)
+        until c ~= '"'    -- quote not followed by quote?
+        if not i then error('unmatched "') end
+            local f = string.sub(s, fieldstart+1, i-1)
+            table.insert(t, (string.gsub(f, '""', '"')))
+            fieldstart = string.find(s, ',', i) + 1
+        else              -- unquoted; find next comma
+            local nexti = string.find(s, ',', fieldstart)
+            table.insert(t, string.sub(s, fieldstart,
+                                                nexti-1))
+            fieldstart = nexti + 1
+        end
+        until fieldstart > string.len(s)
+        return t
+    end
+    
+    t = fromCSV('"hello "" hello", "",""')
+
+替换：
+    string.gsub函数的第三个参数不仅可以是字符串，也可以是函数或table，
+    如果是函数，string.gsub会在每次找到匹配时调用该函数，调用时的参数就是捕获到的内容，而该函数的返回值则作为要替换的字符串。
+    当用一个table来调用时，string.gsub会用每次捕获到的内容作为key，在table中查找，并将对应的value作为要替换的字符串。
+    如果table中不包含这个key，那么string.gsub不改变这个匹配。
+    如：
+
+        function expand(s)
+            return (string.gsub(s,"$(%w+)",_G))
+        end
+        
+        name = "Lua"; status = "great"
+        print(expand("$name is $status, isn't it?"))  --输出 Lua is great, isn't it?
+        print(expand("$othername is $status, isn't it?"))  --输出 $othername is great, isn't it?
+        
+        function expand2(s)
+            return (string.gsub(s,"$(%w+)",function(n) return tostring(_G[n]) end))
+        end
+        
+        print(expand2("print = $print; a = $a")) --输出 print = function: 002B77C0; a = nil
+
+字符串内在设计
+    第一，所有的字符串在Lua中都只储存一份拷贝。当新字符串出现时，Lua检查是否有其相同的拷贝，
+    若没有则创建它，否则，指向这个拷贝。
+    1. 这可以使得字符串比较和表索引变得相当的快，因为比较字符串只需要检查引用是否一致即可；
+    2. 但是这也降低了创建字符串时的效率，因为Lua需要去查找比较一遍。
+
+    第二，所有的字符串变量，只保存字符串引用，而不保存它的buffer。这使得字符串的赋值变得十分高效
+
+    一个技巧点是多次操作string的时候，需要尝试使用table模拟buffer
+    local s = ""
+    for i=1,10000 do 
+        s = s .. 'a'
+    end
+    
+    local m = ""
+    local t = {}
+    for i=1,10000 do 
+        t[#t+1] = "a"
+    end
+    m = table.concat(t,"")
+
+table
+    table类型实现了关联数组，关联数组是一种具有特殊索引方式的数组；不仅可以通过整数来索引它，
+    还可以使用字符串或其它类型的值(除了nil)来索引它。
+    此外，table没有固定的大小，可以动态得添加任意数量的元素到一个table中。
+    
+    在Lua中，table既不是"值"，也不是"变量"，而是对象。可以将table想象成一种动态分配的对象，
+    程序中仅仅有一个队它们的引用(指针)。
+    table的创建是通过"构造表达式"完成的，最简单的构造表达式就是{}。
+    
+    table永远是匿名的，一个引用table的变量与table自身之间没有固定的关联性
+
+    在Lua中，我通常习惯以1作为数组索引的起始值。而且还有不少内部机制依赖于这个惯例。
+    长度操作符'#'用于返回一个数组或线性表的最后一个索引值。
+    for i = 1,#a do
+        print(a[i])
+    end
+    
+赋值
+    {"red", "green", "blue"} --> {[1]="red", [2]="green", [3]="blue"} -- 序列  list
+    a = {}  a["k"] = 10  a[20] = "great"                              -- 字典  record
+    b = {}  b.x = 10  b.y = "great"                                   -- 字典  record
+    {x=0, y=0} --> {["x"]=0, ["y"]=0}                                 -- 字典  record
+    1. 构造器表达式创建表
+    > a = {}          -- 创建一个table对象，并将它的引用存储到a
+    > k = "x"
+    > a[k] = 10       -- 创建了新条目，key = "x", value = 10
+    > a[20] = "great" -- 新条目，key = 20， value = "great"
+    > print(a["x"])
+    > k = 20
+    > print(a[k]) -- 打印great
+    > a["x"] = a["x"] + 1
+    > print(a["x"])  -- 打印11
+    所有的table都可以用不同类型的索引来访问value，当需要容纳新条目时，table会自动增长。
+    > a = {}
+    > for i = 1, 100 do
+    >   a[i] = i * 2
+    > end
+    > print(a[9])        --18
+    > a["x"] = 10
+    > print(a["x"])      --10
+    > print(a["y"])      --table中的变量和全局变量一样，没有赋值之前均为nil。 --nil
+
+    在Lua中还提供了另外一种方法用于访问table中的值，见如下示例：
+    > a.x = 10      --等同于a["x"] = 10
+    > print(a.x)    --等同于print(a["x"])
+    > print(a.y)    --等同于print(a["y"])
+    
+    w = {x=0, y=0, label="console"}
+    x = {sin(0), sin(1), sin(2)}
+    w[1] = "another field"
+    x.f = w
+    print(w["x"])     --> 0
+    print(w[1])       --> another field
+    print(x.f[1])     --> another field
+    w.x = nil         -- remove field "x"
+    
+    for k,v in ipairs(w) do print(k,v) end -- 1       another field
+    for k, v in pairs(w) do print(k.."="..v) end 
+    -- y=0
+    -- 1=another field
+    -- label=console
+    
+    1. 当 key 是 string 时，可以有这几种方法初始化
+      t = {["test"] = 123}  -- 初始化时使用方括号设置 key，要有引号
+      t = {test = 123}      -- 初始化时不用方括号，不需要引号
+      t.test = 123          -- 使用点设置 key，不用引号
+      t.["test"] = 123      -- 使用点和方括号设置 key，要有引号
+    2. 使用方括号设置 key 时，如果不带引号，则代表是一个变量，如果这个变量没有初始化，就会报错：
+      t[test] = 123           -- 没初始化 test，报错
+      test = "test"           -- 初始化 test，正常
+      t[test] = 123           -- 
+    3. 如果初始化时不指定 key 值，则 key 默认从1开始递增，在使用 iterator 遍历时可以看到，会先遍历默认 key，再遍历指定 key
+      t = {"a", "b", [123]="foo", "c", name="bar", "d", "e"}
+      for k,v in pairs(t) do print(k,v) end
+      
+定义
+    Lua中还提供了另外一种特殊的语法用于初始化记录风格的table。
+    如：a = { x = 10, y = 20 }，
+    其等价于：a = {}; a.x = 10; a.y = 20
+    a = { [1] = "red", [2] = "green", [3] = "blue", }
+    a = {x = 10, y = 45; "one", "two", "three" }
+    1. 可以看到上面的声明中同时存在逗号(,)和分号(;)两种元素分隔符，这种写法在Lua中是允许的。
+    2. 我们通常会将分号(;)用于分隔不同初始化类型的元素，
+
+table.maxn 和 # 之间的使用差异
+    由于数组实际上仍为一个table，所以对于数组大小的计算需要留意某些特殊的场景，如：
+    a = {}
+    a[1000] = 1
+    在上面的示例中，数组a中索引值为1--999的元素的值均为nil。而Lua则将nil作为界定数据结尾的标志。
+    当一个数组含有"空隙"时，即中间含有nil值，长度操作符#会认为这些nil元素就是结尾标志。
+    当然这肯定不是我们想要的结果。因此对于这些含有"空隙"的数组，
+    我们可以通过函数table.maxn()返回table的最大正数索引值。如：
+    a = {}
+    a[1000] = 1
+    print(table.maxn(a))  -- 1000
+    a["1001"] = 1
+    print(table.maxn(a))  -- 1000
+
+初始化方式实例：
+   1. Weekly
+        days = {"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"}
+        -- days = {[1] = "Sunday", [2] = "Monday", [3] = "Tuesday", [4] = "Wednesday", [5] = "Thurday", [6] = "Friday", [7] = "Saturday"}
+        for i = 1,#days do
+            print(days[i])
+        end
+        
+        for index in pairs(days) do 　　 
+            io.write(days[index].." ")
+        end
+   2. 结构体字段访问方式
+        如：a = { x = 10, y = 20 }，其等价于：a = {}; a.x = 10; a.y = 20
+        a = { [1] = "red", [2] = "green", [3] = "blue", }
+        a = {x = 10, y = 45; "one", "two", "three" }
+        通常会将分号(;)用于分隔不同初始化类型的元素
+   3. arithmetic
+       opnames = { ["+"] = "add", ["-"] = "sub", ["*"] = "mul", ["/"] = "div"}
+       print(opnames["+"])
+   4. 数值
+       i = 20; s = "-"
+       a = { [i + 0] = s, [i + 1] = s .. s, [i + 2] = s..s..s }
+       print(a[22])
+   5. 如何引用既有k-v映射，又有偏移映射的table
+    在实际编程时我们也可以将这两种初始化方式组合在一起使用，如：
+      polyline = {color = "blue", thickness = 2, npoints = 4, 
+          {x = 0, y = 0},
+          {x = 10, y = 0},
+          {x = -10, y = 1},
+          {x = 0, y = 1}}
+      print(polyline["color"]);   --blue
+      print(polyline[2].x)        --10
+      print(polyline[4].y)        --1
+
+    for i = 1,#polyline do
+        print(polyline[i].x)      -- 0   10  -10   0
+    end
+
+    for i = 1,#polyline do
+        print(polyline[i].y)      -- 0   0   1   1
+    end
+
+    for i,k in pairs(polyline) do
+        print(i, k)         
+    end
+    1       table: 0x25cb300
+    2       table: 0x25cb350
+    3       table: 0x25cb3a0
+    4       table: 0x25cb450
+    color   blue
+    npoints 4
+    thickness       2
+
+    for i,k in ipairs(polyline) do
+        print(i, k)
+    end
+    1       table: 0x25cb300
+    2       table: 0x25cb350
+    3       table: 0x25cb3a0
+    4       table: 0x25cb450
+
+unpack (list [, i [, j]])
+    功能：返回指定表的索引的值,i为起始索引，j为结束索引
+    注：本函数只能用于以数字索引访问的表,否则只会返回nil 如：t={"1","cash"}
+
+table.sort
+    table.sort只能对下标连续且为数字的table进行有效的排序。
+        courses = {
+        {name="java", ip="192.168.110.187"},
+        {name="lua", ip="10.3.255.8"},
+        {name="jQuery", ip="192.168.110.54"},
+        {name="CSS", ip="192.168.110.134"},
+        {name="ORACLE", ip="10.2.255.34"},
+    }
+    
+    --按照name对network进行排序
+    table.sort(courses, function(a, b) 
+        return (a.name > b.name)
+    end)
+    
+    --遍历输出network的值
+    print "排序后courses为："                        -- 排序后courses为：
+    for o in pairs(courses) do                       -- name_lua,ip_10.3.255.8
+        local temp = ''    --temp为局部变量          -- name_java,ip_192.168.110.187
+        for k, v in pairs(courses[o]) do             -- name_jQuery,ip_192.168.110.54
+        temp = temp .. ',' .. k .. '_' .. v          -- name_ORACLE,ip_10.2.255.34
+        end                                          -- name_CSS,ip_192.168.110.134
+    --  print(string.sub(temp, 2, string.len(temp)))
+    --  print(string.sub(temp, 2, #temp)) --可以根据#temp来获取temp的长度
+    
+        print(string.sub(temp, 2))    --下标从1开始算而非0
+    end
+
+table.concat(table, sep,  start, end)
+        concat是concatenate(连锁, 连接)的缩写. table.concat()函数列出参数中指定table的数组部分从
+    start位置到end位置的所有元素, 元素间以指定的分隔符(sep)隔开。除了table外, 其他的参数都不
+    是必须的, 分隔符的默认值是空字符, start的默认值是1, end的默认值是数组部分的总长.
+        sep, start, end这三个参数是顺序读入的, 所以虽然它们都不是必须参数, 但如果要指定靠后的参数, 
+    必须同时指定前面的参数.
+    tbl = {"alpha", "beta", "gamma"}
+    print(table.concat(tbl, ":")) -- alpha:beta:gamma
+    print(table.concat(tbl, nil, 1, 2)) --alphabeta
+    print(table.concat(tbl, "\n", 2, 3)) -- beta \n gamma
+table.insert(table, pos, value)
+    table.insert()函数在table的数组部分指定位置(pos)插入值为value的一个元素. pos参数可选, 默认为数组部分末尾.
+    tbl = {"alpha", "beta", "gamma"}
+    table.insert(tbl, "delta")
+    table.insert(tbl, "epsilon")
+    print(table.concat(tbl, ", ")   -- alpha, beta, gamma, delta, epsilon
+    table.insert(tbl, 3, "zeta")
+    print(table.concat(tbl, ", ")   -- alpha, beta, zeta, gamma, delta, epsilon
+table.maxn(table)
+    table.maxn()函数返回指定table中所有正数key值中最大的key值. 如果不存在key值为正数的元素, 则返回0. 此函数不限于table的数组部分.
+
+    tbl = {[1] = "a", [2] = "b", [3] = "c", [26] = "z"}
+    print(#tbl)  -- 3  -- 因为26和之前的数字不连续, 所以不算在数组部分内
+    print(table.maxn(tbl))  -- 26
+    tbl[91.32] = true
+    print(table.maxn(tbl))  --91.32
+table.remove(table, pos)
+    table.remove()函数删除并返回table数组部分位于pos位置的元素. 其后的元素会被前移. pos参数可选, 
+    默认为table长度, 即从最后一个元素删起.
+
+table.sort(table, comp)
+    table.sort()函数对给定的table进行升序排序.
+        tbl = {"alpha", "beta", "gamma", "delta"}
+        table.sort(tbl)
+        print(table.concat(tbl, ", ")) -- alpha, beta, delta, gamma
+    comp是一个可选的参数, 此参数是一个外部函数, 可以用来自定义sort函数的排序标准.
+    此函数应满足以下条件: 接受两个参数(依次为a, b), 并返回一个布尔型的值, 当a应该排在b前面时, 
+    返回true, 反之返回false.
+
+table.getn -- 废弃
+    括号中的table的名字，返回值是一个table的大小，注意：该table的key必须是有序的，索引是从1开始的。
+    如 a={"1"="hi","2"="world"}
+    那么使用table.getn(a)得到的是2
+    
+    如果该table是无序的，就不能使用这个，而是以下这个得到它的大小
+    local count = 0
+    for k,v in pairs(table2) do
+        count = count + 1
+    end
+    
+table长度大小总结
+    --table.getn()与#table是一样的  
+    --(a)有序table  
+    local t1 = {1,2,3}  
+    print(table.getn(t1),"--",#t1,table.maxn(t1))--3   --  3   3  
+    
+    --(b)无序table  
+    local t2 = {"d",a=2,3}  
+    print(table.getn(t2),"--",#t2,table.maxn(t2))--2   --  2   2  
+    --首先，要明白，这个t2不是一个简单的table，它混合了列表(list)和记录(record)两种风格，表中，a = 2是record风格。其次，要明白，record风格的record是不作为外表的长度计算。你可以把它想象成一个函数，跟其他面向对象语言一样，函数是不记为内部变量的。既然像函数一样，那就可以输出a的值，是的。print(t2.a)就可以了。  
+    local t3 = {1,{a=2},3}  
+    print(table.getn(t3),"--",#t3)--3   --  3  
+    --表嵌套表，嵌套表也是元素。print(t3[2].a)输出2
+
+    local t4 = {1,nil}  
+    print(table.getn(t4),"--",#t4)--1   --  1  
+    --table获取长度的时候，会遍历一下整个表，在最后一个非nil处，就会返回。  
+    local t5 = {1,nil,3}  
+    print(table.getn(t5),"--",#t5)--3   --  3  
+    --继续往下写是没有完全有规律的
+    
+    --无序table  
+    local table2 = {["bb"] = 1,["cc"] = 2,["dd"] = 3,["ee"] = nil,["ff"] = 4,}  
+    print("-----------",#table2) -------------  0  
+    --可以这么理解：把它想象成一个函数，跟其他面向对象语言一样，函数是不记为内部变量的。既然像函数一样，那就可以输出a的值，是的。print(t2.a)就可以了。  
+    
+    --计算无序table的大小，可以这样  
+    local count = 0  
+    for k,v in pairs(table2) do  
+        count = count + 1  
+    end  
+    print("-----------",count) -------------  4
+
+table处理函数
+  记住，无论何时，若一个操作需要取表的长度， 这张表必须是一个真序列，或是拥有 __len 元方法。 
+  所有的函数都忽略传入参数的那张表中的非数字键。
+
+  table.concat (list [, sep [, i [, j]]]) -- 序列
+    返回字符串list[i]...sep..list[i+1]...sep..list[j]。sep的默认值是空串，i的默认值是1，j的默认值是#list。如果i比j大，返回空串。
+    fruits = {"banana","orange","apple"}
+    print(table.concat(fruits))            -- bananaorangeapple
+    print(table.concat(fruits,", "))       -- banana, orange, apple
+    print(table.concat(fruits,", ", 2,3))  -- orange, apple
+    fruits.zhengzhou="wangwenli"
+    print(table.concat(fruits,", "))       -- banana, orange, apple
+  table.insert (list, [pos,] value)
+    在list的位置pos处插入元素value，并后移元素list[pos], list[pos+1], ···, list[#list]。pos的默认值为#list+1，因此调用table.insert(t,x)会将x插在列表t的末尾。
+    fruits = {"banana","orange","apple"}
+    table.insert(fruits,"mango")     
+    print(fruits[4])                 -- mango
+    table.insert(fruits,2,"grapes")  
+    print(fruits[2])                 -- grapes
+    print(fruits[5])                 -- mango
+    table.remove(fruits)
+    print(fruits[5])                 -- nil
+  table.remove (list [, pos])
+    移除list中pos位置上的元素，并返回这个被移除的值。
+  table.sort (list [, comp])
+    在表内从list[1]到list[#list]原地对其间元素按指定次序排序。 如果提供了comp，它必须是一个可以接收两个列表内元素为参数的函数。 
+    当第一个元素需要排在第二个元素之前时，返回真 (因此 not comp(list[i+1],list[i]) 在排序结束后将为真)。
+    fruits = {"banana","orange","apple","grapes"}
+    for k,v in ipairs(fruits) do print(k,v) end -- 1       banana;2       orange; 3       apple;4       grapes 
+    table.sort(fruits)
+    for k,v in ipairs(fruits) do print(k,v) end -- 1       apple;2       banana; 3       grapes;4       orange
+  table.pack (···)
+    返回用所有参数以键 1,2, 等填充的新表， 并将 "n" 这个域设为参数的总数。 注意这张返回的表不一定是一个序列。
+  table.unpack (list [, i [, j]])
+    返回列表中的元素。 这个函数等价于
+    return list[i], list[i+1], ···, list[j]
+    i 默认为 1 ，j 默认为 #list。
+
+select (index, ···)
+  如果 index 是个数字，那么返回参数中第 index 个之后的部分；负的数字会从后向前索引(-1 指最后一个参数)。 
+  否则，index 必须是字符串 "#"， 此时 select 返回参数的个数。
+    
+table遍历的几种方式 -- 前两种是泛型遍历，后两种是数值型遍历
+    for key, value in pairs(tbtest) do  
+        XXX  
+    end 
+    -- 实例1 -- 根据tbtest中key的hash值排列的顺序来遍历的
+    tbtest = {  
+    [1] = 1,  
+    [2] = 2,  
+    [3] = 3,  
+    [4] = 4,  
+    } 
+    for key, value in pairs(tbtest) do  
+        print(value)   -- 1，2，4，3
+    end
+
+    for key, value in ipairs(tbtest) do  
+        XXX  
+    end 
+    -- 实例2 -- ipairs只会从1开始按连续的key顺序遍历到key不连续为止。
+    tbtest = {  
+    [1] = 1,  
+    [2] = 2,  
+    [3] = 3,  
+    [5] = 5,  
+    } 
+    for k,v in ipairs(tbtest) do  
+        print(v)  -- 1 2 3
+    end
+
+    for i=1, #(tbtest) do  
+        XXX  
+    end 
+    -- 实例3 -- 无论你是否先定义的key为6的值，'#'都会查找key为1的值开始。
+    tbtest = {  
+    [1] = 1,  
+    [2] = 2,  
+    [6] = 6,  
+    print(#(tbtest)) -- 2
+
+    for i=1, table.maxn(tbtest) do  
+        XXX  
+    end
+    -- 实例4 -- 和table内的定义顺序没有关系，无论你是否先定义的key为6的值，table.maxn都会获取整数型key中的最大值。
+    tbtest = {  
+    [1] = 1,  
+    [2] = 2,  
+    [3] = 3,  
+    }  
+    print(table.maxn(tbtest))  -- 3
+    tbtest = {  
+        [6] = 6,  
+        [1] = 1,  
+        [2] = 2,  
+    }  
+    print(table.maxn(tbtest))  -- 6
+
+    for i=1, #tbtest do --这种方式无法遍历所有的元素，因为'#'只会获取tbtest中从key为1开始的key连续的那几个元素，
+如果没有key为1，那么这个循环将无法进入
+    for i=1, table.maxn(tbtest) do --这种方式同样无法遍历所有的元素，因为table.maxn只会获取key为整数中最大
+的那个数，遍历的元素其实是查找tbtest[1]~tbtest[整数key中最大值]，所以，对于string做key的元素不会去查找，
+而且这么查找的效率低下，因为如果你整数key中定义的最大的key是10000，然而10000以下的key没有几个，那么这么
+遍历会浪费很多时间，因为会从1开始直到10000每一个元素都会查找一遍，实际上大多数元素都是不存在的，
+    for k, v in pairs(tbtest) do 这个是唯一一种可以保证遍历tbtest中每一个元素的方式，别高兴的太早，
+这种遍历也有它自身的缺点，就是遍历的顺序不是按照tbtest定义的顺序来遍历的。
+    for k, v in ipairs(tbtest) do 
+这个只会遍历tbtest中key为整数，而且必须从1开始的那些连续元素，如果没有1开始的key，那么这个遍历是无效的，
+我个人认为这种遍历方式完全可以被改造table和for i=1, #(tbtest) do的方式来代替，因为ipairs的效果和'#'的效果，
+
+":"和"."在元表中的差异
+  self其实就相当于Java，C++中的this对象，
+    总结:冒号只是起了省略第一个参数self的作用，该self指向调用者本身，并没有其他特殊的地方。
+  Lua也提供了面向对象方式调用函数的语法，比如o:foo(x)与o.foo(o, x)是等价的，
+  
+    local Base = {
+        name = "lee"
+    }
+    function Base.WakeUp(self, a)
+        print("base wake up ", self, a)
+    end
+    -- ":"定义的函数比"."定义的函数多了一个self的隐藏形参，并且是作为第一个隐藏形参
+    function Base:Walk(a)
+        print("base walk ", self , a)
+    end
+    
+    local Obj = {}
+    setmetatable(Obj, Base)
+    Base.__index = Base
+    
+    print("-----1----")     -- -----1----
+    Base.WakeUp(Base)       -- base wake up    table: 0x000443e8   nil
+    -- ":" 调用的函数比"."调用的函数多隐藏的传递了自己
+    Base:WakeUp()           -- base wake up    table: 0x000443e8   nil
+    print("-----2----")     -- -----2----
+    
+    Obj.WakeUp(Obj)         -- base wake up table: 0x00044020 nil
+    Obj:WakeUp()            -- base wake up table: 0x00044020 nil
+    print("-----3----")     -- -----3----
+    
+    Base.Walk(Base)         -- base walk table: 0x000443e8 nil
+    Base:Walk()             -- base walk table: 0x000443e8 nil
+    print("-----4----")     -- -----4----
+    
+    Obj.Walk(Obj)           -- base walk   table: 0x00044020   nil
+    Obj:Walk()              -- base walk   table: 0x00044020   nil
+
+lua 表与元表总结
+    找函数是找的该表的元表的__function，
+    找变量是先找该表的变量，如果没有则再找该表的元表的__index，
+        如果该index是table，则从该table里找对应的变量，
+        如果该index是function，直接返回该function的值。
+    local y = {}
+    function y.__tostring()
+        return "i am y"
+    end
+    y.a = "yy-a"
+    
+    local x = {}
+    function x.__tostring()
+        return "i am x"
+    end
+    setmetatable(x, y)
+    print(x)           -- i am y 仅仅会调用自身表或者元表的__tostring函数
+    
+    y.__index = y      
+    print(x.a)         -- yy-a   元表的__index为table，输出元表的key值
+    
+    y.__index = function() return 300 end
+    print(x.a)         -- 300    元表的__index为function，输出元表的返回值
+    
+    x.a = "xx-a"
+    print(x.a)         -- xx-a   优先返回table自身的key对应的value的值
+---------------------------------------           | local mytable1 = {key1 = "value1"}
+    mytable = setmetatable({key1 = "value1"}, {   | setmetatable(mytable1, {
+      __index = function(mytable, key)            |   __index = function(mytable1, key) -- __index函数
+        if key == "key2" then                     |     if key == "key2" then
+          return "metatablevalue"                 |       return "metatablevalue"
+        else                                      |     else
+          return mytable[key]                     |       return mytable[key]
+        end                                       |     end
+      end                                         |   end
+    })                                            | })
+    -- __index(mytable, key) __index有两个参数，table和key这两个值。
+    print(mytable.key1,mytable.key2)  -- value1  metatablevalue
+
+__newindex元方法：
+    用来对表进行更新。给一个表的缺少的索引赋值时，解释器就会查找是否存在__newindex元方法，
+    如果存在则调用这个函数而不进行赋值操作；不存在则进行赋值操作。(只针对表中不存在的索引有效)
+　　存在__newindex元方法：
+    myTab = {key1="lua", key3="java"}
+    setmetatable(myTab, {
+        __newindex = function(myTab, key, value)
+            print(key .. " is not exist in myTab " .. value)
+            rawset(myTab,key,value)
+        end
+    })
+    
+    myTab.key1 = "hello"       
+    myTab.key2 = "world"          -- key2 is not exist in myTab world
+    print(myTab.key1, myTab.key2) -- hello   world
+
+__tostring元方法：用于修改表的输出行为。
+    -- 形式1                                 -- 形式2
+    myTable = {}                           | myTable1 = {10, 20, 30}
+    function myTable.__tostring(Tables)    | setmetatable(myTable1, {
+        sum = 0                            |     __tostring = function(myTable1)
+        for k,v in ipairs(Tables)          |     local sum = 0
+        do                                 |     for _, v in pairs(myTable1) do
+            sum = sum + v                  |         sum = sum + v
+        end                                |     end
+        return ("total="..tostring(sum))   |     return ("total" .. sum)
+    end                                    |    end
+    myTable2 = {10, 20, 30}                | })
+    setmetatable(myTable2, myTable)        | print(myTable1)
+    print(myTable2) -- 60                  | 
+    -- __tostring(mytable) __tostring有一个参数，table表。
+    
+__call元方法：用于表变量调用一个参数时调用__call元方法。
+    myTable = {10, 20, 30}
+    num = 100
+    setmetatable(myTable,{
+        __call = function(myTable, param)  --此处的param可替换其他类型的变量
+            print("call param")            --处理相关事件       call 100
+            return "already call"
+        end
+    })
+    
+    print(myTable(num))                    --myTable调用num变量 already call
+    
+类似于__add和__sub元方法的还有：
+__mul元方法：对应运算符'*'
+__div元方法：对应运算符'/'
+__mod元方法：对应运算符'%'
+__pow元方法：对应运算符'^'
+__unm元方法：对应运算符'-'，   此处的运算符不是减号，是代表负数
+__concat元方法：对应运算符'..'
+__eq元方法：对应运算符'=='
+__lt元方法：对应运算符'<'
+__le元方法：对应运算符'<='
+    myTable = {10, 20 ,30}
+    newTable = {20, 30, 40}
+    setmetatable(myTable, {
+        __sub = function(myTable, newTable) --__sub可替换__mul/__div/__mod/__unm/__concat/__eq/__lt/__le
+            print("subtract")               --处理相关事件                    "subtract"
+            return "already subtract"
+        end
+    })
+    
+    print(myTable - newTable)               --此处要替换为相应的对应运算符    "already subtract"
+
+基本语法
+    Lua 语言中所有布尔真与非 nil 的组合的结果被当作真，
+    1. 而布尔假与 nil 组合被当作假。
+       值得注意的是，Lua 中零被当作真，这一点与其它大部分语言不一样：
+        if 5 then print("true") else print("false") end        -- true
+        if 0 then print("true") else print("false") end        -- true
+        if true then print("true") else print("false") end     -- true
+        if {} then print("true") else print("false") end       -- true
+        if "string" then print("true") else print("false") end -- true
+        if nil then print("true") else print("false") end      -- false
+        if false then print("true") else print("false") end    -- false
+     2. 其他语言中，条件也可以是一个表达式，但在 Lua 中是不行的
+        i = 0
+        while (i = i + 1) <= 10 do print(i) end  -- stdin:1: ')' expected near '='
+        
+    if 语句，三种形式
+        if conditions then   # if　语句包括一个布尔表达式和一个或多个语句。
+            then-part
+        end;
+        if conditions then        | if age == 40 and sex =="Male" then        | if a < 0 then
+            then-part             |     print("男人四十一枝花")               |     b = 0
+        else                      | elseif age > 60 and sex ~="Female" then   | else
+            else-part             |     print("old man without country!")     |     b = 1
+        end;                      | elseif age < 20 then                      | end
+        if conditions then        |     io.write("too young, too naive!\n")   | if a < 0 then
+            then-part             | else                                      |     b = 0
+        elseif conditions then    |     local age = io.read()                 | elseif a == 0 then
+            elseif-part           |     print("Your age is "..age)            |     b = 1
+        elseif else               | end                                       | else
+            else-part             |                                           |     b = 2
+        end;                      |                                           | end
+while                             | 
+    while 语句                    | local i= 1
+        while condition do        | while a[i] do
+            statements;           |     print(a[i]) i = i + 1
+        end                       | end
+    请注意，while 循环的关键点在于循环可能根本不会执行。当检测条件为假是，程序会跳过 while 循环体而直接执行 while 后的第一条语句。
+for
+  范型for和数值for有两点相同：
+  1. 控制变量是局部变量
+  2. 不要修改控制变量的值
+
+  1. 数字for
+  for var=exp1,exp2[,exp3] do 从exp1开始，到exp2，步长为exp3，exp3缺省情况下是1
+    something
+  end
+  exp1,exp2,exp3都是计算1次; 控制变量var是局部环境的; 在循环内永远不要修改变量var的值。想主动退出使用break
+  
+  for i=1,f(x) do print(i) end -- exp1,exp2,exp3都是计算1次，因此f(x)在初始化计算1次。
+  for i=1,10 do print(i) end  print(i) max = i -- 这时候使用i会出错；控制变量i是局部环境的。
+  for i=10,1,-1 do print(i) end  -- 10 9 8 7 6 5 4 3 2 1
+  for i=10,1,1 do print(i) end   -- 
+  
+  2. 泛型for
+    for var_1, ···, var_n in explist do block end 
+    1. 控制结构中的条件表达式可以返回任何值。 false 与 nil 两者都被认为是假。 所有不同于 nil 与 false 的其它值都被认为是真 
+    2. 有break，但是没有continue
+    3. return 被用于从函数或是代码块(其实它就是一个函数)中返回值。 函数可以返回不止一个值。
+    4. return 只能被写在一个语句块的最后一句。如果你真的需要从语句块的中间 return，你可以使用显式的定义一个内部语句块，一般写作 do return end。
+  for i,v in ipairs(a) do print(v) end -- 内建的table, io.lines, string.gfind支持迭代
+    for i, v in ipairs(a) do  --ipairs是Lua自带的系统函数，返回遍历数组的迭代器。
+        print(v)
+    end
+    
+    for k in pairs(t) do      --打印table t中的所有key。 pairs好像只是迭代k，而不迭代v
+        print(k)
+    end
+    
+    从1到100的奇数和     | 从100到1的偶数和      |
+    sum = 0              | sum = 0               |
+    for i = 1, 100, 2 do | for i = 100, 1, -2 do |  for word in allwords() do
+        sum = sum + i    |     sum = sum + i     |      print(word)
+    end                  | end                   |  end
+
+泛型 for 的语义
+    for 在循环过程中内部保存着3个值: 一个迭代器函数，一个恒定状态和一个控制变量。
+    for <var - list> in <exp - list> do <body> end
+    <var - list> 变量列表，<exp - list> 表达式列表
+    变量列表的第一个元素称为"控制变量",在循环过程中该值不会为nil，因为当它为nil时循环就结束了.
+    
+    for 作的第一件事就是逗in后面的表达式求值，这些表达式应该返回3个值供for保存：
+    迭代器函数，恒定状态，控制变量的初值
+    
+    for 过程伪代码
+    do
+        local _f, _s, _var = <explist>
+        while true do
+            local var1, var2 ..., var_n = _f(_s, _var)
+            _var = var1
+            if _var == nil then
+                break
+            end
+            <block>
+        end
+    end
+
+    ---exp1初始值(是局部变量，只在for里面生效) exp2结束 exp3步长
+    如果要退出循环，使用break语句，或者return？
+
+repeat...until
+    Lua 语言中 repeat...until 循环的语法如下：|  repeat                    | repeat
+        repeat                                |     sum = sum ^ 2 --幂操作 |     line = io.read()
+            statement(s)                      |     print(sum)             | until line ~= "" --直到until的条件为真时结束。
+        until( condition )                    |  until sum >1000           | print(line)
+        请注意，条件表达式出现在循环的结束处，所以在检查条件之前，循环体中语句 statement(s) 已经执行了一次。
+        如果条件为假，则控制回到循环开始再次执行循环体。这个过程一直重复到条件为真时结束。
+        
+    break和return语句
+        break 语句用来退出当前循环(for,repeat,while)。在循环外部不可以使用。
+        Lua 语法要求 break 和 return 只能出现在 block 的结尾一句
+    
+    无限循环
+    while( true ) do 
+        print("This loop will run forever.")
+    end
+    在无限循环中，可以使用 break 跳出循环。
+    
+    # 递归
+    function fib(n)
+        if n < 2 then return 1 end
+        return fib(n - 2) + fib(n - 1)
+    end
+
+函数
+  function f () body end
+  local function f () body end
+  当一个函数被调用，如果函数并非一个可变参数函数，即在形参列表的末尾注明三个点('...')，那么实参列表就会被调整到形参列表的长度。
+    function f(a, b) end
+    function g(a, b, ...) end
+    function r() return 1,2,3 end
+  下面看看实参到形参数以及可变长参数的映射关系：
+    CALL            PARAMETERS
+    f(3)             a=3, b=nil
+    f(3, 4)          a=3, b=4
+    f(3, 4, 5)       a=3, b=4
+    f(r(), 10)       a=1, b=10
+    f(r())           a=1, b=2
+    
+    g(3)             a=3, b=nil, ... -->  (nothing)
+    g(3, 4)          a=3, b=4,   ... -->  (nothing)
+    g(3, 4, 5, 8)    a=3, b=4,   ... -->  5  8
+    g(5, r())        a=5, b=1,   ... -->  2  3
+    
+  冒号 语法可以用来定义 方法， 就是说，函数可以有一个隐式的形参 self。 因此，如下语句
+    function t.a.b.c:f (params) body end
+    是这样一种写法的语法糖
+  t.a.b.c.f = function (self, params) body end
+  
+  可变参数与命名参数
+    printResult = ""
+     
+    function print(...)
+        for i,v in ipairs(arg) do
+           printResult = printResult .. tostring(v) .. "\t"
+        end
+        printResult = printResult .. "\n"
+    end
+  命名参数用表来作为参数传递。
+
+面向对象 函数
+    Lua也提供了面向对象方式调用函数的语法，比如o:foo(x)与o.foo(o, x)是等价的
+    Lua 使用的函数可以是 Lua 编写也可以是其他语言编写，对于 Lua 程序员来说用什么语言实现的函数使用起来都一样。
+    Lua 函数实参和形参的匹配与赋值语句类似，多余部分被忽略，缺少部分用 nil 补足
+
+    1. 可以一条语句上赋多个值，如：
+    name, age, bGay = "haoel", 37, false, "haoel@hotmail.com"
+    上面的代码中，因为只有3个变量，所以第四个值被丢弃。
+
+    2. 函数也可以返回多个值：
+    function getUserInfo(id)
+        print(id)
+        return "haoel", 37, "haoel@hotmail.com", "https://coolshell.cn"
+    end
+    name, age, email, website, bGay = getUserInfo()
+    注意：上面的示例中，因为没有传id，所以函数中的id输出为nil，因为没有返回bGay，所以bGay也是nil。
+
+    3. 局部函数
+    函数前面加上local就是局部函数，其实，Lua中的函数和Javascript中的一个德行。
+    比如：下面的两个函数是一样的：
+    function foo(x) return x^2 end
+    foo = function(x) return x^2 end
+   
+Closure：作为迭代器，定义函数，返回函数。当返回值等于nil的时候，迭代器结束迭代。1. 使用非局部变量
+  记住：闭包是一个内部函数，它可以访问一个或者多个外部函数的外部局部变量。
+  每次闭包的成功调用后这些外部局部变量都保存他们的值(状态)。当然如果要创建一个闭包必须要创建其外部局部变量。
+  所以一个典型的闭包的结构包含两个函数：一个是闭包自己；另一个是工厂(创建闭包的函数)。
+
+pairs 和ipairs : ipairs仅能遍历连续数字类型，含义与#一致。
+    pairs可以遍历表中的所有key，还可以返回nil；            # pairs用于字典和序列遍历  -- 表
+    ipairs不能返回nil，只能返回数字0，遇到nil程序直接退出。# ipairs用于序列遍历       -- 数组
+    
+    subArr = {"java", "lua", "c", "c++", "jQuery"}
+    userInfo = {name="zhangsan", age = 12, sex = "man", addr = "shenzhen"}
+    
+    --ipairs可替换为pairs
+    for k,v in ipairs(subArr) do    
+        print('k=' .. k .. ' v=' .. v .. ' ' .. subArr[k])
+    end
+    
+    --pairs不可替换为ipairs
+    for k,v in pairs(userInfo) do
+        print('k=' .. k .. ' v=' .. v .. ' ' .. userInfo[k])
+    end
+    
+  使用pairs(t)会遍历所有key-value，但是它是无序的(不保证按照table元素的列举顺序遍历，和key的哈希值有关)；
+  使用ipairs(t)会从key=1,2,3...这样的顺序遍历，保证顺序，不保证遍历完全；
+
+ipairs (t)
+  如果table 含有元方法__pairs，返回它的前三个结果；
+  否则，返回函数next，table，nil；
+  会迭代table中所以键值对；
+pairs(t)
+   返回一个迭代器函数，table，0；
+   会从key=1开始迭代table中的键值对，直到遇到第一个nil value；
+
+print VS printf VS io.write
+    print("hello")
+    print "hello"
+    
+    print("1" .. "2") -- .. 用于拼接字符串
+    print("1" + "2")  -- + 可以把字符串转为数字进行相加
+    print(#"1234567") -- # 用于计算字符串长度
+
+    格式化输出
+    function printf(fmt, ...)
+        io.write(string.format(fmt, ...))
+    end
+    printf("Hello %s from %s on %s\n",
+        os.getenv"USERNAME" or "there", _VERSION, os.date())
+       
+    1. 原则上当你进行粗略编程，或者进行排错时常使用print函数。当需要完全控制输出时使用write。
+    2. write函数与print函数不同在于，write不附加任何额外的字符到输出中去，例如制表符，换行符等等。
+    3. 还有write函数是使用当前输出文件，而print始终使用标准输出。
+    4. 另外print函数会自动调用参数的tostring方法，所以可以显示出表函数和nil。
+
+
+    
+虚变量(下划线)_
+命名参数
+    Lua 可以通过将所有的参数放在一个表中，把表作为函数的唯一参数
+    function rename (arg)
+        return os.rename(arg.old, arg.new)
+    end
+
+再论函数
+    在 Lua 中函数和其他值(数值、字符串)一样，函数可以被存放在变量中，也可以存放在表中，可以作为函数的参数，还可以作为函数的返回值。
+    函数定义实际上是一个赋值语句，将类型为 function 的变量赋给一个变量。我们使 用 function (x) ... end 来定义一个函数和使用{}创建一个表一样。
+
+Lua环境
+    1. 全局变量声明
+        1.1 Lua 中的全局变量都是存在表中的，这个表可以通过 _G 来获取
+        for k,v in pairs(_G) do
+            print(k,v)
+        end
+    
+        1.2 Lua中的全局变量不需要声明就可以使用。尽管很方便，但是一旦出现笔误就会造成难以发现的错误。
+    我们可以通过给_G表加元表的方式来保护全局变量的读取和设置，这样就能降低这种笔误问题的发生几率了。见如下示例代码：
+
+    --该table用于存储所有已经声明过的全局变量名
+    local declaredNames = {} 
+    local mt = {
+        __newindex = function(table,name,value)
+            --先检查新的名字是否已经声明过，如果存在，这直接通过rawset函数设置即可。
+            if not declaredNames[name] then
+                --再检查本次操作是否是在主程序或者C代码中完成的，如果是，就继续设置，否则报错。
+                local w = debug.getinfo(2,"S").what
+                if w ~= "main" and w ~= "C" then
+                    error("attempt to write to undeclared variable " .. name)
+                end
+                --在实际设置之前，更新一下declaredNames表，下次再设置时就无需检查了。
+                declaredNames[name] = true
+            end
+            print("Setting " .. name .. " to " .. value)
+            rawset(table,name,value)
+        end,
+        
+        __index = function(_,name)
+            if not declaredNames[name] then
+                error("attempt to read undeclared variable " .. name)
+            else
+                return rawget(_,name)
+            end
+        end
+    }    
+    setmetatable(_G,mt) -- Lua 5.2.0 中会导致"attempt to read undeclared variable _PROMPT"
+    
+    a = 11
+    local kk = aa
+
+2. 非全局的环境：
+    全局环境存在一个刚性的问题，即它的修改将影响到程序的所有部分。
+    Lua 5为此做了一些改进，新的特征可以支持每个函数拥有自己独立的全局环境，
+    而由该函数创建的closure函数将继承该函数的全局变量表。
+    这里我们可以通过setfenv函数来改变一个函数的环境，该函数接受两个参数，一个是函数名，另一个是新的环境table。
+    第一个参数除了函数名本身，还可以指定为一个数字，以表示当前函数调用栈中的层数。
+    数字1表示当前函数，2表示它的调用函数，以此类推。见如下代码：
+    a = 1
+    setfenv(1,{})
+    print(a)
+    
+    --输出结果为：
+    --[[
+    lua: d:/test.lua:3: attempt to call global 'print' (a nil value)
+    stack traceback:
+            d:/test.lua:3: in main chunk
+            [C]: ?
+    --]]
+
+
+    为什么得到这样的结果呢？因为print和变量a一样，都是全局表中的字段，而新的全局表是空的，所以print调用将会报错。
+    为了应对这一副作用，我们可以让原有的全局表_G作为新全局表的内部表，在访问已有全局变量时，可以直接转到_G中的字段，
+    而对于新的全局字段，则保留在新的全局表中。这样即便是函数中的误修改，也不会影响到其他用到全局变量(_G)的地方。见如下代码：
+    a = 1
+    local newgt = {}  --新环境表
+    setmetatable(newgt,{__index = _G})
+    setfenv(1,newgt)
+    print(a)  --输出1
+    
+    a = 10
+    print(a)  --输出10
+    print(_G.a) --输出1
+    _G.a = 20
+    print(a)  --输出10
+    
+     最后给出的示例是函数环境变量的继承性。见如下代码：
+    
+    function factory()
+        return function() return a end
+    end
+    a = 3
+    f1 = factory()
+    f2 = factory()
+    print(f1())  --输出3
+    print(f2())  --输出3
+    
+    setfenv(f1,{a = 10})
+    print(f1())  --输出10
+    print(f2())  --输出3
+
+沙盒 --能在不影响全局环境的前提下，执行不可信的代码，并得知执行结果
+    env = {}
+    
+    function run(untrusted_code)
+      if untrusted_code:byte(1) == 27 then return nil, "binary bytecode prohibited" end
+      local untrusted_function, message = loadstring(untrusted_code)
+      if not untrusted_function then return nil, message end
+      setfenv(untrusted_function, env)
+      return pcall(untrusted_function)
+    end
+    
+    assert(not run [[print(debug.getinfo(1))]])
+    assert(run [[x=1]])
+    assert(run [[while 1 do end]])
+
+错误处理
+  由于Lua是一门嵌入式扩展语言，其所有行为均源于宿主程序中C代码对某个Lua库函数的调用。(单独使用 Lua 时，lua 程序就是宿主程序)
+  所以，在编译或运行 Lua 代码块的过程中，无论何时发生错误，控制权都返回给宿主，由宿主负责采取恰当的措施(比如打印错误消息)。
+  
+  通过调用error函数，Lua代码可以明确地产生一个错误。
+  如果您需要在Lua中发现错误，则可以使用pcall或xpcall在保护模式下调用给定的函数。
+  
+  无论何时出现错误，都会抛出一个携带错误信息的 错误对象(错误消息),这是一个字符串对象。
+  使用xpcall或lua_pcall时，你应该提供一个 消息处理函数 用于错误抛出时调用。该函数需接收原始的错误消息，并返回一个新的错误消息。
+  
+pcall pxcall
+    pcall 指的是 protected call 类似其它语言里的 try-catch, 使用pcall 调用函数，如果函数 f 中发生了错误， 
+    它并不会抛出一个错误，而是返回错误的状态, 为被执行函数提供一个保护模式，保证程序不会意外终止
+    语法
+        pcall(f , arg1, ···)
+    返回值
+      函数的第一个返回值是一个表示错误状态的布尔变量，
+        当被调用函数被成功调用并且没有错误时，函数返回true作为第一个返回值，并且依次返回被调用函数的所有返回值，
+        当发生错误时，函数会返回一个false并且紧跟着错误信息。
+        函数执行状态(boolean) 
+            没有错误返回 true + 函数调用返回值
+            有错误返回 false  + 发生错误返回错误信息
+
+    使用pcall 处理错误
+      function square(a)
+          return a * "a"
+      end
+      
+      local status, retval = pcall(square,10);
+      
+      print ("Status: ", status)        -- 打印 "false" 
+      print ("Return Value: ", retval)  -- 打印 "input:2: attempt to perform arithmetic on a string value"
+    
+    正常没错误
+      function square(a)
+      return a * a
+      end
+      
+      local status, retval = pcall(square,10);
+      
+      print ("Status: ", status)        -- 打印 "true"
+      print ("Return Value: ", retval)  -- 打印 "100"
+    
+xpcall
+    xpcall (f, msgh [, arg1, ···])
+    xpcall 类似 pcall xpcall接受两个参数：调用函数、错误处理函数
+    比如使用 debug.traceback 获取栈信息
+    > status, err, ret = xpcall(square, debug.traceback, 10)
+    > status
+    false
+    > err
+    stdin:2: attempt to perform arithmetic on a string value
+    stack traceback:
+        stdin:2: in function 'square'
+        [C]: in function 'xpcall'
+        stdin:1: in main chunk
+        [C]: in ?
+    >
+
+dofile ([filename])
+  函数会从参数filename指定的文件中加载内容，并将内容封装成一个函数返回。
+  打开该名字的文件，并执行文件中的 Lua 代码块。不带参数调用时， dofile 执行标准输入的内容(stdin)。
+  返回该代码块的所有返回值。对于有错误的情况，dofile 将错误反馈给调用者(即，dofile 没有运行在保护模式下)。
+_G
+  一个全局变量(非函数)，内部储存有全局环境。Lua 自己不使用这个变量；改变这个变量的值不会对任何环境造成影响，反之亦然。
+_VERSION
+  一个包含有当前解释器版本号的全局变量(并非函数)。 当前这个变量的值为 "Lua 5.3"。
+load (chunk [, chunkname [, mode [, env]]])
+  加载一个代码块。
+  如果 chunk 是一个字符串，代码块指这个字符串。如果 chunk 是一个函数，load 不断地调用它获取代码块的片断。
+  每次对 chunk 的调用都必须返回一个字符串紧紧连接在上次调用的返回串之后。 当返回空串、nil、或是不返回值时，
+  都表示代码块结束。
+
+  如果没有语法错误， 则以函数形式返回编译好的代码块； 否则，返回 nil 加上错误消息。
+  如果结果函数有上值， env 被设为第一个上值。 若不提供此参数，将全局环境替代它。
+  chunkname 在错误消息和调试消息中，用于代码块的名字。 如果不提供此参数，它默认为字符串chunk 。
+  字符串 mode 用于控制代码块是文本还是二进制(即预编译代码块)。 
+    它可以是字符串 "b"(只能是二进制代码块)， "t"(只能是文本代码块)， 或 "bt"(可以是二进制也可以是文本)。 默认值为 "bt"。
+
+loadfile ([filename [, mode [, env]]])
+  和 load 类似，不过是从文件 filename 或标准输入(如果文件名未提供)中获取代码块。
+  
+loadstring(string [,chunkname])
+  函数会从所给的字符串中来加载程序块并运行，常使用这种构造式来调
+  用assert(loadstring(s))()，如果省略参数chunkname，那么它默认为所给的字符串。
+  
+next(table [, index])
+  运行程序来遍历表中的所有域。 第一个参数是要遍历的表，第二个参数是表中的某个键。
+    next 返回该键的下一个键及其关联的值。
+    如果用 nil 作为第二个参数调用 next 将返回初始键及其关联值。
+    当以最后一个键去调用，或是以 nil 调用一张空表时， next 返回 nil。
+    如果不提供第二个参数，将认为它就是 nil。特别指出，你可以用 next(t) 来判断一张表是否是空的。
+  
+  索引在遍历过程中的次序无定义， 即使是数字索引也是这样。(如果想按数字次序遍历表，可以使用数字形式的 for)
+  当在遍历过程中你给表中并不存在的域赋值，next 的行为是未定义的。然而你可以去修改那些已存在的域。特别指出，你可以清除一些已存在的域。
+库
+    要使用这些库，C的宿主程序需要先调用一下luaL_openlibs这个函数，这样就能打开所有的标准库。 或者宿主程序也可以用 
+  luaL_requiref分别打开这些库：
+  luaopen_base      (基础库)， 
+  luaopen_package   （包管理库）， 
+  luaopen_coroutine （协程库）， 
+  luaopen_string    （字符串库）， 
+  luaopen_utf8      （UTF8 库）， 
+  luaopen_table     （表处理库）， 
+  luaopen_math      （数学库）， 
+  luaopen_io        （I/O 库）， 
+  luaopen_os        （操作系统库）， 
+  luaopen_debug     （调试库）。 
+  这些函数都定义在 lualib.h 中。
+  所有的库都是直接用 C API 实现的，并以分离的 C 模块形式提供。
+ 
+模块
+  包管理库提供了从Lua中加载模块的基础库。只有导出函数直接放在全局环境中：require。所有其它的部分都导出在表package中。
+
+  require (modname)
+        加载一个模块。这个函数首先查找package.loaded表， 检测modname是否被加载过。如果被加载过，require返回 
+    package.loaded[modname] 中保存的值。 否则，它试着为模块寻找加载器 。
+        require 遵循 package.searchers 序列的指引来查找加载器。如果改变这个序列，我们可以改变 require 如何查找
+    一个模块。 下列说明基于 package.searchers 的默认配置。
+        <注意>首先 require 查找 package.preload[modname] 。 如果这里有一个值，这个值(必须是一个函数)就是那个加载器。 
+    否则 require 使用 Lua 加载器去查找 package.path 的路径。 如果查找失败，接着使用 C 加载器去查找 package.cpath 
+    的路径。 如果都失败了，再尝试一体化加载器(参见 package.searchers)。
+        每次找到一个加载器，require 都用两个参数调用加载器： modname 和一个在获取加载器过程中得到的参数。(如果通过
+    查找文件得到的加载器，这个额外参数是文件名).如果加载器返回非空值， require 将这个值赋给 package.loaded[modname]。
+    如果加载器没能返回一个非空值用于赋给 package.loaded[modname]，require 会在那里设入true。无论是什么情况，require 
+    都会返回 package.loaded[modname] 的最终值。
+        如果在加载或运行模块时有错误，或是无法为模块找到加载器, require 都会抛出错误。
+  package.config
+    一个描述有一些为包管理准备的编译期配置信息的串。 这个字符串由一系列行构成：
+    /  第一行是目录分割串。 对于 Windows 默认是 '' ，对于其它系统是 '/' 。
+    ;  第二行是用于路径中的分割符。默认值是 ';' 。
+    ?  第三行是用于标记模板替换点的字符串。 默认是 '?' 。
+    !  第四行是在 Windows 中将被替换成执行程序所在目录的路径的字符串。 默认是 '!' 。
+    -  第五行是一个记号，该记号之后的所有文本将在构建 luaopen_ 函数名时被忽略掉。 默认是 '-'。
+    
+  package.cpath
+    这个路径被 require 在 C 加载器中做搜索时用到。
+      Lua 用和初始化 Lua 路径 package.path 相同的方式初始化 C 路径 package.cpath 。
+      它会使用环境变量 LUA_CPATH_5_3 或 环境变量 LUA_CPATH 初始化。 要么就采用 luaconf.h 中定义的默认路径。
+    /usr/local/lib/lua/5.2/?.so;/usr/local/lib/lua/5.2/loadall.so;./?.so
+
+  package.path
+    这个路径被 require 在 Lua 加载器中做搜索时用到。
+    在启动时，Lua 用环境变量 LUA_PATH_5_3 或环境变量 LUA_PATH 来初始化这个变量。 或采用 luaconf.h 中的默认路径。
+     环境变量中出现的所有 ";;" 都会被替换成默认路径。
+    /usr/local/share/lua/5.2/?.lua;/usr/local/share/lua/5.2/?/init.lua;/usr/local/lib/lua/5.2/?.lua;/usr/local/lib/lua/5.2/?/init.lua;./?.lua
+  
+  package.loadlib (libname, funcname)
+    让宿主程序动态链接C库libname 。
+      当 funcname 为 "*"， 它仅仅连接该库，让库中的符号都导出给其它动态链接库使用。
+      否则，它查找库中的函数 funcname ，以 C 函数的形式返回这个函数。因此，funcname 必须遵循原型 lua_CFunction
+    这是一个低阶函数。 它完全绕过了包模块系统。 和 require 不同， 它不会做任何路径查询，也不会自动加扩展名。
+    libname 必须是一个 C 库需要的完整的文件名，如果有必要，需要提供路径和扩展名。 funcname 必须是 C 库需要的准确名字 
+     
+  package.preload
+    保存有一些特殊模块的加载器 （参见 require）。
+    这个变量仅仅是对真正那张表的引用； 改变这个值并不会改变 require 使用的表。
+
+  package.loaded
+    用于require控制哪些模块已经被加载的表。当你请求一个modname模块，且package.loaded[modname]不为假时，require简单返回储存在内的值。
+    这个变量仅仅是对真正那张表的引用;改变这个值并不会改变require使用的表。
+
+  package.searchers
+    用于 require 控制如何加载模块的表。
+      这张表内的每一项都是一个 查找器函数。当查找一个模块时，require按次序调用这些查找器，并传入模块名(require 的参数)
+    作为唯一的一个参数。 此函数可以返回另一个函数(模块的 加载器)加上另一个将传递给这个加载器的参数。或是返回一个描述
+    为何没有找到这个模块的字符串.
+      Lua 用四个查找器函数初始化这张表。
+      第一个查找器就是简单的在 package.preload 表中查找加载器。
+      第二个查找器用于查找Lua库的加载库。它使用储存在package.path中的路径来做查找工作。查找过程和函数package.searchpath描述的一致。
+      第三个查找器用于查找C库的加载库。 它使用储存在package.cpath中的路径来做查找工作。同样，查找过程和函数package.searchpath描述的一致。 
+      例如，如果 C 路径是这样一个字符串
+        "./?.so;./?.dll;/usr/local/?/init.so"
+      查找器查找模块 foo 会依次尝试打开文件 ./foo.so，./foo.dll， 以及 /usr/local/foo/init.so。
+      一旦它找到一个 C 库， 查找器首先使用动态链接机制连接该库。然后尝试在该库中找到可以用作加载器的 C 函数。 {
+      这个 C 函数的名字是 "luaopen_" 紧接模块名的字符串，其中字符串中所有的下划线都会被替换成点。
+      此外，如果模块名中有横线， 横线后面的部分（包括横线）都被去掉。 例如，如果模块名为 a.b.c-v2.1， 函数名就是
+      luaopen_a_b_c。}
+      
+      第四个搜索器是　一体化加载器。 它从 C 路径中查找指定模块的根名字。 例如，当请求 a.b.c时， 它将查找a这个 C 库。
+      如果找得到，它会在里面找子模块的加载函数。 在我们的例子中，就是找　luaopen_a_b_c。 利用这个机制，
+      可以把若干 C 子模块打包进单个库。每个子模块都可以有原本的加载函数名。
+
+      除了第一个(预加载)搜索器外，每个搜索器都会返回 它找到的模块的文件名。 这和 package.searchpath 的返回值一样。 第一个搜索器没有返回值。
+
+  package.searchpath (name, path [, sep [, rep]])
+    在指定 path 中搜索指定的 name 。
+    路径是一个包含有一系列以分号分割的 模板 构成的字符串。 对于每个模板，都会用 name 替换其中的每个问号
+    且将其中的 sep(默认是点) 替换为 rep(默认是系统的目录分割符)。 然后尝试打开这个文件名。
+    例如，如果路径是字符串
+        "./?.lua;./?.lc;/usr/local/?/init.lua"
+    搜索 foo.a　这个名字将 依次尝试打开文件 ./foo/a.lua　， ./foo/a.lc　，以及 /usr/local/foo/a/init.lua。
+    返回第一个可以用读模式打开(并马上关闭该文件)的文件的名字。 如果不存在这样的文件，返回 nil 加上错误消息。 
+    (这条错误消息列出了所有尝试打开的文件名。)
+Lua弱引用table
+  一个弱表是一个表，它的元素是弱引用。垃圾收集器忽略弱引用。换句话说，如果对象的唯一引用是弱引用，那么垃圾收集器将收集该对象。
+  弱表可以具有弱键，弱值或两者。
+  具有较弱值的表允许收集其值，但会阻止收集其密钥。
+  具有弱键和弱值的表格允许集合键和值。
+  在任何情况下，如果收集密钥或值，则将整个对从表中移除。
+  __mode: 包含字符'k'的字符串，则表中的键很弱;  'v'表中的值很弱。
+  具有弱键和强值的表格也被称为ephemeron表格。在ephemeron表中，只有在密钥可达的情况下才认为该值可访问。特别是，如果只有一个键的引用通过它的值，那么这个键被删除。
+  只有具有显式构造的对象才会从弱表中删除。值（如数字和亮C函数）不受垃圾回收处理，因此不会从弱表中删除(除非收集其相关值)。虽然字符串需要垃圾回收，但它们没有明确的构造，因此不会从弱表中删除。
+  
+1.  Lua弱引用要处理的问题
+    在有些特殊情况下，垃圾收集器是无法准确的判断是否应该将当前对象清理。
+    这样就极有可能导致很多垃圾对象无法被释放。
+    为了解决这一问题，就需要Lua的开发者予以一定程度上的配合。
+    比如，当某个table对象被存放在容器中，而容器的外部不再有任何变量引用该对象，对于这样的对象，Lua的垃圾收集器是不会清理的，
+    因为容器对象仍然引用着他。如果此时针对该容器的应用仅限于查找，而不是遍历的话，那么该对象将永远不会被用到。
+    事实上，对于这样的对象我们是希望Lua的垃圾收集器可以将其清理掉的。见如下代码：
+    a = {}
+    key = {}
+    a[key] = 1
+    key = {}
+    a[key] = 2
+    collectgarbage()
+    for k,v in pairs(a) do
+        print(v)
+    end    
+    --输出1和2
+
+        在执行垃圾收集之后，table a中的两个key都无法被清理，但是对value等于1的key而言，如果后面的逻辑不会遍历table a的话，
+    那么我们就可以认为该对象内存泄露了。在Lua中提供了一种被称为弱引用table的机制，可以提示垃圾收集器，如果某个对象，
+    如上面代码中的第一个table key，只是被弱引用table引用，那么在执行垃圾收集时可以将其清理。
+    Lua中的弱引用表提供了3中弱引用模式，
+        即key是弱引用、
+        value是弱引用，
+        以及key和value均是弱引用。
+    不论是哪种类型的弱引用table，只要有一个key或value被回收，那么它们所在的整个条目都会从table中删除。
+
+2.  Lua弱引用的实现
+    一个table的弱引用类型是通过其元表的__mode字段来决定的。
+    1. 如果该值为包含字符"k"，那么table就是key弱引用，
+    2. 如果包含"v"，则是value若引用，
+    3. 如果两个字符均存在，就是key/value弱引用。
+    见如下代码：
+
+    a = {}
+    b = {__mode = "k"}
+    setmetatable(a,b)
+    key = {}
+    a[key] = 1
+    key = {}
+    a[key] = 2
+    collectgarbage()
+    for k,v in pairs(a) do
+        print(v)
+    end    
+    --仅仅输出2
+    最后需要说明的是，Lua中的弱引用表只是作用于table类型的变量，对于其他类型的变量，如数值和字符串等，弱引用表并不起任何作用。
+3. 备忘录(memoize)函数：
+    用"空间换时间"是一种通用的程序运行效率优化手段，比如：对于一个普通的Server，它接受到的请求中包含Lua代码，
+    每当其收到请求后都会调用Lua的loadstring函数来动态解析请求中的Lua代码，如果这种操作过于频率，就会导致Server
+    的执行效率下降。要解决该问题，我们可以将每次解析的结果缓存到一个table中，下次如果接收到相同的Lua代码，
+    就不需要调用loadstirng来动态解析了，而是直接从table中获取解析后的函数直接执行即可。这样在有大量重复Lua代码的情况下，
+    可以极大的提高Server的执行效率。反之，如果有相当一部分的Lua代码只是出现一次，那么再使用这种机制，
+    就将会导致大量的内存资源被占用而得不到有效的释放。在这种情况下，如果使用弱引用表，不仅可以在一定程度上
+    提升程序的运行效率，内存资源也会得到有效的释放。见如下代码：
+
+    local results = {}
+    setmetatable(results,{__mode = "v"}) --results表中的key是字符串形式的Lua代码
+    function mem_loadstring(s)
+        local res = results[s]
+        if res == nil then
+            res = assert(loadstring(s))
+            results[s] = res
+        end
+        return res
+    在上面的代码示例中，第一个key在被存放到table a之后，就被第二个key的定义所覆盖，因此它的唯一引用来自key弱引用表。
+    
+错误和异常
+    我们要尽可能的防止错误的发生，Lua经常作为扩展语言嵌入在别的应用中，所以不能当错误发生时简单的崩溃或者退出。
+  相反，当错误发生时Lua结束当前的chunk并返回到应用中。
+
+    当函数遇到异常有两个基本的动作：返回错误代码或者抛出错误。选择哪一种方式，没有固定的规则，不过
+  基本的原则是：对于程序逻辑上能够避免的异常，以抛出错误的方式处理之，否则返回错误代码。
+
+数学库
+  math.abs (x)         返回 x 的绝对值。(integer/float)
+  math.ceil (x)        返回不小于 x 的最小整数值。
+  math.floor (x)       返回不大于 x 的最大整数值。
+  math.max (x, ···)    返回参数中最大的值， 大小由 Lua 操作 < 决定。 (integer/float)
+  math.maxinteger      最大值的整数。
+  math.min (x, ···)    返回参数中最小的值， 大小由 Lua 操作 < 决定。 (integer/float)
+  math.mininteger      最小值的整数。
+  math.modf (x)        返回 x 的整数部分和小数部分。 第二个结果一定是浮点数。
+  math.tointeger (x)   如果 x 可以转换为一个整数， 返回该整数。 否则返回 nil。
+  math.type (x)        如果 x 是整数，返回 "integer"， 如果它是浮点数，返回 "float"， 如果 x 不是数字，返回 nil。

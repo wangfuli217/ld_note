@@ -1,0 +1,480 @@
+################### 一些lua文档总结 ###################
+luci/model/uci.lua       对uci的扩展进行了封装，apply、delete_all、section、tset、get_bool、get_list、get_first
+                                               set_list、substate、load、unload
+luci/model/network.lua   对network部分的interface network和protocol进行了封装
+luci/model/firewall.lua  对firewall的zones,rule redirect进行了封装
+luci/model/ipkg.lua      对ipkg进行了封装；最后只有info、status、install、installed、remove、update、upgrade
+                                           list_all、list_installed、find、overlay_root和compare_versions几个接口
+luci/model/network       对dhcpv6、proto_ppp.lua、proto_4x6.lua、proto_6x4.lua、proto_aiccu.lua、proto_hnet.lua协议注册
+
+luci/sys/iptparser.lua   对iptables命令进行解析
+
+luci/cbi.lua             将UCI配置文件解析成HTML表单
+                         将HTML表单解析成对应的UCI配置文件
+
+luci/sys.lua             系统管理；封装系统命令；设置和返回系统配置
+    call    调用命令                                                 -- os.execute(...) 
+    mounts {fs、blocks、used、available、percent、mountpoint}        -- df
+    hostname(newname) 返回和配置hostname                             -- /proc/sys/kernel/hostname
+    httpget(url, stream, target) 下载指定网页内容到指定流或者target  -- wget
+    reboot                                                           -- os.execute("reboot >/dev/null 2>&1")
+    syslog                                                           -- luci.util.exec("logread")
+    dmesg                                                            -- luci.util.exec("dmesg")
+    uniqueid                                                         -- /dev/urandom
+    uptime                                                           -- nixio.sysinfo().uptime
+    process.list()         -- /bin/busybox top -bn1
+    process.info(key)      -- {uid = nixio.getuid(), gid = nixio.getgid()}
+    process.setgroup(gid)  -- nixio.setgid(gid)
+    process.setuser(uid)   -- nixio.setuid(uid)
+    process.signal         -- nixio.kill
+    
+    user.getpasswd(username)
+    user.checkpasswd(username, pass)
+    user.setpasswd(username, password)
+    
+    init.names()
+    init.index(name)
+    init.enabled(name)
+    init.enable(name)
+    init.disable(name)
+    init.start(name)
+    init.stop(name)
+
+fs.lua : The lua file system library.
+http.lua : LuCI Web Framework high-level HTTP functions
+ip.lua : LuCI IP calculation library.
+json.lua : LuCI JSON-Library
+jsonrpc.lua : an implementation of a json remote procedure call protocol similar to XML-RPC.
+
+
+################### 调试手段总结 ###################
+https://wiki.openwrt.org/doc/techref/luci
+
+1. /usr/lib/lua/luci/log.lua 实现字符和表数据输出
+2. /www/cgi-bin/luci.dbg     实现页面复现是调试
+   https://192.168.101.1/cgi-bin/luci.dbg//admin/system/flashops
+   sh /var/luci.req          -- luci.req 为uhttpd执行/www/cgi-bin/luci前设置的环境变量
+3. lua -i -l luci.sys -l luci.util -l i18n -l luci.tools.firewall  -- 交互式对nixio和ubus、uci模块进行调试
+   for k,v in pairs(package.loaded) do -- 对当前已加载模块可以看得更清楚点
+   log = require "log"                 -- 加载log模块
+   log.print_r(data)                   -- 调用log模块内的print_r函数 -> /var/luci.output
+4. lua -l luci.sys -e 'for k, v in pairs(luci.sys.getenv()) do print(k, v) end' -- 命令行式调试lua
+
+
+template.lua: 一个模板分析程序，支持包含、转换、lua代码块等等。可以视其为编译程序或者解析程序。
+
+################### 网上收集知识点 ###################
+1. LUCI的跳转方式
+    其实这个会看源码的都不难找出来，这里就当是为大家省点事儿吧，上代码：
+    local http = require 'luci.http'
+    local dsp = require 'luci.dispatcher'
+    http.redirect(dsp.build_url("/admin/system/wifitest")) -- 支持全路径参数
+    =url("admin", "testnet", "control")                    -- 支持路径节点序列参数
+    
+    entry(.target=template("test/form"))                  直接跳转
+    entry(.target=call({luci.template.render("admin_system/flashops", { 间接跳转
+        reset_avail   = supports_reset(),
+        upgrade_avail = supports_sysupgrade()
+    })}))
+    
+
+    http和dsp是分别加载LUCI的HTTP处理类和基础类
+    最后调用HTTP处理类中的重定向函数redirect()来进行跳转，而为了URL格式规范，所以这里使用了基础类中的build_url()函数来生成规范的URL路径。
+
+2. LUCI 运行Linux命令的方法
+LUCI作为openwrt的内嵌CGI处理框架，它有自己的方法去的直接执行Linux的一些命令，以达到一些直接操控的目的。
+在我接触期间，发现有三种方法可以执行Linux的命令：
+    使用io.execute()：
+        io.execute("mkdir /data/test") -- 该函数一次只能执行一条Linux命令，好处是直接就可以用，而不用先加载类库
+    使用luci.util.exec()：
+        luci.util.exec("mkdir /data/test") -- 该函数也是一次只能执行一条Linux命令，这个是依赖于LUCI里的util的类，可以像这样直接写，也可以先加载类库，如下：
+        local util = require 'luci.util'; util.exec("mkdir /data/test") 
+    调用system模块里的fork_exec()函数
+        local sys = require 'luci.controller.admin.system'; sys.fork_exec("mkdir /data/test; chmod 0755 /data/test")
+        -- 该函数可以多句代码进行连续执行，或是你想做一些连贯操作的话，那么这个函数我觉得还是挺好用的。
+    io.popen(command)
+        
+3. LUA语言的UCI操作文档
+https://htmlpreview.github.io/?https://raw.githubusercontent.com/openwrt/luci/master/documentation/api/modules/luci.model.uci.html
+    Uci:get (config, section, option)    -- 接口获取一个section或option
+        Get a section type or an option
+    Parameters
+        config: UCI config
+        section: UCI section name
+        option: UCI option (optional)
+    Return value:
+        UCI value
+    3.1 section若是只有类型（如：config interface）第二个参数就是section的类型，如interface
+    3.2 section若是有name名（如：config interface 'testnets'），则第二个参数则写testnets，即section的name名。
+    3.3 若是多有个相同类型的section存在，获取其中的某个section需要获取到单个interface的ID，这个ID的获取若是用LUCI的传统方式则能够通过每一行的控件或是tr的标签id中获取。
+    3.4 多个同类型的section个人建议使用uci:foreach(config, sectionType, callbackFun)接口
+    Uci:foreach (config, type, callback)
+    Call a function for every section of a certain type.
+    Parameters
+        config: UCI config
+        type: UCI section type
+        callback: Function to be called
+    Return value:
+        Boolean whether operation succeeded
+
+   uci:section(config, sectionType, sectionName/nil, {'...'})接口是建立新的section节点，该节点的参数有四个，
+   第一个参数是config文件的文件名，
+   第二个参数是section的type名，
+   第三个参数是section的name名（若是没有，可为空），
+   第四个参数是具体的配置项内容；
+   
+   cbi:delete(config, section[, option])接口。
+   该接口与前面获取section的uci:get()接口的使用方法一致。
+   
+   section/option进行操作之后都需要commit才是完成了操作。
+   而LUCI里也提供了uci:commit(config)接口，在LUCI里需要先保存再提交，即应该先调用uci:save(config)接口，再调用commit接口。
+   
+   
+   
+技巧一：在luci页面中执行shell命令
+    方法一：output = luci.sys.exec
+       output = luci.sys.exec("命令")
+    然后可以声明一个变量将标准输出内容保存起来，如下
+    local str = luci.sys.exec("netstat -nlp")
+    lua -l luci.sys -e ' stdout = luci.sys.exec("netstat -anp")  print(stdout)' -- stdout 为正常输出内容
+    lua -l luci.sys -e ' stderr = luci.sys.exec("netstat -y")    print(stderr)' -- stderr 为异常输出内容
+
+    方法二：status = luci.sys.call("命令")
+       status = luci.sys.call("命令") -- 返回命令执行的状态码，同时将正常输出和异常输出重定向到前台
+    lua -l luci.sys -e ' status = luci.sys.call("netstat -anp")  print(status)' -- status为正常状态0
+    lua -l luci.sys -e ' status = luci.sys.call("netstat -y")    print(status)' -- status为异常状态1
+    同方法一用法一样，区别在于用它可以获得错误输出流
+    
+    方法三：fd = io.popen("netstat -y") 
+    lua -l luci.sys -e ' fd = io.popen("netstat -y") while true do ln = fd:read("*l") 
+        if not ln then break end print(ln) end fd:close() '  -- fd 为正常输出内容描述符
+    lua -l luci.sys -e ' fd = io.popen("netstat -anp") while true do ln = fd:read("*l") 
+        if not ln then break end print(ln) end fd:close() '  -- fd 为异常输出内容描述符
+     
+技巧二：获取UCI记录 -- 对多个相同类型，且数量不定的，无法处理
+    可以直接通过技巧一执行shell命令来达到目的，如下例获取路由器LAN口的IP地址
+    local router_ip = luci.sys.exec("uci get network.lan.ipaddr")
+    lua -l luci.sys -e ' print(luci.sys.exec("uci get network.lan.ipaddr") )'
+    顺便再提一下uci shell命令的写法，如上面的例子就是获取 /etc/config/network 文件下面 option名为lan 下面的ipaddr属性，UCI配置应为如下格式
+    config interface 'loopback'
+        option ifname 'lo'
+        option proto 'static'
+        option ipaddr '127.0.0.1'
+        option netmask '255.0.0.0'
+    
+    config globals 'globals'
+        option ula_prefix 'fd25:5be0:231f::/48'
+    
+    config interface 'lan' 
+        option ifname 'eth0.1'
+        option force_link '1'
+        option type 'bridge'
+        option proto 'static'
+        option ipaddr '192.168.1.1'
+        option netmask '255.255.255.0'
+        option ip6assign '60'
+        option macaddr '00:88:a1:e4:f1:a3'
+    
+    config interface 'wan'
+        option ifname 'eth0.2'
+        option proto 'dhcp'
+        option macaddr '00:88:a1:e4:f1:a8'
+    但是对于这样的UCI文件需要加上下标才能获得到结果
+    config ssr
+        option gfwlist 'china-banned'
+        option safe_dns_tcp '0'
+        option enabled '0'
+        option server '1.2.3.4'
+        option server_port '443'
+        option password 'Alex666666'
+        option method 'rc4-md5'
+        option protocol 'origin'
+        option obfs 'plain'
+    可以注意到 network的config行是两个参数，而上面这种格式只有一个参数，可以配置多个不同的config，所以要加上下标才能访问，如下
+       local vt_server_addr=$(uci get ssr.@ssr[0].server)
+    同理我们可以获取列表型UCI记录的数据，如下
+    config main_server
+    	option server_weight '10'
+    	option server_ip '1.2.3.4'
+    	option server_port '443'
+    	option server_name 'JP1'
+    
+    config backup_server
+    	option server_name 'JP2'
+    	option server_ip '2.2.2.2'
+    	option server_port '8038'
+    
+    config backup_server
+    	option server_name 'JP3'
+    	option server_ip '3.3.3.3'
+    	option server_port '443'
+    
+    config backup_server
+    	option server_name 'JP4'
+    	option server_ip '4.4.4.4'
+    	option server_port '443'
+    那么我们获得第二个备用服务器的ip就可以通过修改下标实现
+        local bk_server_2=$(uci get haproxy.@backup_server[1].server_ip)
+
+技巧四：判断某个服务是否在运行状态
+        方法一：通过查询服务名的pid，捕获错误输出来判断。原理就是根据服务的名字查询这个服务的pid，
+    如果查不到就会输出错误流，否则输出标准流，可以通过检测是否有错误流输出判断该程序是否已经运行
+        local ssr_redir_on = (luci.sys.call("pidof ssr-redir > /dev/null") == 0)  
+        if ssr_redir_on == 0 then   -- lua 语言中数值0和1都是逻辑正确判断   
+            ...  
+        else  
+            ...  
+        end  
+    
+        方法二：查询相关端口是否被监听，适用于监听端口的程序,与方法一相反，这次是通过捕捉标准流输出是否有
+    内容判断服务是否开启，如果想同时判断端口和服务名，只需执行两次grep即可，一次端口号，一次服务名
+        local red_on = string.len(luci.sys.exec("netstat -nlp | grep :" .. listen_port))>0  -- 最后冒号
+        if red_on ~= 0 then    
+            ...  
+        else  
+            ...  
+        end
+        
+技巧五：通过HTML修改提示文字的颜色
+    我们经常需要在translate中填写菜单的名字或者提示语，可以通过普通的HTML标签来添加超链接，换行，字体颜色大小等等，如下
+    local state_msg = "<b><font color=\"green\">" .. translate("Running") .. "</font></b>"
+    m=Map("redsocks2",
+          translate("Redsocks2 - General Settings"),
+          translatef("A modified version of redsocks.Beside the basic function of redsocks,it can redirect TCP connections which are blocked via proxy automatically without a blacklist.") .. "<br><br>状态 - " .. state_msg)
+    
+    
+    lua -l luci.i18n -e ' tRunning = luci.i18n.translate("Running") print(tRunning) '
+    lua -l luci.i18n -e ' tRunning = luci.i18n.translatef("%s", "Running") print(tRunning) '
+    
+    lua -l luci.i18n -e ' tRunning = luci.i18n.stringf("%s", "Running") print(tRunning) '
+    lua -l luci.i18n -e ' tRunning = luci.i18n.string("Running") print(tRunning) '
+
+    https://192.168.101.1/cgi-bin/luci/admin/network/dhcp
+    luci\model\cbi\admin_network\dhcp.lua  -- 支持<abbr>DHCP</abbr> 
+    
+技巧六：在输入框的下面添加提示文字
+    只需要在声明空间的时候在第四个参数上使用translate就行了，如下
+    m=Map("redsocks2",
+          translate("Redsocks2 - General Settings"),
+          translatef("A modified version of redsocks.Beside the basic function of redsocks,it can redirect TCP connections which are blocked via proxy automatically without a blacklist.") .. "<br><br>状态 - " .. state_msg)
+    s=m:section(TypedSection,
+                "redsocks2_redirect",
+                translate("Redirector Settings"))
+    
+    o=s:option(Flag,"autoproxy",
+                     translate("Enable Auto Proxy"),
+                     translate("不推荐开启")) -- 在输入框的下面添加提示文字
+    https://192.168.101.1/cgi-bin/luci/admin/network/routes
+    luci\model\cbi\admin_network\routes.lua  -- Map和option支持第四个参数
+
+技巧七：提交前自动检查格式规范
+    检查格式规范主要靠datatype属性，只要设置好就可以了如下
+    数字格式
+        o=s:option(Value,"dest_port",translate("Destination Port"))  
+        o.datatype="uinteger"  
+        o.placeholder = "53"  
+    
+    IPv4格式
+    o.datatype="ip4addr"
+
+技巧八：给输入框设置默认值
+    方式一：给输入框设置实体的默认值（可以直接用光标修改的默认值文字,上图中的"目标IP"）
+    首先数字型输入框可以这样书写，使用default属性
+        o=s:option(Value,"timeout",translate("Timeout"))  
+        o.datatype="uinteger"  
+        o.default=10  
+    文本型
+        o=s:option(Value,"interface",translate("Outgoing interface"),translate("Outgoing interface for redsocks2."))  
+        o.default='eth0.2'  
+    
+    布尔值型
+        o=s:option(Flag,"in_ttl",translate("修改入路由的TTL自动加1"))  
+        o.rmempty=false
+
+这种需要使用placeholder属性，单数注意第一种方式在"保存&应用"时会将默认值写入uci，但是这种方式却不会
+    数字型：
+        o=s:option(Value,"dest_port",translate("Destination Port"))  
+        o.datatype="uinteger"  
+        o.placeholder = "53"  
+    文本型：
+        o=s:option(Value,"dest_ip2",translate("备用DNS服务器IP"))  
+        o.datatype="ip4addr"  
+        o.placeholder = "8.8.4.4"  
+    由于使用placeholder不会将默认值写入uci，所以我们在读取uci时不要忘了添加非空判断，一般写法如下
+        local vt_server_addr=$(uci get ssr.@ssr[0].server)  
+        [ -z $vt_server_addr] && vt_server_addr="127.0.0.1"
+        
+技巧九：通过下拉框控制其他控件的显示和隐藏
+        下拉框里里面的不同选项往往代表着不同的类别，而不同的类别所需的控件往往也是不一样的，所以需要让
+    一部分控件通过下拉框的内容来控制自身是否显示，效果如下图
+在上面两张图中，通过选择"代理服务器类型"这个下拉菜单就可以控制下面许多控件的显示和隐藏,主要起作用的属性是depends：
+    首先是个很普通的下拉选择框
+        o=s:option(ListValue,"proxy_type",translate("Proxy Server Type"))  
+        o:value("shadowsocks",translate("Shadowsocks"))  
+        o:value("socks5",translate("Socks5"))  
+        o:value("direct",translate("转发流量至VPN"))  
+        o:value("campus_router",translate("破解路由器限制"))  
+    下面是被选择性隐藏的控件   {ListValue}
+        o=s:option(Flag,"udp_relay",translate("启用UDP转发"),translate("注意不能与HAProxy配合使用"))
+        o:depends({proxy_type="shadowsocks"})
+        o=s:option(Value,"username",translate("Username"),translate("Leave empty if your proxy server doesn't need authentication."))
+        o:depends({proxy_type="socks5"})
+        o=s:option(Value,"password",translate("Password"))
+        o:depends({proxy_type="shadowsocks"})
+        o:depends({proxy_type="socks5"})
+        o.password=true
+        o=s:option(Value,"interface",translate("Outgoing interface"),translate("Outgoing interface for redsocks2."))
+        o:depends({proxy_type="direct"})
+        o:depends({proxy_type="campus_router"})
+        o.rmempty='eth0.2'
+        o=s:option(Flag,"out_ttl",translate("修改出路由的TTL为64"))
+        o:depends({proxy_type="campus_router"})
+        o.rmempty=false
+        o=s:option(Flag,"in_ttl",translate("修改入路由的TTL自动加1"))
+        o:depends({proxy_type="campus_router"})
+        o.rmempty=false
+        o=s:option(Flag,"autoproxy",translate("Enable Auto Proxy"),translate("不推荐开启"))
+        o.rmempty=false
+        o:depends({proxy_type="shadowsocks"})
+        o:depends({proxy_type="socks5"})
+        o:depends({proxy_type="direct"})
+        o=s:option(Value,"timeout",translate("Timeout"))
+        o:depends({autoproxy=1})
+        o.datatype="uinteger"
+        o.rmempty=10
+    
+    https://192.168.101.1/cgi-bin/luci/admin/network/dhcp
+    luci\model\cbi\admin_network\dhcp.lua  -- nonwildcard 通过   {Flag}
+    
+    p_switch = s:taboption("general", Button, "_switch")         {Button}
+    p_switch.title      = translate("Really switch protocol?")
+    p_switch.inputtitle = translate("Switch protocol")
+    p_switch.inputstyle = "apply"
+    
+    local _, pr
+    for _, pr in ipairs(nw:get_protocols()) do -- local nw = require "luci.model.network"
+    	p:value(pr:proto(), pr:get_i18n())     -- pr:proto()协议名称-/etc/protocol第一行  pr:get_i18n()协议名称-/etc/protocol第三行
+    	if pr:proto() ~= net:proto() then
+    		p_switch:depends("proto", pr:proto())
+    	end
+    end
+    
+技巧十："更多选项"功能
+    "显示更多"的单选框是个普通单选框
+        s:option(Flag, "more", translate("More Options"),  
+            translate("Options for advanced users")
+    被隐藏的控件如下 
+        safe_dns = s:option(Value, "safe_dns", translate("Safe DNS"),
+            translate("推荐使用OpenDNS"))
+        safe_dns.datatype = "ip4addr"
+        safe_dns.optional = false
+        safe_dns.placeholder = "208.67.220.220"
+        safe_dns:depends("more", "1")
+        
+        safe_dns_port = s:option(Value, "safe_dns_port", translate("Safe DNS Port"),
+            translate("Foreign DNS on UDP port 53 might be polluted"))
+        safe_dns_port.datatype = "range(1,65535)"
+        safe_dns_port.placeholder = "443"
+        safe_dns_port.optional = false
+        safe_dns_port:depends("more", "1")
+    "1"代表单选框被勾上，"0"代表没有勾上
+    
+技巧十一：按钮控件
+    有时候经常需要在页面上放置几个按钮，点击时候可以执行一段shell脚本，写法如下
+        m = Map("gfwlist", translate("Domain Lists Settings"),translate("xxxx"))  
+        s = m:section(TypedSection, "params", translate("Settings"))  
+        
+        button_update_gfwlist = s:option (Button, "_button_update_gfwlist", translate("更新GFWList"))   
+        local gfw_count = luci.sys.exec("grep -c '' /etc/gfwlist/china-banned")  
+        button_update_gfwlist.inputtitle = translate ( "当前规则数目" .. gfw_count .. ",点击更新")  
+        button_update_gfwlist.inputstyle = "apply"   
+        function button_update_gfwlist.write (self, section, value)  -- 处理按下消息
+            luci.sys.call ( "/etc/update_gfwlist.sh > /dev/null")  
+        end   
+    
+    其中 grep -c '' 文件路径 的作用是返回一个文件的行数
+    /etc/update_gfwlist.sh就是我们要执行的shell脚本
+    在这里要特别注意，调用脚本之后，由于脚本内可能会有echo等语句导致执行脚本会有输出，
+    而有输出的话会导致当前luci页面崩溃，所以我们必须把所有的输出去掉，方法就是 > /dev/null
+    该按钮在点击之后会呈现和点击了"保存&应用"一样的效果
+
+技巧十二：多标签页
+        对于功能比较丰富的软件单个配置页面可能并不够用，需要多个页面来配置不同的业务，效果如下图
+        在处理这种配置页时，首先需要把所有页面的model的cbi放到同一个文件夹下，比如我有两个页面page1.lua
+    和page2.lua,那么他们两个都应该放到/usr/lib/lua/luci/model/cbi/项目名/ 目录下，然后修改
+    /usr/lib/lua/luci/controller/项目名.lua 如下
+
+    module("luci.controller.项目名", package.seeall)  
+    function index()  
+        if not nixio.fs.access("/etc/config/项目名") then  
+            return  
+        end  
+        entry({"admin", "services", "项目名"},alias("admin", "services", "项目名","page1"),_("项目名")).dependent = true  
+        entry({"admin", "services", "项目名","page1"}, cbi("项目名/page1"),_("标签1标题"),10).leaf = true  
+        entry({"admin", "services", "项目名","page2"}, cbi("项目名/page2"),_("标签2标题"),20).leaf = true  
+    end  
+    其中alias表示的是该项目进去之后默认应该显示哪一页，dependent = true表示该行的model是一个独立的菜单，
+    而 .leaf = true则表示该行的model是一个子页，依附于上面 dependent的model，而10,20这两个参数代表不通
+    子页的左右位置，该数值越大越靠右。 
+    
+    luci\controller\firewall.lua
+    https://192.168.101.1/cgi-bin/luci/admin/network/firewall/zones
+    
+    page = entry({"admin", "network", "network"}, arcombine(cbi("admin_network/network"), cbi("admin_network/ifaces")), _("Interfaces"), 10)
+    page.leaf   = true
+    page.subindex = true
+    
+    if page.inreq then
+        uci:foreach("network", "interface",
+            function (section)
+                local ifc = section[".name"]
+                if ifc ~= "loopback" then
+                    entry({"admin", "network", "network", ifc},
+                    true, ifc:upper())
+                end
+            end)
+    end
+
+技巧十三：HTML混合页面 -- 模板
+
+技巧十四：将中文翻译打包进luci的ipk安装包中
+        OpenWrt luci的翻译模块使用的是i18n系统，用于翻译的文件位于/usr/lib/lua/luci/i18n/ 目录下所有的.lmo文件，
+    问题是这个lmo文件是编译后的二进制文件而不是文本文件，所以没法像其他lua文件一样可以直接修改其源码。只能在编译
+    ipk包之前进行修改并编译打包。
+    
+    lmo文件的源是lo文件，lo文件的写法一般是这样的
+        msgid "Autoexpire, Default unit is seconds."  
+        msgstr "自动重连间隔时间, 默认单位: 秒"  
+        
+        msgid "Blog"  
+        msgstr "博客"  
+        
+        msgid "Check Kcptun process per minute."  
+        msgstr "每分钟检查 Kcptun 进程"  
+        
+        msgid "Clear Client Log"  
+        msgstr "清理客户端日志"  
+        
+        msgid "Clear Monitor Log"  
+        msgstr "清理监控日志"
+    即msgid后面跟的是model页面中translate("")中的原版内容
+    msgstr是根据相关语言翻译后的内容。
+        一般lmo文件的文件名会是项目名.zh-cn.lmo这种形式，其中中间的这个.zh-cn就是代表着这个lmo将会在系统设置
+    为何种语言时被加载，zh-cn就是汉语。
+        但是如何把.lo格式的文本文件编译成.lmo的二进制文件呢，又如何打包进ipk安装包并在安装时安装到OP系统中去，
+    关键就在于Makefile文件
+    https://github.com/AlexZhuo/luci-app-kcptun/tree/master/tools/po2lmo
+    define Build/Prepare  
+        $(foreach po,$(wildcard ${CURDIR}/i18n/zh-cn/*.po), \  
+            po2lmo $(po) $(PKG_BUILD_DIR)/$(patsubst %.po,%.lmo,$(notdir $(po)));)  
+    endef
+    
+    define Package/$(PKG_NAME)/install  
+        $(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n  
+        $(INSTALL_DATA) $(PKG_BUILD_DIR)/*.lmo $(1)/usr/lib/lua/luci/i18n/  
+    endef
+
+技巧十五：自动刷新网页
+    自动刷新网页，刷新间隔由外部参数interval决定，就是/etc/config/addModel配置文件中类型为argumen的interval值
+    <meta http-equiv="refresh" content="<%=intervals>">
+

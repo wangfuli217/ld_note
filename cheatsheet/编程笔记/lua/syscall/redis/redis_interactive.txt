@@ -1,0 +1,94 @@
+一个典型的 Lua 脚本执行步骤如下：
+1. 检查脚本是否执行过，没执行过使用脚本的 sha1 校验和生成一个 Lua 函数；
+2. 为函数绑定超时、错误处理勾子；
+3. 创建一个伪客户端，通过这个伪客户端执行 Lua 中的 Redis 命令；
+4. 处理伪客户端的返回值，最终返回给客户端；
+
+            发送命令请求：EVAL "return redis.call('DBSIZE') 0"
+Caller---------------------------------------------------------> Redis
+            为脚本EVAL "return redis.call('DBSIZE') 0"创建lua函数
+Redis ---------------------------------------------------------> lua
+            绑定超时处理钩子
+Redis ---------------------------------------------------------> lua
+            执行脚本函数
+Redis ---------------------------------------------------------> lua
+             执行redis.call('DBSIZE')
+FakeClient  <--------------------------------------------------- lua
+             伪客户端向服务器发送DBSIZE请求
+FakeClient  ----------------------------------------------------> Redis
+             服务器将DBSIZE的结果(Redis的回复)返回给伪客户端
+FakeClient  <---------------------------------------------------  Redis
+             将命令回复转换为Lua值并返回给lua环境
+FakeClient  ----------------------------------------------------> lua
+             返回函数执行结果一个lua值
+Redis       <---------------------------------------------------- lua
+            将Lua值转化为Redis回复并将改回复返回给客户端
+Caller<--------------------------------------------------------- Redis
+
+虽然 Lua 脚本使用的是伪客户端，但 Redis 处理它会跟普通客户端一样，也会将执行的 Redis 命令进行 rdb aof 主从复制等操作。
+
+
+使用：Lua 脚本的使用可以通过 Redis 的 EVAL 和 EVALSHA 命令。
+    EVAL 适用于单次执行 Lua 脚本，执行脚本前会由脚本内容生成 sha1 校验和，在函数表内查询
+函数是否已定义，如未定义执行成功后 Redis 会在全局表里缓存这个脚本的校验和为函数名，后续
+再次执行此命令就不会再创建新的函数了。
+    而要使用 EVALSHA 命令，就得先使用 SCRIPT LOAD 命令先将函数加载到 Redis，Redis 会返
+回此函数的 sha1 校验和， 后续就可以直接使用这个校验和来执行命令了。
+
+以下是使用上述命令的例子：
+127.0.0.1:6379> EVAL "return 'hello'" 0 0
+"hello"
+
+127.0.0.1:6379> SCRIPT LOAD "return redis.pcall('GET', ARGV[1])"
+"20b602dcc1bb4ba8fca6b74ab364c05c58161a0a"
+
+127.0.0.1:6379> EVALSHA 20b602dcc1bb4ba8fca6b74ab364c05c58161a0a 0 test
+"zbs"
+
+    EVAL 命令的原型是 EVAL script numkeys key [key ...] arg [arg ...]，在 Lua 函数内部可以
+使用 KEYS[N] 和 ARGV[N] 引用键和参数，需要注意 KEYS 和 ARGV 的参数序号都是从 1 开始的。
+还需要注意在 Lua 脚本中，Redis 返回为空时，结果是 false，而 不是 nil；
+
+
+Lua 脚本实例
+下面写几个 Lua 脚本的实例，用来介绍语法的，仅供参考。
+1. Redis 里 hashSet A 的 字段 B 的值是 C，取出 Redis 里键为 C 的值。
+// 使用: EVAL script 2 A B
+local tmpKey = redis.call('HGET', KEYS[1], KEYS[2]); 
+return redis.call('GET', tmpKey); 
+
+2. 一次 lpop 出多个值，直到值为 n，或 list 为空(pipeline 也可轻易实现)；
+// 使用: EVAL script 2 list count
+local list = {};
+local item = false;
+local num = tonumber(KEYS[2]);
+while (num > 0)
+do
+    item = redis.call('LPOP', KEYS[1]);
+    if item == false then
+        break;
+    end;
+    table.insert(list, item);
+    num = num - 1;
+end;
+return list;
+
+3. 获取 zset 内 score 最多的 n 个元素 对应 hashset 中的详细信息；
+local elements = redis.call('ZRANK', KEYS[1], 0, KEY[2]);
+local detail = {};
+
+for index,ele in elements do
+    local info = redis.call('HGETALL', ele);
+    table.insert(detail, info);
+end;
+
+return detail;
+
+注意点
+  使用 Lua 脚本，我们还需要注意：
+  要保证安全性，在 Lua 脚本中不要使用全局变量，以免污染 Lua 环境，虽然使用全局变量全报错，Lua 脚本停止执行，但还是在定义变量时添加 local 关键字。
+  要注意 Lua 脚本的时间复杂度，Redis 的单线程同样会阻塞在 Lua 脚本的执行中。
+  使用 Lua 脚本实现原子操作时，要注意如果 Lua 脚本报错，之前的命令同样无法回滚。
+  一次发出多个 Redis 请求，但请求前后无依赖时，使用 pipeline，比 Lua 脚本方便。
+
+

@@ -1,0 +1,536 @@
+CONFIG_MTD=y
+CONFIG_MTD_PARTITIONS=y
+CONFIG_MTD_CMDLINE_PARTS=y
+CONFIG_MTD_CHAR=y
+CONFIG_MTD_BLOCK=y
+CONFIG_MTD_NAND=y
+CONFIG_MTD_NAND_COMCERTO=y
+CONFIG_MTD_UBI=y
+
+dnsmasq_MAKE_OPT = \
+	$(call configure_target,dnsmasq) \
+	PROGS="$(dnsmasq_PROGS)" \
+	CFLAGS="$(dnsmasq_TARGET_CFLAGS) -I$(HOST_CROSS_INCLUDE_DIR)"
+
+dnsmasq_INSTALL_OPT = \
+	PROGS="$(dnsmasq_PROGS)" \
+	INSTALLBIN="$(INSTALL)" \
+	MANPAGES="$(addsuffix.1,$(dnsmasq_PROGS))"\
+	install PREFIX="$(dnsmasq_INSTALL_DIR)/usr"
+
+dnsmasq.config: dnsmasq.patch
+	@$(MAKE_STAMP)
+
+build/linux                 source
+build/linux-board           all binaries
+build/linux-board/.config   config, not build/linux/wrs/cfg/board/board-config
+
+armv6jel-target-linux-gnueabi-gcc -g -mcpu=arm1136j-s -O2 -fomit-frame-pointer -pipe -I/folk/yzhang6/test/host-cross/arm-wrs-linux-gnueabi/sysroot/usr/include     -c cache.c
+
+change server when compile error
+
+cat /proc/version
+Linux version 2.6.34.6-WR4.0.0.0_standard (yzhang6@pek-lpgbuild8) (gcc version 4.4.1 (Wind River Linux Sourcery G++ 4.4-291) ) #1 PREEMPT Sat Jan 22 20:28:52 CST 2011
+
+make -C build pkg.addpkg - pkg.unpack - pkg.rpm - pkg.distclean
+make -C build linux.menuconfig - (optional linux.reconfig) - linux.rebuild - make reconfig - make all
+edit && make reconfig && make all
+
+prj/export/RPMS/armv6jel/ all binary rpms
+
+因为计算机内部采用并行数据，不能直接把数据发到Modem，必须经过UART整理才能进行异步传输，其过程为：CPU先把准备写入串行设备的数据放到UART的寄存器（临时内存块）中，
+再通过FIFO送到串行设备，若是没有FIFO，信息将变得杂乱无章，不可能传送到Modem。
+
+arm-none-linux-gnueabi交叉编译器是，与ARM公司合作的codesourcery公司推出的，基于GCC，但是进行过优化的编译器
+
+git clone yzhang6@pek-lpgbuild8.wrs.com:wrll-mindspeed_c1000
+nslookup/host pek-lpgbuild8.wrs.com  128.224.153.38
+ssh -Y yzhang6@pek-lpgbuild8.wrs.com /folk/vlm/bin/vlmstart
+
+
+unix: yzhang6@pek-lpgbuild8.wrs.com yzhang6 - 3yzhang6
+mail: prod-webmail.windriver.com    yzhang6 - g1n1t3n~
+
+
+/lpg-build/cdc/fast_prod/wrlinux4.1/dvd_install/lx22a_10fa/
+/buildarea1/cdc/sustaining/yzhang6
+
+evolution
+imap prod-webmail.corp.ad.wrs.com
+smtp ala-mail03.wrs.com 
+
+thunderbird
+imap 993 ssl/tsl prod-webmail.wrs.com
+smtp 25 no ala-mail03.wrs.com 
+
+all employee:
+subscribe eng-linuxprod-runtime
+subscribe eng-linuxprod-hosts
+subscribe linux-mods
+subscribe linux-cockpit
+department:
+subscribe eng-linuxprod-sustaining
+
+
+vlmTool cmd -s amazon [...]
+Commands:
+console		reset the target console connection
+copyFile	copy kernel and/or rootfs to target's File Host
+find		list all/reserved/unreserved targets
+findMine	list targets reserved by the user
+getAttr		obtain attribute(s) of the target
+listZones	list zone(s) that meet the spec
+reboot		reboot the target
+reserve		reserve the target
+reserveNote	modifies the target reservation note
+turnOff		power off the target
+turnOn		power on the target
+unreserve	unreserve the target
+Example: vlmTool unreserve -help
+
+Target ID	: 17003
+Master Target ID: 17003
+Target Alias	: ti_omap3430zoom
+BSP		: ti_omap3430ldp
+Architecture	: ARM
+CPU		: TIomap3430
+CPU Speed	: 500
+CPU L1 I-Cache	: 0
+CPU L1 D-Cache	: 0
+CPU L2 Cache	: 0
+CPU Bitsize	: 
+Memory Size	: 128
+Flash Size	: 256
+Endianness	: 
+Bootrom Version	: uboot1.1.4
+Bootrom Built	: 
+Boot Device	: eth0
+Serial Port	: 1
+MAC Address	: 00:00:00:00:00:00
+IP Address	: 128.224.165.87
+IP Alias	: null
+IP Mask		: 255.255.255.0
+Gateway		: 128.224.165.1
+Reserved By	: yzhang6
+Reserved Date	: Sun Jan 16 22:51:21 PST 2011
+Reserve Note	: 
+Zone		: BeijingLinuxZone
+Room		: 16/F Beijing Lab ROW A Rack 1
+Street Address	: WangJing Tower 16th floor
+City		: Beijing
+State		: CHAOYANG DISTRICT
+Country		: CHINA
+Terminal Server	: 128.224.164.72
+Terminal Server Port: 7
+
+boot server -- pek-tuxlab.wrs.com
+yzhang6@pek-tuxlab:/export/pxeboot/vlm-boards/17003/ -- kernel&rootfs/
+
+GUI:
+ssh -Y yzhang6@pek-lpgbuild8.wrs.com /folk/vlm/bin/vlmstart
+/usr/bin/xauth:  creating new authority file /folk/yzhang6/.Xauthority
+CLI:
+ssh -Y yzhang6@pek-lpgbuild8.wrs.com /folk/vlm/commandline vlmTool copyFile -s amazon -t 12345 -k /tmp/kernel -r /tmp/rootfs.tar.bz2
+
+vncserver/gvncviewer
+run vncserver on a server:
+New 'pek-lpgbuild7:48 (yzhang6)' desktop is pek-lpgbuild7:48
+Creating default startup script /folk/yzhang6/.vnc/xstartup
+Starting applications specified in /folk/yzhang6/.vnc/xstartup
+Log file is /folk/yzhang6/.vnc/pek-lpgbuild7:48.log
+run gvncviewer on local, gvncviewer pek-lpgbuild7.wrs.com:48
+
+
+LDAT product dir: WRLinux DVD installation directory.
+LDAT project dir: used to compile kernel, packages, rootfs etc.
+
+1. Key technique used in LDAT, please get a simple understanding of 
+these technique
+1)  GNU autotools
+2)  GNU make/Makefile
+3)  RPM
+4)  fakeroot
+5)  multilib
+
+2. LDAT product dir:  WRLinux DVD installation directory.
+project dir: different from product dir, used to compile kernel, packages, rootfs etc.
+
+3. layer folder structure:
+1) dist: control package compile and do patch
+2) packages: compressed source code ball
+3) templates: configuration
+4) kernel-next-cache: special kernel patches.
+
+dist Makefile filed definition: P292, "Necessary Makefile Contents" in 
+wr_linux_users_guide_4.0.pdf
+
+for example:
+pek-lpgbuild7.wrs.com: 
+/folk/czhang0/wrll-mindspeed_c1000_layer/wrll-mindspeed_c1000
+[czhang0@pek-lpgbuild7 wrll-mindspeed_c1000]$ ll
+total 16
+drwxr-xr-x 16 czhang0 users 4096 Dec  6 17:03 dist
+drwxr-xr-x  3 czhang0 users 4096 Nov 11 10:54 kernel-next-cache
+drwxr-xr-x 17 czhang0 users 4096 Dec  1 11:01 packages
+drwxr-xr-x  3 czhang0 users 4096 Nov 11 10:54 templates
+
+4. important files and folders in project dir
+(there is one project dir: pek-lpgbuild7.wrs.com:/folk/czhang0/ldat/mindspeed)
+
+config.log: configure log file
+layers: list all layers used in the project, including toolchain, kernel, userspace layers, and user layers
+template_paths: list paths of all templates used in the project, including rootfs, 
+                kernel, toolchain, userspace, and user layer's templates.
+pkglist: list all packages included in the current project.
+build: build directory, package source code will be unpacked into 
+build/pkgname/ directory.
+build/Makefile
+build/Makefile.depends: give package dependencies relationship.
+build/Makefile.includes: list all included package's dist/Makefile
+build/Makefile.packages: list all packages
+build/Makefile.pkgdefines: give all packages' definition.
+build/pkgname-version/: pkg source code
+build/linux: source
+
+scripts: ALL LDAT package proceeding is here. Reading those files help you to understand LDAT work flow.
+
+host-cross: toolchain is here.
+
+export: produced RPMs, rootfs, kernel, kernel-modules are here.
+export/dist/: rootfs direcotry.
+
+5. how to add different packages into project?
+See details "chapter 6 Tasks: Adding Packages" in 
+wr_linux_users_guide_4.0.pdf.  Follow steps and practice it in your project.
+
+6. Q/A
+where is kernel source code?
+build/linux: kernel source code.
+build/linux-mindspeed_c1000-standard-build: kernel compile directory.
+
+how to do patch for kernel source code?
+use kernel-next-cache in layer directory
+(for example, pek-lpgbuild7.wrs.com:/folk/czhang0/wrll-mindspeed_c1000_layer/wrll-mindspeed_c1000).
+
+how to do patch for user package?
+use dist/pkgname/patches in layer directory
+(for example, pek-lpgbuild7.wrs.com:/folk/czhang0/wrll-mindspeed_c1000_layer/wrll-mindspeed_c1000).
+
+how to add specific rootfs file?
+use templates/templatesname/fs in layer directory (for example, pek-lpgbuild7.wrs.com: /folk/czhang0/hello_layer).
+
+% sudo rpmbuild -ba helloworld-0.1-1.spec 
+rpmbuild: error while loading shared libraries: liblzma.so.0: cannot open shared object file: No such file or directory
+sudo ln -s /usr/lib/liblzma.so /usr/lib/liblzma.so.0
+yum install rpm-build
+
+纯32位系统或纯64位系统都是NON-Multilib，但是如果有x64的U，想要既可以运行64bit的程序又可以运行32bit的程序，就得安装Multilib。想要纯64位的gcc？
+configure的时候--disable-multilib，要不然你构建gcc的时候还得装glibc-i3686-dev，因为它跟你要stubs-32.h，编译libgcc的时候
+
+fakeroot - run a command in an environment faking root privileges for file manipulation
+
+
+------------------------------------------------------- 
+ Building: linux.rpm | tee linux.rpm.log 
+-------------------------------------------------------
+Initializing kernel repository ...
+warning: templates not found /buildarea/2010-09-22-13.00-wrlinux/host-build/host-cross/share/git-core/templates
+Checking out files: 100% (32301/32301), done.
+Switched to branch 'wrs_base'
+Deleted branch wrs_meta-temp (was af54f55).
+processing kbuild target /folk/yzhang6/wrll-mindspeed_c1000_layer/wrll-mindspeed_c1000/kernel-next-cache/bsp/mindspeed_c1000/mindspeed_c1000-standard.scc
+[INFO] validating against known patches  (mindspeed_c1000-standard-meta)
+[INFO] running prepatch scripts
+  [##################################################]  (completed in 103 seconds)                    
+Configuring kernel, logging in wrs/cfg/kconfig/mindspeed_c1000-standard/config.log
+processing kbuild target /folk/yzhang6/test1/build/linux/wrs/cfg/kernel-next-cache/bsp/mindspeed_c1000/mindspeed_c1000-standard.scc
+There were 17 kernel config options redefined during processing this BSP.
+These config options are defined in more than one config fragment.
+The full list can be found in your workspace at:
+   build/linux/wrs/cfg/mindspeed_c1000-standard/redefinition.txt
+
+This BSP sets 30 kernel options that are possibly non-hardware related.
+The full list can be found in your workspace at:
+   build/linux/wrs/cfg/mindspeed_c1000-standard/specified_non_hdw.cfg
+
+MAKEFLAGS="--no-print-directory - --no-extended-errors" /lpg-build/cdc/bsp/wrlinux-4.0/dvd_install/lx28a_09fa/wrlinux-4/layers/ldat-tools/host-tools/bin/remake -C linux ARCH="arm" CROSS_COMPILE="/folk/yzhang6/test1/host-cross/bin/ccache  arm-wrs-linux-gnueabi-" O=/folk/yzhang6/test1/build/linux-mindspeed_c1000-standard-build KBUILD_MODPOST_WARN=1   \
+	all uImage 
+  Using /folk/yzhang6/test1/build/linux as source for kernel
+  GEN     /folk/yzhang6/test1/build/linux-mindspeed_c1000-standard-build/Makefile
+
+kernel config:
+/folk/yzhang6/test1/build/linux/wrs/cfg/mindspeed_c1000-standard/mindspeed_c1000-standard-config-v2.6.34.6
+
+add my patches in layers, package is unit
+pkglist.add/remove/only
+config.sh
+makefile.includes, dependnce
+make -C build cmm.distclean/addpkg (pkg.cmd)
+    INSTALL_STAT/pkg what's to put into a rootfs
+make fs all pkg to rootfs
+scripts/*.mk
+our dist/makefile to control the target's makefiles
+
+changes to files within projectDir/filesystem/fs migrate to each rebuild
+
+edit in prj/filesystems firstly
+then cp some to ~/layers or ~/templates
+
+ls /dev/ttyS0
+root uucp(unix to unix copy) 4, 64 Jan 19 12:47 /dev/ttyS0
+
+kgdb:
+prj/host-cross/arm-wrs-linux-gnueabi/x86-linux2/arm-wrs-linux-gnueabi-gdb export/*vmlinux-symbols*
+(gdb) set architecture ...
+(gdb) target remote udp:IP:6443 (default for kgdb)
+
+Using the build target makelinux is not sufficient, because this command will not reset the stamp files and the configuration changes will not be applied
+
+yzhang6@pek-lpgbuild7 ~ $ telnet 128.224.164.72 2003
+Trying 128.224.164.72...
+Connected to 128.224.164.72 (128.224.164.72).
+Escape character is '^]'.
+##################
+	 #################################################################
+	 #################################################################
+	 #################################################################
+	 #################################################################
+	 ###################################
+done
+Bytes transferred = 2837904 (2b4d90 hex)
+## Booting kernel from Legacy Image at c3000000 ...
+   Image Name:   Linux-2.6.34.6-WR4.0.0.0_standar
+   Image Type:   ARM Linux Kernel Image (uncompressed)
+   Data Size:    2837840 Bytes =  2.7 MB
+   Load Address: c0008000
+   Entry Point:  c0008000
+   Verifying Checksum ... OK
+   Loading Kernel Image ... OK
+OK
+
+Starting kernel ...
+
+Uncompressing Linux... done, booting the kernel.
+Initializing cgroup subsys cpuset
+Initializing cgroup subsys cpu
+Linux version 2.6.34.6-WR4.0.0.0_standard (buildadmin@ala-build-vm6.wrs.com) (gcc version 4.4.1 (Wind River Linux Sourcery G++ 4.4-291) ) #1 PREEMPT Wed Sep 22 22:43:05 PDT 2010
+CPU: ARM926EJ-S [41069265] revision 5 (ARMv5TEJ), cr=00053177
+CPU: VIVT data cache, VIVT instruction cache
+Machine: DaVinci DA850/OMAP-L138 EVM
+Memory policy: ECC disabled, Data cache writeback
+DaVinci da850/omap-l138 variant 0x0
+Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 16256
+Kernel command line: root=/dev/nfs rw nfsroot=128.224.165.20:/export/pxeboot/vlm-boards/17873/rootfs console=ttyS2,115200n8 mem=64M ip=128.224.165.159:128.224.165.20:128.224.165.1:255.255.254.0::eth0:off
+PID hash table entries: 256 (order: -2, 1024 bytes)
+Dentry cache hash table entries: 8192 (order: 3, 32768 bytes)
+Inode-cache hash table entries: 4096 (order: 2, 16384 bytes)
+allocated 393216 bytes of page_cgroup
+please try 'cgroup_disable=memory,blkio' option if you don't want memory and blkio cgroups
+Memory: 64MB = 64MB total
+Memory: 58208k/58208k available, 7328k reserved, 0K highmem
+Virtual kernel memory layout:
+    vector  : 0xffff0000 - 0xffff1000   (   4 kB)
+    fixmap  : 0xfff00000 - 0xfffe0000   ( 896 kB)
+    DMA     : 0xff000000 - 0xffe00000   (  14 MB)
+    vmalloc : 0xc4800000 - 0xfea00000   ( 930 MB)
+    lowmem  : 0xc0000000 - 0xc4000000   (  64 MB)
+    modules : 0xbf000000 - 0xc0000000   (  16 MB)
+      .init : 0xc0008000 - 0xc0030000   ( 160 kB)
+      .text : 0xc0030000 - 0xc0548000   (5216 kB)
+      .data : 0xc056e000 - 0xc05a9580   ( 238 kB)
+SLUB: Genslabs=11, HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+Hierarchical RCU implementation.
+RCU-based detection of stalled CPUs is enabled.
+NR_IRQS:245
+Console: colour dummy device 80x30
+Calibrating delay loop... 149.50 BogoMIPS (lpj=747520)
+Security Framework initialized
+SELinux:  Disabled at boot.
+Mount-cache hash table entries: 512
+Initializing cgroup subsys debug
+Initializing cgroup subsys ns
+Initializing cgroup subsys cpuacct
+Initializing cgroup subsys memory
+Initializing cgroup subsys blkio
+Initializing cgroup subsys devices
+Initializing cgroup subsys freezer
+Initializing cgroup subsys net_cls
+CPU: Testing write buffer coherency: ok
+Init trace_clock_cyc2ns: precalc_mult = 312500, precalc_shift = 8
+DaVinci: 144 gpio irqs
+regulator: core version 0.5
+NET: Registered protocol family 16
+check_res_of_trace_clock: sched_clock() low resolution
+check_res_of_trace_clock: trace_clock_read64_ns() has high resolution
+audit: cannot initialize inotify handle
+bio: create slab <bio-0> at 0
+SCSI subsystem initialized
+usbcore: registered new interface driver usbfs
+usbcore: registered new interface driver hub
+usbcore: registered new device driver usb
+regulator: VDCDC1: 3200 <--> 3300 mV at 3300 mV 
+regulator: VDCDC2: 1750 <--> 3300 mV at 1800 mV 
+regulator: VDCDC3: 950 <--> 1375 mV at 1200 mV 
+regulator: LDO1: 1800 mV 
+regulator: LDO2: 1150 <--> 1300 mV at 1200 mV 
+DA850/OMAP-L138 EVM UI card detected
+Advanced Linux Sound Architecture Driver Version 1.0.22.1.
+Switching to clocksource timer0_1
+musb_hdrc: version 6.0, cppi4.1-dma, (host+peripheral), debug=0
+Waiting for USB PHY clock good...
+musb_hdrc musb_hdrc: MUSB HDRC host driver
+musb_hdrc musb_hdrc: new USB bus registered, assigned bus number 1
+hub 1-0:1.0: USB hub found
+hub 1-0:1.0: 1 port detected
+musb_hdrc musb_hdrc: USB OTG mode controller at fee00000 using DMA, IRQ 58
+NET: Registered protocol family 2
+IP route cache hash table entries: 1024 (order: 0, 4096 bytes)
+TCP established hash table entries: 2048 (order: 2, 16384 bytes)
+TCP bind hash table entries: 2048 (order: 1, 8192 bytes)
+TCP: Hash tables configured (established 2048 bind 2048)
+TCP reno registered
+UDP hash table entries: 256 (order: 0, 4096 bytes)
+UDP-Lite hash table entries: 256 (order: 0, 4096 bytes)
+NET: Registered protocol family 1
+RPC: Registered udp transport module.
+RPC: Registered tcp transport module.
+RPC: Registered tcp NFSv4.1 backchannel transport module.
+EMAC: MII PHY configured, RMII PHY will not be functional
+audit: initializing netlink socket (disabled)
+type=2000 audit(0.350:1): initialized
+VFS: Disk quotas dquot_6.5.2
+Dquot-cache hash table entries: 1024 (order 0, 4096 bytes)
+Registering unionfs 2.5.4 (for 2.6.34-rc0)
+JFFS2 version 2.2. (NAND) © 2001-2006 Red Hat, Inc.
+yaffs Sep 22 2010 22:33:50 Installing. 
+msgmni has been set to 113
+alg: No test for stdrng (krng)
+Block layer SCSI generic (bsg) driver version 0.4 loaded (major 253)
+io scheduler noop registered
+io scheduler deadline registered
+io scheduler cfq registered (default)
+LTT : ltt-relay init
+da8xx_lcdc da8xx_lcdc.0: GLCD: Found Sharp_LK043T1DG01 panel
+Serial: 8250/16550 driver, 3 ports, IRQ sharing disabled
+serial8250.0: ttyS0 at MMIO 0x1c42000 (irq = 25) is a 16550A
+serial8250.0: ttyS1 at MMIO 0x1d0c000 (irq = 53) is a 16550A
+serial8250.0: ttyS2 at MMIO 0x1d0d000 (irq = 61) is a 16550A
+console [ttyS2] enabled
+brd: module loaded
+ahci ahci: forcing PORTS_IMPL to 0x1
+ahci ahci: AHCI 0001.0100 32 slots 1 ports 3 Gbps 0x1 impl SATA mode
+ahci ahci: flags: ncq sntf pm led clo only pmp pio slum part ccc 
+scsi0 : ahci
+ata1: SATA max UDMA/133 irq 67
+No NAND device found.
+m25p80 spi1.0: m25p64 (8192 Kbytes)
+Creating 4 MTD partitions on "m25p80":
+0x000000000000-0x000000040000 : "U-Boot"
+0x000000040000-0x000000050000 : "U-Boot Environment"
+0x000000050000-0x0000007f0000 : "Linux"
+0x0000007f0000-0x000000800000 : "MAC Address"
+Read MAC addr from EEPROM: 85:19:03:00:0c:00
+spi_davinci spi_davinci.1: Controller at 0xfef0e000 
+console [netcon0] enabled
+netconsole: network logging started
+ohci_hcd: USB 1.1 'Open' Host Controller (OHCI) Driver
+ohci ohci.0: DA8xx OHCI
+ohci ohci.0: new USB bus registered, assigned bus number 2
+Waiting for USB PHY clock good...
+ohci ohci.0: irq 59, io mem 0x01e25000
+hub 2-0:1.0: USB hub found
+hub 2-0:1.0: 1 port detected
+Initializing USB Mass Storage driver...
+usbcore: registered new interface driver usb-storage
+USB Mass Storage support registered.
+mice: PS/2 mouse device common for all mice
+omap_rtc omap_rtc: rtc core: registered omap_rtc as rtc0
+omap_rtc: RTC power up reset detected
+i2c /dev entries driver
+watchdog watchdog: heartbeat 60 sec
+md: linear personality registered for level -1
+md: raid0 personality registered for level 0
+md: raid1 personality registered for level 1
+md: raid10 personality registered for level 10
+md: multipath personality registered for level -4
+md: faulty personality registered for level -5
+device-mapper: ioctl: 4.17.0-ioctl (2010-03-05) initialised: dm-devel@redhat.com
+cpuidle: using governor ladder
+davinci_mmc davinci_mmc.0: Using DMA, 4-bit mode
+usbcore: registered new interface driver usbhid
+usbhid: USB HID core driver
+No device for DAI tlv320aic3x
+asoc: tlv320aic3x <-> davinci-i2s mapping ok
+ALSA device list:
+  #0: DA850/OMAP-L138 EVM (tlv320aic3x)
+TCP cubic registered
+NET: Registered protocol family 17
+Clocks: disable unused emac
+regulator_init_complete: incomplete constraints, leaving LDO2 on
+regulator_init_complete: incomplete constraints, leaving LDO1 on
+regulator_init_complete: incomplete constraints, leaving VDCDC3 on
+regulator_init_complete: incomplete constraints, leaving VDCDC2 on
+regulator_init_complete: incomplete constraints, leaving VDCDC1 on
+davinci_emac_probe: using random MAC addr: b6:39:ea:53:4c:9d
+emac-mii: probed
+omap_rtc omap_rtc: setting system clock to 2000-01-01 00:00:00 UTC (946684800)
+ata1: SATA link down (SStatus 0 SControl 300)
+eth0: attached PHY driver [SMSC LAN8710/LAN8720] (mii_bus:phy_addr=1:00, id=7c0f1)
+IP-Config: Complete:
+     device=eth0, addr=128.224.165.159, mask=255.255.254.0, gw=128.224.165.1,
+     host=128.224.165.159, domain=, nis-domain=(none),
+     bootserver=128.224.165.20, rootserver=128.224.165.20, rootpath=
+md: Waiting for all devices to be available before autodetect
+md: If you don't use raid, use raid=noautodetect
+md: Autodetecting RAID arrays.
+md: Scanned 0 and added 0 devices.
+md: autorun ...
+md: ... autorun DONE.
+Looking up port of RPC 100003/2 on 128.224.165.20
+PHY: 1:00 - Link is Up - 100/Full
+Looking up port of RPC 100005/1 on 128.224.165.20
+VFS: Mounted root (nfs filesystem) on device 0:12.
+Freeing init memory: 160K
+INIT: version 2.86 booting
+		Welcome to Wind River Linux
+Starting udev: 
+
+
+prj/scripts/package.mk
+
+make -C build screen.rpm
+/lpg-build/cdc/bsp/wrlinux-4.0/dvd_install/lx28a_09fa/wrlinux-4/layers/ldat-tools/host-tools/bin/remake -C linux/tools/screen ARCH="arm" PYTHON_MAJOR=2.6 LIBPERL_DIR=/usr/lib/perl5/5.10.0/arm-wrs-linux-gnueabi-thread-multi CROSS_COMPILE="armv6jel-target-linux-gnueabi-" HOST_BUILD_BIN_DIR="/folk/yzhang6/prj/host-cross/bin" prefix=/usr
+remake: *** linux/tools/screen: No such file or directory.  Stop.
+/folk/yzhang6/prj/dist/screen/Makefile:46: *** [screen.compile] Error 2
+make: *** [screen.rpm] Error 2
+make: Leaving directory `/folk/yzhang6/prj/build'
+
+Command-line arguments:
+	"--silent -C build -f Makefile TARGET_CONFIG_BOOTSTRAP=yes pkgrpmlist"
+Makefile:2406: *** [build/pkgrpmlist] Error 2
+/folk/yzhang6/prj/scripts/packages.mk:3014: *** [gdb.addpkg] Error 1
+
+eval.c: In function 'evaluate_subexp_standard':
+eval.c:1705: error: 'subscript_array' may be used uninitialized in this function
+eval.c:1644: note: 'subscript_array' was declared here
+
+warning when compile gdb in server for ~/bin
+bind.c: In function ‘rl_function_of_keyseq’:
+bind.c:682: warning: comparison is always true due to limited range of data type
+display.c: In function ‘rl_character_len’:
+display.c:1844: warning: comparison is always true due to limited range of data type
+ar: creating libgdb.a
+reg-x86-64-linux.c updated.
+
+armv6jel-target-linux-gnueabi-gcc -c -g -mcpu=arm1136j-s -O2 -fomit-frame-pointer -pipe   -I. -I.././gdb -I.././gdb/config -DLOCALEDIR="\"/usr/share/locale\"" -DHAVE_CONFIG_H -I.././gdb/../include/opcode -I.././gdb/../readline/.. -I../bfd -I.././gdb/../bfd -I.././gdb/../include -I../libdecnumber -I.././gdb/../libdecnumber   -DMI_OUT=1 -DTUI=1  -Wall -Wdeclaration-after-statement -Wpointer-arith -Wformat-nonliteral -Wno-pointer-sign -Wno-unused -Wno-switch -Wno-char-subscripts -Werror eval.c
+
+gcc -c -g -O2   -I. -I.././gdb -I.././gdb/config -DLOCALEDIR="\"/folk/yzhang6/share/locale\"" -DHAVE_CONFIG_H -I.././gdb/../include/opcode  -I../bfd -I.././gdb/../bfd -I.././gdb/../include -I../libdecnumber -I.././gdb/../libdecnumber   -DMI_OUT=1 -DTUI=1  -Wall -Wdeclaration-after-statement -Wpointer-arith -Wformat-nonliteral -Wno-pointer-sign -Wno-unused -Wno-switch -Wno-char-subscripts -Werror eval.c
+
+REMAKE_ARGS="--trace" make ...
+
+/prj/export/sysroot/mindspeed_c1000-glibc_std/x86-linux2/armv6jel-target-linux-gnueabi-wrapper.sh   all armv6jel-target-linux-gnueabi-cmd points to this
+
+host-cross  real tools
+make all && make export-sysroot -- export/sysroot/board-glibc_std/sysroot/  usr/include usr/lib lib/
+
+--enable-jobs=4

@@ -1,0 +1,390 @@
+﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!-- saved from url=(0035)http://yunpan.cn/QGk3JSmcYVPh4 -->
+<!-- 交流QQ群:26651479 -->
+<HTML>
+<HEAD>
+    <META http-equiv= 'Content-Type' content='text/html; charset=utf-8'/>
+    <TITLE>网址页面</TITLE>
+</HEAD>
+<BODY>
+
+请求地址：<br/><textarea style="width:98%" rows="2" id="addr"></textarea><br/>
+提交参数：<br/><textarea style="width:98%" rows="10" id="params"></textarea>
+
+<br/>
+<input type="button" value="get请求" onclick="test()"/>
+<input type="button" value="post请求" onclick="test(true)"/>
+&nbsp;&nbsp; 获取内容如下：<br/>
+
+<IFRAME id='IFrame1' name='IFrame1' style="width:98%;height:58%"></IFRAME>
+<form id='form1' action="#" method="post" target="IFrame1"></form>
+
+</BODY>
+</HTML>
+
+<script type="text/javascript" language="JavaScript">
+/**
+ * 这是出错调试代码
+ * 当页面发生错误时，提示错误信息
+ * @param msg   出错信息
+ * @param url   出错文件的地址
+ * @param sLine 发生错误的行
+ * @return true 让出错时不显示出错图标
+ */
+window.onerror = function ( msg, url, sLine ) {
+    var hostUrl = window.location.href;
+    // 判断网址,测试时可以提示出错信息;正式发布时不提示
+    if ( hostUrl.indexOf("http://localhost") === 0 || hostUrl.indexOf("http://127.0.0.1") === 0 ||
+        hostUrl.indexOf("http://192.168.") === 0 || hostUrl.indexOf("file://") === 0 ) {
+        var errorMsg = "当前页面的脚本发生错误.\n\n";
+        errorMsg += "错误: " + msg + "\n";
+        errorMsg += "URL: " + url + "\n";
+        errorMsg += "行: " + sLine + "\n\n";
+        errorMsg += "点击“确定”以继续。\n\n";
+        window.alert( errorMsg );
+    }
+    // 返回true,会消去 IE下那个恼人的“网页上有错误”的提示
+    return true;
+};
+
+
+/**
+ * 提交
+ * @param post 是否post
+ */
+function test(post) {
+    var addr = window.document.getElementById('addr');
+    var params = window.document.getElementById('params');
+    //var iframe = window.document.getElementById('IFrame1');
+    var url = addr.value.trim(); // 要提交的地址
+    var content = params.value.trim(); // 要提交的参数
+
+    // 输入检查
+    if (!url) {
+        // 允许把网址全部写在内容框
+        if (!post && content && content.isUrl()) {
+            submitGet(content);
+            return;
+        }
+        // 如果内容不是网址，或者没有，则地址输入框必须输入
+        addr.focus();
+        alert('请输入要提交的地址！');
+        return;
+    }
+    // 地址输入框必须是正确网址
+    if (!url.isUrl()) {
+        addr.focus();
+        alert('要提交的地址不是正确的网址！');
+        return;
+    }
+
+    // 只有网址，没有内容,提交。
+    if (!content) {
+        if (post) {
+            submitPost(url, {});
+        }
+        else {
+            submitGet(url);
+        }
+        return;
+    }
+    // 处理内容
+    else {
+        // 如果内容是一个类,解析出来
+        if (content.startWith('{') && content.endWith('}')) {
+            eval('var obj = ' + content);
+            if (!obj) {
+                alert('参数字符串不正确，无法提交');
+                return;
+            }
+            content = obj;
+        }
+        var obj = getRequestParams(content);
+        if (!obj) {
+            alert('参数字符串不正确，无法提交');
+            return;
+        }
+        // 参数变成容易阅读的
+        var arr = [];
+        for (var key in obj) {
+            var value = json2str(obj[key]) + '';
+            if (!value.startWith('"')) {
+                value = '"' + value.replace(new RegExp('"', "g"), '\\"') + '"';
+            }
+            arr.push('"' + key + '": ' + value);
+        }
+        params.value = '{\n\t' + arr.join(',\n\t') + '\n}';
+        // post 提交
+        if (post) {
+            submitPost(url, obj);
+            return;
+        }
+        // get 提交
+        else {
+            submitGet(url, obj);
+            return;
+        }
+    }
+}
+
+// get 方式的提交
+function submitGet(url, obj) {
+    url = toQueryStr(obj, url);
+    var iframe = window.document.getElementById('IFrame1');
+    iframe.src = url;
+}
+
+// post 方式的提交
+function submitPost(url, obj) {
+    var iframe = window.document.getElementById('IFrame1');
+    iframe.src = url;
+    // 创建 form
+    var form = window.document.getElementById('form1');
+    form.innerHTML = ''; // 清空form
+    form.setAttribute('action', url);
+
+    // 逐个加入参数值
+    for (var key in obj) {
+        addParam(form, key, obj[key]);
+    }
+    // 提交
+    form.submit();
+}
+
+// 在元素里加入隐藏域的子元素
+function addParam(element, name, value) {
+    var child = window.document.createElement('input');
+    child.type = 'hidden';
+    child.setAttribute('type', 'hidden');
+    child.name = name;
+    child.setAttribute('name', name);
+    child.value = value;
+    child.setAttribute('value', value);
+    element.appendChild(child);
+}
+
+/**
+ * 分解URL请求参数
+ * @param  {String} href 网址；没有参数时默认使用所在网页的网址
+ * @param  {Boolean} key2lowerCase 是否需要将key转成小写,为true则转成小写，否则不转(默认不干涉)
+ * @return {Object} 返回json形式的参数内容
+ * @example getRequestParams("http://localhost/index.html?d2d=%E5%93%88%E5%93%88&dd=oo111") // 返回对象: {d2d:'哈哈', dd:'oo111'}
+ */
+function getRequestParams(href, key2lowerCase) {
+    if (typeof href == 'object') return href;
+
+    href = href || location.href;
+    var result = {};
+    var regex = /(\w+)=([^&]*)/gi;
+    var ms = href.match(regex);
+    if (ms == null) return result;
+
+    for(var i = 0, length = ms.length; i < length; i++) {
+        var ns = ms[i].match(regex);
+        var key = RegExp.$1;
+        key = key2lowerCase ? ("" + key).toLowerCase() : key;
+        try {
+            result[key] = decodeURIComponent(RegExp.$2); // 转码需要完全转
+            result[key] = result[key].replace('+', ' '); // 空格会变成加号
+        }catch(e){}
+    }
+
+    return result;
+}
+
+/**
+ * 把对象格式化成 URL 的参数形式
+ * @param  {Object} obj 需要转成参数的对象
+ * @param  {String} href 网址; 没有网址则只返回格式化后的参数部分,有网址则拼接到网址上(还会修改网址上原有的值)
+ * @param  {Boolean} key2lowerCase 是否需要将key转成小写,为true则转成小写，否则不转(默认不干涉)
+ * @return {String} 返回编码后的字符串
+ * @example
+ *  toQueryStr({d2d:'看看', b:2}, "http://localhost/index.html?d2d=哈哈&dd=oo111") // 返回: "http://localhost/index.html?d2d=%E7%9C%8B%E7%9C%8B&dd=oo111&b=2"
+ *  toQueryStr({d2d:'哈哈', b:2}) // 返回: "d2d=%E5%93%88%E5%93%88&b=2"
+ */
+function toQueryStr(obj, href, key2lowerCase) {
+    if (!href || typeof href != 'string') {
+        href = "";
+    }
+    // 把网址上的参数拼接到 obj 类里面
+    else {
+        if (!obj || typeof obj != 'object') {
+            obj = getRequestParams(href, key2lowerCase);
+        } else {
+            obj = extend(getRequestParams(href, key2lowerCase), obj);
+        }
+    }
+
+    // 截取出网址(去掉参数部分)
+    var index = href.indexOf("?");
+    if (index > 0) {
+        href = href.substring(0, index) + '?';
+    }
+    else if (href) {
+        href += '?';
+    }
+
+    var parts = [];
+    for (var key in obj) {
+        key = key2lowerCase ? ("" + key).toLowerCase() : key;
+        parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(json2str(obj[key])));
+    }
+    href += parts.join('&');
+    return href;
+}
+
+/**
+ * 类的扩展
+ * @param {Object} destination 被扩展的类
+ * @param {Object} source 要扩展的内容
+ * @param {Boolean} rewrite 是否重写属性/方法
+ * @return {Object} 扩展后的类(可以不接收参数,原被扩展的类会被修改而引用不变)
+ *
+ * @example
+ *  var a = new Object();
+ *  extend(a, {
+ *      alertStr: function(str){alert(str);}
+ *  });
+ *  a.alertStr('要提示的内容'); // 调用
+ */
+function extend(destination, source, rewrite) {
+    for (var property in source) {
+        if (rewrite || null == destination[property]) {
+            destination[property] = source[property];
+        }
+    }
+    return destination;
+}
+
+/**
+ * 去除字符串的前后空格
+ * @return {String} 去除前后空格后的字符串
+ * @example  " dd dd ".trim()  // 返回: "dd dd"
+ */
+String.prototype.trim = function() {
+    var str = this.replace(/^\s+/, ''), // 截取开头
+        end = str.length - 1,
+        ws = /\s/;
+    // 截取结尾(结尾用正则会比较慢)
+    while (ws.test(str.charAt(end))) {
+        end--;
+    }
+    return str.slice(0, end + 1);
+    //return this.replace(new RegExp("(^[\\s　]+)|([\\s　]+$)", "g"), "");
+};
+
+/**
+ * 判断是否以子串开头
+ * @param  {String} sub 被判断的子串
+ * @return {Boolean} 以子串开头则返回 true，否则返回false
+ */
+String.prototype.startWith = function(sub) {
+    if (this == sub || sub == '') return true;
+    return this.length >= sub.length && this.slice(0, sub.length) == sub;
+};
+
+/**
+ * 判断是否以子串结尾
+ * @param  {String} sub 被判断的子串
+ * @return {String} 以子串结尾则返回 true，否则返回false
+ */
+String.prototype.endWith = function(sub) {
+    if (this == sub || sub == '') return true;
+    return this.length >= sub.length && this.slice(0 - sub.length) == sub;
+};
+
+/**
+ * 检查字符串是否为URL地址
+ * @return {Boolean} 符合返回true,否则返回false (注:空字符串返回 false)
+ */
+String.prototype.isUrl = function() {
+    return /^(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/.test(this);
+};
+
+/**
+ * 把时间格式化成字符串
+ * 月(M)、日(d)、12小时(h)、24小时(H)、分(m)、秒(s)、季度(q) 可以用 1-2 个占位符
+ * 年(y)可以用 1-4 个占位符, 周(E)可以用 1-3 个占位符, 毫秒(S)只能用 1 个占位符(是 1-3 位的数字)
+ * @param  {String} format 格式化的字符串(默认为：yyyy-MM-dd HH:mm:ss )
+ * @return {String} 格式化时间后的字符串
+ * @example alert(new Date().format("yyyy-MM-dd HH:mm:ss.S EEE")); // 显示如: "2013-01-29 17:01:13.25 星期二"
+ */
+Date.prototype.format = function(format) {
+    // 默认显示格式
+    format = format || "yyyy-MM-dd HH:mm:ss";
+    var o = {
+        "M{1,2}" : this.getMonth()+1, // 月份  (返回1~12,或者01~12)
+        "d{1,2}" : this.getDate(), // 日期  (返回1~31,或者01~31)
+        "h{1,2}" : this.getHours() % 12 == 0 ? 12 : this.getHours() % 12, // 小时  (返回1~12,或者01~12)
+        "H{1,2}" : this.getHours(), // 小时  (返回1~23,或者01~23)
+        "m{1,2}" : this.getMinutes(), // 分钟  (返回1~59,或者01~59)
+        "s{1,2}" : this.getSeconds(), // 秒  (返回1~59,或者01~59)
+        "q{1,2}" : Math.floor((this.getMonth()+3)/3), // 季度  (返回1~4,或者01~04)
+        "S" : this.getMilliseconds() // millisecond  (返回1~999,或者01~99) 注意，“S”只能写一个
+    }
+    // 年份
+    if (/([y|Y]{1,4})/.test(format)) {
+        format = format.replace(RegExp.$1,(this.getFullYear()+"").substr(4 - RegExp.$1.length));
+    }
+    // 星期
+	if (/(E{1,3})/.test(format)) {
+        var week = { "0" : "\u65e5", "1" : "\u4e00", "2" : "\u4e8c", "3" : "\u4e09", "4" : "\u56db", "5" : "\u4e94", "6" : "\u516d" };
+		format = format.replace(RegExp.$1, ((RegExp.$1.length >= 2) ? (RegExp.$1.length == 3 ? "\u661f\u671f" : "\u5468") : "") + week[this.getDay() + ""]);
+    }
+    // 其余逐个处理
+    for (var k in o) {
+        if (new RegExp("("+ k +")").test(format)) {
+            format = format.replace(RegExp.$1, (RegExp.$1.length == 1 ? o[k] :("00"+ o[k]).substr((""+ o[k]).length)));
+        }
+    }
+    return format;
+};
+
+/**
+ * 将 JSON 对象内容转成字符串(注：中文会被url转码, 日期类型会被格式化成字符串)
+ * @param  {Object} obj 被转换的JSON对象
+ * @return {String} 返回字符串形式的json内容
+ * @example
+ *    json2str({a:1, b:[1,'2',3], c:'哈哈'}) // 返回字符串: '{"a":1,"b":[1,"2",3],"c":"哈哈"}'
+ */
+function json2str(obj) {
+    var arr = [];
+    if (obj === '') return '""'; // 空字符串处理
+    // undefined, null, false, 0, NaN, Infinity
+    if (!obj) return "" + obj;
+    var thisFun = arguments.callee;
+    // 转换字符串
+    var format = function(value) {
+        // 对字符串的处理，URI转码, 以便提交数据
+        if (typeof value == 'string') {
+            return '"' + value.replace(new RegExp('"', "g"), '\\"') + '"';
+        }
+        // 处理 日期
+        if (value && value.constructor == Date) return '"' + value.format() + '"';
+        // 处理 正则表达式,返回“/^\s+/gi”格式的内容
+        if (value && value.constructor == RegExp) return '' + value;
+        // 处理 数组
+        if (value && value.constructor == Array) {
+            // 使用临时变量，避免修改源数据
+            var temArr = [];
+            for (var i=0; i < value.length; i++) {
+                if (typeof value[i] == 'function') continue; // 自添加的函数,不用转换
+                temArr.push(format(value[i]));
+            }
+            return '[' + temArr.join(',') + ']';
+        }
+        // 如果是 函数
+        if (typeof value == 'function') try { return format(value());}catch(e){ return value + ""; };
+        // 如果是 object, 这里认为是 json，递归调用
+        if (typeof value == 'object' && value != null) return thisFun(value);
+        // undefined, null, bool, number 类型，直接返回
+        return value;
+    }
+    // bool, number, string, function, 数组, 日期
+    if (typeof obj != 'object' || obj.constructor == Array || obj.constructor == Date || obj.constructor == RegExp) return format(obj);
+    for (var key in obj) {
+        arr.push('"' + key + '":' + format(obj[key]));
+    }
+    return '{' + arr.join(',') + '}';
+}
+</script>

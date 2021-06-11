@@ -1,0 +1,397 @@
+随着广泛地获得使用并被移植到不同的平台，Linux 内核源代码正在越来越大，比如, Linux 2.6.28 中， 文件数有 25282 个，大小有350M。
+对于某一个平台，真正需要的的文件其实不到 10%, 为了提高研发效率，我们应当删除或者暂时删除那些永远也不会用到的文件， 比如，可以使内核的文件数缩减到5000， 从而节约拷贝、查找等的时间，提高研发效率。
+本文提出一种高效、干净的进行内核裁剪的办法。
+以往，我们是通过手工删除某些目录来完成这个任务的。 手工删除的缺点有：
+花时间，每次裁剪都要花 1 – 2 天， 才能将文件数目删除到 5000 以下。
+不够干净。 内核代码的 Makefile 以及 Kconfig 配置文件彼此的依赖性比较大， 即使某个目录下的功能不被使用，直接删除也会导致编译出错， 从而， 不得不修改相应的 Makefile 以及 Kconfig 才能使编译通过。 这留下一下隐患。
+恢复困难。 根据2）的描述，在我们对外发布完整版本而需要将以前删除、修改的文件复原时，需要使用比较工具，仔细地比对，才能完整恢复， 这也非常花时间。
+在经历了手工操作的痛苦之后，我们提出了一种自动化的方法。具体为：
+只删除文件，不删除目录，保留 Makefile 及 Kconfig
+使用时，只需要填充一个配置表，其中，可以指定：
+删除某个文件， 比如：drivers/macintosh/adbhid.c
+删除某个目录下的匹配文件, 比如：include/asm-arm/hardware/*.h
+删除某个目录及其子目录下的匹配文件，比如：drivers/block/#.c
+删除某个目录及其子目录下的适合删除文件, 比如：arch/alpha/##
+脚本会根据配置表，将相关的文件移动到一备份目录，并保持原有的目录结构
+需要恢复时，只需要将备份目录下的文件拷贝到原来的目录，既可。
+优点如下：
+配置文件一次指定，可反复使用， 对同一内核，不需要更改就可以再次运行。对不同内核，只要稍作修改(内核的目录结构不怎么变化)，既可复用。
+配置文件指定后，裁剪及备份内核的操作可以在几秒内完成，大大提高的效率。
+由于我们只删除 *.c, *.h, *.txt 等文件，而不删除编译相关的配置文件，裁剪后的内核特别干净，不会影响编译。打外部 patch 也特别容易。
+需要对外发布版本时，可以直接运行 restore.sh 脚本，瞬间完成。
+由于操作的可反复性，我们可以不断优化裁剪列表，得到最小内核。最大程度地提高研发效率。
+以下为例子配置文件：
+############################################################
+####################     README      #######################
+############################################################
+#here to specify which files(unused in your project) to move
+#you can specify a relative directory with file name followed
+#you can specify
+# *.c to mean all c files below the dir
+# #.c to mean all c files below the dir and subdir
+# ## to mean all files of known type below the dir and subdir
+#
+# Example:
+# drivers/macintosh/adbhid.c
+# drivers/dio/*.c
+# drivers/block/#.c
+# drivers/dio/##
+############################################################
+##################*kernel version: 2.6.25###################
+############################################################
+############################################################
+########################### arch/###########################
+############################################################
+arch/alpha/##
+arch/avr32/##
+arch/blackfin/##
+arch/cris/##
+arch/frv/##
+arch/h8300/##
+arch/ia64/##
+arch/m32r/##
+arch/m68k/##
+arch/m68knommu/##
+arch/mips/##
+arch/mn10300/##
+arch/parisc/##
+arch/powerpc/##
+arch/ppc/##
+arch/s390/##
+arch/sh/##
+arch/sparc/##
+arch/sparc64/##
+arch/v850/##
+arch/x86/##
+arch/xtensa/##
+############################################################
+########################### arch/arm########################
+############################################################
+arch/arm/mach-s3c2442/##
+arch/arm/mach-imx/##
+arch/arm/mach-s3c2440/##
+arch/arm/mach-omap2/##
+arch/arm/mach-clps711x/##
+arch/arm/mach-s3c2443/##
+arch/arm/plat-iop/##
+arch/arm/mach-davinci/##
+arch/arm/mach-ixp2000/##
+arch/arm/mach-iop13xx/##
+arch/arm/mach-integrator/##
+arch/arm/mach-iop33x/##
+arch/arm/plat-s3c24xx/##
+arch/arm/plat-s3c/##
+arch/arm/plat-omap/##
+arch/arm/mach-sa1100/##
+arch/arm/mach-omap1/##
+arch/arm/mach-aaec2000/##
+arch/arm/mach-ixp23xx/##
+arch/arm/mach-mx3/##
+arch/arm/mach-l7200/##
+arch/arm/mach-ixp4xx/##
+arch/arm/mach-at91/##
+arch/arm/mach-clps7500/##
+arch/arm/mach-rpc/##
+arch/arm/mach-s3c2400/##
+arch/arm/plat-mxc/##
+arch/arm/mach-iop32x/##
+arch/arm/mach-footbridge/##
+arch/arm/mach-h720x/##
+arch/arm/mach-ep93xx/##
+arch/arm/mach-ebsa110/##
+arch/arm/mach-realview/##
+arch/arm/mach-s3c2412/##
+arch/arm/mach-ns9xxx/##
+arch/arm/mach-orion/##
+arch/arm/mach-shark/##
+arch/arm/mach-netx/##
+arch/arm/mach-pnx4008/##
+arch/arm/mach-s3c2410/##
+arch/arm/mach-lh7a40x/##
+arch/arm/mach-ks8695/##
+arch/arm/mach-versatile/##
+arch/arm/mach-msm/##
+############################################################
+########################### Documetation####################
+############################################################
+Documentation/##
+############################################################
+########################### drivers ########################
+############################################################
+drivers/acorn/##
+drivers/acpi/##
+drivers/amba/##
+drivers/ata/##
+drivers/atm/##
+drivers/auxdisplay/##
+drivers/cdrom/##
+drivers/dca/##
+drivers/dio/##
+drivers/edac/##
+drivers/eisa/##
+drivers/ide/##
+drivers/ieee1394/##
+drivers/infiniband/##
+drivers/isdn/##
+drivers/macintosh/##
+drivers/mca/##
+drivers/md/##
+drivers/memstick/##
+drivers/nubus/##
+drivers/of/##
+drivers/parisc/##
+drivers/parport/##
+drivers/pci/##
+drivers/pcmcia/##
+drivers/pnp/##
+drivers/ps3/##
+drivers/rapidio/##
+drivers/s390/##
+drivers/sbus/##
+drivers/sh/##
+drivers/sn/##
+drivers/ssb/##
+drivers/telephony/##
+drivers/thermal/##
+drivers/w1/##
+drivers/xen/##
+drivers/zorro/##
+############################################################
+######################### drivers/char #####################
+############################################################
+drivers/char/agp/##
+drivers/char/mwave/##
+drivers/char/pcmcia/##
+drivers/char/rio/##
+drivers/char/drm/##
+############################################################
+######################### drivers/net ######################
+############################################################
+drivers/net/appletalk/##
+drivers/net/ibm_emac/##
+drivers/net/ibm_newemac/##
+drivers/net/ixp2000/##
+drivers/net/pcmcia/##
+drivers/net/tokenring/##
+############################################################
+######################### drivers/scsi #####################
+############################################################
+drivers/scsi/aic7xxx/##
+drivers/scsi/aic7xxx_old/##
+drivers/scsi/aic94xx/##
+drivers/scsi/lpfc/##
+drivers/scsi/pcmcia/##
+drivers/scsi/qla2xxx/##
+drivers/scsi/qla4xxx/##
+drivers/scsi/sym53c8xx_2/##
+############################################################
+######################### drivers/media ####################
+############################################################
+drivers/media/dvb/##
+############################################################
+######################### drivers/media/video ##############
+############################################################
+drivers/media/video/bt8xx/##
+drivers/media/video/cpia2/##
+drivers/media/video/cx23885/##
+drivers/media/video/cx25840/##
+drivers/media/video/em28xx/##
+drivers/media/video/ivtv/##
+drivers/media/video/pvrusb2/##
+drivers/media/video/saa7134/##
+drivers/media/video/sn9c102/##
+drivers/media/video/zc0301/##
+############################################################
+########################### fs #############################
+############################################################
+fs/9p/##
+fs/afs/##
+fs/adfs/##
+fs/affs/##
+fs/bfs/##
+fs/befs/##
+fs/coda/##
+fs/dlm/##
+fs/ext2/##
+fs/ext3/##
+fs/ext4/##
+fs/freevxfs/##
+fs/gfs2/##
+fs/hfs/##
+fs/hfsplus/##
+fs/hpfs/##
+fs/isofs/##
+fs/jbd/##
+fs/jbd2/##
+fs/jfs/##
+fs/minix/##
+fs/ntfs/##
+fs/ncpfs/##
+fs/ocfs2/##
+fs/qnx4/##
+fs/udf/##
+fs/ufs/##
+#fs/xfs/##
+############################################################
+######################## include ###########################
+############################################################
+include/acpi/##
+include/asm-alpha/##
+include/asm-avr32/##
+include/asm-blackfin/##
+include/asm-cris/##
+include/asm-frv/##
+include/asm-h8300/##
+include/asm-ia64/##
+include/asm-m32r/##
+include/asm-m68k/##
+include/asm-m68knommu/##
+include/asm-mips/##
+include/asm-mn10300/##
+include/asm-parisc/##
+include/asm-powerpc/##
+include/asm-ppc/##
+include/asm-s390/##
+include/asm-sh/##
+include/asm-sparc/##
+include/asm-sparc64/##
+include/asm-um/##
+include/asm-v850/##
+#include/asm-x86/##
+include/asm-xtensa/##
+include/pcmcia/##
+############################################################
+##################### include/asm-arm ######################
+############################################################
+include/asm-arm/arch-ks8695/##
+include/asm-arm/arch-iop33x/##
+include/asm-arm/arch-mxc/##
+include/asm-arm/arch-iop32x/##
+include/asm-arm/arch-ep93xx/##
+include/asm-arm/arch-h720x/##
+include/asm-arm/arch-iop13xx/##
+include/asm-arm/arch-ns9xxx/##
+include/asm-arm/arch-ebsa285/##
+include/asm-arm/arch-orion/##
+include/asm-arm/arch-ixp2000/##
+include/asm-arm/arch-s3c2400/##
+include/asm-arm/arch-msm/##
+include/asm-arm/arch-ixp4xx/##
+include/asm-arm/arch-lh7a40x/##
+include/asm-arm/arch-ebsa110/##
+include/asm-arm/arch-netx/##
+include/asm-arm/arch-imx/##
+include/asm-arm/arch-ixp23xx/##
+include/asm-arm/arch-davinci/##
+include/asm-arm/arch-sa1100/##
+include/asm-arm/plat-s3c24xx/##
+include/asm-arm/plat-s3c/##
+include/asm-arm/arch-l7200/##
+include/asm-arm/arch-versatile/##
+include/asm-arm/arch-clps711x/##
+include/asm-arm/arch-aaec2000/##
+include/asm-arm/arch-cl7500/#.h
+include/asm-arm/arch-pnx4008/##
+include/asm-arm/arch-integrator/##
+include/asm-arm/arch-at91/##
+include/asm-arm/arch-shark/##
+include/asm-arm/arch-rpc/##
+include/asm-arm/arch-s3c2410/##
+include/asm-arm/arch-realview/##
+############################################################
+########################### net/###########################
+############################################################
+net/ax25/##
+net/can/##
+net/decnet/##
+net/ipv6/##
+net/x25/##
+############################################################
+########################### sound/###########################
+############################################################
+sound/aoa/##
+sound/isa/##
+sound/mips/##
+sound/oss/##
+sound/parisc/##
+sound/pci/##
+sound/pcmcia/##
+sound/ppc/##
+sound/sh/##
+sound/sparc/##
+以下为备份脚本：
+#! /bin/bash
+#name: move.sh
+#function: move unused files from kernel to make size smaller
+#set -x
+function usage()
+{
+              echo "Usage:" $0 "filename"
+              echo " filename is the file that includes files to be deleted"
+              echo " if not provided, filename default to to_delete_files"
+}
+if [ $# -ne "1" ]; then
+              INPUT_FILE="to_cutoff_files"
+              echo inputfile default to $INPUT_FILE
+else
+              if [ $1 = "-h" ]; then
+                            usage
+                            exit 0
+              fi
+              INPUT_FILE=$1
+fi
+BASE_ORIG=`cd ..; pwd`/
+BASE_NEW=`cd files; pwd`/
+FILES_LIST=.${INPUT_FILE}_detailed
+rm -f ${FILES_LIST}
+#echo "restore files"
+#cp -a files/* ../ 2>/dev/null
+#rm -rf files/* 2> /dev/null
+echo "generate detailed file list..."
+cat $INPUT_FILE | grep -v '^#' | while read LINE
+do
+              if [ ! -z $LINE ]; then
+                            if [ `expr index $LINE "##"` != "0" ]; then
+                                          DIR_ORIG=${BASE_ORIG}${LINE}
+                                          DIR_ORIG=${DIR_ORIG%/*}
+                                          find $DIR_ORIG -name *.h  >> ${FILES_LIST}
+                                          find $DIR_ORIG -name *.c  >> ${FILES_LIST}
+                                          find $DIR_ORIG -name *.S  >> ${FILES_LIST}
+                                          find $DIR_ORIG -name *.txt  >> ${FILES_LIST}
+                                          find $DIR_ORIG -name *_defconfig  >> ${FILES_LIST}
+                            elif [ `expr index $LINE "#"` != "0" ]; then
+                                          DIR_ORIG=${BASE_ORIG}${LINE}
+                                          DIR_ORIG=${DIR_ORIG%/*}
+                                          FILE_EXT=${LINE##*.}
+                                          find $DIR_ORIG -name *.${FILE_EXT}  >> ${FILES_LIST}
+                            elif [ `expr index $LINE "*"` != "0" ]; then
+                                          DIR_ORIG=${BASE_ORIG}${LINE}
+                                          DIR_ORIG=${DIR_ORIG%/*}
+                                          FILE_EXT=${LINE##*.}
+                                          find $DIR_ORIG -name *.${FILE_EXT} -maxdepth 1 >> ${FILES_LIST}
+                            else
+                                          echo $BASE_ORIG$LINE >> ${FILES_LIST}
+                            fi
+              fi
+done
+echo "move files..."
+INPUT_FILE=${FILES_LIST}
+cat $INPUT_FILE 2>/dev/null | grep -v '^#' | while read LINE
+do
+              if [ ! $LINE == "" ]; then
+                            FILE_ORIG=${LINE}
+                            LINE2=${LINE#$BASE_ORIG}
+                            FILE_NEW=${BASE_NEW}${LINE2}
+                            DIR_NEW=${FILE_NEW%/*}
+                            if [ ! -d $DIR_NEW ]; then
+                                          mkdir -p $DIR_NEW
+                            fi
+                            if [ -f $FILE_ORIG ]; then
+                                          mv -f $FILE_ORIG $DIR_NEW
+                            fi
+              fi
+done
+以下为恢复脚本：
+#! /bin/bash
+cp -a files/* ../
+rm -rf files/*

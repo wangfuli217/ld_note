@@ -1,0 +1,63 @@
+Host OS Configuration - Fedora Linux
+
+1. Install bridge-utils package 
+sudo yum install bridge-utils
+
+2. Install tunctl package
+ls -la /dev/net/tun
+sudo yum install tunctl
+
+3. Create bridge device virbr0
+sudo brctl addbr virbr0
+
+4. Create virtual tap0 interface
+/usr/sbin/tunctl -t tap0 -u brezular
+ 
+5. Add eth0 and tap0 to the bridge and bring the interfaces up
+
+sudo brctl addif virbr0 eth0
+sudo brctl addif virbr0 tap0
+
+sudo ifconfig eth0 up
+sudo ifconfig tap0 up
+sudo ifconfig virbr0 up
+
+6. Assign IP address to virbr0 interface and remove IP address eth0 interface
+
+sudo ifconfig virbr0 172.16.1.2/16
+sudo ifconfig eth0 0.0.0.0 promisc
+
+sudo dhclient virbr0
+
+sudo route add default gw 172.16.255.254
+
+7. Disable L2 traffic filtering - ebtables, bridge-nf, arptables
+
+Change value 1 to 0 for all the files in directory /proc/sys/net/bridge/.
+
+cd /proc/sys/net/bridge; ls
+
+bridge-nf-call-arptables  bridge-nf-call-iptables
+bridge-nf-call-ip6tables  bridge-nf-filter-vlan-tagged
+
+sudo su
+for f in bridge-nf-*; do echo 0 > $f; done
+
+8. Start Guest OS - Core Linux
+
+/usr/local/bin/qemu-system-x86 -m 128M -enable-kvm -boot c -hda /home/brezular/qemu-tinycore-linux.img \
+-net nic,vlan=0,macaddr=00:aa:00:60:00:01,model=e1000 -net tap,vlan=0,ifname=tap0,script=no
+
+/usr/local/bin/qemu-system-x86  -m 128M -enable-kvm -boot c -hda /home/brezular/qemu-tinycore-linux.img \
+-netdev tap,id=net0,ifname=tap0,script=no,downscript=no -device e1000,netdev=net0,mac=00:aa:00:60:00:01
+
+Explanation:
+-boot c -> boot from the hard disk
+-m 128M -> 128 MB RAM allocated for the image
+-enable-kvm ->enable hardware virtualization
+Guest OS Configuration - Core Linux
+
+1. Configure IP address for eth0 interface (it is on the same subnet as virbr0)
+
+sudo su
+ifconfig eth0 172.16.1.1/16 up

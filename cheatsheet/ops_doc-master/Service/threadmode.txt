@@ -1,0 +1,803 @@
+https://github.com/cirosantilli/cpp-cheat/blob/master/posix/pthread.md
+
+thread demo：crosstool\cheatsheet\ops_doc-mstaer\Service\misc\demo_pthread_example
+thread demo：crosstool\cheatsheet\ops_doc-mstaer\Service\misc\Programming-POSIX-Threads
+thread demo：crosstool\cheatsheet\ops_doc-mstaer\Service\misc\Unix-Network-Programming\threads
+thread demo：crosstool\cheatsheet\ops_doc-master\Service\misc\tlpi-dist-book\threads
+
+互斥量用以实现共享资源的保护；    -> 多个线程进行同时修改和读取的保护，内存的申请和释放不是执行过程的重点。
+    互斥量关注重点是数据管理，所以，加锁和解锁之间的代码一般是链表节点的添加、删除和查找，会有malloc和free，
+很少存在其他系统调用，不要存在阻塞型系统调用。
+条件变量用以实现生产者-消费模型； -> 一些线程分配内存空间，配置数据处理过程，一些线程释放内存空间，进行数据处理。
+    条件变量用以实现流程并发执行，即部分流程在线程A执行，部分流程在线程B执行，A的后续执行依赖于B的执行结果。
+线程A通知线程B常使用消息队列，B线程通知A线程常用waiting-signal。流程的原子化操作就是系统接口(最小状态标识为系统函数
+执行标识)，所以，线程B处理的部分流程中，系统调用函数常常耗时比较大。
+
+
+0. 线程创建
+1. 静态线程池 libuv
+2. 动态线程池 readdata.c writedata.c
+3. 消息队列 pcqueue    moosefs
+4. 工作队列 workqueue  libuv
+
+barrier(){
+5. 同步栅栏 barrier    libuv
+
+}
+threadpool(){
+6. [线程池]
+6.1 线程池 # mfscommon/workers.c
+      线程a -> [消息队列] -> 线程池 -> [消息队列] -> 线程b
+      receive_thread        nbd_worker_fn           send_thread
+# _workers: 线程池管理对象
+uint32_t sustainworkers;                                     # 支持线程数
+uint32_t maxworkers;                                         # 最大线程数
+void *jqueue;                                                # 接收消息队列
+char *name;                                                  # 线程池名称
+void (*workerfn)(void *data,uint32_t current_workers_count); # 线程池回调函数
+pthread_mutex_t lock;                                        # 保护锁
+pthread_cond_t term_cond;                                    # 终止条件变量
+pthread_attr_t thattr;                                       # 线程属性
+uint32_t avail;                                              # 空闲线程数
+uint32_t total;                                              # 空闲和忙线程总数
+uint32_t lastnotify;                                         # 用于进行打印控制
+jqueue 作为消息队列，在多个线程之间同步数据。数据在生产者-消费者 线程之间创建-处理,释放。
+_worker 作为_workers管理实例，根据条件在 消费者线程内，实现线程的创建,释放。
+_workers 作为多线程管理对象，关系到主调用线程和线程池线程s之间同步结束，条件变量term_cond用于主线程通知子线程结束自身。 
+# 条件变量以 total 值为条件, 通过squeue消息队列closed作为线程池结束的条件，即 关闭消息队列 触使 关闭线程池。
+所有线程总数 ws->total 大于0 时， 则pthread_cond_wait(&(ws->term_cond),&(ws->lock))，                          等待子线程都结束通知
+if (data==NULL) 消息队列内无数据，且所有线程总数 ws->total 等于 0 时，则pthread_cond_signal(&(ws->term_cond))，所有子线程都结束
+
+# 线程池内线程控制以 
+(ws->avail > ws->sustainworkers)             可用线程数大于 支持线程数               为 条件 释放线程 
+(ws->avail==0 && ws->total < ws->maxworkers) 可用线程数为0，总线程数量小于最大线程数 为 条件 创建线程
+
+# lock 保护锁
+avail++ workers_worker_thread(); workers_spawn_worker();
+avail-- workers_worker_thread(); workers_close_worker();
+total++ workers_spawn_worker();
+total-- workers_close_worker();
+total < ws->maxworkers          线程总数 和 最大线程数
+ws->avail > ws->sustainworkers  空闲线程总数 和 支持线程数
+
+# 消息队列
+squeue : put(workers_init) close|delete(wokers_term) get(workers_worker_thread)
+总结：
+1. 线程池和消息队列存在强关联关系；线程池通过avail,sustainworkers,total,maxworkers对线程池内线程量进行管理。
+   线程池通过 lock 对线程池管理对象内数据进行保护，通过 term_cond 和 jqueue 对线程池进行结束管理。
+   消息队列通过 elements maxelements 对消息队列内消息进行管理。通过 closed 设定消息队列结束；
+   通过 pthread_cond_broadcast(&(q->waitfree)) 通知接收阻塞线程结束； 通过pthread_cond_broadcast(&(q->waitfull)) 通知发送阻塞线程结束。
+
+6.2 线程池 # mfschunkserver/bgjobs.c 
+      线程a -> [消息队列] -> 线程池 -> [队列]+pipe -> 线程a
+          # src/threadpool.c
+      线程a -> [消息队列] -> 线程池 -> [队列]+pipe -> 线程a
+# 线程池被条件变量驱动，线程b由 管道数据驱动
+int rpipe,wpipe;                # 管道读和管道写，读用于主线程，写用于线程池。
+int32_t fdpdescpos;             # 用于记录读请求文件描述符rpipe在数组中位置。
+uint32_t workers_max;           # 最大线程数
+uint32_t workers_himark;        # 3/4 线程数
+uint32_t workers_lomark;        # 2/4 线程数
+uint32_t workers_max_idle;      # 最大空闲线程数
+uint32_t workers_avail;         # 空闲线程数
+uint32_t workers_total;         # 所有线程数
+uint32_t workers_term_waiting;  # 有线程调用了pthread_cond_wait()
+pthread_cond_t worker_term_cond;# 用于实现wait-signal
+pthread_mutex_t pipelock;       # 保护 rpipe，statusqueue
+pthread_mutex_t jobslock;       # 保护 workers_max,workers_himark workers_lomark,workers_max_idle,workers_avail,workers_total,workers_term_waiting
+                                # nextjobid,  预计只有单线程执行的时候，不需要加锁，否则如job_pool_disable_job需要加锁。
+void *jobqueue;                 # job_new() 新加任务， job_worker() 处理任务。 job_heavy_test() 测试任务负载 job_pool_delete 删除消息队列
+void *statusqueue;              # job_send_status() 新加任务 job_receive_status() 处理任务  job_pool_delete() 删除消息队列
+job* jobhash[JHASHSIZE];        # jobs哈希表，在主线程内分配空间，在线程池内处理，在主线程中释放。
+uint32_t nextjobid;             # 下一个id; 累计值
+# 
+1. job_wantexit() 不再新加 job
+2. job_canexit()  正处理和待处理job总数
+3. job_term()     对线程池资源进行释放。job_pool_delete() 与 job_pool_new() 对应的资源释放函数，
+4. 线程池到主线程依赖消息队列和IO处理机制。send:消息队列为空时，追加一个write() IO请求事件，
+                                           recv:消息队列为空时，进行一次read () IO请求事件，
+                                           使得有IO可读事件，消息队列内必然有被处理的数据。有被处理的数据，必然会存在IO可读事件。
+job_send_status()                          该设计新颖而有力。在libuv中eventfd如何使用... 
+    if (queue_isempty(jp->statusqueue)) { // first status
+        eassert(write(jp->wpipe,&status,1)==1);	// write anything to wake up select
+    }
+    queue_put(jp->statusqueue,jobid,status,NULL,1);
+job_receive_status()
+queue_get(jp->statusqueue,jobid,&qstatus,NULL,NULL);
+    *status = qstatus;
+    if (queue_isempty(jp->statusqueue)) {
+        eassert(read(jp->rpipe,&qstatus,1)==1);	// make pipe empty
+        return 0;   // last element
+    }
+
+6.3 线程池 # libuv/src/threadpool.c
+uv_once_t once = UV_ONCE_INIT;      线程一次执行条件量
+uv_cond_t cond;                     条件变量
+uv_mutex_t mutex;                   保护锁
+unsigned int idle_threads;          空闲线程数
+unsigned int slow_io_work_running;  SLOW_IO执行线程数
+unsigned int nthreads;              总线程数 
+uv_thread_t* threads;               线程实例集合
+uv_thread_t default_threads[4];     默认线程实例集合
+QUEUE exit_message;                 退出消息
+QUEUE wq;                           FAST_IO和CPU，以及exit_message, run_slow_work_message链表
+QUEUE run_slow_work_message;        有slow_work
+QUEUE slow_io_pending_wq;           SLOW_IO 链表
+
+w->loop->wq        # worker链表
+w->loop->wq_async  # io通知事件
+w->loop->wq_mutex  # 保护锁
+总结: 
+1. 没有独立的消息队列结构体作为线程之间通信的中介(从主eventloop到线程池和从线程池到主eventloop)，
+从主eventloop到线程池的数据投递形式由分散的 cond,mutex, wq, slow_io_pending_wq变量构成
+其中wq是FAST_IO和CPU类型req双向链表，slow_io_pending_wq是SLOW_IO类型req双向链表。
+exit_message是线程池中线程退出message, run_slow_work_message是slow_io_pending_wq中有req的SLOW_IO标识。
+在线程池空闲时，执行SLOW_IO请求，线程池忙时，优先执行FAST_IO和CPU类型req.
+2. 线程池与eventloop之间紧关联的，线程池处理完work_cb(req)之后，固定的将后续处理任务交由eventloop处理。
+且线程池将req交由eventloop处理利用了文件IO机制和eventloop的互斥锁。 ---- 和moosefs有很大不同。详解如下：
+2.1 线程池会调用write写内核缓冲区，保证: 目标缓冲区内有数据，但是，不保证此次写入了数据，即允许有EAGAIN 和 EWOULDBLOCK
+    eventloop调用read读内核缓冲区，保证: 目标缓冲区内数据空，因此，会一次读取1024字节数据，且多次读取。
+2.2 线程池将req添加到loop->wq尾部，并修改req中pending从0到1. 这些操作都是在互斥锁中进行的。
+
+6.4 线程池 # sheepdog/lib/work.c 多线程池
+struct wq_info { 线程池管理结构体
+    const char *name;                线程池名称
+    struct list_head finished_list;  finish 任务链表(主线程中执行)
+    struct list_node list;           已启动线程池链表
+    struct sd_mutex finished_lock;   finish 任务链表保护锁
+    struct sd_cond pending_cond;     线程池之间同步操作workqueue条件变量
+    struct sd_mutex pending_lock;    pending任务链表保护锁
+    struct work_queue q;             pending 任务链表(线程池执行)
+    size_t nr_threads;               线程个数
+    size_t nr_queued_work;           nr_queued_work
+    uint64_t tm_end_of_protection;   缩小规模
+    enum wq_thread_control tc;       WQ_ORDERED单线程 WQ_DYNAMIC动态线程 WQ_UNLIMITED无限制线程
+};
+
+struct work {
+    struct list_node w_list;  在执行fn之前关联到work_queue链表上，在执行fn之后关联到finished_list上
+    work_func_t fn;           在线程池中执行
+    work_func_t done;         在主循环中执行
+};
+
+总结:
+1. wq_info 是线程池管理结构体，线程池有名字，有模式，有初建线程数，也有work_queue接收work。
+线程池和eventloop之间是弱关联，即: fn执行时，work关联到线程池的work_queue上，done执行时，work关联到线程池的finished_list上
+libuv中，线程池和eventloop之间是强关联，即：work_cb执行时，work关联到在线程池上，after_work_cb执行时，work被关联在eventloop上。
+2. wq_info 线程池管理结构体可以多实例，通过finished_lock和finish_list在eventloop执行所有线程池中已执行work的done回调函数。
+3. wq_info 通知eventloop使用eventfd机制。
+
+
+[线程池]
+threadpool.c 有FAST_IO和SLOW_IO之分，pcqueue 有长度受限和长度不受限之分，worker 则强调多线程池。
+threadpool.c 使用 两个双向链表 QUEUE 来区分FAST_IO和SLOW， 又通过QUEUE将 uv_work_cb 之后的交由 eventloop 处理
+bgjob.c      使用消息队列 pcqueue 来缓存线程池已处理的任务，
+worker.c     使用 将后续处理的 实例 绑定在线程池实例上，通知过eventloop之后，由eventloop执行后续回调函数。
+
+    [workers.c和threadpool.c的差异]
+int uv_queue_work(uv_loop_t* loop, uv_work_t* req, uv_work_cb work_cb, uv_after_work_cb after_work_cb)
+                  线程池实例       请求数据        线程池处理函数      事件驱动程序回调处理函数
+void workers_newjob(void *wsv,  void *data)
+                    线程池实例  请求数据 
+1. uv_queue_work中 数据处理 由work_cb决定。
+   workers_newjob中 数据处理 由workers_init设定的工作线程函数决定。
+# 说明 uv_queue_work 强调的是，多个线程处理多种任务。 workers_newjob 强调的是，多个线程处理一种任务。
+2. uv_queue_work中 数据处理 后续处理 由after_work_cb决定。
+   workers_newjob中 数据处理 后续处理 需要使用者实现消息队列。
+# 说明 uv_queue_work 自然的将任务分解成 work_cb和after_work_cb 两部分，work_cb阻塞或耗时类型函数，after_work_cb说明work_cb处理结束。
+       workers_newjob 只是确定耗时部分由 线程处理函数 实现，线程处理函数处理结束之后如何进行后一步，需要通过 私有数据或全局变量决定。
+3. uv_queue_work 由管道数据驱动 后续线程处理
+   workers_newjob 没有设计如何进行 后续处理，在nbdmain.c中 通过消息队列实现 后续处理。
+
+    [条件变量和pipe管道]
+条件变量+消息队列： 用于实现 n:m 线程模型的交互(生产者个数和消费者个数都不确定的时候, 多数情况下消费者线程数大于生产者线程数)。
+  此模型可以分成: 消息队列内的消息个数受限和消息个数不受限两种方式。
+pipe管道+消息队列： 用于实现 n:1 线程模型的交互(生产者可以多个，但是消费者只有一个, 多数情况下生产者被设计成线程池)。
+pipe管道可以使用pipe, unix socket和socketpair等方式。
+  此模型总是长度首先的，受限原因是 管道 内核缓冲区长度受限导致的。
+  
+  条件变量+消息队列强调消费者具有强大的消费能力，即消费者接收到的任务会占用更多的CPU或者会被IO阻塞等待，也就是消费者负载更大。
+  pipe管道+消息队列强调生产者具有强大的生产能力，即生产者处理数据过程会占用更多的CPU或者会被IO阻塞等待，也就是生产者负载更大。
+}
+
+
+0. 线程创建  # moosefs-3.0.104
+mfscommon/lwthread.c  lwt_minthread_create 创建一个join或detach类型的，与主线程信号处理分类的子线程。
+                      lwt_thread_create    创建一个 与主线程信号处理分离 的子线程。
+# redis-4.0
+src/bio.c             bioInit              创建多join类型线程，线程在redis收到异常信号时，强行pthread_cancel然后pthread_join
+
+
+1. 静态线程池 # libuv 只能单实例 && 绑定事件驱动框架
+src/threadpool.c        init_threads(void)   根据编译配置default_threads或者环境变量UV_THREADPOOL_SIZE 设定线程池大小
+
+# moosefs-3.0.104
+mfschunkserver/bgjobs.c 
+
+
+2. 动态线程池 # moosefs-3.0.104
+mfscommon/workers.c  workers_init   创建线程池(最大线程数，驻留线程数，队列长度，线程池名称，工作线程函数)
+                     workers_newjob 创建一个任务，发送到消息队列中。(workers_init返回对象，发送数据)
+                     workers_term   关闭当前线程池
+workers_newjob(data) -> 工作线程函数(data);
+
+3. 消息队列 pcqueue    moosefs
+
+            squeue    moosefs
+
+
+threadpool_queue(){
+[workers]
+mfscommon/workers.c 线程池 = 线程池管理实例 + 线程池管理数据
+线程池管理实例 = workers_init(maxworkers, sustainworkers, qleng, name, workerfn)
+线程池管理数据 = workers_newjob(线程池管理实例, privdata)
+
+[pcqueue]
+mfscommon/pcqueue.c 消息队列 = 消息队列管理实例 + 消息队列管理数据
+消息队列管理实例 = queue_new(size)
+消息队列管理数据 = queue_put(消息队列管理实例,uint32_t id,uint32_t op,uint8_t *data,uint32_t leng)
+消息队列管理数据 = queue_get(消息队列管理实例,uint32_t *id,uint32_t *op,uint8_t **data,uint32_t *leng)
+queue_close(消息队列管理实例); 
+-- 等待线程池中所有线程结束
+queue_delete(消息队列管理实例);
+
+[squeue]
+mfscommon/squeue.c  消息队列 = 消息队列管理实例 + 消息队列管理数据
+消息队列管理实例 = squeue_new(length)
+消息队列管理数据 = squeue_put(消息队列管理实例,void *data)
+消息队列管理数据 = squeue_get(消息队列管理实例,void **data)
+squeue_close(消息队列管理实例); 
+-- 等待线程池中所有线程结束
+squeue_delete(消息队列管理实例);
+}
+
+1. 与条件变量绑定的变量： mfsmount/masterconn.c
+rec->mutex 用于保证rec中字段正确性，
+即 sent, status, rcvd, waiting与条件变量绑定；
+流程: 分配rec， rec->sent=1, rec->waiting=1, rec->rcvd=1. rec->status 说明条件变量被触发时的接收状态。
+sent表示已发送；                  send调用过  # 数据已发送，接收连接异常后，需要进行发送重试，-- 已发送数据标识
+rcvd表示已接收；                  recv调用过  # 发送完毕之后，发生线程切换，使得待接收线程不需要条件阻塞等待
+waiting 表示已阻塞   pthread_cond_wait调用过  # 线程进入条件阻塞状态
+status 表示接收状态；         threc 处理成功  # 数据已发送，接收连接异常后，需要进行发送重试，-- 数据接收状态标识
+即 packetid 客户端生成表示唯一 threc 的数据包id，标识发送报文和响应报文的对应关系。 # 使得发送线程与接收线程，客户端和服务器有了对应关系
+即 obuff obuffsize odataleng 发送缓冲区以及缓冲区大小和长度。 # obuffsize标识发送缓冲区长度，实现接收缓冲区的重复利用
+   ibuff ibuffsize idataleng 接收缓冲区以及缓冲区大小和长度。 # ibuffsize标识接收缓冲区长度，实现接收缓冲区的重复利用
+    条件状态的设置，必然会引起条件状态的判断。设置状态和判断状态位于位于通知-等待两个不同的线程中。
+fs_receive_thread() 阻塞在 tcptoread()的IO阻塞类型，使用IO阻塞线程执行。fs_sendandreceive() 阻塞在 pthread_cond_wait() 条件变量
+接收过程tcptoread()和发送过程tcptowrite()之间的并发性，所以，增加了sent和rcvd两个变量，用以同步接收和发送状态。
+    文件描述符fd的发送和接收可以保持独立；但是fd的发送之间和接收之间需要保证互斥。
+fs_receive_thread()接收线程中，tcptoread()接收数据没有被加锁 -- 接收过程在单线程中进行，不存在多线程数据接收情况。
+fs_sendandreceive()和fs_sendandreceive_any() 发送数据被加锁，-- 发送过程在多线程中进行，所以对tcptowrite进行了加锁。
+fs_sendandreceive() 要求响应命令类型 与 请求命令类型相同。 用于实现命令类型被指定的 请求-发送。       具体到命令类型请求应答
+fs_sendandreceive_any() 只要求请求packetid 与 响应packetid 相等。用于实现命令类型不确定的 请求-发送。 命令类型不定的转发功能
+
+2. 与条件变量绑定的变量 mfscommon/pcqueue.c
+elements: 队列内元素个数
+size    : 队列内元素代表长度和值
+maxsize : 队列内元素代表长度和值，最大值
+closed  : 队列调用queue_close后标识
+freewaiting freewait: 队列空，阻塞接收线程中
+fullwaiting fullwait: 队列满，阻塞发送线程中
+lock    : 保护锁
+
+2.1 queue_put
+pthread_mutex_lock(&(q->lock)
+  leng>q->maxsize                          return -1;    EDEADLK                        异常退出 : 发送数据过大，无法送
+  q->closed                                return -1;    EIO                            异常退出 : 当前处于closed状态，不再接收
+  q->size+leng>q->maxsize && q->closed==0  pthread_cond_wait(&(q->waitfull),&(q->lock)) 阻塞等待 : 队列内数据满，
+  q->elements++;               entry个数
+  q->size += leng;             entry代表长度集合
+  if ((q->freewaiting>0)) { (pthread_cond_signal(&(q->waitfree)); q->freewaiting--; }     通知执行 : 有空闲等待的线程
+pthread_mutex_unlock(&(q->lock)
+附加数据： id表示操作id， op表示操作, leng数据长度;
+
+2.2 queue_get
+pthread_mutex_lock(&(q->lock)
+  while (q->elements==0 && q->closed==0) q->freewaiting++; pthread_cond_wait(&(q->waitfree),&(q->lock)) 阻塞等待 : 队列内没有元素，
+  if (q->closed)                       return -1; 异常退出  : 当前处于closed状态，不再阻塞
+  q->elements--;
+  q->size -= qe->leng;
+  if (q->fullwaiting>0)  pthread_cond_signal(&(q->waitfull))  q->fullwaiting--;  通知执行 : 有阻塞等待的线程
+pthread_mutex_unlock(&(q->lock)
+发送阻塞等待的条件是： leng+size > maxsize 发送空间已满
+接收阻塞等待的条件是： element==0          没有接收元素
+两者之间的关系是: 如果size>0; 则 element 肯定大于0.
+异常情况是：队列当前处于closed状态，或者，发送长度大于队列能容纳元素长度。
+
+2.3 queue_close
+q->closed 作为发送条件；
+q->freewaiting>0 触发 pthread_cond_broadcast(&(q->waitfree)) q->freewaiting = 0
+q->fullwaiting>0 触发 pthread_cond_broadcast(&(q->waitfull)) q->fullwaiting = 0;
+总结：在初始化和释放资源之间，每次成功调用，都会牵涉条件变量关联变量的状态设置和状态判断。
+      在初始化和释放资源之间，每次失败调用，都会牵涉条件变量关联变量的状态判断，但是不会状态设置。
+      queue_put函数中 状态设置和状态判断 会关联queue_get函数中 状态判断和状态设置。queue_get和queue_put相同。
+      queue_closed函数中 状态设置和状态判断 会关联到queue_get queue_put函数中状态判断。
+      条件变量的阻塞等待条件和通知执行条件是不同的，每次调用都会修改阻塞等待条件和通知执行条件。
+对于queue_put函数，阻塞等待条件是 leng+size>maxsize, 通知执行条件是 freewaiting>0
+对于queue_get函数，阻塞等待条件是 element=0,         通知执行条件是 fullwaiting>0
+
+3. 与条件变量绑定的变量  mfscommon/squeue.c
+uint32_t elements;                队列内元素个数
+uint32_t maxelements;             队列内元素个数 最大值
+uint32_t closed;                  队列调用squeue_close后标识
+pthread_cond_t waitfree,waitfull; 队列空和队列满 条件变量
+pthread_mutex_t lock;             保护锁
+squeue_put
+  q->elements>=q->maxelements && q->closed==0    发送阻塞等待
+  q->closed                       EIO            发送失败
+  pthread_cond_signal(&(q->waitfree))            通知执行 : 总是执行
+squeue_get
+  q->elements==0 && q->closed==0                 接收阻塞等待
+  q->closed                       EIO            接受失败
+  pthread_cond_signal(&(q->waitfull))            通知执行 : 总是执行
+总结: 
+pcqueue和squeue之间比对: 
+a. 相同
+1. 具有类似的接口集: new delete close isempty elements isfull sizeleft put tryput get tryput。都支持阻塞和非阻塞两种模式。
+2. 具有无限制队列长度方式: squeue_new(uint32_t length) 设置length为0， queue_new(uint32_t size) 设置size为0
+3. squeue_closed 调用之后，当接收线程都释放完毕之后，在调用squeue_delete 释放线程池关联的资源。
+   jobqueue(queue_close)调用之后，当接收线程都释放完毕之后，又释放掉statusqueue(queue_isempty)之后，才调用pcqueue_delete释放jobqueue和statuqueue资源。
+
+b. 不同
+1. 具有不同限制队列长度方式: queue_put(... leng) 以入参长度累积作为限制条件；squeue_put(...data) 以入参data个数作为限制条件 
+2. 阻塞-执行方法不一样: queue 根据 freewaiting 和 fullwaiting 计数作为通知 消费线程和生产线程执行条件，
+                       squeue 没有 freewaiting 和 fullwaiting 这样条件，直接进行 消费线程和生产线程的通知。线程的阻塞具有相似的条件
+3. 通过 pthread_cond_broadcast(&(q->waitfree)) 通知接收阻塞线程结束； 通过pthread_cond_broadcast(&(q->waitfull)) 通知发送阻塞线程结束。
+   pcqueue 调用waitfree是有条件的，squeue调用waitfree是无条件的，pcqueue和squeue调用 waitfull都是无条件的。
+
+xxx_put 三种状态: 1. 添加成功， 2，添加失败，3. 阻塞等待->[添加成功 | 添加失败] # queue_put moosefs所有调用均为判断返回值
+对于 size (队列长度)不限制的队列，没有添加失败的情况。
+xxx_get 三种状态: 1. 添加成功， 2，添加失败，3. 阻塞等待->[添加成功 | 添加失败] # queue_get 判断data值，如果为NULL，退出执行线程
+queue_get调用后，data值为NULL，不会对队列内元素进行修改。
+xxx_tryput 两种状态: 1. 添加成功， 2，添加失败，
+xxx_tryget 两种状态: 11. 添加成功， 2，添加失败，
+    xxx_put,xxx_get,xxx_tryput,xxx_tryget,xxx_isfull,xxx_isempty,xxx_iselements有效范围是: xxx_new和xxx_close之间，
+调用xxx_close之后，上述put和get调用会出错但不异常；调用xxx_delete之后上述任何函数调用都会发生异常。
+
+squeue_close() 通知被消息队列阻塞的线程处于执行状态，且阻止线程向消息队列中追加新的元素。
+               squeue_close并不会被阻塞。但是又不能立刻释放消息队列自身的资源: 即立刻调用squeue_delete()
+squeue_delete() 是在被阻塞线程都关闭的情况下被调用的，在squeue_close()和squeue_delete()之间必然阻塞等待相关线程执行结束的过程。
+queue_elements() 被用来统计待处理和正处理数据总数。该总数被上报给mfsmaster和传递给jobs_canexit()
+queue_isempty()  在job_send_status()中，如果消息队列空时，向pipe写入触发数据。
+                 在job_receive_status()中，如果消息队列空时，读取pipe中的触发数据。
+                 在job_pool_delete()中，在未处理数据情况下，释放数据占用的内存空间。
+
+4. 与条件变量绑定的变量  mfsmount/readdata.c writedata.c # 基本描述了线程池释放和消息队列释放的流程
+通过调用消息队列 queue_close() 通知 接收线程尽快结束 --> 此时，接收线程发现接收到数据为NULL，则自动释放自己。
+--> 此时，调用消息队列queue_close()的函数进入 等待线程池内线程释放结束 阻塞等待中。
+接收线程结束过程中，特定线程发现自己为最后一个线程时，--> 通过 调用 pthread_cond_signal，通知等待queue_delete线程结束
+--> 此时，调用消息队列 queue_close()的函数 结束阻塞等待状态，调用queue_delete删除消息队列。
+# 一般 调用  queue_new queue_put() queue_close() queue_delete() 这几个函数的位于主流程中， 调用queue_get()的位于线程池中。
+
+5. 共享数据 term
+hddspacemgr.c 接收靠 term 全局变量。
+
+
+
+pthread_cond(){
+[ mfscommon/pcqueue.c ]
+# 锁是用来保护数据的(特别是上下文数据)，条件变量是用来实现阻塞-等待的(协调生产者和消费者关系)。
+
+
+[ mfscommon/squeue.c ]
+
+
+[ src/threadpool.c ]
+
+
+# wait 状态进入
+uv_mutex_lock(&mutex); 
+while((condition)){
+  uv_cond_wait(&cond, &mutex); 
+}
+-- 出队
+uv_mutex_unlock(&mutex);
+
+# post 状态进入
+uv_mutex_lock(&mutex); 
+-- 入队
+uv_cond_signal(&cond); 
+uv_mutex_unlock(&mutex); 
+
+[ src/threadpool.c ]
+1.当　pthread_cond_wait() 函数返回时要考虑到虚假唤醒(即使没有线程broadcast 或者signal条件变量，wait也可能偶尔返回)
+线程一:    
+    pthread_mutex_lock(mtx);
+    while(deque.empty())        //　这边一定要进行 while 判断而不是 if,防止有虚假唤醒的情况
+        pthread_cond_wait(...);
+    deque.pop_front();
+    pthread_mutex_unlock(mtx);
+
+线程二:
+    pthread_mutex_lock(mtx);
+    deque.push_back(x);
+    pthread_cond_signal(...);
+    pthread_mutex_unlock(mtx)
+    
+    
+pthread_cond_signal/pthread_cond_broadcast 条件变量通知函数，参数cond 是对类型为 pthread_cond_t 的一个条件变量的指针。
+当调用pthread_cond_signal时一个在相同条件变量上阻塞的线程将被解锁。如果同时有多个线程阻塞,则由调度策略确定接收通知的线程。
+如果调用pthread_cond_broadcast,则将通知阻塞在这个条件变量上的所有线程。一旦被唤醒线程仍然会要求互斥锁。
+如果当前没有线程等待通知,则上面两种调用实际上成为一个空操作。如果参数cond指向非法地址,则返回值EINVAL。
+}
+
+pthread_key(){
+# moosefs-3.0.104
+pthread_key_t strerrstorage;         # key定义
+void strerr_storage_free(void *ptr)  # 对应私有数据的释放
+1. 初始化 (只需要在主线程中初始化一次)
+pthread_key_create(&strerrstorage,strerr_storage_free)
+pthread_setspecific(strerrstorage,NULL)
+
+2. 获取   (在每个线程内都可以调用)
+uint8_t *buff = pthread_getspecific(strerrstorage);
+if ((buff==NULL)) {
+    buff = malloc(STRERR_BUFF_SIZE);
+    passert(buff);
+    zassert(pthread_setspecific(strerrstorage,buff));
+}
+# pthread_key_t变量需要进行一次初始化，pthread_key_create实现对pthread_key_t变量的初始化
+# pthread_getspecific在没有调用pthread_setspecific之前，返回NULL值。也即可以视为 静态变量的初始化
+# pthread_getspecific 首先要用来判断线程私有数据是否初始化，如果已初始化直接使用，否则，先分配，再使用。
+# 解决：多线程 共享 相同数据访问
+
+# moosefs-3.0.104
+1. 初始化 (只需要在主线程中初始化一次)
+pthread_key_create(&reckey,fs_free_threc)
+
+2. 获取   (在每个线程内都可以调用)
+rec = pthread_getspecific(reckey);
+rec = malloc(sizeof(threc));
+rec->next = threchash[rechash];
+threchash[rechash] = rec;
+pthread_setspecific(reckey,rec);
+# 由于mfs_getfacl, mfs_setfacl, mfs_setxattr, mfs_getxattr, mfs_listxattr, mfs_removexattr等接口可能是由
+# fuse库并发的线程创建的，threc是绑定在线程上 完成从元数据服务器获取数据的上下文(线程自身和请求-响应数据块的关系)
+# 解决: 线程与到master之间请求发送的上下文
+
+#monit
+1. 初始化 (只需要在主线程中初始化一次)
+pthread_once(&once_control, init_once);
+->init_once
+  pthread_key_create(&(Exception_Stack), NULL)
+  
+2. 获取   (在每个线程内都可以调用)
+Exception_frame.prev = TD_get(Exception_Stack); 
+TD_set(Exception_Stack, &Exception_frame);
+# 由于 monit中基于setjmp 和 longjmp 实现的异常处理是基于栈，而不同线程需要不同的栈。所以如果需要回溯栈信息
+# 需要将每个线程的栈信息保存到线程关联的私有数据上，于是，使用线程私有数据是一种很合理的选择。
+# pthread_once(&once_control, init_once);保证init_once只会被执行一次，也就可以保证调用此语句的可重入性。
+# 解决: 线程栈信息的独立性
+
+pthread_once() 行为和 pthread_create() 不一样，会同步调用函数，pthread_once()之后的语句会被阻塞 直到 pthread_once()注册函数运行完
+}
+
+pthread_key(){ 局部数据、全局数据、线程特定数据
+    单线程 C 程序有两类基本数据:局部数据和全局数据。对于多线程 C 程序,添加了第三类数据:线程特定数据。
+线程特定数据与全局数据非常相似,区别在于前者为线程专有。线程特定数据基于每线程进行维护。TSD(特定于线程的数据)
+是定义和引用线程专用数据的唯一方法。每个线程特定数据项都与一个作用于进程内所有线程的键关联。通过使用key,
+线程可以访问基于每线程进行维护的指针 (void *)。
+
+注意：设置新绑定时,pthread_setspecific()不会释放其存储空间。必须释放现有绑定,否则会出现内存泄漏。
+
+pthread_key_t key是全局变量。
+    同一个键值可以由多个线程所共享。某一个线程调用pthread_key_create创建一个键，其他线程都可以使用这个键。
+这样，不同的线程使用同一个键值，调用pthread_getspecific(key)函数，会得到不同的值。
+如果一个线程想拥有多个不同的线程私有数据，那么就应该申请多几个键值。
+}
+
+pthread(){
+共有四种同步模型:互斥锁、读写锁、条件变量和信号。 
+互斥锁分为：快速互斥锁、递归互斥锁、检错互斥锁。
+
+线程使用问题
+    1. 每个线程创建以后都应该调用 pthread_detach 函数，只有这样在线程结束的时候资源
+        (线程的描述信息和stack,局部变量栈的容量)才能被释放
+    2. 在每个线程还没有结束时，main函数不能结束(不能调用retrun或则_exit()),可通过在main中最后写pthread_exit(NULL),
+       阻塞等待其他线程创建好完成.
+    3. 一个进程创建多个线程,那么多个线程将共用这个进程的栈大小(8M)以及其他资源
+    4.创建线程时要注意最多的线程数量和线程栈大小
+    5. pthread_t 并不适合用做线程的标识符
+        glibc 将　pthread_t 当成结构体指针，指向一块动态分配的内存，这部分内存是反复使用．
+    　　只保证同一进程内，同一时间各个线程 id 不同，不能保证同一进程内先后线程有不同的 id (第一个线程运行完后，再运行
+    　　第二个线程，它们的 pthread_t 可能相同)．　多个进程间的线程 id 也可能相同
+            例如：
+                   pthread_t t1;
+            　　　　pthrad_create(&t1, NULL, Func, NULL);
+                   pthread_join(t1, NULL);
+                   
+                   pthread_t t2;
+           　　　　 pthrad_create(&t2, NULL, Func, NULL);
+                   pthread_join(t2, NULL);
+                   
+                   // t1 的值可能等于 t2 的值
+    6. 使用 gettid() 系统调用返回值作为线程 id(可以考虑使用 muduo::CurrentThread::tid() 进行封装)
+        理由如下：
+            (1) 类型为 pid_t , 是个小整数，便于在日志中打印
+            (2) 直接表示内核的任务调度 id, /proc/tid 或则 /proc/pid/task/tid
+            (3) 在其他的系统工具也能定位到某一具体的线程，例如 top 可以按线程列出任务，可以找出 CPU 使用率最高的
+            　　 线程 id.
+            (4) 0 为非法值，第一个进程的 pid 是 1
+            
+    7.线程数最好 CPU 的数量一致，最好在程序的初始化阶段创建全部工作线程，在程序的运行期间不再创建和销毁，
+    　可以使用 muduo::ThreadPool 和 muduo::EvnetLoop
+    8.最好不用强行在外部终止线程的做法，这样会导致线程没来的及清除资源，也没机会及时释放锁的占用
+    9. 请注意,如果主线程仅仅调用了pthread_exit,则仅主线程本身终止。进程及进程内的其他线程将继续存在。所有线程都已终止时,进程也将终止。
+编码技巧
+    创建一个线程,如果要给线程传多个参数,则将这多个参数构成一个自定义的结构体,再将它传给线程
+    需要调用pthread_join()函数时最好显式设置属性为joinable,并创建.为了移植性,并不是所有的系统都保证默认创建线程是joinable.
+}
+
+pthread_create(){ 默认属性 -> 设置属性
+    1. 线程资源释放方式
+    detached state (joinable? Default: PTHREAD_CREATE_JOINABLE. Other option: PTHREAD_CREATE_DETACHED)
+    # int pthread_detach(pthread_t thread)；                                          # 设置运行时线程分离方式结束
+    # int pthread_join(pthread_t thread, void **retval);                              # 连接指定线程，并获得线程返回值
+    # int pthread_attr_setdetachstate(pthread_attr_t *attr, int detachstate);         # 设置分离状态属性
+    # int pthread_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate);  # 获取分离状态属性
+    PTHREAD_CREATE_JOINABLE（可连接），使用attr创建的所有线程处于可连接状态，线程终止不会回收相关资源，需在其他线程调用 pthread_detach()或pthread_join()函数 
+    PTHREAD_CREATE_DETACHED(分离)，使用attr创建的所有线程处于分离状态，这类线程终止带有此状态的线程相关资源将被系统收回
+    # 如果多个线程等待同一个线程终止,则所有等待线程将一直等到目标线程终止。然后,一个等待线程成功返回。其余的等待线程将失败并返回 ESRCH 错误。
+    scheduling policy (real-time? PTHREAD_INHERIT_SCHED,PTHREAD_EXPLICIT_SCHED,SCHED_OTHER)
+    2. 调度策略 SCHED_FIFO:  SCHED_RR:  SCHED_OTHER:时间共享调度,适用于不需要实时机制
+     # int pthread_attr_setschedpolicy(pthread_attr_t *attr, int policy)          # 设置线程调度策略属性
+     # int pthread_attr_getschedpolicy(const pthread_attr_t *attr, int *policy);  # 获取线程调度策略属性
+     # 注意： 如果需要调用pthread_attr_setschedpolicy()函数修改资源竞争范围属性使线程创建时生效,那一定得使用
+     # pthread_attr_setinheritsched()函数将 inherit-scheduler attribute设置为PTHREAD_EXPLICIT_SCHED.
+    scheduling parameter
+    3. 线程的调度参数
+    # int pthread_attr_setschedparam(pthread_attr_t *attr, const struct sched_param *param); # 设置线程调度等级属性
+    # int pthread_attr_getschedparam(const pthread_attr_t *attr, struct sched_param *param); # 获取线程调度等级属性
+    #  设置调度策略所涉及的参数，不过从现在文件里面只有priority这个参数
+    inheritsched attribute (Default: PTHREAD_EXPLICIT_SCHED Inherit from parent thread: PTHREAD_INHERIT_SCHED)
+    4. 线程的继承性
+    # int pthread_attr_setinheritsched(pthread_attr_t *attr, int inheritsched);        # 设置线程继承调度属性
+    # int pthread_attr_getinheritsched(const pthread_attr_t *attr, int *inheritsched); # 获取线程继承调度属性
+      PTHREAD_INHERIT_SCHED: 完全继承父线程的调度属性,即使使用pthread_attr_setscope()进行修改也没有
+      PTHREAD_EXPLICIT_SCHED: 线程创建时由完全由传入参数attr的值决定
+    # 注意： 该继承调度属性决定了线程在创建pthread_create()的过程中 attr 的属性是继承父线程,还是用自己设置的attr,
+    # 影响的属性范围有 调度策略pthread_attr_setschedpolicy(), 调度等级pthread_attr_setschedparam(),
+    # 以及调度范围 pthread_attr_setscope() ,其他的修改属性不受影响例如 pthread_attr_setdetachstate()函数
+    scope (Kernel threads: PTHREAD_SCOPE_SYSTEM User threads: PTHREAD_SCOPE_PROCESS Pick one or the other not both.)
+    5. 线程的作用域
+    # int pthread_attr_setscope(pthread_attr_t *attr, int scope);        # 设置线程资源竞争范围属性
+    # int pthread_attr_getscope(const pthread_attr_t *attr, int *scope); # 获取线程资源竞争范围属性
+      PTHREAD_SCOPE_SYSTEM  与系统中所有进程中线程竞争
+      PTHREAD_SCOPE_PROCESS 与当前进程中的其他线程竞争
+    # 注意 Linux 支持 PTHREAD_SCOPE_SYSTEM, 不一定支持 PTHREAD_SCOPE_PROCESS模式,需要验证,
+    # 如果需要调用pthread_attr_setscope() 函数修改资源竞争范围属性使线程创建时生效,
+    # 那一定得使用pthread_attr_setinheritsched()函数将 inherit-scheduler attribute 设置为PTHREAD_EXPLICIT_SCHED.
+    guard size # 作为保护线程堆栈大小的额外空间,如果guardsize大于0,则该guardsize 字节附加在线程堆栈后面来保护堆栈.
+    # int pthread_attr_setguardsize(pthread_attr_t *attr, size_t guardsize);         # 设置线程的栈保护区大小
+    # int pthread_attr_getguardsize(const pthread_attr_t *attr, size_t *guardsize);  # 获取线程的栈保护区大小
+    说明：参数提供了对栈指针溢出的保护。默认为系统页大小，
+    如果设置为0表示没有保护区。 
+    大于0，则会为每个使用 attr 创建的线程提供大小至少为 guardsize 字节的溢出保护区
+    stack address (See unistd.h and bits/posix_opt.h _POSIX_THREAD_ATTR_STACKADDR)
+    # int pthread_attr_setstackaddr(pthread_attr_t *attr, void *stackaddr);        # 设置线程的堆栈区
+    # int pthread_attr_getstackaddr(const pthread_attr_t *attr, void **stackaddr); # 获取线程的堆栈信息（栈地址和栈大小）
+    # 指定栈时,还应使用 PTHREAD_CREATE_JOINABLE 创建线程。在该线程的 pthread_join(3C) 调用返回之前,不会释放该栈。
+    stack size (default minimum PTHREAD_STACK_SIZE set in pthread.h),
+    # int pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize);        # 设置线程堆栈大小
+    # int pthread_attr_getstacksize(const pthread_attr_t *attr, size_t *stacksize); # 获取线程堆栈大小
+    # PTHREAD_STACK_MIN 该线程的用户栈大小将使用默认堆栈大小，为某个线程所需最小堆栈大小，但对于所有线程，
+    # 这个大小可能无法接受 具体指定的大小 使用线程的用户堆栈大小的数值，必须不小于最小堆栈大小PTHREAD_STACK_MIN
+    
+# 属性对象是不透明的，而且不能通过赋值直接进行修改。系统提供了一组函数，用于初始化、配置和销毁线程属性。
+int pthread_attr_init (pthread_attr_t *attr);     # 初始化一个线程对象的属性
+int pthread_attr_destroy (pthread_attr_t *attr);  # 销毁一个线程属性对象
+线程的属性可以分3个层次
+1. join和detach的配置、获得。提供了运行时设置线程属性的pthread_detach()函数。提供了连接结束线程的pthread_join()函数。
+   一方面线程的此属性是可以在运行时修改的；另一方面，线程运行时只能将属性设置成detach状态，不能将属性设置成join状态。
+   detach状态使得，父线程不能获得子线程的结束状态，也不对子线程的资源进行释放
+   join  状态使得，父线程可以获得子线程的结束状态，且需要对子线程的资源进行释放
+2. 线程的调度属性：包括线程的调度策略，调度优先级和调度范围，默认情况下所有属性继承自父线程，
+   属性PTHREAD_INHERIT_SCHED使得子线程继承自父线程，使得对线程的调度策略，调度优先级和调度范围设置无效。
+   属性PTHREAD_EXPLICIT_SCHED使得子线程来源于线程的调度属性。使得对线程的调度策略，调度优先级和调度范围设置生效。
+   线程的调度属性只能在线程创建前通过线程属性实例配置给待创建线程。
+3. 线程的栈属性：包括线程的栈地址，栈大小，栈保护等属性。
+   线程的栈属性只能在线程创建前通过线程属性实例配置给待创建线程。
+}
+
+pthread_id(){
+pthread_t pthread_self(void) # 获取当前线程的
+注意： 返回值和pthread_create函数中的 *thread是一样的
+int pthread_equal(pthread_t t1, pthread_t t2); # 判断线程ID是否相等
+
+pid_t gettid(void); # thread ID (TID). 单线程进程中 TID等于PID，即getpid
+                                       多线程进程中，每个线程有独立的TID，有相同的PID。
+}
+pthread_cancel(){
+int pthread_cancel(pthread_t thread) # 发送终止信号给目标thread线程,发送成功并不意味着thread会终止。
+注意: 这个是在其他线程中调用,要对目标线程进行消除
+int pthread_setcancelstate(int state, int *oldstate) # 设置本线程对Cancel信号的反应
+    state: PTHREAD_CANCEL_ENABLE (默认设置) 收到信号后设为CANCLED状态 
+           PTHREAD_CANCEL_DISABLE 忽略CANCEL信号继续运行 
+    oldstate:如果不为NULL则存入原来的Cancel状态以便恢复
+注意: 这个是在目标线程进行调用
+int pthread_setcanceltype(int type, int *oldtype) # 设置本线程取消动作的 执行时机
+    type: PTHREAD_CANCEL_DEFFERED 收到信号后继续运行至下一个取消点再退出 
+          PTHREAD_CANCEL_ASYCHRONOUS 立即执行取消动作（退出） 
+    oldstate:如果不为NULL则存入运来的取消动作类型值。
+void pthread_testcancel(void) # 检查本线程是否处于Canceld状态, 如果是,则进行取消动作， 否则直接返回
+注意: 这个是在目标线程进行调用. 在这样的循环体的必经路径上应该加入pthread_testcancel()调用
+
+1. 通过 pthread_testcancel 调用以编程方式建立线程取消点。
+2. 线程等待 pthread_cond_wait 或 pthread_cond_timedwait(3C) 中的特定条件出现。
+3. 被 sigwait(2) 阻塞的线程。
+4. 一些标准的库调用。通常,这些调用包括线程可基于其阻塞的函数。 缺省情况下将启用取消功能。有时,您可能希望应用程序禁用取消功能。
+  如果禁用取消功能,则会导致延迟所有的取消请求,直到再次启用取消请求。
+
+概念: 
+    1. 线程取消的方法是向目标线程发Cancel信号,但如何处理Cancel信号则由目标线程自己决定,
+    或者忽略(当禁止取消时), 或者立即终止（当在取消点或异步模式下）、或者继续运行至Cancelation-point
+    （取消点，下面将描述）, 总之由不同的Cancelation状态决定。 
+    2. 线程接收到CANCEL信号的缺省处理（即pthread_create()创建线程的缺省状态）是继续运行至取消点再处理（退出）,
+    或在异步方式下直接退出.一个线程处理cancel请求的退出操作相当于pthread_exit(PTHREAD_CANCELED). 当然线程可以
+    通过设置为PTHREAD_CANCEL_DISABLE来拒绝处理cancel请求 
+    3. 线程的取消与线程的工作方式（joinable或detached）无关 
+    4. 根据POSIX标准,pthread_join(),pthread_testcancel()、pthread_cond_wait()、 pthread_cond_timedwait()、 
+    sem_wait()、sigwait()等函数以及read()、write()等会引起阻塞的系统调用都是Cancelation-point， 而其他pthread
+    函数都不会引起Cancelation动作 
+    
+    注意: 当pthread_cancel()返回时,线程未必已经取消,可能仅仅将请求发送给目标线程,而目标线程目前没有到达取消点
+    (需要调用pthread_join(),pthread_testcancel()等函数), 如果要知道线程在何时中止,就需要在取消它之后调用pthread_join().
+    有一个例外是当线程被detach后,不能这样处理
+}
+
+pthread_cleanup(){
+线程清理处理程序
+void pthread_cleanup_push(void (*routine)(void *), void *arg);
+ 描述： 线程可以建立多个清理处理程序。处理程序记录在栈中，也就是说它们的执行顺序与它们注册时的顺序相反(栈的先入后出)
+ 参数: void (*routine)(void *) : 函数名 arg:传入注册函数的参数
+ 注意：
+      只有当以下几种情况注册的函数才会被调用
+          (1):调用pthread_exit.
+          (2):作为对取消线程请求(pthread_cancel)的响应
+          (3):以非0参数调用pthread_cleanup_pop.
+      如果只是简单的return,该注册函数不会被调用
+
+void pthread_cleanup_pop(int execute)
+     描述：调用该函数时将pthread_cleanup_push压入的注册函数弹出,根据execute参数的值看执不执行注册函数.
+     参数: 
+         0: 不执行清理函数
+         非零: 执行清理函数
+返回值：
+        0-成功 
+注意：
+            phtread_cleanup_push 与 phread_cleanup_pop要成对儿的出现，否则会报错(不管最后注册函数有没有被调用,
+             但phread_cleanup_pop函数一定要和phtread_cleanup_push函数数量一致，否则编译不通过)
+pthread_cleanup_push(pthread_mutex_unlock, (void *) &mut);
+pthread_mutex_lock(&mut);
+/* do some work */
+pthread_mutex_unlock(&mut);
+pthread_cleanup_pop(0);
+
+如果线程处于PTHREAD_CANCEL_ASYNCHRONOUS状态，上述代码段就有可能出错，
+因为CANCEL事件有可能在pthread_cleanup_push()和pthread_mutex_lock()之间发生(这样会调用注册函数),
+或者在pthread_mutex_unlock()和pthread_cleanup_pop()之间发生,从而导致清理函数unlock一个并没有加锁的mutex变量，造成错误。
+因此应该暂时设置成PTHREAD_CANCEL_DEFERRED模式。
+}
+pthread_signal(){
+int pthread_kill(pthread_t thread, int sig) # 向线程发送信号
+  thread: tid 所指定的线程必须与调用线程在同一个进程中。 
+  sig: 0 : sig 参数必须来自 signal(5) 提供的列表。
+# 如果 sig 为零,将执行错误检查,但并不实际发送信号。此错误检查可用来检查 tid 的有效性。
+# 该函数在成功完成之后返回零。其他任何返回值都表示出现了错误。
+
+int pthread_sigmask(int how, const sigset_t *new, sigset_t *old); # 访问调用线程的信号掩码 使用
+how 用来确定如何更改信号组。
+  SIG_BLOCK。  向当前的信号掩码中添加 new,其中 new 表示要阻塞的信号组。
+  SIG_UNBLOCK。从当前的信号掩码中删除 new,其中 new 表示要取消阻塞的信号组。
+  SIG_SETMASK。将当前的信号掩码替换为 new,其中 new 表示新的信号掩码。
+
+
+}
+
+pthread_once(){
+初始化线程 使用 pthread_once(3C),可以在首次调用 pthread_once 时调用初始化例程。以后调用pthread_once() 将不起作用。
+函数原型：int pthread_once(pthread_once_t *once_control,void (*init_routine)(void)); 
+    once_control 参数用来确定是否已调用相关的初始化例程。 
+该函数返回值pthread_once() 在成功完成之后返回零。其他任何返回值都表示出现了错误。
+}
+
+sem(){
+函数 sem_open 创建一个新的有名信号灯或打开一个已存在的有名信号灯。
+sem_t *sem_open(const char *name,int oflag, mode_t mode,unsigned int value);
+参数：name信号灯的外部名字；
+      oflag选择创建或打开一个现有的信号灯；
+      mode 权限位;
+      value信号灯初始值。
+有名信号灯总是既可用于线程间的同步,又可以用于进程间的同步。
+oflag参数可以是0、O_CREAT(创建一个信号灯)或O_CREAT|O_EXCL(如果没有指定的信号灯就创建),
+如果指定了O_CREAT,那么第三个和第四个参数是需要的;其中mode参数指定权限位,value参数指定信号灯的初始值
+如果指定了O_CREAT(而没有指定O_EXCL),那么只有所需的信号灯尚未存在时才初始化它。
+所需信号灯已存在条件下指定O_CREAT不是一个错误该标志的意思仅仅是“如果所需信号灯尚未存在,那就创建并初始化它”。但是所需信号灯等已存在条件下指定O_CREAT|O_EXCL却是一个错误。
+sem_open 返回指向sem_t信号灯的指针,该结构里记录着当前共享资源的数目。
+
+    有名信号灯使用 sem_unlink从系统中删除。每个信号灯有一个引用计数器记录当前的打开次数,
+sem_unlink必须等待这个数为 0 时才能把name所指的信号灯从文件系统中删除。也是要等待最后一个 sem_close 发生。
+
+    测试信号灯 sem_getvalue在由valp指向的正数中返回所指定信号灯的当前值。
+如果该信号灯当前已上锁,那么返回值或为0,或为某个负数,其绝对值就是等待该信号灯解锁的线程数。
+
+sem_wait来申请共享资源，
+挂出共享资源使用sem_post函数，
+
+
+注意:posix 基于内存的信号灯和 posix 有名信号灯有一些区别
+    sem_open 不需要类型与shared的参数,有名信号灯总是可以在不同进程间共享的。
+    sem_init 不使用任何类似于 O_CREAT标志的东西,也就是说,sem_init 总是初始化信号灯的值。因此,对于一个给定的信号灯,我们必须小心保证只调用一次sem_init。
+    sem_open 返回一个指向某个sem_t变量的指针,该变量由函数本身分配并初始化。sem_init的第一个参数是一个指向某个sem_t变量的指针,该变量由调用者分配,但然后由 sem_init 函数初始化。
+    posix 有名信号灯是通过内核持续的,一个进程创建一个信号灯,另外的进程可以通过该信号灯的外部名(创建信号灯使用的文件名)来访问它。posix 基于内存的信号灯的持续性却是不定的,如果基于内存的信号灯是由单个进程内的各个线程共享的,那么该信号灯就是随进程持续的,当该进程终止时它也会消失。如果某个基于内存的信号灯是在不同进程间同步的,该信号灯必须存放在共享内存区中,这要只要该共享内存区存在,该信号灯就存在。
+    基于内存的信号灯应用于线程很麻烦,而有名信号灯却很方便,基于内存的信号灯比较适合应用于一个进程的多个线程。
+}
+
+1. fdlock 用于保证fd的正确性，
+即：如果不修改文件描述符的状态，read和write函数可以并行执行。只是read之间和write之间不能并行执行。
+2. 一个互斥量可以和多个条件变量之间配合使用。
+
+pthread_mutexattr(){
+设置互斥锁类型的属性 pthread_mutexattr_settype(3C) 可用来设置互斥锁的 type 属性。
+函数原型：int pthread_mutexattr_settype(pthread_mutexattr_t *attr , int type);如果运行成功,pthread_mutexattr_settype 函数会返回零。否则,将返回用于指明错误的错误号。 EINVAL 描述: 值为 type 无效或者 attr 指定的值无效。 类型属性的缺省值为 PTHREAD_MUTEX_DEFAULT。 type 参数指定互斥锁的类型。以下列出了有效的互斥锁类型:
+  PTHREAD_MUTEX_NORMAL 描述:此类型的互斥锁不会检测死锁。
+  如果线程在不首先解除互斥锁的情况下尝试重新锁定该互斥锁,则会产生死锁。尝试解除由其他线程锁定的互斥锁会产生不确定的行为。
+  如果尝试解除锁定的互斥锁未锁定,则会产生不确定的行为。 这种类型的互斥锁不会自动检测死锁。
+  如果一个线程试图对一个互斥锁重复锁定将会引起这个线程的死锁。如果试图解锁一个由别的线程锁定的互斥锁会引发不可预料的结果。
+  如果一个线程试图解锁已经被解锁的互斥锁也会引发不可预料的结果。
+  PTHREAD_MUTEX_ERRORCHECK 描述: 此类型的互斥锁可提供错误检查。
+  如果线程在不首先解除锁定互斥锁的情况下尝试重新锁定该互斥锁,则会返回错误。
+  如果线程尝试解除锁定的互斥锁已经由其他线程锁定,则会返回错误。
+  如果线程尝试解除锁定的互斥锁未锁定,则会返回错误。 这种类型的互斥锁会自动检测死锁。
+  如果一个线程试图对一个互斥锁重复锁定,将会返回一个错误代码。
+  如果试图解锁一个由别的线程锁定的互斥锁将会返回一个错误代码。
+  如果一个线程试图解锁已经被解锁的互斥锁也将会返回一个错误代码。
+  PTHREAD_MUTEX_RECURSIVE 描述: 如果线程在不首先解除锁定互斥锁的情况下尝试重新锁定该互斥锁,则可成功锁定该互斥锁。
+  与 PTHREAD_MUTEX_NORMAL 类型的互斥锁不同,对此类型互斥锁进行重新锁定时不会产生死锁情况。
+  多次锁定互斥锁需要进行相同次数的解除锁定才可以释放该锁,然后其他线程才能获取该互斥锁。
+  如果线程尝试解除锁定的互斥锁已经由其他线程锁定,则会返回错误。
+  如果线程尝试解除锁定的互斥锁未锁定,则会返回错误。 
+  如果一个线程对这种类型的互斥锁重复上锁,不会引起死锁,一个线程对这类互斥锁的多次重复上锁必须由这个线程来重复相同数量的解锁,这样才能解开这个互斥锁,别的线程才能得到这个互斥锁。如果试图解锁一个由别的线程锁定的互斥锁将会返回一个错误代码。如果一个线程试图解锁已经被解锁的互斥锁也将会返回一个错误代码。这种类型的互斥锁只能是进程私有的(作用域属性为PTHREAD_PROCESS_PRIVATE)。
+  PTHREAD_MUTEX_DEFAULT 描述: 如果尝试以递归方式锁定此类型的互斥锁,则会产生不确定的行为。对于不是由调用线程锁定的此类型互斥锁,
+  如果尝试对它解除锁定,则会产生不确定的行为。对于尚未锁定的此类型互斥锁,
+  如果尝试对它解除锁定,也会产生不确定的行为。允许在实现中将该互斥锁映射到其他互斥锁类型之一。
+  
+  对于 Solaris 线程,PTHREAD_PROCESS_DEFAULT 会映射到 PTHREAD_PROCESS_NORMAL。 这种类型的互斥锁不会自动检测死锁。
+  如果一个线程试图对一个互斥锁重复锁定将会引起不可预料的结果。
+  如果试图解锁一个由别的线程锁定的互斥锁会引发不可预料的结果。
+  如果一个线程试图解锁已经被解锁的互斥锁也会引发不可预料的结果。
+        
+初始化互斥锁 使用 pthread_mutex_init(3C) 可以使用缺省值初始化由 mp 所指向的互斥锁,
+还可以指定已经使用 pthread_mutexattr_init() 设置的互斥锁属性。
+mattr 的缺省值为 NULL。注意：注初始化互斥锁之前,必须将其所在的内存清零。
+}
+lock(){
+乐观锁和悲观锁
+1. 悲观锁(Pessimistic Lock): 每次去拿数据的时候都认为别人会修改，所以每次在拿数据的时候都会上锁，
+                           这样别人想拿这个数据就会阻塞直到它拿到锁. Java synchronized 就属于悲观锁的一种实现
+2. 乐观锁(Optimistic Lock): 每次去拿数据的时候都认为别人不会修改，所以不会上锁，但是在提交更新的时候会判断一下在此期间别人
+                           有没有去更新这个数据。乐观锁适用于读多写少的应用场景，这样可以提高吞吐量。
+        乐观锁实现的 2 中方式:
+            A. 使用数据版本(Version)记录机制实现(常用)。为数据增加一个版本标识，通过为数据库表增加一个数字类型的 “version” 字段
+            　　来实现。当读取数据时，将 version 字段的值一同读出，数据每更新一次，对此 version 值加一。
+               当我们提交更新的时候，判断数据库表对应记录的当前版本信息与第一次取出来的 version 值进行比对，
+               如果数据库表当前版本号与第一次取出来的 version 值相等，则予以更新，否则认为是过期数据。
+            B. 使用时间戳(timestamp), 在更新提交的时候检查当前数据库中数据的时间戳和自己更新前取到的时间戳进行对比，
+               如果一致则OK，否则就是版本冲突
+               
+
+分布式锁
+1. 分布式锁: 分为基于 Redis 和基于 Zookeeper
+2. 基于 Redis 的分布式锁
+        在任意时刻，只有一个客户端可以获得锁(排他性), Redis 的锁服务的做法是通过超时时间来释放锁, 所以 
+        客户端最终一定可以获得锁.
+3. Redis 分布式锁服务的问题
+       (1) Redis 的锁服务超时释放锁导致的问题．例如，A 服务先得到锁，但 A 服务因为 IO 等待阻塞了，而此时因为锁超时
+       　　导致被释放(A 服务还不知道)，这时 B 服务成功的获得锁，要对其管理的资源进行操作，刚好此时 A 服务右就绪，继续
+       　　处理数据，这时候对应的数据就乱了
+       (2) 解决方案一: 乐观锁机制(需要一个版本号排它)，该锁的版本号是由 Redis 提供的
+                       当 A 服务获得锁时，会得到一个锁的版本号(Version:76),该锁的版本号是由 Redis 提供的，
+                       A 服务因为 IO 等待阻塞了，而此时因为锁超时致被释放,B 服务成功的获得锁,
+                       B 服务得到更高的该锁的版本号(Version:77), 此时对资源进行操作需要
+                       验证锁的版本号是不是比之前要高，如果要高则运行进行操作，如果低的话则不允许操作
+}

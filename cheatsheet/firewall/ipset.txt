@@ -1,0 +1,43 @@
+ipset - linux防火墙的扩展
+
+ipset介绍
+iptables是在linux内核里配置防火墙规则的用户空间工具,它实际上是netfilter框架的一部分.可能因为iptables是netfilter框架里最常见的部分,所以这个框架通常被称为iptables,iptables是linux从2.4版本引入的防火墙解决方案.
+ipset是iptables的扩展,它允许你创建 匹配整个地址sets（地址集合） 的规则。而不像普通的iptables链是线性的存储和过滤,ip集合存储在带索引的数据结构中,这种结构即时集合比较大也可以进行高效的查找.
+除了一些常用的情况,比如阻止一些危险主机访问本机，从而减少系统资源占用或网络拥塞,IPsets也具备一些新防火墙设计方法,并简化了配置.
+官网：http://ipset.netfilter.org/
+
+使用ipset
+1、安装
+rpm -ivh libmnl-devel-1.0.2-3.el6.x86_64.rpm libmnl-1.0.2-3.el6.x86_64.rpm
+tar xvf ipset-6.24.tar.bz2
+cd ipset-6.24
+./configure
+make
+make install
+
+#注意：
+如果在centos6.6或其他情况下安装时候，configure报错如下
+configure: error: Invalid kernel source directory /lib/modules/2.6.32-358.el6.x86_64/source
+解决：需要安装内核源码包kernel-devel-2.6.32-358.el6.x86_64.rpm
+2、创建一个新的ipset
+ipset create openapi hash:net
+2.1、查看已创建的ipset
+2.2、ipset默认可以存储65536个element，使用maxelem指定数量
+ipset create openapi hash:net maxelem 1000000
+ipset list
+3、加入一个黑名单ip
+ipset add openapi 180.156.238.246
+4、创建防火墙规则，与此同时，openapi这个ipset里的ip都无法访问22端口
+iptables -I INPUT -m set --match-set openapi src -p tcp --destination-port 22 -j DROP
+service iptables save
+5、去除黑名单，与此同时，又可以访问了
+ipset del openapi 180.156.238.246
+6、将ipset规则保存到文件
+ipset save openapi -f openapi.txt
+7、删除ipset
+ipset destroy openapi
+8、导入ipset规则
+ipset restore -f openapi.txt
+
+注意：
+1、ipset的一个优势是集合可以动态的修改，即使iptables的规则正在使用这个集合

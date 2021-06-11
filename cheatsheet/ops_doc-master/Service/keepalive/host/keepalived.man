@@ -1,0 +1,105 @@
+KEEPALIVED(8)						  System Manager's Manual					     KEEPALIVED(8)
+
+NAME
+       keepalived - load-balancing and high-availability service
+
+SYNOPSIS
+       keepalived [-f|--use-file=FILE] [-P|--vrrp] [-C|--check] [-l|--log-console] [-D|--log-detail] [-S|--log-facility={0-7}]
+       [-V|--dont-release-vrrp] [-I|--dont-release-ipvs] [-R|--dont-respawn] [-n|--dont-fork] [-d|--dump-conf] [-p|--pid=FILE]
+       [-r|--vrrp_pid=FILE] [-c|--checkers_pid=FILE] [-x|--snmp] [-A|--snmp-agent-socket=FILE] [-m|--core-dump]
+       [-M|--core-dump-format[=PATTERN]] [-v|--version] [-h|--help]
+
+DESCRIPTION
+       Keepalived provides simple and robust facilities for load-balancing and high-availability. The load-balancing framework relies on
+       the well-known and widely used Linux Virtual Server (IPVS) kernel module providing Layer4 load-balancing. Keepalived implements a
+       set of checkers to dynamically and adaptively maintain and manage a load-balanced server pool according to their health. Keepalived
+       also implements the VRRPv2 and VRRPv3 protocols to achieve high-availability with director failover.
+
+OPTIONS
+-- 配置文件指定
+	-f, --use-file=FILE
+	      Use the specified configuration file. The default configuration file is "/etc/keepalived/keepalived.conf".
+	-d, --dump-conf
+	      Dump the configuration data.
+-- 子系统指定
+	-P, --vrrp
+	      Only run the VRRP subsystem. This is useful for configurations that do not use the IPVS load balancer.
+	-C, --check
+	      Only run the healthcheck subsystem. This is useful for configurations that use the IPVS load balancer with a single director
+	      with no failover.
+-- 日志输出指定
+	-l, --log-console
+	      Log messages to the local console. The default behavior is to log messages to syslog.
+	-D, --log-detail
+	      Detailed log messages.
+	-S, --log-facility=[0-7]
+	      Set syslog facility to LOG_LOCAL[0-7]. The default syslog facility is LOG_DAEMON.
+-- 进程状态与资源
+	-X, --release-vips
+	      Drop VIP on transition from signal.
+	-V, --dont-release-vrrp
+	      Don't remove VRRP VIPs and VROUTEs on daemon stop. The default behavior is to remove all VIPs and VROUTEs when keepalived
+	      exits.
+	-I, --dont-release-ipvs
+	      Don't remove IPVS topology on daemon stop. The default behavior it to remove all entries from the IPVS virtual server table
+	      when keepalived exits.
+-- 进程启动管理
+	-R, --dont-respawn
+	      Don't respawn child processes. The default behavior is to restart the VRRP and checker processes if either process exits.
+	-n, --dont-fork
+	      Don't fork the daemon process. This option will cause keepalived to run in the foreground.
+	-p, --pid=FILE
+	      Use the specified pidfile for the parent keepalived process. The default pidfile for keepalived is
+	      "/var/run/keepalived.pid", unless a network namespace is being used. See NAMESPACES below for more details.
+	-r, --vrrp_pid=FILE
+	      Use the specified pidfile for the VRRP child process. The default pidfile for the VRRP child process is
+	      "/var/run/keepalived_vrrp.pid", unless a network namespace is being used.
+	-c, --checkers_pid=FILE
+	      Use the specified pidfile for checkers child process. The default pidfile for the checker child process is
+	      "/var/run/keepalived_checkers.pid" unless a network namespace is being used.
+
+	-x, --snmp
+	      Enable the SNMP subsystem.
+	-A, --snmp-agent-socket=FILE
+	      Use the specified socket for connection to SNMP master agent.
+
+	-m, --core-dump
+	      Override the RLIMIT_CORE hard and soft limits to enable keepalived to produce a coredump in the event of a segfault or other
+	      failure.	This is most useful if keepalived has been built with 'make debug'.  Core dumps will be created in /, unless
+	      keepalived is run with the --dont-fork option, in which case they will be created in the directory from which keepalived was
+	      run, or they will be created in the directory of a configuraton file if the fault occurs while reading the file.
+	-M, --core-dump-pattern[=PATTERN]
+	      Sets option --core-dump, and also updates /proc/sys/kernel/core_pattern to the pattern specified, or 'core' if none
+	      specified.  Provided the parent process doesn't terminate abnormally, it will restore /proc/sys/kernel/core_pattern to its
+	      original value on exit.
+	      Note: This will also affect any other process producing a core dump while keepalived is running.
+
+	-v, --version
+	      Display the version and exit.
+	-h, --help
+	      Display this help message and exit.
+NAMESPACES
+       keepalived can be run in a network namespace (see keepalived.conf(5) for configuration details). When run in a network namespace, a
+       local mount namespace is also created, and /var/run/keepalived/keepalived_NamespaceName is mounted on /var/run/keepalived. By
+       default, pid files with the usual default names are then created in /var/run/keepalived from the perspective of a process in the
+       mount namespace, and they will be visible in /var/run/keepalived/keepalived_NamespaceName for a process running in the default
+       mount namespace.
+
+SIGNALS 信号
+       keepalived reacts to a set of signals.  You can send a signal to the parent keepalived process using the following:
+	      kill -SIGNAL $(cat /var/run/keepalived.pid)
+
+       Note that -SIGNAL must be replaced with the actual signal you are trying to send, e.g. with HUP. So it then becomes:
+	      kill -HUP $(cat /var/run/keepalived.pid)
+       HUP    This causes keepalived to close down all interfaces, reload its configuration, and start up with the new configuration.
+       TERM, INT
+	      keepalived will shut down.
+
+       USR1   Write configuration data to /tmp/keepalived.data
+       USR2   Write statistics info to /tmp/keepalived.stats
+SEE ALSO
+       keepalived.conf(5), ipvsadm(8)
+AUTHOR
+       This man page was written by Ryan O'Hara <rohara@redhat.com>
+
+								April 2016						     KEEPALIVED(8)

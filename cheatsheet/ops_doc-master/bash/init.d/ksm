@@ -1,0 +1,104 @@
+#!/bin/bash
+#
+# ksm          Kernel Samepage Merging
+#
+# Author:      Dan Kenigsberg <danken@redhat.com>
+#
+# Copyright 2009 Red Hat, Inc. and/or its affiliates.
+# Released under the GPL
+#
+# chkconfig: 345 84 16
+# description: The KSM init script starts and stops the ksm kernel thread.
+# config: /etc/sysconfig/ksm
+#
+### BEGIN INIT INFO
+# Provides: ksm
+# Required-Start:
+# Required-Stop:
+# Should-Start:
+# Default-Start: 3 4 5
+# Short-Description: start and stop ksm
+# Description: The KSM init script starts and stops the ksm kernel thread.
+### END INIT INFO
+
+. /etc/rc.d/init.d/functions
+
+if [ -f /etc/sysconfig/ksm ]; then
+    . /etc/sysconfig/ksm
+fi
+
+prog=ksm
+RETVAL=0
+
+# unless KSM_MAX_KERNEL_PAGES is set, let ksm munch up to half of total memory.
+default_max_kernel_pages () {
+    local total pagesize
+    total=`awk '/^MemTotal:/ {print $2}' /proc/meminfo`
+    pagesize=`getconf PAGESIZE`
+    echo $[total * 1024 / pagesize / 2]
+}
+
+start() {
+    echo -n $"Starting $prog: "
+    if [ -f /sys/kernel/mm/ksm/max_kernel_pages ]; then
+        KSM_MAX_KERNEL_PAGES=${KSM_MAX_KERNEL_PAGES:-`default_max_kernel_pages`}
+        echo $KSM_MAX_KERNEL_PAGES > /sys/kernel/mm/ksm/max_kernel_pages
+    fi    
+    echo 1 > /sys/kernel/mm/ksm/run
+    RETVAL=$?
+    [ $RETVAL = 0 ] && success $"$prog startup" || failure $"$prog startup"
+    echo
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    echo 0 > /sys/kernel/mm/ksm/run
+    RETVAL=$?
+    [ $RETVAL = 0 ] && success $"$prog shutdown" || failure $"$prog shutdown"
+    echo
+}
+
+status() {
+    if [ ! -f /sys/kernel/mm/ksm/run ] ; then
+        echo $"$prog not supported"
+        RETVAL=4
+    else if [ "$(cat /sys/kernel/mm/ksm/run 2>/dev/null)" != "1" ]; then
+        echo $"$prog is not running"
+        RETVAL=3
+    else
+        echo $"$prog is running"
+        RETVAL=0
+    fi; fi
+}
+
+restart() {
+    stop
+    start
+}
+
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+        status
+	;;
+  restart)
+	restart
+	;;
+  condrestart|try-restart)
+	status >/dev/null 2>&1 || exit 0
+	restart
+        ;;
+  force-reload)
+	restart
+	;;
+  *)
+	echo $"Usage: $prog {start|stop|restart|force-reload|condrestart|try-restart|status|help}"
+	RETVAL=2
+esac
+
+exit $RETVAL

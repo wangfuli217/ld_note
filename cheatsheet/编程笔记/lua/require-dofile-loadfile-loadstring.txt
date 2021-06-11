@@ -1,0 +1,205 @@
+1、require
+    1.功能：载入文件并执行代码块，对于相同的文件只执行一次
+    2.调用：require("filename")
+    注：寻找文件的路径在package.path中，print(package.path)即可得到。
+    从使用者的角度来看，一个模块就是一个程序库，可以通过require来加载，之后便得到一个类型为table的全局变量。
+    -----
+    require函数在搜素加载模块时，有一套自定义的模式，如：
+        ?;?.lua;c:/windows/?;/usr/local/lua/?/?.lua
+    在上面的模式中，只有问号(?)和分号(;)是模式字符，分别表示require函数的参数(模块名)和模式间的分隔符。
+    如：调用require "sql"，将会打开以下的文件：
+        sql
+        sql.lua
+        c:/windows/sql
+        /usr/local/lua/sql/sql.lua
+  LUA_PATH   package.path 编译时定义的默认路径
+  LUA_CPATH  package.cpath
+    Lua将require搜索的模式字符串放在变量package.path中。当Lua启动后，便以环境变量LUA_PATH的值来初始化这个变量。
+    如果没有找到该环境变量，则使用一个编译时定义的默认路径来初始化。如果require无法找到与模块名相符的Lua文件，
+    就会找C程序库。C程序库的搜索模式存放在变量package.cpath中。而这个变量则是通过环境变量LUA_CPATH来初始化的。
+    
+        require和dofile
+    1.require会搜索目录加载文件                            -- 相当于include宏
+    2.require会判断是否文件已经加载避免重复加载同一文件。  -- 相当于ifndef define endif包含过程
+    -- 1 
+      require使用的路径和普通我们看到的路径还有些区别，我们一般见到的路径都是一个目录列表。
+    require的路径是一个模式列表，每一个模式指明一种由虚文件名（require的参数）转成实文件名的方法。
+      更明确地说，每一个模式是一个包含可选的问号的文件名。匹配的时候Lua会首先将问号用虚文件名替换，
+    然后看是否有这样的文件存在。如果不存在继续用同样的方法用第二个模式匹配。
+    例如，路径如下：
+        ?;?.lua;c:\windows\?;/usr/local/lua/?/?.lua
+    调用require "lili"时会试着打开这些文件：
+        lili
+        lili.lua
+        c:\windows\lili
+        /usr/local/lua/lili/lili.lua
+      require关注的问题只有分号（模式之间的分隔符）和问号，其他的信息(目录分隔符，文件扩展名)在路径中定义。
+    -- 2 
+      require的另一个功能是避免重复加载同一个文件两次。Lua保留一张所有已经加载的文件的列表(使用table保存)。
+    如果一个加载的文件在表中存在require简单的返回；表中保留加载的文件的虚名，而不是实文件名。所以如果你使用
+    不同的虚文件名require同一个文件两次，将会加载两次该文件。
+  _LOADED和重复加载
+      比如require "foo"和require "foo.lua"，路径为"?;?.lua"将会加载foo.lua两次
+      我们也可以通过全局变量_LOADED访问文件名列表，这样我们就可以判断文件是否被加载过；
+      同样我们也可以使用一点小技巧让require加载一个文件两次。比如，require "foo"之后_LOADED["foo"]将不为nil，
+    我们可以将其赋值为nil，require "foo.lua"将会再次加载该文件。
+
+  一个路径中的模式也可以不包含问号而只是一个固定的路径，比如： -- _REQUIREDNAME
+    ?;?.lua;/usr/local/default.lua
+    这种情况下，require没有匹配的时候就会使用这个固定的文件（当然这个固定的路径必须放在模式列表的最后才有意义）。
+    在require运行一个chunk以前，它定义了一个全局变量_REQUIREDNAME用来保存被required的虚文件的文件名。我们可以
+    通过使用这个技巧扩展require的功能。
+    -----
+    
+    -- 假设我们有一个板块 printFormatter
+    -- 该模块有一个函数 simpleFormat(arg)
+    -- 方法 1
+    require "printFormatter"
+    printFormatter.simpleFormat("test")
+    
+    -- 方法 2
+    local formatter = require "printFormatter"
+    formatter.simpleFormat("test")
+    
+    -- 方法 3
+    require "printFormatter"
+    local formatterFunction = printFormatter.simpleFormat
+    formatterFunction("test")
+    从上面的例子中可以看出，Lua 不需要任何额外的代码就可以实现非常灵活的编程技巧。
+
+2、dofile
+    1.功能：打开并且执行一个lua块,当忽略参数filename时，将执行标准输入设备(stdin)的内容。
+            返回所有块的返回值。当发生错误时，dofile将错误反射给调用者
+            注：dofile不能在保护模式下运行
+    2.调用：dofile("filename")
+    3.错误处理：如果代码块中有错误则会引发错误
+    4.优点：对简单任务而言，非常便捷
+    5.缺点：每次载入文件时都会执行程序块
+    6.定位：内置操作，辅助函数
+    
+    通过dofile()方法引用其他Lua文件中的函数
+    function fact(n)
+        if n == 0 then
+            return 1
+        else
+            return n * fact(n - 1)
+        end
+    end
+    将上面的函数保存到test2.lua文件中。
+    /> lua
+    > dofile("d:/test2.lua")
+    > print(fact(4))
+    24
+    
+3、loadfile
+  1.功能：载入文件但不执行代码块，对于相同的文件每次都会执行。只是编译代码，然后将编译结果作为一个函数返回
+    loadfile ([filename])
+        功能：与load类似，但装载的是文件或当没有指定filename时装载标准输入(stdin)的内容
+  2.调用：loadfile("filename")
+  3.错误处理：不引发错误，只返回错误值但不处理错误,即返回nil和错误消息
+  4.优点：调用一次之后可以多次调用返回的结果（即函数），即"多次调用"只需编译一次（注：这里的多次调用是指多次调用返回的函数，
+          而不是多次调用loadfile）
+    dofile可如下定义：
+    　　function dofile(filename)
+    　　　　local f = assert(loadfile(filename)) --调用loadfile（的返回结果）并可处理错误
+    　　　　return f()
+    　　end
+　　注：加载了程序块并没有定义其中的函数。在Lua中，函数定义是一种赋值操作，是在运行时才完成的操作。
+    例如：一个文件test.lua中有一个函数 function foo(x) print(x) end ,执行如下代码：
+    　　f = loadfile(test.lua) --加载程序块，此时还没有定义函数foo
+    　　f() --运行加载的程序块，此时就定义了函数foo
+        foo("hello lua") -->hello lua --经过上面的步骤才能调用foo
+        
+    loadfile和dofile在性能上的区别
+        这里如果loadfile执行失败，assert函数将直接引发一个错误。
+        通过dofile的代码，我们还可以看出，如果打算多次运行一个文件中的Lua代码块，我们可以只执行loadfile一次，
+        之后多次运行它返回的结果即可，这样就可以节省多次编译所带来的开销。这一点也是loadfile和dofile在性能上的区别。
+        
+4、loadstring
+    与loadfile类似，不同的是loadstring是从一个字符串中读取代码，而非从文件中读取，即loadfile的参数是一个文件名，而loadstring的参数是一个字符串，同样返回的是一个函数。
+    loadstring (string [, chunkname])
+        功能：与load类似，但装载的内容是一个字串
+    1.特点：功能强大，但开销大；
+    2.典型用处：执行外部代码，如：用户的输入
+    3.错误错里：代码中如果有语法错误就会返回nil
+    4.理解：f = loadstring("i = i+1")  可理解为（但不完全是）f = function()  i = i+1  end  (注：这里的变量"i"是全局变量，不是指局部变量，如果没有定义全局变量"i",调用f()则会报错！，即loadstring不涉及词法域)
+    例如：
+        f = loadstring("i = i + 1")
+        此时f就变成了一个函数，每次调用时就执行"i = i + 1"，如：
+        i = 0
+        f()  
+        print(i) --将输出1
+        f()
+        print(i) --将输出2 
+   
+    例如：
+   　　 i = 32
+   　　 local i = 1
+   　　 f = loadstring("i = i+1;print(i)")
+    　　g = function() i = i+1;print(i) end 
+   　　 f() -->33 --不涉及词法域
+    　　g() -->2  --涉及词法域
+    例如：
+        对于loadstring返回的函数，如果需要对一个表达式求值，则必须在其之前添加return，这样才能构成一条语句，
+        返回表达式的值，如：
+        i = 32
+        f = loadstring("i = i + 1; return i * 2")
+        print(f()) --输出66
+        print(f()) --输出68。由于loadstring返回的就是正规的函数，因此可以被反复调用。
+    例如：
+        Lua将所有独立的程序块视为一个匿名函数的函数体，并且该匿名函数还具有可变长实参，
+    因此在调用loadstring时，可以为其传递参数，如：
+    local i = 30
+    --下面的...表示变长实参，将值赋给局部变量x。
+    local f = assert(loadstring("local x = ...; return (x + 10)    * 2")) 
+    for i = 1, 20 do
+        print(string.rep("*",f(i)))
+    end
+
+5、dostring
+    类似dofile:加载并运行
+6、loadlib(package.loadlib)
+　　提供所有Lua中关于动态连接的功能，是一个非常底层的函数
+  1.功能：加载指定的库，并将其链接入Lua,不会调用库中的任何函数
+  2.调用：f = package.loadlib(path,"functionname"):path动态库的完整路径，functionname函数名
+  3.错误处理：返回nil及错误消息
+  
+C代码； lua解释器静态链接 或者 package.loadlib动态链接加载
+    Lua和C是很容易结合的，使用C为Lua写包。与Lua中写包不同，C包在使用以前必须首先加载并连接，在大多数系统中
+  最容易的实现方式是通过动态连接库机制，然而动态连接库不是ANSI C的一部分，也就是说在标准C中实现动态连接是很困难的。
+
+    Lua本身也支持动态加载C动态库中的代码，要完成该操作，我们需要借助于Lua内置的系统函数package.loadlib。该函数有两个字符串参数，分别是动态库的全文件名和该库包含的函数名称，典型的调用代码如下：
+    local path = "/usr/local/lib/test.so"
+    local f = package.loadlib(path,"test_func")
+    由于loadlib是非常底层的函数，因为在调用时必须提供完整的路径名和函数名称。
+    
+  LUA_PATH
+    一般情况下我们期望二进制的发布库包含一个与前面代码段相似的stub文件，安装二进制库的时候可以随便放在某个目录，
+  只需要修改stub文件对应二进制库的实际路径即可。将stub文件所在的目录加入到LUA_PATH，这样设定后就可以使用
+  require函数加载C库了。
+
+7、load
+　　load (func [, chunkname])
+    功能：装载一个块中的函数，每次调用func将返回一个连接前一结的字串，在块结尾处将返回nil
+        当没有发生错误时，将返回一个编译完成的块作为函数,否则返回nil加上错误信息，
+        此函数的环境为全局环境
+        chunkname用于错误和调试信息   
+     理解： load是loadfile 和 loadstring的原始函数，接受一个"读取器函数"，并在内部调用它读取程序块，读取器函数可分几次返回一个程序块，load会反复调用它直到返回nil为止。
+              load不会引发错误，但程序块中有错误的时候会返回nil及错误消息
+     应用： 当程序块不在文件中，或程序块过大而无法载入到内存时才使用load
+  
+8. module函数：
+    在Lua 5.1中，我们可以用module(...)函数来代替以下代码，如：
+    local modname = ...
+    local M = {}
+    _G[modname] = M
+    package.loaded[modname] = M
+        --[[
+        和普通Lua程序块一样声明外部函数。
+        --]]
+    setfenv(1,M)
+
+    由于在默认情况下，module不提供外部访问，必须在调用它之前，为需要访问的外部函数或模块声明适当的局部变量。
+    4.1 然后Lua提供了一种更为方便的实现方式，即在调用module函数时，多传入一个package.seeall的参数，如：
+    module(...,package.seeall)
+    

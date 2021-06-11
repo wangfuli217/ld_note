@@ -1,0 +1,108 @@
+1. 当openwrt启动或者热插拔设备连接的时候，配置哪些块设备被自动加载
+2. 配置加载内容包括静态的文件系统和swap分区
+
+安装依赖
+  opkg update 
+  opkg install block-mount
+  block-mount：内的脚本被用于设备启动和USB设备插入时候执行
+  Extroot    ：描述了fstab应该如何配置
+
+启动服务
+  /etc/init.d/fstab enable  -- 启动使能
+  block mount               -- /etc/init.d/fstab start
+  block umount;block mount  -- /etc/init.d/fstab restart
+  
+配置文件
+/etc/config/fstab -- BTRFS, JFS, UBI, XFS和F2FS不被 /etc/config/fstab 支持。
+
+block detect > /etc/config/fstab -- 初始化生成一个fstab
+vi /etc/config/fstab             -- 编辑fstab
+
+
+config 'global'
+    # 挂载没有自身配置的 swap 设备
+    option anon_swap '0'
+    # 挂载没有自身配置的块设备
+    option anon_mount '0'
+    # 当出现时自动挂载 swap 设备
+    option auto_swap '1'
+    # 当出现时自动挂载块设备 
+    option auto_mount '1'
+    # 在启动时，在尝试挂载 root 设备前等待 X 秒
+    option delay_root '0'
+    # 在挂载前，在设备上运行 e2fsck
+    option check_fs '0'
+    # 当挂载热插拔设备的时候，根据fstab中的section进行挂载
+    option 'from_fstab' '1'
+    
+config 'global' 'automount'  # 热插拔设备配置
+        option 'from_fstab' '1'
+        option 'anon_mount' '1'
+
+config 'global' 'autoswap'   # 热插拔交换分区挂载
+        option 'from_fstab' '1'
+        option 'anon_swap' '0'
+        
+# 交换分区
+config 'swap'
+        option  device  'sda1'                                    # swap 分区的设备节点 (e.g. sda1)
+        option  uuid    'd3c87695-886f-4579-ae94-0a3bb3eb6046'    # swap 分区的 UUID 
+
+# 交换文件
+config 'swap'
+        option  device  '/mnt/shared/swap'
+
+# 通过label设定交换分区
+config 'swap'
+        option  label 'swap'       # swap 分区的标签 (例如 mkswap -L label /dev/sdb2)
+
+# a pivot overlay device (ext4) for extroot
+config 'mount'
+        option  target  '/overlay'
+        option  uuid    '998d4bfc-81b5-469a-be2a-999ed2b81d88'
+
+# 数据分区
+config 'mount'
+        option  target  '/data'             # 数据分区的挂载点。一些值有特殊的含义，
+        option  uuid    'e10e-6812'         # 数据分区的 UUID
+        
+
+config 'mount'
+        option 'target'   '/home'        # 设备被挂在根文件系统上的位置
+        option 'device'   '/dev/sda1'    # 设备或者分区，如果存在uuid或者label的时候，优先使用uuid和label
+        option 'fstype'   'ext4'         # 文件系统类型
+        option 'options'  'rw,sync'      # mount选项
+        option 'enabled'  '0'            # 启动时候是否自动加载
+        option 'enabled_fsck' '0'        # 在mount前是否调用fsck
+        
+1. device、uuid、label三者有一个即可；
+2. is_rootfs：是否根文件系统
+
+
+
+UUID：
+1、如何获取uuid
+ls -l /dev/disk/by-uuid/ # 通过浏览 /dev/disk/by-uuid/ 下的设备文件信息。
+vol_id /dev/sdb5         # 通过 vol_id 命令
+blkid /dev/sdb5          # 通过 blkid 命令
+2、配置uuid
+uuidgen | xargs tune2fs /dev/sda[0-9] -U  # uuidgen 会返回一个合法的 uuid，结合 tune2fs 可以新生成一个 uuid 并写入 ext2,3,4 分区中
+tune2fs -U $UUID /dev/sda[0-9]            # 把 fstab 里找到的原 uuid 写回分区
+
+mkntfs -U, --with-uuid
+
+Label：
+# 如果后面指定新label则为分区设定新label；如果后面不指定label，则显示分区的当前label
+
+swap        swaplabel -L <label> /dev/XXX using util-linux
+ext2/3/4    e2label /dev/XXX <label> using e2fsprogs
+btrfs       btrfs filesystem label /dev/XXX <label> using btrfs-progs
+reiserfs    reiserfstune -l <label> /dev/XXX using reiserfsprogs
+jfs         jfs_tune -L <label> /dev/XXX using jfsutils
+xfs         xfs_admin -L <label> /dev/XXX using xfsprogs
+fat/vfat    fatlabel /dev/XXX <label> using dosfstools
+            mlabel -i /dev/XXX ::<label> using mtools
+            dosfslabel device [label]
+exfat       exfatlabel /dev/XXX <label> using exfat-utils
+ntfs        ntfslabel /dev/XXX <label> using ntfs-3g
+zfs         this filesystem does not support /dev/disk/by-label

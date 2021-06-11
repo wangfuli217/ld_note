@@ -1,0 +1,76 @@
+--------------------- wrap简介 ---------------------
+wrap工作在内核空间和应用程序中间的库层次中。在内核接受到数据包准备传送到用户空间时都会经过库层次，
+对于部分(只是部分)应用程序会在经过库层次时会被wrap库文件阻挡下来检查一番，如果允许通过则交给
+应用程序。
+
+--------------------- 查看是否支持wrapper ---------------------
+wrap只会检查tcp数据包，所以称为tcpwrapper。但还不是检查所有类型的tcp数据包，例如httpd就不支持。
+是否支持，可以通过查看应用程序是否依赖于libwrap.so库文件。(路径/lib64/libwrap.so)
+
+ldd $(which sshd) | grep wrap
+ldd  $(which vsftpd) | grep wrap    
+ldd  $(which httpd) | grep wrap
+
+说明sshd和vsftpd都支持wrap机制，而apache的httpd不支持。
+当然上面grep不出结果只能说明不支持这样的动态链接的方式，有些应用程序可能静态编译进程序中了，
+如旧版本的rpc应用程序portmap。
+
+是否将wrap功能静态编译到应用程序中，可以通过以下方式查看。
+strings $(which portmap) | grep hosts
+
+--------------------- 配置文件格式 ---------------------
+hosts.allow和hosts.deny两个文件的语法格式是一样的，如下：
+daemon_list:   client_list  [:options]
+
+["daemon_list:"的表示方法]：程序名必须是which查出来同名的名称，例如此处的in.telnetd
+sshd:
+sshd,vsftpd,in.telnetd:
+ALL
+daemon@host:
+最后一项daemon@host指定连接IP地址，针对多个IP的情况。如本机有192.168.100.8和172.16.100.1两个地址，
+但是只想控制从其中一个ip连接的vsftpd服务，可以写"vsftpd@192.168.100.8:"。
+
+
+["client_list"的表示方法]
+单IP：192.168.100.8
+网段：两种写法："172.16."和10.0.0.0/255.0.0.0
+主机名或域匹配：fqdn或".a.com"
+宏：ALL、KNOWN、UNKNOWN、PARANOID、EXCEPT
+ALL表示所有主机；LOCAL表示和主机在同一网段的主机；
+(UN)KNOWN表示DNS是否可以解析成功的；
+PARANOID表示正解反解不匹配的；
+EXCEPT表示"除了"。
+
+它们的语法可以man hosts_access。
+tcpwrapper的检查顺序：hosts.allow --> hosts.deny --> 允许(默认规则)
+
+
+例如sshd仅允许172.16网段主机访问。
+    hosts.allow:
+    sshd: 172.16.
+    hosts.deny:
+    sshd: ALL
+telnet服务不允许172.16网段访问但允许172.16.100.200访问。有几种表达方式：
+表达方式一：
+    hosts.allow:
+    in.telnetd: 172.16.100.200
+    hosts.deny:
+    in.telnetd: 172.16.
+表达方式二：
+    hosts.deny:
+        in.telnetd: 172.16. EXCEPT 172.16.100.200
+此法不能写入hosts.allow："in.telnetd: 172.16.100.200 EXCEPT 172.16."
+表达方式三：
+    hosts.allow:
+        in.telnetd: ALL EXCEPT 172.16. EXCEPT 172.16.100.200
+    hosts.deny:
+        in.telnetd: ALL
+
+[:options的表达方式]
+:ALLOW
+:DENY
+:spawn
+ALLOW和DENY可以分别写入deny文件和allow文件，表示在allow文件中拒绝在deny文件中接受。如allow文件中：
+in.telnetd: 172.16. :DENY
+spawn表示启动某程序的意思(/etc/inittab中的respawn表示重启指定程序)。例如启动一个echo程序。
+in.telnetd: 172.16 :spawn echo "we are good $(date) >> /var/log/telnetd.log"

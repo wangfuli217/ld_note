@@ -1,0 +1,48 @@
+--[[
+debug.sethook ([thread,] hook, mask [, count]) 将一个函数作为钩子函数设入。 
+  hook: 钩子函数
+  mask: 描述要监控事件的掩码字符串
+  count: 一个用于描述以何种频度获取count事件的可选数字
+  
+  字符串 mask 以及数字 count 决定了钩子将在何时调用。
+  掩码是由下列字符组合成的字符串，每个字符有其含义：
+    'c': 每当 Lua 调用一个函数时，调用钩子；
+    'r': 每当 Lua 从一个函数内返回时，调用钩子；
+    'l': 每当 Lua 进入新的一行时，调用钩子。
+  此外， 传入一个不为零的 count ， 钩子将在每运行 count 条指令时调用。
+
+注意：如果不传入参数，debug.sethook 关闭钩子。
+  
+  当钩子被调用时， 第一个参数是触发这次调用的事件： 
+  "call"(或 "tail call")  每当调用一个函数时产生的call事件
+  "return"                每当函数返回时产生的return事件
+  "line"                  每当开始执行一行行代码时产生的line事件
+  "count"                 执行完指定数量的指令后产生 count事件(这里的指令指的是内部操作码)
+  对于行事件， 钩子的第二个参数是新的行号。
+  在钩子内，你可以调用 getinfo ，指定第 2 层， 来获得正在运行的函数的详细信息(0 层指 getinfo 函数， 1 层指钩子函数)
+--]]
+
+-- debug.sethook(print, "l")
+
+function trace(event,line) -- 钩子函数接收：参数1事件、参数2行号(只有line事件有)
+	local s=debug.getinfo(2).short_src
+	print(s..':'..line)
+end
+print('----sethook----')
+debug.sethook(trace,'l')
+print('hello')
+print(debug.gethook(1))		-- 查看指定栈级别下的钩子，返回值为 [钩子函数，钩子掩码，钩子计数]
+print('lua')
+debug.sethook()
+print('!')
+print('---------------')
+
+
+function debug1()
+  while true do
+    io.write("debug> ")
+    local line = io.read()
+    if line == "cont" then break end
+    assert(load(line))()
+  end
+end

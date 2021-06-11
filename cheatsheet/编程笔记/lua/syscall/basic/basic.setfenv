@@ -1,0 +1,60 @@
+--[[
+  原型：setfenv(f, table)
+  解释：设置参数f所指定函数使用的当前环境，参数f可以是一个Lua函数也可以是一个指定函数调用层级的数字，
+        当参数为1时，表示正在调用函数setfenv()函数的函数。这个函数的返回值是参数f所指定的函数。
+        有一种特殊情况就是当参数f是0的时候来改变函数所处的运行环境，这个函数setfenv不返回任何值。
+E: level must be non-negative
+E: invalid level
+E: no function environment for tail call at level %d
+E: setfenv cannot change environment of given object
+--]]
+
+-- 定义两个不同的环境
+local newEnv = {
+    _G = _G;
+    val1 = 1024;
+}
+
+local newEnv2 = {
+    _G = _G;
+    val2 = 256;
+}
+
+-- 先查看一下这两个新环境值和全局环境有什么不同
+print("\n_G =", _G);            -- table: 0x20f26b0
+print("newEnv =", newEnv);      -- table: 0x20fa3e0
+print("newEnv2 =", newEnv2);    -- table: 0x20fa9c0
+
+function test_level(level)
+    local ret_env =getfenv(level); -- 获得环境
+    -- 输出环境中的值
+    print("\nenvironment level", level, ret_env)
+    print("ret_env.val1 =", ret_env.val1);
+    print("ret_env.val2 =", ret_env.val2);
+end
+
+function show_level(level)
+    _G.setfenv(1, newEnv2); -- 设置环境 0 或 2
+    _G.test_level(level);
+end
+
+function display_level(level)
+    _G.setfenv(1, newEnv);  -- 设置环境 0 或 2
+    _G.show_level(level);
+end
+
+-- 测试level参数第0组
+display_level(0)        -- table: 0x20f26b0 nil nil 
+
+-- 测试level参数第1组
+display_level(1)        -- table: 0x20f26b0 nil nil 
+
+-- 测试level参数第2组
+display_level(2)        -- table: 0x20fa9c0 nil 256 
+
+-- 测试level参数第3组
+display_level(3)        -- table: 0x20fa3e0 1024 nil
+
+--[[
+为了突出环境的不同我们引入了两个变量val1和val2，通过打印这两个变量的值，我们可以发现函数所处环境的不同。
+--]]

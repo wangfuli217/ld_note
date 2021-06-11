@@ -1,0 +1,43 @@
+--[[
+  原型：select(index, ... )
+  解释：如果index是一个数字，函数返回参数指定索引后的所有参数(包括当前索引的参数)，
+        否则参数index必须是一个字符串#，这时函数返回它接收到的额外参数总共的个数。
+--]]
+
+-- 先来试试数字索引
+print("\nthe number index result 2: 'b', 'c', 'd', 'e'")
+print(select(2, 'b', 'c', 'd', 'e'));
+
+-- 无效的索引
+print("\nthe number index of invalid result 20000: 'b', 'c', 'd', 'e'")
+print(select(20000, 'b', 'c', 'd', 'e'));
+
+-- 负数的索引
+print("\nthe number index of negative integer -1:'b', 'c', 'd', 'e'")
+print(select(-1, 'b', 'c', 'd', 'e'));
+
+-- 字符串#索引
+print("\nthe '#' index of invalid result #:'b', 'c', 'd', 'e'")
+print(select('#', 'b', 'c', 'd', 'e'));
+
+
+-- 再来看一个常用的例子
+function print_multi_argv(...)
+    print("\narg list is")
+    for i = 1, select('#', ...) do      -- get the count of the params  
+        local cur_arg = select(i, ...); -- select the param  
+        print(cur_arg);
+    end  
+end
+
+-- 试验一下打印多个参数
+print_multi_argv(1, 2, 3, 'a', 'b', 'f', 't')
+
+-- 负数的索引
+print("\nthe number index of negative integer -5:'b', 'c', 'd', 'e'")
+print(select(-5, 'b', 'c', 'd', 'e'));
+
+--[[
+1. 如果输入的索引值过大，则不会有结果，但是如果输入负数，则会引发程序错误。
+2. 函数的参数index只能接收一个字符串类型的参数，那就是'#'，除此之外只能接收数字，
+--]]

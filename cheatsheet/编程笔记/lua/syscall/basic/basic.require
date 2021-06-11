@@ -1,0 +1,106 @@
+--[[ http://cloudwu.github.io/lua53doc/manual.html#pdf-require
+  1. 包管理库提供了从Lua中加载模块的基础库。
+  2. 只有一个导出函数直接放在全局环境中：即require函数。 
+  3. 所有其它的部分都导出到表 package 中。
+
+注意：一个模块就是一个程序库，通过require函数加载，可以得到一个全局变量，这个
+      全局变量是一个table，就像是一个名称空间，其内容就是模块中导出的所有东西。
+注意：require如果找到一个Lua文件，就用loadfile加载，如果找到一个C函数库，就用loadlib加载。
+注意：C函数库与Lua程序块不同，它没有定义一个单一的主函数，而是导出多个C函数，
+      具有良好行为的C函数库应该导出一个(注意是一个)名叫"luaopen_<模块名>"的函数。
+      
+  require (modname)
+  加载一个模块。这个函数首先查找 package.loaded 表，检测 modname是否被加载过。 
+  如果被加载过，require返回 package.loaded[modname] 中保存的值。否则，它试着为模块寻找 加载器。
+  
+  require 遵循 package.searchers 序列的指引来查找加载器。如果改变这个序列，我们可以改变 require 如何查找一个模块。 
+  下列说明基于 package.searchers 的默认配置。
+    首先 require 查找 package.preload[modname]。如果这里有一个值，这个值(必须是一个函数)就是那个加载器。
+    否则 require 使用 Lua 加载器去查找 package.path 的路径。 
+    如果查找失败，接着使用 C 加载器去查找 package.cpath 的路径。 
+    如果都失败了，再尝试 一体化 加载器(参见 package.searchers)
+  
+  每次找到一个加载器，require 都用两个参数调用加载器： modname 和一个在获取加载器过程中得到的参数。(如果通过查找文件得到的加载器，这个额外参数是文件名)
+    如果加载器返回非空值， require 将这个值赋给 package.loaded[modname]。 
+    如果加载器没能返回一个非空值用于赋给 package.loaded[modname]， require 会在那里设入 true 。
+    无论是什么情况，require 都会返回 package.loaded[modname] 的最终值。
+    
+  如果在加载或运行模块时有错误， 或是无法为模块找到加载器， require 都会抛出错误。
+  
+Lua中可以将模块存储在table中，或者作为函数的参数使用;
+require函数的限制在于，不能给要加载的模块传递参数。
+--]]
+
+function require (name)
+  if not package.loaded[name] then
+    local loader = findload(name)
+    if loader == nil then
+      error("unable to load module " .. name)
+    end
+    package.loaded[name] = true   -- 如果加载模块没有返回对象，就设置为true
+    local res = loader(name)
+    if res ~= nil then
+      package.loaded[name] = res  -- 如果加载模块有返回对象，就设置为返回对象
+    end
+  end
+  return package.loaded[name]
+end
+
+--[[ https://blog.csdn.net/kkk0526/article/details/50699016 lua中的require机制
+1、require机制相关的数据和函数
+    package.path:保存加载外部模块(lua中"模块"和"文件"这两个概念的分界比较含糊，因为这个值在不同的时刻会扮演不
+同的角色)的搜索 路径，这种路径是"模板式的路径"，它里面会包含可替代符号"?",这个符号会被替换，然后lua查找这个文
+件是否存在，如果存在就会调用其中特定的接口。典型的值为:
+    "./?.lua;./?.lc;/usr/local/?/init.lua"
+    如果lua代码中调用:require("hello.world")
+    那么lua会依次查找：
+    ./hello/world.lua ==>这里"hello.world"变成了"hello/world",并替换了模型"./?.lua"
+    ./hello/world.lc
+    .....
+    (这种处理方式和python类似，只不过不需要__init__.py,也有调用python中的__init__.py)
+    package.path在虚拟机启动的时候设置，如果存在环境变量LUA_PATH，那么就用该环境变量作为
+    它的值，并把这个环境变量中的";;"替换为luaconf.h中定义的默认值，如果不存在该变量就直接使用
+    luaconf.h定义的默认值
+    
+    package.cpath:作用和packag.path一样,但它是用于加载第三方c库的。它的初始值可以通过环境变量
+    LUA_CPATH来设置
+    
+    package.loadlib(libname, func):相当与手工打开c库libname, 并导出函数func返回，loadlib其实是ll_loadlib
+
+    package.loaded 用于 require 控制哪些模块已经被加载的表。 当你请求一个 modname 模块，
+    且 package.loaded[modname] 不为假时， require 简单返回储存在内的值。
+    这个变量仅仅是对真正那张表的引用； 改变这个值并不会改变 require 使用的表。 
+    
+2.require的处理流程：
+require(modelname)
+require(在lua中它是ll_require函数)的查找顺序如下：
+    a.首先在package.loaded查找modelname,如果该模块已经存在，就直接返回它的值
+    b.在package.preload查找modelname, 如果preload存在，那么就把它作为loader，调用loader(L)
+    c.根据package.path的模式查找lua库modelname，这个库是通过module函数定义的，对于顶层的lua库，文件名和库
+名是一样的而且不需要调用显式地在lua文件中调用module函数(在ll_require函数中可以看到处理方式)，也就是说lua会根
+据lua文件直接完 成一个loader的初始化过程。
+    d.根据package.cpath查找c库，这个库是符合lua的一些规范的(export具有一定特征的函数接口)，lua先已动态的方
+式加载该c库，然后在库中查找并调用相应名字的接口，例如:luaopen_hello_world
+    e.已第一个"."为分割，将模块名划分为:(main, sub)的形式，根据package.cpath查找main，如果存在，就加载该库
+并查询相应的接口:luaopen_main_sub，例如：先查找 hello库，并查询luaopen_hello_world接口
+    f.得到loder后，用modname作为唯一的参数调用该loader函数。当然参数是通过lua的栈传递的，所以loader的原型
+必须符合lua的规范:int LUA_FUNC(lua_State *L)
+
+    ll_require会将这个loader的返回值符给package.loaded[modelname],如果loader不返回值同时 package.loaded[mo
+delname]不存在时, ll_require就会把package.loaded[modelname]设为true。最后ll_reuqire把
+package.loaded [modelname]返回给调用者。
+--]]
+
+--[[
+如果要强制用require对同一个库加载两次，可以简单地删除package.loaded中的模块字段，然后再次加载该模块：
+package.loaded["mod"] = nil
+require "mod"
+--]]
+
+--[[
+http://cloudwu.github.io/lua53doc/manual.html#9
+https://blog.csdn.net/zh379835552/article/details/38422361
+http://siberiawolf.com/free_programming/index.html
+http://www.lua.org/pil/contents.html#P3
+http://valleu87.blog.163.com/blog/#m=0&t=1&c=fks_084070084084088064085085081095085095087068084085082064086
+]]

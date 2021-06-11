@@ -1,0 +1,164 @@
+1、PCI是CPU和外围设备通信的高速传输总线。PCI规范能够实现32位并行数据传输，工作频率为33MHz或66MHz，最大吞吐率达266MB/s.
+2、CardBus是PCI派生出来的，具有PC卡的尺寸格式，CardBus卡也是32位的，工作频率为33MHz。虽然它和PCMCIA卡使用相同的68针，
+   但是与16位的PCMCIA卡相比，CardBus设备复用地址线和数据线，支持32位数据。
+3、MiniPCI用一个兼容的连接器通过miniPCI插槽和电脑通信。
+4、PCI-Express 串行(250MB/s) PCI 并行。
+                                                                                       
+PCI                 32位总线，33Mhz，吞吐率266MB/s                                     内置于台式机或服务器中
+miniPCI             32位总线，33Mhz，                                                  内置于笔记本计算机
+CardBus             32位总线，33Mhz，                                                  笔记本计算机外插卡，与PCI兼容
+PCI Extended        64位总线，133Mhz，吞吐率1GB/s                                      内置于台式机或服务器，比PCI宽，但是能插PCI卡
+PCI Express         单个PCIe连接方向传输速率250Mb/s，单方向最大吞吐率8GB/s             在新系统里面替代PCI
+PCI Express mini卡  在PCIe接口上，单方向传输速率250Mb/s，在USB2.0接口上，速率为60MB/s  在新近笔记本内替代PCImin
+Express卡           在PCIe接口上，单方向传输速率250Mb/s，在USB2.0接口上，速率为60MB/s  最新进笔记本外插卡，替代CardBus。
+
+优势：
+设备自动配置系统，在启动时，BIOS类的固件会遍历PCI总线并分配资源，如中断优先级和IO基址。设备驱动程序查找叫做PCI
+配置空间的内存来找到资源分配情况。PCI设备拥有256B的配置空间内存。
+配置空间顶端64B的含义是标准化的，它被分配成寄存器，这些寄存器包含状态、中断线和IO基址等信息。
+PCIe和PCI-X2.0 还提供另外4KB的扩展。
+
+lspci http://mj.ucw.cz/pciutils.shtml
+
+lspci
+lspci -t 得到PCI总线和PCI设备组成的树状结构。
+ 
+ls /sys/devices/pci0000:00/0000:00:1e.0/0000:02:00.0/0000:03:00.0/
+net:eth2 -> Ethernet
+ls /sys/devices/pci0000:00/0000:00:1e.0/0000:02:00.0/0000:03:00.1/
+tty:ttyS1 -> Modem
+
+lspci -x  # 256B的空间值，用于存放配置寄存器
+
+
+例如：
+lspci http://mj.ucw.cz/pciutils.shtml
+lspci -t 得到PCI总线和PCI设备组成的树状结构。
+ls /sys/devices/pci0000:00/0000:00:1e.0/0000:02:00.0/0000:03:00.0/
+net:eth2 -> Ethernet
+ls /sys/devices/pci0000:00/0000:00:1e.0/0000:02:00.0/0000:03:00.1/
+tty:ttyS1 -> Modem
+
+lspci -x  # 256B的空间值，用于存放配置寄存器
+ff:13.6 System peripheral: Intel Corporation Xeon E5/Core i7 Ring to QuickPath Interconnect Link 1 Performance Monitor (rev 07)
+00: 86 80 45 3c 00 00 00 00 07 00 80 08 00 00 80 00
+10: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+20: 00 00 00 00 00 00 00 00 00 00 00 00 86 80 00 00
+30: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+od -x /sys/devices/pci0000:ff/0000:ff:13.6/config
+0000000 8086 3c45 0000 0000 0007 0880 0000 0080
+0000020 0000 0000 0000 0000 0000 0000 0000 0000
+0000040 0000 0000 0000 0000 0000 0000 8086 0000
+0000060 0000 0000 0000 0000 0000 0000 0000 0000
+*
+0000400
+
+配置区偏移地址 含义
+0              厂家ID             0x8086
+2              设备ID             0x3c45
+10             设备类型代码       0x0880              具体见include/linux/pci_ids.h
+16~39          基址寄存器0~5      0x0000-...0x0000
+44             子厂家ID           0x8086
+46             子设备ID           0x0000
+
+
+配置区
+--------------------------------------------------
+int pci_read_config_byte(struct pci_dev *dev, int where, u8 *val)
+int pci_read_config_word(struct pci_dev *dev, int where, u16 *val)
+int pci_read_config_dword(struct pci_dev *dev, int where, u32 *val)
+int pci_write_config_byte(struct pci_dev *dev, int where, u8 val)
+int pci_write_config_word(struct pci_dev *dev, int where, u16 val)
+int pci_write_config_dword(struct pci_dev *dev, int where, u32 val)
+
+include/linux/pci_reg.h
+要得到分配给某卡功能的中断号，进行如下：
+unsigned char irq pci_read_config_byte(pdev, PCI_INTERRUPT_LINE, &irq);
+读PCI状态寄存器
+unsigned char irq pci_read_config_byte(pdev, PCI_STATUS, &irq);
+
+电源管理目的
+unsigned char irq pci_write_config_dword(pdev, PCI_POWERMGMT, &irq);
+
+
+#define pci_resource_start(dev, bar)	((dev)->resource[(bar)].start)
+#define pci_resource_end(dev, bar)	((dev)->resource[(bar)].end)
+#define pci_resource_flags(dev, bar)	((dev)->resource[(bar)].flags)
+#define pci_resource_len(dev,bar) \ ....   .... 
+
+从配置区响应基址寄存器里得到IO区域的基址
+unsigned long io_base = pci_resource_start(pdev, bar);
+用内核的request_region()常规机制获得这个IO区域，并标明它对应的设备
+request_region(io_base, length, "my_driver");
+用寄存器手册上的偏移地址加上第1步得到的机制，用inb()和outb()函数访问这这寄存器
+register_data - inl(io_base + REGISTER_OFFSET);
+outl(register_data, iobase + REGISTER_OFFSET)；
+
+获得基址、内存区域长度以及内存相关的标志
+unsigned long mmio_base = pci_resource_start(pdev, bar);
+unsigned long mmio_length = pci_resource_length(pdev, bar);
+unsigned long mmio_flags = pci_resource_flags(pdev, bar);
+
+用内核的request_mem_region()常规机制标记这片内存区的拥有者
+request_mem_region(mmio_base, mmio_length, "my_driver");
+
+void __iomem *buffer;
+if(flags & IORESOURCE_CACHEABLE){
+	buffer = ioremap(mmio_base, mmio_length)；
+}else{
+	buffer = ioremap_nocache(mmio_base, mmio_length)；
+}
+可以简化为
+buffer = pci_iomap(pdev, bar, mmio_length);
+
+
+DMA由DMA控制器初始化，DMA控制器位于PC主板的南桥上，南桥负责管理IO总线，并启动DMA从外围设备直接读写数据。
+ISA卡经常采用这种模式，但是PCI这类的总线也可以管理总线启动DMA传输。
+
+DMA可以同步传输数据也可以异步传输数据。
+
+一致性DMA访问方法
+static inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size, dma_addr_t *dma_handle)
+static inline void pci_free_consistent(struct pci_dev *hwdev, size_t size, void *vaddr, dma_addr_t dma_handle)
+
+流式DMA访问函数
+static inline dma_addr_t pci_map_single(struct pci_dev *hwdev, void *ptr, size_t size, int direction)
+static inline void pci_unmap_single(struct pci_dev *hwdev, dma_addr_t dma_addr, size_t size, int direction)
+static inline int pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents, int direction)
+static inline void pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents, int direction)
+
+1. 一致性映射容易编码实现，但是使用起来很昂贵。流式DMA相反
+2. 当CPU和IO设备需要频繁操作DMA缓冲区的时候，一致性映射比较适合，尤其是同步DMA传输的时候用得比较多。前面提到的帧缓冲区驱动程序
+   就是例子，每次DMA都操作用一个缓冲区。因为CPU和视频控制器访问的是同一个帧缓冲区，所以使用一致性映射
+3. 当IO设备长时间占用缓冲区的时候，就采用流映射。流式DMA在异步操作里很常用，每次DMA操作的缓冲区都不一样。
+   例如网络驱动程序，其中存放传输数据包的缓冲区被快速地映射和去映射。
+4. DMA描述符很适合使用一致性映射，DMA描述符包含DMA缓冲区的元数据，如缓冲区的地址和字节长度，CPU和设备频繁地访问这些参数
+  快递映射描述符成本很高，因为需要频繁地去映射和再映射。
+
+drivers/net/tulip/xircom_cb.c Xirecom驱动程序的以太网驱动程序
+drivers/serial/8250_pci.c     Xirecom驱动程序的调制解调器驱动程序
+
+struct pci_device_id {
+	__u32 vendor, device;		/* Vendor and device ID or PCI_ANY_ID*/
+	__u32 subvendor, subdevice;	/* Subsystem ID's or PCI_ANY_ID */
+	__u32 class, class_mask;	/* (class,subclass,prog-if) triplet */
+	kernel_ulong_t driver_data;	/* Data private to the driver */
+};
+driver_data是设备驱动程序的私有数据，当驱动程序支持多张卡的时候，经常用它来表示驱动程序相关的配置信息。
+以太网-调制解调器卡的每个功能都有一个设备ID和配置空间。因为这两个功能之间没有连接，它们各自需要一个PCI驱动程序。
+
+pci子系统提供PCI_DEVICE和PCI_DEVICE_CLASS这样的宏来简化pci_device_id表的创建过程。
+1. PCI_DEVICE可以用厂家ID和设备ID创建pci_device_id表。
+
+
+PCI核心和总线访问例程在目录drivers/pci/中。在该目录中搜索EXPORT_SYMOBL可以找到PCI子系统所提供的的辅助函数的列表。
+可在include/linux/pci*.h文件里查看pci层相关的定义和原型。
+
+在子目录drviers/net、drviers/scsi、drviers/video下能找到一些PCI设备驱动程序。要查找所有的PCI驱动程序，需要在drivers
+目录中递归查找pci_register_driver().
+
+如果开发PCI网络驱动程序的时候不知道从哪里开始，drivers/net/pci-skeleton.c提供的PCI网络驱动程序框架可以提供很大的帮助
+documentation/dma-mapping.txt文件介绍了PCI DMA API函数的用法。
+
+

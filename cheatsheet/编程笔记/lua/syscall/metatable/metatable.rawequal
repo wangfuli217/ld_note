@@ -1,0 +1,44 @@
+--[[
+  rawequal(v1, v2)
+  解释：检测参数v1的值和参数v2的值是否相等，并返回一个布尔值，比较过程中不会调用元表。
+--]]
+
+--  定义一个table
+local tab = {
+    23,
+    35,
+    h = 1,
+    w = 1,
+}
+
+-- 定义元表函数
+function func(op1, op2)
+    print("called __eq function")
+    return false -- false | true 不指定返回情况下，默认返回值是nil
+end
+
+-- 设置元表
+setmetatable(tab, {__eq = func})
+
+local newtab = {};
+setmetatable(newtab, {__eq = func})
+
+-- 使用rawequal判断相等
+print("\nuse rawequal result:", rawequal(tab, tab))
+
+-- 使用普通方法判断相等
+print("\nuse normal method result:", tab == tab)
+
+-- 使用rawequal判断相等
+print("\nuse rawequal result:")
+print(rawequal(tab, newtab))
+
+-- 使用普通方法判断相等
+print("\nuse normal method result:")
+print(tab == newtab)
+
+--[[
+1. 当两个table比较时会调用元方法__eq。
+2. 由前两组结果对比发现都没有调用原方法，无法看出这个函数的作用，实际上当两个表是同一个时，不管有没有元方法都不会调用。
+3. 从后两组结果可以清楚的看出方法的作用了，就是在比较时候忽略元方法
+--]]

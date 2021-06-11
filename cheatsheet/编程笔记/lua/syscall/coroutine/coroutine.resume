@@ -1,0 +1,43 @@
+--[[
+  coroutine.resume(co, [, val1, ...])
+  开始或继续协程co的运行。当第一次执行一个协程时，他会从主函数处开始运行。
+val1,...这些值会以参数形式传入主体函数。 如果该协程被挂起，resume 会重新启动它； 
+val1, ... 这些参数会作为挂起点的返回值。如果协程运行起来没有错误， resume 返回 
+true 加上传给 yield 的所有值(当协程挂起)， 或是主体函数的所有返回值(当协程中
+止)。
+E: coroutine expected
+E: too many arguments to resume
+E: too many results to resume
+--]]
+
+
+local co = coroutine.create(
+    function (input)
+        print("input : "..input)
+        local param1, param2 = coroutine.yield("yield")
+        print("param1 is : "..param1)
+        print("param2 is : "..param2)
+        -- return 也会将结果返回给 resume
+        return "return"
+    end)
+
+--第一次执行,将参数传给input
+print(coroutine.resume(co, "function input"))
+print("this is main chunk")
+--第二次执行,将参数作为yield的返回值,传给param1 param2
+print(coroutine.resume(co, "param1", "param2"))
+
+--[[
+  coroutine.resume 是在保护模式中运行,如果有任何错误发生, Lua 是不会显示任何错误， 而是 返回 false 加
+错误消息。同时,这个协程的状态会变成dead。
+--]]
+local co = coroutine.create(
+    function()
+        print("error test")
+        --调用一个空值得属性
+        coroutine.yield(a.a)
+    end)
+-- 返回结果为 false 以及错误信息
+print(coroutine.resume(co))
+-- 协程的状态变为 dead
+print(coroutine.status(co))

@@ -1,0 +1,61 @@
+C语言处理正则表达式常用的函数有regcomp()、regexec()、regfree()和regerror()，一般分为三个步骤，如下所示：
+C语言中使用正则表达式一般分为三步：
+1). 编译正则表达式 regcomp()
+2). 匹配正则表达式 regexec()
+3). 释放正则表达式 regfree()
+
+regcomp(){
+int regcomp (regex_t *compiled, const char *pattern, int cflags)
+这个函数把指定的正则表达式pattern编译成一种特定的数据格式compiled，这样可以使匹配更有效。函数regexec 会使用这个数据在目标文本串中进行模式匹配。执行成功返回０。 　
+参数说明：
+①regex_t 是一个结构体数据类型，用来存放编译后的正则表达式，它的成员re_nsub 用来存储正则表达式中的子正则表达式的个数，子正则表达式就是用圆括号包起来的部分表达式。
+②pattern 是指向我们写好的正则表达式的指针。
+③cflags 有如下4个值或者是它们或运算(|)后的值：
+　　REG_EXTENDED：以功能更加强大的扩展正则表达式的方式进行匹配。
+　　REG_ICASE： 匹配字母时忽略大小写。
+　　REG_NOSUB： 不用存储匹配后的结果。
+　　REG_NEWLINE： 识别换行符，这样’$’就可以从行尾开始匹配，’^’就可以从行的开头开始匹配。
+}
+
+regexec(){
+int regexec (regex_t *compiled, char *string, size_t nmatch, regmatch_t matchptr [], int eflags)
+当我们编译好正则表达式后，就可以用regexec匹配我们的目标文本串了，如果在编译正则表达式的时候没有指定cflags的参数为REG_NEWLINE，则默认情况下是忽略换行符的，也就是把整个文本串当作一个字符串处理。执行成功返回０。
+regmatch_t是一个结构体数据类型，在regex.h中定义：
+
+typedef struct
+{
+   regoff_t rm_so;
+   regoff_t rm_eo;
+} regmatch_t;
+
+
+成员rm_so存放匹配文本串在目标串中的开始位置，rm_eo 存放结束位置。通常我们以数组的形式定义一组这样的结构。因为往往我们的正则表达式中还包含子正则表达式。数组0单元存放主正则表达式位置，后边的单元依次存放子正则表达式位置。
+
+参数说明：
+①compiled 是已经用regcomp函数编译好的正则表达式。
+②string是目标文本串。
+③nmatch是regmatch_t结构体数组的长度。
+④matchptr是regmatch_t类型的结构体数组，存放匹配文本串的位置信息。
+⑤eflags 有两个值
+REG_NOTBOL 按我的理解是如果指定了这个值，那么’^’就不会从我们的目标串开始匹配。总之我到现在还不是很明白这个参数的意义；
+REG_NOTEOL和上边那个作用差不多，不过这个指定结束end of line。
+}
+
+regfree(){
+void regfree (regex_t *compiled)
+
+当我们使用完编译好的正则表达式后，或者要重新编译其他正则表达式的时候，我们可以用这个函数清空compiled指向的regex_t结构体的内容，请记住，如果是重新编译的话，一定要先清空regex_t结构体。
+}
+
+regerror(){
+size_t regerror (int errcode, regex_t *compiled, char *buffer, size_t length)
+当执行regcomp 或者regexec产生错误的时候，就可以调用这个函数而返回一个包含错误信息的字符串。
+
+参数说明：
+①errcode 是由regcomp和 regexec 函数返回的错误代号。
+②compiled 是已经用regcomp函数编译好的正则表达式，这个值可以为NULL。
+③buffer 指向用来存放错误信息的字符串的内存空间。
+④length 指明buffer的长度，如果这个错误信息的长度大于这个值，则regerror函数会自动截断超出的字符串，但他仍然会返回完整的字符串的长度。所以我们可以用如下的方法先得到错误字符串的长度。
+
+size_t length = regerror (errcode, compiled, NULL, 0);
+}

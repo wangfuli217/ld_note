@@ -1,0 +1,221 @@
+EV_WATCHER(监控器){
+1. 监控器为libev中用来监控各种事件的数据结构，标记监控事件的种类、监控 的文件句柄等信息。
+2. libev中使用相同的数据布局，这样通过指针的转换，就可以访问不同种类监 控器的数据了，有点类似C++中类的继承。
+
+# define EV_CB_DECLARE(type) void (*cb)(struct ev_loop *loop, struct type *w, int revents);
+
+libev定义了3中最基础的监控器，可以看作为基础类。
+#define EV_WATCHER(type) \  | #define EV_WATCHER(type)                    \  
+  int active;            \  |   int active;           /* private */       \  
+  int pending;           \  |   int pending;          /* private */       \  
+  EV_DECL_PRIORITY       \  |   int priority;         /* private */       \  
+  EV_COMMON              \  |   void *data;           /* rw */            \  
+  EV_CB_DECLARE (type)      |   EV_CB_DECLARE (type)  /* private */
+  
+其中 EV_DECL_PRIORITY 更具 EV_MINPRI 和 EV_MAXPRI 的值来确定是否设 置优先级，如果具有不同优先级，则宏展开为 int priority; 否则没有优先 级字段
+EV_COMMON 定义为用户私有数据存储的指针 void *data;
+EV_CB_DECLARE (type) 展开为定义了一个回调函数 void (*cb)(struct ev_loop *loop, struct type *w, int revents);
+  字段名      含义
+  active      0-未启用；非0-启用或者某些事件队列中的下标
+  pending     0-非触发；非0-触发队列下标
+}
+
+ev_watcher(){
+struct ev_watcher
+对应的结构体
+typedef struct ev_watcher{
+  EV_WATCHER(ev_watcher)
+}
+}
+
+EV_WATCHER_LIST(){
+
+#define EV_WATCHER_LIST(type) \
+  EV_WATCHER (type) \
+  struct ev_watcher_list *next;
+定义了 ev_watcher_list 结构体的基础数据部分。
+}
+
+ev_watcher_list(){
+typedef struct ev_watcher_list{
+  EV_WATCHER_LIST(ev_wathcer_list)
+} ev_watcher_list
+}
+
+EV_WATCHER_TIME(){
+
+#define EV_WATCHER_TIME(type) \
+   EV_WATCHER (TYPE)
+   ev_tstamp at;
+}
+
+ev_watcher_time(){
+typedef struct ev_watcher_time{
+  EV_WATCHER_TIME (ev_watcher_time)
+} ev_watcher_time;
+}
+
+ev_io(){
+typedef struct ev_io{
+    EV_WATCHER_LIST (ev_io)
+
+    // private member
+    int fd;
+    int events;
+} ev_io;
+IO监控器，用于监控文件描述符fd，当fd满足events中定义的 EV_READ 或 者 EV_WRITE，则事件发生。
+}
+ev_timer(){
+typedef struct ev_timer{
+  EV_WATCHER_TIME (ev_timer)
+  
+  ev_tstamp repeat;
+} ev_timer;
+时间事件，通过at成员函数设定多久触发一次，并且多久repeat一次。
+}
+
+ev_periodic(){
+typedef struct ev_periodic {
+  EV_WATCHER_TIME (ev_periodic)
+
+  ev_tstamp offset;
+  ev_tstamp interval;
+  ev_tstamp (*reschedule_cb)(struct ev_periodic *w, ev_tstamp now);
+} ev_periodic;
+时间事件，设定触发时间戳，并且可以设定一个重新设定的回调函数。
+}
+
+ev_signal(){
+typedef struct ev_signal
+{
+  EV_WATCHER_LIST (ev_signal)
+  
+  int signum;
+} ev_signal;
+
+信号事件，设定监听的信号为 signum;
+}
+
+ev_child(){
+typedef struct ev_child{
+  EV_WATCHER_LIST (ev_child)
+  
+  int flags;
+  int pid;
+  int rpid;
+  int rstatus;
+} ev_child;
+
+子进程状态改变的信号监听器，当pid进程监听到信号sigchld信号时触发， rpid存储着子进程号，rstatus保存这子进程退出码。
+}
+
+ev_stat(){
+typedef struct stat ev_statdata;
+typedef struct ev_stat
+{
+  EV_WATCHER_LIST (ev_stat)
+ 
+  ev_timer timer; 
+  ev_tstamp interval;
+  const char *path;
+  ev_statdata prev;
+  ev_statdata attr;
+
+  int wd;
+} ev_stat;
+文件修改监听器，监听path指向的文件或者路径，当文件改变时触发。timer 监听器保证多久触发一次检测, interval保证触发检测的时间间隔，prev保 存上一次检测的文件状态，attr保存当前一次检测文件状态。
+}
+
+ev_idle(){
+typedef struct ev_idle
+{
+  EV_WATCHER (ev_idle)
+} ev_idle;
+空闲监控器，用来防止轮询出现阻塞。
+}
+
+ev_prepare(){
+typedef struct ev_prepare
+{
+ EV_WATCHER (ev_prepare)
+} ev_prepare;
+在每次轮询的开始调用。
+}
+ev_check(){
+typedef struct ev_check
+{
+ EV_WATCHER (ev_check)
+} ev_check;
+在每次轮询的结束调用。
+}
+
+ev_fork(){
+typedef struct ev_fork
+{
+ EV_WATCHER (ev_fork)
+} ev_fork;
+在fork后的子进程的check之前调用。
+}
+
+ev_cleanup(){
+typedef struct ev_cleanup
+{
+ EV_WARCHER (ev_cleanup)
+} ev_cleanup;
+在循环退出时调用。
+}
+
+ev_embed(){
+typedef struct ev_embed{
+ EV_WATCHER (ev_embed)
+ struct ev_loop *other;
+ ev_io io;
+ ev_prepare prepare;
+ ev_check check;
+ ev_timer timer;
+ ev_periodic periodic;
+ ev_idle idle;
+ ev_fork fork;
+ ev_cleanup cleanup;
+} ev_embed;
+
+用于在一个loop轮询中嵌入一个loop轮询。
+}
+
+ev_init(基础初始化宏){
+两种初始化逻辑，ev_init + ev_TYPE_set 或者 ev_TYPE_init 来初始化对应的 TYPE监控器。
+
+#define ev_init(ev,cb_) do { \
+((ev_watcher*)(void*)(ev))->acive = \ 
+((ev_watcher*)(void*)(ev))->pending = 0; \
+ev_set_priority((ev), 0); \
+ev_set_cb((ev),cb_); \
+} while(0)
+
+设置公共的EV_WATCHER成员变量为对应的值，并设定回调函数。
+}
+
+ev_io_set(){
+
+#define ev_io_set(ev,fd_,events_) do { (ev)->fd = (fd_); (ev)->events = (events_) | EV_IOFDST; } while(0)
+初始化ev_io监控器中的文件描述符和监听事件类型。
+}
+
+ev_timer_set(){
+
+#define ev_timer_set(ev,after_,repeat_) do { \
+((ev_watcher_time*)(ev))->at=(after_); \
+(ev)->repeat = (repeat_); \
+} while(0)
+用来设置时间监控器对应的时间和重复周期。
+}
+
+ev_io_init(复合初始化宏){
+
+#define ev_io_init(ec,cb,fd,events) do { \
+ev_init((ev),(cb)); \
+ev_io_set((ev),(fd),(events)); \
+} while(0)
+
+将ev_TYPE_init将会复合调用 ev_init + ev_TYPE_set 两个宏。
+}

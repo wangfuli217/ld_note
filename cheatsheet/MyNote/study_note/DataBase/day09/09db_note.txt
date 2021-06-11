@@ -1,0 +1,120 @@
+db730称之为远程数据库描述
+echo  $ORACLE_SID  获取数据库服务名的
+	使用using结合远程数据库描述  区分数据库
+	使用at	结合标签  区分具体的连接
+	using	用来区分不同的数据库
+	at		用来区分具体的连接
+	在每个sql操作前 加上exec sql at:标签名
+
+使用数据库链接的方式  database link
+	建立database link的语法
+		create database link 数据库链接名 connect to 用户名 identified by 密码 using '远程数据库描述';
+	如何使用,在表名后加@链接名
+		select first_name from s_emp where id=1;
+		select first_name from s_emp@数据库链接名 where id=1;
+
+	建立3.30到7.30的数据库链接
+		create database link db330todb730 connect to openlab identified by op123 using 'db730';
+	链接存储在哪个数据库中,这个数据库来管理链接相关的事务
+
+	练习
+		使用proc程序连接本地数据库,查询本地数据库中id=1的s_emp表中的first_name,打印这个数据,使用链接名db30todb70查询对应数据库中的s_emp表中的id=1的first_name,打印这个数据,使用链接名db30todb80更新对应数据库中的s_emp表中id=30的salary和first_name,更新成12345 和 abc123,提交数据,关闭数据库链接
+
+proc中的错误处理
+	proc中的局部错误处理
+	转账:
+		exec sql update account set money=money-5000 where id='A';
+		int fa=sqlca.sqlcode;
+		exec sql update account set money=money+5000 where id='B';
+		int fb=sqlca.sqlcode;
+		if(fa==0&&fb==0)
+			exec sql commit;
+		else
+			exec sql rollback;
+
+proc中的全局错误处理
+	exec sql whenever 条件  动作;
+	条件:sqlerror  notfound  sqlwarning
+	动作:do  函数();    调用函数
+		 do  break;		终止循环
+		 continue;		程序继续
+		 goto 标签;		跳转某个标签
+		 stop;			终止进程
+
+当执行sql出错,就向上找一个对应情况的whenever语句,找到就执行相应的whenever,找不到继续向上直到程序的开始就忽略错误 
+
+proc中如何操作数据
+	使用单个变量操作单行单列
+		exec sql select first_name into :var_name from s_emp where id=2;
+	使用多个变量操作单行多列
+		exec sql select id,first_name,salary into :var_name from s_emp where id=2;
+	使用结构体操作单行多列
+		struct{
+			int id;
+			char name[30];
+			double salary;
+		}emp;
+	
+	使用结构体数组来操作多行多列
+		把s_emp表中所有的id,first_name,salary放入一个结构体数组中,然后遍历这个数组
+
+	使用游标来操作多行多列
+		游标的使用步骤
+			/* 连接数据库之后 出现如下代码 */
+			声明游标
+				exec sql declare 游标名 cursor for select 语句;
+			打开游标
+				exec sql open 游标名;
+			提取数据 处理数据
+				exec sql fetch 游标名 into :结构体变量;
+			关闭游标
+				exec sql close 游标名;
+
+	使用proc程序,连接数据库,然后把s_emp表中的id,first_name,salary放入游标中,然后提取前两条数据,并打印
+
+	proc中如何提取游标中所有的数据
+		exec sql whenever notfound do break;
+
+	滚动游标(了解)
+		可以不按照顺序来提取数据
+	scroll cursor
+		提取关键字
+			last	  最后一行数据
+			first	  第一行数据
+			prior	  当前行的前一行
+			next	  当前行的后一行
+			current	  当前行
+			relative  n  n是0 current  n是1就是next  n是-1 prior n可以是任意的合理数
+			absolute  n		绝对的第几行
+
+动态SQL
+	在程序的执行过程中,sql语句可以根据条件发生改变
+	如何实现?把sql语句变成字符串
+
+	第一种动态sql	
+		不能是select语句
+		不能有占位符
+		exec sql execute immediate :sqlstr;
+	
+	第二种动态sql
+		可能是select语句
+		可以有占位符
+			insert into s_dept values(1,'test1',1);
+			insert into s_dept values(2,'test2',2);
+			insert into s_dept values(:b0,:b1,:b2);
+		有占位符的字符串需要预处理
+			exec sql prepare s from :sqlstr;
+		执行预处理好的s,使用using传入值
+			exec sql excute s using :宿主变量1,:宿主变量2,宿主变量3
+
+	第三种动态sql
+		能且只能是select语句
+		可以有占位符
+			char sqlstr[100]="select id,first_name,salary from s_emp where id>:b0";
+		有占位符就先预处理
+			exec sql prepare s from :sqlstr;
+		声明一个游标关联到s上
+			exec sql declare 游标名 cursor for s;
+		打开游标时传入实参
+			exec sql open 游标名 using :宿主变量;
+		关闭游标

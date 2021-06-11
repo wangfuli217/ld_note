@@ -1,0 +1,233 @@
+http://blog.csdn.net/ieearth/article/details/72849990
+
+1、pid目录
+"/proc/[pid]"，目录，pid为进程的数字ID，是个数值，每个运行着的进程都有这么一个目录。
+"/proc/[pid]/attr"，目录，提供了安全相关的属性，可读可写，以支持安全模块如SELinux等，需配置CONFIG_SECURITY。
+"/proc/[pid]/attr/current"，文件，当前的安全相关的属性。
+"/proc/[pid]/attr/exec"，文件，执行命令execve时设置的安全相关的属性。
+"/proc/[pid]/attr/fscreate"，文件，执行命令open、mkdir、symlink、mknod时设置的安全相关的属性。
+"/proc/[pid]/attr/keycreate"，文件，执行命令add_key时设置的安全相关的属性。
+"/proc/[pid]/attr/prev"，文件，最后一次执行命令execve时的安全相关的属性，即前一个"/proc/[pid]/attr/current"。
+"/proc/[pid]/attr/sockcreate"，文件，创建socket时设置的安全相关的属性。
+"/proc/[pid]/auxv"，文件，ELF解释器信息，格式为一个unsigned long类型的ID加一个unsigned long类型的值，最后为两个0（man getauxval）。
+"/proc/[pid]/cgroup"，文件，进程所属的控制组，格式为冒号分隔的三个字段，分别是结构ID、子系统、控制组，需配置CONFIG_CGROUPS。
+"/proc/[pid]/clear_refs"，文件，只写，只用于进程的拥有者，清除用于估算内存使用量的PG_Referenced和ACCESSED/YOUNG，有1、2、3、4四种策略，1表示清除相关的所有页，2表示清除相关的匿名页，3表示清除相关的映射文件的页，4表示清除相关的soft-dirty的页，需配置CONFIG_PROC_PAGE_MONITOR。
+"/proc/[pid]/cmdline"，文件，只读，保存启动进程的完整的命令行字符串，如果是僵尸进程，这个文件为空。
+"/proc/[pid]/comm"，文件，进程的命令名，不同的线程（man clone prctl pthread_setname_np）可能有不同的线程名，位置在"task/[tid]/comm"，名字长度超过TASK_COMM_LEN时会被截断。
+"/proc/[pid]/coredump_filter"，文件，coredump过滤器，如00000033（man core），不同的二进制位表示过滤不同的信息。
+"/proc/[pid]/cpuset"，文件，控制CPU和内存的节点（man cpuset）。
+"/proc/[pid]/cwd"，目录，符号链接到当前工作目录。
+"/proc/[pid]/environ"，文件，环境变量。
+"/proc/[pid]/exe"，文件，符号链接到启动进程的完整命令。
+"/proc/[pid]/fd/"，目录，包含当前的fd，这些fd符号链接到真正打开的文件。
+"/proc/[pid]/fdinfo/"，目录，包含当前fd的信息，不同类型的fd信息不同。
+"/proc/[pid]/io"，文件，IO信息。
+"/proc/[pid]/gid_map"，文件，从用户命名空间映射的组ID的信息（man user_namespaces）。
+"/proc/[pid]/limits"，文件，资源软、硬限制（man getrlimit）。
+"/proc/[pid]/map_files/"，目录，包括一些内存映射文件（man mmap），文件名格式为BeginAddress-EndAddress，符号链接到映射的文件，需要配置CONFIG_CHECKPOINT_RESTORE。
+"/proc/[pid]/maps"，文件，内存映射信息，下面"proc-pid-maps"详细介绍。
+"/proc/[pid]/mem"，文件，用于通过open、read、lseek访问进程的内存页。
+"/proc/[pid]/mountinfo"，文件，挂载信息，格式为36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 - ext3 /dev/root rw,errors=continue，以空格作为分隔符，从左到右各字段的意思分别是唯一挂载ID、父挂载ID、文件系统的设备主从号码、文件系统中挂载的根节点、相对于进程根节点的挂载点、挂载权限等挂载配置、可选配置、短横线表示前面可选配置的结束、文件系统类型、文件系统特有的挂载源或者为none、额外配置。
+/proc/[pid]/mounts，文件，挂载在当前进程的文件系统列表，格式参照（man fstab）。
+/proc/[pid]/mountstats，文件，挂载信息，格式形如device /dev/sda7 mounted on /home with fstype ext3 [statistics]。
+/proc/[pid]/ns/，目录，保存了每个名字空间的入口，详见（man namespaces）。
+/proc/[pid]/numa_maps，文件，numa即Non Uniform Memory Access，详见（man numa）。
+/proc/[pid]/oom_adj，文件，调整OOM分数，OOM即Out Of Memory，发生OOM时OOM Killer根据OOM分数杀掉分数高的进程，默认值为0，会继承自父进程的设置。
+/proc/[pid]/oom_score，文件，OOM分数。
+/proc/[pid]/oom_score_adj，文件，OOM分值介于-1000到1000之间。
+/proc/[pid]/pagemap，文件，当前进程的虚拟内存页映射信息，需要配置CONFIG_PROC_PAGE_MONITOR。
+/proc/[pid]/personality，文件，进行执行域。
+/proc/[pid]/root，目录，链接到了当前进程的根目录。
+/proc/[pid]/seccomp，文件，seccomp模式下允许的系统调用只有read、write、_exit、sigreturn，Linux 2.6.23已弃用这个文件，由prctl替代。
+/proc/[pid]/setgroups，文件，详见（man user_namespaces）。
+"/proc/[pid]/smaps"，文件，内存映射信息，类似于pmap命令，需要配置CONFIG_PROC_PAGE_MONITOR，下面"proc-pid-smaps"详细介绍。
+/proc/[pid]/stack，文件，内核空间的函数调用堆栈，需要配置CONFIG_STACKTRACE。
+/proc/[pid]/stat，文件，进程状态信息，用于ps命令。
+/proc/[pid]/statm，文件，进程内存使用信息，以空格分隔的7个数字，从左到右分别表示程序总大小、常驻内存大小、共享内存页大小、text code、library、data + stack、dirty pages。
+/proc/[pid]/status，文件，可读性好的进程相关信息，下面"proc-pid-status"详细介绍。
+/proc/[pid]/syscall，文件，系统调用相关信息，需要配置CONFIG_HAVE_ARCH_TRACEHOOK。
+/proc/[pid]/task，目录，每个线程一个子目录，目录名为线程ID。
+/proc/[pid]/timers，文件，POSIT定时器列表，包括定时器ID、信号等信息。
+/proc/[pid]/uid_map，文件，用户ID映射信息，详见（man user_namespaces）。
+/proc/[pid]/gid_map，文件，组ID映射信息，详见（man user_namespaces）。
+/proc/[pid]/wchan，文件，进程休眠时内核中相应位置的符号表示，如do_wait。
+
+
+5、bus目录
+
+/proc/bus，目录，已安装的总线。
+/proc/bus/pccard
+/proc/bus/pccard/drivers
+/proc/bus/pci
+/proc/bus/pci/devices
+6、net目录
+
+/proc/net，目录，网络伪文件系统相关。
+/proc/net/arp
+/proc/net/dev
+/proc/net/dev_mcast
+/proc/net/igmp
+/proc/net/rarp
+/proc/net/raw
+/proc/net/snmp
+/proc/net/tcp
+/proc/net/udp
+/proc/net/unix
+/proc/net/netfilter/nfnetlink_queue
+7、sys目录
+
+/proc/sys，目录，系统变量相关信息，详细如下。
+/proc/sys/abi
+/proc/sys/debug
+/proc/sys/dev
+/proc/sys/fs
+/proc/sys/fs/binfmt_misc
+/proc/sys/fs/dentry-state
+/proc/sys/fs/dir-notify-enable
+/proc/sys/fs/dquot-max
+/proc/sys/fs/dquot-nr
+/proc/sys/fs/epoll
+/proc/sys/fs/file-max
+/proc/sys/fs/file-nr
+/proc/sys/fs/inode-max
+/proc/sys/fs/inode-nr
+/proc/sys/fs/inode-state
+/proc/sys/fs/inotify
+/proc/sys/fs/lease-break-time
+/proc/sys/fs/leases-enable
+/proc/sys/fs/mqueue
+/proc/sys/fs/nr_open
+/proc/sys/fs/overflowgid
+/proc/sys/fs/overflowuid
+/proc/sys/fs/pipe-max-size
+/proc/sys/fs/protected_hardlinks
+/proc/sys/fs/protected_symlinks
+/proc/sys/fs/suid_dumpable
+/proc/sys/fs/super-max
+/proc/sys/fs/super-nr
+/proc/sys/kernel
+/proc/sys/kernel/acct
+/proc/sys/kernel/auto_msgmni
+/proc/sys/kernel/cap_last_cap
+/proc/sys/kernel/cap-bound
+/proc/sys/kernel/core_pattern
+/proc/sys/kernel/core_uses_pid
+/proc/sys/kernel/ctrl-alt-del
+/proc/sys/kernel/dmesg_restrict
+/proc/sys/kernel/domainname
+/proc/sys/kernel/hostname
+/proc/sys/kernel/hotplug
+/proc/sys/kernel/htab-reclaim
+/proc/sys/kernel/kptr_restrict
+/proc/sys/kernel/l2cr
+/proc/sys/kernel/modprobe
+/proc/sys/kernel/modules_disabled
+/proc/sys/kernel/msgmax
+/proc/sys/kernel/msgmni
+/proc/sys/kernel/msgmnb
+/proc/sys/kernel/ngroups_max
+/proc/sys/kernel/ostype
+/proc/sys/kernel/osrelease
+/proc/sys/kernel/overflowgid
+/proc/sys/kernel/overflowuid
+/proc/sys/kernel/panic
+/proc/sys/kernel/panic_on_oops
+/proc/sys/kernel/pid_max
+/proc/sys/kernel/powersave-nap
+/proc/sys/kernel/printk
+/proc/sys/kernel/pty
+/proc/sys/kernel/pty/max
+/proc/sys/kernel/pty/nr
+/proc/sys/kernel/random
+/proc/sys/kernel/random/uuid
+/proc/sys/kernel/randomize_va_space
+/proc/sys/kernel/real-root-dev
+/proc/sys/kernel/reboot-cmd
+/proc/sys/kernel/rtsig-max
+/proc/sys/kernel/rtsig-nr
+/proc/sys/kernel/sched_rr_timeslice_ms
+/proc/sys/kernel/sched_rt_period_us
+/proc/sys/kernel/sched_rt_period_us
+/proc/sys/kernel/sem
+/proc/sys/kernel/sg-big-buff
+/proc/sys/kernel/shm_rmid_forced
+/proc/sys/kernel/shmall
+/proc/sys/kernel/shmmax
+/proc/sys/kernel/shmmni
+/proc/sys/kernel/sysctl_writes_strict
+/proc/sys/kernel/sysrq
+/proc/sys/kernel/version
+/proc/sys/kernel/threads-max
+/proc/sys/kernel/yama/ptrace_scope
+/proc/sys/kernel/zero-paged
+/proc/sys/net
+/proc/sys/net/core/bpf_jit_enable
+/proc/sys/net/core/somaxconn
+/proc/sys/proc
+/proc/sys/sunrpc
+/proc/sys/vm
+/proc/sys/vm/compact_memory
+/proc/sys/vm/drop_caches
+/proc/sys/vm/legacy_va_layout
+/proc/sys/vm/memory_failure_early_kill
+/proc/sys/vm/memory_failure_recovery
+/proc/sys/vm/oom_dump_tasks
+/proc/sys/vm/oom_kill_allocating_task
+/proc/sys/vm/overcommit_kbytes
+/proc/sys/vm/overcommit_memory
+/proc/sys/vm/overcommit_ratio
+/proc/sys/vm/panic_on_oom
+/proc/sys/vm/swappiness
+
+N、其它
+/proc/apm，文件，apm即Advanced Power Management，需要配置CONFIG_APM。
+/proc/buddyinfo，文件，用于诊断内存碎片问题。
+/proc/cmdline，文件，系统启动时传递给Linux内核的参数，如lilo、grub等boot管理模块。
+/proc/config.gz，文件，内核编译配置选项，需要配置CONFIG_IKCONFIG_PROC。
+/proc/crypto，文件，内核加密API提供的加密列表。
+/proc/cpuinfo，文件，CPU和系统架构信息，lscpu命令使用这个文件。
+/proc/devices，文件，设备相关信息。
+/proc/diskstats，文件，磁盘状态。
+/proc/dma，文件，dma即Direct Memory Access。
+/proc/driver/rtc，文件，系统运行时配置。
+/proc/execdomains，文件，执行域列表。
+/proc/fb，文件，Frame Buffer信息，需要配置CONFIG_FB。
+/proc/filesystems，文件，内核支持的文件系统类型（man filesystems）。
+/proc/fs，目录，挂载的文件系统信息。
+/proc/ide，目录，用于IDE接口。
+/proc/interrupts，文件，每个CPU每个IO的中断信息。
+/proc/iomem，文件，IO内存映射信息。
+/proc/ioports，文件，IO端口信息。
+/proc/kallsyms，文件，用于动态链接和和模块绑定的符号定义。
+/proc/kcore，文件，系统中ELF格式的物理内存。
+/proc/kmsg，文件，内核信息，dmsg命令使用这个文件。
+/proc/kpagecount，文件，每个物理页帧映射的次数，需要配置CONFIG_PROC_PAGE_MONITOR。
+/proc/kpageflags，文件，每个物理页帧的掩码，需要配置CONFIG_PROC_PAGE_MONITOR。
+/proc/ksyms，文件，同kallsyms。
+/proc/loadavg，文件，工作负荷。
+/proc/locks，文件，当前文件锁的状态。
+/proc/malloc，文件，需要配置CONFIG_DEBUG_MALLOC。
+/proc/meminfo，文件，系统内存使用统计，free命令使用了这个文件。
+/proc/modules，文件，系统加载的模块信息，相关命令为lsmod。
+/proc/mounts，文件，链接到了/self/mounts。
+/proc/mtrr，文件，Memory Type Range Registers。
+/proc/partitions，文件，分区信息。
+/proc/pci，文件，PCI接口设备。
+/proc/profile，文件，用于readprofile命令作性能分析。
+/proc/scsi，目录，SCSI接口设备。
+/proc/scsi/scsi
+/proc/scsi/[drivername]
+/proc/self，目录，链接到了当前进程所在的目录。
+/proc/slabinfo，文件，内核缓存信息，需要配置CONFIG_SLAB。
+/proc/stat，文件，系统信息统计。
+/proc/swaps，文件，使用的交换空间。
+/proc/sysrq-trigger，文件，可写，触发系统调用。
+/proc/sysvipc，目录，包括msg、sem、shm三个文件，为System V IPC对象。
+/proc/thread-self，文件，链接到了当前进程下的task目录中的线程文件。
+/proc/timer_list，文件，还在运行着的定时器列表。
+/proc/timer_stats，文件，定时器状态。
+/proc/tty，目录，tty设备相关。
+/proc/uptime，文件，系统更新时间和进程空闲时间。
+/proc/version，文件，内核版本信息。
+/proc/vmstat，文件，内存统计信息，以键值对形式显示。
+/proc/zoneinfo，文件，内存区块信息，用于分析虚拟内存的行为。

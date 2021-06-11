@@ -1,0 +1,64 @@
+9 生成的扫描器
+    flex的输出文件为lex.yy.c，里面包含扫描函数yylex()，许多表，用来匹配终结符(tokens)，
+以及一些附加函数和宏。默认情形下，yylex()声明如下：
+    int yylex()
+    {
+        ... various definitions and the action here...
+    }
+
+(如果你的环境支持函数原型(function prototype)，那么这里的声明将是int yylex(void)
+.)如果定义了YY_DECL宏，那么该定义将可能发生变化。例如，你可以使用：
+    #define YY_DECL float lexscan(a, b) float a, b;
+来给定一个函数名lexscan给扫描器，返回一个float类型，并带2个float类型的入参。要注
+意的是，如果你用K&R风格的函数声明来给定参数给扫描器函数，那么要记得在结束定义时
+在后面加分号(;)(译注：上面的风格即使K&R风格，C99已不建议这种风格)。
+
+flex默认情况下会生成C99风格的函数。但flex还是可以生成过时的代码，嗯，即“传统的”
+函数定义。这是为了支持某些系统上古老的GCC(编译器)。然而不幸的是，传统的定义不
+允许我们使用任何小于int长度的标准数据类型(例如short,char或者bool)作为函数参数
+。基于此，将来的flex版本将只会生成C99标准的代码，使得K&R风格的函数成为历史。当前
+如果你不喜欢C99风格的定义，你必须使用%option noansi-definitions.
+
+当每次调用yylex()时，它会从全局输入文件yyin(默认为stdin)扫描标识符。它会一直继续
+下去，直到文件尾(此时它会返回0值)或者其中之一的某个行为执行了一条return语句。
+
+如果扫描器达到文件尾，那么后续的调用将是未定义的，除非yyin指向了一个新的输入文件
+(可能从该文件继续扫描)，或者调用了yyrestart()函数。yyrestart()函数带有一个参数，
+一个文件指针FILE*(如果你已经将YY_INPUT设置为扫描一个源文件而不是yyin，那么该指针
+可以为空),yyrestart会初始化yyin来使得扫描器扫描该(文件指针指向的)文件。从本质上
+而言，对yyin赋值和调用yyrestart()来这样做并没有说明区别；后者在兼容之前版本的flex
+方面更具可取性，(更具可取性的另一个原因是)它可以用来在扫描过程中选择输入文件。
+它还可以以参数yyin来调用，以达到丢弃当前输入缓冲区的目的；但是最好还是使用YY_FLUSH_BUFFER()
+(参见Actions)。注意，yyrestart()并不会将起始状态设置为INITIAL(参见Start Conditions)。
+
+如果yylex()由于执行了一条return语句停止执行，那么扫描器将会被再次调用，对之前的剩余部分恢复扫描(过程)。
+
+默认情况下(为性能考虑)，扫描器是使用块读取(block-reads)方式而不是简单的getc()调
+用来从yyin中读取字符的。关于如何得到其输入，可以通过定义YY_INPUT宏来定义。YY_INPUT()
+的调用序列为YY_INPUT(buf, result, max_size)。其行为是在buf数组中，定位max_size
+个字符，并返回到整数result中，该整数不是读取的字符个数，就是常量YY_NULL(在UNIX系统中为0),
+用来指明文件结束符'EOF'。默认的YY_INPUT从全局文件指针yyin中读取(字符)
+
+下面有一个简单的YY_INPUT定义(在输入文件的定义部分)：
+    %{
+    #define YY_INPUT(buf, result, max_size) \
+        { \
+        int c = getchar(); \
+        result = (c == EOF) ? YY_NULL : (buf[0] = c, 1); \
+        }
+    %}
+该定义将改变输入处理，每次只处理一个字符。
+
+当扫描器在YY_INPUT中到达文件尾(end-of-file)，它会检查yywrap()函数。若yywrap()返
+回false(即返回0)，那么，扫描器就假定yywrap()函数继续运行并将yyin指针指向另一个输
+入文件，进而继续扫描。如果返回true(即返回1)，则扫描器推出，返回0给它的调用者。要
+注意，在这两种情况下，起始状态都保持不变；不会退回到INITIAL状态。
+
+如果你不自定义yywrap()函数，那么你必须使用%option noyywrap(此时扫描器按照yywrap()
+返回1的情况来处理)，或者使用'-lfl'链接选项来得到该函数的默认版本，默认版本一直
+返回1.
+
+关于从内存缓冲区中扫描(如字符串扫描)，参见Scanning Strings，Multiple Input Buffers。
+
+扫描器将自己的ECHO输出道全局的yyout中(默认为stdout)，用户可以给yyout赋值一个文件
+指针来重新定义它。

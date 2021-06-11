@@ -1,0 +1,97 @@
+
+Go语言： 语言层面支持并发（其它语言是通过库或者框架来支持），适合开发高并发的网络服务（无状态），Docker，以太坊就是用Go语言开发的;
+
+
+Go Cloud: 用于跨云平台的服务开发； 类似的有： spring cloud;
+
+
+耗子在极客时间专栏编程语言一节中推荐了很多参考书：《GoByExample》，《Go 101》电子书，《EffectiveGo》  可以在cyber-dojo.org 在线编码测试；
+
+https://coolshell.cn/articles/8460.html  Go语言语法  
+https://coolshell.cn/articles/8489.html  Go语言特性
+https://gobyexample.com/   Go by example
+https://go101.org/article/101.html   Go by 101 在线电子书
+https://golang.org/doc/effective_go.html   官方的effective GO;
+https://github.com/golang/go/wiki/Articles   Go精华文章列表，涉及：并发，Docker, OOP, PerformanceProfile, 反射（根据名字调用函数），交叉编译，移动开发；
+https://mikespook.com/2012/02/%E7%BF%BB%E8%AF%91go-%E7%8E%AF%E5%A2%83%E8%AE%BE%E7%BD%AE/   Go环境设置
+https://talks.golang.org/2012/concurrency.slide  Go Concurrency patterns;
+https://www.slideshare.net/jpetazzo/docker-and-go-why-did-we-decide-to-write-docker-in-go  
+https://github.com/drone/drone  Go语言编写的基于Docker 的 持续集成环境
+https://www.jianshu.com/p/35a4ec1b3067  对于Go的编译，环境变量讲解的非常全面到位；
+
+Go 的优点是上手快、运行时性能高、方便的使用多核运算能力等，经常被提起的特性是超轻线程 goroutine、内置的内存队列 channel、极快的编译速度，
+非常适合于编写各种无状态应用服务，无需使用任何的第三方框架都能轻松写出一个高性能的 http 服务(因为包含了http pacakge);
+但它的GC性能比目前的JVM的GC要差，这使得 Go 不太适合做有状态服务（需要建立对象，分配内存），特别不适合做内存管理相关的服务，在这些场景里面还是 C/C++ 更加可靠。
+
+
+
+Go天生支持并发： 在语言层面通过Goroutine, channel 支持并发，而不是通过库或者框架来支持，Goroutine效果类似于线程，但是比线程的开销还小，每个Goroutine只需要几KB的堆栈空间，1个线程可以支持多个Goroutine，它们通过Channel通信;
+
+
+	1. Go 语言结合了C语言和Python语言的语法； Go的语法是从左到右读的，焦点在左边； Go语言有指针，面向对象；
+	2. Go文件分类: 1)包含package main + main()的 .go文件是“命令源码文件”，编译后可执行， 文件名是_test.go且函数是Testxxx或BenchmarkXXX的是“测试源码文件”，其它的是“库源码文件”， 编译后为xxx.a; 
+	3. 环境变量:  go env 显示所有环境变量，GO_ROOT:go的安装目录，GOPATH:workspace目录，GOBIN(设置为bin目录), GOARCH(buil的环境的cpu),GOOS(build OS),GOHOSTARCH(target cpu), GOHOSTOS(target OS);
+	4. 工作区子目录: src(源码), pkg(包xxx.a), bin(go install安装到这里)，src目录下的每个子目录对应1个package,具有相同package的.go文件放在同一个目录中；
+	5. GO的基本命令: 编译相关 build/get/install/run ;     go get(download dependency), go build, go clean, go env, go install, go list(list package),  go test,  go version; 
+	6. GO命令的参数： -n(仅打印过程但不执行)， -race(检测并发竞争)， -v(显示涉及到的代码包)，-work(不删除产生的temp目录)，-x（打印过程命令并执行）  -a(重新编译自己的代码和标准库的代码)
+	7. main函数是程序的入口，直接运行： go run hello.go（实际是编译为a.out）   或者 先编译 go build hello.go 再执行 ./hello
+	8. 打印： fmt.Println(xx); 如果要支持%格式，用fmt.Printf("%f", 2.2);  msg := fmt.Sprintf("%d",i ) 需要  import "fmt"
+	9. 依赖导入: 对于import的库，可以使用相对路径，或者 $GOPATH/src/下的go文件
+	10. 变量定义：   eg:  var x  int = 30 ;   var  i,j,k int = 1,2,3;    var b = true; 常量:   const s string = "hello"
+	11. 变量类型自动推导:  x :=  100;   
+	12. 数组：   var arr [5]int      带初始化：  b := [5]int {1,2,3,4,5};  二维:  var arr[2][3] int ；  buff := make([]byte , LEN); 支持切片： conn.write(buff[0:n])  
+	13. 循环: for i:=0; i<2; i++{}    或者  for{...break;}  或者  for condition{}；
+	14. range for :   for _, env := range os.Environ() { xx }
+	15. switch-case: 支持 case 字符串， 比如 case ".html", "htm" : 
+	16. go语言是面向对象的，用struct定义类，成员函数定义在struct外部， eg: func (obj classA) name(input)(output){xxx}
+	17. go语言中访问权限都是public的；
+	18. 继承：
+	19. 字符串: import "strings" ,    提供类似python的功能, strings.split()
+	20. 函数定义： func name(input)(output){ return } 不是通过return返回结果，而是通过output， 标准库函数一般返回2个值，一个表示错误码， eg:   n,err := conn.Read(buff); if  err != nil{}
+	21. 语句结束不必显示加分号，对于控制语句，最好在行尾跟{
+	22. go routine: 1个线程上的协程，使用 go 调用函数， 还可以使用匿名函数，go routine会一直运行下去直到阻塞或者主动让出CPU；如果阻塞，让出CPU给其他的go routine执行，这些go routine因为属于同一个线程只能在1个CPU上执行；go routine创建后会等待时机执行（主流程阻塞）；go routine之间的通信可以用channel;
+	23. 加锁： var mutex = &sync.Mutex{}   ;   mutex.Lock();  mutex.Unlock();
+	24. 原子操作： atomic.AddUint32(&cnt,  1); 可以查看go的atomic包 文档 http://golang.org/pkg/sync/atomic/
+	25. channel信道： 阻塞特性+等待通知：如果满了就阻塞写，如果空了就阻塞读；完成的功能相当于mutex+condition_variable，从语言层面就支持这种通信机制非常酷， 这个特性可以用来创建线程池，从channel获取任务处理； close(channel)会通知对方，不用再等待了，对方就不会一直阻塞；
+	26. select-case: channel 复用， select是阻塞的（可添加 timeout分支防止一直阻塞），如果不想阻塞，可添加default分支,  1次select调用只能处理1个channel, 所以外层要循环；
+	27. 随机数：   rand.Seed(time.Now().Unix()) ，    cnt := rand.Intn(10)
+	28. 定时器：  起1次性定时器 timer := time.NewTimer(2*time.Second)    ; 等待超时 <- timer.C  ； 起周期定时器： ticker := time.NewTicker(time.Second)， 这两者配合使用；
+	29. 异常： panic(xxx) 抛异常， defer 捕获；if err != nil {panic(err.Error()) }
+	30. 错误处理： switch err{case nil: ok   case io.EOF:  return    default: return }   ;  
+	31. Sock:   listerner,err := net.Listen("tcp", "xxxx:port");   conn,err := listener.Accept();  conn.Read(buf); conn.Write(buf[0:n]);   client:  conn, err := net.Dial("tcp", "ip:port");
+	32. go程序初始化流程: import包的初始化---本地全局变量初始化 --->本地init函数--->main函数，注意：1个源文件可以包含多个init()，执行顺序随机,  init函数不能被其它函数调用；
+	33. 系统调用: 类似于C语言的系统调用，两个关键包: os (setenv, getenv),  syscall( Getpid, Chdir)  ; OS包有3个子包，Exec, Signal, User;  eg: cmd := exec.command("ping", "127.0.0.1")  ;  out,err := cmd.Output()
+	34. 命令行参数:  args := os.Args 得到一个字符串数组，Go语言提供了一个flag包可以非常容易的解析程序入参，还能设置默认值, eg:   host := flag.String("host", "coolshell.cn", "a host name ") 返回的是指针，程序运行： ./test.go -host=localhost
+
+
+
+
+channel 生产--消费举例：
+channel := make(chan string)//buffer=1
+go func(){channel <- "hello"}()  //producer
+msg := <- channel    //consumer  这行是阻塞的，直到channel有数据或者closed;
+msg, more := <- channel  返回2个参数，如果channel 被 closed, 则 more=false, 否则 more=true
+
+多路复用：
+for{
+select{
+case msg1 := <- channel1:
+ fmt.println(msg1)
+case msg2:= <- channel2:
+fmt.println(msg2)
+case <- time.After(x):   添加timeout分支
+break
+}
+}
+
+
+周期定时器：
+ticker := time.NewTicker(time.Second)
+go func () {
+        for t := range ticker.C { 如果要退出循环，必须调用ticker.Stop()
+            fmt.Println(t) 每次超时执行
+        }
+    }()
+
+
+

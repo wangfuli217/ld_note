@@ -1,0 +1,134 @@
+libuv queue使用指针数组的特性，其定义了一个2维的指针数组，利用该指针数组的特性来构建与操作queue. 
+# queue.h中定义了一个双向链表 链表的类型
+
+## libuv queue方法分析 
+    /*包含两个指针元素（void*）的数组*/ # 整个双向列表的方法都是由宏实现.
+    # 参数q为指向QUEUE的指针 QUEUE* 返回为 QUEUE*
+    # 数组中的第一位元素表示双向链表中的next
+    # 数组中的第二位元素表示双向链表中的prev
+# 双向队列实现的逻辑: QUEUE queue; //queue的第一位元素用来表示header，永远指向队列中的第一位元素;queue的第二位元素用来表示tailer,
+# 永远指向队列中的最后一位元素 队列中的第一位元素的prev指向queue,队列中的最后一位元素的next指向queue
+    
+    typedef void *QUEUE[2];
+    # define QUEUE_NEXT(q)   (*(QUEUE **) &((*(q))[0]))       # q指针指向q[0]的值(强制类型转换)
+    # define QUEUE_PREV(q)   (*(QUEUE **) &((*(q))[1]))       # q指针指向q[1]的值(强制类型转换)
+    # define QUEUE_PREV_NEXT(q)  (QUEUE_NEXT(QUEUE_PREV(q)))  # q指针指向q[1]的值(强制类型转换) 的pq[0]指向的值
+    # define QUEUE_NEXT_PREV(q)  (QUEUE_PREV(QUEUE_NEXT(q)))  # q指针指向q[0]的值(强制类型转换) 的pq[1]指向的值
+宏对应的函数版本 
+inline QUEUE **queue_next(QUEUE *q) { return ((QUEUE **)&(*q)[0]); } 
+inline QUEUE **queue_prev(QUEUE *q) { return ((QUEUE **)&(*q)[1]); } 
+inline QUEUE **queue_prev_next(QUEUE *q) { return queue_next(*queue_prev(q)); } 
+inline QUEUE **queue_next_prev(QUEUE *q) { return queue_prev(*queue_next(q)); }
+
+(*(QUEUE **) &((*(q))[0])) 
+  (*(q))                     -> q 为指针
+  (*(q))[0]                  -> q指针指向q[0]的值
+  &(*(q))[0]                 -> q指针指向q[0]的地址
+  (QUEUE **) &((*(q))[0])    -> q指针指向q[0]的地址(强制类型转换)
+  (*(QUEUE **) &((*(q))[0])) -> q指针指向q[0]的值(强制类型转换)
+
+# define QUEUE_DATA(ptr, type, field) \
+	((type *) ((char *) (ptr) - offsetof(type, field)))
+
+// next和prev指向元素本身
+# define QUEUE_INIT(q) \
+	do {  \
+		QUEUE_NEXT(q) = (q); \ # q[0]内存放q的地址
+		QUEUE_PREV(q) = (q); \ # q[1]内存放q的地址
+	} \
+	while (0
+    
+#define QUEUE_ADD(h, n)                  # 
+  do {                                   # 
+    QUEUE_PREV_NEXT(h) = QUEUE_NEXT(n);  # h[1]指向hpn的hpn[0] = n[0]
+    QUEUE_NEXT_PREV(n) = QUEUE_PREV(h);  # n[0]指向nnp的nnp[1] = h[1]
+    QUEUE_PREV(h) = QUEUE_PREV(n);       # 
+    QUEUE_PREV_NEXT(h) = (h);            # 
+  }                                      # 
+  while (0)
+
+// 队列的第一个元素
+#define QUEUE_HEAD(q)
+// 在队列中的第一个元素之前插入元素 
+#define QUEUE_INSERT_HEAD(h, q)
+// 在队列中的最后一个元素之后插入元素 
+#define QUEUE_INSERT_TAIL(h, q)
+// 遍历队列，直到最后一位元素的next指向queue
+#define QUEUE_FOREACH(q, h)
+
+我们来一步一步分析根据其定义typedef void *QUEUE[2]的特性来分析,若有如下定义
+	QUEUE wq;           # 分配空间
+	QUEUE_INIT（&wq);   # 初始化
+	QUEUE_INIT(&wq1);   # 初始化
+	QUEUE_HEAD（&wq);   # 返回wq[0]指向的值
+	QUEUE_ADD（&wq, &wq1);
+
+wq  	|-------|
+		|wq[0]  |
+		|-------|
+		|wq[1]  |
+		|-------|
+
+wq1 	|-------|
+		|wq1[0] |
+		|-------|
+		|wq1[1] |
+		|-------|
+
+那么QUEUE_NEXT和QUEUE_PREV展开则为：
+	(*(QUEUE **) &((*(&wq))[0]))
+	(*(QUEUE **) &((*(&wq))[1]))
+```
+其特点则是在\*（取值）运算, 以NEXT为例， （\*（&wq））[0]中存储的是下一个节点的QUEUE的地址，当对取&运算时，
+则取到了下一个节点地址的地址，再对其地址的地址取值（\*），则能得到下一个节点的真实地址。
+ 
+## libuv中queue操作方法描述与说明
+	QUEUE_DATA(ptr, type, field)
+	//获取queue所在的结构的实际数据值
+	//此用方法多用于libuv内部数据
+	//例如：
+	//已知uv_udp_send_t结构的req指针;
+	//已知其内部QUEUE q的地址，求req的地址，则可使用 
+	//uv_udp_send_t *req = QUEUE_DATA(q, uv_udp_send_t, queue)来获取 
+
+	QUEUE_FOREACH(q, h)
+	/*
+	使用q来遍历head queue, q会不停的变换值，如：
+	QUEUE_FOREACH(q, h)
+	{
+		uv_*_t data= QUEUE_DATA(q, uv_*_t, queue);
+	}
+	*/
+
+	QUEUE_EMPTY(q)
+	//判断queue q是否为空，即只有一个节点
+	
+	QUEUE_HEAD(q)
+	//初始化HEAD，跟INIT的功能一致，不过INIT的设置了PREV值
+	//QUEUE_EMPTY(QUEUE_HEAD(q)) 为True
+
+	QUEUE_INIT(q)
+	//初始化q的值，将q的next和prev均指向自己
+	//QUEUE_EMPTY(QUEUE_INIT(q)) 为True
+
+	QUEUE_ADD(h, n)
+	//在head的前面插入节点node，即在队列尾加入node
+	
+	QUEUE_SPLIT(h, q, n)
+	//
+
+	QUEUE_MOVE(h, n)
+	//从head中移除n至end中所有结点，同时n为新的queue中的head
+
+	QUEUE_INSERT_HEAD(h, q)
+	//在head后面插入节点q
+
+	QUEUE_INSERT_TAIL(h, q)
+	//在head前面，也就是队尾插入节点q
+
+	QUEUE_REMOVE(q)
+	//删除节点q
+	
+	// 
+	
+```

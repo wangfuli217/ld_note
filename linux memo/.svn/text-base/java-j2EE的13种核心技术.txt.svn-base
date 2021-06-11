@@ -1,0 +1,195 @@
+一、内容简介
+
+Java EE的13种核心技术：JDBC、JNDI、EJB、RMI、JSP、Java Servlet、XML、JMS、Java IDL、JTS、JTA、JavaMail和JAF。
+
+Java最初在浏览器和客户端机器中粉墨登场，当时很多人质疑它是否适合做服务器端的开发。现在随着对Java EE第三方支持的增多，Java被广泛接纳为开发企业级服务器端解决方案的首选平台之一。
+
+Java EE平台由一整套服务(Services)、应用程序接口(APIs)和协议构成，它对开发基于Web的多层应用提供了功能支持。在本文中我将解释支撑Java EE的13种核心技术：JDBC、JNDI、EJB、RMI、JSP、Java Servlet、 XML、JMS、Java IDL、JTS、JTA、JavaMail和JAF，同时还将描述在何时、何处需要使用这些技术。当然我还要介绍这些不同技术之间如何交互。
+
+此外，为了让您更好地感受Java EE的真实应用，我将在WebLogic应用服务器环境下来介绍这些技术。不论对于WebLogic应用服务器和Java EE的新手，还是那些想了解Java EE能带来什么好处的项目管理者和系统分析员，相信本文一定很有参考价值。
+
+二、宏观印象: 分布式结构和Java EE
+
+过去二层化应用--通常被称为C/S应用--是大家谈论最多的。在很多情况下，服务器提供的唯一服务就是数据库服务。在这种解决方案中，客户端程序负责数据访问、实现业务逻辑、用合适的样式显示结果、弹出预设的用户界面、接受用户输入等。C/S结构通常在第一次部署时较容易，但难于升级或改进，且经常基于某种专有的协议，通常是某种数据库协议。它使得重用业务逻辑和界面逻辑非常困难。更重要的是，在Web时代，二层化应用通常不能体现出很好的伸缩性，因而很难适应Internet的要求。
+
+Sun设计Java EE的部分起因就是想解决二层结构的缺陷，于是Java EE定义了一套标准来简化N层企业级应用的开发。它定义了一套标准化组件，并为这些组件提供完整的服务。Java EE还自动为应用程序处理了很多实现细节，如安全、多线程等。用Java EE开发N层应用包括将二层结构中的不同层面切分成许多层。一个N层化应用A能够为以下的每种服务提供一个分开的层：
+
+显示：在一个典型Web应用中，客户端机器上运行的浏览器负责实现用户界面。
+
+动态生成显示：尽管浏览器可以完成某些动态内容显示，但为了兼容不同的浏览器，这些动态生成工作应该放在Web服务器端进行，使用JSP、Servlet或XML和XSLT。
+
+业务逻辑：业务逻辑适合用Session EJB(后面将介绍)来实现。
+
+数据访问：数据访问适合用Entity EJB(后面将介绍)和JDBC来实现。
+
+后台系统集成：同后台系统的集成可能需要用到许多不同的技术，至于何种最佳，需要根据后台系统的特征而定。
+
+您可能开始诧异：为什么有这么多的层？事实上，多层方式可以使企业级应用具有很强的伸缩性，它允许每层专注于特定的角色。如让Web服务器负责提供页面，应用服务器处理应用逻辑，而数据库服务器提供数据库服务。
+
+由于Java EE建立在J2SE的基础上，所以具备了J2SE的所有优点和功能。包括“编写一次，到处可用”的可移植性、通过JDBC访问数据库、同原有企业资源进行交互的CORBA技术，及一个经过验证的安全模型。在这些基础上，Java EE又增加了对EJB、Java Servlet、JSP和XML技术的支持。
+
+三、分布式结构与WebLogic应用服务器
+
+Java EE提供了一个框架(一套标准API)用于开发分布式结构的应用，这个框架的实际实现留给了第三方厂商。部分厂商只是专注于整个Java EE架构中的的特定组件，如Apache的Tomcat提供了对JSP和Servlet的支持，BEA系统公司则通过其WebLogic应用服务器产品为整个Java EE规范提供了一个较为完整的实现。
+
+WebLogic服务器已使建立和部署伸缩性较好的分布式应用的过程大为简化。WebLogic和Java EE代你处理了大量常规的编程任务，包括提供事务服务、安全领域、可靠的消息、名字和目录服务、数据库访问和连接池、线程池、负载平衡和容错处理等。通过以一种标准、易用的方式提供这些公共服务，象WebLogic服务器这样的产品造就了具有更好伸缩性和可维护性的应用系统，使其为大量的用户提供了增长的可用性。
+
+四、Java EE技术
+
+在接下来的部分里，我们将描述构成Java EE的各种技术，且了解WebLogic服务器是如何在一个分布式应用中对它们进行支持的。最常用的Java EE技术应该是JDBC、JNDI、EJB、JSP和Servlet，对这些我们将作更仔细的考察。
+
+1.Java Database Connectivity (JDBC)
+
+JDBC API以一种统一的方式来对各种数据库进行存取。和ODBC一样，JDBC为开发人员隐藏了不同数据库的不同特性。另外，由于JDBC建立在Java的基础上，因此还提供了数据库存取的平台独立性。JDBC定义了4种不同的驱动程序，现分述如下：
+
+类型1： JDBC-ODBC Bridge
+
+在JDBC出现的初期，JDBC-ODBC桥显然是非常有实用意义的，通过JDBC-ODBC桥，开发人员可用JDBC来存取ODBC数据源。不足的是需要在客户端安装ODBC驱动程序，换句话说，必须安装Windows的某个版本。使用这一类型要牺牲JDBC的平台独立性。另外ODBC驱动程序还需具有客户端控制权限。
+
+类型 2：JDBC-native driver bridge
+
+JDBC本地驱动程序桥提供了一种JDBC接口，它建立在本地数据库驱动程序的顶层，而不需要ODBC。JDBC驱动程序将对数据库的API从标准的JDBC调用转换为本地调用，使用此类型要牺牲JDBC的平台独立性，还要求在客户端安装客户端数据库驱动程序。
+
+类型 3：JDBC-network bridge
+
+JDBC网络桥驱动程序不需要客户端数据库驱动程序。它使用网络上的中间件服务器来存取数据库。这种应用使得负载均衡、连接缓冲池和数据缓存等技术的实现有了可能。由于第3种类型往往只需要相对更少的下载时间，具有平台独立性，且不需要在客户端安装数据库驱动程序并取得控制权，所以很适合于Internet上的应用。
+
+类型 4：Pure Java driver
+
+通过使用一个纯Java数据库驱动程序来执行数据库的直接访问。此类型实际上在客户端实现了2层结构。要在N-层结构中应用，一个更好的做法是编写一个EJB，让它包含存取代码并提供一个对客户端具有数据库独立性的服务。
+
+WebLogic服务器为一些通常的数据库提供了JDBC驱动程序，包括Oracle、Sybase、Microsoft SQL Server及Informix。它也带有一种JDBC驱动程序用于Cloudscape，这是一种纯Java的DBMS，WebLogic服务器中带有该数据库的评估版本。让我们看一个实例。
+
+JDBC实例
+
+在这个例子中假定已在Cloudscape中建立了一个PhoneBook数据库，且包含一个表名为 CONTACT_TABLE的表，它带有2个字段：NAME和PHONE。开始时先装载Cloudscape JDBC driver，并请求driver manager得到一个对PhoneBook Cloudscape数据库的连接。通过这一连接，可构造一个Statement对象并用它来执行一个简单的SQL查询。最后用循环来遍历结果集的所有数据，并用标准输出将NAME和PHONE字段的内容进行输出。
+
+import java.sql.*;
+
+public class JDBCExample{
+public static void main(String args[]){
+try{
+Class.forName("COM.cloudscape.core.JDBCDriver");
+Connection conn = DriverManager.getConnection("jdbc:cloudscape honeBook");
+Statement stmt = conn.createStatement();
+String sql = "SELECT name, phone FROM CONTACT_TABLE ORDER BY name";
+ResultSet resultSet = stmt.executeQuery(sql);
+String name, phone;
+while (resultSet.next()){
+name = resultSet.getString(1).trim();
+phone = resultSet.getString(2).trim();
+System.out.println( name + ", " + phone );
+}
+}
+catch ( Exception e ){
+// Handle exception here
+e.printStackTrace();
+}
+}
+}
+
+接着我们来看一看JDBC是如何在企业应用中的进行使用。
+
+JDBC在企业级应用中的应用
+
+以上实例其实是很基本的，可能有些微不足道，它假定了一个2层结构。在一个多层的企业级应用中，更大的可能是在客户端和一个EJB进行通信，该EJB将建立数据库连接。为了实现和改进可伸缩性和系统性能，WebLogic服务器提供了对连接缓冲池Connection pool的支持。
+
+Connection pool减少了建立和释放数据库连接的消耗。在系统启动以后即可建立这样的缓冲池，此后如故再有对数据库的请求，WebLogic服务器可很简单地从缓冲池中取出数据。数据缓冲池可在WebLogic服务器的weblogic.properties文件中进行定义(可参考weblogic.properties文件中的例子，WebLogic服务器的文档中还有更详细的参考信息)。
+
+在企业级应用的另一个常见的数据库特性是事务处理。事务是一组申明statement，它们必须作为同一个statement来处理以保证数据完整性，缺省情况下JDBC使用auto-commit事务模式。这可以通过使用Connection类的setAutoCommit()方法来实现。
+
+2.Java Naming and Directory Interface (JNDI)
+
+JNDI API被用于执行名字和目录服务。它提供了一致的模型来存取和操作企业级的资源，如DNS和LDAP、本地文件系统，后者在应用服务器中的对象。
+
+JNDI中，在目录结构中的每一结点称为context。每一个JNDI名字都是相对于context的。这里没有绝对名字的概念存在。对一个应用来说，它可通过使用 InitialContext 类来得到其第一个context：
+
+Context ctx = new InitialContext();
+
+应用可通过这个初始化的context经由这个目录树来定位它所需要的资源或对象。如假设你在Weblogic服务器中展开了一个EJB并将home接口绑定到名字myApp.myEJB，那么该EJB的某个客户在取得一个初始化context后，可通过以下语句定位home接口：
+
+MyEJBHome home = ctx.lookup( "myApp.myEJB" );
+
+在这个例子中，一旦你有了对被请求对象的参考，EJB的home接口就可以在它上面调用方法。我们将在下面的EJB章节中做更多的介绍。以上关于JNDI的讨论只是冰山之一角。如果要进一步地在context中查找对象，JNDI也提供了一些方法来进行以下操作：　
+
+将一个对象插入或绑定到context，这在你展开一个EJB时很有效。
+
+从context中移去对象。
+
+列出context中的所有对象。
+
+创建或删除子一级的context。
+
+3.Enterprise Java Beans (EJB)
+
+Java EE技术之所以赢得广泛重视的原因之一就是EJB。它们提供了一个框架来开发和实施分布式商务逻辑，由此很显著地简化了具有可伸缩性和高度复杂的企业级应用的开发。EJB规范定义了EJB组件在何时如何与它们的容器进行交互作用。容器负责提供公用的服务，如目录服务、事务管理、安全性、资源缓冲池及容错性。
+
+EJB规范定义了3中基本的bean类型，这里先不谈Message-driven Bean：
+
+Stateless session beans：提供某种单一服务而不维持任何状态，在服务器故障发生时无法继续存在，生命期相对较短。如它可能被用于执行温度转换计算。
+
+Stateful session bean：提供了与客户端的会话交互，可存储状态从而代表一个客户。典型例子是购物车。不过在服务器故障时无法继续生存，生命期相对较短。每一个实例只用于一个单个的线程。
+
+Entity beans: 提供了一致性数据的表示，通常存放在数据库中，在服务器故障发生后能继续存在。多用户情况下可使用EJB来表示相同的数据，Entity EJB的一个典型例子是客户的帐号信息。
+
+尽管有以上的区别，所有的EJB还是有许多的共同之处。它们都处理home interface。它定义了一个客户端是如何创建与消亡EJB的。可在bean中对定义了客户端方法的远程接口进行调用；bean类则执行了主要的商务逻辑。
+
+描述EJB的开发已经超出了本文的范围。但如果一个EJB已被开发或从第三方购买，它就须在应用服务器中进行发布。WebLogic Server 5.1带有一个EJB Deployer Tool来协助处理EJB的发布。当你使用EJB Deployer Tool的时候，你要定义客户端所用的JNDI名字来定位EJB。Deployer Tool将生成wrapper类来处理和容器的通信及在一个jar文件中把被请求的Java类绑定在一起。
+
+一旦EJB被发布，客户端就可以使用它的JNDI名字来定位EJB。首先它必须得到一个到home接口的reference。然后客户端可使用该接口，调用一个create()方法来得到服务器上运行的某个bean实例的句柄；最后客户端可以使用该句柄在bean中调用方法。
+
+4.JavaServer Pages (JSPs)
+
+我们中可能已有许多人熟悉Microsoft的ASP技术。JSP和ASP相对应，但更具平台独立性。他们被设计用以帮助Web内容开发人员创建动态网页，且只需要相对较少的代码。 即使Web设计师不懂得如何编程也可使用JSP，因为JSP应用是很方便的。JSP页面由HTML代码和嵌入其中的Java代码所组成。服务器在页面被客户端所请求后对这些Java代码进行处理，然后将生成的HTML页面返回给客户端的浏览器。
+
+您可能听说过JHTML，这是JSP前一种较老标准。WebLogic服务器可支持两者。请注意在缺省状况下，JSP在WebLogic服务器中并没有处于有效状态。要使之有效，你可以编辑weblogic.properties文件。如果Web服务器还没有处于有效状态，则要先使之有效。Servlet的情况和JSP一样。
+
+5.Java Servlet
+
+servlet提供的功能大多与JSP类似，不过实现方式不同。JSP通常是大多数HTML代码中嵌入少量的Java代码，而Servlet全部由Java写成并且生成HTML。
+
+servlet是一种小型的Java程序，它扩展了Web服务器的功能。作为一种服务器端应用，当被请求时开始执行，这和CGI Perl脚本很相似。Servlet和CGI脚本的一个很大的区别是：每一个CGI在开始时都要求开始一个新进程，而Servlet在servlet引擎中以分离的线程来运行。因此其在可伸缩性上提供了很好的改进。
+
+在开发Servlet时，常需扩展javax.servlet.http.HttpServlet类，且override一些它的方法，其中包括：
+
+service()：作为dispatcher来实现命令-定义方法
+
+doGet(): 处理客户端的HTTP GET请求。
+
+doPost(): 进行HTTP POST操作
+
+其它的方法还包括处理不同类型的HTTP请求，可参考HttpServlet API文档。
+
+以上描述是标准Java EE Servlet API的各种方法。WebLogic服务器提供了一个该API完整的实现途径。一旦你开发了一个servlet，就可以在weblogic.properties 中加以注册并由此可以在WebLogic服务器中对它进行配置。
+
+6.Remote Method Invocation(RMI)
+
+在远程对象上调用一些方法，使用连续序列方式在客户端和服务器端传递数据。RMI是一种被EJB使用的更下层的协议。
+
+7.Java IDL/CORBA
+
+在Java IDL的支持下，开发人员可以将Java和CORBA集成在一起。 他们可创建Java对象并使之可在CORBA ORB中展开，或可创建Java类并作为和其它ORB一起展开的CORBA对象的客户。后一种方法提供了另外一种途径，通过它Java可以被用于将你的新的应用和legacy系统相集成。
+
+8.Java Transaction Architecture (JTA)/Java Transaction Service (JTS)
+
+JTA定义了一种标准的API，应用系统由此可存取各种事务监控。
+
+JTS是CORBA OTS事务监控的基本的实现，JTS规定了事务管理器的实现方式。该事务管理器是在高层支持Java Transaction API (JTA)规范，且在较底层实现OMG OTS specification的Java映像。JTS事务管理器为应用服务器、资源管理器、独立的应用及通信资源管理器提供了事务服务。
+
+9.JavaMail and JavaBeans Activation Framework
+
+JavaMail是用于存取邮件服务器的API，它提供了一套邮件服务器的抽象类。不仅支持SMTP服务器，也支持IMAP服务器。JavaMail利用JavaBeans Activation Framework (JAF)来处理MIME-编码的邮件附件。MIME的字节流可被转换成Java对象或转换自Java对象。由此大多数应用都可不需要直接使用JAF。
+
+10.Java Messaging Service (JMS)
+
+JMS是用于和面向消息的中间件相互通信的应用程序接口(API)。它既支持点对点的域，有支持发布/订阅(publish/subscribe)类型的域，且提供对下列类型的支持：经认可的消息传递、事务型消息的传递、一致性消息和具有持久性的订阅者支持。JMS还提供另种方式来对您的应用与legacy backend系统相集成。
+
+11.Extensible Markup Language (XML)
+
+XML是一种可用来定义其它标记语言的语言，它被用来在不同的商务过程中共享数据。XML的发展和Java是相互独立的，但它和Java具有的相同目标，即平台独立性。通过将Java和XML的组合，可得到一个完美的具有平台独立性的解决方案。目前正有许多不同的公司在为Java和XML的组合而努力。如果要了解更多的这方面的信息，可访问Sun的Java-XML页面或IBM developerWorks的XML Zone。
+
+五 总结
+
+本文介绍了建立在Java EE上的分布式应用结构，且描述了WebLogic服务器对Java EE的各种支持。 然而，我们所揭示的仅是冰山之一角而已，要以一篇数千字的文章来展示Java EE潜在的对您的企业级应用的影响可是很不公平的。
+
+我们已经关注了在您开始Java EE进行工作时最有可能遇到的各类技术：JDBC、JNDI、EJB、JSP和servlet。我们也为您提供了一些尚未常见的Java EE技术的背景知识。不管您是一名开发人员、商务应用分析师或项目经理，都应对Java EE和WebLogic服务器所能提供给我们的企业级应用所带来的意义有一个更好的认识。

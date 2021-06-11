@@ -1,0 +1,168 @@
+http://www.farsight.com.cn/lecture/L091114R.htm  Barry Song, 6410 bsp lecture
+
+/dev/ttyUSB0 not /dev/ttyS0
+由于使用的是 USB 转 serial 的转换线，所以在 Serial port setup 这一项中的 A –    Serial Device
+中需要设置为 /dev/ttyUSB0，而不是网上所说的 /dev/ttyS0。如果使用后者，在使用： 
+# minicom 
+进入之后，会处于一直等待状态。
+
+cp arch/arm/configs/s3c6400_defconfig .config
+make ARCH=arm menuconfig    to save config
+make ARCH=arm CROSS_COMPILE=... zImage
+
+make ARCH=arm CROSS_COMPILE=/path/to/your/cross/compile/arm-linux-uclibc- uImage
+
+First off, an MTD is a "Memory Technology Device", so it's just "MTD". An "MTD device" is a pleonasm.
+Unix traditionally only knew block devices and character devices. Character devices were things like keyboards or mice, that you could read current data from, but couldn't be seek-ed and didn't have a size. Block devices had a fixed size and could be seek-ed. They also happened to be organized in blocks of multiple bytes, usually 512.
+Flash doesn't match the description of either block or character devices. They behave similar to block device, but have differences. For example, block devices don't distinguish between write and erase operations. Therefore, a special device type to match flash characteristics was created: MTD.
+So MTD is neither a block nor a char device. There are translations to use them, as if they were. But those translations are nowhere near the original, just like translated Chinese poems.
+
+devcp tftp://172.16.14.107:/vmlinux /dev/mtd0
+
+nandwrite flash_eraseall flash_erase can't control /dev/mtdblockX, as mtdblockX has no corresponding ioctl details
+
+arch/board/device.c or machine.c        pci reserved layout
+
+nor和内存都是线性地址编码，提供和sram相同的接口，所以程序可以在nor上直接执行。nor物理性能可靠，但nor成本颇高，很难容量做到很大价格又能让人接受。 
+nand类似电脑的硬盘，分页存储，程序不能直接在nand上面执行。但价格便宜，但物理性能不可靠，经常出现坏块。但可以做到很大容量。
+nor is traditional, while nand is newer
+flashcp     nor
+nandwrite   nand, detect bad blocks, and skip over them as appropriate 
+jffs2       mainly nor, also nand
+yaffs2      only nand
+
+yzhang6@pek-lpgbuild7 ~/nor $ cat READMES/4-README-mindspeed_c1000 | grep MTD
+   <2>, disable CONFIG_MTD_NAND and enable the following kernel config: nor
+   	CONFIG_MTD_CFI=y
+	CONFIG_MTD_CFI_AMDSTD=y
+	CONFIG_MTD_COMCERTO_NOR=y
+   <2>, disable CONFIG_MTD_CFI and enable the following kernel config:  nand
+   	CONFIG_MTD_NAND=y
+	CONFIG_MTD_NAND_COMCERTO=y
+
+CONFIG_MTD=y                mtd core
+CONFIG_MTD_PARTITIONS=y     partition support
+CONFIG_MTD_CHAR=y           /dev/mtdX /dev/mtdrX
+CONFIG_MTD_BLOCK=y          /dev/mtdblockX
+
+CONFIG_MTD_MTDRAM           simulate mtd on ram for test
+
+CONFIG_MTD_CMDLINE_PARTS=y  kernel cmdline when boot to partition
+CONFIG_MTD_NAND=y
+CONFIG_MTD_NAND_COMCERTO=y
+CONFIG_MTD_UBI=y
+
+CFI
+CONFIG_MTD_REDBOOT_PARTS
+NOLINEAR
+
+# cat /proc/mtd
+               blocksize
+dev:    size   erasesize  name
+mtd0: 00040000 00020000 "ppcboot
+mtd1: 000c0000 00020000 "kernel"
+mtd2: 00100000 00020000 "user"
+mtd3: 00200000 00020000 "initrd"
+mtd4: 00200000 00020000 "cramfs"
+mtd5: 00200000 00020000 "jffs2"
+
+内核配置的时候没用固定的mtd分区表, 起始位置和大小是从loader传进来的..
+
+DiskOnChip  x86 based embed linux, use FTL(flash translation layer)
+
+如果你的产品是个电机调速装置，从旋钮获得输入，或者加个 LED 显示和两三个按钮搞定输入，那么 51/PIC/AVR 单片机加上裸系统就可以了，开发语言是 C 和汇编；如果你的产品是 HMI 设备，通过网络管理几百个电机调速装置，那么稍微强大的单片机加上一个简单的操作系统 freeRTOS/RT-Thread 应该可以，再加个简单的 GUI 就能搞定，C 语言的比重会大大增加；如果你的产品是集控系统，那么一台服务器加上 Windows 可能是首选，开发语言就可能多种多样了，C 甚至 C++ 都不是首选。
+
+在上面的产品中，如果你把 VxWorks 用到第一类产品中，那么硬件成本会增加比较多，软件的成本也会增加很多，毕竟 VxWorks 不是免费的操作系统，开发周期也会增加很多，移植 VxWorks 的时间你足可以把所有的功能实现掉了；用到第二类产品中，马马虎虎，硬件成本会增加一点，软件上就需要考虑选什么样的 GUI 了，开发周期稍微增加一点；用到第三类产品中，硬件资源绰绰有余，只是软件开发的难度就不是线性增加了
+
+setenv serverip 128.224.158.219
+setenv gatewayip 128.224.158.1
+setenv ipaddr 128.224.159.89
+setenv netmask 255.255.254.0
+setenv bootargs console=ttyS0,115200 root=/dev/nfs rw nfsroot=128.224.165.20:/export/pxeboot/vlm-boards/18283/rootfs ip=128.224.165.89:128.224.165.219:128.224.158.1:255.255.255.0:mindspeed:eth0:off
+saveenv
+> -----Original Message-----
+> From: Wang, Li
+> Sent: Thursday, February 17, 2011 1:40 PM
+> To: Liu, Bopeng
+> Subject: FYI
+>
+> ***** Setup the TFTP server *****
+>
+> 1)install TFTP server package with the following command:
+> #sudo apt-get install tftpd-hpa xinetd
+>
+> 2)Configure the /etc/xinetd.d/tftp as below:
+> --------------------------------------
+> service tftp
+> {
+> disable = no
+> socket_type = dgram
+> protocol = udp
+> wait = yes
+> user = root
+> server = /usr/sbin/in.tftpd
+> server_args = -s /home/user -c ------>assign the TFTP path as you want
+> per_source = 11
+> flags = IPv4
+> port = 69
+> cps = 100 2
+> }exit_msgctl
+> -----------------------------------
+>
+>
+> Configure the /etc/default/tftpd-hpa as below:
+> ------------------------------------
+> #Defaults for tftpd-hpa
+> RUN_DAEMON="yes"
+> OPTIONS="-l -s /home/user "
+> ------------------------------------
+>
+> 3) Restart the xinetd service:
+> # sudo /etc/init.d/tftpd-hpa start
+>
+>
+> ************ Setup the NFS server ***************
+>
+> 1)install NFS server package with the following command:
+> # sudo apt-get install nfs-kernel-server nfs-common portmap
+>
+> 2)Configure the /etc/exports as below:
+> -----------------------------------
+> /home/user *(rw,async,no_root_squash) -------->assign the NFS path as
+> you want
+> -----------------------------------
+> sudo mount -t nfs 127.0.0.1:/home/user /mnt
+>
+> update the NFS path as:
+> # sudo exportfs -r
+>
+> 3)Restart the NFS server:
+  # sudo /etc/init.d/portmap restart (should run first)
+> # sudo /etc/init.d/nfs-kernel-server restart
+> 
+>
+> NOTE:
+> Check whether your set successful as:
+>
+> # sudo mount -t nfs 127.0.0.1:/home/user /mnt
+
+tftp-hpa === portmap
+
+sudo /etc/init.d/portmap restart (should run first)
+sudo /etc/init.d/nfs-kernel-server restart
+/home/user      nfs
+/home/user/boot tftp
+setenv nfsroot serverip:/home/user
+setenv rootpath /home/user
+stdin/stdout/stderr serial
+bootm 80600000
+setenv bootargs console=ttyS0,115200 root=/dev/nfs rw nfsroot=128.224.165.20(serverip):/export/pxeboot/vlm-boards/18283/rootfs(serverip:/home/user)
+ip=128.224.165.89:128.224.165.219:128.224.158.1:255.255.255.0:mindspeed:eth0:off
+(board ip)
+158.188
+/home/ipdtest/fs 
+nfsroot=
+rootpath=
+TYUIO218791
+
+

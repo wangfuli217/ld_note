@@ -1,0 +1,102 @@
+1. packages不是第一类值
+  Lua并没有提供明确的机制来实现packages。然而，我们通过语言提供的基本的机制很容易实现他。
+  主要的思想是：像标准库一样，使用表来描述package。
+  
+  local P = {}
+  complex = P
+
+  function complex.new (r, i) return {r=r, i=i} end
+  -- defines a constant 'i'
+  complex.i = complex.new(0, 1)
+  
+  function complex.add (c1, c2)
+      return complex.new(c1.r + c2.r, c1.i + c2.i)
+  end
+  
+  function complex.sub (c1, c2)
+      return complex.new(c1.r - c2.r, c1.i - c2.i)
+  end
+  
+  function complex.mul (c1, c2)
+      return complex.new(c1.r*c2.r - c1.i*c2.i,
+             c1.r*c2.i + c1.i*c2.r)
+  end
+  
+  function complex.inv (c)
+      local n = c.r^2 + c.i^2
+      return complex.new(c.r/n, -c.i/n)
+  end
+  
+  return complex
+  当在同一个包内的一个函数调用另一个函数的时候（或者她调用自身），他仍然需要加上前缀名。
+2. 私有成员
+  在Lua中一个传统的方法是将私有部分定义为局部变量来实现。
+  
+  local P = {}
+  complex = P
+  local function checkComplex (c)
+      if not ((type(c) == "table") and
+      tonumber(c.r) and tonumber(c.i)) then
+         error("bad complex number", 3)
+      end
+  end
+  
+  function P.add (c1, c2)
+      checkComplex(c1);
+      checkComplex(c2);
+      return P.new(c1.r + c2.r, c1.i + c2.i)
+  end
+  ...
+  return P
+  package中所有的名字都在一个独立的命名空间中。Package中的每一个实体（entity）都清楚地标记为公有还是私有。
+  优点：我们实现一个真正的隐私（privacy）：私有实体在package外部是不可访问的。
+  缺点：访问同一个package内的其他公有的实体写法冗余，必须加上前缀P.。
+        当我们修改函数的状态(公有变成私有或者私有变成公有)我们必须修改函数得调用方式。
+  优化方法：
+  complex = {
+    new = new,
+    add = add,
+    sub = sub,
+    mul = mul,
+    div = div,
+  }
+      现在我们不再需要调用函数的时候在前面加上前缀，公有的和私有的函数调用方法相同。
+  在package的结尾处，有一个简单的列表列出所有公有的函数。可能大多数人觉得这个列表放在package的开始处更自然，
+  但我们不能这样做，因为我们必须首先定义局部函数。
+
+3 包与文件
+    如果我们将上面我们的复数的package代码放到一个文件complex.lua中，命令"require complex"将打开这个package。
+  记住require命令不会将相同的package加载多次。
+    需要注意的问题是，搞清楚保存package的文件名和package名的关系。当然，将他们联系起来是一个好的想法，
+ 因为require命令使用文件而不是packages。一种解决方法是在package的后面加上后缀（比如.lua）来命名文件。
+ Lua并不需要固定的扩展名，而是由你的路径设置决定。
+   例如，如果你的路径包含："/usr/local/lualibs/?.lua"，那么复数package可能保存在一个complex.lua文件中。
+  
+  
+4 使用全局表
+    package使用独占的环境。这很容易实现：如果我们改变了package主chunk的环境，那么由package创建的所有函数都共享这个新的环境。
+    最简单的技术实现。一旦package有一个独占的环境，不仅所有她的函数共享环境，而且它的所有全局变量也共享这个环境。
+  所以，我们可以将所有的公有函数声明为全局变量，然后他们会自动作为独立的表（表指package的名字）存在，
+  所有package必须要做的是将这个表注册为package的名字。
+  下面这段代码阐述了复数库使用这种技术的结果：
+  local P = {}
+  complex = P
+  setfenv(1, P)
+  现在，当我们声明函数add,她会自动变成 complex.add: 
+  function add (c1, c2)
+      return new(c1.r + c2.r, c1.i + c2.i)
+  end
+  我们可以在这个package中不需要前缀调用其他的函数。
+
+  一旦我们将一个空表P作为我们的环境，我们就失去了访问所有以前的全局变量。下面有好几种方法可以解决这个问题，但都各有利弊。
+  最简单的解决方法是使用继承，像前面我们看到的一样： 
+  local P = {}      -- package
+  setmetatable(P, {__index = _G})
+  setfenv(1, P)
+
+  另外一种快速的访问其他packages的方法是声明一个局部变量来保存老的环境：
+  local P = {}
+  pack = P
+  local _G = _G
+  setfenv(1, P)
+  现在，你必须对外部的访问加上前缀_G.，但是访问速度更快，因为这不涉及到metamethod。与继承不同的是这种方法，使得你可以访问老的环境；这种方法的好与坏是有争议的，但是有时候你可能需要这种灵活性。

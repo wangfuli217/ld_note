@@ -1,0 +1,366 @@
+http://www.formosaos.url.tw/linux/kinit.html
+
+=======================================================================
+1 核心初始化
+=======================================================================
+LINUX 核心初始化过程应该不太会再变动，一步步走完一个函式以及函式中的函式与数据结构，建立核心初始化的路径与层次图像。
+从 linux/init/main.c 的函式 start_kernel展开。
+ 
+=======================================================================
+2 核心起始函式
+======================================================================= 
+核心起始程序包括核心起头程序、I386 核心起始程序、核心起始程序。 其中，
+核心起始程序会处理比较重要的核心模块群初始化。
+最后执行两个核心行程，核心初始化行程、核心行程建立行程。 
+核心初始化行程会等核心行程建立行程启动后，再继续执行核心初始化工作。 等核心初始化行程完成后，核心便宣告启动完成。 
+
+核心起始函式 start_kernel 的档案位置是 linux/init/main.c。 核心起始函式的工作是初始化 LINUX 核心功能模块群，包括CPU组态、多任务核心、内存
+管理器、分页管理器等等。 这个过程会建立核心运作所需要的所有数据结构。
+
+linux/init/main.c
+=======================================================================
+01 asmlinkage void __init start_kernel(void){
+02     char * command_line;
+03     extern const struct kernel_param __start___param[], __stop___param[];
+04                                                                         
+05     smp_setup_processor_id();                                           smp_setup_processor_id，设置 CPU ID，x86 中这是一个空函式。 
+06     lockdep_init();                                                     lockdep_init，初始化核心锁哈希表，建立锁串行的数据结构。 
+07     debug_objects_early_init();                                         debug_objects_early_init，侦错物件早期初始化函式，这是一个空函式。 
+08     boot_init_stack_canary();                                           boot_init_stack_canary，初始化时期堆栈初始化函式，这是一个空函式。 
+09     cgroup_init_early();                                                cgroup_init_early，控制群模块初始化，这是一个性能管理的模块，用来统计占用 CPU 资源的程度。 
+10     local_irq_disable();                                                local_irq_disable，关闭 CPU 中断。 
+11     early_boot_irqs_disabled = true;                                    设定中段关闭旗号为真，表示 IRQ 已经暂时关闭。 
+12     tick_init();                                                        tick_init，初始化时间滴答控制器，将时间滴答控制器的通知器安装到核心时钟事件通知器串行。 
+13     boot_cpu_init();                                                    boot_cpu_init，启动时期 CPU 初始化函式，设定 CPU 位旗号，包括 online、active、present、possible。 
+14     page_address_init();                                                page_address_init，页地址初始化函式，这是一个空函式。 
+15     printk(KERN_NOTICE "%s", linux_banner);                             显示核心信息在档案 linux/init/version.c，显示内容是 Linux version 3.0.0 (root@localhost.localdomain)(gcc version 4.4.4 20100503) (Red Hat 4.4.4-2) (GCC)#1 SMP Mon Aug 1 14:25:54 CST 2011 。 
+16     setup_arch(&command_line);                                          setup_arch，架构设置函式，响应命令行字符串。 
+17     mm_init_owner(&init_mm, &init_task);                                mm_init_owner，此函式为空函式。 
+18     mm_init_cpumask(&init_mm);                                          mm_init_cpumask，此函式为空函式。 
+19     setup_command_line(command_line);                                   setup_command_line，设置命令行函式，取得启动命令行和之前架构设置函式响应的命令行的字符串内容。 
+20     setup_nr_cpu_ids();                                                 setup_nr_cpu_ids，设定 nr_cpu_ids，cpu_possible_mask 的最后一个值为一的位数，即 CPU 可能的最大数目。 
+21     setup_per_cpu_areas();                                              setup_per_cpu_areas，配置每个 CPU 专属的内存体积。 
+22     smp_prepare_boot_cpu();                                             smp_prepare_boot_cpu，为对称多处理器系统预备好启动 CPU，即设定目前工作的 CPU。 
+23     build_all_zonelists(NULL);                                          build_all_zonelists，为所有的 node 建立 zonelist，用来管理内存。 
+24     page_alloc_init();                                                  page_alloc_init，设定页配置时的 CPU 通知器。 
+25     printk(KERN_NOTICE "Kernel command line: %s\n", boot_command_line); 显示启动命令行的命令字符串内容。 
+26     parse_early_param();                                                parse_early_param，执行启动命令，这是早期的启动参数。
+27     parse_args("Booting kernel", static_command_line, __start___param,  parse_args，执行架构设置函式的命令行字符串。
+28                 __stop___param - __start___param,                       parse_args，执行架构设置函式的命令行字符串。
+29                 &unknown_bootoption);                                   parse_args，执行架构设置函式的命令行字符串。
+30     setup_log_buf(0);                                                   setup_log_buf，设置纪录缓冲区内存，。
+31     pidhash_init();                                                     pidhash_init，PID 哈希串行表初始化。
+32     vfs_caches_init_early();                                            vfs_caches_init_early，VFS 早期快取初始化，linux/fs/dcache。
+33     sort_main_extable();                                                sort_main_extable，将例外程序表依照地址排列，地址值大的排在前面，这样的做法是为了用 binary search 寻找例外程序。
+34     trap_init();                                                        trap_init，感觉是 trap 例外的初始化，但笔者没有找到程序实体。
+35     mm_init();                                                          mm_init，设置核心内存配置器，会处理取得 cgroup 所需内存，内存管理器初始化，核心内存快取初始化，CPU 晚期变量初始化，分页表高速缓存初始化，虚拟内存初始化。
+36     sched_init();                                                       sched_init，初始化排程器，这要执行在所有中断致能之前。完整的排程器会在 smp_init 时设置。
+37     preempt_disable();                                                  preempt_disable，除能先占式多任务，这是个空函式。除能先占式多任务，因为初期的排程器比较脆弱，还不能支持此功能。事实上也还不需要支持此功能，因为只是让几个初始化工作跑起来而已。
+38     if (!irqs_disabled()) {                                             当外部中断已经致能，表示出错，显示错误讯息，并将外部中断关掉。
+39         printk(KERN_WARNING "start_kernel(): bug: interrupts were "     当外部中断已经致能，表示出错，显示错误讯息，并将外部中断关掉。
+40                 "enabled *very* early, fixing it\n");                   当外部中断已经致能，表示出错，显示错误讯息，并将外部中断关掉。
+41         local_irq_disable();                                            当外部中断已经致能，表示出错，显示错误讯息，并将外部中断关掉。
+42     }
+43     idr_init_cache();                                                   idr_init_cache，初始化 IDR 管理器，IDR 感觉像是 ID REGISTER 的简写，用来管理系统中所有 ID 对映地址的结构。这里只是从快取配置一小块内存给 IDR 管理器的 IDR_LAYER 队列头 idr_layer_cache。
+44     perf_event_init();                                                  perf_event_init，效能事件管理器初始化函式，用来统计每个 CPU 的效能。
+45     rcu_init();                                                         rcu_init，RCU 机制初始化，RCU 是 READ-COPY UPDATE 的简写。
+46     radix_tree_init();                                                  radix_tree_init，树根节点初始化，使用高速缓存。
+47     early_irq_init();                                                   early_irq_init，早期外部中断描述器初始化，只是将数据结构初始化。
+48     init_IRQ();                                                         init_IRQ，这个函式应该是在 ARCH。
+49     prio_tree_init();                                                   prio_tree_init，初始化优先权树，用于优先权寻找树算法。
+50     init_timers();                                                      init_timers，定时器初始化，安装定时器软件中断。虽然名称是 OPEN ，但程序代码看起来是安装。
+51     hrtimers_init();                                                    hrtimers_init，安装高分辨率定时器中断，高分辨率应该是以频率计数，而非以豪秒几时。
+52     softirq_init();                                                     softirq_init，软件中断初始化函式，初始化每个 CPU 的中断串行，安装软件中断函式 TASKLET 和 HI_SOFTIRQ。TASKLET 是延缓的任务中断处理，HI_SOFTIRQ 是高优先权软件中断。
+53     timekeeping_init();                                                 timekeeping_init，时间保持函式，初始化频率源和时间保持的相关参数值。
+54     time_init();                                                        time_init，时间初始化函式，这个函式可能在 /arch。
+55     profile_init();                                                     profile_init，初始化 KERNEL TEXT PROFILE，感觉是保留 KERNEL 程序代码的空间，给一个侧写。为什么要使用到 kzalloc、alloc_pages_exact、vzalloc??
+56     call_function_init();                                               call_function_init，CPU 功能初始化函式，将各 CPU 的 lock list 初始化。并且将热插入 CPU 初始化。
+57     if (!irqs_disabled())
+58         printk(KERN_CRIT "start_kernel(): bug: interrupts were " "enabled early\n");
+59     early_boot_irqs_disabled = false;
+60     local_irq_enable();
+61     gfp_allowed_mask = __GFP_BITS_MASK;
+62     kmem_cache_init_late();
+63     console_init();
+64     if (panic_later) panic(panic_later, panic_param);
+65     lockdep_info();
+66     locking_selftest();
+67 #ifdef CONFIG_BLK_DEV_INITRD
+68     if (initrd_start && !initrd_below_start_ok &&
+69         page_to_pfn(virt_to_page((void *)initrd_start)) < min_low_pfn) {
+70         printk(KERN_CRIT "initrd overwritten (0x%08lx < 0x%08lx) - "
+71             "disabling it.\n",
+72             page_to_pfn(virt_to_page((void *)initrd_start)),
+73             min_low_pfn);
+74         initrd_start = 0;
+75     }
+76 #endif
+77     page_cgroup_init();
+78     enable_debug_pagealloc();
+79     debug_objects_mem_init();
+80     kmemleak_init();
+81     setup_per_cpu_pageset();
+82     numa_policy_init();
+83     if (late_time_init) late_time_init();
+84     sched_clock_init();
+85     calibrate_delay();
+86     pidmap_init();
+87     anon_vma_init();
+88 #ifdef CONFIG_X86
+89     if (efi_enabled) efi_enter_virtual_mode();
+90 #endif
+91     thread_info_cache_init();
+92     cred_init();
+93     fork_init(totalram_pages);
+94     proc_caches_init();
+95     buffer_init();
+96     key_init();
+97     security_init();
+98     dbg_late_init();
+99     vfs_caches_init(totalram_pages);
+100     signals_init();
+101     page_writeback_init();
+102 #ifdef CONFIG_PROC_FS
+103     proc_root_init();
+104 #endif
+105     cgroup_init();
+106     cpuset_init();
+107     taskstats_init_early();
+108     delayacct_init();
+109     check_bugs();
+110     acpi_early_init();
+111     sfi_init_late();
+112     ftrace_init();
+113     rest_init();
+114 } 
+
+行号	说明
+05	smp_setup_processor_id，设置 CPU ID，x86 中这是一个空函式。
+06	lockdep_init，初始化核心锁哈希表，建立锁串行的数据结构。
+07	debug_objects_early_init，侦错物件早期初始化函式，这是一个空函式。
+08	boot_init_stack_canary，初始化时期堆栈初始化函式，这是一个空函式。
+09	cgroup_init_early，控制群模块初始化，这是一个性能管理的模块，用来统计占用 CPU 资源的程度。
+10	local_irq_disable，关闭 CPU 中断。
+11	设定中段关闭旗号为真，表示 IRQ 已经暂时关闭。
+12	tick_init，初始化时间滴答控制器，将时间滴答控制器的通知器安装到核心时钟事件通知器串行。
+13	boot_cpu_init，启动时期 CPU 初始化函式，设定 CPU 位旗号，包括 online、active、present、possible。
+14	page_address_init，页地址初始化函式，这是一个空函式。
+15	显示核心信息在档案 linux/init/version.c，显示内容是 Linux version 3.0.0 (root@localhost.localdomain)(gcc version 4.4.4 20100503) (Red Hat 4.4.4-2) (GCC)#1 SMP Mon Aug 1 14:25:54 CST 2011 。
+16	setup_arch，架构设置函式，响应命令行字符串。
+17	mm_init_owner，此函式为空函式。
+18	mm_init_cpumask，此函式为空函式。
+19	setup_command_line，设置命令行函式，取得启动命令行和之前架构设置函式响应的命令行的字符串内容。
+20	setup_nr_cpu_ids，设定 nr_cpu_ids，cpu_possible_mask 的最后一个值为一的位数，即 CPU 可能的最大数目。
+21	setup_per_cpu_areas，配置每个 CPU 专属的内存体积。
+22	smp_prepare_boot_cpu，为对称多处理器系统预备好启动 CPU，即设定目前工作的 CPU。
+23	build_all_zonelists，为所有的 node 建立 zonelist，用来管理内存。
+24	page_alloc_init，设定页配置时的 CPU 通知器。
+25	显示启动命令行的命令字符串内容。
+26	parse_early_param，执行启动命令，这是早期的启动参数。
+27~29	parse_args，执行架构设置函式的命令行字符串。
+30	setup_log_buf，设置纪录缓冲区内存，。
+31	pidhash_init，PID 哈希串行表初始化。
+32	vfs_caches_init_early，VFS 早期快取初始化，linux/fs/dcache。
+33	sort_main_extable，将例外程序表依照地址排列，地址值大的排在前面，这样的做法是为了用 binary search 寻找例外程序。
+34	trap_init，感觉是 trap 例外的初始化，但笔者没有找到程序实体。
+35	mm_init，设置核心内存配置器，会处理取得 cgroup 所需内存，内存管理器初始化，核心内存快取初始化，CPU 晚期变量初始化，分页表高速缓存初始化，虚拟内存初始化。
+36	sched_init，初始化排程器，这要执行在所有中断致能之前。完整的排程器会在 smp_init 时设置。
+37	preempt_disable，除能先占式多任务，这是个空函式。除能先占式多任务，因为初期的排程器比较脆弱，还不能支持此功能。事实上也还不需要支持此功能，因为只是让几个初始化工作跑起来而已。
+38~42	当外部中断已经致能，表示出错，显示错误讯息，并将外部中断关掉。
+43	idr_init_cache，初始化 IDR 管理器，IDR 感觉像是 ID REGISTER 的简写，用来管理系统中所有 ID 对映地址的结构。这里只是从快取配置一小块内存给 IDR 管理器的 IDR_LAYER 队列头 idr_layer_cache。
+44	perf_event_init，效能事件管理器初始化函式，用来统计每个 CPU 的效能。
+45	rcu_init，RCU 机制初始化，RCU 是 READ-COPY UPDATE 的简写。
+46	radix_tree_init，树根节点初始化，使用高速缓存。
+47	early_irq_init，早期外部中断描述器初始化，只是将数据结构初始化。
+48	init_IRQ，这个函式应该是在 ARCH。
+49	prio_tree_init，初始化优先权树，用于优先权寻找树算法。
+50	init_timers，定时器初始化，安装定时器软件中断。虽然名称是 OPEN ，但程序代码看起来是安装。
+51	hrtimers_init，安装高分辨率定时器中断，高分辨率应该是以频率计数，而非以豪秒几时。
+52	softirq_init，软件中断初始化函式，初始化每个 CPU 的中断串行，安装软件中断函式 TASKLET 和 HI_SOFTIRQ。TASKLET 是延缓的任务中断处理，HI_SOFTIRQ 是高优先权软件中断。
+53	timekeeping_init，时间保持函式，初始化频率源和时间保持的相关参数值。
+54	time_init，时间初始化函式，这个函式可能在 /arch。
+55	profile_init，初始化 KERNEL TEXT PROFILE，感觉是保留 KERNEL 程序代码的空间，给一个侧写。为什么要使用到 kzalloc、alloc_pages_exact、vzalloc??
+56	call_function_init，CPU 功能初始化函式，将各 CPU 的 lock list 初始化。并且将热插入 CPU 初始化。
+57~58	再次检查中断功能，当外部中断已经致能，表示出错，显示错误讯息，并将外部中断关掉。
+59	取消启动初期 IRQ 除能旗号为否，表示要允许 IRQ 致能。
+60	local_irq_enable，致能 IRQ，local 可能表示只是用于现在的 IRQ 设定，不是给后来的操作系统使用的 IRQ。
+61	GFP 许可屏蔽，表示有哪些 GFP 功能被允许。GFP 是 global function plane 的简写，用来表示全系统的功能规划。
+62	kmem_cache_init_late，核心高速缓存晚期初始化函式，因为使用 slub 所以是空函式。
+63	console_init，操控台初始化，这是为了看输出的讯息，不是为了下命令。当然也可以下命令，但以此时来说是个危险动作。
+64	系统错误旗号为真，显示错误讯息并停止系统运作。
+65	lockdep_info，显示锁依赖信息，包括依赖子类别、依赖深度、依赖钥匙、依赖单元、依赖链、链哈希表体积等。
+66	locking_selftest，上锁自我测试，用来测试硬件中断与软件中断的上锁解锁操作的程序虫。
+67~76	当组态常数 CONFIG_BLK_DEV_INITRD 为已定义。检查 INITRD，有错误时显示错误讯息，并设定 initrd_start 为否表示没有启用 INITRD。
+77	page_cgroup_init，初始化页控制群。
+78	enable_debug_pagealloc，致能页配置的侦错功能，空函式。
+79	debug_objects_mem_init，致能对象记忆初始化的侦错功能，。
+80	kmemleak_init，初始化内存遗漏控制器，。
+81	setup_per_cpu_pageset，设置每个 CPU 的页集合器，并初始化页集合器。在此之前只有启动时期页集合器。
+82	numa_policy_init，numa 策略初始化。
+82	late_time_init，当初始程序晚期时间初始化函式指标不是空指标，执行晚期时间初始化函式。
+84	sched_clock_init，排程器频率初始化函式，。
+85	calibrate_delay，校正时间延迟参数值。
+86	pidmap_init，初始化 PID 控制器对映图，。
+87	anon_vma_init，匿名页虚拟内存控制器初始化，anon 是 anonymous 的简写。
+89	efi_enter_virtual_mode，当 EFI 致能旗号为真，进入 EFI 虚拟模式。EFI 是 EXTENSIBLE FIRMWARE INTERFACE。
+91	thread_info_cache_init，行程信息快取控制器初始化，这是一个空函式。
+92	cred_init，信用管理器初始化，取得一块可以用来做信用管理的内存。
+93	fork_init，任务管理器初始化，。
+94	proc_caches_init，行程控制器快取初始化，包含信号快取、档案快取、文件系统快取。
+95	buffer_init，缓冲区管理器初始化，有一个缓冲串行头在高速缓存。
+96	key_init，钥匙管理器初始化，这是一个空函式。
+97	security_init，安全管理器初始化，这是一个空函式。
+98	dbg_late_init，初始化程序晚期侦错函式，这是一个空函式。
+99	vfs_caches_init，虚拟文件系统快取初始化，。
+100	signals_init，信号管理器初始化，。
+101	page_writeback_init，页写回机制初始化，。
+103	proc_root_init，根目录初始化函式，。
+105	cgroup_init控制群控制器初始化函式，。
+106	cpuset_init，CPU集合初始化，初始化顶成 CPU 集合和内部文件系统的 CPU 集合。CPU 集合应该是可用的 CPU 的集合。
+107	taskstats_init_early，任务状态早期初始化函??式，取得任务状态管理器高速缓存，建立CPU 的听取者串行和读写互斥机制。
+108	delayacct_init，任务延迟管理器，应该是用于任务空闲时间的计数。
+109	check_bugs，检查 CPU 虫函式，确定 CPU 可以正确工作。
+110	acpi_early_init，ACPI 总线早期初始化函式。
+111	sfi_init_late，SFI 初始程序晚期设定函式，SFI 是 SIMPLE FIRMWARE INTERFACE。
+112	ftrace_init，功能追踪器初始化函式，ftrace 是 function trace 的简写。
+113	rest_init，剩余初始化函式，执行剩下未初始化的工作。
+	
+依赖锁串行初始化
+=======================================================================
+依赖锁的档案位置是 linux/kernel/lockdep.c。 依赖锁初始化函式会初始化两个串行，依赖锁类别哈希表串行和依赖锁链哈希表串行，
+完成后设定初始化旗号为真，表示依赖锁已初始化完成。 	
+
+linux/kernel/lockdep.c
+01 void lockdep_init(void){
+02     int i;
+03 
+04     if (lockdep_initialized) return;
+05     for (i = 0; i < CLASSHASH_SIZE; i++) INIT_LIST_HEAD(classhash_table + i);
+06     for (i = 0; i < CHAINHASH_SIZE; i++) INIT_LIST_HEAD(chainhash_table + i);
+07     lockdep_initialized = 1;
+08 }	
+行号	说明
+04	当 Lockdep 已经初始化完成，函式回返。
+05	依赖锁类别哈希表串行初始化。这里使用宏处理串行头 INIT_LIST_HEAD。
+06	锁依赖链哈希表串行初始化，。
+07	当完成串行初始化，设定 Lockdep 初始化旗号为一，表示已完成初始化。
+INIT_LIST_HEAD 的定义：
+linux/include/linux/list.h
+01 static inline void INIT_LIST_HEAD(struct list_head *list){
+02     list->next = list;
+03     list->prev = list;
+04 }
+行号	说明
+01	static inline 表示用于加速程序执行，会以复制程序代码的方式编译。
+02	将串行的下一个串行指标指向自已，表示没有下一个串行。
+03	将串行的上一个串行指标指向自己，表示没有上一个串行。
+
+依赖锁依赖哈希串行表：
+
+linux/kernel/lockdep.c
+01 #define MAX_LOCKDEP_KEYS_BITS  13
+02 #define CLASSHASH_BITS         (MAX_LOCKDEP_KEYS_BITS - 1)
+03 #define CLASSHASH_SIZE         (1UL << CLASSHASH_BITS)
+04 #define __classhashfn(key)     hash_long((unsigned long)key, CLASSHASH_BITS)
+05 #define classhashentry(key)    (classhash_table + __classhashfn((key)))
+06 static struct list_head classhash_table[CLASSHASH_SIZE];
+
+行号	说明
+01	依赖锁钥匙位数 13 位。
+02	类别哈希位数 12 位，。
+03	类别哈希体积 4096。
+04	类别哈希函式，。
+05	类别哈希入口地址，。
+05	类别哈希表结构数组，。
+
+依赖锁链哈希串行表：
+linux/kernel/lockdep.c
+01 #define MAX_LOCKDEP_CHAINS_BITS  15
+02 #define CHAINHASH_BITS           (MAX_LOCKDEP_CHAINS_BITS-1)
+03 #define CHAINHASH_SIZE           (1UL << CHAINHASH_BITS)
+04 #define __chainhashfn(chain)     hash_long(chain, CHAINHASH_BITS)
+05 #define chainhashentry(chain)    (chainhash_table + __chainhashfn((chain)))
+06 static struct list_head chainhash_table[CHAINHASH_SIZE];
+
+行号	说明
+01	依赖锁链位数 13 位。
+02	链哈希位数 12 位，。
+03	链哈希体积 4096。
+04	链哈希函式，。
+05	链哈希入口地址，。
+05	链哈希表结构数组，。
+
+控制群早期初始化
+=======================================================================
+控制群(control group)，简称 cgroup，是一个行程群聚(process grouping)系统，用于量测系统效能。 
+也就是透过将行程群聚的方式，统计行程群集体消耗的 CPU 运算资源。
+
+linux/kernel/cgroup.c
+01 int __init cgroup_init_early(void){
+02     int i;
+03     atomic_set(&init_css_set.refcount, 1);
+04     INIT_LIST_HEAD(&init_css_set.cg_links);
+05     INIT_LIST_HEAD(&init_css_set.tasks);
+06     INIT_HLIST_NODE(&init_css_set.hlist);
+07     css_set_count = 1;
+08     init_cgroup_root(&rootnode);
+09     root_count = 1;
+10     init_task.cgroups = &init_css_set;
+11     init_css_set_link.cg = &init_css_set;
+12     init_css_set_link.cgrp = dummytop;
+13     list_add(&init_css_set_link.cgrp_link_list,&rootnode.top_cgroup.css_sets);
+14     list_add(&init_css_set_link.cg_link_list,&init_css_set.cg_links);
+15     for (i = 0; i < CSS_SET_TABLE_SIZE; i++) INIT_HLIST_HEAD(&css_set_table[i]);
+16     for (i = 0; i < CGROUP_BUILTIN_SUBSYS_COUNT; i++) {
+17         struct cgroup_subsys *ss = subsys[i];
+18 
+19         BUG_ON(!ss->name);
+20         BUG_ON(strlen(ss->name) > MAX_CGROUP_TYPE_NAMELEN);
+21         BUG_ON(!ss->create);
+22         BUG_ON(!ss->destroy);
+23         if (ss->subsys_id != i) {
+24             printk(KERN_ERR "cgroup: Subsys %s id == %d\n",ss->name, ss->subsys_id);
+25             BUG();
+26         }
+27         if (ss->early_init) cgroup_init_subsys(ss);
+28     }
+29     return 0;
+30 }
+行号	说明
+01	__init 表示此函式的程序代码会存在于 VMLINUX 的 .init.text 程序区段，定义在 linux/include/linux/init.h。
+03	呼叫微小变量设定函式，设定变量值。设定 init_css_set.refcount 变数值为一。
+04	初始化 init_css_set 的串行链结头 cg_links。用于控制群的哈希槽(hash slot)。
+05	初始化 init_css_set 的串行链结头 tasks。用于控制群的任务串行。
+06	初始化 init_css_set 的串行链结头 hlist。用于 cg_cgroup_link 链结串行。
+07	设定 css_set_count 变量值为一。
+08	初始化控制群的根节点，包括附加的子系统节点串行和活动中的阶层节点串行。
+09	设定根节点数计数器为一。
+10	设定初始化任务的控制群子系统对象结构指针，指向控制群模块的 init_css_set。
+11	设定初始控制群链结结构(init_css_set_link)的控制群子系统对象结构指针(cg)，指向控制群模块的 init_css_set。
+11	设定初始控制群链结结构(init_css_set_link)的控制群结构指针(cgrp)，指向控制群模块的 dummytop，即根节点的顶层控制群。
+13	安装根节点控制群的控制群子系统控制结构 css_sets 到控制群链结结构的 css_sets 串行。
+14	安装根节点控制群的控制群串行 cg_link_list 到控制群链结结构的 cg_link_list 串行。
+15	初始化控制群哈希表。
+16	控制群子系统初始化循环，包括 cpuset、cpu_cgroup、cpu_acct、freexer。定义在 linux/include/cgroup_subsys.h
+19~26	检验控制群子系统内容。
+27	当该子系统早期初始化函式存在，初始化该子系统。
+
+中断除能
+=======================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

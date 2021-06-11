@@ -1,0 +1,42 @@
+############################################################################
+#
+#	File:     pattread.icn
+#
+#	Subject:  Procedure to read pattern
+#
+#	Author:   Ralph E. Griswold
+#
+#	Date:     December 10, 2001
+#
+############################################################################
+#
+#  This file is in the public domain.
+#
+############################################################################
+#
+#  Reads BLP or row file and produces pattern in row form.
+#
+############################################################################
+#
+#  Links:  patutils
+#
+############################################################################
+
+link patutils
+
+procedure pattread(file)
+   local line, rows
+
+   line := read(file) | fail
+
+   line ? {
+      if upto("#", line) then rows := pat2rows(line)
+      else {
+         rows := [line]
+         while put(rows, read(file))	# read in row pattern
+         }
+      }
+
+   return rows
+
+end

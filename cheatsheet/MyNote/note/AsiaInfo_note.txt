@@ -1,0 +1,444 @@
+1.统一采集
+2.解码及协议解析引擎
+3.路由及分发
+4.预处理
+5.剔重
+6.批价及反算
+7.算税及汇率转换
+8.分发及入库
+9.国际详单
+
+XDR(Extensible Detail Record) 		可扩展详单接口
+命名规则： 							流程类型_文件名.dcd
+SAL									storage abstraction level，存储抽象层
+模板命名原则： 文件名前缀 + down（如是集团下发的话）+详单业务（比如 gsm，sms）+ 其它.dcd
+
+cdr(call data record)或(charging data record)		呼叫数据记录或话单
+xdr		OPENBILLING系统内部使用的标准计费服务记录，是一种数据结构
+sdl		OPENBILLING6.0里用来定义存放数据的数据结构的一种语言
+rdl		资源定义语言
+
+XC									共享内存
+xc_param
+CAMEL								移动网增强逻辑的客户化应用
+SCP									业务控制点,智能网
+SCF									业务控制功能
+SSF									业务交换功能
+SMP									业务管理点
+MSC									移动交换中心
+CAP									CAMEL应用部分
+HLR									归属位置寄存器
+MSISDN：Mobile Subscriber International ISDN/PSTN number (ISDN即是综合业务数字网,是Integrated Service Digital Network 的简称)
+MSISDN＝CC(国家码)＋NDC(7位－国内目的码)＋SN(4位－用户号码)
+	CC：Country Code，含义为国家码，因为陆地移动网络遍布全球各地，自然需要对不同国家的移动用户进行区分，中国的国家码为86。
+	NDC：National Destination Code，表示国内目的地码，也称网络接入号。为保障消费者的利益并允许合理的市场竞争，每个主权国家都可以授权一个或多个网络运营商组建并经营移动网络，例如中国三大移动运营商之中国移动网络接入号为134~139、150~152、188等，中国联通为130~132、185~186等，中国电信为133、153、180、189等。
+	SN：Subscriber Number，客户号码。
+　　若将国家码CC去除,就成了移动台国内号码,也就是我们平时所讲的手机号。 
+　　7位或8位NDC包括接入号和HLR的识别号。接入号就是我们平时所讲的139,138,137……剩下的就是HLR识别号,表示用户归属的HLR,也表示移动业务本地网号
+	每个GSM的网络均分配一个国内目的码(NDC)。也可以要求分配两个以上的NDC号。MSISDN的号长是可变的（取决于网络结构与编号计划），不包括字冠，最长可以达到15位。
+	
+IMSI								国际移动用户识别
+SIM卡唯一标识：IMSI 国际移动用户识别码（IMSI：International Mobile Subscriber Identification Number）是区别移动用户的标志, 
+    * 储存在SIM卡中,可用于区别移动用户的有效信息。IMSI由MCC、MNC、MSIN组成,其中MCC为移动国家号码,由3位数字组成, 
+    * MCC的资源由国际电信联盟（ITU）在全世界范围内统一分配和管理,唯一识别移动用户所属的国家,共3位,中国为460
+    * MNC为网络id,由2位或3位数字组成,用于识别移动客户所归属的移动网络,中国移动为00,02,04,07,中国联通为01,06,09,中国电信CDMA系统使用03,05,中国电信4G使用11,中国铁通20
+	* MSIN（Mobile Subscriber Identification Number,移动用户识别号码）:用以识别某一移动通信网中的移动用户。共有10位,其结构如下:EF+M0M1M2M3+ABCD,其中,EF由运营商分配；M0M1M2M3和MDN（Mobile Directory Number,移动用户号码簿号码）中的M0M1M2M3可存在对应关系；ABCD：四位,自由分配
+
+SMSC								短消息中心
+SMS									短消息业务
+MO-SM								移动台始发短消息
+MT-SM								移动台终接短消息
+pstncalling							固话主叫
+
+gmake clean_all
+gmake install_idl
+gmake install_rdl
+gmake install_headers
+gmake install_all
+gmake checkenv			检查
+
+解码XC             --xload编译xquery要跟着编译,xquery编译最好xload也重编
+cdsrc;cd rating_billing/rating/xc_param/xload/decode;
+gmake clean_all;gmake; gmake install_headers;gmake install;
+
+cdsrc;cd rating_billing/rating/xc_param/xquery/decode;
+gmake clean_all;gmake install_headers;gmake install;
+
+gdb调试进程步骤
+	ps -ef | grep de_ 找到进程pid
+	gdb odframe路径 pid  或 gdb attach pid 或 gdb -pid
+	b 文件名:行
+	c(continue)
+	
+(函数)上海的配流程,广西的写dcd里,浙江的配流程
+
+
+call_TYPE:
+	0		主叫
+	1   	被叫
+	2		有条件呼转
+	3		无条件呼转
+	4		短信发
+	5 		短信收
+	20      视频主叫
+	21		视频被叫
+	30 		Volte视频主叫
+	31		Volte视频被叫
+	32		Volte视频有条件呼转
+	33		Volte视频无条件呼转
+	6,7,8   分拣pbx用,入路由,出路由,过路话单,湖南老系统04,13
+	
+info_type:短信的对端类型
+210		联通
+230		电信
+220		其他
+
+service_id	(表PD.PM_SERVICE_SPEC有定义)
+	gsm  	50001
+	gprs 	53001
+	sms  	50005
+	ismg 	50006
+	wap  	50007
+	mms	 	50014
+	kjava	50017
+	pbx		50020
+	
+decode_func里reverse表示true
+
+pr_trac 任务单号 修改的文件(提交到dev和rm分支,50版本的要用svn_promote openboss 0 文件来提交)
+浙江的提交
+	1、提交到svn  dev：
+			svn ci   文件名
+
+	2、提交到rm分支：
+			svn_promote openboss 0 文件名
+	注：提交到dev时,最好加上  用户名(因为是公共的用户,到时提交可能会显示是,其他人的)
+	
+	
+finance   接入网关
+union	  互联网关
+ismg	  Internet Short Message Gateway,互联网短信网关
+huawei_sms/mms/ori.dcd	短信中心
+
+TREAT_FLAG字段
+	0或者空       正常话单
+	1			  错单
+	2             过滤
+outputflag 
+	0			输出
+	1			不输出
+
+ps			分组交换(常见数据业务,流媒体业务,VOIP等)
+cs			电路交换
+
+bill_indicate	0 发送方计费 1 接收文计费 3... (表RS_SYS_ELEMENT_*)
+
+charging_id		gprs标识同一次会话
+call_refnum 	语音标识同一次会话
+
+rec_seq_no			gprs分话单序号,例1,2,3,4,5,6,
+reserve1			gsm分话单序号,例1,2,3,4,5,6,
+partial_id			语音超长话单切割标志,可以转出reserve1即gsm分话单序号
+
+partial_num			gprs克隆出来的话单,填0或1,1表示没有下个N的最后一条,其他填0
+
+sequence_no				语音分话单,函数填的,表明单条话单0,分话单首话单1,分话单尾话单3,分话单中间话单2
+PARTIAL_TYPE_INDICATOR 	gprs分话单,表明单条话单0,分话单首话单1,分话单尾话单3,分话单中间话单2
+
+
+CAUSE_CLOSE（记录关闭原因,断线原因）：	计费系统内部使用,如是0,1或6,那么只可能是单条话单或分话单尾话单,除了0,1,6其他值只可能是分话单首话单或分话单中间话单,以rec_seq_no中是否包含1这个单独的序号来算
+0：PDP正常释放
+1：异常中止
+2：SGSN变更
+3：达到流量门限
+4：达到时间门限
+5：费率变更
+6：其他原因
+
+COMBINE_RESULT:	(合并结果指示,一般上发的需要转成s,n,f这种,不上发的能学不需要)
+normal                    (0),		正常								=>S	表示合并成功,对于一次PDP激活过程中只产生一张话单的也用S表示
+notNormal                 (1),		不正常								=>N 表示合并不正常
+forInterSGSNConsolidation (2),		需进一步合并						=>F	需要进一步合并
+reachLimit                (3),		合并后的话单长度超过最长话单范围	=>S	
+onlyOneCDRGenerated       (4)		只产生一张话单						=>S
+
+
+GGSN 	Gateway GPRS Support Node   关口GPRS支持节点,本省,sgw 2,3,4g融合网元,pgw 2,3g,以前的网元,2为过滤非本地的,升级成pgw
+SGSN 	ServingGPRS Support Node  	服务GPRS支持节点,国际漫入,升级成sgw,sgsn和sgw的不需要克隆
+
+pdp是分组报文协议的简写,而上下文是Context的翻译。每一个手机上网,都必须要先附着到SGSN上。当手机需要访问网络时,需要获取一个PDP地址,你可以把它看成移动的私网地址,该地址需要从GGSN获取。而在GGSN和SGSN之间保存的这个记录就是PDP Context,手机上网时active PDP Context,就是手机建立附着的SGSN与获取地址的GGSN之间建立一条连接
+
+CNGD	sgsn地址是本省的,ggsn地址是外省的,按本省话单算
+CNGO	下发的gprs省际漫入,d是本省,o是出访,i是入坊
+CNGI	
+
+1.	IOTSMS代表物联网短信业务的话单文件；
+2.	IOTMMS代表物联网彩信业务的话单文件；
+3.	IOTMTH代表物联网包月功能费话单文件；
+4.	IOTPED代表物联网跨月周期套餐结算依据文件；
+5.	IOTBILL代表物联网阶梯计费结算账单文件；
+6.	IOTCT代表物联网能力调用的话单文件；
+7.	IOTWMMP代表物联网WMMP的话单文件；
+8.	IOTCNGI代表物联网GPRS/EPC/LTE漫入的话单文件,指用户号码归属省与SGSN/S-GW地址所在省不同,向SGSN/S-GW地址所在省下发的来访话单；
+9.	IOTCNGO代表物联网GPRS/EPC/LTE漫出的话单文件,指用户号码归属省与SGSN/S-GW地址所在省不同,向用户号码归属省下发的出访话单；
+10.	IOTCNGD代表物联网GPRS/EPC/LTE省内非漫游的话单文件,指用户号码归属省与SGSN/S-GW地址所在省相同；
+CNT代表全国中心；
+
+roam_type 
+	0 		本地
+	1		省内漫游
+	2    	省际漫入
+	3 		国际漫入(非港澳台)
+	4		省际漫出
+	5 		国际漫出(非港澳台)
+	6       省内边界漫游
+	-1 		通配
+	7		省际边界漫入
+	20		ADDVALUE视频会议
+	
+FINAL_STATE		短消息发送状态
+原始话单中0代表成功,计费内部1代表成功,所以解码时要转换,漫游上发时再将1转为0
+	
+sqlite3 名字
+.schema可查看xc中的表名
+.tables更清楚
+
+重启NRM流程
+clrod.sh
+srm
+nrm
+把config/srm目录下pid文件干掉
+删除表id.rdc_proc_trans_operate里的所有数据  记录的是加载过程中的日志
+若没有起来,清除表id.pdc_vm里的srm那一行并提交	主机状态
+
+
+华为话单如果有头,记录长度的是FileHeadNum 50和 RecordHeadNum 4
+
+上海看解码XC,其他省一般在home/sqlite
+cd cs/data
+
+查看core文件
+gdb odframe core文件
+
+dba_tables : 
+all_tables : 当前用户有权限的表的信息（只要对某个表有任何权限,即可在此视图中看到表的相关信息）
+user_tables: 当前用户名下的表的信息
+
+usermdb命令进入mdb(上海是usermdb1/2)
+mdb_client localhost 端口 连接其他mdb  billmdb/billmdb 例:mdb_client 10.154.50.188 24100  
+mdb_change_role localhost 端口号
+
+unmarshall_json和unmarshall_sjson：输出文件的格式。若unmarshall_json为false,则根据环境变量WRITE_XDR_CODEC_DEFAULT决定输出格式。若unmarshall_json=true,则通过unmarshall_sjson决定是否输出简化的json格式。
+简单来说,就目前的环境变量设置而言,当两个配置项都为true时,输出的是sjson格式话单,其中某个或者两个配置项为false时,则输出json格式。
+
+ggsn  上网连接的设备,网络侧和手机侧
+
+mns_type  网络类型
+0  2g
+1  3g
+2  4g
+
+mas  MAS- Mobile Agent Server	移动代理服务
+pbx	 Private Branch Exchange	用户级交换机即公司内部使用的电话业务网络
+ime	 InputMethodEditors			输入法编辑器
+
+xquery_decode_test ~/ipc		测试xc接口
+
+rs_sys_number_control_ex		短信的特殊对端
+
+fci_type(gprs的)
+11  要离线计费
+15	消费提醒,要离线计费
+16  正常在线计费话单,离线不用再计费		
+
+service_key 2010  user_type为106标识虚拟网(微网),即vpmn,需vpmn_judge为800130或被叫话单opp_number以60开头,800116ocs(欠控),需FCI_TYPE为800116或被叫话单opp_number以600开头(或601开头,且长度有要求),语音的话单
+
+
+后台相关表配置
+ID.RDC_FLOW   --流程状态表
+ID.RDC_FLOW_SRV
+ID.RDC_PROC
+
+moc_id	主叫群内短号
+mtc_id	被叫群内短号
+
+对于ismg类的业务,话单类型是设置在RECORD_TYPE字段的,不是SOURCE_TYPE
+
+\\10.10.10.78\data		软件
+
+对A分析:	主叫,计费号码是A,对端号码是B,A_NUMBER可能会填A(A是主叫号码,B是被叫号码,A_NUMBER一般填附加主号码)
+对B分析:	呼转,计费号码是B,对端号码是C,A_NUMBER号码是A(B是前转号码,A是主叫号码,C是被叫号码,A_NUMBER一般填主叫号码)
+对C分析:	被叫,计费号码是C,对端号码是A,A_NUMBER号码是B(B是前转号码,A为主叫号码,C为被叫号码,A_NUMBER一般填改向用户号码)
+
+xdr_field_type的值的意思:
+	1：int
+	2；long long
+	3：double
+	4：char
+	5: date
+	6: time;
+
+Lfeeadd=ALL,表示是要有值,不能为空。Lfeeadd!=ALL,表示如果字段为空
+
+refresh bd/bd@gx60_test_10gR2 JF::ANALYZE_GROUP libxload_analyseD/libxload_decodeD 容器名	单表刷XC
+
+msc_id是分析计费方拜访地,msrn是分析对端号码拜访地
+msrn前面多1241,1242,1243是携号转卡业务
+
+12583(1,2,3)		个人一卡多号
+12583(0,6,7,8)		企业一卡多号
+
+operator_code		业务代码
+service_code		服务代码
+sp_code				企业代码
+CALL_TYPE          01:MOC; 02:MTC; 03:FORW; 04:ROAM; 07:SMMO; 08:SMMT;  09:SMMT; 11:POC; 12:PTC;
+forward_cause       1:无条件       2:遇忙      3:无应答   4:不可及	湖南老系统枚举值
+phone_flag         91:国际        A1:国内     81:本地
+orig_service_type   000:电信业务   001:承载业务    002:补充业务
+orig_service_code   11:语音服务    21:短信被叫 22:短信主叫 31:视频呼叫 91:表示vhe业务(虚拟归属环境),根据vpmn_judge字段为800193或081039来判断,并将原拨打被叫号码与实际被叫互换
+service_code	当是呼转时,只可能是下面的值,不管是转换还是原始
+	21	无条件呼转
+	22	关机呼转(当做无条件呼转)
+	29	用户忙前转
+	2a	无应答
+	2b	不可及(不可达呼转也被算作无条件呼转,集团公司的规定)
+
+ <FileHeadNum  isEdit="1">50</FileHeadNum>
+ <RecordHeadNum  isEdit="1">4</RecordHeadNum>
+ 
+ailuac    将lua编译成c
+
+asn.1一些标记
+01  布尔
+02  整数
+03  位串
+04  八位位串
+05  null
+09  实数
+0A  枚举
+30  序列和单一序列
+31  集合和单一集合
+
+prov_code	省代码(hplmn1) 
+area_code	区号()
+region_code	地市号码(hplmn2)sd.sys_region_info表可以查看对应哪个地区
+
+de_开头解码
+rat_开头长流程
+ld_开头入库
+bill_开头账务
+s2x_开头转换
+
+pdp_type后2位是以下值的  以HEX格式取出来有6种,集团规范只要求处理5种,00这种暂不需要处理
+21  IPV4
+57  IPV6
+8D  IPV4V6
+00  X.25
+01  PPP
+02  OSP:IHOSS
+pdp_type计费内部使用 集团规范中
+0：IPV4   
+1：IPV6  
+2：IPV4V6 
+3：PPP      
+4：OSP_IHOSS 
+
+jf_hanmeng
+%678asd
+
+国际长途拨打方式
+	国际冠码+国家代码+区号(若为固话且有区号)+号码(手机号或固话)  一般打来的号码前有加号代表国际冠码
+
+在移动业务里
+vpn是市网大客户
+vpmn是省网大客户
+
+cdrEndFlag=1时,输入临时文件会移到备份目录
+
+计费号码或者IMSI可以分析计费号码的归属地,交换机ID可以分析计费号码的拜访地
+对端号码可心分析对端号码的归属地,动态漫游号(86+动态漫游号当新的机ID)可以分析对端号码的拜访地
+
+LFEE 	长途费
+UFEE	统一批价费用
+CFEE	漫游费
+
+RECONNECT_MODE,累加配置连MDB自动重试
+	-1:5  :表示无限重试，间隔5秒
+	10:2 :表示重试10次，间隔2秒
+	0:0 :表示不重连，按照当前处理
+	其中冒号前的第一位有特殊业务含义： -1: 无限制重连， 0：表示不重连； >0 的值表示重连的次数;
+	
+site_id	累加配置中心id，-1：不分中心
+
+xdrcloneFlag 累加配置克隆话单标识，为了区分是否是克隆话单
+
+addupType	累加配置存放以何种方式进行累计
+	0：需要通过分化单类型,序列号,克隆话单序号,克隆话单标识来累计,广西、内蒙、南基和江西等使用,对应ADDUPTYPE_CLONE,关心克隆话单的话单完整性
+	1：不会判断克隆话单的序号，正常累计，此种累计可能会出现清理不及时的问题，仅留给上海使用,对应ADDUPTYPE_NOCLONE,不关心克隆话单的话单完整性
+	
+iContentBillId		0:非内容计费，1:内容计费免费，2:内容计费收费
+
+#define LEFT_QUOTE      "<%"
+#define RIGHT_QUOTE     "%>"
+	
+广西-kjava定义
+--charge_type 定义 
+	local CONST_KJ_CHARGE_TYPE_NOFEE  = 0;  --免费
+	local CONST_KJ_CHARGE_TYPE_TIMESFEE = 1;  --按下载次数计费
+	local CONST_KJ_CHARGE_TYPE_DAYFEE   = 2;  --包天计费话单
+	local CONST_KJ_CHARGE_TYPE_DAYQUERY = 3;  --包天查询话单
+	local CONST_KJ_CHARGE_TYPE_MONTHFEE = 4;  --包月计费话单
+	local CONST_KJ_CHARGE_TYPE_MONTHQUERY = 5;  --包月查询话单
+	local CONST_KJ_CHARGE_TYPE_ALLTIMESFEE = 6; --包次计费话单
+	local CONST_KJ_CHARGE_TYPE_ALLTIMESQUERY = 7;  --包次查询话单
+	local CONST_KJ_CHARGE_TYPE_SUBJECTMONTHFEE = 8;  --按栏目包月计费话单
+	local CONST_KJ_CHARGE_TYPE_SUBJECTMONTHQUERY = 9;  --按栏目包月查询话单
+
+mdb_logmode:
+	12:主备模式
+	1:单点模式
+	
+201：VPN/VPMN
+204：家庭群
+208：冲浪e家亲活动
+209：66家庭包活动
+210：共享池
+211：集团短信
+212：随心聊（现网2，4，10）
+220：PBX集团群
+221：PPIP集团群
+222: 4g流量共享群
+223：集团流量统付
+224: 家庭网套餐	　
+225: IMS	　
+
+int64 CONTROL_TAG_FOR_MODULE;//系统模块控制标识字段
+低32位标识流程跳转标识，即当前的处理模式， 这种模式下是前面模块的处理决定后面模块的流程
+高32位用来标识业务模块处理状态标识，其中一但该模块正常处理业务（没有打错单的情况下），则置该标识位； 
+其中低32位和高32位的含义保持和之前定义一致；如下：
+
+业务模块				对应值 
+空						0x00000001
+xdr2sdl					0x00000002
+dupcheck				0x00000004
+addup					0x00000008
+tbcg					0x00000010
+analyse					0x00000020
+rating					0x00000040
+ts_active_alarm			0x00000080
+ialarm					0x00000100
+iconfirm				0x00000200
+用户状态稽核			0x00000400
+梦网稽核				0x00000800
+xvol					0x00001000
+入库					0x00002000
+reserve					0x00004000
+账务汇总\科目转换		0x00008000
+XXXXXXXXX				0xFFFFFFFF
+
+浙江50版本测试
+ecframe - i *.xml
+
+id文件		国际及港澳台一卡多号
+vc文件		充值卡异地充值结算VC话单
+“VC”代表充值卡异地充值结算文件，其中上发异地充值文件指本省用户充值异地卡的充值记录文件，下发异地充值文件指外省用户充值本省卡的充值记录文件；

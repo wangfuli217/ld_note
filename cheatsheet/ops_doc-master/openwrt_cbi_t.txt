@@ -1,0 +1,114 @@
+function compile_datatype(code)
+	local i
+	local pos = 0
+	local esc = false
+	local depth = 0
+	local stack = { }
+
+	for i = 1, #code+1 do
+		local byte = code:byte(i) or 44
+		if esc then
+			esc = false
+		elseif byte == 92 then -- \
+			esc = true
+		elseif byte == 40 or byte == 44 then -- 40(  44,
+			if depth <= 0 then
+				if pos < i then
+					local label = code:sub(pos, i-1)
+						:gsub("\\(.)", "%1")
+						:gsub("^%s+", "") -- trim header
+						:gsub("%s+$", "") -- trim tailer
+                    print("label=", label, "pos=", pos, "i=", i)
+					if #label > 0 and tonumber(label) then
+						stack[#stack+1] = tonumber(label)
+					elseif label:match("^'.*'$") or label:match('^".*"$') then
+						stack[#stack+1] = label:gsub("[\"'](.*)[\"']", "%1")
+					elseif type(datatypes[label]) == "function" then -- datatypes 表
+						stack[#stack+1] = datatypes[label] -- 赋值函数，添加表
+						stack[#stack+1] = { }
+					else
+						error("Datatype error, bad token %q" % label)
+					end
+				end
+				pos = i + 1
+			end
+			depth = depth + (byte == 40 and 1 or 0)
+		elseif byte == 41 then -- 41 )
+			depth = depth - 1
+			if depth <= 0 then
+				if type(stack[#stack-1]) ~= "function" then
+					error("Datatype error, argument list follows non-function")
+				end
+				stack[#stack] = compile_datatype(code:sub(pos, i-1))
+				pos = i + 1
+			end
+		end
+	end
+
+	return stack
+end
+
+label=and             pos=0       i=4
+label=uinteger        pos=0       i=9
+label=rangelength     pos=10      i=21
+label=44              pos=0       i=3
+label=44              pos=4       i=6
+
+datatypes = require "cbi.datatypes"
+print(compile_datatype("uinteger"))
+tb1 = compile_datatype("and(hexstring,rangelength(4,4))")
+tb1 = compile_datatype("and(uinteger,rangelength(44,44))")
+
+print(tbl[1]("avb"))
+datatypes = require "luci.cbi.datatypes"
+tbl = compile_datatype("uinteger")
+
+util = require "luci.util"
+util.dumptable(tb1)
+1       function: 0x1eaa1c0           and
+2       table: 0x1ee8bd0
+        1       function: 0x1e48d20   uinteger
+        2       table: 0x1ee8c20
+        3       function: 0x1e61220   rangelength
+        4       table: 0x1ee8d40
+                1       44            value
+                2       44            value
+                
+                
+string  function: 0x1eb9660
+ip4addr function: 0x1ec3ac0
+host    function: 0x1e97410
+ip6prefix       function: 0x1e7bee0
+list    function: 0x1ea4100
+_PACKAGE        luci.cbi.
+device  function: 0x1eddf30
+uciname function: 0x1e9e770
+uinteger        function: 0x1e48d20
+macaddr function: 0x1eb6450
+portrange       function: 0x1e47650
+integer function: 0x1ece9e0
+range   function: 0x1e61ae0
+file    function: 0x1ec0700
+port    function: 0x1e87c60
+maxlength       function: 0x1ea9b90
+or      function: 0x1ed6ba0
+float   function: 0x1e82e80
+_M      table: 0x1ec7c90
+phonedigit      function: 0x1e61260
+ufloat  function: 0x1e92ad0
+bool    function: 0x1ebaec0
+directory       function: 0x1e6e0f0
+network function: 0x1ebe320
+rangelength     function: 0x1e61220
+max     function: 0x1e9e440
+ipaddr  function: 0x1e65e30
+wpakey  function: 0x1eb9a10
+and     function: 0x1eaa1c0
+min     function: 0x1ebdc50
+hostname        function: 0x1eddea0
+_NAME   luci.cbi.datatypes
+minlength       function: 0x1e91470
+wepkey  function: 0x1e74c50
+neg     function: 0x1eabcb0
+ip4prefix       function: 0x1eac240
+ip6addr function: 0x1e72cc0

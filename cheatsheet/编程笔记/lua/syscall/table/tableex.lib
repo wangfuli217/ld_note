@@ -1,0 +1,173 @@
+--[[
+ http://lua-users.org/wiki/TableUtils
+--]]
+
+-- Convert a table to a string
+function table.val_to_str ( v )
+  if "string" == type( v ) then
+    v = string.gsub( v, "\n", "\\n" )
+    if string.match( string.gsub(v,"[^'\"]",""), '^"+$' ) then
+      return "'" .. v .. "'"
+    end
+    return '"' .. string.gsub(v,'"', '\\"' ) .. '"'
+  else
+    return "table" == type( v ) and table.tostring( v ) or
+      tostring( v )
+  end
+end
+
+function table.key_to_str ( k )
+  if "string" == type( k ) and string.match( k, "^[_%a][_%a%d]*$" ) then
+    return k
+  else
+    return "[" .. table.val_to_str( k ) .. "]"
+  end
+end
+
+function table.tostring( tbl )
+  local result, done = {}, {}
+  for k, v in ipairs( tbl ) do
+    table.insert( result, table.val_to_str( v ) )
+    done[ k ] = true
+  end
+  for k, v in pairs( tbl ) do
+    if not done[ k ] then
+      table.insert( result,
+        table.key_to_str( k ) .. "=" .. table.val_to_str( v ) )
+    end
+  end
+  return "{" .. table.concat( result, "," ) .. "}"
+end
+
+t = {['foo']='bar',11,22,33,{'a','b'}}
+print( table.tostring( t ) )
+
+-- Count item occurrences in table
+-- Count the number of times a value occurs in a table 
+function table_count(tt, item)
+  local count
+  count = 0
+  for ii,xx in pairs(tt) do
+    if item == xx then count = count + 1 end
+  end
+  return count
+end
+
+-- Remove duplicates from table
+-- Remove duplicates from a table array (doesn't currently work
+-- on key-value tables)
+function table_unique(tt)
+  local newtable
+  newtable = {}
+  for ii,xx in ipairs(tt) do
+    if(table_count(newtable, xx) == 0) then
+      newtable[#newtable+1] = xx
+    end
+  end
+  return newtable
+end
+
+-- Randomly sample from List
+-- Careful of random number seeding here- you will need to randomly
+-- seed before calling this
+function randomlist(l, samp)
+  local newlist
+  newlist = {}
+  if not samp then 
+    samp = 0 
+  else
+    samp = #l - samp
+  end
+  while #l > samp do
+    local idx
+    idx = math.random(1, #l)
+    newlist[#newlist + 1] = l[idx]
+    table.remove(l, idx)
+  end
+  return newlist
+end
+
+-- Generate combinations from list
+-- combo({a,b,c},2) ==> a,b a,c b,c
+-- an iterating solution would be appreciated too
+function combo(lst, n)
+  local a, number, select, newlist
+  newlist = {}
+  number = #lst
+  select = n
+  a = {}
+  for i=1,select do
+    a[#a+1] = i
+  end
+  newthing = {}
+  while(1) do
+    local newrow = {}
+    for i = 1,select do
+      newrow[#newrow + 1] = lst[a[i]]
+    end
+    newlist[#newlist + 1] = newrow
+    i=select
+    while(a[i] == (number - select + i)) do
+      i = i - 1
+    end
+    if(i < 1) then break end
+    a[i] = a[i] + 1
+    for j=i, select do
+      a[j] = a[i] + j - i
+    end
+  end
+  return newlist
+end
+
+-- Generate combinations from list - Iterator version
+function combo(t,n)
+  local n,max,tn,output=n,#t,{},{}
+  for x=1,n do tn[x],output[x]=x,t[x] end -- Generate 1st combo
+  tn[n]=tn[n]-1 -- Needed to output 1st combo
+  return function() -- Iterator fn
+    local t,tn,output,x,n,max=t,tn,output,n,n,max
+    while tn[x]==max+x-n do x=x-1 end -- Locate update point
+    if x==0 then return nil end -- Return if no update point
+    tn[x]=tn[x]+1 -- Add 1 to update point (UP)
+    output[x]=t[tn[x]] -- Update output at UP
+    for i=x+1,n do 
+      tn[i]=tn[i-1]+1 -- Update points to right of UP
+      output[i]=t[tn[i]] -- Update output to refect change in points
+    end
+    return output
+  end
+end
+
+-- Insert values from one table into another table
+-- tinsertvalues(t, [pos,] values)
+-- similar to table.insert but inserts values from given table "values",
+-- not the object itself, into table "t" at position "pos".
+-- note: an optional extension is to allow selection of a slice of values:
+--   tinsertvalues(t, [pos, [vpos1, [vpos2, ]]] values)
+-- DavidManura, public domain, http://lua-users.org/wiki/TableUtils
+function tinsertvalues(t, ...)
+  local pos, values
+  if select('#', ...) == 1 then
+    pos,values = #t+1, ...
+  else
+    pos,values = ...
+  end
+  if #values > 0 then
+    for i=#t,pos,-1 do
+      t[i+#values] = t[i]
+    end
+    local offset = 1 - pos
+    for i=pos,pos+#values-1 do
+      t[i] = values[i + offset]
+    end
+  end
+end
+--[[ tests:
+  local t = {5,6,7}
+  tinsertvalues(t, {8,9})
+  tinsertvalues(t, {})
+  tinsertvalues(t, 1, {1,4})
+  tinsertvalues(t, 2, {2,3})
+  assert(table.concat(t, '') == '123456789')
+--]]
+

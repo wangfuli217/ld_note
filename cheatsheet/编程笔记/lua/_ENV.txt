@@ -1,0 +1,63 @@
+本质上，lua 取消了原有意义上的 environment 。所以我们可以看到 C Function 不再有环境了。
+function 、在 lua 中称为 closure ，仅仅只是函数体和 upvalue 的联合体。这简化了 lua 语言本身。
+全局变量实际上只是一个语法糖，编译时再前面加上了 _ENV. 的前缀。
+这样，从 load 开始，第一个 chunk 就被加上了 _ENV 这个 upvalue ，然后依次传递下去。
+
+这个设计基本可以取代以前使用 getfenv/setfenv 改变函数环境的方法。但是又不完全等价。总体来说，增加了一些限制，但不太容易写出 bug 的代码了。
+
+比如说，现在想给返回一个独立环境的函数，可以这样写：
+
+function foobar(env)
+    local _ENV = env
+    return function() ... end
+end
+而以前大约是这样：
+
+function foobar(env)
+    return setfenv(function() ...  end, env)
+end
+
+5.1 的等价代码大约是这样：
+
+function foobar(env)
+    local old = getfenv()
+    setfenv(1,env)
+    local ret = {}
+    function ret.foo()
+        ...     
+    end
+    function ret.bar()
+        ...
+    end
+    setfenv(1,old)
+    return ret
+end
+或者这样更函数式一点：
+
+function foobar(env)
+    return setfenv(
+    function()
+        local ret = {}
+        function ret.foo()
+            ...     
+        end
+        function ret.bar()
+            ...
+        end
+        return ret
+    end , env) ()
+end
+getfenv/setfenv 更灵活，却更容易出错。
+
+5.2 的等价代码大约是这样：
+function getfuncs()
+  local _ENV = _ENV
+  local ret = {}
+  function ret.foo()
+    ...
+  end
+  function ret.setfenv(env)
+    _ENV = env
+  end
+  return ret 
+end

@@ -1,0 +1,20 @@
+require "socket"
+function download(host, file)
+ local c = assert(socket.connect(host, 80))
+ c:send("GET " .. file .. " HTTP/1.0\r\n\r\n")
+ local count = 0
+ while true do
+  local s, status, partial = c:receive(2^10)
+  count = count + #(s or partial)
+  if status == "closed" then break end
+ end
+ print(file, count)
+ c:close()
+end
+begin_time = os.time()
+download("www.w3.org", "/TR/html401/html40.txt")
+download("www.w3.org", "/TR/2002/REC-xhtml1-20020801/xhtml1.pdf")
+download("www.w3.org", "/TR/REC-html32.html")
+download("www.w3.org", "/TR/2000/REC-DOM-Level-2-Core-20001113/DOM2-Core.txt")
+end_time = os.time()
+print(string.format("wasted time: %d(s)", end_time - begin_time))

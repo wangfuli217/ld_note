@@ -1,0 +1,49 @@
+--[[
+  os.tmpname##
+  原型：os.tmpname()
+  解释：返回一个临时的文件名，这个文件使用之前必须被创建打开，并且在不需要的时候手动删除。
+--]]
+
+local tmpfilename = os.tmpname()
+tmpfilename = "."..tmpfilename
+print("tmpfilename = "..tmpfilename)
+
+-- 创建打开文件
+local myfile = io.open(tmpfilename,"w")
+print(myfile)
+
+-- 向文件中写入内容
+myfile:write("name=AlbertS\n");
+myfile:write("age=22\n")
+myfile:close();
+
+-- 做了许多操作之后
+-- ...
+-- ...
+
+-- 再次打开文件
+local secfile = io.open(tmpfilename,"r")
+print(secfile)
+
+-- 读取文件内容
+local content = secfile:read("*a");
+secfile:close();
+
+
+print("\nfile content is:")
+print(content)
+
+-- 获取正确的文件名
+tmpfilename = string.sub(tmpfilename, 3, -2)
+print("real tmpfilename = "..tmpfilename)
+
+-- 删除文件
+local ret = os.remove(tmpfilename)
+print("remove file ret:")
+print(ret)
+
+--[[
+1. 在一些系统中，比如POSIX中，这个函数可以使用返回的文件名创建一个文件来避免安全问题（有些人会使用错误的权限来说的文件名和创建文件）但是你仍然需要在使用之前打开文件，并且在不需要的时候删除这个文件。
+2. 尽可能的，你选择函数io.tmpfile()会比较好，这个函数创建的文件会在程序退出时自动删除。
+3. 可能你会发现今天的代码中出现了很多IO库中函数，为了讲清楚os.tmpname()的作用也是没办法，只能把他们先引入进来，不过后续我们会讲解这些IO库中的函数
+--]]

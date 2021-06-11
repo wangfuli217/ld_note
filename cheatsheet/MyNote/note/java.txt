@@ -1,0 +1,204 @@
+类型		大小		最小值				最大值				封装器类型		默认值(在类中定义才会有默认值,若在函数等局部定义则无)
+boolean		1位			-					-					Boolean			false
+char		16位		Unicode 0			Unicode	2的16次方-1	Character		'\u0000'(null)
+byte		8位			-128				+127				Byte			(byte)0
+short		16位		-2的15次方			+2的15次方-1		Short			(short)0
+int			32位		-2的31次方			+2的31次方-1		Integer			0
+long		64位		-2的63次方			+2的63次方-1		Long			0L
+float		32位		IEEE754				IEEE754				Float			0.0f
+double		64位		IEEE754				IEEE754				Double			0.0d
+Void		-			-					-					Void
+						任意精度整数		任意精度整数		BigInteger
+						任意精度定点数字	任意精度定点数字	BigDecimal
+其中byte,short,Void,BigInteger,BigDecimal到Java1.1才有,1.0版没有,数值类型全是有符号的
+对char,byte,short进行任何算术运算都会得到一个int结果,必须使用向上类型转换运算后的值
+
+不允许在局部创建与外部同名变量,虽然是不同作用域,因为java作者认为这使程序产生了混淆
+不管是new出来的对象还是直接定义的对象,都通过class.field来访问
+java变量未初始化会报错误,c++是警告,类里创建变量可直接初始化,c++中不可以,初始化顺序首先是static对象,接着是非static对象
+static可以有自己的构建器,里面执行static变量的初始化,格式如下
+static int i;
+static			仅执行一次,首次生成这个类的对象或访问属于这个类的static成员时
+{
+	i=47;
+}
+非静态变量也可使用这种方式,省略了static关键字,如
+int a;
+int b;			匿名内部类必须使用这种方式
+{			
+	a=3;
+	b=4;
+}
+数组初始化
+Integer[] a={new Integer(1),new Integer(2)...}		java1.0只支持的方式
+Integer[] b=new Integer[]{new Integer(1)...}		java1.1才支持的方式
+
+java类内每个成员(不管是方法还是变量)都可以有访问指示符,public,private,protected,这与c++不同,protected包内成员也可访问
+如果不加指示符,通称称为友好(Friendly),意味着包内其他类都能访问友好的成员,包外不得访问
+class前也可加限定符,必须在class之前出现,控制着客户程序员是否能够创建属于这个类的一个对象,目前只有public和友好的(默认,没有关键字)
+每个非基本类型的对象内部都有一个toString(),当编译器发现需要转化成String时就会调用这个方法
+
+java的方法只能作为类的一部分创建,方法参数对于基本类型是传值,对于对象是传引用
+java创建的对象除了主类型都是句柄,将一个对象赋值为另一个对象,本质上是2个句柄引用同一个对象,一个改变,另一个也改变
+java没有sizeof,class后面可以不带分号,构建器就是构造函数,垃圾收集器只知道释放由new分配的内存,在收集之前会先调用类的finalize()方法,在java1.0中几乎毫无用处
+为什么要有finalize()方法,因为java内部可以调用非java方法(固有方法c和c++),就能使用malloc等分配内在,这时需要从finalize()里的固有方法中释放,绝对不能直接调用finalize()方法
+
+java中的数组定义,编译器不允许使用者指定数组大小,java中可将一个数组分配给另一个,数组有一个成员length可获得数组内元素个数
+int[]  a={1,2,3};  或  int a[];
+
+System.gc()		强制执行垃圾(garbage collection)清理器,清不清理是不确定的
+System.runFinalization()	强制调用已经失去引用的对象的finalize方法,清除没有使用的所有对象要先调用gc再调用runFinalization()
+System.runFinalizersOnExit(true)	java1.1支持,现在也已经弃用
+
+java有自己的命名空间,编译器自动做的,如com.bru.util.com,.代表子目录,这是为了解决名字的冲突
+
+在每个程序文件的开头,都必须放置一个import语句,导入这个文件代码里要用到的所有额外的类,java.lang除外(会自动导入每个java文件)
+import  java.util.Vector;		导入库里一个类
+import 	java.util.*;			导入一个包(类库)下的所有类
+
+system.out.print()				//输出语句
+main格式
+	public static void main(String[] args){}
+javac	*.java 	编译后得到*.class,若要执行此文件用命令 java *(不需要加.class)
+可为自己的每个类创建一个main方法,在命令行执行的命令只有public类的main会得到调用
+
+javadoc用于提取注释,形成html文档,只能为public,protected成员处理注释文档,private和friend成员的注释会被忽略
+所有javadoc命令只能出现于/**...*/中
+@see	类名/完整类名/完整类名#方法		允许我们引用其他类里的文档
+@version	版本信息					若在javadoc里使用-version标记,就会从生成的html文档里提取出版本信息
+@auther		作者信息					大致意思同上
+@param 	参数名	说明					参数意思说明
+@return 	说明						返回值说明
+@exception	完整类名	说明			违例说明
+@deprecated								java1.1新特性,指出一些旧功能已由新功能替代,建议用户不必再使用一种特定的功能
+
+对象间比较用 对象.equals(),否则比较的是句柄,equals()默认行为也是比较句柄,自己新建类即如此
+and,or,not只可应用于布尔值,不可像c++一样,将非布尔值当作布尔值在逻辑表达式中使用
+>>为符号右移,>>>为无符号右移(逻辑右移)
+对象不允许相互间造型,必须使用特殊方法(字符串类除外)
+
+包=>提供类似c++中命名空间类似的功能,不同包中相同名字的变量不会冲突
+每个java文件是一个编译单元,每个编译单元内只能有一个public类(可以没有),如果有,这个类名必须与文件名同名,如果没有,可以任意指定文件名
+package mypackage;	必须作为文件的第一个非注释语句出现,指出这个编译单元的public类位于名为mypackage这个名字的下面
+
+java解释器工作程序如下
+遇到import语句后,找到环境变量CLASSPATH,里面包含一个或多个目录,作为根使用,从这里展开对.class文件的搜索,解释器会将包名中的.替换成/(/还是\由操作系统决定),如果不在CLASSPATH里加入当前目录,则java不会搜寻当前目录
+若使用jar文件,则CLASSPATH里要包含jqr文件名和后缀
+位于相同目录且没有指定包名时,会把这样的文件看作这个目录的默认包
+
+继承
+创建一个类肯定会进行继承,因为若非如此,会从Java标准根类Object中继承,在子类构建器中会自动插入对基础类构建器
+语法:  派生类  extends	基类
+子类调用基类的函数可使用super(superclass超类)关键字,如super.function();
+如果要调用有参数的构建器,则需要在子类构建器中调用super(参数)来初始化基类,必须在构建器最开头
+
+try
+{
+	...
+}	
+finally
+{
+	...		//不管try中的代码发生任何违例或者什么,finally里的代码都将执行
+}
+
+多重继承
+java的多重继承只能从一个继承,另外的必须都是接口,此种语法类必须先出现,例
+class A{}
+interface B{}
+interface C{}
+class D extends A implements B,C
+
+在基类中一个方法名被过载多次,在派生类中对这个方法名重新定义不会隐藏基类的任何版本
+
+final		声明这个东西不能改变,声明为final的方法或类不能被继承,可以有效地关闭动态绑定
+final  基本数据类型		在定义一个常数时,必须定义的时候初始化
+final  对象句柄			声明时,必须初始化到一个具体对象,表示将句柄变为一个常数,句柄不能改变指向,对象本身可以修改
+final  参数				表示在方法内部无法修改句柄指向,或基本数据类型
+空白final 	如final int i;	必须在使用前得到初始化,可在构建器中使用传入的参数初始化
+final	方法		为方法上锁,防止在继承类中被覆盖或改写,且会根据编译器判断执行是否内联,所有private方法自动成为final
+final	类				不允许这个类被继承,所以这个类内所有方法都默认为final
+
+jvaa中绑定的所有方法都采用后期绑定(动态绑定)技术,除非一个方法被声明为final
+
+过载(重载)		可以在子类与基类之间,函数名相同,参数名不同
+覆盖(多态)		在子类与基类间,函数名相同,参数名相同
+
+抽象方法,含有抽象方法的类称为抽象类,同时类必须也加上abstract关键字,标明是抽象类,不能实例化,如
+abstract void X();
+即使没有abstract方法,也可以为类加上abstract关键字,这个类就不能实例化
+
+接口
+一个只包含接口的纯抽象类可以用interface关键字来定义,接口也包含基本类型的数据成员,但它们都默认为static和final,interface前也可以加public
+为了实现这个接口相关的类,需要使用implements关键字,可将接口中的方法声明为public,但即使不明确定义,默认也为public
+例:
+interface A
+{
+	...
+}
+class B implements A
+{
+	...
+}
+接口的继承,如
+interface B extends A,C...
+
+内部类的好处,普通类不允许设置成private,protected,只可是public或默认地,内部类可以设置,可以隐藏具体细节,可以杜绝向下造型(因为不能访问名字)
+内部类拥有对封装类所有元素的访问权限
+匿名内部类不允许有构建器,只能通过初始化来构建,不管是定义时初始化还是通过{...}
+return new Contents() {
+private int i = 11;
+public int value() { return i; }
+};
+这种奇怪的语法要表达的意思是：“创建从 Contents 衍生出来的匿名类的一个对象”。由 new 表达式返回的句柄会自动上溯造型成一个 Contents 句柄
+若试图定义一个匿名类,并想使用在匿名类外部定义的一个对象,则编译器要求外部对象为final
+当内部类生成class文件时,形成的名字是:封装类$内部类名字,如果内部类是匿名的,那么编译器会简单地生成数字
+
+static内部类可以成为接口里的一部分
+内部静态类不需要有指向外部类的引用,非静态内部类需要持有对外部类的引用
+非静态内部类能够访问外部类的静态和非静态成员,静态类不能访问外部类的非静态成员
+一个非静态内部类不能脱离外部类实体被创建
+内部类不可拥有static数据或static内部类
+从内部类继承,封闭类的句柄必须得到初始化,采用语法=>封闭类.super()
+
+集合类只能容纳对象句柄,但对一个数组,既可直接容纳基本类型,又可容纳对象句柄,可利用象Integer,Double的封闭器类,将基本数据放入一个集合里
+
+集合:
+Vector		向量
+	addElement(object)				添加对象句柄
+	elementAt(int)					获得指定索引下面的对象句柄
+	elements()						获得此vector的Enumeration(反复器,相当于c++的迭代器,1.2版本后被Iterator名字取代)
+	Enumeration.hasMoreElements()	检查序列中是否还有更多的对象
+	Enumeration.nextElement()		获得下一下对象
+	Iterator.next()					获得下一个对象
+	Iterator.hasNext()				检查序列中是否还有元素
+	Iterator.remove()				将迭代器新返回的元素删除
+BitSet		是由二进制位构成的一个Vector,最小长度是64位
+	set(int)						将index位设置为1
+	clear(int)						将index位清除设置,即设置为0
+Stack		堆栈
+	push(object)					压栈
+	elementAt(int)					获得栈底开始index偏移位置的对象句柄,Stack继承自Vector,Vector的方法Stack都可以使用
+	pop()							出栈
+	empty()							判断是否为空
+Hashtable	散列表
+	size()							包含几个元素
+	isEmpty()						是否包含元素,是的话返回true
+	put(Object key,Object value)	添加key-value至散列表
+	get(Object key)					获得与key对应的value值
+	remove(Object key)				删除键-值对
+	keys()							产生对键的一个枚举(Enumeration)
+	elements()						产生对值的一个枚举(Enumeration)
+	containsKey(key)				是否已有键值key,要将自己定义的对象作为key使用,必须正确地覆盖hashCode()和equals()
+	
+新集合(Collection)		以下都是从Collection继承而来
+	ArrayList
+	Set
+	List
+	Map					未从Collection继承
+	
+违例控制
+void f()	throws tooBig,tooSmail{}
+catch(Exception e)		可以捕获所有违例
+创建自己的违例,必须从现有的一个违例类继承
+例class MyException extends Exception{}
+	

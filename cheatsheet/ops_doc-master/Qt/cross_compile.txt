@@ -1,0 +1,110 @@
+configure_p_idea(){ cat - <<'EOF'
+在交叉编译中比较常见的一些参数就是build、host和target了，正确的理解这三者的含义对于交叉编译是非常重要的，下面就此进行解释
+    --build=编译该软件所使用的平台   交叉编译gcc必须设置      (自动常识猜测)
+    --host=该软件将运行的平台        交叉编译应用程序必须设置 (arm-linux-gcc指定所在位置)
+    --target=该软件所处理的目标平台  交叉编译gcc必须设置      (绝大多数软件包都是不需要该参数)
+
+我们以 gcc 为例子来 讲解 这三者的作用
+    在gcc编译中我们使用
+    ./configure --build=编译平台　--host=运行平台　--target=目标平台　[各种编译参数] 
+    
+    来配置gcc的源代码，以让其编译出我们需要的gcc编译器。 
+
+--build：
+    表示目前我们正在运行的平台名称是什么，如果当前我们是在intel的pentium机器中编译该系统，那么我们的--build就可能是
+i686-pc-linux-gnu，当然如果我们在其它种类的机器上编译那么这个build就应该是那个机器所对应的平台名称。
+    该参数在不指定的情况下将自动常识猜测目前平台的名称。
+
+--host：
+    表示我们把这个编译好的gcc在什么样的平台下运行，在交叉编译过程中这个需要我们来指定，因为机器自己是不能知道我们
+心里是怎么想的，那么我们可以明确的告诉它，我们要做出来的程序是运行在"龙芯"上的，但是目前还不能直接指定"龙芯"，
+因此我们这里指定为mips64el-unknown-linux-gnu
+
+--target：
+    该参数的目的是让配置程序知道这个软件被编译后使用来处理什么平台上的文件的。
+    target这个参数只有在为数不多的几个包中有用处，虽然在./configure --help中经常能看到该参数，但实际上绝大多数软件包
+都是不需要该参数的。 
+
+build：自动测试在用平台名称，若无法检测出来则需要指定。
+    host：若无指定，自动使用build的结果。
+    build和host相同时表示本地编译，若不相同则表示交叉编译。
+    target：表示需要处理的目标平台名称，若无指定使用host相同名称，gcc、binutils等于平台指令相关软件有此参数，多数软件此参数无用处。 
+
+通过环境变量: CC CFLAGS                                                配置 gcc 以及相关的参数
+通过参数选项: --host                                                   配置代码运行平台
+              --without-pam --without-ssl                              配置代码功能选项
+              --disable-openssl --disable-socks4  --disable-socks4a    配置代码功能选项
+              libmonit_cv_setjmp_available=no                          配置代码功能选项
+
+交叉编译后运行环境: 可以参考centos ubuntu 和 openwrt 平台运行环境说明
+EOF
+}
+
+configure_t_rsync(){ cat - <<'EOF'
+CC=/usr/local/arm/gcc-4.6.2-glibc-2.13-linaro-multilib-2011.12/fsl-linaro-toolchain/bin/arm-linux-gcc
+CC=${CC} ./configure --host=${CC}
+
+CFLAGS="-static"
+rsync 静态编译选项导致软件运行崩溃
+EOF
+}
+
+configure_t_fping(){ cat - <<'EOF'
+CC=/usr/local/arm/arm-2009q3/bin/arm-none-linux-gnueabi-gcc ./configure --host=/usr/local/arm/arm-2009q3/bin/arm-none-linux-gnueabi-gcc
+make
+在./src/目录下就有fping程序
+EOF
+}
+
+configure_t_shellinabox(){ cat - <<'EOF'
+CC=/usr/local/arm/arm-2009q3/bin/arm-none-linux-gnueabi-gcc ./configure --host=/usr/local/arm/arm-2009q3/bin/arm-none-linux-gnueabi-gcc --disable-ssl --disable-pam --disable-utmp
+make
+输出文件在./shellinaboxd程序
+EOF
+}
+
+configure_t_monit(){ cat - <<'EOF'
+1. 安装automake和autoconf两个；
+2. 配置交叉工具环境变量 PATH=${PATH}:/usr/local/arm/arm-2009q3/bin/
+3. 交叉编译：
+./configure --without-pam --without-ssl --build=armv7 CC=arm-none-linux-gnueabi-gcc libmonit_cv_setjmp_available=no libmonit_cv_vsnprintf_c99_conformant=no --host=arm
+4. autoreconf -vfi
+5. make
+
+
+1. 启动
+  chmod 0700 /etc/monitrc
+  /sbin/monit -c /etc/monitrc -d 10
+  配置文件见config文件夹
+
+2. monit工具
+清除/etc/resolv.conf文件内的nameserver IP地址，配置hosts ++ localhost 127.0.0.1
+  monit status # 
+EOF
+}
+
+configure_t_monit(){ cat - <<'EOF'
+# 编译
+./configure  --build=armv7 CC=arm-none-linux-gnueabi-gcc --host=arm --disable-openssl --disable-socks4  --disable-socks4a
+# 将otdr端口重新转发
+socat -d -d -d -d -D tcp:192.168.0.252:8000 tcp-listen:7000,fork
+EOF
+}
+
+configure_t_tcpdump(){ cat - <<'EOF'
+-------------------
+-- 代码安装
+-------------------
+libpcap.so.1.8.1  -> /usr/lib/libpcap.so.1.8.1
+                  -> /usr/lib/libpcap.so.1
+                  -> /usr/lib/libpcap.so
+libpcap.a         -> /usr/lib/libpcap.a
+tcpdump           -> /sbin/tcpdump                
+
+-------------------
+-- 调试使用
+-------------------
+syslogd -O /var/log/message -s 200000 -b 98 
+tcpdump -i eth0 dst port 5000 and not dst host 192.168.1.254 -w /etc/rtud/curvedata.pcap 
+EOF
+}

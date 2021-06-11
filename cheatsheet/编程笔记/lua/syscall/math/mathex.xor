@@ -1,0 +1,25 @@
+--[[
+ http://lua-users.org/wiki/BitUtils
+--]]
+
+local function nand(x,y,z)
+    z=z or 2^16
+    if z<2 then
+        return 1-x*y
+    else
+        return nand((x-x%z)/z,(y-y%z)/z,math.sqrt(z))*z+nand(x%z,y%z,math.sqrt(z))
+    end
+end
+math["not"]=function(y,z)
+    return nand(nand(0,0,z),y,z)
+end
+math["and"]=function(x,y,z)
+    return nand(math["not"](0,z),nand(x,y,z),z)
+end
+math["or"]=function(x,y,z)
+    return nand(math["not"](x,z),math["not"](y,z),z)
+end
+math["xor"]=function(x,y,z)
+    return math["and"](nand(x,y,z),math["or"](x,y,z),z)
+end
+Flags

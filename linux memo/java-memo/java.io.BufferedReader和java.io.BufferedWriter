@@ -1,0 +1,84 @@
+java.io.BufferedReader和java.io.BufferedWriter
+
+BufferedReader
+    从字符输入流中读取文本，缓冲各个字符，从而提供字符、数组和行的高效读取。 
+    可以指定缓冲区的大小，或者可使用默认的大小。大多数情况下，默认值就足够大了。 
+    通常，Reader 所作的每个读取请求都会导致对基础字符或字节流进行相应的读取请求。因此，建议用 BufferedReader 
+    包装所有其 read() 操作可能开销很高的 Reader（如 FileReader 和 InputStreamReader）。例如， 
+    BufferedReader in = new BufferedReader(new FileReader("foo.in"));
+    将缓冲指定文件的输入。如果没有缓冲，则每次调用 read() 或 readLine() 都会导致从文件中读取字节，并将其转换
+    为字符后返回，而这是极其低效的。 
+    可以对使用 DataInputStream 进行按原文输入的程序进行本地化，方法是用合适的 BufferedReader 替换每个 
+    DataInputStream。
+BufferedWriter
+    将文本写入字符输出流，缓冲各个字符，从而提供单个字符、数组和字符串的高效写入。 
+    可以指定缓冲区的大小，或者接受默认的大小。在大多数情况下，默认值就足够大了。 
+    该类提供了 newLine() 方法，它使用平台自己的行分隔符概念，此概念由系统属性 line.separator 定义。并非所有平台都使用新行符 ('\n') 来终止各行。因此调用此方法来终止每个输出行要优于直接写入新行符。 
+    通常 Writer 将其输出立即发送到基础字符或字节流。除非要求提示输出，否则建议用 BufferedWriter 包装所有其 write() 操作可能开销很高的 Writer（如 FileWriters 和 OutputStreamWriters）。例如， 
+    PrintWriter ou = new PrintWriter(new BufferedWriter(new FileWriter("foo.out")));
+    将缓冲 PrintWriter 对文件的输出。如果没有缓冲，则每次调用 print() 方法会导致将字符转换为字节，然后立即写入到文件，而这是极其低效的。 
+    字符串输入输出流：就是以字符串的形式对文件进行读写.
+
+1.构造方法
+    BufferedReader(Reader in) 
+              创建一个使用默认大小输入缓冲区的缓冲字符输入流。 
+    BufferedReader(Reader in, int sz) 
+              创建一个使用指定大小输入缓冲区的缓冲字符输入流。 
+    BufferedWriter(Writer out) 
+              创建一个使用默认大小输出缓冲区的缓冲字符输出流。 
+    BufferedWriter(Writer out, int sz) 
+              创建一个使用指定大小输出缓冲区的新缓冲字符输出流。 
+
+2.读写方法
+     读：public String readLine()
+                从输入流中读取一行数据，返回该行数据
+                每当读完一行数据后，光标会自动跳到下一行的位置
+     写：public void write(String s,int off,int len)
+                s：为向输出流写入的字符串
+                off：表示从字符串s的什么位置开始写
+                len：表示从字符串s中写入多少个字符
+3.其他常用方法
+     newLine()：写入一个行分隔符
+     flush()：刷新写入到输出流中的数据
+     close()：关闭此流，但要先刷新它
+
+java.lang.Object
+  java.io.Reader :用于读取字符流的抽象类。子类必须实现的方法只有 read(char[], int, int) 和 close()。但是，
+                  多数子类将重写此处定义的一些方法，以提供更高的效率和/或其他功能。 
+      java.io.InputStreamReader :InputStreamReader 是字节流通向字符流的桥梁：它使用指定的 charset 读取字节
+                                 并将其解码为字符。它使用的字符集可以由名称指定或显式给定，否则可能接受平台默认的字符集。 
+          java.io.FileReader:用来读取字符文件的便捷类。此类的构造方法假定默认字符编码和默认字节缓冲区大小都是适当的。要自己指定这些值，可以先在 FileInputStream 上构造一个 InputStreamReader。 
+                             FileReader 用于读取字符流。
+
+java.lang.Object
+  java.io.Writer :写入字符流的抽象类。子类必须实现的方法仅有 write(char[], int, int)、flush() 和 close()。但是，
+                  多数子类将重写此处定义的一些方法，以提供更高的效率和/或其他功能。
+      java.io.OutputStreamWriter :是字符流通向字节流的桥梁：使用指定的 charset 将要向其写入的字符编码为字节。
+                                 它使用的字符集可以由名称指定或显式给定，否则可能接受平台默认的字符集。 
+                 java.io.FileWriter:用来写入字符文件的便捷类。此类的构造方法假定默认字符编码和默认字节缓冲区
+                                    大小都是可接受的。要自己指定这些值，可以先在 FileOutputStream 上构造一个 OutputStreamWriter。 
+
+
+
+     
+     
+     
+     
+System类：该类在包java.lang中，它有以下两个重要的成员变量
+in：它是一种输入流对像，它的源是键盘，可以读取用户从键盘输入的数据，在读取数据时会引起堵塞，直到用户按下Enter键
+      读取方法：public int read(char c[],int off,int len)和public int read(char c[])
+out：它是一种输出流对象，它的目的地是命令行窗口
+        写入方法：public void write(char c[],int off,int len)和public void write(char c[])
+        
+System类的常量
+System表示系统类，实际上在JAVA中也对IO给予了一定的支持
+1、public static final PrintStream out   常量  对应系统标准输出，一般是显示器
+2、public static final PrintStream err   常量 错误信息输出
+3、public static final InputStream in    常量 对应标准输出，一般是键盘
+使用static final关键字声明的变量是全局常量，只要是常量，则所有的单词字母必须全部大写，按照现在的标准：System.OUT —> System.out
+System.out
+使用System.out输出的时候就是将输出的位置定义在了显示器之中。
+FileOutputStream是定位在文件里，而System.out是定位在屏幕上输出,PrintStream就是OutputStream的子类.
+
+System.in实际上是一个键盘的输入流，其本身是InputStream类型的对象。那么，此时就可以利用此方式完成从键盘读取数据的功能。
+InputStream对应的是输入流，输入流的话肯定是从指定位置读取的，之前使用的是FileInputStream，是从文件中读取的。

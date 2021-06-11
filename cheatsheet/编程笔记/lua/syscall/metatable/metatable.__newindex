@@ -1,0 +1,39 @@
+--[[
+如果对table的一个不存在的域赋值，Lua将检查 __newindex metamethod
+  1、如果 __newindex 为函数，Lua将调用函数而不是进行赋值。 可以接受三个参数 table key value。
+  2、如果 __newindex 为一个table，Lua将对此 table 进行赋值。
+  3、使用 rawset(t,k,v) 则不会调用 __new index metamethod
+--]]
+
+--元表中的__newindex作用
+--[[
+  元表中的__newindex主要针对表的新索引赋值过程，后面可以跟一个匿名函数和一个表
+  1.__newindex=function (tab,key,value)   __newindex后跟匿名函数
+--]]
+mytable3={"Lua","C#","Python","Go"}
+metatable3={
+	__newindex=function (tab,key,value)   --当对应普通表的新索引赋值时会调用该方法
+	print("赋值过程："..key..":"..value)
+	rawset(tab,key,value)    --如果要完成对应新增赋值到元表，则需要调用该函数
+	end
+}
+mytable3=setmetatable(mytable3,metatable3)
+
+mytable3[1]="C++"
+mytable3[5]="C"        --输出 赋值过程：5：C  只针对新索引
+print(mytable3[5])     --输出 C
+
+--[[
+  2.元表中的__newindex后跟一个表，元表对应的普通表新增元素会放入__newindex后跟的表内
+--]]
+
+mytable4={"Lua","C#","Python","Go"}
+newtable2={}
+metatable4={
+	__newindex=newtable2
+}
+mytable4=setmetatable(mytable4,metatable4)
+
+mytable4[5]="C++"
+print(mytable4[5])          --输出nil
+print(newtable2[5])         --输出C++

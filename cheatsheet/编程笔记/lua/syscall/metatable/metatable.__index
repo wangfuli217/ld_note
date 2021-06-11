@@ -1,0 +1,40 @@
+--[[
+1. 在表中查找，如果找到，返回该元素，找不到则继续
+2. 判断该表是否有元表，如果没有元表，返回nil，有元表则继续。
+3. 判断元表有没有__index方法，
+     如果__index方法为nil，则返回nil；
+     如果__index方法是一个表，则重复1、2、3；
+     如果__index方法是一个函数，则返回该函数的返回值。
+--]]
+
+-- table
+BaseClass = {
+	base = 1,
+}
+DerivedClass = setmetatable({derived = 2}, {__index = BaseClass})
+print(DerivedClass.base)
+
+
+-- function
+BaseClass = {
+	base = 1,
+}
+DerivedClass = setmetatable({derived = 2}, {__index = function(tab, key)
+	if key == "fun" then
+		return 1
+	else
+		return 0
+	end
+end})
+print(DerivedClass.fun)
+
+--[[
+1) 访问一个table中不存在的字段, 得到nil
+2) 实际这些访问会促使解释器去查找一个__index的元方法, 如果没有这个元方法结果就是nil
+3) lua中__index元方法用于继承是很普遍的方法
+4) __index不一定必须是函数, 还可以是一个table 
+    当__index是一个函数时, lua以table和不存在的key作为参数来调用该函数; 
+    当__index是table时, lua就以相同的方法来重新访问这个table;
+5) 将一个table作为__index是一种快捷的, 实现单一继承的方式; 虽然函数作为__index相对开销大, 但是更灵活
+6) 如果不想在访问一个table时涉及它的__index, 可以使用rawget来访问
+--]]

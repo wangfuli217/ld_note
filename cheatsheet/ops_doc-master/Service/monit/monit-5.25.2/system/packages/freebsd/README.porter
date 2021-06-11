@@ -1,0 +1,43 @@
+###############################
+# To update the FreeBSD port: #
+###############################
+
+1.) prerequisites:
+
+  md5
+  sha256 (sysutils/freebsd-sha256)
+
+
+2.) modify the port:
+
+  portsnap fetch
+  portsnap update
+  cd /usr/ports/sysutils
+  rm -rf monit-new
+  cp -rp monit monit-new
+  perl -p -i -e 's/^PORTVERSION=.*/PORTVERSION=    <new_version>' monit-new/Makefile
+  make -C monit-new makesum
+  rm -rf /tmp/monit_port
+  mkdir /tmp/monit_port
+  diff -ruN monit monit-new > /tmp/monit_port/monit.patch
+  cd monit-new
+  portlint         > /tmp/monit_port/portlint.txt
+  make check-plist > /tmp/monit_port/make_check-plist.txt
+  make stage-qa    > /tmp/monit_port/make_stage-qa.txt
+
+
+3.) send the port upgrade (for example using https://bugs.freebsd.org/bugzilla/)
+
+    component:  Individual Port(s)
+    summary:    [MAINTAINER] sysutils/monit: Update to <new_version>
+    severity:   Affects Some People
+    Version:    Latest
+    HW:         Any
+    OS:         Any
+
+  Attach the following files:
+        monit.patch (set maintainer-approval+ if you're maintainer)
+        portlint.txt
+        make_check-plist.txt
+        make_stage-qa.txt
+

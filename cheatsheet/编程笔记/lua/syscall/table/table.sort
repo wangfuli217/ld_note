@@ -1,0 +1,142 @@
+--[[
+原型：table.sort (table [, comp])
+解释：在表内从 list[1] 到 list[#list] 原地 对其间元素按指定次序排序。
+      如果参数comp不省略，则它必须是一个函数，可以接收表tab_table的两个元素，并且在第一个元素小于第二个元素时返回true，其他情况返回false，
+      如果省略参数comp，则Lua彼岸准运算符operator <将会被使用。
+      
+      注意：table.sort只能对下标连续且为数字的table进行有效的排序
+--]]
+
+local tabLanguage = { 
+    "Lua",
+    "swift",
+    "python",
+    "java",
+    "c++",
+};
+
+print("\nLUA>>>>>>the source elements of table tabLanguage is:")
+for k,v in pairs(tabLanguage) do
+    print(k,v)
+end
+
+-- 使用默认函数排序
+table.sort(tabLanguage)
+print("\nLUA>>>>>>After sort, the elements of table tabLanguage is:")
+for k,v in pairs(tabLanguage) do
+    print(k,v)
+end
+
+-- 定义自己的比较函数
+local function my_comp(element1, elemnet2)
+    return string.len(element1) < string.len(elemnet2)
+end
+
+-- 使用自己的比较函数排序（按字符由短到长排序）
+table.sort(tabLanguage, my_comp)
+print("\nLUA>>>>>>After sort using [string.len], the elements of table tabLanguage is:")
+for k,v in pairs(tabLanguage) do
+    print(k,v)
+end
+
+-- 再定义一个自己的比较函数
+local function my_comp_new(element1, elemnet2)
+    return element1 > elemnet2
+end
+
+-- 使用自己的比较函数排序（按字符长段排序）
+table.sort(tabLanguage, my_comp_new)
+print("\nLUA>>>>>>After sort using [lua ascii cmp], the elements of table tabLanguage is:")
+for k,v in pairs(tabLanguage) do
+    print(k,v)
+end
+
+-- 定义处理nil的函数
+local function my_comp_new_with_nil(element1, elemnet2)
+    if element1 == nil then
+        return false;
+    end
+    if elemnet2 == nil then
+        return true;
+    end
+    return element1 > elemnet2
+end
+
+-- 创造一个空洞
+tabLanguage[2] = nil
+-- 使用默认函数排序
+--table.sort(tabLanguage, my_comp_new_with_nil)
+print("\nLUA>>>>>>After sort using [lua ascii cmp and nil], the elements of table tabLanguage is:")
+for k,v in pairs(tabLanguage) do
+    print(k,v)
+end
+
+-- 注意：table.sort只能对下标连续且为数字的table进行有效的排序
+lines = {
+     luaH_set = 10,
+     luaH_get = 23,
+     luaH_present = 48,
+}
+table.sort( lines )
+for n in pairs(lines) do
+     print(n)
+end
+
+print("\nhttps://blog.csdn.net/hello_crayon/article/details/50668201")
+local tb = {20, 10, 2, 3, 4, 89, 20, 33, 2, 3}
+table.sort(tb)                                                     -- 默认是升序排序
+table.sort(tb, function (a, b) if a > b then return true end end)  -- 修改为降序排序
+
+local tb = {x = 20, z = 10, y = 30, m = 2, n = 8} -- 这是一个key无序的table
+table.sort(tb)                                    -- 如果想按照key的升序排列，下列代码是不起作用的
+for k, v in pairs(tb) do
+	print(k .. " = " .. v)
+end
+
+-- 正确做法是将这个table的所有key放入到一个数组中，对这个数组进行排序。
+local tb = {x = 20, z = 10, y = 30, m = 2, n = 8} -- 这是一个key无序的table
+ 
+local keyTb = {}
+for k, _ in pairs(tb) do
+	keyTb[#keyTb + 1] = k
+end
+ 
+table.sort(keyTb)
+ 
+for _, v in ipairs(keyTb) do
+	print(v .. " = " .. tb[v])
+end
+
+
+--根据等级排序
+local function testSort(a,b)
+    return tonumber(a.level)> tonumber(b.level)
+end
+-- table.sort(tableName,testSort)
+ 
+ 
+--多条件排序，排列顺序优先级从高到低依次为：
+--第一：等级由高到低；
+--第二：稀有度由高到低；
+--第三：伙伴ID从高到低。
+ 
+local function sort_(a, b)
+  local r
+  local al = tonumber(a.level)
+  local bl = tonumber(b.level)
+  local aq = tonumber(a.data.quality)
+  local bq = tonumber(b.data.quality)
+  local aid = tonumber(a.pid)
+  local bid = tonumber(b.pid)
+  if  al == bl then
+    if aq == bq then
+      r = aid > bid
+    else
+      r = aq > bq
+    end 
+  else
+    r = al > bl
+  end
+  return r
+end
+--  table.sort(tableName,sort_)

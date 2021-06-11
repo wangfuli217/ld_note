@@ -1,0 +1,69 @@
+1. redis-cli 类型客户端 (单连接-阻塞等待)  单连接 -- 
+
+2. mfsmount  类型客户端 (多连接-阻塞等待)  多连接 -- 多条连接相互协作，--> mfsmaster单连接 -->mfschunkserver多连接
+3. sentinal  类型客户端 (多连接-非阻塞等待) 多连接 -- 多条连接相互协作
+4. libevent+async 类型客户端 (单连接-非阻塞等待) 单连接 -- 
+5. mfsmetalogger|mfschunkserver 类型客户端 (单连接-非阻塞等待) 单连接
+
+6. matocsserv.c 类型服务器端 (多连接-非阻塞) 多连接 -- 请求为主，接收为辅
+7. matoclserv.c 类型服务器端 (多连接-非阻塞) 多连接 -- 主接收
+8. matomlserv.c 类型服务器端 (多连接-非阻塞) 多连接 -- 主接收
+9. redis.c      类型服务器端 (多连接-非阻塞) 多连接 -- 主接收
+10. csserv.c    类型服务器端 (多连接-非阻塞) 多连接 -- 既做服务器端，又做客户端
+
+# udp
+11. dnsmasq.c   类型服务器端 (无连接数据报文)
+12. dnsmasq.c   类型客户端 (无连接数据报文)
+13. dnsmasq.c   类型客户端 (netlink)
+13. dnsmasq.c   类型客户端 (inotfy)
+
+协议 + 连接 -> API, 将协议设计成库，将连接设计成模块，如何将协议库和连接模块设计成 模块的API?
+将 人类语言 <-> 计算机识别的数据结构 <-> 计算机之间识别的协议
+
+
+[sockets.c] ->  [anet.c] -> 3. hiredis.c net.c -> matoclserv -> matocsserv
+1. 只提供系统接口封装，继承系统接口调用方式，增加超时读写连接
+2. 对系统接口进行封装，将系统接口errno错误作为字符串返回，自定义接口返回值
+3. 基于上下文redisContext进行封装，重定义了系统api的参数传递和返回值。返回值明示对错，上下文暗示错误值和错误原因。
+4. 被动应答管理(调用外部接口为主; 暴露内部接口为辅) : tcp 连接管理(服务器监听和客户端连接)，会话管理，数据包封装和解包
+5. 主动请求管理(既要调用外部接口; 又要暴露内部接口) : tcp 连接管理(服务器监听和客户端连接)，会话管理，数据包封装和解包
+
+
+连接管理 -- 客户端
+1. 连接对象建立 (IP地址解析)
+2. 连接服务器   (connect)
+3. 注册 Onconnectcb 和 Disconnectcb
+4. 配置发送内容和注册接收数据处理函数
+5. 连接对象释放 ()
+
+协议处理 -- 客户端
+1. 预设固定接收类型和长度缓冲区，预设接收数据指针和读取数据长度
+2. 从read中获得预设读取数据长度，移动结束数据指针，修改预设读取数据长度。预设读取数据长度等于0，步骤3，否则停留在步骤2
+3. 将步骤2获得的长度，设定为 预设读取数据长度。
+   从read中获得预设读取数据长度，移动结束数据指针，修改预设读取数据长度。预设读取数据长度等于0，步骤4，否则停留在步骤3
+4. 将获得数据报文追加到待处理消息队列中。然后再处理数据报文。
+
+typedef struct packetstruct {  # 老版本接收和发送 packet 结构体
+    struct packetstruct *next;
+    uint8_t *startptr;
+    uint32_t bytesleft;
+    uint8_t *packet;
+} packetstruct;
+
+typedef struct in_packetstruct { # 新版本接收 packet 结构体
+    struct in_packetstruct *next;
+    uint32_t type,leng;
+    uint8_t data[1];
+} in_packetstruct;
+
+typedef struct out_packetstruct {  # 新版本发送 packet 结构体
+    struct out_packetstruct *next;
+    uint8_t *startptr;
+    uint32_t bytesleft;
+    uint32_t conncnt;
+    uint8_t data[1];
+} out_packetstruct;
+1. 由一个packetstruct优化成in_packetstruct和out_packetstruct 两个结构体，优化后
+1.1 原先两层 malloc(packetstruct和packet) 变成一层 malloc (in_packetstruct和out_packetstruct) 优化内存管理
+1.2 接收处理上，提供了接收数据缓存功能，使得一次 masterconn_read 可以接收多个数据报文。       优化了IO处理
+

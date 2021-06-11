@@ -1,0 +1,149 @@
+
+    首先QScrollArea类提供了关于另一个窗口的滚动的视图。一个滚动区域通常用来显示在frame中的子窗口。
+如果这个子窗口超过了frame的大小，这个视图就会自动提供滚动条，这样子窗口的整个内容，都可以被用户看到。
+这个子窗口必须被指定函数setWidget()。
+
+第一步：建立一个scrollArea，放进一个widget。
+    方法1：手动写代码建立滚动区域：
+QLabel *imageLabel = new QLabel;  //任意一个继承于QWidget的控件都可以QImage image("happyguy.png");  
+imageLabel->setPixmap(QPixmap::fromImage(image));    
+scrollArea = new QScrollArea; //申请一个滚动区域，它本身是继承于QFramescrollArea->setBackgroundRole(QPalette::Dark);  
+scrollArea->setWidget(imageLabel);  //必须做的一步，将这个子窗口imageLabel装进scrollArea
+
+    方法2:更简单，直接在qt designer中直接拖一个QScrollArea:scrollArea进来，这个时候QScrollArea中
+自动被填入了一个QWidget：scrollAreaWidgetContents_3。
+
+第二步：指定scrollArea滚动策略：
+QAbstractScrollArea::horizontalScrollBarPolicy竖向滚动条延伸策略
+QAbstractScrollArea::verticalScrollBarPolicy横向滚动条延伸策略
+Qt::ScrollBarAsNeeded 0 控件自动判断，需要时候显示滚动条
+Qt::ScrollBarAlwaysOff 1 滚动条一直关闭
+Qt::ScrollBarAlwaysOn 2  滚动条一直开着
+    当然直接在设计师scrollArea的属性里修改也可以。
+
+第三步：Size Hints and Layouts
+    当用scroll area 显示自定义widget的时候，确定这个窗口合适的大小很重要。如果是一个标准的QWidget，
+你有必要通过QWidget::setMinimumSize() 设置一下这个控件的最小位置。这样当scrollArea只要小于这个值，
+scrollArea就能自动显示出滚动条了。
+    
+第四个：widgetResizable : bool 
+    scrollArea这个属性是用来自动更改widget大小，尽量避免滚动条的出现，或者充分利用空间。
+    
+
+# imgshowdynamic 项目
+//获取标签矩形
+QRect rcLabel = ui->labelShow->geometry();
+//为标签添加滚动区域，方便浏览大图
+QScrollArea *pSA = new QScrollArea(this);   //该对象交给主窗体自动管理，不用手动删除
+//把标签填充到滚动区域里
+pSA->setWidget(ui->labelShow);
+//设置滚动区域占据矩形
+pSA->setGeometry(rcLabel);
+
+https://blog.csdn.net/liang19890820/article/details/52402002
+    QScrollArea提供了一个滚动视图到另一个部件。
+    滚动区域用于显示一个画面中的子部件的内容。如果部件超过画面的大小，视图可以提供滚动条，这样就都可以看到部件的整个区域。
+
+基本使用
+----------------
+子部件必须使用setWidget()指定，例如：
+QLabel *imageLabel = new QLabel(this);
+imageLabel->setPixmap(QPixmap(":/Images/head"));
+
+QScrollArea *scrollArea = new QScrollArea(this);
+scrollArea->setBackgroundRole(QPalette::Dark);  // 背景色
+scrollArea->setWidget(imageLabel);
+
+可以使用widget()函数来获取部件，视图可以使用setWidgetResizable()函数来调整大小。
+有两个便利的函数：ensureVisible()和ensureWidgetVisible()，确保视口中的一定区域内容是可见的，必要时通过滚动内容。
+
+
+对齐方式
+----------------
+默认的对齐方式为：水平居左，垂直居上。可以通过setAlignment(Qt::Alignment)来改变。
+QLabel *imageLabel = new QLabel(this);
+QPixmap pixmap(":/Images/head");
+pixmap = pixmap.scaled(200, 200);
+imageLabel->setPixmap(pixmap);
+imageLabel->setStyleSheet("background: white;");  // 用于“部件调整大小”处效果对比
+
+QScrollArea *scrollArea = new QScrollArea(this);
+scrollArea->setBackgroundRole(QPalette::Dark);  // 背景色
+scrollArea->setWidget(imageLabel);
+scrollArea->setAlignment(Qt::AlignCenter);  // 居中对齐
+Qt::Alignment有很多可选项，分别表示水平和垂直方向的对齐方式，例如：左上右下。
+
+
+调整部件大小
+---------------- widgetResizable
+上面，通过setStyleSheet()为QLabel部件设置了白色背景色，但是，我们并没有发现背景有任何变化。
+因为默认情况下属性widgetResizable为false。滚动区域会保持部件的大小，也就是说QLabel自适应QPixmap的大小。
+如果要调整部件大小，有两种可选方式。
+
+手动调整
+----------------
+忽略这个属性，我们可以通过使用widget()->resize()来调整部件的大小，这时滚动区域会自动调整自身大小为新的尺寸。
+
+QLabel *imageLabel = new QLabel(this);
+QPixmap pixmap(":/Images/head");
+pixmap = pixmap.scaled(200, 200, Qt::KeepAspectRatio);  // 图片缩放
+imageLabel->setPixmap(pixmap);
+imageLabel->setStyleSheet("background: white;");  // 标签白色背景
+imageLabel->setAlignment(Qt::AlignCenter);  // 图片居中
+
+QScrollArea *scrollArea = new QScrollArea(this);
+scrollArea->setBackgroundRole(QPalette::Dark);  // 背景色
+scrollArea->setWidget(imageLabel);
+scrollArea->setAlignment(Qt::AlignCenter);  // 居中对齐
+scrollArea->widget()->resize(260, 260);  // 手动调整大小
+
+自动调整
+----------------
+如果widgetResizable被设置为true，则滚动区域部件将自动调整，以避免可以不显示的滚动条，或者利用额外的空间。
+
+QLabel *imageLabel = new QLabel(this);
+QPixmap pixmap(":/Images/head");
+pixmap = pixmap.scaled(200, 200, Qt::KeepAspectRatio);  // 图片缩放
+imageLabel->setPixmap(pixmap);
+imageLabel->setStyleSheet("background: white;");  // 标签白色背景
+imageLabel->setAlignment(Qt::AlignCenter);  // 图片居中
+
+QScrollArea *scrollArea = new QScrollArea(this);
+scrollArea->setBackgroundRole(QPalette::Dark);  // 背景色
+scrollArea->setWidget(imageLabel);
+scrollArea->setAlignment(Qt::AlignCenter);  // 居中对齐
+scrollArea->setWidgetResizable(true);  // 自动调整大小
+
+获取与移除部件
+----------------
+获取
+----------------
+可以通过widget()函数来获取滚动区域的部件，如果没有，则返回0。
+QWidget *widget = scrollArea->widget();
+QLabel *pLabel = qobject_cast<QLabel *>(widget);
+如果部件是一个QWidget的子类，可以用qobject_cast进行类型转换。
+
+移除
+----------------
+如果要将部件从滚动区域中移除（即：在上例中，滚动区域不再显示图片），使用takeWidget()函数。
+QWidget *widget = scrollArea->takeWidget();
+QLabel *pLabel = qobject_cast<QLabel *>(widget);
+移除的同时，会将部件的所有权传递到调用者，可以用QWidget来接收。
+
+
+
+
+
+================================================================================
+https://zhuanlan.zhihu.com/p/28615273
+
+水平滚动策略，垂直滚动策略：
+    Qt::ScrollBarAsNeeded：当视口无法完全显示窗口时，显示滚动条，否则不显示。
+    Qt::ScrollBarAlwaysOff：不显示滚动条。
+    Qt::ScrollBarAlwaysOn：无论如何都显示滚动条。
+
+SizeAdjustPolicy：
+    QAbstractScrollArea::AdjustIgnored：视口改变大小，滚动区域并不改变大小
+    QAbstractScrollArea::AdjustToContents：视口改变大小，滚动区域也改变大小
+    QAbstractScrollArea::AdjustToContentsOnFirstShow：在第一次显示时就改变滚动区域的大小
+当想要将滚动条定位到某个位置时，可以获取水平或垂直滚动条指针，并调用setValue()接口。

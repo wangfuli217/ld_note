@@ -1,0 +1,81 @@
+macro_typedef(ev.h){
+1. EV_FEATURES : 用来控制打开的特性。
+
+#ifndef EV_FEATURES
+# if defined __OPTIMIZE_SIZE__
+#  define EV_FEATURES 0x7c
+# else
+#  define EV_FEATURES 0x7f
+# endif
+#endif
+
+其中特性分为：
+    #define EV_FEATURE_CODE ((EV_FEATURES)&1)
+    #define EV_FEATURE_DATA ((EV_FEATURES)&2)
+    #define EV_FEATURE_CONFIG ((EV_FEATURES)&4)
+    #define EV_FEATURE_API ((EV_FEATURES)&8)
+    #define EV_FEATURE_WATCHERS ((EV_FEATURES)&16)
+    #define EV_FEATURE_BACKENDS ((EV_FEATURES)&32)
+    #define EV_FEATURE_OS ((EV_FEATURES)&64)
+
+EV_FEATURE_CODE
+EV_FEATURE_DATA
+EV_FEATURE_CONFIG
+
+用来控制多种内核行为：
+宏                值                         说明
+EV_MINPRI        EV_FEATURE_CONFIG ? -2 : 0  最低优先级，能够控制是否开启优先级事件队列
+EV_MAXPRI        EV_FEATURE_CONFIG ? +2 : 0  最高优先级
+EV_MULTIPLICITY  EV_FEATURE_CONFIG           是否采用多个内核引擎
+
+
+EV_FEATURE_API
+EV_FEATURE_WATCHERS 控制是否打开某一些高级的监控器，例如周期监控器、文件状态监控器等
+宏                      值                                      说明
+EV_PERIODIC_ENABLE      EV_FEATURE_WATCHERS                     开启 ev_periodic 监控器
+EV_STAT_ENTABLE         EV_FEATURE_WATCHERS                     开启 ev_stat 监控器
+EV_PREPARE_ENABLE       EV_FEATURE_WATCHERS                     开启 ev_prepare 监控器
+EV_CHECK_ENABLE         EV_FEATURE_WATCHERS                     开启 ev_check 监控器
+EV_IDLE_ENABLE          EV_FEATURE_WATCHERS                     开启 ev_idle 监控器
+EV_FORK_ENABLE          EV_FEATURE_WATCHERS                     开启 ev_fork 监控器
+EV_CLEANUP_ENABLE       EV_FEATURE_WATCHERS                     开启 ev_cleanup 监控器
+EV_SIGNAL_ENABLE        EV_FEATURE_WATCHERS                     开启 ev_signal 监控器
+EV_CHILD_ENABLE         if _WIN32 0 else EV_FEATURE_WATCHERS    开启 ev_child 监控器
+EV_ASYNC_ENABLE         EV_FEATURE_WATCHERS                     开启 ev_async 监控器
+EV_EMBED_ENABLE         EV_FEATURE_WATCHERS                     开启 ev_embed 监控器
+EV_WALK_ENABLE          0                                       todo，还未开启
+
+其中如果 EV_CHILD_ENABLE 开启，而 EV_SIGNAL_ENABLE 未开启，则打 开 EV_SIGNAL_ENABLE 监控器。
+EV_FEATURE_BACKENDS
+EV_FEATURE_OS
+
+2. EV_P & EV_A & EV_DEFAULT
+#if EV_MULTIPLICITY
+struct ev_loop;
+# define EV_P struct ev_loop *loop
+# define EV_P_ EV_P,
+# define EV_A loop
+# define EV_A_ EV_A,
+# define EV_DEFAULT_UC ev_default_loop_uc_ ()
+# define EV_DEFAULT_UC_ EV_DEFAULT_UC,
+# define EV_DEFAULT ev_default_loop(0)
+# define EV_DEFAULT_ EV_DEFAULT,
+#else
+# define EV_P void
+# define EV_P_
+# define EV_A
+# define EV_A_
+# define EV_DEFAULT
+# define EV_DEFAULT_
+# define EV_DEFAULT_UC
+# define EV_DEFAULT_UC_
+# undef EV_EMEBED_ENABLE
+#endif
+
+3. EV_COMMON
+#define EV_COMMON void *data
+
+4. EV_CB_DECLARE & EV_CB_INVOKE
+#define EV_CB_DECLARE(type) void (*cb)(EV_P_ struct type *w, int revents);
+#define EV_CB_INVOKE(watcher,revents) watcher->cb(EV_A_ (watcher), (revents))
+}

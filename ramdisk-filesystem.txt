@@ -1,0 +1,244 @@
+创建
+mkdir rootfs
+mkdir rootfs/{dev,bin,usr,sbin,lib,etc,proc,sys,var}
+mkdir rootfs/usr/{bin,sbin,lib}
+mkdir rootfs/var/{lib,lock,log,run,tmp}
+chmod 777 rootfs/var/tmp
+
+tar jxvf busybox-1.21.1.tar.bz2
+cd busybox-1.21.1
+make menuconfig
+
+BusyBox Setting --> Build Options -->将busybox设置为静态编译
+BusyBox Setting --> Installation Options --> 设置安装目录为rootfs
+Init Utilities --> Support read an inittab file 支持读取/etc/inittab
+make && make install
+
+将/usr/local/arm/4.4.3/arm-none-linux-gnueabi/libc/lib下的所有文件拷贝到rootfs/lib
+
+cd rootfs/dev
+
+mknod console c 5 1
+mknod full c 1 7
+mknod kmem c 1 2
+mknod mem c 1 1
+mknod null c 1 3
+mknod port c 1 4
+mknod random c 1 8 
+mknod urandom c 1 9
+mknod zero c 1 5
+for i in `seq 0 7 `; do mknod loop$i b 7 $i; done
+for i in `seq 0 9 `; do mknod ram$i b 1 $i; done
+ln -s ram1 ram
+for i in `seq 0 9 `; do mknod tty$i$i c 4 $i; done
+for i in `seq 0 9 `; do mknod vcs$i$i b 7 $i; done
+ln -s vcs0 vcs
+for i in `seq 0 9 `; do mknod vcsa$i$i b 7 $i; done
+ln -s vcsa0 vcsa
+
+/etc/init.d.rcS
+#! /bin/sh
+/bin/mount -a
+
+/etc/inittab
+::sysinit:/etc/init.d/rcS
+::askfirst:-/bin/bash
+::restart:/sbin/init
+::ctrlaltdel:/sbin/reboot
+::shutdown:/bin/umount -a -r
+
+/etc/fstab
+proc /proc proc default 0 0
+tmpfs /tmp tmpfs default 0 0
+sysfs /sys sysfs default 0 0
+tmpfs /dev tmpfs default 0 0
+var /dev tmpfs default 0 0
+
+mkdir /mnt/ramdisk
+mke2fs -vm0 /dev/ram 8192
+mount -t ext2 /dev/ram /mnt/ramdisk
+cp -af rootfs/* /mnt/ramdisk
+cd /
+umount /mnt/ramdisk
+dd if=/dev/ram of=ramdisk bs=1k count=8192
+gzip -v9 ramdisk 
+最后生成ramdisk.gz文件系统镜像。
+
+编译内核时选择支持initramfs/initrd
+同时在initramfs source中传递初始化参数：initrd=0x21100000,80000000 root=/dev/ram rw init=linuxrc console=ttyS0 115200,mem=32M
+
+
+
+
+
+
+linux-2.6.32.tar.bz2
+yaffs2.tar.gz
+arm-linux-gcc-4.4.3.tar.gz
+mkyaffs2image.tar
+
+将yaffs2.tar.gz复制到内核源码的fs目录下进行解压。
+vim arch/arm/tools/mach-types
+s3c2440 ARCH_S3C2440 S3C2440 362 修改为s3c2440 ARCH_S3C2440 S3C2440 782
+
+vim arch/arm/mach-s3c2440/mach-smdk2440.c 将s3c24xx_init_clocks(12000000) //将频率设置为12MHz
+解压yaffs2.tar.gz后执行 patch-ker.sh
+./patch-ker.sh c /usr/local/arm/linux-2.6.29.6 ##在fs目录的Kconfig和Makefile中增加了对YAFFS的支持
+
+make menuconfig 
+File systems --> Miscellaneous filesystems --> 选择对YAFFS2文件系统的支持
+System Type --> ARM system type 选择SamsungS3C24xx系列
+
+make distclean
+make zImage
+
+编译Busybox
+为Yaffs准备库
+
+制作etc下必要的文件
+/etc/inittab                
+::sysinit:/etc/init.d/rcS
+s3c2410_serial0::askfirst:-/bin/sh #文件drivers/serial/s32410.c中指定了串口驱动名字s2c2410_serial
+::restart:/sbin/init
+::ctrlaltdel:/sbin/reboot
+::shutdown:/bin/umount -a -r
+
+/etc/init.d.rcS
+#! /bin/sh
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+runlevel=S
+prevlevel=N
+umask 022
+export PATH runlevel prevlevel
+mount -a
+mkdir /dev/pts
+mount -t devpts devpts /dev/pts
+echp /sbin/mdev > /proc/sys/kernel/hotplug
+mdev -s
+mkdir -p /var/lock
+/bin/hostname -F /etc/sysconfig/HOSTNAME
+/etc/profile
+USER="`id -un`"
+LOGNAME=$USER
+PS1='[Yaffs_liuG]'#
+PATH=$PAHT
+HOSTNAME=`/bin/hostname`
+export USER LOGNAME PS1 PATH
+
+/etc/sysconfig/HOSTNAME
+Yaffs@LiuG
+
+/etc/fstab
+proc /proc proc default 0 0
+tmpfs /tmp tmpfs default 0 0
+sysfs /sys sysfs default 0 0
+tmpfs /dev tmpfs default 0 0
+var /dev tmpfs default 0 0
+
+制作YAFFS镜像文件
+tar xvf mkyaffs2image.tar
+mkyaffs2image yaffs_root yaffs_root.img
+
+mkfs.jffs2需要zhb库和mtd-utils
+
+YAFFS2自带MTD驱动，而JFFS2文件系统需要在内核中配置MTD驱动支持，内核也必须支持JFFS2文件系统
+在编译内核时选择Device Drivers --> Memory Technology Device(MTD) support -->
+在编译内核时选择File Systems --> Miscellaneout filesystems -->进入Miscellaneout filesystems选择支持jffs2文件系统
+制作jffs2需要zlib-1.2.8.tar.gz 和 mtd-utils-1.5.0.tar.bz2
+./configure --prefix=/usr/local/arm/4.4.3/arm-none-linux-gnueabie/libc -shared
+CC=arm-linux-gcc LDSHARED=arm-linux-gcc -shared -Wl,-soname,libz,so.1,--version-script,zlib.map CPP=arm-linux-gcc -E AR=arm-linux-ar RANLIB=arm-linux-ranlib
+make
+make install
+
+tar jxcf mtd-utils-1.5.0.tar.bz2
+cd mtd-utils-1.5.0
+make 
+make install
+
+PATH=$PATH:/usr/local/jffs_root/tmp/mtd-utils-1.0.0
+mkfs.jffs2 -r jffs_root -o jffs_root.jffs2 -e 0x4000 --pad-0x80000 -s 0x200 -n
+-r:指定文件系统
+-o:指定输出地镜像文件
+-e:擦除块的大小blocksize 不同的flask其block size不一样
+--pad 指定输出文件的大小，也就是jffs_root.jffs2的大小，重要的是为了不浪费flash的空间，该值应该符合flash driver划分块的大小
+-n:在每个擦除块中不添加clreanmarker
+
+
+cramfs
+mkfs.cramfs rootfs cram.img
+rootfs文件系统目录
+cram.img生成的镜像文件名
+
+genromfs-0.5.2.tar.gz
+./genromfs -V "xromfs" -f romfs.img -d ../rootfs -v
+
+
+内核启动参数bootargs设置root根设备，通常为一个块设备，有一些特殊得得量：如果设置为root=/dev/nfs表示使用NFS作为根文件系统（需要指定IP地址，nfsroot=）；
+如果设置为root=/dev/ramx表示使用RAMDisk构建根文件系统
+例如，以下设置表示将initrd作为内存盘，启动根文件系统
+root=/dev/ram0 console=ttyS0 initrd=0xa0800000,0x008000 rw mem64M
+其中，指定的root=为根文件系统的设备名称，
+在通常情况下，如果通过u-boot启动Linux内核，则可以通过在u-boot中设置bootargs参数来完成，其中，设置根文件系统的选项是通过指定root=的内容。
+如果通过NFS网络文件系统做为根文件系统的启动方式的u-boot启动参数如下：
+setenv bootargs=console=ttyS2,115200n8=noinitrd mem=64M root=/dev/nfs rw nfsroot=192.168.0.1:/nfs,ip192.168.0.2 init=/init
+setenv bootargs=console=ttyS2,115200n8 mem=64M rdinit=/init mtdparts=nand:8m@8m(kernel),32m@16m()
+setenv bootargs=console=ttyS2,115200n8 rw root=/dev/mmcblk0p1 mem=128M devfs=mount rootdelay=1 init=/init
+root=/dev/ram0 console=ttyS0 initrd=0xa0800000 rw mem=6M
+
+
+### 重新加载新的rootfs文件系统 ###
+内核镜象已经准备好了，这个时候我们就要来准备文件系统了。由于时间缘故，本人暂时采用的是其他 人已经好的文件系统k9.img.gz。 这个时候我们要做的是，自己写一个简单hello.c的程序，编译通过后加入到该文件系统中，然后下载到目标板中运行。
+先编写hello.c；
+编译：
+#/usr/local/arm/2.95.3/bin/arm-linux-gcc –o start-hello hello.c
+编译后生成可执行文件start-hello
+下面我们就必须把该执行文件加入到文件系统中去，步骤如下：
+#gunzip k9.img.gz                     //解 压缩
+#mount –o loop k9.img /mnt/new_disk    //挂载
+#cp start-hello /mnt/new_disk           //将 文件拷贝到文件系统中
+#cd /mnt/new_disk
+#umount /mnt/new_disk                 //卸 载
+#gzip –c –v9 k9.img > k9.img.gz          //压缩生成最终的文件系统
+下面我们就要下载内核以及准备好文件系统了，这边先说明我 的内存分配情况如下：
+Flash：
+0x10000000 ――― 0x10020000     boot
+0x10020000 ――― 0x10040000     uboot
+0x10040000 ――― 0x10060000     uboot env
+0x10060000 ――― 0x10200000     kernel
+0x10200000 ――― 0x11000000     ramdisk
+Sdram：
+0x20007fc0 ――― 0x20a00000     kernel
+0x20a00000 ―――                ramdisk
+Loadb 通过串口下载数据到ram中
+cp.b    拷贝ram中的数据到flash中。
+将kernel以及文件系统ramdisk下载完 毕之后，我们还需要设置uboot的 环境变量，这样uboot才 能够在上电启动的时候启动内核等操作。环境变量设置如下：
+Set cpfltoram cp.b 10200000 20a00000 18ffff            //拷贝文件系统到ram中
+Set boot bootm 20007fc0                            //启动kernel
+Set bootcmd run cpfltoker\;run cpfltoram\;run boot       //uboot复位的执行指令
+Set cpfltoker cp.b 10060000 20007fc0 f4fff             //拷贝内核到ram中
+Set bootargs root=/dev/ram rw initrd=0x20a00000,4M init=/linuxrc console=ttyS0,11520
+0,mem=32m                      //uboot传 递给内核的启动参数
+设置完毕后，saveenv把 环境变量存储起来。
+学习心得：zImage 和uImage 都是生成的可执行内核镜像文件  
+2者在u-boot中启动的方式分别是 go addr 与 bootm addr 来实现启动过程的
+即对于zImage是通过 go 来进行引导   而uImage是通过bootm来进行引导的
+zImage 和 uImage 2者的关系 是 uImage 是zImage通过mkimage （u--boot下面tools下的工具）来生成的
+结果是后者比前者在头部多了64个byte，这多余的64 个byte是用来通知给u-boot用的；将相关信息告知u-boot;
+这样做的结果在u-boot引导内核时存在2个地址：loadaddress 和entry address 2者的差值刚好是0x40(64byte)的大小
+这样在使用bootm loadaddress 时u-boot会根据相应的loadaddress进行调整，有2中情况；
+1）、当loadaddress与mkimage时传送的一致时：
+          那么在加载 ldr pc,entry address时，会选择mkinage 时的entry地址；即pc=loadaddress + 4;然后由pc来控制流程跳转倒ram中去执行；
+2）、当loadaddress与mkimage时传送的不一致时：
+          那么，u-bbot会进行地址比较 后，将当前的loadaddress减去64byte后，将真正的内核映像（去掉64byte头部的内核）拷贝倒预先制定的loadaddress，然后 直接从这个loadaddress来引导内核运行；
+总结，那么上面2中情况实际区别呢？其实就是最终代码执行时，如果地址与mkinage时指定的 不符，那么u-boot将进行去头后，拷贝内核代码，直接执行；而如果不处理，则会将 loadaddress+0x40来执行内核；
+通过tftp服务来下载 zImage或者uImage；
+loadb   在tftp不成功的情况下使用  串口来下载内核 希望不要用这个方法
+cp【.b\.w\.l】 完成 内存之间 内存向flash之间进行拷贝
+最后可以设置 bootcmd 环境变量可以实现 u-boot自动引导内核启动
+至于文件系统的2中方式：ramdisk 以及nfs 推荐开发者使用nfs  方便修改；
+当使用ramdisk时，
+#gunzip k9.img.gz                     //解压缩
+#mount –o loop k9.img /mnt/new_disk    //挂 载
+#umount /mnt/new_disk                 //卸载
+#gzip –c –v9 k9.img > k9.img.gz          //压 缩生成最终的文件系统
+这四条命令不要忘记，对于你来说多么强大

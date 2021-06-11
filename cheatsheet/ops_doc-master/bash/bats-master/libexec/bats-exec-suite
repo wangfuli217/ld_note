@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -e
+
+count_only_flag="" # 使用大写还是小写，从可读性上而言，小写较好
+if [ "$1" = "-c" ]; then # 内部使用，参数位置固定的，可以用if shift方式
+  count_only_flag=1
+  shift
+fi
+
+extended_syntax_flag=""
+if [ "$1" = "-x" ]; then
+  extended_syntax_flag="-x"
+  shift
+fi
+
+trap "kill 0; exit 1" int # trap注册处理函数
+
+count=0
+for filename in "$@"; do
+  let count+="$(bats-exec-test -c "$filename")" # -c 用来计算测试用例个数
+done
+
+if [ -n "$count_only_flag" ]; then
+  echo "$count"
+  exit
+fi
+
+echo "1..$count" # echo "1..$count"    # 1..100
+                 # echo "{1..$count}"  # {1..100}
+                 # echo {1.."$count"}  # {1..100}
+                 # echo "{1..100}"     # {1..100}
+                 # echo "1..100"       # 1..100
+                 # echo {1..10}       # 1 2 3 4 5 6 7 8 9 10
+status=0
+offset=0
+for filename in "$@"; do
+  index=0 # 前后都是用let方法进行数值计算
+  { # {} 可以将多条命令作为一个命令组，命令组内的命令输入、输出重定向到相同的流内. -- 管理重定向->管道的使用
+    IFS= read -r # 除去文件头一行，
+    while IFS= read -r line; do # IFS=保证行头和行尾的空格、Tab不会被忽略掉；-r保证读取内容中\不会被忽略
+      case "$line" in # case的格式 
+      "begin "* )     # bash的glob模式匹配,不能使用""扩住
+        let index+=1
+        echo "${line/ $index / $(($offset + $index)) }"
+        ;;
+      "ok "* | "not ok "* ) # bash的glob模式匹配,不能使用""扩住
+        [ -n "$extended_syntax_flag" ] || let index+=1
+        echo "${line/ $index / $(($offset + $index)) }"
+        [ "${line:0:6}" != "not ok" ] || status=1
+        ;;
+      * )
+        echo "$line"
+        ;;
+      esac
+    done
+  } < <( bats-exec-test $extended_syntax_flag "$filename" ) # <(command) 进程替换
+  offset=$(($offset + $index)) # $(()) $[] expr 也行
+done
+
+exit "$status"

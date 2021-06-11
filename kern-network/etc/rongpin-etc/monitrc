@@ -1,0 +1,79 @@
+################################################################
+## Global configuration
+################################################################
+set daemon  60            
+      with start delay 240  
+set pidfile /var/run/monit.pid     
+set logfile /var/log/monit.log                       
+set idfile /var/.monit.id
+set statefile /var/.monit.state
+
+set httpd port 2812 and
+    allow 192.168.10.255/255.255.0.0        
+    allow admin:monit
+
+################################################################
+## system configuration
+################################################################
+check system www.rtu.xianleidi.com
+  if loadavg (1min) > 4 then alert
+  if loadavg (5min) > 2 then alert
+  if memory usage > 75% then alert
+  if cpu usage (user) > 80% then alert
+  if cpu usage (system) > 80% then alert
+  if cpu usage (wait) > 80% then alert
+ 
+################################################################
+## rtud configuration
+################################################################
+check process rtud with pidfile /var/rtud/.rtud.lock
+  start program = "/sbin/rtud start" with timeout 60 seconds
+  stop program  = "/sbin/rtud stop"
+  if cpu > 60% for 2 cycles then restart
+  if cpu > 80% for 5 cycles then restart
+  if totalmem > 1500.0 MB for 5 cycles then restart
+  if loadavg(5min) greater than 10 for 8 cycles then restart
+  if failed host 192.168.1.232 port 5000
+     with timeout 15 seconds
+     then restart
+
+################################################################
+## ftp configuration
+################################################################     
+check process vsftpd with pidfile /var/run/vsftpd.pid
+  start program = "/etc/init.d/ftpd.sh start" with timeout 60 seconds
+  stop program  = "/etc/init.d/ftpd.sh stop"
+  if cpu > 60% for 2 cycles then alert
+  if cpu > 80% for 5 cycles then restart
+  if totalmem > 100.0 MB for 5 cycles then restart
+  if loadavg(5min) greater than 10 for 8 cycles then stop
+  if failed host 192.168.1.232 port 21 
+     with timeout 15 seconds
+     then restart  
+
+################################################################
+## telnet configuration
+################################################################ 
+check process telnetd with pidfile /var/run/telnetd.pid
+  start program = "/etc/init.d/telnetd.sh start" with timeout 60 seconds
+  stop program  = "/etc/init.d/telnetd.sh stop"
+  if cpu > 60% for 2 cycles then alert
+  if cpu > 80% for 5 cycles then restart
+  if totalmem > 100.0 MB for 5 cycles then restart
+  if loadavg(5min) greater than 10 for 8 cycles then stop
+  if failed host 192.168.1.232 port 23 
+     with timeout 15 seconds
+     then restart  
+
+check file rtud.cfg with path /etc/rtud/rtud.cfg
+  if failed uid root then alert
+  if failed gid root then alert
+  if timestamp > 15 minutes then alert
+ 
+
+check host myserver with address 192.168.10.109
+   if failed icmp type echo count 3 with timeout 3 seconds then alert
+ 
+ 
+ 
+

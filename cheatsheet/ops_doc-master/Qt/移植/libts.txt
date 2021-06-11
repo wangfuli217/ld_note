@@ -1,0 +1,39 @@
+
+1. linear
+1.1 /etc/pointercal
+The format of pointer cal is as follows,
+xscale xymix xoffset yxmix yscale yoffset scaler
+
+    After these seven numbers, I have a null and two other values which I don't know what they do. 
+The pointercal is only used for module linear (/etc/ts.conf). You can see the source here,
+
+https://github.com/libts/tslib/blob/a362845b3ca6d32ff1fe1dec333606916c71cfde/plugins/linear.c
+
+Here is another formula without array values,
+Xs -> x screen value, Xt -> x touch value, Ys, Yt similar.
+
+Xs = (Xt*xscale + Yt*xymix + xoffset)/scaler
+Ys = (Xt*yxmix + Yt*yscale + yoffset)/scaler
+
+    This is an affine transform (or subset as the 'Xt*Yt' is not used). If your touch is capacitive it may be quite linear. 
+Resistive touch screens usually need individual calibration, may drift over time/temperature and are likely to need 
+re-calibration at some point.
+
+
+xres = 720, yres = 1280
+Took 28 samples...
+Top left : X =   58 Y =    0
+Took 22 samples...
+Top right : X =  479 Y =    9
+Took 16 samples...
+Bot right : X =  479 Y =  839
+Took 14 samples...
+Bot left : X =   56 Y =  842
+Took 10 samples...
+Center : X =  272 Y =  432
+-35.609467 1.469068 0.001706
+43.812866 -0.010227 1.411253
+
+820 480 屏大小
+
+

@@ -1,0 +1,334 @@
+exp:
+1. maybe the format needs '\n' at last
+2. scanf regards "aa bb" as 2 word, and auto disgard following '\n'
+3. puts auto add '\n', 
+   int cnt = puts("hello") cnt == 6
+4. bool比int更快 
+5. getchar - int; scanf %c - char 
+6. when need min, INT32_MAX; when need max, 0
+7. local vars not in consecutive mem, unless declared in an array!!!
+8. YES'\n'NO, no last'\n'
+9. bfs与dfs区别 FIFO和FILO 把queue换成stack bfs就成了dfs
+10. RE - arr[-1]; arr size too small
+11. arr size small - RE/WA
+12. one DAG has mutiple toposorts
+13. no use of float, for the sake of precision, error result
+14. -Wall -O2 must!!
+15. memset(buf, 0, SIZE * 4);
+
+WA --
+1. misunderstanding
+2. \n ' '
+3. SIZE or SIZE * 4
+4. memset(buf, 0, sizeof(buf));
+
+RE --
+1. a/0 a%0
+2. stack overflow
+3. index too small/large  arr[-1] arr[INT32_MAX]
+
+
+108 Maximum Sum 
+basic 2d maxsum
+for 1d, at least we could use O(n^2) algo, 1,1~2..1~n, 2,2~3..2~n, n-1,n-1~n,n
+but use dp, states converting formula: sum[i] = max{sum[i-1]+a[i], a[i]}, solve it in O(n)
+for 2d, we can't use double O(n), so row in O(n^2) while col in O(n), total is O(n^3)
+the trick is combine multy rows into one tmp row, dealing with the single one every time
+
+
+112 Tree Summing
+给出lisp语法的树表达式 (5(4(11(7()())(2()()))()) (8(13()())(4()(1()()))))，判断给定值是否是该树中某路径值
+自己只需处理 ‘(‘+自己值+递归孩子+’)’
+不需建树 dfs递归时即可判断是否吻合 若是即可提前返回
+当然得确保此case的缓冲区都被取完 否则下case就杯具了
+
+
+122 Trees on the Level
+array bin tree, 256 nodes at most may waste alot of array spaces
+but 16000 elems are adequate, namely not exceed 14 levels(2^14=16384)
+when set data into the array, if a node during one path is empty, 
+mark it as NOT(-1), meanwhile count the NOT nodes
+care about the empty during a path not after a path
+when meet with a array space which has been set to >0, not = 1
+when it's been NOT, set the new val and dec the NOT counter
+
+
+140 Bandwidth		(strtok)
+题被描述的含糊的。。 asm题老这样 绕弯把简单问题复杂描述化 开头总还喜欢写段小故事。。锻炼建模能力？
+给定点和边 求某排列下2连接点最长距离（即为带宽）的最小距离
+算距离时是按字母的排列来整 比如 A B C D E F G 不管AG是否有边 其距离为7
+邻接矩阵+回溯 以结果字符串位置为维度
+我只在处理完整解集时有剪枝
+当前带宽==剩余字符数时 跳过余下字符
+当最小带宽为2 就不必继续枚举全部返回 当然碰到带宽为2的情况太少了
+貌似在枚举排列和每维度构造候选解时也可以剪
+for (token = strtok(buf, ";"); token; token = strtok(NULL, ";"))
+
+
+146 ID Codes
+find the next permutation, so will next_permutation will be so simple
+but see in http://www.algorithmist.com/index.php/UVa_146
+it's dijkstra's permutation algorithm, like 729
+	/* can't ++ -- in SWAP */
+	++rm_increase, --p;
+	SWAP(*rm_increase, *p);
+
+
+165 Stamps
+给定邮票个数和面值种数 求可生成的由1起始增量为1的邮票值的最大连续区间及获得该区间的各种可能面值集合
+比如对4张票5种面值的组合 (1, 4, 12, 21)可获得最大区间1～71
+邮票面值可无限大下去。。
+我打表过的 太不好意思了。。 就这ranking才158。。 更不好意思了
+今日在《程序设计中的组合数学》中第5章“母函数”习题中看到该题 牛同学对于这样的非数学问题有兴趣有空可以瞅瞅
+
+
+167 The Sultan’s Successors
+8皇后 只是给每格子加了数值 求数值和最大的一种排列
+加个矩阵就行 到时对号加和
+
+
+195 Anagram
+以AaBbCcDd…..YyZz增序排列
+造alpha[] 大写放2n小写放2n+1 当给定字串中有重复字符时 对应项++
+一次遍历alpha[]造list[] 增序收集所有用到字符 避免以后每次在alpha[]中查找
+但list[]中只管是否出现 不管出现几次 出现次数由alpha[]处理
+在每层回溯中由list[]构造候选集 判断对应项在alpha[]中是否被用光了
+而由候选集构造解集时
+			tmp = candidates[i];
+			if (tmp & 0x1) {
+				ch = ((tmp - 1) >> 1) + 'a';
+			} else {
+				ch = (tmp >> 1) + 'A';
+			}
+			str[dms] = ch;
+			--alpha[tmp];		/* set */
+			backtrack(dms + 1);
+			++alpha[tmp];		/* unset */
+即可避免aabc aabc重复输出
+此题和10098几乎一样 但那题wa数次 最后找到问题时。。。那些工作人员还是不负责任
+
+
+216 Getting in Line(10034, 10496)
+数据量不大（2～8） 就回溯了
+结点数量作维度 graph[][]内放各点间距
+题不难 但给的教训是大大的
+尽量不用float 在遍地都是double的世界 用float是很危险的 精度问题导致结果不同 真遇到了 wa原因之一
+编译时一定要开-Wall警告
+如果不debug 尝试开-O2
+我犯贱当时写了for (...; ...; ) graph[solutions[i]][solutions[i++]];
+这是很典型的同序列点内对变量取值/改值次序不确定导致的编译未定义行为
+因为没开-Wall 木有警告 并且本地测试数据一切正常 但提交总wa 忽然意识到uva上编译会开-O2优化 本地开后编译 --
+竟然输出结果就不同了。。也懒得去反汇编看看优化后的结果。。
+
+
+253 Cube Painting
+模拟题
+正方体可有3种转法
+向左（右）向上（下）顺时针（逆时针）
+4圈归位均可归位 但为交错的情况 在大4循环中改双4 改另1即可构造所有旋转可能
+	for (i = 0; i < 4; ++i) {
+		for (j = 0; j < 4; ++j) {
+			turn_west(a);
+			if (equal(a, b)) return 1;
+		}
+		for (j = 0; j < 4; ++j) {
+			turn_clockwise(a);
+			if (equal(a, b)) return 1;
+		}
+		turn_north(a);
+		if (equal(a, b)) return 1;
+	}
+
+
+260 Il Gioco dell'X
+常规邻接指周边8点 但题目要求不能向右上和左下走 并且不能有平局 所以只需判断一种颜色是否可以从某边走向对边
+wwwwwb
+wbbbwb
+wbwwbb
+wbwwww
+wwbwww
+wwwbww    比如黑棋可以这样布局 黑赢 深搜即可
+
+
+369 Combinations
+dp, use binomial coefficient matrix because n,m <= 100
+it's a pascal triangle
+	bc[i][j] = bc[i - 1][j - 1] + bc[i - 1][j];
+
+
+481 What Goes Up 
+LIS, use nlogn
+3 arrays:
+input[]
+lis[]	just for count the count, at last the contents are not the right list
+dp[]	for output the longest list, record every elem's happend position in lis[], namely it's degree for LIS
+for bsearch low<=high;low=mid+1;high=mid-1;return low; are ok to find the proper position in lis[] to substitute
+
+
+482 Permutation Arrays
+don't treat them as double instead of string
+
+
+495 Fibonacci Freeze
+f(5000) has 1045 digits
+
+
+507 Jill Rides Again
+1d maxsum, position record
+vague description
+if some have the equal max value, find the longest path
+if 1 -1 1 -1 1, answer is 1 to last
+
+
+530 Binomial Showdown
+like 369 but alot of differences
+C & n are undefined, so can't use the method of 369, for the sake of overflow
+use "multiply while divide" method to avoid overflow
+althoungh it's said that the result is within 2^31, during the process, "multiply" will make it overflow
+
+
+725 Division
+backtrack
+just enumerate the divisor, then  dividend = atoi(solutions) * quotient;
+judge whether dividend has '5' all different digits
+e.g. 2956 / 01478 = 2 is wrong
+and for all of the quotients >9, the divisor won't be larger than 9999, 
+namely solutions[0] must be '0', pruning
+
+
+727 Equation
+WA all the time
+infix to postfix, see here http://scriptasylum.com/tutorials/infix_postfix/algorithms/infix-postfix/index.htm 
+
+
+784  Maze Exploration(785)
+only 1 '*' start point
+floodfill, and only UDLR 4 direction
+it's said that no outdoor door, namely surrouded by at least 1 byte of wall 
+so expansion in floodfill are always legal
+
+
+785 Grid Coloring(784)
+the first printable is the contour
+and traver all the graph, find all marks stored in an array
+dealing with each marks separately
+need to bigger than 30*80
+
+
+825 Walking on the Safe Side
+simple dp, dp[i][j] = dp[i-1][j] + dp[i][j-1]
+notice
+(1,1) (w,m) = 0
+if there's only 1 row/col and at least 1 underground passage, so the result is 0 not 1
+
+
+836 Largest Submatrix
+2d maxsum, but values are only 0/1
+when combine rows, use the first directly, for the rest, use bitwise operators
+same as 10074 10667, when need 1, use &, when 0, use |
+
+
+900 Brick Wall Patterns
+dp & fibonacci
+There are two ways of assembling a wall of length n and height of 2 units. 
+We either place a vertical bar at its beginning and assemble a wall of length n - 1 or 
+we place two horizontal bars on top of one another and assemble then a wall of length n - 2
+
+
+926 Walking Around Wisely
+matrix dp
+a node could have 2 direction-obstacles, make sure we could test them out separately
+unsigned long long
+it's (x,y), not usual (y,x)
+	case 'N': obstacle[yt][xt]   |= V; break;	/* self */
+	case 'S': obstacle[yt-1][xt] |= V; break;	/* up */
+	case 'W': obstacle[yt][xt-1] |= H; break;	/* left */
+	case 'E': obstacle[yt][xt]   |= H; break;	/* self */
+
+
+10035 Primary Arithmetic
+012332 123210 
+9999 1
+1 operation.  2 operations.
+memset(buf, 0, SIZE * 4);
+
+
+10258 Contest Scoreboard
+multy fileds qsort
+	sscanf(str, "%d%d%d %c", &t, &prob, &time, &ch); /* trick */
+after one problem ACed, all it's submission ignored
+
+
+10334 Ray Through Glasses(10450)
+dp + fibonacci
+odd  shoot up	(1 3)
+even shoot down	(2 4)
+------------------
+   o 1 
+      \
+      /
+   o 2
+------------------
+   o 3
+      \
+      /
+   o 4
+------------------
+for f(1000), if f(1000) shoots from 1, f(1000-1) could shoot from 2/4
+while if f(1000) shoot from 3, f(1000-1) could just shoot from 4, thus f(1000-2) may be from 1/3
+so f(n) = f(n-1) + f(n-2)
+
+
+10450 World Cup Noise(10334)
+dp + fibonacci
+when f(n) chooses 0, it depends on f(n-1)
+when f(n) chooses 1, f(n-1) must choose 0, then depends on f(n-2)
+so f(n) = f(n-1) + f(n-2) fibonacci
+f(1) = 2, f(2) = 3
+every case has a newline, including the last one
+
+
+10696 f91
+recursion formula
+
+
+10810 Ultra-Quicksort
+merge sort, neither bubble nor heap
+for bubble, TLE
+for max-heap, see (1,2,3) ought to be 0 but max-heap gives 4
+for min-heap, see (0,1,9,5,4) 
+	0
+      1   9
+    5  4	is the result
+
+
+10827 Maximum Sum on a Torus
+2d maxsum but the rol and col could be in cycle
+because for rows, we use O(n^2) algo, so for the cycle just copy the matrix in the consecutive memory
+like:
+ *  111111111
+ *  222222222
+ *  333333333
+ *  444444444
+ *  111111111
+ *  222222222
+ *  333333333
+	for (i = 0; i < dms; ++i) {
+		for (j = i; j < dms + i; ++j) {    not "j < dms"
+for cols, also O(n), trick is find the maxsub & minsub & totalsum simultaneously
+final max = max{max, total-min}
+ /* we only could calculate the the max/min during one travese, excluding the split situation */
+if max & min both don't be split by the endline, max==total-min
+if finalmax is split, max is incorrect, while min must be split, so total-min got
+if min is split, max will be correct
+
+
+10908 Largest Square
+just need to search the left and right columns, and the top and bottom rows
+	/* FORI(i, 1, x-i>=0 && x+i<=col && y-i>=0 && y+i<=row) { */
+	/* 0~n-1 */
+	FORI(i, 1, x-i>=0 && x+i<col && y-i>=0 && y+i<row) {
+
+
+10970 Big Chocolate
+simulation every cut increase piece number by 1, so need m*n pieces, m*n-1 cuts are needed

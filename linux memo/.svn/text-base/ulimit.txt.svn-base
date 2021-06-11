@@ -1,0 +1,139 @@
+Linux对于每个用户，系统限制其最大进程数。为提高性能，可以根据设备资源情况，设置各linux 用户的最大进程数
+
+可以用ulimit -a 来显示当前的各种用户进程限制。
+下面我把某linux用户的最大进程数设为10000个：
+ulimit -u 10240
+对于需要做许多 socket 连接并使它们处于打开状态的 Java 应用程序而言，
+最好通过使用 ulimit -n xx 修改每个进程可打开的文件数，缺省值是 1024。
+ulimit -n 4096 将每个进程可以打开的文件数目加大到4096，缺省为1024
+其他建议设置成无限制（unlimited）的一些重要设置是：
+数据段长度：ulimit -d unlimited
+最大内存大小：ulimit -m unlimited
+堆栈大小：ulimit -s unlimited
+CPU 时间：ulimit -t unlimited
+虚拟内存：ulimit -v unlimited
+　　
+暂时地，适用于通过 ulimit 命令登录 shell 会话期间。
+永久地，通过将一个相应的 ulimit 语句添加到由登录 shell 读取的文件中， 即特定于 shell 的用户资源文件，如：
+
+1)、解除 Linux 系统的最大进程数和最大文件打开数限制：
+vi /etc/security/limits.conf
+# 添加如下的行
+* soft noproc 11000
+* hard noproc 11000
+* soft nofile 4100
+* hard nofile 4100
+说明：* 代表针对所有用户，noproc 是代表最大进程数，nofile 是代表最大文件打开数
+2)、让 SSH 接受 Login 程式的登入，方便在 ssh 客户端查看 ulimit -a 资源限制：
+a、vi /etc/ssh/sshd_config
+把 UserLogin 的值改为 yes，并把 # 注释去掉
+b、重启 sshd 服务：
+/etc/init.d/sshd restart
+3)、修改所有 linux 用户的环境变量文件：
+vi /etc/profile
+ulimit -u 10000
+ulimit -n 4096
+ulimit -d unlimited
+ulimit -m unlimited
+ulimit -s unlimited
+ulimit -t unlimited
+ulimit -v unlimited
+
+保存后运行#source /etc/profile 使其生效
+
+/**************************************
+
+有时候在程序里面需要打开多个文件，进行分析，系统一般默认数量是1024，（用ulimit -a可以看到）对于正常使用是够了，但是对于程序来讲，就太少了。
+修改2个文件。
+
+
+1./etc/security/limits.conf
+vi /etc/security/limits.conf
+加上：
+* soft nofile 8192
+* hard nofile 20480
+
+
+2./etc/pam.d/login
+session required /lib/security/pam_limits.so
+/**********
+另外确保/etc/pam.d/system-auth文件有下面内容
+session required /lib/security/$ISA/pam_limits.so
+这一行确保系统会执行这个限制。
+
+
+/***********
+3.一般用户的.bash_profile
+#ulimit -n 1024
+重新登陆ok
+
+ulimit 的作用
+=======================
+
+ulimit：显示（或设置）用户可以使用的资源的限制（limit），这限制分为软限制（当前限制）和硬限制（上限），其中硬限制是软限制的上限值，应用程序在运行过程中使用的系统资源不超过相应的软限制，任何的超越都导致进程的终止。
+
+
+参数 描述
+ulimited 不限制用户可以使用的资源，但本设置对可打开的最大文件数（max open files）
+和可同时运行的最大进程数（max user processes）无效
+-a 列出所有当前资源极限
+-c 设置core文件的最大值.单位:blocks
+-d 设置一个进程的数据段的最大值.单位:kbytes
+-f Shell 创建文件的文件大小的最大值，单位：blocks
+-h 指定设置某个给定资源的硬极限。如果用户拥有 root 用户权限，可以增大硬极限。任何用户均可减少硬极限
+-l 可以锁住的物理内存的最大值
+-m 可以使用的常驻内存的最大值,单位：kbytes
+-n 每个进程可以同时打开的最大文件数
+-p 设置管道的最大值，单位为block，1block=512bytes
+-s 指定堆栈的最大值：单位：kbytes
+-S 指定为给定的资源设置软极限。软极限可增大到硬极限的值。如果 -H 和 -S 标志均未指定，极限适用于以上二者
+-t 指定每个进程所使用的秒数,单位：seconds
+-u 可以运行的最大并发进程数
+-v Shell可使用的最大的虚拟内存，单位：kbytes
+-x
+
+范例1：
+
+[root@localhost proc]# ulimit -a
+core file size (blocks, -c) 100
+data seg size (kbytes, -d) unlimited
+file size (blocks, -f) unlimited
+pending signals (-i) 2047
+max locked memory (kbytes, -l) 32
+max memory size (kbytes, -m) unlimited
+open files (-n) 1024
+pipe size (512 bytes, -p) 8
+POSIX message queues (bytes, -q) 819200
+stack size (kbytes, -s) 8192
+cpu time (seconds, -t) unlimited
+max user processes (-u) 2047
+virtual memory (kbytes, -v) unlimited
+file locks (-x) unlimited
+[root@localhost proc]#
+
+输出的每一行由资源名字、（单位，ulimit命令的参数）、软限制组成。详细解释：
+参数 描述
+core file size core文件的最大值为100 blocks，
+data seg size 进程的数据段可以任意大
+file size 文件可以任意大
+pending signals 最多有2047个待处理的信号
+max locked memory 一个任务锁住的物理内存的最大值为32kB
+max memory size 一个任务的常驻物理内存的最大值
+open files 一个任务最多可以同时打开1024的文件
+pipe size 管道的最大空间为4096字节
+POSIX message queues POSIX的消息队列的最大值为819200字节
+stack size 进程的栈的最大值为8192字节
+cpu time 进程使用的CPU时间
+max user processes 当前用户同时打开的进程(包括线程)的最大个数为2047
+virtual memory 没有限制进程的最大地址空间
+file locks 所能锁住的文件的最大个数没有限制
+
+范例2：通过ulimit命令来限制文件的大小，从而导致拷贝命令的失败
+
+[root@localhost]ls temp.txt
+ls: temp.txt: 没有那个文件或目录
+[root@localhost]ulimit -f 1 #设置创建文件的最大块(一块=512字节)
+[root@localhost]cat a.c > temp.txt
+文件大小超出限制
+
+文件a.c的大小是5002字节,而我们设定的创建文件的大小是512字节x1块=512字节

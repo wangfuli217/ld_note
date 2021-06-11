@@ -1,0 +1,61 @@
+make a func from .cpp to be called from .c
+    extern "C" int func
+    {
+
+    }
+
+任何一个全局的变量,结构体/类定义,都要放在namespace里面(如果找不到就放匿名namespace).对于库的开发者而言,更应该注意这一点,否则把库交付出去使用,使用者同样定义了一个不在namespace里面的同名结构体,而又看不到库的实现里面有个同名的结构体,都不知道如何定位问题
+
+string != normal c string
+string s1
+string s2(s1)       s2 is a copy of s1
+string s3("value")
+string s4(n, 'c')  'c' * n
+
+vector<T> a;        empty
+vector<T> a(10);    10 elems
+
+const *p = st.c_str();      must have const
+
+new int;                    uninitialized
+new int();                  to 0
+int *ip = new a[10]();      
+delete [] ip;
+
+try catch   leads a new local scope
+
+编译器忽略任何为数组形参指定的长度
+void a(int *) == void a(int[]) == void a(int[10)
+
+在.h中指定默认实参，而不是.c的函数定义中，否则只在包含该函数定义的地方默认实参才有用
+
+每个版本的重载函数要有相同作用域，否则局部同名函数会覆盖全局同名，即不是重载
+
+int ival;
+while (cin >> ival, !cin.eof()) {
+    if (cin.bad())
+        throw runtime_error("IO corrupted");
+    if (cin.fail()) {
+        cerr << "Bad input data, try again";
+        cin.clear(istream::failbit);
+        continue;
+    }
+    ...
+}
+
+endl == '\n' + flush    use endl usually
+
+typedef std::string::size_type index;
+index a, b, c;
+
+#pragma once == include once
+
+类的定义时，它静态数据和成员函数就有了它的内存区，它不属于类的任何一个具体对象
+静态成员（函数），不属于任何一个具体的对象，那么在类的具体对象声明之前就已经有了内存区，而现在非静态数据成员还没有分配内存空间
+好像没有声明一个变量却提前使用它一样。也就是说在静态成员函数中不能引用非静态的成员变量。
+
+
+NOTE: 
+    const &val / iterator       if want to use a huge val
+    in c++, name finding is before type check 
+    container.end() != last elem, it's 1 more

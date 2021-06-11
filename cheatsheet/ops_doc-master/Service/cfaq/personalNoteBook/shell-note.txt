@@ -1,0 +1,115 @@
+refer to: https://learnxinyminutes.com/docs/bash/
+
+
+	
+	0.任何语言的基本要素：变量，函数定义，逻辑控制：循环，条件分支，顺序.
+	1. help command , man command ,    eg:  man awk,  help jobs
+	2. 脚本执行顺序从前往后，跳过函数定义；
+	3. 脚本对缩进没有要求。
+	4. expect, send:  可以用来自动化交互，避免每次都输入密码；
+	5. 变量定义： variablename=xx,  局部变量：local i=1
+	6. 变量使用： $variablename ， 或者 ${variabename}
+	7. shell脚本里面定义函数funcionname()，调用函数functionName args    ;  函数里面使用入参用$1 $2
+	8. 赋值:  i=1 ，而 i = 1 表示判断i是否等于1，区别是等号两边有空格
+	9. 判断相等 if[$mode -eq 1 ]; then ... fi  
+	10. 打印用 echo $variable
+	11. 递增： let i++
+	12. 数组定义： myarray=(a,b,c)  使用数组： ${myarray[$index]}
+	13. 条件分支： if []; then xx else xx fi    另外一种 if []; then xx fi  
+	14. 循环： for ; do xx done  可以用break，  while [xx] ; do xx done
+
+	15. 关系运算符： -gt 大于  ， -lt 小于， != 不等于 ， -eq 等于，建议用-eq判断相等，不要用=因为=容易混淆是赋值还是相等
+	16. 逻辑运算符： -a并且，
+	17. 休眠： sleep n_sec 
+	18. 经常使用的命令grep, xargs, sed, awk, whoami, wc, > , >> , basename 等, eg: whoami | xargs ps -A -u | grep make | awk '{print $1}'
+	19. 调用子命令：建议使用小括号 USERNAME=$(whoami)， 也可以使用反单引号   USERNAME=`whoami`  
+	20. 最近1个命令的执行结果 $?  这个非常有用, eg: echo "LteMacClient exit with $?" >> result.txt
+	21. 输入给脚本的参数个数 $#
+	22. 输入给脚本的参数 $1 $2...
+	23. 输入给脚本的所有参数 $@
+	24. 后台运行 cmd & ,  eg:   ./LteMacClient  script=case.rtm &>testshell.log
+	25. 使用trap来截获信号：trap _sighandler SIGINT SIGTERM SIGHUP 其中_sighandler是自定义的信号处理函数，一般是执行exit
+	26. export BIN_TYPE="htenv"  设置全局变量，用于2个shell脚本通信，比如另一个脚本中 if [ "$BIN_TYPE" != "" ];
+	27. 使用 set -x 来debug输出。使用 set -e 来当有错误发生的时候abort执行。使用 set -o pipefail 来限制错误。
+	27. 疑问： if [xxx] , if ((xx))
+
+
+///////////////////////
+cat a b | sort | uniq > c   # c = a || b  文本并集
+cat a b | sort | uniq -d > c   # c = a && b  文本交集
+cat a b b | sort | uniq -u > c   # c = a - b   文本差集
+
+
+//////////////////////////function
+WaitJob()
+{
+JOB_NUM=` jobs -l | grep -e  "Running" |wc -l `
+while  [  $JOB_NUM -gt  $1]  ;do
+    sleep 2
+    JOB_NUM=` jobs -l | grep -e  "Running" |wc -l `
+done
+}
+WaitJob 5  函数调用
+///////////////////////////////if fi
+if [ $i -eq 0 ]; then
+  echo "ok"  
+fi
+/////////////////////////////////if else fi
+if [ "$#" -eq 0 ] ; then
+    _helpfunction
+    exit 1   
+else
+  ./LteMacClient script=case.rtm &>case.log
+  echo "LteMacClient exit with $?" >>result.txt 记录程序运行结果，用来判断成功失败
+fi
+//////////////////process filelist in file.txt, for loop
+Cases=`cat file.txt`
+for case in $Cases; do
+ sh ./RunCaseNew.sh $case  & 调用其它的shell脚本，输入参数，后台运行 
+done
+
+/////////////////////////////for loop  注意有两对括号
+for (( count=0; count < 3; count++ )); do
+if (( $count == 0 )); then 
+xxxxx
+else
+  echo $count
+fi
+done
+//////////////////////////clear_env()
+clear_env()
+{
+PID=$(echo $(jobs -pr) | sed 's: :,:g')
+(kill -9 $PID 2>/dev/null ) &
+wait $PID 2>/dev/null 
+}
+////////////////////////sighandler
+_sighandler()
+{
+    echo "Interrupt signal received, aborting..."
+    _clear_env
+    exit 1
+}
+
+trap _sighandler SIGINT SIGTERM SIGHUP
+///////////////////////
+
+ /////////////////////////// shell script : copy all git changed files between two commits with directory structure 
+#!/bin/bash
+#set -x
+set -e
+echo "usage: ./knife.sh hash1 hash2 destfolder"
+TARGETDIR=$3
+echo "Coping to $TARGETDIR"
+for i in $(git diff --name-only $1 $2)
+    do       
+        mkdir -p "$TARGETDIR/$(dirname $i)"       
+        cp "$i" "$TARGETDIR/$i"
+    done
+echo "begin create knife.zip";
+cd $TARGETDIR;
+zip -r knife.zip *;
+echo "Done";
+
+#example: ./knife.sh  hashId1  hashId2   ../knife; 
+///////////////////////////////////////////////////////////

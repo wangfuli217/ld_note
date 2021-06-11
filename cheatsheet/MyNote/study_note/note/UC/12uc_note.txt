@@ -1,0 +1,153 @@
+今天内容
+	使用管道实现进程间的通信
+	使用共享内存实现进程间的通信
+	使用信号量集实现进程间的通信
+	网络编程 - 网络基本常识
+
+使用管道实现进程间的通信
+	概念和分类
+		本质上是以文件作为媒介来实惠进程间的通信,该文件比较特殊,叫做管道文件
+	管道分为两类:有名管道 和 无名管道
+		有名管道:一般采用命令创建管道文件,实现任意两个进程之间的通信
+		无名管道:一般采用系统函数来创建管道文件,用于父子进程之间的通信
+
+使用有名管道进行进程间的通信
+	mkfifo	管道文件名.pipe		=>创建管道文件
+	如:
+		mkfifo	a.pipe =>创建管道文件
+		echo hello a.pipe	=>写入数据到管道文件中
+		cat a.pipe			=>读取管道中的数据
+	注意:	
+		管道文件本身并不会存储传递的数据
+	
+使用无名管道实现进程间的通信
+	#include<unistd.h>
+	int pipe(int pipefd[2]);
+	函数功能
+		主要用于创建管道文件,利用参数返回两个文件描述符,其中pipefd[0]关联管道的读端,pipefd[1]关联管道的写端
+	注意:
+		管道是比较古老的通信方式,现在很少使用(了解)
+
+使用共享内存实现进程间的通信
+	基本概念
+		本质上是由内核维护的一块内存区域,共享在两个/多个进程之间,然后两个/多个进程分别对该内存区域进行读写操作,从而实现通信,是最快的IPC通信方式
+
+通信的基本流程
+	获取key值,使用ftok函数
+	创建/获取共享内存,从而得到ID,使用shmget函数
+	挂接共享内存,使用shmat函数
+	使用共享内存,进行读写操作等
+	脱接共享内存,使用shmdt函数
+	如果不再使用,使用shmctl函数删除共享内存
+
+相关函数的解析
+	shmget函数
+	#include<sys/ipc.h>
+	#include<sys/shm.h>
+	int shmget(key_t,size_t size,int shmflg);
+	第一个参数:key值,ftok函数的返回值
+	第二个参数:共享内存的大小
+	第三个参数:操作标志
+		IPC_CREAT - 创建
+		IPC_EXCL - 与IPC_CREAT搭配使用,存在则创建失败
+		0- 获取已存在的共享内存
+	函数功能:主要用于创建/获取一个共享内存,得到共享内存的ID
+	注意:当创建一个新的共享内存时,需要指定权限
+
+	shmat函数
+	#include<sys/types.h>
+	#include<sys/shm.h>
+	void *shmat(int shmid,const void *shmaddr,int shmflg);
+	第一个参数:共享内存的ID,shmget函数的返回值
+	第二个参数:共享内存的挂接地址,给NULL由系统选择
+	第三个参数:主要用于将指定的共享内存挂接到正在运行的进程的地址空间中,成功返回共享内存的地址,失败返回-1
+
+	shmdt函数
+	int shmdt(const void *shmaddr);
+	函数功能
+		表示按照参数指定的共享内存地址进行脱接,参数传递shmat函数的返回值即可
+
+	shmctl函数
+	#include<sys/ipc.h>
+	#include<sys/shm.h>
+	int shmctl(int shmid,int cmd,struct shmid_ds *buf);
+	第一个参数:共享内存的ID
+	第二个参数:执行的操作命令
+		IPC_RMID - 删除共享内存,第三个给NULL即可
+	第三个参数:结构体指针
+	函数功能:主要用于对指定的共享内存执行指定的操作
+
+相关的基本命令
+	ipcs -m	 查看系统中已存在的共享内存
+	ipcrm -m 共享内存ID  删除指定的共享内存
+
+采用信号量集实现进程间的通信
+	基本概念
+		信号量的概念
+			信号量本质就是一个计数器,用于控制同时访问共享资源的进程数/线程数,也就是说解决有限资源的分配问题
+		信号量集的概念
+			信号量集就表示信号量的集合,也就是多个计数器的集合,主要用于控制同时多种共享资源的进程数/线程数
+
+信号量的工作方式
+	先对信号量进行初始化,初始化为最大值
+	如果有进程申请到共享资源,那么信号量的值减1
+	当信号量的值为0时,中止进程对共享资源的申请,让申请共享资源的进程进入阻塞状态
+	如果有进程释放资源,那么信号量的值加1
+	当信号量的值大于0时,阻塞的进程可以继续抢占资源,抢占不到资源的进程继续进入阻塞状态等待
+
+使用信号量集的流程
+	获取key值,使用ftok函数
+	创建/获取信号量集,使用semget函数
+	初始化信号量集,使用semctl函数
+	操作信号量集,使用semop函数
+	如果不再使用则删除,semctl函数
+
+相关函数
+	semget函数
+	#include<sys/types.h>
+	#include<sys/ipc.h>
+	#include<sys/sem.h>
+	int semget(key_t key,int nsems,int semflg);
+	第一个参数:key值,ftok函数的返回值
+	第二个参数:信号量集的大小,也就是信号量的个数
+	第三个参数:操作的标志
+	IPC_CREAT - 创建
+	IPC_EXCL - 与IPC_CREAT搭配使用,存在则创建失败
+	0 - 获取已经存在的信号量集
+	函数功能:创建/获取信号量集的ID
+	注意:
+		当创建新的信号量集时,需要指定权限,如0644
+
+	semctl函数
+	#include<sys/types.h>
+	#include<sys/ipc.h>
+	#include<sys/sem.h>
+	int semctl(int semid,int semnum,int cmd,...);
+	第一个参数:信号量集的ID,使用semget函数的返回值
+	第二个参数:信号量集的下标,从0开始
+	第三个参数:具体的操作命令
+			IPC_RMID - 删除信号量集,参数semnum被忽略,不需要第四个参数
+			SETVAL		使用第四个参数的值给信号量集中下标为semnum的信号量进行初始化
+
+	semop函数
+	第四个参数:可变长参数,是否需要取决于cmd
+	函数功能:主要用于对信号量集实现各种控制操作
+	#include <sys/types.h>
+	#include <sys/ipc.h>
+	#include <sys/sem.h>
+	int semop(int semid, struct sembuf *sops, unsigned nsops);
+	第一个参数:信号量集的ID
+	第二个参数:结构体指针
+	第三个参数:表示第二个参数所指定的结构体数组的元素个数
+	函数功能:对信号量集中指定的信号量进行操作
+	struct sembuf
+	{
+		unsigned short sem_num;  /* semaphore number */信号量的下标
+		short          sem_op;   /* semaphore operation */信号量的具体操作,正数增加,负数减少
+		short          sem_flg;  /* operation flags */操作的标志,直接给0即可
+	}
+
+基本的命令
+	:编写银行账户管理系统
+
+明日预报:网络编程

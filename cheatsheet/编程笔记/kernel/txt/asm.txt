@@ -1,0 +1,45 @@
+inc/dec atom
+
+对于int 9，将程序加载到dos内存区的顶部，或放在ems中，然后将程序驻留，然后写一个开关，可以让再次启动时将你的程序卸载
+
+向前（forward）跳转时，用jmp short s，这样编译时不会留任何nop空间。而jmp s会留1个（Appendix 3）
+
+段地址不能是常数，只能用es/ds替代。而偏移地址随意
+
+每次退出command，所有对其内存和寄存器的改动reset
+
+不管add/sub/shl/shr使CF置1，再用adc/sbb都会受影响
+
+开机->FFFF:0000  cpu加电后过来，这里有个跳转指令。此时内存仅ROM有内容
+
+int 0	00A7:1068	divide overflow
+int 1	0070:018B	single step
+int 2	06E6:0016	不可屏蔽中断
+int 9	0212:040A	basic keyboard I/O
+int 10h	0212:08BD	monitor output
+int 19h 0212:0C50  	loading OS
+int 21h 0212:0C5B
+
+60h			keyboard input
+70h			CMOS RAM address
+71h			CMOS RAM data
+	
+call - 	ret
+int  - iret
+
+只有code segment有s：（地址标号），其它segment都是数据标号，无冒号！！
+assume 后的 寄存器和段的联系 主要的作用是 为后面 数据标号 指明 段地址 即数据标号的段地址是存放于哪个寄存器中
+如
+data segment
+	a db 1,2,3
+data ends
+code segment
+	mov al, a	assume cs:code
+	mov al, a[2]	assume cs:code, ds:data
+
+
+.local
+.comm		==	.lcomm		no init
+
+call	*%eax		jump to the addr which eax holds
+call	*(%eax)		jump to the addr which in the addr in eax

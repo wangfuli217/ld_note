@@ -1,0 +1,114 @@
+今天内容
+	基于TCP协议的网络通信模型
+	TCP协议和UDP协议的比较
+	基于UDP协议的网络通信模型
+	多线程的初识
+
+基于TCP协议的通信模型
+	服务器:
+		创建socket,使用socket函数
+		准备通信地址,使用结构体类型
+		绑定socket和通信地址,使用bind函数
+		进行监听,使用listen函数
+		响应客户端的连接请求,使用accept函数
+		进行通信,使用read/write函数
+		关闭socket,使用close函数
+	客户端:
+		创建socket,使用socket函数
+		准备通信地址,服务器的地址
+		连接socket和通信地址,使用connect函数
+		进行通信,使用read/write函数
+		关闭socket,使用close函数
+
+函数的解析
+	listen函数
+		 #include <sys/types.h>          /* See NOTES */
+		 #include <sys/socket.h>
+	     int listen(int sockfd, int backlog);
+			第一个参数:socket描述符,socket函数的返回值
+			第二个参数:排除等待被响应的最大连接数
+			函数功能:使用主动连接套接口变为被连接套接口，使得一个进程可以接受其它进程的请求，从而成为一个服务器进程
+	accept函数
+		 #include <sys/types.h>          /* See NOTES */
+	     #include <sys/socket.h>
+	     int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+			第一个参数:socket描述符,socket函数的返回值
+			第二个参数:结构体指针,用于存储客户端的通信地址
+			第三个参数:指针,通信地址的大小
+				返回值:成功返回用于通信的描述符,失败返回-1
+						socket函数返回的描述符主要用于监听使用
+				函数功能:主要用于响应客户端的连接请求,默认为阻塞方式
+
+	char *inet_ntoa(struct in_addr in);
+		函数功能:主要用于将结构体类型的IP地址转换为字符串类型
+练习:
+	编程实现基于TCP协议的一对多的通信,要求如下:
+		要求服务器不断地响应客户端的连接请求
+		要求服务器可以同时响应多个客户端的连接请求(采用多进程的策略)
+		要求服务器可以和每一个客户端进行不断地通信
+		要求客户端发来消息"bye"时,表示客户端已下线,结束与当前客户端的通信
+		要求采用信号2来关闭服务器
+
+TCP和UDP协议的比较
+	TCP协议 - 传输控制协议,面向连接的协议,传递的是数据流
+			  建立连接=>传递数据=>断开连接
+		优点
+			可以重发一切错误数据,保证数据的完整性和准确性
+			接收方可以通知发送方控制数据量的大小
+		缺点
+			服务器压力比较大,资源占用率比较高
+
+	UDP协议 - 用户数据报协议,非面向连接的协议,发送数据段
+		优点
+			不需要全程保持连接,服务器压力比较小,资源占用率比较低
+		缺点
+			不会重发错误数据,不保证数据的准确性和完整性,接收方不会通知发送方进行数据量的控制
+
+基于UDP协议的通信模型
+	服务器:
+		创建socket,使用socket函数
+		准备通信地址,使用结构体类型
+		绑定socket和通信地址,使用bind函数
+		进行通信,使用sendto()/recvfrom()/send()/recv()
+		关闭socket,使用close函数
+	客户端:
+		创建socket,使用socket函数
+		准备通信地址,服务器的地址
+		直接进行通信,使用sendto()/recvfrom()/send()/recv()
+		关闭socket,使用close函数
+
+函数解析
+	  #include <sys/types.h>
+	  #include <sys/socket.h>
+      ssize_t send(int sockfd, const void *buf, size_t len, int flags);
+      ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
+	  第一个参数:socket描述符,socket函数的返回值
+	  第二个参数:被发送数据的首地址(数据从哪里来)
+	  第三个参数:发送的数据大小
+	  第四个参数:发送标志,给0即可
+	  第五个参数:目标地址
+	  第六个参数:目标地址的大小
+	  返回值:成功返回实际发送的数据大小,失败返回-1
+	  函数功能:主要用于向指定的地址发送指定的数据
+
+	    #include <sys/types.h>
+        #include <sys/socket.h>
+        ssize_t recv(int sockfd, void *buf, size_t len, int flags);
+		ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
+		第一个参数:socket描述符,socket函数的返回值
+		第二个参数:首地址(接收到的数据存到哪里去)
+		第三个参数:接收的数据大小
+		第四个参数:接收的标志,默认给0
+		第五个参数:保存发送方的通信地址(数据从哪里来)
+		第六个参数:发送方通信地址的大小
+		返回值:成功返回接收到的数据大小,失败返回-1
+		函数功能:表示接收指定的数据并提供来电显示功能
+
+注意:
+	要求熟练掌握TCP模型和UDP模型,其中TCP模型中建议使用send()/recv()函数,而UDP模型中建议使用send()/recv()/sendto()/recvfrom()函数
+
+作业:
+	编程实现UDP模型的服务器中使用recvfrom()函数招收客户端发来的数据并且向客户端回发一个消息,在UDP模型的客户端中接收服务器发来的消息并且打印出来
+
+明日预报
+	多线程

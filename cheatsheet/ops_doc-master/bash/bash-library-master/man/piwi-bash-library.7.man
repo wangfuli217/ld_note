@@ -1,0 +1,1630 @@
+.TH  "" "3" "" "" ""
+.SH DOCUMENTATION OF 'BIN/PIWI-BASH-LIBRARY.BASH'
+.SH REFERENCES (LINE 1)
+.RS
+.IP \(bu 
+.PP
+\fBBash Reference Manual: <http://www.gnu.org/software/bash/manual/bashref.html>\fP
+
+.IP \(bu 
+
+\fBBash Guide for Beginners: <http://www.tldp.org/LDP/Bash-Beginners-Guide/html/Bash-Beginners-Guide.html>\fP
+
+.IP \(bu 
+
+\fBAdvanced Bash-Scripting Guide: <http://www.tldp.org/LDP/abs/html/abs-guide.html>\fP
+
+.IP \(bu 
+
+\fBGNU coding standards: <http://www.gnu.org/prep/standards/standards.html>\fP
+
+.RE
+.SH ENVIRONMENT (LINE 6)
+.RS
+.IP \(bu 
+.PP
+\fBSCRIPT_VARS = ( NAME VERSION DATE DESCRIPTION LICENSE HOMEPAGE SYNOPSIS OPTIONS ) (read-only)\fP
+.PP
+List of variables defined by the caller script used to build all informational strings.
+.PP
+These are all RECOMMENDED.
+
+.IP \(bu 
+
+\fBUSAGE_VARS = ( NAME VERSION DATE DESCRIPTION_USAGE SYNOPSIS_USAGE OPTIONS_USAGE ) (read-only)\fP
+
+List of variables defined by the caller script used to build the 'usage' string (common option `\fS--usage\fP`).
+
+.IP \(bu 
+
+\fBUSAGE_SUFFIX = "_USAGE"\fP
+
+Suffix used to build some of the `\fSUSAGE_VARS\fP` variable names ; it is stripped to fallback over "classic" variable.
+
+.IP \(bu 
+
+\fBVERSION_VARS = ( NAME VERSION DATE DESCRIPTION COPYRIGHT LICENSE HOMEPAGE SOURCES ADDITIONAL_INFO ) (read-only)\fP
+
+List of variables defined by the caller script used to build the 'version' string (common option `\fS--version\fP`).
+
+\fB@see:\fP <http://www.gnu.org/prep/standards/standards.html#g_t_002d_002dversion>
+
+.IP \(bu 
+
+\fBMANPAGE_VARS = ( NAME VERSION DATE DESCRIPTION_MANPAGE SYNOPSIS_MANPAGE OPTIONS_MANPAGE EXAMPLES_MANPAGE EXIT_STATUS_MANPAGE FILES_MANPAGE ENVIRONMENT_MANPAGE COPYRIGHT_MANPAGE HOMEPAGE_MANPAGE BUGS_MANPAGE AUTHOR_MANPAGE SEE_ALSO_MANPAGE ) (read-only)\fP
+
+List of variables defined by the caller script used to build the 'manpage' string (common option `\fS--manpage\fP`).
+
+\fB@see:\fP <http://en.wikipedia.org/wiki/Man_page>
+
+.IP \(bu 
+
+\fBMANPAGE_SUFFIX = "_MANPAGE"\fP
+
+Suffix used to build some of the `\fSUSAGE_VARS\fP` variable names ; it is stripped to fallback over "classic" variable.
+
+.IP \(bu 
+
+\fBLIB_FLAGS = ( VERBOSE QUIET DEBUG INTERACTIVE FORCED ) (read-only)\fP
+
+List of variables defined as global flags ; they are enabled/disabled by common options.
+
+.IP \(bu 
+
+\fBINTERACTIVE = DEBUG = VERBOSE = QUIET = FORCED = DRYRUN = false\fP
+
+.IP \(bu 
+
+\fBWORKINGDIR = `\fSpwd\fP`\fP
+
+.IP \(bu 
+
+\fBCOLOR_VARS = ( COLOR_LIGHT COLOR_DARK COLOR_INFO COLOR_NOTICE COLOR_WARNING COLOR_ERROR COLOR_COMMENT ) (read-only)\fP
+
+List of variables defined by the library as "common colors" names.
+
+.IP \(bu 
+
+\fBUSEROS = "$(uname)" (read-only)\fP
+
+Current running operating system name.
+
+.IP \(bu 
+
+\fBLINUX_OS = ( Linux FreeBSD OpenBSD SunOS ) (read-only)\fP
+
+List of Linux-like OSs.
+
+.IP \(bu 
+
+\fBUSERSHELL = "$SHELL" (read-only)\fP
+
+Path of the shell currently in use (value of the global `\fS$SHELL\fP` variable).
+
+.IP \(bu 
+
+\fBSHELLVERSION = "$BASH_VERSION" (read-only)\fP
+
+Version number of current shell in use (value of the global `\fS$BASH_VERSION\fP` variable).
+
+.RE
+.SH SETTINGS (LINE 36)
+.RS
+.IP \(bu 
+.PP
+\fBE_ERROR=90\fP
+
+.IP \(bu 
+
+\fBE_OPTS=81\fP
+
+.IP \(bu 
+
+\fBE_CMD=82\fP
+
+.IP \(bu 
+
+\fBE_PATH=83\fP
+
+Error codes in Bash must return an exit code between 0 and 255.
+
+In the library, to be conform with C/C++ programs, we will try to use codes from 80 to 120
+
+(error codes in C/C++ begin at 64 but the recent evolutions of Bash reserved codes 64 to 78).
+
+.IP \(bu 
+
+\fBLIB_FILENAME_DEFAULT = "piwi-bash-library" (read-only)\fP
+
+.IP \(bu 
+
+\fBLIB_NAME_DEFAULT = "piwibashlib" (read-only)\fP
+
+.IP \(bu 
+
+\fBLIB_LOGFILE = "piwibashlib.log" (read-only)\fP
+
+.IP \(bu 
+
+\fBLIB_TEMPDIR = "tmp" (read-only)\fP
+
+.IP \(bu 
+
+\fBLIB_SYSHOMEDIR = "${HOME}/.piwi-bash-library/" (read-only)\fP
+
+.IP \(bu 
+
+\fBLIB_SYSCACHEDIR = "${LIB_SYSHOMEDIR}/cache/" (read-only)\fP
+
+.RE
+.SH COMMON OPTIONS (LINE 50)
+.RS
+.IP \(bu 
+.PP
+\fBCOMMON_OPTIONS_ALLOWED = "fhiqvVx-:"\fP
+.PP
+List of default common short options.
+
+.IP \(bu 
+
+\fBCOMMON_OPTIONS_ALLOWED_MASK : REGEX mask that matches all common short options\fP
+
+.IP \(bu 
+
+\fBCOMMON_LONG_OPTIONS_ALLOWED="working-dir:,working-directory:,force,help,interactive,log:,logfile:,quiet,verbose,version,debug,dry-run,libvers,man,usage"\fP
+
+List of default common long options.
+
+.IP \(bu 
+
+\fBCOMMON_LONG_OPTIONS_ALLOWED_MASK : REGEX mask that matches all common long options\fP
+
+.IP \(bu 
+
+\fBOPTIONS_ALLOWED | LONG_OPTIONS_ALLOWED : to be defined by the script\fP
+
+.IP \(bu 
+
+\fBCOMMON_SYNOPSIS COMMON_SYNOPSIS_ACTION COMMON_SYNOPSIS_ERROR COMMON_SYNOPSIS_MANPAGE COMMON_SYNOPSIS_ACTION_MANPAGE COMMON_SYNOPSIS_ERROR_MANPAGE (read-only)\fP
+
+Default values for synopsis strings (final fallback).
+
+.IP \(bu 
+
+\fBOPTIONS_ADDITIONAL_INFOS_MANPAGE (read-only)\fP
+
+Information string about command line options how-to
+
+.IP \(bu 
+
+\fBCOMMON_OPTIONS_MANPAGE (read-only)\fP
+
+Information string about common script options
+
+.IP \(bu 
+
+\fBCOMMON_OPTIONS_USAGE (read-only)\fP
+
+Raw information string about common script options
+
+.IP \(bu 
+
+\fBCOMMON_OPTIONS_FULLINFO_MANPAGE (read-only)\fP
+
+Concatenation of COMMON_OPTIONS_MANPAGE & OPTIONS_ADDITIONAL_INFOS_MANPAGE
+
+.RE
+.SH LOREM IPSUM (LINE 68)
+.RS
+.IP \(bu 
+\fBLOREMIPSUM (844 chars.) , LOREMIPSUM_SHORT (446 chars.) , LOREMIPSUM_MULTILINE (861 chars. / 5 lines) (read-only)\fP
+.RE
+.SH LIBRARY SETUP (LINE 70)
+.RS
+.IP \(bu 
+.PP
+\fBLIB_NAME LIB_VERSION LIB_DATE LIB_VCSVERSION LIB_VCSVERSION LIB_COPYRIGHT LIB_LICENSE_TYPE LIB_LICENSE_URL LIB_SOURCES_URL (read-only)\fP
+.PP
+Library internal setup
+
+.RE
+.SH SYSTEM (LINE 73)
+.RS
+.IP \(bu 
+.PP
+\fBget_system_info ()\fP
+
+.IP \(bu 
+
+\fBget_machine_name ()\fP
+
+.IP \(bu 
+
+\fBget_path ()\fP
+
+read current PATH values as human readable string
+
+.IP \(bu 
+
+\fBadd_path ( path )\fP
+
+add a path to global environment PATH
+
+.IP \(bu 
+
+\fBget_script_path ( script = $0 )\fP
+
+get the full real path of a script directory (passed as argument) or from current executed script
+
+.IP \(bu 
+
+\fBget_date ( timestamp = NOW )\fP
+
+cf. <http://www.admin-linux.fr/?p=1965>
+
+.IP \(bu 
+
+\fBget_ip ()\fP
+
+this will load current IP address in USERIP & USERISP
+
+.RE
+.SH FILES (LINE 86)
+.RS
+.IP \(bu 
+.PP
+\fBfile_exists ( file_path )\fP
+.PP
+test if a file, link or directory exists in the file-system
+
+.IP \(bu 
+
+\fBis_file ( file_path )\fP
+
+test if a file exists in the file-system and is a 'true' file
+
+.IP \(bu 
+
+\fBis_dir ( file_path )\fP
+
+test if a file exists in the file-system and is a directory
+
+.IP \(bu 
+
+\fBis_link ( file_path )\fP
+
+test if a file exists in the file-system and is a symbolic link
+
+.IP \(bu 
+
+\fBis_executable ( file_path )\fP
+
+test if a file or link exists in the file-system and has executable rights
+
+.IP \(bu 
+
+\fBget_extension ( path = $0 )\fP
+
+retrieve a file extension
+
+.IP \(bu 
+
+\fBget_filename ( path = $0 )\fP
+
+isolate a file name without dir & extension
+
+.IP \(bu 
+
+\fBget_basename ( path = $0 )\fP
+
+isolate a file name
+
+.IP \(bu 
+
+\fBget_dirname ( path = $0 )\fP
+
+isolate a file directory name
+
+.IP \(bu 
+
+\fBget_absolute_path ( script = $0 )\fP
+
+get the real path of a script (passed as argument) or from current executed script
+
+.IP \(bu 
+
+\fB/ realpath ( string )\fP
+
+alias of 'get_absolute_path'
+
+.IP \(bu 
+
+\fBresolve ( path )\fP
+
+resolve a system path replacing '~' and '.'
+
+.RE
+.SH ARRAY (LINE 111)
+.RS
+.IP \(bu 
+.PP
+\fBin_array ( item , $array[@] )\fP
+.PP
+\fB@return:\fP 0 if item is found in array
+
+.IP \(bu 
+
+\fBarray_search ( item , $array[@] )\fP
+
+\fB@return:\fP the index of an array item, 0 based
+
+.IP \(bu 
+
+\fBarray_filter ( $array[@] )\fP
+
+\fB@return:\fP array with cleaned values
+
+.RE
+.SH STRING (LINE 118)
+.RS
+.IP \(bu 
+.PP
+\fBstring_length ( string )\fP
+.PP
+\fB@return:\fP the number of characters in string
+
+.IP \(bu 
+
+\fB/ strlen ( string )\fP
+
+alias of 'string_length'
+
+.IP \(bu 
+
+\fBstring_to_upper ( string )\fP
+
+.IP \(bu 
+
+\fB/ strtoupper ( string )\fP
+
+alias of 'string_to_upper'
+
+.IP \(bu 
+
+\fBstring_to_lower ( string )\fP
+
+.IP \(bu 
+
+\fB/ strtolower ( string )\fP
+
+alias of 'string_to_lower'
+
+.IP \(bu 
+
+\fBupper_case_first ( string )\fP
+
+.IP \(bu 
+
+\fB/ ucfirst ( string )\fP
+
+alias of 'upper_case_first'
+
+.IP \(bu 
+
+\fBMAX_LINE_LENGTH = 80 : default max line length for word wrap (integer)\fP
+
+.IP \(bu 
+
+\fBLINE_ENDING = n : default line ending character for word wrap\fP
+
+.IP \(bu 
+
+\fBword_wrap ( text )\fP
+
+.IP \(bu 
+
+\fBexplode ( str , delim = ' ' )\fP
+
+.IP \(bu 
+
+\fBimplode ( array[@] , delim = ' ' )\fP
+
+.IP \(bu 
+
+\fBexplode_letters ( str )\fP
+
+.RE
+.SH BOOLEAN (LINE 138)
+.RS
+.IP \(bu 
+.PP
+\fBonoff_bit ( bool )\fP
+.PP
+echoes 'on' if bool=true, 'off' if it is false
+
+.RE
+.SH UTILS (LINE 141)
+.RS
+.IP \(bu 
+.PP
+\fBis_numeric ( value )\fP
+
+.IP \(bu 
+
+\fBis_numeric_by_variable_name ( variable_name )\fP
+
+.IP \(bu 
+
+\fBis_array ( $array[*] )\fP
+
+this will (only for now) test if there 1 or more arguments passed
+and will therfore return '1' (false) for a single item array
+
+echo "${tmpvar[*]}"
+
+.IP \(bu 
+
+\fBis_array_by_variable_name ( variable_name )\fP
+
+.IP \(bu 
+
+\fBis_boolean ( value )\fP
+
+.IP \(bu 
+
+\fBis_boolean_by_variable_name ( variable_name )\fP
+
+.IP \(bu 
+
+\fBis_string ( value )\fP
+
+.IP \(bu 
+
+\fBis_string_by_variable_name ( variable_name )\fP
+
+.RE
+.SH VCS (LINE 153)
+.RS
+.IP \(bu 
+.PP
+\fBVCSVERSION\fP
+.PP
+Variable used as version marker like `\fSbranch@commit_sha\fP`
+
+.IP \(bu 
+
+\fBSCRIPT_VCS\fP
+
+VCS type of the script (only 'git' for now)
+
+.IP \(bu 
+
+\fBget_version_string ( file_path = $0 , constant_name = VCSVERSION )\fP
+
+get the version string from a file_path
+
+.IP \(bu 
+
+\fBget_version_sha ( get_version_string )\fP
+
+get last commit sha from a GIT version string
+
+.IP \(bu 
+
+\fBget_version_branch ( get_version_string )\fP
+
+get the branch name from a GIT version string
+
+.IP \(bu 
+
+\fBvcs_is_clone ( path = pwd , remote_url = null )\fP
+
+.IP \(bu 
+
+\fBvcs_get_branch ( path = pwd )\fP
+
+.IP \(bu 
+
+\fBvcs_get_commit ( path = pwd )\fP
+
+.IP \(bu 
+
+\fBvcs_get_version ( path = pwd )\fP
+
+.IP \(bu 
+
+\fBvcs_get_remote_version ( path = pwd , branch = HEAD )\fP
+
+.IP \(bu 
+
+\fBvcs_make_clone ( repository_url , target_dir = LIB_SYSCACHEDIR )\fP
+
+.IP \(bu 
+
+\fBvcs_update_clone ( target_dir )\fP
+
+.IP \(bu 
+
+\fBvcs_change_branch ( target_dir , branch = 'master' )\fP
+
+.IP \(bu 
+
+\fBCURRENT_GIT_CLONE_DIR\fP
+
+Environment variable to store current GIT clone directory
+
+.IP \(bu 
+
+\fBgit_is_clone ( path = pwd , remote_url = null )\fP
+
+check if a path, or `\fSpwd\fP`, is a git clone of a remote if 2nd argument is set
+
+.IP \(bu 
+
+\fBgit_get_branch ( path = pwd )\fP
+
+.IP \(bu 
+
+\fBgit_get_commit ( path = pwd )\fP
+
+.IP \(bu 
+
+\fBgit_get_version ( path = pwd )\fP
+
+.IP \(bu 
+
+\fBgit_get_remote_version ( path = pwd , branch = HEAD )\fP
+
+get the last GIT commit SHA from the remote in branch
+
+.IP \(bu 
+
+\fBgit_make_clone ( repository_url , target_dir = LIB_SYSCACHEDIR )\fP
+
+create a git clone of a distant repository in CURRENT_GIT_CLONE_DIR
+
+\fB@env:\fP clone directory is loaded in CURRENT_GIT_CLONE_DIR
+
+.IP \(bu 
+
+\fBgit_update_clone ( target_dir )\fP
+
+update a git clone
+
+\fB@param:\fP target_dir: name of the clone in LIB_SYSCACHEDIR or full path of concerned clone
+
+.IP \(bu 
+
+\fBgit_change_branch ( target_dir , branch = 'master' )\fP
+
+change a git clone tracking branch
+
+\fB@param:\fP target_dir: name of the clone in LIB_SYSCACHEDIR or full path of concerned clone
+
+.RE
+.SH COLORIZED CONTENTS (LINE 190)
+.RS
+.IP \(bu 
+.PP
+\fBLIBCOLORS = ( default black red green yellow blue magenta cyan grey white lightred lightgreen lightyellow lightblue lightmagenta lightcyan lightgrey ) (read-only)\fP
+.PP
+Terminal colors table
+
+.IP \(bu 
+
+\fBLIBTEXTOPTIONS = ( normal bold small underline blink reverse hidden ) (read-only)\fP
+
+Terminal text options table
+
+.IP \(bu 
+
+\fBget_text_format_tag ( code )\fP
+
+echoes the terminal tag code for color: " 033[CODEm"
+
+\fB@param:\fP code must be one of the library colors or text-options codes
+
+.IP \(bu 
+
+\fBget_color_code ( name , background = false )\fP
+
+\fB@param:\fP name must be in LIBCOLORS
+
+.IP \(bu 
+
+\fBget_color_tag ( name , background = false )\fP
+
+\fB@param:\fP name must be in LIBCOLORS
+
+.IP \(bu 
+
+\fBget_text_option_code ( name )\fP
+
+\fB@param:\fP name must be in LIBTEXTOPTIONS
+
+.IP \(bu 
+
+\fBget_text_option_tag ( name )\fP
+
+\fB@param:\fP name must be in LIBTEXTOPTIONS
+
+.IP \(bu 
+
+\fBget_text_option_tag_close ( name )\fP
+
+\fB@param:\fP name must be in LIBTEXTOPTIONS
+
+.IP \(bu 
+
+\fBcolorize ( string , text_option , foreground , background )\fP
+
+echoes a colorized string ; all arguments are optional except `\fSstring\fP`
+
+\fB@param:\fP text_option must be in LIBTEXTOPTIONS
+
+\fB@param:\fP foreground must be in LIBCOLORS
+
+\fB@param:\fP background must be in LIBCOLORS
+
+.IP \(bu 
+
+\fBparse_color_tags ( "string with <bold>tags</bold>" )\fP
+
+parse in-text tags like:
+.br
+... <bold>my text</bold> ...     // "tag" in LIBTEXTOPTIONS
+.br
+
+.br
+... <red>my text</red> ...       // "tag" in LIBCOLORS
+.br
+
+.br
+... <bgred>my text</bgred> ...   // "tag" in LIBCOLORS, constructed as "bgTAG"
+.br
+
+.IP \(bu 
+
+\fBstrip_colors ( string )\fP
+
+.RE
+.SH TEMPORARY FILES (LINE 219)
+.RS
+.IP \(bu 
+.PP
+\fBget_tempdir_path ( dirname = "LIB_TEMPDIR" )\fP
+.PP
+creates a default temporary dir with fallback: first in current dir then in system '/tmp/'
+.PP
+the real temporary directory path is loaded in the global `\fSTEMPDIR\fP`
+.PP
+\fB@param:\fP dirname The name of the directory to create (default is `\fStmp/\fP`)
+
+.IP \(bu 
+
+\fBget_tempfile_path ( filename , dirname = "LIB_TEMPDIR" )\fP
+
+this will echoes a unique new temporary file path
+
+\fB@param:\fP filename The temporary filename to use
+
+\fB@param:\fP dirname The name of the directory to create (default is `\fStmp/\fP`)
+
+.IP \(bu 
+
+\fBcreate_tempdir ( dirname = "LIB_TEMPDIR" )\fP
+
+this will create a temporary directory in the working directory with full rights
+
+use this method to over-write an existing temporary directory
+
+\fB@param:\fP dirname The name of the directory to create (default is `\fStmp/\fP`)
+
+.IP \(bu 
+
+\fBclear_tempdir ( dirname = "LIB_TEMPDIR" )\fP
+
+this will deletes the temporary directory
+
+\fB@param:\fP dirname The name of the directory (default is `\fStmp/\fP`)
+
+.IP \(bu 
+
+\fBclear_tempfiles ( dirname = "LIB_TEMPDIR" )\fP
+
+this will deletes the temporary directory contents (not the directory itself)
+
+\fB@param:\fP dirname The name of the directory (default is `\fStmp/\fP`)
+
+.RE
+.SH LOG FILES (LINE 238)
+.RS
+.IP \(bu 
+.PP
+\fBget_log_filepath ()\fP
+.PP
+creates a default placed log file with fallback: first in '/var/log' then in LIB_SYSHOMEDIR, finally in current dir
+.PP
+the real log file path is loaded in the global `LOGFILEPATH
+
+.IP \(bu 
+
+\fBlog ( message , type='' )\fP
+
+this will add an entry in LOGFILEPATH
+
+.IP \(bu 
+
+\fBread_log ()\fP
+
+this will read the LOGFILEPATH content
+
+.RE
+.SH CONFIGURATION FILES (LINE 246)
+.RS
+.IP \(bu 
+.PP
+\fBget_global_configfile ( file_name )\fP
+
+.IP \(bu 
+
+\fBget_user_configfile ( file_name )\fP
+
+.IP \(bu 
+
+\fBread_config ( file_name )\fP
+
+read a default placed config file with fallback: first in 'etc/' then in '~/'
+
+.IP \(bu 
+
+\fBread_configfile ( file_path )\fP
+
+read a config file
+
+.IP \(bu 
+
+\fBwrite_configfile ( file_path , array_keys , array_values )\fP
+
+array params must be passed as "array[@]" (no dollar sign)
+
+.IP \(bu 
+
+\fBset_configval ( file_path , key , value )\fP
+
+.IP \(bu 
+
+\fBget_configval ( file_path , key )\fP
+
+.IP \(bu 
+
+\fBbuild_configstring ( array_keys , array_values )\fP
+
+params must be passed as "array[@]" (no dollar sign)
+
+.RE
+.SH LIBRARY VARS (LINE 259)
+.RS
+.IP \(bu 
+.PP
+\fBverbose_mode ( 1/0 )\fP
+.PP
+This enables or disables the "verbose" mode.
+.PP
+If it is enabled, the "quiet" mode is disabled.
+.PP
+\fB@env:\fP VERBOSE
+
+.IP \(bu 
+
+\fBquiet_mode ( 1/0 )\fP
+
+This enables or disables the "quiet" mode.
+
+If it is enabled, the "verbose" mode is disabled.
+
+\fB@env:\fP QUIET
+
+.IP \(bu 
+
+\fBdebug_mode ( 1/0 )\fP
+
+This enables or disables the "debug" mode.
+
+If it is enabled, the "verbose" mode is enabled too and the "quiet" mode is disabled.
+
+\fB@env:\fP DEBUG
+
+.IP \(bu 
+
+\fBinteractive_mode ( 1/0 )\fP
+
+This enables or disables the "interactive" mode.
+
+If it is enabled, the "forced" mode is disabled.
+
+\fB@env:\fP INTERACTIVE
+
+.IP \(bu 
+
+\fBforcing_mode ( 1/0 )\fP
+
+This enables or disables the "forced" mode.
+
+If it is enabled, the "interactive" mode is disabled.
+
+\fB@env:\fP INTERACTIVE
+
+.IP \(bu 
+
+\fBdryrun_mode ( 1/0 )\fP
+
+This enables or disables the "dry-run" mode.
+
+If it is enabled, the "interactive" and "forced" modes are disabled.
+
+\fB@env:\fP DRYRUN
+
+.IP \(bu 
+
+\fBset_working_directory ( path )\fP
+
+handles the '-d' option for instance
+
+throws an error if 'path' does not exist
+
+.IP \(bu 
+
+\fBset_log_filename ( path )\fP
+
+handles the '-l' option for instance
+
+.IP \(bu 
+
+\fBECHOCMD (read-only: 'builtin' or 'gnu')\fP
+
+Test if 'echo' is shell builtin or program
+
+.IP \(bu 
+
+\fB_echo ( string )\fP
+
+echoes the string with the true 'echo -e' command
+
+use this for colorization
+
+.IP \(bu 
+
+\fB_necho ( string )\fP
+
+echoes the string with the true 'echo -en' command
+
+use this for colorization and no new line
+
+.IP \(bu 
+
+\fBprompt ( string , default = y , options = Y/n )\fP
+
+prompt user a string proposing different response options and selecting a default one
+
+final user fill is loaded in USERRESPONSE
+
+.IP \(bu 
+
+\fBselector_prompt ( list[@] , string , list_string , default = 1 )\fP
+
+prompt user a string proposing an indexed list of answers for selection
+and returns a valid result (user is re-prompted while the answer seems not correct)
+
+NOTE - the 'list' MUST be passed like `\fSlist[@]\fP` (no quotes and dollar sign)
+
+final user choice is loaded in USERRESPONSE
+
+.IP \(bu 
+
+\fBverbose_echo ( string )\fP
+
+Echoes the string(s) in "verbose" mode.
+
+.IP \(bu 
+
+\fB/ verecho ( string )\fP
+
+alias of 'verbose_echo'
+
+.IP \(bu 
+
+\fBquiet_echo ( string )\fP
+
+Echoes the string(s) in not-"quiet" mode.
+
+.IP \(bu 
+
+\fB/ quietecho ( string )\fP
+
+alias of 'quiet_echo'
+
+.IP \(bu 
+
+\fBdebug_echo ( string )\fP
+
+Echoes the string(s) in "debug" mode.
+
+.IP \(bu 
+
+\fB/ debecho ( string )\fP
+
+alias of 'debug_echo'
+
+.IP \(bu 
+.PP
+\fBevaluate ( command )\fP
+.PP
+evaluates the command catching events:
+.RS
+.IP \(bu 
+
+stdout is loaded in global `\fS$CMD_OUT\fP`
+
+.IP \(bu 
+
+stderr is loaded in global `\fS$CMD_ERR\fP`
+
+.IP \(bu 
+
+final status is loaded in global `\fS$CMD_STATUS\fP`
+
+.RE
+.PP
+\fB@env:\fP CMD_OUT CMD_ERR CMD_STATUS : loaded with evaluated command's STDOUT, STDERR and STATUS
+.PP
+\fB@error:\fP will end with any caught error (exit status !=0)
+
+.IP \(bu 
+
+\fBdebug_evaluate ( command )\fP
+
+evaluates the command if "dryrun" is "off", just write it on screen otherwise
+
+.IP \(bu 
+
+\fB/ debevaluate ( command )\fP
+
+alias of 'debug_evaluate'
+
+.IP \(bu 
+
+\fB/ debeval ( command )\fP
+
+alias of 'debug_evaluate'
+
+.IP \(bu 
+
+\fBinteractive_evaluate ( command , debug_exec = true )\fP
+
+evaluates the command after user confirmation if "interactive" is "on"
+
+.IP \(bu 
+
+\fB/ ievaluate ( command )\fP
+
+alias of 'interactive_evaluate'
+
+.IP \(bu 
+
+\fB/ ieval ( command )\fP
+
+alias of 'interactive_evaluate'
+
+.IP \(bu 
+
+\fBexecute ( command )\fP
+
+executes the command with outputs and status handling
+
+.IP \(bu 
+
+\fBdebug_execute ( command )\fP
+
+execute the command if "dryrun" is "off", just write it on screen otherwise
+
+.IP \(bu 
+
+\fB/ debug_exec ( command )\fP
+
+alias of 'debug_execute'
+
+.IP \(bu 
+
+\fB/ debexec ( command )\fP
+
+alias of 'debug_execute'
+
+.IP \(bu 
+
+\fBinteractive_execute ( command , debug_exec = true )\fP
+
+executes the command after user confirmation if "interactive" is "on"
+
+.IP \(bu 
+
+\fB/ interactive_exec ( command , debug_exec = true )\fP
+
+alias of 'interactive_execute'
+
+.IP \(bu 
+
+\fB/ iexec ( command , debug_exec = true )\fP
+
+alias of 'interactive_execute'
+
+.RE
+.SH MESSAGES / ERRORS (LINE 351)
+.RS
+.IP \(bu 
+.PP
+\fBinfo ( string, bold = true )\fP
+.PP
+writes the string on screen and return
+
+.IP \(bu 
+
+\fBwarning ( string , funcname = FUNCNAME[1] , line = BASH_LINENO[1] , tab='    ' )\fP
+
+writes the error string on screen and return
+
+.IP \(bu 
+
+\fBerror ( string , status = 90 , funcname = FUNCNAME[1] , line = BASH_LINENO[1] , tab='   ' )\fP
+
+writes the error string on screen and then exit with an error status
+
+\fB@error:\fP default status is E_ERROR (90)
+
+.IP \(bu 
+
+\fBget_synopsis_string ( short_opts=OPTIONS_ALLOWED , long_opts=LONG_OPTIONS_ALLOWED )\fP
+
+builds a synopsis string using script's declared available options
+
+.IP \(bu 
+
+\fBsimple_synopsis ()\fP
+
+writes a synopsis string using script's declared available options
+
+.IP \(bu 
+
+\fBsimple_usage ( synopsis = SYNOPSIS_ERROR )\fP
+
+writes a synopsis usage info
+
+.IP \(bu 
+
+\fBsimple_error ( string , status = 90 , synopsis = SYNOPSIS_ERROR , funcname = FUNCNAME[1] , line = BASH_LINENO[1] )\fP
+
+writes an error string as a simple message with a synopsis usage info
+
+\fB@error:\fP default status is E_ERROR (90)
+
+.IP \(bu 
+
+\fBsimple_error_multi ( array[@] , status = 90 , synopsis = SYNOPSIS_ERROR , funcname = FUNCNAME[1] , line = BASH_LINENO[1] )\fP
+
+writes multiple errors strings as a simple message with a synopsis usage info
+
+\fB@error:\fP default status is E_ERROR (90)
+
+.IP \(bu 
+
+\fBdev_error ( string , status = 90 , filename = BASH_SOURCE[2] , funcname = FUNCNAME[2] , line = BASH_LINENO[2] )\fP
+
+print a formated error string with dev info using the 'caller' stack trace and exit
+
+print a full back trace it `\fSVERBOSE=true\fP`
+
+.IP \(bu 
+
+\fBget_stack_trace ( first_item = 0 )\fP
+
+get a formated stack trace
+
+.IP \(bu 
+
+\fBgnu_error_string ( string , filename = BASH_SOURCE[2] , funcname = FUNCNAME[2] , line = BASH_LINENO[2] )\fP
+
+must echoes something like 'sourcefile:lineno: message'
+
+.IP \(bu 
+
+\fBno_option_error ()\fP
+
+no script option error
+
+\fB@error:\fP exits with status E_OPTS (81)
+
+.IP \(bu 
+
+\fBno_option_simple_error ()\fP
+
+no script option simple error
+
+\fB@error:\fP exits with status E_OPTS (81)
+
+.IP \(bu 
+
+\fBunknown_option_error ( option )\fP
+
+invalid script option error
+
+\fB@error:\fP exits with status E_OPTS (81)
+
+.IP \(bu 
+
+\fBunknown_option_simple_error ( option )\fP
+
+invalid script option simple error
+
+\fB@error:\fP exits with status E_OPTS (81)
+
+.IP \(bu 
+
+\fBcommand_error ( cmd )\fP
+
+command not found error
+
+\fB@error:\fP exits with status E_CMD (82)
+
+.IP \(bu 
+
+\fBcommand_simple_error ( cmd )\fP
+
+command not found simple error
+
+\fB@error:\fP exits with status E_CMD (82)
+
+.IP \(bu 
+
+\fBpath_error ( path )\fP
+
+path not found error
+
+\fB@error:\fP exits with status E_PATH (83)
+
+.IP \(bu 
+
+\fBpath_simple_error ( path )\fP
+
+path not found simple error
+
+\fB@error:\fP exits with status E_PATH (83)
+
+.RE
+.SH SCRIPT OPTIONS / ARGUMENTS (LINE 402)
+.RS
+.IP \(bu 
+.PP
+\fBORIGINAL_SCRIPT_OPTS="$@" (read-only)\fP
+.PP
+Original list of raw command line arguments
+
+.IP \(bu 
+
+\fBSCRIPT_PARAMS=''\fP
+
+String of re-arranged parameters (options & arguments)
+
+.IP \(bu 
+
+\fBSCRIPT_PIPED_INPUT=''\fP
+
+String of any piped content from previous command
+
+.IP \(bu 
+
+\fBSCRIPT_OPTS=()\fP
+
+Array of options with arguments
+
+.IP \(bu 
+
+\fBSCRIPT_ARGS=()\fP
+
+Array of script's arguments
+
+.IP \(bu 
+
+\fBSCRIPT_PROGRAMS=()\fP
+
+Array of program's options
+
+.IP \(bu 
+
+\fBSCRIPT_OPTS_ERRS=()\fP
+
+Array of options errors
+
+.IP \(bu 
+
+\fBARGIND\fP
+
+Integer of current argument index
+
+.IP \(bu 
+
+\fBARGUMENT\fP
+
+Current argument string (see `\fSARGIND\fP`)
+
+Options errors messages
+
+.IP \(bu 
+
+\fBread_from_pipe ( file=/dev/stdin )\fP
+
+.IP \(bu 
+
+\fBget_short_options_array ( short_opts=OPTIONS_ALLOWED )\fP
+
+.IP \(bu 
+
+\fBget_short_options_string ( delimiter = '|' , short_opts=OPTIONS_ALLOWED )\fP
+
+.IP \(bu 
+
+\fBget_option_declaration ( option_name , short_opts=OPTIONS_ALLOWED )\fP
+
+.IP \(bu 
+
+\fBget_option_argument ( "$x" )\fP
+
+echoes the argument of an option
+
+.IP \(bu 
+
+\fB/ get_option_arg ( "$x" )\fP
+
+alias of 'get_option_argument'
+
+.IP \(bu 
+
+\fBget_long_options_array ( long_opts=LONG_OPTIONS_ALLOWED )\fP
+
+.IP \(bu 
+
+\fBget_long_options_string ( delimiter = '|' , long_opts=LONG_OPTIONS_ALLOWED )\fP
+
+.IP \(bu 
+
+\fBget_long_option_declaration ( option_name , long_opts=LONG_OPTIONS_ALLOWED )\fP
+
+.IP \(bu 
+
+\fBget_long_option_name ( "$x" )\fP
+
+echoes the name of a long option
+
+.IP \(bu 
+
+\fB/ get_long_option ( "$x" )\fP
+
+alias of 'get_long_option_name()'
+
+.IP \(bu 
+
+\fBget_long_option_argument ( "$x" )\fP
+
+echoes the argument of a long option
+
+.IP \(bu 
+
+\fB/ get_long_option_arg ( "$x" )\fP
+
+alias of 'get_long_option_argument'
+
+.IP \(bu 
+
+\fBLONGOPTNAME=''\fP
+
+The name of current long option treated
+
+.IP \(bu 
+
+\fBLONGOPTARG=''\fP
+
+The argument set for current long option
+
+.IP \(bu 
+
+\fBparse_long_option ( $OPTARG , ${!OPTIND} )\fP
+
+This will parse and retrieve the name and argument of current long option.
+
+.IP \(bu 
+
+\fBinit_arguments ()\fP
+
+init the script arguments treatment putting `\fSARGIND\fP` on `\fS1\fP` if arguments exist
+
+.IP \(bu 
+
+\fBgetargs ( VAR_NAME )\fP
+
+method to loop over command line's arguments just like `\fSgetopts\fP` does for options
+
+this will load current argument's value in `\fSVAR_NAME\fP` and increment `\fSARGIND\fP` at each turn
+
+.IP \(bu 
+
+\fBget_next_argument ()\fP
+
+get next script argument according to current `\fSARGIND\fP`
+
+load it in `\fSARGUMENT\fP` and let `\fSARGIND\fP` incremented
+
+.IP \(bu 
+
+\fBget_last_argument ()\fP
+
+echoes the last script argument
+
+.IP \(bu 
+
+\fBrearrange_script_options_new ( "$0" , "$@"  )\fP
+
+.IP \(bu 
+
+\fBrearrange_script_options ( "$@" )\fP
+
+this will separate script options from script arguments (emulation of GNU "getopt")
+
+options are loaded in $SCRIPT_OPTS with their arguments
+
+arguments are loaded in $SCRIPT_ARGS
+
+.IP \(bu 
+
+\fBparse_common_options_strict ( "$@" = SCRIPT_OPTS )\fP
+
+parse common script options as described in $COMMON_OPTIONS_INFO throwing an error for unknown options
+
+this will stop options treatment at '--'
+
+.IP \(bu 
+
+\fBparse_common_options ( "$@" = SCRIPT_OPTS )\fP
+
+parse common script options as described in $COMMON_OPTIONS_INFO
+
+this will stop options treatment at '--'
+
+.RE
+.SH SCRIPT INFO (LINE 468)
+.RS
+.IP \(bu 
+.PP
+\fBget_script_version_string ( quiet = false )\fP
+
+.IP \(bu 
+
+\fBscript_title ( lib = false )\fP
+
+this function must echo an information about script NAME and VERSION
+
+setting `\fS$lib\fP` on true will add the library infos
+
+.IP \(bu 
+
+\fBscript_short_title ()\fP
+
+this function must echo an information about script NAME and VERSION
+
+.IP \(bu 
+
+\fBscript_usage ()\fP
+
+this function must echo the simple usage
+
+.IP \(bu 
+
+\fBscript_long_usage ( synopsis = SYNOPSIS_ERROR , options_string = COMMON_OPTIONS_USAGE )\fP
+
+writes a long synopsis usage info
+
+.IP \(bu 
+
+\fBscript_help ( lib_info = true )\fP
+
+this function must echo the help information USAGE (with option "-h")
+
+.IP \(bu 
+
+\fBscript_manpage ( cmd = $0 , section = 3 )\fP
+
+will open the manpage of $0 if found in system manpages or if `\fS$0.man\fP` exists
+
+else will trigger 'script_help' method
+
+.IP \(bu 
+
+\fBscript_short_version ( quiet = false )\fP
+
+.IP \(bu 
+
+\fBscript_version ( quiet = false )\fP
+
+.RE
+.SH DOCBUILDER (LINE 486)
+.RS
+
+.EX
+Documentation builder rules, tags and masks
+.EE
+.RE
+.RS
+.IP \(bu 
+.PP
+\fBDOCBUILDER_MASKS = ()\fP
+
+.IP \(bu 
+
+\fBDOCBUILDER_MARKER = '##@!@##'\fP
+
+.IP \(bu 
+
+\fBDOCBUILDER_RULES = ( ... )\fP
+
+.IP \(bu 
+
+\fBbuild_documentation ( type = TERMINAL , output = null , source = BASH_SOURCE[0] )\fP
+
+.IP \(bu 
+
+\fBgenerate_documentation ( filepath = BASH_SOURCE[0] , output = null )\fP
+
+.RE
+.SH LIBRARY INFO (LINE 493)
+.RS
+.IP \(bu 
+.PP
+\fBget_library_version_string ( path = $0 )\fP
+.PP
+extract the GIT version string from a file matching line 'LIB_VCSVERSION=...'
+
+.IP \(bu 
+
+\fBlibrary_info ()\fP
+
+.IP \(bu 
+
+\fBlibrary_path ()\fP
+
+.IP \(bu 
+
+\fBlibrary_help ()\fP
+
+.IP \(bu 
+
+\fBlibrary_usage ()\fP
+
+.IP \(bu 
+
+\fBlibrary_short_version ( quiet = false )\fP
+
+this function must echo an information about library name & version
+
+.IP \(bu 
+
+\fBlibrary_version ( quiet = false )\fP
+
+this function must echo an FULL information about library name & version (GNU like)
+
+.IP \(bu 
+
+\fBlibrary_debug ( "$*" )\fP
+
+see all common options flags values & some debug infos
+
+.IP \(bu 
+
+\fB/ libdebug ( "$*" )\fP
+
+alias of library_debug
+
+.RE
+.SH LIBRARY INTERNALS (LINE 508)
+.RS
+.IP \(bu 
+.PP
+\fBLIBRARY_REALPATH LIBRARY_DIR LIBRARY_BASEDIR LIBRARY_SOURCEFILE\fP
+
+.IP \(bu 
+
+\fBmake_library_homedir ()\fP
+
+make dir '$HOME/.piwi-bash-library' if it doesn't exist
+
+.IP \(bu 
+
+\fBmake_library_cachedir ()\fP
+
+make dir '$HOME/.piwi-bash-library/cache' if it doesn't exist
+
+.IP \(bu 
+
+\fBclean_library_cachedir ()\fP
+
+clean dir '$HOME/.piwi-bash-library/cache' if it exists
+
+.RE
+.SH INSTALLATION WIZARD (LINE 516)
+.RS
+.IP \(bu 
+.PP
+\fBINSTALLATION_VARS = ( SCRIPT_VCS VCSVERSION SCRIPT_REPOSITORY_URL SCRIPT_FILES SCRIPT_FILES_BIN SCRIPT_FILES_MAN SCRIPT_FILES_CONF ) (read-only)\fP
+
+.IP \(bu 
+
+\fBSCRIPT_REPOSITORY_URL = url of a distant repository\fP
+
+.IP \(bu 
+
+\fBSCRIPT_FILES = array of installable files\fP
+
+.IP \(bu 
+
+\fBSCRIPT_FILES_BIN = array of installable binary files\fP
+
+.IP \(bu 
+
+\fBSCRIPT_FILES_MAN = array of manpages files\fP
+
+.IP \(bu 
+
+\fBSCRIPT_FILES_CONF = array of configuration files\fP
+
+instwiz_get_real_version ( path = LIBINST_CLONE )
+
+get the real vcs_get_version from a repo
+
+instwiz_remoteversion ( path = LIBINST_CLONE , branch = HEAD )
+
+get the last commit SHA from the remote in branch
+
+instwiz_prepare_install_cmd ()
+
+instwiz_prepare_uninstall_cmd ()
+
+.IP \(bu 
+
+\fBscript_installation_target ( target_dir = $HOME/bin )\fP
+
+.IP \(bu 
+
+\fBscript_installation_source ( clone_repo = SCRIPT_REPOSITORY_URL , clone_dir = LIB_SYSCACHEDIR )\fP
+
+.IP \(bu 
+
+\fBscript_install ( path = $HOME/bin/ )\fP
+
+.IP \(bu 
+
+\fBscript_check ( file_name , original = LIBINST_CLONE , target = LIBINST_TARGET )\fP
+
+\fB@param:\fP file_name: the file to check and compare on both sides
+
+.IP \(bu 
+
+\fBscript_update ( path = $HOME/bin/ )\fP
+
+.IP \(bu 
+
+\fBscript_uninstall ( path = $HOME/bin/ )\fP
+
+.RE
+.SH COMPATIBILITY (LINE 539)
+
+--------------------
+.PP
+[\fIDoc generated at 02-1-2015 01:13:22 from path 'bin/piwi-bash-library.bash'\fP]
+

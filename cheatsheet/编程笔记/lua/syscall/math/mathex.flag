@@ -1,0 +1,42 @@
+--[[
+ http://lua-users.org/wiki/BitUtils
+--]]
+
+-- Flags
+
+function testflag(set, flag)
+  return set % (2*flag) >= flag
+end
+
+function setflag(set, flag)
+  if set % (2*flag) >= flag then
+    return set
+  end
+  return set + flag
+end
+
+function clrflag(set, flag) -- clear flag
+  if set % (2*flag) >= flag then
+    return set - flag
+  end
+  return set
+end
+
+
+-- Test suite
+b = {
+  ['_0000'] = 0, ['_0001'] = 1, ['_0010'] = 2, ['_0011'] = 3,
+  ['_1000'] = 8, ['_1010'] = 10, ['_1011'] = 11,
+}
+assert(not testflag(b._0000, b._0001))
+assert(not testflag(b._0000, b._0010))
+assert(not testflag(b._0010, b._0001))
+assert(    testflag(b._0010, b._0010))
+assert(setflag(b._0000, b._0001) == b._0001)
+assert(setflag(b._0000, b._0010) == b._0010)
+assert(setflag(b._1010, b._0001) == b._1011)
+assert(setflag(b._1010, b._0010) == b._1010)
+assert(clrflag(b._0000, b._0001) == b._0000)
+assert(clrflag(b._0000, b._0010) == b._0000)
+assert(clrflag(b._1010, b._0001) == b._1010)
+assert(clrflag(b._1010, b._0010) == b._1000)

@@ -1,0 +1,45 @@
+    基于内存池的管理算法(arena)。其分配的内存来自一个内存池，使用完毕立即释放整个内存池。
+调用malloc，则必须有对应的free调用。
+    基于内存池的分配器，不必像malloc/free那样，对每次调用malloc返回的指针调用free。只需要
+一个调用，即可释放上一次释放操作依赖内存池中分配的所有内存。使得分配和释放都更有效，内存泄露
+也没有了。
+    缺点：使用更多的内存，而且可能造成悬挂指针。
+    
+* 创建一个内存池，如果该函数无法分配内存池，则引发Arena_NewFailed异常
+* @return  返回指向新建内存池的一个不透明指针
+    T    arena_new(void);
+    
+* 释放与*ap内存池相关联的内存，即释放内存池本身，并将*ap清零
+* @param ap 内存池
+    void arena_dispose(T *ap);
+    
+freechunks链表保存临时free节点(free节点个数保证在THRESHOLD以内)。free节点可被不同的对象池重复使用。
+
+向任何arena函数传递的参数nbytes<=0或T值为NULL，均为已检查的运行时错误
+
+arena_new                     创建一个内存池。
+arena_alloc                   分配内存。如果存在free节点，优先使用free节点分配对象内存
+arena_calloc                  分配内存。主要调用被封装在arena_alloc函数中
+arena_dispose -> arena_free   释放内存池相关联的内存。主要调用被封装在arena_free调用中
+
+arena 对象池 API
+-------------------
+T arena_new(void) 分配、初始化并返回一个新的内存池。
+
+void *arena_alloc(T arena, long nbytes, const char *file, int line) 在内存池中分配nbytes个字节并返回一个指针，
+指向第一个字节。分配的nbytes个字节是未初始化的。如果arena_alloc引发arena_failed异常，则将file和line作为出错的源代码位置报告
+void *arena_calloc(T arena, long count, long nbytes, count char *file, int line) 在内存池中为一个count个元素的数组分配空间
+每个数组元素占nbytes字节，并返回一个指针指向第一个元素。count<=0则造成已检查的运行时错误。数组的各个元素是未初始化的。
+如果arena_calloc引发arena_failed异常，则将file和line作为出错的源代码位置报告
+
+void arena_dispose(T *ap) 释放*ap中所有的空间，释放内存池自身，并将*ap清零。
+ap或*ap为NULL，则是已检查的运行时错误
+void arena_free(T arena) 释放内存池中所有的空间，即自上一次调用arena_free以来所分配的空间。
+
+arena 对象池 扩展阅读
+-------------------
+pool allocator(基于内存池的分配器)
+Vmalloc 更通用的分配器，实现了Mem和Arena接口
+garbage collector(垃圾收集器) - 保守式垃圾收集器
+
+基于mmap的内存管理接口

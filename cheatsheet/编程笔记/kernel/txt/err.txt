@@ -1,0 +1,137 @@
+GCC:
+
+when Segment Fault happens at a func pointer dereference, it must be a wrong func pointer
+
+
+错误：声明指定了多个存储类		
+static struct node {
+	TYPE x;
+	struct node *link;						/* no static */
+};
+typedef static struct node node;
+====>
+typedef struct node node; 						/* no static */
+
+错误：声明指定了多个存储类		
+extern static void aaa();
+====>
+extern would be always away from static
+
+需要标量时使用了结构类型:
+struct tag a;
+if (a) ...
+
+gcc -lcurses		undefined reference to ....
+
+gcc -O3, then when use GDB, sometimes when we wanna show some var, like:
+print aaa	then <value optimized out>, do not optimize before debug
+
+‘unary *’(有‘unsigned int’)的实参类型无效:
+====>
+* can't dereference unsigned int
+
+错误：声明时指定了2个类型
+====>
+struct a {
+	int a;
+} ";"
+forget about the semi-colon
+
+警告：返回时丢弃了指针目标类型的限定
+====>
+const OBJ class_of(const OBJ _obj)
+{
+	return _obj->class;
+}
+
+错误：初始值设定元素不是常量
+int * tmp = malloc(sizeof(int));	can only be used in func, not global area
+static int * tmp = malloc(...);		global/static == compiling	(static)
+					local	      == runtime	(dynamic)
+the same as ({ ... })
+====>
+static int * tmp;			compiling
+tmp = malloc(...);			runtime
+
+警告：‘getter_bitvec’定义后未使用
+test.c: 在函数‘main’中:
+test.c:27: 错误：‘struct Bitvec’没有名为‘getter_bitvec’的成员
+====>
+remember to modify the it's init()
+
+警告：传递‘dtor’的第 1 个参数时在不兼容的指针类型间转换
+Stack.c:22: 附注：需要类型‘OBJ’，但实参的类型为‘int *’
+	int baba __attribute__ ((cleanup(dtor)));
+取baba地址，即为int *类型，作为参数传给dtor
+
+error: stray ‘\302’ in program
+error: stray ‘\255’ in program		encode, when u copy source codes to vim directly
+
+=============================================================================================
+LD:
+
+
+/usr/lib/libc.so.1: bad ELF interpreter: 没有那个文件或目录
+LDFLAG	= -dynamic-linker /lib/ld-linux.so.2 /usr/lib/crt1.o /usr/lib/crti.o -lc /usr/lib/crtn.o
+
+
+=============================================================================================
+CPROTO:
+
+array.h:24: syntax error at token 'typedef' ----
+struct array_desc {
+	int size;
+	void *head;
+}			/* no ';' */
+typedef struct array_desc array_desc;
+
+
+=============================================================================================
+Makefile:
+
+Makefile:9: *** 遗漏分隔符 。 停止。
+====>
+	makefile的命令要以TAB开头，依赖条件顶格
+
+
+=============================================================================================
+tar(wget):
+
+bzip2: Compressed file ends unexpectedly;
+	perhaps it is corrupted?  *Possible* reason follows.
+bzip2: Inappropriate ioctl for device
+	Input file = (stdin), output file = (stdout)
+
+It is possible that the compressed file(s) have become corrupted.
+You can use the -tvv option to test integrity of such files.
+
+You can use the `bzip2recover' program to attempt to recover
+data from undamaged sections of corrupted files.
+
+tar: Unexpected EOF in archive
+tar: Unexpected EOF in archive
+tar: Error is not recoverable: exiting now
+
+====>
+download again, file corrupt
+
+
+=============================================================================================
+cpp:
+错误：‘#’后没有宏参数
+#define	 AA	a#b		
+#define	 AA(a)	a#b		X
+
+错误：毗连“->”和“str”不能给出一个有效的预处理标识符
+====>
+getter_##str
+me->##str	XXX should be (me->str)
+_ is part of a valid name
+-> is not, so no need to ##
+
+
+=============================================================================================
+kernel:
+insmod: error inserting 'globalmem.ko': Device or resource busy
+====>
+the major device num has been occupied

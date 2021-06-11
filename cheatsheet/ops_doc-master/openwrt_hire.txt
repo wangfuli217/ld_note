@@ -1,0 +1,257 @@
+MIPS采用了RISC精简指令集设计技术
+    MIPS架构有过辉煌的历史，它曾经是芯片三国大战（x86、MIPS、PowerPC）的佼佼者
+    路由芯片目前普遍采用的是SoC(System on a Chip)设计，路由器厂家喜欢叫做RoC(Router on a Chip)设计。
+        Atheros公司：Atheros是全球路由芯片的顶级公司，其创始人便是MIPS架构的发明者约翰·轩尼诗。Atheros在2011年被高通收购
+        Broadcom是全球主要无线路由芯片的出货商之一，其产品以稳定可靠著称。BCM470X系列处理器，该处理器是ARM架构.
+        Ralink公司：雷凌科技来自中国台湾地区，Ralink在2011年被联发科收购
+
+CPU
+    BGA封装或QFN封装：如果是功能比较多的会采用BGA封装；如果是功能比较少或是为了节省成本的使用QFN封装
+内存
+    SDRAM类型一般选择TSOP封装，有两排脚，经过培训可以随意焊接，也可以去找个修手机的弄。
+    DDR1类型一般也选择TSOP封装的比较多，与SDRAM差不多。
+    DDR2类型一般选择BGA封装，修手机的一般也会更换。
+    DDR3类型一般选择BGA封装，由于速度非常快已经属于高频设备，用在路由器大多数算性能过剩。
+存储器
+    Nor Flash做存储器，现在很少了
+    现在大部分都使用SPI接口的SOP8或SOP16的封装Flash，在主板上很小的有8个脚的那颗芯片，可能就是你要的Flash存储器。
+    
+硬件启动揭秘
+    Atheros（高通）和Ralink（联发科）
+    上电--->晶振发起频率抖动--->CPU启动内部代码--->Uboot启动--->Uboot根据参数设置倍频--->Uboot进行一些其他的内部寄存器配置--->Uboot启动操作系统
+    
+    首先设备上电，上电后晶振开始发起一个指定频率的震动，这个时候CPU就根据晶振的频率进行了启动，CPU工作在晶振频率下启动自己的内部代码(CPU内部有一
+    小段代码和一点点内存，用来做最基础的事情，并且查找bootloader在哪)，然后启动uboot，最后进入操作系统。
+
+# SquashFS, JFFS2和OverlayFS
+    openwrt-15.05-ar71xx-generic-tl-wr841n-v9-squashfs-factory.bin
+    关键写squashfs, 说明根文件系统为SquashFS, 这个是给NOR Flash使用的文件系统。
+    NOR flash VS NAND flash
+        tl-wr802n v1使用的flash为w25q32(4M)或者w25q128(16M), 是一种接口为SPI的NOR flash；
+        Netgear wndr4300 v1所使用的flash为NAND flash, 它所使用的根文件系统为ubi, 所以，
+        它的固件名称为openwrt-15.05-ar71xx-nand-wndr4300-ubi-factory.img, 名称中同时表明它使用的flash为NAND flash。
+
+开机脚本
+    我们再来看一下系统开机的时候，preinit的流程应该是这样的:
+        -> /etc/preinit::preinit_essential
+        -> /etc/preinit::preinit_main
+        -> /lib/preinit/02_default_set_state
+        -> /lib/preinit/03_preinit_do_ar71xx.sh
+        -> /lib/preinit/05_set_iface_mac_ar71xx
+        -> /lib/preinit/05_set_preinit_iface_ar71xx
+        -> /lib/preinit/10_indicate_failsafe
+        -> /lib/preinit/10_indicate_preinit
+        -> /lib/preinit/10_sysinfo
+        -> /lib/preinit/30_failsafe_wait
+        -> /lib/preinit/40_run_failsafe_hook
+        -> /lib/preinit/50_indicate_regular_preinit
+        -> /lib/preinit/70_initramfs_test
+        -> /lib/preinit/80_mount_root
+        -> /lib/preinit/81_load_ath10k_board_bin
+        -> /lib/preinit/82_patch_ath10
+        -> /lib/preinit/99_10_failsafe_login
+        -> /lib/preinit/99_10_run_init
+        
+    其中，我们重点看一下/lib/preinit/80_mount_root：
+        root@OpenWrt-wr802n-v1:/lib/preinit# cat 80_mount_root 
+        #!/bin/sh
+        # Copyright (C) 2006 OpenWrt.org
+        # Copyright (C) 2010 Vertical Communications
+        
+        do_mount_root() {
+            mount_root
+            boot_run_hook preinit_mount_root
+            [ -f /sysupgrade.tgz ] && {
+                echo "- config restore -"
+                cd /
+                tar xzf /sysupgrade.tgz
+            }
+        }
+        [ "$INITRAMFS" = "1" ] || boot_hook_add preinit_main do_mount_root
+    在执行do_mount_root()时，会去执行mount_root， mount_root(/sbin/mount_root)为binary可执行文件。
+    
+    重点：
+        第一次开机或者做factory reset:
+        main()->start()->volume_find()->volume_identify():FS_DEADCODE->ramoverlay()
+        -> /etc/rc.d/S90done (/etc/init.d/done) -> "mount_root done"
+
+        之后的正常开机流程为:
+        main()->start()->volume_find()->volume_identify():FS_JFFS2->mount_overlay()
+        -> /etc/rc.d/S90done (/etc/init.d/done)
+
+    1. 先将mtd分区中的rootfs分区(/dev/root)挂载到/rom上（使用SquashFS文件系统）
+    2. 再将mtd分区中的rootfs_data分区(/dev/mtdblock3)挂载到/overlay上（使用JFFS2文件系统）
+    3. 最后使用OverlayFS，以/rom作为lowerdir, /overlay/upper作为upperdir, /overlay/work作为workdir, 创建最终的根文件系统。
+        mount 命令 # /proc/cmdline -> console=ttyS0,57600 rootfstype=squash,jffs2
+        overlayfs:/overlay on /        type overlay (rw,noatime,lowerdir=/,upperdir=/overlaydir,workdir=/overlay/work)
+        /dev/mtdblock6     on /overlay type jffs2   (rw,noatime)
+        /dev/root          on /rom     type squashfs (ro,relatime)
+        rootfs             on /        type rootfs   (rw)
+        # 上面为openwrt硬件，下面为x86类型openwrt。
+        /dev/root          on /         type ext4   (rw,noatime)
+linker -> https://www.brobwind.com/archives/411
+    failsafe
+        所以failsafe模式其实就是只挂载了rootfs分区，并将这个rootfs分区作为根文件系统。
+        
+        当然，你也可以通过监听udp端口来确定按下的时机，具体请看官方文档：
+        $ tcpdump -Ani eth0 port 4919 and udp
+        
+        从/etc/hotplug-preinit.json文件可以推断出，如果有按键按下，会去执行/etc/rc.button/failsafe
+        而/etc/rc.button/failsafe会去做：echo ${BUTTON} > /tmp/failsafe_button
+        
+        将button的名字”reset”写入到/tmp/failsafe_button, 这又有什么用呢？这得回看/lib/preinit/30_failsafe_wait：
+        echo "Press the [$1] key and hit [enter] $2"
+        [ -f "/tmp/failsafe_button" ] && FAILSAFE=true && echo "- failsafe button "`cat /tmp/failsafe_button`" was pressed -"
+        
+        这里会去检查/tmp/failsafe_button是否存在，如果存在的话，会将FAILSAFE设为true, 并将相关log显示在串口log中。
+        
+        关于failsafe等待的时间（2秒）及其他相关信息，请看/etc/preinit文件：
+        s_failsafe_wait_timeout=2
+        
+        短按（小于5秒）：可以重启系统，在串口log中可以看到REBOOT
+        长按（需要大于5秒）：恢复出厂设置。小心，如果不小心长按了，不想后悔记得先断电!
+
+    factory reset
+        而factory reset也只需要将/overlay中的文件删除，或者是如/etc/rc.button/reset中的做法：
+        执行jffs2reset -y && reboot
+ 
+    normal
+        系统正常运行时，button的功能由/etc/hotplug.json决定：
+        [ "if", 
+            [ "and", 
+                [ "has", "BUTTON" ], 
+                [ "eq", "SUBSYSTEM", "button" ], 
+            ], 
+             [ "exec", "/etc/rc.button/%BUTTON%" ] 
+         ],
+         
+    power
+        先看一下/etc/rc.button/power， 会执行关机命令：
+        root@OpenWrt-wr802n-v1:/etc# cat rc.button/power 
+        #!/bin/sh
+        
+        [ "${ACTION}" = "released" ] || exit 0
+        
+        exec /sbin/poweroff
+        
+        return 0
+        
+    reset
+        再看一下/etc/rc.button/reset, 会执行重启或者是恢复出厂设置：
+        root@OpenWrt-wr802n-v1:/etc# cat rc.button/reset 
+        #!/bin/sh
+        
+        [ "${ACTION}" = "released" ] || exit 0
+        
+        . /lib/functions.sh
+        
+        logger "$BUTTON pressed for $SEEN seconds"
+        
+        if [ "$SEEN" -lt 1 ]
+        then
+            echo "REBOOT" > /dev/console
+            sync
+            reboot
+        elif [ "$SEEN" -gt 5 ]
+        then
+            echo "FACTORY RESET" > /dev/console
+            jffs2reset -y && reboot &
+        fi
+        
+        return 0
+    
+
+1. 问题
+    /dev/root分区怎么来的
+    rootfs_data分区什么时候格式化的
+    JFFS2文件系统怎么来的，为什么要使用这种文件系统？ # 由kernel来完成JFFS2文件系统的格式化。 ->见 openwrt_shell.txt
+    OverlayFS又是怎么回事，怎么创建根文件系统的？
+    
+    第一次开机时进入failsafe模式时，/dev/mtd3前4个字节为0xde 0xad 0xc0 0xde：
+    root@(none):/# hexdump -n 16 -v -e '16/1 "%02x ""\n"' /dev/mtd3
+    de ad c0 de ff ff ff ff ff ff ff ff ff ff ff ff
+    
+firstboot # 串口阶段
+    你可以执行firstboot命令进行恢复出厂设置，
+    或者是执行 mount_root命令，挂载根文件系统。在挂载根文件系统之后，你就可以修改root的密码，
+    也可以修改相关的配置(/etc/config/)。
+
+export -n
+    export –n含义是删除指定的环境变量，但并非真正删除，只是在环境变量表中去除了，不能传递给子环境，变量本身还在，
+在本shell的其他函数中还可调用，相当于要本环境中声明了全局变量。
+
+/etc/preinit 
+#  修改/lib/functions/preinit.sh中export -n 为export; 
+   . /lib/functions/preinit.sh; 
+   执行/etc/preinit中的注册过程; 
+   . /lib/preinit/目录下所有脚本
+#  env 结果如下：
+   
+    PI_STACK_LIST=preinit_essential_hook preinit_main_hook failsafe_hook initramfs_hook preinit_mount_root_hook
+    preinit_main_hook=define_default_set_state preinit_ip pi_indicate_preinit do_sysinfo_generic failsafe_wait run_failsafe_hook indicate_regular_preinit initramfs_test do_mount_root run_init
+    preinit_essential_hook=
+    initramfs_hook=
+    failsafe_hook=indicate_failsafe failsafe_netlogin failsafe_shell
+    preinit_mount_root_hook=check_for_iso move_config
+
+    
+
+2. 在路由器的FLASH上，内核中所使用的驱动是MTD设备驱动。
+dmesg 命令 # 
+    [ 0.690000] 5 tp-link partitions found on MTD device spi0.0
+    [ 0.700000] Creating 5 MTD partitions on "spi0.0":         # 
+    [ 0.700000] 0x000000000000-0x000000020000 : "u-boot"       # 0x20000
+    [ 0.710000] 0x000000020000-0x00000012a290 : "kernel"       # 0x10A290
+    [ 0.730000] 0x00000012a290-0x0000007f0000 : "rootfs"       # 0x6C5D70
+    [ 0.760000] 0x000000300000-0x0000007f0000 : "rootfs_data"  # 0x4F0000
+    [ 0.760000] 0x0000007f0000-0x000000800000 : "art"          # 0x10000
+    [ 0.770000] 0x000000020000-0x0000007f0000 : "firmware"     # 0x7D0000
+    
+# mtd 结构分析
+    [0x000000 - 0x020000]   [0x020000                -                    0x7f0000] [0x7f0000 - 0x800000]
+    u-boot[mtd0]            firmware[mtd5]                                           art[mtd4]
+                            [0x020000 - 0x12a290]   [0x12a290           - 0x7f0000]
+                                   kernel[mtd1]      rootfs[mtd2]
+                                                               [0x300000 - 0x7f0000]
+                                                               rootfs_data[mtd3]  -> JFFS2
+                                                    [/dev/root]
+                                                    [rootfs - rootfs_data] -> squashFS
+                                                    
+                                       
+# mtd 分区说明
+    "u-boot"      ：128KB，设备初始化程序+引导程序代码本身
+    "kernel"      ：1MB，存放系统内核的二进制代码，按照x86下的讲法是Raw分区，就是这里只有内核的二进制，不存在文件系统。
+    "rootfs"      ：6.7MB，完整的系统文件包含只读和可写
+    "rootfs_data" ：4.9MB，在rootfs中的可写部分的位置
+    "art"         ：64KB，EEPROM分区，在Atheros的方案中这个分区保存了无线的硬件参数
+    "firmware"    ：7.9MB，完整的固件位置包含了除"u-boot"和"art"之外全部的内容
+
+# 指定开发板 mtd 结构
+    https://dev.openwrt.org/browser/trunk/target/linux/ar71xx/files/arch/mips/ath79/mach-tl-wr841n-v9.c
+    https://dev.openwrt.org/browser/trunk/target/linux/ar71xx/files/drivers/mtd/tplinkpart.c
+    
+
+# mtd命令
+    
+    
+# 系统的文件结构
+    首先uboot启动了kernel完成之后，由kernel加载"ROM分区"(就是rootfs减去rootfs_data得到的那一块分区)
+    ROM分区采用的是Linux内核支持的squashFS文件系统(一种压缩只读文件系统)，加载完毕后将其挂载到/rom目录(同时也挂载为根文件系统)。
+    系统将使用JFFS2文件系统格式化rootfs_data这部分并且将这部分挂载到/overlay目录。
+    将/overlay透明挂载为/分区。
+    将一部分内存挂载为/tmp目录。
+    
+# Overlay透明挂载技术
+    首先将/rom挂载为/根文件，然后再用/overlay覆盖在/之上，这样，当你进行文件系统的变更，修改，
+    所做的操作将在overlay中记录。rom是不改变的。而最简单的恢复出厂设置方法，即是删除掉/overlay下所有文件。
+    
+    /overlay/upper[mroute|maddr|root|etc] 
+        -> root对应/root目录 
+        -> upper对应根目录 
+        -> etc对应etc目录
+    将对根文件系统的修改和新建作用到upper目录中。
+    
+    /overlay/work/work/
+
+
+    

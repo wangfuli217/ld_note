@@ -1,0 +1,343 @@
+循环语句
+	简单循环
+	loop
+		循环语句
+	end loop;
+
+	如何结束循环
+	exit when 结束条件;
+
+	if 结束条件 then
+		exit;
+	end if;
+
+定义一个变量,使用PLSQL中的简单循环把这个变量的值从1输出到10
+	declare
+		num number:=1;
+	begin
+		loop
+			dbms_output.put_line(num);
+			num:=num+1;
+			exit when num=11;
+		end loop;
+	end;
+
+while循环
+	语法
+		while 循环条件 loop
+			循环代码
+		end loop;
+
+		declare 
+			num number:=1;
+		begin
+			while num<11
+			loop
+				dbms_output.put_line(num);
+				num:=num+1;
+			end loop;
+		end;
+
+for循环(智能循环)	
+	不用定义变量 不用控制变量
+	begin
+		for var_i in 1..10 
+		loop
+			dbms_output.put_line(var_i);
+		end loop;
+	end;
+
+	for循环中的变量,只能读不能写
+	begin
+		for var_i in 1..10 
+		loop
+			dbms_output.put_line(var_i);
+			--var_i:=12;	注释
+		end loop;
+	end;
+
+	如何输出10到1 可以反向输出 reverse
+	begin
+		for var_i in reverse 1..10 
+		loop
+			dbms_output.put_line(var_i);
+		end loop;
+	end;
+
+循环的嵌套
+	declare
+		var_x number;
+		var_y number;
+	begin
+		var_x:=1;
+		while var_x<4 loop
+			var_y:=1;
+			while var_y<4 loop
+				dbms_output.put_line(var_y);
+				if var_y=2 then
+					exit;
+				end if;
+				var_y:=var_y+1;
+			end loop;
+			var_x:=var_x+1;
+		end loop;
+	end;
+
+	退出条件结束的是当前循环即内层循环
+	如何满足这个条件把外层循环结束
+
+	/*适合在plsql中使用*/
+	begin
+		<<outerloop>>
+		for var_x in 1..3 loop
+			for var_y in 1..3 loop
+				dbms_output.put_line(var_y);
+				if var_y=2 then
+					exit outerloop;
+				end if;
+			end loop;
+		end loop;
+	end;
+
+goto语句 --控制语句
+	语法
+		<<标签名>>
+		goto 标签名;
+
+		举例
+			使用goto 把一个变量从1输出10
+			declare	
+				var_i number:=1;
+			begin
+				<<myloop>>
+				if var_i<11 then
+					dbms_output.put_line(var_i);
+					var_i:=var_i+1;
+					goto myloop;
+				end if;
+			end;
+
+如何退出多重循环
+	declare
+		var_x number;
+		var_y number;
+	begin
+		var_x:=1;
+		while var_x<4 loop
+			var_y:=1;
+			while var_y<4 loop
+				dbms_output.put_line(var_y);
+				if var_y=2 then
+					goto myloop;
+				end if;
+				var_y:=var_y+1;
+			end loop;
+			var_x:=var_x+1;
+		end loop;
+		<<myloop>>
+		NULL;
+	end;
+			
+PSSQL中如何使用SQL语句
+	如何使用select语句
+		select语句要和into结合使用
+			select first_name into var_name from s_emp where id=1;
+
+	DML(insert delete update)
+	TCL(commit rollback savepoint)
+		可以直接在PLSQL中使用
+
+	DDL(create drop alter)
+		不能直接在PLSQL中使用,需要使用动态SQL
+
+动态SQL
+	概念:在程序的执行过程中 可以根据条件的变化对SQL语句进行改变
+
+如何实现	
+	把sql语句变成字符串
+	begin
+		create table test928(
+				id number primary key
+				);
+	end;
+
+	DDL的动态sql
+	declare
+		sqlstr varchar2(100);
+	begin
+		sqlstr:='create table test928(
+				id number primary key
+				)';
+		sqlstr:=replace(sqlstr,')',',');
+		sqlstr:=sqlstr||'name varchar2(30))';
+		dbms_output.put_line(sqlstr);
+		execute immediate sqlstr;
+	end;
+
+DML select 语句 也可以是动态sql(了解) 执行方式和DDL相同
+
+游标 cursor
+	概念:用来存放多条数据的一个结果集 要操作这个结果集需要给这个结果集起一个名字,这个名字就是游标名(有名游标针对select语句),如果不起名字系统会给命名成sql叫匿名游标
+
+	游标的使用步骤
+		声明游标
+			declare
+				cursor 游标名 is select语句;
+			begin
+		打开游标
+			open 游标名;
+		提取数据,处理数据
+			fetch 游标名 into 变量;
+		关闭游标
+			close 游标名;
+
+		把s_emp表中所有的id first_name salary对应的数据放到一个游标里,然后提取游标中的前两条数据,并打印
+		declare
+			cursor mycur is select id,first_name,salary from s_emp;
+			myrec mycur%rowtype;
+		begin
+			open mycur;
+			fetch mycur into myrec;
+			dbms_output.put_line(myrec.id||':'||myrec.first_name||':'||myrec.salary);
+			fetch mycur into myrec;
+			dbms_output.put_line(myrec.id||':'||myrec.first_name||':'||myrec.salary);
+			close mycur;
+		end;
+游标的属性
+	游标名%found当提取游标数据时,如果提取到了新数据返回TRUE.如果提取不到新数据就返回FALSE,但这个属性的使用有两个前提,游标必须打开,否则返回非法游标,游标必须fetch,否则返回NULL值
+
+	游标名%notfoune当提取数据时,如果提取到了新数据就返回FALSE,如果提取不到新数据就返回TRUE,但这个属性的使用有两个前提,游标必须打开,否则返回非法游标,游标必须fetch,否则返回NULL值
+
+	使用简单循环 结合notfoune属性遍历游标
+		declare
+			cursor mycur is select id,first_name,salary from s_emp;
+			myrec mycur%rowtype;
+		begin
+			open mycur;
+			fetch mycur into myrec;
+			while  mycur%found
+			loop
+			dbms_output.put_line(myrec.id||':'||myrec.first_name||':'||myrec.salary);
+			fetch mycur into myrec;
+			end loop;
+			close mycur;
+		end;
+
+游标的其它属性
+	游标名%isopen   游标是否处于打开状态,打开返回TRUE,没打开返回FALSE,打开的游标不能再打开,关闭的游标不能再关闭
+	游标名%rowcount	游标指针偏移量(了解),游标不打开使用这个属性报错,游标打开之后指针的偏移量是0,fetch一次移动1,最后无法移动
+
+for循环遍历游标(智能循环)
+		declare
+			cursor mycur is select id,first_name,salary from s_emp;
+		begin
+			for myrec in mycur
+			loop
+				dbms_output.put_line(myrec.id||':'||myrec.first_name||':'||myrec.salary);
+			end loop;
+		end;
+
+		for循环会自动定义变量 自动打开 提取和关闭游标
+
+带参游标
+	一个游标在定义时,可以设计参数,这个参数可以在游标对应的sql语句中使用
+	游标的参数不能加长度修饰,但可以使用%type,打开游标时传入实参即可
+		declare
+			cursor mycur(var_id number) is select id,first_name,salary from s_emp where id>var_id;
+		begin
+			for myrec in mycur(15) 
+			loop
+				dbms_output.put_line(myrec.id||':'||myrec.first_name||':'||myrec.salary);
+			end loop;
+		end;
+
+参考游标	引用游标
+	ref	 cursor
+	游标对应的查询语句,是一个动态的sql字符串
+	动态select语句+游标
+
+	定义一个参考游标类型
+		type  参考游标类型名 is ref cursor;
+	定义一个游标变量
+		游标变量	参考游标类型名;
+	打开游标变量时,把它关联到字符串变量
+		open 游标变量 for sql字符串;
+		如果sql字符串有占位符 :b0 :b1则需要使用using传入实参
+
+		declare
+			sqlstr varchar2(100):='select * from s_emp where id>:b0';
+			type myrefcursor is ref cursor;
+			empcursor myrefcursor;
+			var_emp  s_emp%rowtype;
+			var_id number:=15;
+		begin
+			open empcursor for sqlstr using var_id;
+			loop
+				fetch empcursor into var_emp;
+				exit when empcursor%notfound;
+				dbms_output.put_line(var_emp.id||':'||var_emp.first_name);
+			end loop;
+			close empcursor;
+		end;
+
+PLSQL中的异常(exception)处理
+	PLSQL中的默认的错误处理,程序直接结束
+		declare
+			var_name s_emp.first_name%type;
+		begin
+			dbms_output.put_line('app start!');
+			select first_name into var_name from s_emp where id>2;
+			dbms_output.put_line('var_name='||var_name);
+			dbms_output.put_line('app end!');
+		end;
+
+	PLSQL中的增加错误处理的代码
+		declare
+			var_name s_emp.first_name%type;
+		begin
+			dbms_output.put_line('app start!');
+			select first_name into var_name from s_emp where id>2;
+			dbms_output.put_line('var_name='||var_name);
+			dbms_output.put_line('app end!');
+		exception
+			when too_many_rows then
+				dbms_output.put_line('process find too many rows');
+			when no_data_found then
+				dbms_output.put_line('process not found');
+			when others then
+				dbms_output.put_line('process exception');
+				dbms_output.put_line('app continue!');
+		end;
+
+		others 可以处理所有的异常情况,但太笼统
+		可以针对具体的情况,做出具体的处理
+
+用户自定义异常使用(了解)
+	定义异常
+		使用异常 把程序中 可能会出现的各种各样的问题表达出来
+		too_many_emp  exception;
+		too_many_orders  exception;
+	抛出异常
+		满足什么样的条件 抛出什么样的异常
+		raise 异常对象;
+	捕获异常
+		exception
+			when 异常对象 then
+	处理异常
+
+	declare
+		too_many_emp exception;
+		too_many_order exception;
+	begin
+		if 3<2 then
+			raise too_many_emp;
+		end if;
+		if 1=1 then
+			raise too_many_order;
+		end if;
+	exception
+		when too_many_emp then
+			dbms_output.put_line('too_many_emp');
+		when too_many_order then
+			dbms_output.put_line('too_many_order');
+	end;

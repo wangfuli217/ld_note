@@ -1,0 +1,355 @@
+shell scripts的编写
+第一行#!/bin/bash宣告这个script使用的shell名称
+
+$IFS（Internal Field Separator）	单词分隔符,可以在脚本中设置此值,以防止某些文件名含空格的问题
+
+一般sh是bash的软链接,但是使用sh和bash会有区别,当bash执行时,发现$0是sh时,就会要求代码执行一定的规范,使之符合POSIX标准
+
+数字运算
+declare -i total=$first*$second
+$((运算内容))
+let c=$a+$b
+expr 表达式
+
+getopt 与 getopts 都是 Bash 中用来获取与分析命令行参数的工具，常用在 Shell 脚本中被用来分析脚本参数。
+
+两者的比较
+
+（1）getopts 是 Shell 内建命令，getopt 是一个独立外部工具
+
+（2）getopts 使用语法简单，getopt 使用语法较复杂
+
+（3）getopts 不支持长参数（如：--option ），getopt 支持
+
+（4）getopts 不会重排所有参数的顺序，getopt 会重排参数顺序（这里的区别下面会说明）
+
+（5）getopts 出现的目的是为了代替 getopt 较快捷的执行参数分析工作
+
+getops后面的字符串就是可以使用的选项列表,每个字母代表一个选项,后面带:意味着除了定义本身之外,还带一个额外的参数
+例:
+while getopts "a:b:c" arg #选项后面的冒号表示该选项需要参数
+do
+    case $arg in
+        a)
+            echo "a's arg:$OPTARG" #参数存在$OPTARG中
+            ;;
+        b)
+            echo "b's arg:$OPTARG"
+            ;;
+        c)
+            echo "c's arg:$OPTARG"
+            ;;
+        ?)  #当有不认识的选项的时候arg为?
+            echo "unkonw argument"
+            exit 1
+        ;;
+    esac
+done
+
+test	file  测试file是否存在
+-e		该档名是否存在
+-f		该档名是否为档案
+-d		该文件名是否为目录名
+-b		该文件名是否为一个block device装置
+-c		该文件名是否为一个character device装置
+-S		该档名是否为一个Socket档案
+-p		该档名是否为一个FIFO档案
+-L		该档名是否为一个连结档
+
+-r		侦测该文件名是否具有可读的属性
+-w
+-x
+-u		侦测该文件名是否具有SUID的属性
+-g		SGID
+-k		Sticky bit
+-s		侦测该档名是否为非空白档案
+
+test file1 -nt file2
+-nt		(new than)判断file1是否比file2新
+-ot		(loder than)判断file是否比file2旧
+-ef		判断file1与file2是否为同一个档案,可用在hard link的判定上,主要意义在判定,两个档案是否均指向同一个inode
+
+判断两个整数
+-eq		两数值相等(equal)
+-ne		两数值不等(not equal)
+-gt		n1大于n2(greater than)
+-lt		n1小于n2(less than)
+-ge		n1大于等于n2(greater than or equal)
+-le		n1小于等于n2(less than or equal)
+
+判定字符串的数据
+test -z string	判定字符串是否为0?若string为空字符串,则为true
+test -n string	判定字符串是否为非0?若string为空字符串,则为false,-n可省略
+test str1 = str2	判定str1是否等于str2,若相等,则回传true
+test str1 != str2	判定str1是否不等于str2,若相等,则回传false
+
+多重条件判定  例如test -r filename -a -x filename
+-a		(and)两状况同时成立,例如test -r file -a -x file,则file同时具有r与x权限时,才回传true
+-o		(or)两状况任何一个成立!
+!		反相状态,如test ! -x file,当file不具有x时,回传true
+
+判断符号[],和test是一样的,例如test -z可以这样写[ -z "$HOME" ],每个组键都必须以空格来分开	测试HOME变量是否为空,在中括号内的变量,最好都以双引号来设定,在中括号内的常数,最好都以单或双引号设定,中括号的使用方法几乎与test一模一样
+[]中可用的符号只有==和!=,都是用于比较字符串,不可比较整数
+
+[[]]是shell中内置的一个命令,支持字符串模式匹配(=~),可以使用&&,||,比上面的-a,-o更方便
+字符串比较时可以把右边的作为一个模式（这是右边的字符串不加双引号的情况下。如果右边的字符串加了双引号，则认为是一个文本字符串。），而不仅仅是一个字符串，比如[[ hello == hell? ]]，结果为真。
+=~	可以匹配正则表达式,用[[]],正则表达式别加双引号,如果右边的表达式加了双引号,则认为这是一个是一个文本字符串
+
+1. 首先，尽管很相似，但是从概念上讲，二者是不同层次的东西。
+使用[]和[[]]的时候要注意不要吝啬空格,每一项的两边都要加上空格,[[ 1 == 2 ]]的结果为假,而[[ 1==2 ]]的结果为真
+"[["，是关键字，许多shell(如ash bsh)并不支持这种方式。ksh, bash(据说从2.02起引入对[[的支持)等支持。
+"["是一条命令， 与test等价，大多数shell都支持。在现代的大多数sh实现中，"["与"test"是内部(builtin)命令，换句话说执行"test"/"["时不会调用/some/path/to/test这样的外部命令(如果有这样的命令的话)。
+
+2.[[]]结构比Bash版本的[]更通用。在[[和]]之间的所有的字符都不会被文件扩展或是标记分割，但是会有参数引用和命令替换。
+
+用[[ ... ]]测试结构比用[ ... ]更能防止脚本里的许多逻辑错误。比如说，&&,||,<和>操作符能在一个[[]]测试里通过，但在[]结构会发生错误。
+
+3.(( ))结构扩展并计算一个算术表达式的值。如果表达式值为0，会返回1或假作为退出状态码。一个非零值的表达式返回一个0或真作为退出状态码。这个结构和先前test命令及[]结构的讨论刚好相反。
+
+4.[ ... ]为shell命令，所以在其中的表达式应是它的命令行参数，所以串比较操作符">" 与"<"必须转义，否则就变成IO改向操作符了(请参看上面2中的例子)。在[[中"<"与">"不需转义；
+由于"[["是关键字，不会做命令行扩展，因而相对的语法就稍严格些。例如
+在[ ... ]中可以用引号括起操作符，因为在做命令行扩展时会去掉这些引号，而在[[ ... ]]则不允许这样做。
+
+5.[[ ... ]]进行算术扩展，而[ ... ]不做
+
+6.[[ ... && ... && ...  ]] 和 [ ... -a ... -a ...] 不一样，[[ ]] 是逻辑短路操作，而 [ ] 不会进行逻辑短路
+
+if	[ 条件判断式 ];	then
+	当条件判断式成立时,可以进行的指令内容
+elif [ 条件判断式2 ];then
+	...
+else
+...
+fi
+注意:
+当有多个条件要写入一个中括号时,除了用-a或-o选项隔开之外,还可以用多个中括号来隔开,在这里面,&&代表AND,||代表or
+
+case $变量名称 in
+"第一个变量内容")
+	程序段
+	;;
+"第二个变量内容")
+	程序段
+	;;
+*)
+	不包含第一个变量内容与第二个变量内容的其它
+	exit 1
+	;;
+esac
+
+函数功能
+function fname(){
+	程序段
+}
+注意
+	在shell script当中,function的设定一定要在程序的最前面,return后跟数值[0-255],如果不加,将以最后一条命令运行结果作为返回值
+	方式1:value_name=`func_name arg1...`  ,将标准输出传递给value_name变量,而不是返回值
+	方式2:func_name arg1...;echo $?			接收返回值状态,也就是return返回的值
+	在函数里$1表示第一个参数,$2表示第2个参数...,$0表示脚本名称,取第10个参数需要用${10},而不是$10
+	
+$(命令)与`命令`的区别是$(命令)里反斜杠'\'可以被转义,而在`命令`中不可以
+
+循环
+while [ condition ]   当condition条件成立时,就进行循环
+do
+	程序段落
+done
+
+until [ condition ]   当condition条件成立时,就终止循环,否则就持续进行循环
+do
+	程序段落
+done
+
+for ((初始值;限制值;执行步阶))
+do
+	程序段
+done
+
+for var in con1 con2 con3...	第一次循环时,$var的内容为con1;第二次...
+do
+	程序段
+done
+
+sh	-nvx	scripts.sh
+	-n		不要执行script,仅查询语法的问题
+	-v		在执行script前,先将scripts的内容输出到屏幕上
+	-x		将使用到的script内容显示到屏幕上
+
+在 bash shell 中，$( ) 与` ` (反引号) 都是用來做命令替換用(command substitution)的。
+
+here document用法,在HERE前面加上 - 或者给HERE加上' '，加上- 表明下述文字段所有TAB键将全部忽略，加上' '表明以下凡是变量定义用到了''，将会使变量呈现所见即所得的形式，也即关闭变量替换；如果加上的是" "双引号，则会进行变量替换
+
+set 打开shell脚本里的某些开关
+	-x 执行的每一条命令及参数都会打印出来
+	+x 取消
+
+在 ${variable}的使用方法中
+${variable##/*/}	#从前面开始对比,两个代表删除最长的一段/*/
+${variable#/*/}	一个代表删除最短的一段/*/
+${variable%%/*/}	%从最后面开始对比
+${variable%/*/}	一个代表删除最短的一段
+${variable/testing/TEST}	将variable中的testing取代为TEST,一个/代表取代第一个找到的testing,两个//代表所有找到的testing
+${variable//testig/TEST}
+${var/PARTTERN}：查找var所表示的字符串中，第一次被PARTTERN所匹配到的内容并删除
+${var//PARTTERN}：查找var所表示的字符串中，所有被PARTTERN所匹配到的内容并删除
+${var:空格-number} 从右往左显示“number”个字符（-number选项需要在bash4.2以后的版本才能使用
+${var:offset:空格-number}：从左往右的顺序，先跳过“offset”个字符，然后取到最右侧number个长度字符之前。（-number选项需要在bash4.2以后的版本才能使用）
+${var/#PARTTERN/sbusti}：查找var所表示的字符串中，行首被PARTTERN所匹配到的字符串，用sunsti替换
+${var/%PARTTERN/sbusti}：查找var所表示的字符串中，行尾被PARTTERN所匹配到的字符串，用sunsti替换
+${var^^}：把var中所有小写字符转换为大写
+${var,,}：把var中所有大写字符转换为小写
+变量设定方式		str没有设定			str为空字符串		str已设定非空字符串
+var=${str-expr}		var=expr			var=				var=$str
+var=${str:-expr}	var=expr			var=expr			var=$str
+var=${str+expr}		var=expr			var=expr			var=expr
+var=${str:+expr}	var=expr			var=				var=expr
+var=${str=expr}		str=expr			str不变				str不变
+					var=expr			var=				var=$str
+var=${str:=expr}	str=expr			str=expr			str不变
+					var=expr			var=expr			var=$str
+var=${str?expr}		expr输出至stderr	var=				var=str
+var=${str:?expr}	expr输出至stderr	expr输出至stderr	var=str
+
+read [-pt]  variable	读取来自键盘输入的变量
+-p	后面可以接提示字符
+-t	等待的秒数
+declare [-aixr] variable
+-a	将后面的variable定义成为数组
+-i	将后面接的variable定义成为整数数字
+-x	用法与export一样,将后面的变量变成环境变量
+-r	将变量设定成为readonly,该变量不可被更改内容,也不能unset
+
+$$	Shell本身的PID（ProcessID）
+$!	Shell最后运行的后台Process的PID
+$?	最后运行的命令的结束代码（返回值）
+$-	使用Set命令设定的Flag一览
+$*	所有参数列表。如"$*"用「"」括起来的情况、以"$1 $2 … $n"的形式输出所有参数。
+$@	所有参数列表。如"$@"用「"」括起来的情况、以"$1" "$2" … "$n" 的形式输出所有参数。
+$#	添加到Shell的参数个数
+$0		Shell本身的文件名,在shell中运行还可以查看使用的是什么shell
+$1～$n	添加到Shell的各参数值。$1是第1参数、$2是第2参数…。
+
+数组切片：${array_name[*]:offset:number}    
+offset：跳过多少个 ；number：显示多少个；处理顺序：从左到右
+#Output in the array subscript 1 to 3 element输出数组中下标为1到3的元素
+echo ${array[@]:1:3}
+#Output in the array subscript greater than 2 elements输出数组中下标大于2的元素
+echo ${array[@]:2}
+#Output in the array subscript less than 2 elements输出数组中下标小于2的元素
+echo ${array[@]::2}
+
+echo -e “\033[30m 黑色字 \033[0m” 		echo -e “\033[40;37m 黑底白字 \033[0m”
+echo -e “\033[31m 红色字 \033[0m” 
+echo -e “\033[32m 绿色字 \033[0m” 
+echo -e “\033[33m 黄色字 \033[0m” 
+echo -e “\033[34m 蓝色字 \033[0m” 
+echo -e “\033[35m 紫色字 \033[0m” 
+echo -e “\033[36m 天蓝字 \033[0m” 
+echo -e “\033[37m 白色字 \033[0m”
+\33[0m 关闭所有属性 
+\33[1m 设置高亮度 
+\33[4m 下划线 
+\33[5m 闪烁 
+\33[7m 反显 
+\33[8m 消隐 
+\33[30m — \33[37m 设置前景色 
+\33[40m — \33[47m 设置背景色 
+\33[nA 光标上移n行 
+\33[nB 光标下移n行 
+\33[nC 光标右移n行 
+\33[nD 光标左移n行 
+\33[y;xH设置光标位置 
+\33[2J 清屏 
+\33[K 清除从光标到行尾的内容 
+\33[s 保存光标位置 
+\33[u 恢复光标位置 
+\33[?25l 隐藏光标 
+\33[?25h 显示光标
+
+按行读取文件的3种方法
+while read line
+do
+echo $line
+done < filename(待读取的文件)
+
+cat filename(待读取的文件) | while read line
+do
+echo $line
+done
+
+for line in `cat filename(待读取的文件)`
+do
+echo $line
+done
+
+expect<<!
+...
+!
+
+printf format-string [arguments...]   在format_string前加上$可以将""中的多行显示为多行,不然只显示为一行
+
+
+trap "commands" signal		当shell接收到signals指定的信号时，执行commands命令
+例:trap "kill $THIS_PID" TERM
+trap -l 列出所有的信号
+shell脚本在执行时,会产生三个伪信号(因为是shell产生的,其他信号是操作系统产生的),如下
+EXIT	从一个函数中退出或者整个脚本执行完毕
+ERR		当一个命令返回非零状态时(代表命令执行不成功)
+DEBUG	脚本中每一条命令执行前
+
+shell脚本一些内置变量
+$LINENO		代表shell脚本当前行号
+$FUNCNAME	是一个数组变量,包含了调用链上所有函数的名字,帮${FUNCNAME[0]}代表当前调用的函数名字,1调用0,2调用1...
+$PS4		sh -x会显示每一条执行的命令,而$PS4的值会被显示"-x"输出的每一条指令前,缺省为+,可以利用这一特性,export PS4='+{$LINENO:${FUNCNAME[0]}}'
+
+eval执行以下两个步骤
+第一次,执行变量替换,类似于c语言宏替换
+第二次,执行替换后的命令串
+
+bash命令处理的12个步骤；
+
+1、将命令行分成由固定元字符集分隔的记号；
+SPACE, TAB, NEWLINE, ; , (, ),<, >, |,&
+记号类型包括单词，关键字，I/O重定向符和分号。
+
+2、检测每个命令的第一个记号，查看是否为不带引号或反斜线的关键字。
+如果是一个开放的关键字，如if和其他控制结构起始字符串，function，{或(，则命令实际上为一复合命令。shell在内部对复合命令进行处理，读取下一个命令，并重复这一过程。如果关键字不是复合命令起始字符串(如then等一个控制结构中间出现的关键字)，则给出语法错误信号。
+
+3、依据别名列表检查每个命令的第一个关键字；
+如果找到相应匹配，则替换其别名定义，并退回第一步;否则进入第4步。该策略允许递归别名，还允许定义关键字别名。如aliasprocedure=function
+
+4、执行大括号扩展，例如a{b,c}变成ab ac
+
+5、如果~位于单词开头，用$HOME替换~。
+使用usr的主目录替换~user。
+
+6、对任何以符号$开头的表达式执行参数(变量)替换;
+
+7、对形式$(string)的表达式进行命令替换；
+这里是嵌套的命令行处理。
+
+8、计算形式为$((string))的算术表达式；
+
+9、把行的参数，命令和算术替换部分再次分成单词，这次它使用$IFS中的字符做分割符而不是步骤1的元字符集；
+ 
+10、对出现*, ?, [ / ]对执行路径名扩展，也称为通配符扩展；
+11、按命令优先级表(跳过别名)，进行命令查寻；(查找次序为函数,内部命令,脚本和可执行代码)
+12、设置完I/O重定向和其他操作后执行该命令。
+关于引用
+1、单引号跳过了前10个步骤，不能在单引号里放单引号
+2、双引号跳过了步骤1~5，步骤9~10，也就是说，只处理6~8个步骤。
+也就是说，双引号忽略了管道字符，别名，~替换，通配符扩展，和通过分隔符分裂成单词。
+双引号里的单引号没有作用，但双引号允许参数替换，命令替换和算术表达式求值。可以在双引号里包含双引号，方式是加上转义符"\"，还必须转义$,`, \。
+
+命令优先级表
+1.别名 
+2.关键字  
+3.函数  
+4.内置命令 
+5.脚本或可执行程序$PATH
+
+command		跳过别名和函数的查找,它只查找内部命令以及搜索路径中找到的脚本或可执行程序
+builtin		只查找内部命令
+enable	-n	与builtin相反,它屏蔽一个内部命令,允许运行一个shell脚本或同名的可执行代码而无须给出完整路径
+
+wait   等待子进程结束

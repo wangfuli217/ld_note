@@ -1,0 +1,38 @@
+--[[
+%f[set]， 指 边境模式； 这个条目会匹配到一个位于 set 内某个字符之前的一个空串， 
+          且这个位置的前一个字符不属于 set 。 集合 set 的含义如前面所述。 匹配出
+          的那个空串之开始和结束点的计算就看成该处有个字符 '0' 一样。
+    http://lua-users.org/wiki/FrontierPattern
+--]]
+
+-- First attempt: %u+
+string.gsub ("the QUICK brown fox", "%u+", print)  -- QUICK
+string.gsub ("the QUICK BROwn fox", "%u+", print)  -- QUICK
+                                                   -- BRO
+                                                   
+-- Second attempt: %u+%A
+string.gsub ("the QUICK BROwn fox", "%u+%A", print)  -- QUICK
+string.gsub ("the QUICK brOWN fox", "%u+%A", print)  -- QUICK
+                                                     -- OWN 
+string.gsub ("the QUICK. brown fox", "%u+%A", print) -- QUICK.
+
+-- Third attempt: %A%u+%A
+string.gsub ("the QUICK brOWN FOx jumps", "%A%u+%A", print)    -- QUICK
+string.gsub ("the (QUICK) brOWN FOx jumps", "%A%u+%A", print)  -- (QUICK)
+string.gsub ("THE (QUICK) brOWN FOx JUMPS", "%A%u+%A", print)  -- (QUICK)
+
+-- The solution: The Frontier pattern: %f
+string.gsub ("THE (QUICK) brOWN FOx JUMPS", "%f[%a]%u+%f[%A]", print) -- THE
+                                                                      -- QUICK
+                                                                      -- JUMPS
+                                                                      
+-- Alternatives without the frontier pattern
+s = "THE (QUICK) brOWN FOx JUMPS"
+s = "\0" .. s:gsub("(%A)(%u)", "%1\0%2")
+             :gsub("(%u)(%A)", "%1\0%2") .. "\0"
+s = s:gsub("%z(%u+)%z", print)
+
+--DmitryGaivoronsky
+s = "THE QUICK brOWN FOx JUMPS"
+(' '..s..' '):gsub('%A+', '  '):gsub(' (%u+) ', print)
+s:gsub('%a+', ' %1 '):gsub(' (%u+) ', print)

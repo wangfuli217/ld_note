@@ -1,0 +1,412 @@
+1. Java虚拟机(JVM)是运行 Java 字节码的虚拟机. -> java虚拟机(java字节码) 
+2. JIT 属于运行时编译。当 JIT 编译器完成第一次编译后，其会将字节码对应的机器码保存下来，下次可以直接使用。(不可移植)
+3. JDK 是 Java Development Kit，它是功能齐全的 Java SDK。它拥有 JRE 所拥有的一切，
+    还有编译器（javac）和工具（如 javadoc 和 jdb）。它能够创建和编译程序。
+4. JRE 是 Java 运行时环境。它是运行已编译 Java 程序所需的所有内容的集合，包括 Java 虚拟机（JVM），
+    Java 类库，java 命令和其他的一些基础构件。但是，它不能用于创建新程序。
+5. OpenJDK 项目主要基于 Sun 捐赠的 HotSpot 源代码。此外，OpenJDK 被选为 Java 7 的参考实现，由 Oracle 工程师维护。
+
+a. 什么是 Java 程序的主类 应用程序和小程序的主类有何不同?
+    一个程序中可以有多个类，但只能有一个类是主类。在 Java 应用程序中，这个主类是指包含 main（）方法的类。
+而在 Java 小程序中，这个主类是一个继承自系统类 JApplet 或 Applet 的子类。应用程序的主类不一定要求是 public 类，
+但小程序的主类要求必须是 public 类。主类是 Java 程序执行的入口点。
+
+b. Java 应用程序与小程序之间有哪些差别?
+    简单说应用程序是从主线程启动(也就是 main() 方法)。applet 小程序没有 main() 方法，主要是嵌在浏览器页面上运行
+(调用init()或者run()来启动)，嵌入浏览器这点跟 flash 的小游戏类似。
+
+6. import java 和 javax 当前没区别
+
+c. 字符型常量和字符串常量的区别?
+    形式上: 字符常量是单引号引起的一个字符; 字符串常量是双引号引起的若干个字符
+    含义上: 字符常量相当于一个整型值( ASCII 值),可以参加表达式运算; 字符串常量代表一个地址值(该字符串在内存中存放位置)
+    占内存大小 字符常量只占 2 个字节; 字符串常量占若干个字节
+
+7. 泛型的本质是参数化类型，也就是说所操作的数据类型被指定为一个参数。
+Java的泛型是伪泛型，这是因为Java在编译期间，所有的泛型信息都会被擦掉，这也就是通常所说类型擦除 。
+https://www.cnblogs.com/wuqinglong/p/9456193.html
+
+8.1.泛型类：
+//此处T可以随便写为任意标识，常见的如T、E、K、V等形式的参数常用于表示泛型
+//在实例化泛型类时，必须指定T的具体类型
+public class Generic<T>{ 
+   
+    private T key;
+
+    public Generic(T key) { 
+        this.key = key;
+    }
+
+    public T getKey(){ 
+        return key;
+    }
+}
+如何实例化泛型类：
+Generic<Integer> genericInteger = new Generic<Integer>(123456);
+
+
+8.2.泛型接口 ：
+public interface Generator<T> {
+    public T method();
+}
+
+实现泛型接口，不指定类型：
+class GeneratorImpl<T> implements Generator<T>{
+    @Override
+    public T method() {
+        return null;
+    }
+}
+
+实现泛型接口，指定类型：
+class GeneratorImpl<T> implements Generator<String>{
+    @Override
+    public String method() {
+        return "hello";
+    }
+}
+
+8.3.泛型方法 ：
+   public static < E > void printArray( E[] inputArray )
+   {         
+         for ( E element : inputArray ){        
+            System.out.printf( "%s ", element );
+         }
+         System.out.println();
+    }
+
+使用：
+// 创建不同类型数组： Integer, Double 和 Character
+Integer[] intArray = { 1, 2, 3 };
+String[] stringArray = { "Hello", "World" };
+printArray( intArray  ); 
+printArray( stringArray  ); 
+
+常用的通配符为： T，E，K，V，？
+    ？ 表示不确定的 java 类型
+    T (type) 表示具体的一个java类型
+    K V (key value) 分别代表java键值中的Key Value
+    E (element) 代表Element
+https://juejin.im/post/5d5789d26fb9a06ad0056bd9
+
+9. equal  基本数据类型==比较的是值，引用数据类型==比较的是内存地址
+equals() 方法存在两种使用情况：
+    情况 1：类没有覆盖 equals()方法。则通过 equals()比较该类的两个对象时，等价于通过“==”比较这两个对象。
+使用的默认是 Object类equals()方法。
+    情况 2：类覆盖了 equals()方法。一般，我们都覆盖 equals()方法来两个对象的内容相等；若它们的内容相等，
+则返回 true(即，认为这两个对象相等)。
+    
+10 . hashcode
+Object 的 hashcode 方法是本地方法，也就是用 c 语言或 c++ 实现的，该方法通常用来将对象的 内存地址 转换为整数之后返回。
+public native int hashCode();
+
+add(object, HashSet) -> HashSet.find(object.hashcode()) 不存在添加
+                                                          存在时 -> object.equal(exist) 相等(不会让其加入操作成功)
+                                                                                        不相等 -> 添加到HashSet
+equals 方法被覆盖过，则 hashCode 方法也必须被覆盖。 -> hashcode 只是用来缩小查找成本。
+https://www.cnblogs.com/skywang12345/p/3324958.html
+
+
+hashCode()与 equals()的相关规定
+    如果两个对象相等，则 hashcode 一定也是相同的
+    两个对象相等,对两个对象分别调用 equals 方法都返回 true
+    两个对象有相同的 hashcode 值，它们也不一定是相等的
+    因此，equals 方法被覆盖过，则 hashCode 方法也必须被覆盖
+    hashCode() 的默认行为是对堆上的对象产生独特值。如果没有重写 hashCode()，则该 class 的两个对象无论如何都不会相等
+(即使这两个对象指向相同的数据)
+https://www.cnblogs.com/skywang12345/p/3324958.html
+
+
+10. Java中有8种基本数据类型，分别为：
+    6种数字类型 ：byte、short、int、long、float、double
+    1种字符类型：char
+    1中布尔型：boolean。
+这八种基本类型都有对应的包装类分别为：Byte、Short、Integer、Long、Float、Double、Character、Boolean
+
+注意：
+    Java 里使用 long 类型的数据一定要在数值后面加上 L，否则将作为整型解析：
+    char a = 'h'char :单引号，String a = "hello" :双引号
+    
+自动装箱与拆箱
+    装箱：将基本类型用它们对应的引用类型包装起来；
+    拆箱：将包装类型转换为基本数据类型；
+    
+    
+    Java 基本类型的包装类的大部分都实现了常量池技术，即 Byte,Short,Integer,Long,Character,Boolean；
+前面 4 种包装类默认创建了数值[-128，127] 的相应类型的缓存数据，Character创建了数值在[0,127]范围的缓存数据，
+Boolean 直接返回True Or False。如果超出对应范围仍然会去创建新的对象。 
+
+两种浮点数类型的包装类 Float,Double 并没有实现常量池技术。**
+    Integer i1 = 33;
+    Integer i2 = 33;
+    System.out.println(i1 == i2);// 输出 true
+    Integer i11 = 333;
+    Integer i22 = 333;
+    System.out.println(i11 == i22);// 输出 false
+    Double i3 = 1.2;
+    Double i4 = 1.2;
+    System.out.println(i3 == i4);// 输出 false
+
+--------------------------------------------------------------------------------
+11. Integer 缓存源代码：
+/**
+*此方法将始终缓存-128 到 127（包括端点）范围内的值，并可以缓存此范围之外的其他值。
+*/
+    public static Integer valueOf(int i) {
+        if (i >= IntegerCache.low && i <= IntegerCache.high)
+            return IntegerCache.cache[i + (-IntegerCache.low)];
+        return new Integer(i);
+    }
+
+应用场景：
+    Integer i1=40；Java 在编译的时候会直接将代码封装成 Integer i1=Integer.valueOf(40);，从而使用常量池中的对象。
+    Integer i1 = new Integer(40);这种情况下会创建新的对象。
+
+  Integer i1 = 40;
+  Integer i2 = new Integer(40);
+  System.out.println(i1==i2);//输出 false
+Integer 比较更丰富的一个例子:
+  Integer i1 = 40;
+  Integer i2 = 40;
+  Integer i3 = 0;
+  Integer i4 = new Integer(40);
+  Integer i5 = new Integer(40);
+  Integer i6 = new Integer(0);
+  
+  System.out.println("i1=i2   " + (i1 == i2));
+  System.out.println("i1=i2+i3   " + (i1 == i2 + i3));
+  System.out.println("i1=i4   " + (i1 == i4));
+  System.out.println("i4=i5   " + (i4 == i5));
+  System.out.println("i4=i5+i6   " + (i4 == i5 + i6));   
+  System.out.println("40=i5+i6   " + (40 == i5 + i6));     
+
+结果：
+
+i1=i2   true
+i1=i2+i3   true
+i1=i4   false
+i4=i5   false
+i4=i5+i6   true
+40=i5+i6   true
+
+解释：
+    语句 i4 == i5 + i6，因为+这个操作符不适用于 Integer 对象，首先 i5 和 i6 进行自动拆箱操作，
+进行数值相加，即 i4 == 40。然后 Integer 对象无法与数值进行直接比较，所以 i4 自动拆箱转为 int 值 40，
+最终这条语句转为 40 == 40 进行数值比较。
+--------------------------------------------------------------------------------
+12. 值传递
+    1. 一个方法不能修改一个基本数据类型的参数（即数值型或布尔型）。
+    2. 一个方法可以改变一个对象参数的状态。
+    3. 一个方法不能让对象参数引用一个新的对象。
+
+--------------------------------------------------------------------------------
+13. 重载和重写的区别
+    重载就是同样的一个方法能够根据输入数据的不同，做出不同的处理
+    重写就是当子类继承自父类的相同方法，输入数据一样，但要做出有别于父类的响应时，你就要覆盖父类方法
+    
+13.1 重载
+发生在同一个类中，方法名必须相同，参数类型不同、个数不同、顺序不同，方法返回值和访问修饰符可以不同。
+重载就是同一个类中多个同名方法根据不同的传参来执行不同的逻辑处理
+    
+13.2 重写
+重写发生在运行期，是子类对父类的允许访问的方法的实现过程进行重新编写。
+    返回值类型、方法名、参数列表必须相同，抛出的异常范围小于等于父类，访问修饰符范围大于等于父类。
+    如果父类方法访问修饰符为 private/final/static 则子类就不能重写该方法，但是被 static 修饰的方法能够被再次声明。
+    构造方法无法被重写
+综上：重写就是子类对父类方法的重新改造，外部样子不能改变，内部逻辑可以改变
+
+
+区别点          重载方法    重写方法
+发生范围        同一个类    子类 中
+参数列表        必须修改    一定不能修改
+返回类型        可修改      一定不能修改
+异常            可修改      可以减少或删除，一定不能抛出新的或者更广的异常
+访问修饰符      可修改      一定不能做更严格的限制（可以降低限制）
+发生阶段        编译期      运行期
+
+--------------------------------------------------------------------------------
+14. 深拷贝 vs 浅拷贝
+    浅拷贝：对基本数据类型进行值传递，对引用数据类型进行引用传递般的拷贝，此为浅拷贝。
+    深拷贝：对基本数据类型进行值传递，对引用数据类型，创建一个新的对象，并复制其内容，此为深拷贝。
+    
+    
+--------------------------------------------------------------------------------
+15. 构造器 Constructor 是否可被 override?
+Constructor 不能被 override（重写）,但是可以 overload（重载）,所以你可以看到一个类中有多个构造函数的情况。
+    
+    
+c. 在 Java 中定义一个不做事且没有参数的构造方法的作用？ ==== 重要
+    Java 程序在执行子类的构造方法之前，如果没有用 super()来调用父类特定的构造方法，
+则会调用父类中“没有参数的构造方法”。因此，如果父类中只定义了有参数的构造方法，而在
+子类的构造方法中又没有用 super()来调用父类中特定的构造方法，则编译时将发生错误，
+因为 Java 程序在父类中找不到没有参数的构造方法可供执行。解决办法是在父类里加上一个
+不做事且没有参数的构造方法。
+
+--------------------------------------------------------------------------------
+d. 成员变量与局部变量的区别有哪些？                        ==== 重要
+    从语法形式上看:成员变量是属于类的，而局部变量是在方法中定义的变量或是方法的参数；
+成员变量可以被 public,private,static 等修饰符所修饰，而局部变量不能被访问控制修饰符及 
+static 所修饰；但是，成员变量和局部变量都能被 final 所修饰。
+    从变量在内存中的存储方式来看:如果成员变量是使用static修饰的，那么这个成员变量是属于类的，
+如果没有使用static修饰，这个成员变量是属于实例的。而对象存在于堆内存，局部变量则存在于栈内存。
+    从变量在内存中的生存时间上看:成员变量是对象的一部分，它随着对象的创建而存在，
+而局部变量随着方法的调用而自动消失。
+    成员变量如果没有被赋初值:则会自动以类型的默认值而赋值（一种情况例外:被 final 修饰
+的成员变量也必须显式地赋值），而局部变量则不会自动赋值。
+
+--------------------------------------------------------------------------------
+e. 一个类的构造方法的作用是什么? 若一个类没有声明构造方法，该程序能正确执行吗? 为什么?
+    主要作用是完成对类对象的初始化工作。可以执行。因为一个类即使没有声明构造方法也会
+有默认的不带参数的构造方法。如果我们自己添加了类的构造方法(无论是否有参)，Java 就不会
+再添加默认的无参数的构造方法了，这时候，就不能直接 new 一个对象而不传递参数了，
+所以我们一直在不知不觉地使用构造方法，这也是为什么我们在创建对象的时候后面要加一个括号
+(因为要调用无参的构造方法)。如果我们重载了有参的构造方法，记得都要把无参的构造方法也写出来
+(无论是否用到)，因为这可以帮助我们在创建对象的时候少踩坑。
+
+e.1 构造方法有哪些特性？
+    名字与类名相同。
+    没有返回值，但不能用 void 声明构造函数。
+    生成类的对象时自动执行，无需调用。
+e.2 在调用子类构造方法之前会先调用父类没有参数的构造方法,其目的是?
+帮助子类做初始化工作。
+
+--------------------------------------------------------------------------------
+16. 继承如下 3 点请记住：
+    子类拥有父类对象所有的属性和方法(包括私有属性和私有方法)，但是父类中的私有属性和方法子类是无法访问，只是拥有。
+    子类可以拥有自己属性和方法，即子类可以对父类进行扩展。
+    子类可以用自己的方式实现父类的方法。(以后介绍)。
+
+--------------------------------------------------------------------------------
+17. 多态
+多态，顾名思义，表示一个对象具有多种的状态。具体表现为父类的引用指向子类的实例。
+多态的特点:
+    对象类型和引用类型之间具有继承(类)/实现(接口)的关系；
+    对象类型不可变，引用类型可变；
+    方法具有多态性，属性不具有多态性；
+    引用类型变量发出的方法调用的到底是哪个类中的方法，必须在程序运行期间才能确定；
+    多态不能调用"只在子类存在但在父类不存在"的方法；
+    
+    === 如果子类重写了父类的方法，真正执行的是子类覆盖的方法，如果子类没有覆盖父类的方法，执行的是父类的方法。
+    
+--------------------------------------------------------------------------------
+f. 接口和抽象类的区别是什么？
+    接口的方法默认是 public，所有方法在接口中不能有实现(Java 8 开始接口方法可以有默认实现)，而抽象类可以有非抽象的方法。
+    
+    接口中除了 static、final 变量，不能有其他变量，而抽象类中则不一定。
+    
+    一个类可以实现多个接口，但只能实现一个抽象类。接口自己本身可以通过 extends 关键字扩展多个接口。
+    
+    接口方法默认修饰符是 public，抽象方法可以有 public、protected 和 default 这些修饰符
+(抽象方法就是为了被重写所以不能使用 private 关键字修饰！)。
+
+    从设计层面来说，抽象是对类的抽象，是一种模板设计，而接口是对行为的抽象，是一种行为的规范。
+    
+    
+--------------------------------------------------------------------------------
+g. String StringBuffer 和 StringBuilder 的区别是什么? String 为什么是不可变的?
+
+简单的来说：String 类中使用 final 关键字修饰字符数组来保存字符串，private final char value[]，所以 String 对象是不可变的。
+    补充（来自issue 675）：在 Java 9 之后，String 类的实现改用 byte 数组存储字符串 private final byte[] value;
+
+    而 StringBuilder 与 StringBuffer 都继承自 AbstractStringBuilder 类，在 AbstractStringBuilder 
+中也是使用字符数组保存字符串char[]value 但是没有用 final 关键字修饰，所以这两种对象都是可变的。
+
+StringBuilder 与 StringBuffer 的构造方法都是调用父类构造方法也就是AbstractStringBuilder 实现的，大家可以自行查阅源码。
+
+
+abstract class AbstractStringBuilder implements Appendable, CharSequence {
+    /**
+     * The value is used for character storage.
+     */
+    char[] value;
+
+    /**
+     * The count is the number of characters used.
+     */
+    int count;
+
+    AbstractStringBuilder(int capacity) {
+        value = new char[capacity];
+    }}
+
+
+g.1 线程安全性
+String 中的对象是不可变的，也就可以理解为常量，线程安全。
+StringBuffer 对方法加了同步锁或者对调用的方法加了同步锁，所以是线程安全的。
+StringBuilder 并没有对方法进行加同步锁，所以是非线程安全的。
+
+对于三者使用的总结：
+    操作少量的数据: 适用 String
+    单线程操作字符串缓冲区下操作大量数据: 适用 StringBuilder
+    多线程操作字符串缓冲区下操作大量数据: 适用 StringBuffer
+
+    
+--------------------------------------------------------------------------------
+h. Object 类的常见方法总结
+Object 类是一个特殊的类，是所有类的父类。它主要提供了以下 11 个方法：
+
+//native方法，用于返回当前运行时对象的Class对象，使用了final关键字修饰，故不允许子类重写。
+public final native Class<?> getClass()
+
+//native方法，用于返回对象的哈希码，主要使用在哈希表中，比如JDK中的HashMap。
+public native int hashCode() 
+
+//用于比较2个对象的内存地址是否相等，String类对该方法进行了重写用户比较字符串的值是否相等。
+public boolean equals(Object obj)
+
+//naitive方法，用于创建并返回当前对象的一份拷贝。一般情况下，对于任何对象 x，
+//表达式 x.clone() != x 为true，x.clone().getClass() == x.getClass() 为true。
+//Object本身没有实现Cloneable接口，所以不重写clone方法并且进行调用的话会发生CloneNotSupportedException异常。
+protected native Object clone() throws CloneNotSupportedException
+
+//返回类的名字@实例的哈希码的16进制的字符串。建议Object所有的子类都重写这个方法。
+public String toString()
+
+//native方法，并且不能重写。唤醒一个在此对象监视器上等待的线程(监视器相当于就是锁的概念)。如果有多个线程在等待只会任意唤醒一个。
+public final native void notify()
+
+//native方法，并且不能重写。跟notify一样，唯一的区别就是会唤醒在此对象监视器上等待的所有线程，而不是一个线程。
+
+public final native void notifyAll()
+
+//native方法，并且不能重写。暂停线程的执行。注意：sleep方法没有释放锁，而wait方法释放了锁 。timeout是等待时间。
+public final native void wait(long timeout) throws InterruptedException
+
+//多了nanos参数，这个参数表示额外时间（以毫微秒为单位，范围是 0-999999）。 所以超时的时间还需要加上nanos毫秒。
+public final void wait(long timeout, int nanos) throws InterruptedException
+
+//跟之前的2个wait方法一样，只不过该方法一直等待，没有超时时间这个概念
+public final void wait() throws InterruptedException
+
+//实例被垃圾回收器回收的时候触发的操作
+protected void finalize() throws Throwable { }
+
+
+--------------------------------------------------------------------------------
+i. Java 序列化中如果有些字段不想进行序列化，怎么办？
+
+对于不想进行序列化的变量，使用 transient 关键字修饰。
+    transient 关键字的作用是：阻止实例中那些用此关键字修饰的的变量序列化；当对象被反序列化时，
+被 transient 修饰的变量值不会被持久化和恢复。transient 只能修饰变量，不能修饰类和方法。
+
+--------------------------------------------------------------------------------
+j. 获取用键盘输入常用的两种方法
+方法 1：通过 Scanner
+Scanner input = new Scanner(System.in);
+String s  = input.nextLine();
+input.close();
+
+方法 2：通过 BufferedReader
+BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
+String s = input.readLine();
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

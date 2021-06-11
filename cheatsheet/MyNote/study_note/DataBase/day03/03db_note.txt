@@ -1,0 +1,252 @@
+表连接
+	内连接:
+		等值连接
+			员工和部门的关系 where dept_id=s_dept.id;
+			部门和地区的关系 where region_id=s_region.id;
+		非等值连接
+			员工工资 和 工资级别 where salary between losal and hisal;
+		自连接
+			找谁是领导? from s_emp e,s_emp m where e.manager_id=m.id;
+
+	外连接:外连接的结果集等于内连接的结果集加上匹配不上的记录
+		等值连接
+			部门和地区的关系 where region_id=s_region.id(+);
+		非等值连接
+			员工工资 和 工资级别 where salary between losal(+) and hisal(+);
+		自连接
+			找谁是领导? from s_emp e,s_emp m where e.manager_id=m.id;
+
+作业
+	使用内连接完成查找s_emp表谁是领导?
+		select distinct m.id,m.first_name from s_emp e,s_emp m where e.manager_id=m.id;
+	在上面的基础上 使用(+)查找谁是普通员工
+		select distinct m.id,m.first_name from s_emp e,s_emp m where e.manager_id(+)=m.id and e.manager_id is null;
+	最后使用left outer join完成(+)的功能
+		select distinct m.id,m.first_name from s_emp m left outer join s_emp e on e.manager_id=m.id where e.manager_id is null;
+
+全外连接
+	概念:全外连接只是一个逻辑概念 全外连接的结果集等于左外连接的结果集加上右外连接的结果集,再减去重复的记录
+
+	oracle中如何实现全外连接
+		不是通过两端加(+)实现,而是通过union来实现的
+			select id from s_emp union select id from s_emp;
+		union all合并两个结果集不排重
+			select id from s_emp union all select id from s_emp;
+		minus	减去
+			select table_name from user_tables where table_name like 'S\_%' escape '\' minus select table_name from user_tables where table_name like 
+'S\_\_%' escape '\';
+
+组函数
+	常见的组函数
+		count(par1)		统计数据个数的
+		max(par1)		统计最大值
+		min(par1)		统计最小值
+		sum(par1)		统计和
+		avg(par1)		统计平均值
+
+		统计s_emp表中 员工的人数 员工的最高工资 和 最低工资
+			select  count(id),max(salary),min(salary) from s_emp;
+		统计s_emp表中 工资的和 以及工资的平均值
+			select	sum(salary),avg(salary) from s_emp;
+
+	组函数中的特殊用法
+		select  sum(distinct salary),avg(distinct salary) from s_emp;
+
+		select count(*)	from s_emp;
+
+	组函数对NULL值如何处理?忽略
+		统计s_emp表中提成的平均值和提成的和以及提成的个数
+			select avg(commission_pct),sum(commission_pct),count(commission_pct) from s_emp;
+
+分组
+	概念:按照一定的分组标准把数据分成若干部分
+	语法
+		from 表名 where 条件 group by 分组标准 having 组数据过滤条件 order by 排序标准;
+
+		举例:
+			按照部门号分组统计s_emp表中每个部门的人数
+				select dept_id,count(id) from s_emp group by dept_id;
+			在上面查询的基础上,只显示人数大于2的部门
+				select dept_id,count(id) from s_emp group by dept_id having  count(id)>2;
+
+SQL的执行顺序
+	from>where>groub by>having>select>order by
+
+	写一条查询,把s_emp表中的数据查询出来,按照部门编号分组,统计每个部门的平均工资显示平均工资大于1500的部门,并且按照部门的平均工资排序.
+		select dept_id,avg(salary) asal from s_emp group by dept_id having avg(salary)>1500 order by avg(salary);
+	按照部门编号分组,统计s_emp表中每个部门的人数,显示部门人数大于2的部门,并且要显示部门的名字
+		select dept_id,count(s_emp.id) from s_emp,s_dept where dept_id=s_dept.id group by dept_id having count(s_emp.id)>2;
+
+	结论:在分组语句中select后的字段要么是分组标准要么是经过合适的组函数处理过的
+
+子查询
+	概念:把一个查询的结果作为另一个查询的基础
+
+	子查询可以出现的位置
+		where 之后
+		having之后
+		from  之后
+
+	where之后
+		select distinct manager_id from s_emp;  //所有的领导的员工编号
+		select id,first_name from s_emp where id in(select distinct manager_id from s_emp);  //员工的编号出现在领导列表中,则是领导
+		select id,first_name from s_emp where id not in(select distinct manager_id from s_emp);id
+
+		显示s_emp表中的id frist_name salary 要求salary大于12号员工对应的salary
+		select id,first_name,salary from s_emp where salary>(select salary from s_emp where id=12);
+
+	having之后
+		按照部门编号分组,求每个部分的平均工资,要求显示平均工资大于42部门平均工资的部门
+		select avg(salary) from s_emp where dept_id=42;
+		select dept_id,avg(salary) from s_emp group by dept_id having avg(salary)>(select avg(salary) from s_emp where dept_id=42);
+
+	from之后
+		任何一个合法的select语句,都是一张内存表
+		select id,first_name name,salary from s_emp;
+		select * from(select dept_id,avg(salary) asal from s_emp group by dept_id) where asal>(select avg(salary) from s_emp where dept_id=42);
+
+
+DDL(数据定义语言)
+	建立表
+		create table 表名(
+				字段名1 类型,
+				字段名2 类型,
+				字段名3 类型
+				);
+		建立一张员工表 empn
+		id		number
+		name	varchar2(30)
+		salary	number
+
+		create table empnnnn(
+				id number,
+				name varchar2(30),
+				salary number
+				);
+	
+	删除表
+		drop table 表名;
+
+	修改表结构
+		alter table emp177 drop column 字段名;
+		alter table emp177 add 字段名 类型;
+
+DML(数据操作语言)
+	增加数据
+		全字段插入
+			insert into 表名 values(值1,值2,值3);
+			insert into 表名 values(值1,NULL,值3);	某个字段如果没有not null限制,则可以真NULL值
+			commit;		确认,提交
+			insert into emp177 values(1,'test1',123,45);
+		
+		选择部分字段赋值
+			insert into 表名(字段名1,字段名2,字段名5) values(值1,值2,值5);   没有被选择的字段的值,默认是NULL值,则要求必须包含所有的not null字段
+			commit;     
+
+			create table emphells(
+					id number primary key,  
+					name varchar2(30) not null,
+					salary number
+					);
+			insert into emphells(id,name) values(11,'hells');
+
+	删除数据
+		delete from 表名 where 条件;
+
+	修改数据
+		update 表名 set 字段名=值 where 条件;
+		commit;
+		/*同时修改多个字段对应的值*/
+		update 表名 set 字段名1=值1,字段名2=值2,字段名3=值3  where 条件;
+
+	练习:建立一张订单表 myordern
+		id number primary key,name varchar2(30),money number,odate date,把下面的数据放入表中1 'test1' 124.85  sysdate,提交数据
+		2 'test2' 8995.80 sysdate,提交数据,3 'test3' 1234.55 sysdate,提交数据,查看一下表中的数据,通过update修改id=3的名字,name为bjtest,money修改成11228.12,提交数据,建表之前先删除表.
+
+		drop table myorderhells;
+		create table myorderhells(
+				id number primary key,
+				name varchar2(30),
+				money number,
+				odate date
+				);
+		insert into myorderhells values(1,'test1',124.85,sysdate);
+		commit;
+		insert into myorderhells values(2,'test2',8995.80,sysdate);
+		commit;
+		insert into myorderhells values(3,'test3',1234.55,sysdate);
+		commit;
+		select * from myorderhells;
+		update myorderhells set name='bjtest',money=11228.12 where id=3;
+		commit;
+
+	一张物理表中存储了两层业务含义的数据,要把其中的一层查找出来,只要逻辑上把一张物理表看成两张逻辑表即可.
+
+日期类型
+	日期的默认显示
+		DD-MON-YY
+	改变日期的默认显示
+		to_char(par1,par2) 
+			par1是要处理的日期数据
+			par2是日期显示的格式
+			格式字符串如下:
+			yyyy	四位年
+			mm		两位月
+			dd		两位天
+			hh		12小时制
+			hh24	24小时制
+			mi		分钟
+			ss		秒
+
+			了解
+			MON		英文月的缩写
+			month	英文月的全写
+			pm		下午
+			am		上午
+			day		星期几
+
+			select id,odate,to_char(odate,'yyyy-mm-dd hh24:mi:ss day pm') from myorderhells;
+
+	如何插入日期数据
+		insert into myorderhells values(4,'test4',6655.77,'05-AUG-14');
+		默认只能放入年月日 时分秒信息是0
+
+		to_date(par1,par2)把日期字符串 按照格式转换成对应的日期
+		insert into myorderhells values(5,'test5',6655.77,to_date('2008-08-08 20:08:08','yyyy-mm-dd hh24:mi:ss'));
+		commit;
+
+	日期的调整
+		select to_char(sysdate,'yyyy-mm-dd hh24:mi:ss'),
+		to_char(sysdate+1,'yyyy-mm-dd hh24:mi:ss'),
+		to_char(sysdate+1/24,'yyyy-mm-dd hh24:mi:ss')
+		to_char(sysdate+1/(24*60),'yyyy-mm-dd hh24:mi:ss')
+		from dual;
+
+	特殊的日期调整
+		按照月为单位调整
+			add_months(par1,par2) 
+				par1是要调整的日期
+				par2是调整几个月,可以是负数
+			select to_char(sysdate,'yyyy-mm-dd hh24:mi:ss'),
+				   to_char(add_months(sysdate,3),'yyyy-mm-dd hh24:mi:ss')
+				   from dual;
+			得到一个日期对应的月的最后一天对应的时间点
+				last_day(par1)
+					select to_char(sysdate,'yyyy-mm-dd hh24:mi:ss'),
+		                   to_char(last_day(sysdate,3),'yyyy-mm-dd hh24:mi:ss')
+						                      from dual;
+		next_day(par1,par2) 得到下一个星期几
+	
+	日期的round和trunc
+		round(par1,par2)  对日期进行四舍五入
+			par1是要处理的日期
+			par2是处理的精度,默认是天,可以指定处理单位
+		trunc(par1,par2)  对日期截断
+
+	练习:
+		给定一个日期字符串,如'2008-08-10 10:10:02',转换成日期,使用日期的调整,得到这个日期的对应的月的最后一天的最后一秒对应的时间点,使用to_char进行验证
+	select to_char(trunc(last_day(to_date('2008-08-10 10:10:02','yyyy-mm-dd hh24:mi:ss')))+1-1/(24*60*60),'yyyy-mm-dd hh24:mi:ss') from dual;
+
+
+	执行脚本
+		@/home/oracle/summit2_drop.sql

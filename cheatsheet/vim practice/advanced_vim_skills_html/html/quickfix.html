@@ -1,0 +1,120 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>第 13 章 剑不离手 - quickfix</title><link rel="stylesheet" href="http://easwy.com/blog/uploads/css/style.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.73.2"><link rel="start" href="index.html" title="vim使用进阶"><link rel="up" href="index.html" title="vim使用进阶"><link rel="prev" href="cscope.html" title="第 12 章 程序员的利器 - cscope"><link rel="next" href="omin-complete.html" title="第 14 章 智能补全"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">第 13 章 剑不离手 - quickfix</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="cscope.html">上一页</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="omin-complete.html">下一页</a></td></tr></table><hr></div><div class="chapter" lang="zh-CN"><div class="titlepage"><div><div><h2 class="title"><a name="quickfix"></a>第 13 章 剑不离手 - quickfix</h2></div></div></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p>
+    本节所用命令的帮助入口：
+  </p><pre class="programlisting">
+:help quickfix
+:help :make
+:help 'makeprg'
+:help 'errorformat'
+:help 'switchbuf'
+:help location-list
+:help grep
+:help :vimgrep
+:help :grep
+:help starstar-wildcard </pre><p>
+    以前读武侠小说，看到武林高手们都是从来剑不离手的。使用vim写程序，你也可以做到这一点，:-)
+  </p><p>
+    vim由一个程序员开发，而且为更多的程序员所使用，所以在vim中加强了对软件开发的支持，quickfix模式的引入就是一个例子。所谓quickfix模式，它和Normal模式、Insert模式没什么关系，它只是一种加快你开发速度的工作方式。
+  </p><p>
+    Quickfix模式的主要思想是保存一个位置列表，然后提供一系列命令，实现在这个位置列表中跳转。
+  </p><p>
+    位置列表的产生可以从编译器的编译输出信息中获得，也可以由grep命令的输出信息中获得，我们上篇文章所介绍的<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-cscope/">cscope命令</a>，也可以产生位置列表信息(<span class="command"><strong>:help 'cscopequickfix'</strong></span>)。
+  </p><p>
+    <span class="bold"><strong>[编译]</strong></span>
+  </p><p>
+    通常，我们在开发过程中，经常要写代码，编译，修改编译错误，这个过程会数十遍上百遍的重复。如果你是根据编译器输出的错误信息，打开出错的文件，找到出错的行，然后再开始修改，那效率未免太低下了。
+  </p><p>
+    利用vim的quickfix模式，可以大大加快这一过程，你可以在vim启动编译，然后vim会根据编译器输出的错误信息，自动跳到第一个出错的地方，让你进行修改；修改完后，使用一个快捷键，跳到下一个错误处，再进行修改，方便的很。
+  </p><p>
+    为了做到这一点，你首先要定义编译时所使用的程序，对大多数使用Makefile的项目来说，vim的缺省设置"<span class="emphasis"><em>make</em></span>"已经可以满足要求了。如果你的项目需要用一个特殊的程序进行编译，就需要修改'<span class="emphasis"><em>makeprg</em></span>'选项的值。
+  </p><p>
+    大家在学编程时大概都读过"hello world"程序，我们就以这个简单的例子为例，讲一下quickfix模式的用法。
+  </p><p>
+    该程序的内容如下，里面包含了三个小小的错误：
+  </p><pre class="programlisting">
+/* hello world demo */
+#include &lt;stdio.h"
+int main(int argc, char **argv)
+{
+    int i;
+    print("hello world\n");
+    return 0;
+} </pre><p>
+    我们可以为这个程序写个小小的Makefile文件，不过为了演示'<span class="emphasis"><em>makeprg</em></span>'的设置方法，我们并不用Makefile，而直接设置'<span class="emphasis"><em>makeprg</em></span>'选项，如下：
+  </p><pre class="programlisting">
+:set makeprg=gcc\ -Wall\ -ohello\ hello.c </pre><p>
+    上面的命令会把hello.c编译为名hello的可执行文件，并打开了所有的Warnning。如果编译命令中有空格，需要使用'<span class="bold"><strong>\</strong></span>'对空格进行转义，上面的例子就使用了'<span class="bold"><strong>\</strong></span>'转义空格。
+  </p><p>
+    我们设置好'<span class="emphasis"><em>makeprg</em></span>'选项后，输入下面的命令就可以编译了：
+  </p><pre class="programlisting">
+:make </pre><p>
+    在使用"<span class="command"><strong>:make</strong></span>"时，vim会自动调用'<span class="emphasis"><em>makeprg</em></span>'选项定义的命令进行编译，并把编译输出重定向到一个临时文件中，当编译出现错误时，vim会从上述临时文件中读出错误信息，根据这些信息形成quickfix列表，并跳转到第一个错误出现的地方。
+  </p><p>
+    对于我们上面的程序来说，光标会停在第三行，也就是第一个出错的位置，vim同时会提示出错信息。如果你没看清出错信息，可以输入"<span class="command"><strong>:cc</strong></span>"命令，vim会更次显示此信息，或者干脆使用"<span class="command"><strong>:cw</strong></span>"命令，打开一个quickfix窗口，把所有的出错信息显示出来，见下图：
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/02/quickfix-300x224.jpg" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/02/quickfix.jpg">点击查看大图</a></div></div><p>
+    现在我们知道错在哪儿了，修正一下，然后使用"<span class="command"><strong>:cn</strong></span>"命令（或者在Quickfix List对应行上输入回车）跳到下一个出错的地方，以此类推，直到修正全部错误。
+  </p><p>
+    好了，千辛万苦，我们的hello world终于工作了。乍一看这个例子，似乎Quickfix并没有提高什么效率，但如果你的错误出现在多个不同目录的不同文件里，它可以帮你省很多时间，使你可以集中精力在修正bug上。
+  </p><p>
+    vim可以同时记住最新的10个错误列表，也就是说你最近10次使用"<span class="command"><strong>:make</strong></span>"命令编译所遇到的错误都保存着，可以使用"<span class="command"><strong>:colder</strong></span>"和"<span class="command"><strong>:cnewer</strong></span>"命令，回到旧的错误列表，或者到更新的错误列表。
+  </p><p>
+    在quickfix模式里经常用到的命令有：
+  </p><pre class="programlisting">
+<span class="command"><strong>:cc</strong></span>                显示详细错误信息 ( <span class="command"><strong>:help :cc</strong></span> )
+<span class="command"><strong>:cp</strong></span>                跳到上一个错误 ( <span class="command"><strong>:help :cp</strong></span> )
+<span class="command"><strong>:cn</strong></span>                跳到下一个错误 ( <span class="command"><strong>:help :cn</strong></span> )
+<span class="command"><strong>:cl</strong></span>                列出所有错误 ( <span class="command"><strong>:help :cl</strong></span> )
+<span class="command"><strong>:cw</strong></span>                如果有错误列表，则打开quickfix窗口 ( <span class="command"><strong>:help :cw</strong></span> )
+<span class="command"><strong>:col</strong></span>               到前一个旧的错误列表 ( <span class="command"><strong>:help :col</strong></span> )
+<span class="command"><strong>:cnew</strong></span>              到后一个较新的错误列表 ( <span class="command"><strong>:help :cnew</strong></span> ) </pre><p>
+    更多的命令，以及这些命令更详细的解释，请参见手册。
+  </p><p>
+    对于经常用到的命令，最好提供更方便的使用方法，在我的vimrc中的定义：
+  </p><pre class="programlisting">
+autocmd FileType c,cpp  map &lt;buffer&gt; &lt;leader&gt;&lt;space&gt; :w&lt;cr&gt;:make&lt;cr&gt;
+nmap &lt;leader&gt;cn :cn&lt;cr&gt;
+nmap &lt;leader&gt;cp :cp&lt;cr&gt;
+nmap &lt;leader&gt;cw :cw 10&lt;cr&gt; </pre><p>
+    现在使用"<span class="command"><strong>,&lt;space&gt;</strong></span>"(先按,再按空格)就可以编译，使用"<span class="command"><strong>,cp</strong></span>"和"<span class="command"><strong>,cn</strong></span>"跳到上一个和下一个错误，使用"<span class="command"><strong>,cw</strong></span>"来打开一个quickfix窗口。这下顺手多了！
+  </p><p>
+    如果你希望跳转到出错的文件时，使用一个分隔的窗口打开，请参阅'<span class="emphasis"><em>switchbuf</em></span>'选项的值。
+  </p><p>
+    在vim7中，每个窗口都可以拥有自己的位置列表，这样，你就能够同时打开多个位置列表了，而quickfix列表在整个vim中只有一个。你可以使用位置列表来显示编译错误信息，具体命令参阅手册："<span class="command"><strong>:help location-list</strong></span>"以及"<span class="command"><strong>:help :lmake</strong></span>"。
+  </p><p>
+    <span class="bold"><strong>[GREP]</strong></span>
+  </p><p>
+    我们在<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-cscope/">程序员的利器 - cscope</a>中讲过，cscope可以做为一个快速的grep程序使用，对于我们的软件项目，用cscope生成一个数据库，可以大大加快查找字符串的速度。但cscope需要事先生成一个数据库，对一些简单的查找，不需要专门为之生成数据库，这时候可以使用grep。
+  </p><p>
+    Grep的名字来源于"g/re/p"，"re"是正则表达式(regex)的意思，"p"是打印，也就是把匹配正则表达式的行打印出来。
+  </p><p>
+    vim既可以使用外部的grep程序，也可以使用内部集成的grep功能。
+  </p><p>
+    使用集成的grep命令非常简单，通常使用格式为：
+  </p><pre class="programlisting">
+:vimgrep /main/gj **/*.c </pre><p>
+    在上面的例子里，我们使用vim内部集成的grep功能，在当前目录及其子目录树的所有c文件中查找main字符串，如果一行中main出现了多次，每个匹配都计入；在查找到后，不立即跳转到第一个匹配的地方。
+  </p><p>
+    使用内部集成的grep功能速度要比外部grep慢一些，因为它会打开每个文件，对其进行检查，然后关闭；但集成的grep支持vim增强的正则表达式，可以利用它进行更为复杂的查找。它也支持vim扩展的文件通配符表示方式，见"<span class="command"><strong>:help starstar-wildcard</strong></span>"。
+  </p><p>
+    vimgrep查找到的结果，也会放在quickfix列表中。下图是在vim 7.0的源代码目录中执行上面的命令生成的quickfix列表：
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/02/quick_vimgrep-300x225.jpg" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/02/quick_vimgrep.jpg">点击查看大图</a></div></div><p>
+    我们可以使用上面介绍的quickfix模式的命令，来查看这些匹配。
+  </p><p>
+    你也可以用外部的grep程序来查找，如果你的系统中所用的不是标准的grep程序，那么就需要修改'<span class="emphasis"><em>grepprg</em></span>'选项，详情请参阅手册。
+  </p><p>
+    使用外部grep的语法与grep程序相同，请参阅grep的手册。
+  </p><p>
+    无论使用内部的vimgrep，还是使用外部的grep，vim都允许你将查找到的结果放在与窗口相关联的位置列表，要了解详细信息，"<span class="command"><strong>:help :lvimgrep</strong></span>"及"<span class="command"><strong>:help :lgrep</strong></span>"。
+  </p><p>
+    在我的vimrc中，定义下面的键映射，利用它可以在当前文件中快速查找光标下的单词：
+  </p><pre class="programlisting">
+nmap &lt;leader&gt;lv :lv /&lt;c-r&gt;=expand("&lt;cword&gt;")&lt;cr&gt;/ %&lt;cr&gt;:lw&lt;cr&gt; </pre><p>
+    <span class="bold"><strong>[参考文档]</strong></span>
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      vim手册
+    </li><li><a class="link" href="http://vimcdoc.sourceforge.net/">vim中文手册</a></li></ul></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p><span class="bold"><strong>原创文章，转载请注明：</strong></span>转载自<a class="link" href="http://easwy.com/blog/">Easwy的博客</a> [  <a class="link" href="http://easwy.com/blog/">http://easwy.com/blog/</a> ]</p><p>
+    <span class="bold"><strong>　　　　本文链接地址:</strong></span> <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-quickfix-mode/">http://easwy.com/blog/archives/advanced-vim-skills-quickfix-mode/</a>
+  </p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="cscope.html">上一页</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="omin-complete.html">下一页</a></td></tr><tr><td width="40%" align="left" valign="top">第 12 章 程序员的利器 - cscope </td><td width="20%" align="center"><a accesskey="h" href="index.html">起始页</a></td><td width="40%" align="right" valign="top"> 第 14 章 智能补全</td></tr></table></div></body></html>

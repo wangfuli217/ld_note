@@ -1,0 +1,147 @@
+通过动态改变CPU电压，可以调整CPU主频。
+通过改变时钟倍数可以动态改变CPU时钟频率。
+
+一些具有CPU主频率时钟倍数可调能力的处理器，能够在不同的主频率和工作电压之间动态切换；而不需要内核或者用户介入。
+
+
+术语定义
+策略 (Policy) ： 在系统中，用户只能选择主频上限和下限，以及是否希望激进的省功耗模式或者更好的处理器性能模式。
+管理器(Governor)： 在所有的其他cpufreq实现中， 仍然需要设置主频率边界。Governor决定了处理器以何种速度运行在频率限制之内。
+
+
+如何调整CPU主频策略或速度
+sysfs文件系统是缺省控制接口。
+一般第一个处理器核的cpufreq控制结点位于 /sys/devices/system/cpu/cpu0/cpufreq/
+cpuinfo_min_freq:    该文件指定了处理器能够运行的最低工作频率 （单位: 千赫兹）
+cpuinfo_max_freq:   该文件指定了处理器能够运行的最高工作频率 （单位: 千赫兹）
+cpuinfo_transition_latency:    该文件定义了处理器在两个不同频率之间切换时所需要的时间  （单位： 纳秒）
+scaling_driver:          该文件显示该CPU正在使用何种cpufreq driver
+scaling_available_governors:  该文件显示当前内核中支持的所有cpufreq governor类型
+scaling_governor:   通过echo命令，能够改变当前处理器的governor类型
+cpuinfo_cur_freq:    当前cpu正在运行的工作频率
+scaling_available_frequencies:   所有支持的主频率列表  （单位: 千赫兹）
+scaling_min_freq/scaling_max_freq:    显示当前policy的上下限  （单位: 千赫兹）
+                               需要注意的是，当改变cpu policy时，需要首先设置scaling_max_freq, 然后才是scaling_min_freq
+affected_cpus:   需要软件协调频率的CPU列表
+related_cpus:     需要软件或者硬件来协调频率的CPU列表
+scaling_driver:   cpufreq控制的硬件驱动
+scaling_cur_freq:  被governor和cpufreq核决定的当前CPU工作频率。该频率是内核认为该CPU当前运行的主频率
+bios_limit:            如果BIOS告知操作系统限制某一cpu到一个低频率，用户能够从此文件中读取其所支持的最大频率。
+scaling_setspeed:    如果用户选择了“userspace” governor, 那么可以设置cpu工作主频率到某一个指定值。
+                             只需要这个值在scaling_min_freq 和 scaling_max_freq之间即可。
+
+######################## CPUFreq核心代码位于kernel/drivers/cpufreq/cpufreq.c. ##################
+该代码提供了一个针对CPUFreq体系结构驱动（这些驱动代码做实际的频率转换工作）的标准化接口，以及“notifiers”。
+该代码中，当policy变化或者频率变化的时候，也需要通知内核其他的设备驱动。
+而且，当频率变化的时候，内核"常量“ loops_per_jiffy也在此处被更新。
+引用计数通过cpufreq_get_cpu和cpufreq_put_cpu来完成。
+以此来确保cpufreq处理器驱动被正确注册到cpu核并且直到cpufreq_put_cpu被调用，才注销该注册。
+CPUFreq notifiers
+CPUFreq notifiers遵从标准的内核notifier接口。
+具体参考linux/include/linux/notifier.h
+有两种形式的CPUFreq notifiers:   policy notifiers 和 transition notifiers
+CPUFreq policy notifier： 当新的policy将被设置时产生此notifier。
+任何一个policy转换， 都使得CPUFreq policy notifier在三个阶段被通知三次。
+1）在CPUFREQ_ADJUST期间，  如果需要，所有的CPUFreq notifiers有可能改变限定值 
+2）在CPUFREQ_INCOMPATIBLE期间， 只有发生变化时才执行，以避免硬件错误。
+3）在CPUFREQ_NOTIFY期间，所有的notifiers都被新的policy所通知。
+    如果在此之前，两个硬件驱动不能针对新的policy达成一致，不兼容的硬件将被关闭，用户将被相应的通知。
+阶段信息通过notifier的第二个参数指定。
+notifier第三个参数则是一个 void* 指针， 指向一个 cpufreq_policy结构体。
+CPUFreq transition notifiers:
+当CPUFreq驱动切换CPU核心频率时， 该notifiers被通知两次。
+函数中第二个参数指定了阶段:  CPUFREQ_PRECHANGE,  CPUFREQ_POSTCHANGE。
+第三个参数是一个cpufreq_freqs结构体，包含以下几个值：
+cpu:   被影响的cpu数目
+old:   旧的主频率
+new: 新的主频率
+如果cpufreq 核心检测到在系统suspend时发生了频率改变，该notifiers 中第二个参数将是  CPUFREQ_RESUMECHANGE。
+============================================================================================================
+Reference documents:
+the FTP archives:
+* ftp://ftp.linux.org.uk/pub/linux/cpufreq/
+how to access the CVS repository:
+* http://cvs.arm.linux.org.uk/
+the CPUFreq Mailing list:
+* http://vger.kernel.org/vger-lists.html#cpufreq
+Clock and voltage scaling for the SA-1100:
+* http://www.lartmaker.nl/projects/scaling
+
+                             
+################ 如何开发一个新的CPUFreq driver ################
+初始化
+首先，在一个 __initcall level 7后者以后的函数中检查内核是否运行在正确的CPU和正确的芯片组上面。
+如果正确，则通过cpufreq_register_driver() 函数， 注册一个cpufreq_driver结构体。
+cpufreq_driver结构体中必须包含：
+cpufreq_driver.name:      驱动名称
+cpufreq_driver.owner:     THIS_MODULE
+cpufreq_driver.init:          指向per-CPU初始化函数的指针
+cpufreq_driver.verify:       指向”verification“函数的指针
+cpufreq_driver.setpolicy / cpufreq_driver.target:      详见后面差异性介绍
+还可以选择性包含：
+cpufreq_driver.exit:           指向per-CPU清理函数的指针
+cpufreq_driver.resume：  指向per-CPU resume函数的指针。
+                         此函数在中断失能的情况下被调用。并且在 pre-suspend 主频率或policy被恢复成->target 或者->setpolicy前调用。
+cpufreq_driver.attr:            指向一个以NULL结尾的列表指针，该列表中的成员类型为 freq_attr结构体。通过此参数，允许用户导出属性到sysfs中。
+Per-CPU初始化
+当一个新的CPU无论何时被注册到设备模型中时，或者在cpufreq驱动注册自己后， per-CPU初始化函数 cpufreq_driver.init被调用。
+该函数接受一个cpufreq_policy结构体作为参数。
+如果必要，针对用户CPU类型，使能 CPUfreq支持。
+policy->cpuinfo.min_freq / policy->cpuinfo.max_freq:  CPU所支持的最小/最大频率。（单位： 千赫兹）
+policy->cpuinfo.transition_latency    CPU在不同频率之间切换时所需要的时间。（单位：纳秒）
+policy->cur:   CPU的当前工作频率
+policy->min / policy->max
+policy->policy  /  policy->governor:     必须包含针对该CPU的”缺省policy“。随后，cpufreq_driver.verify/cpufreq_driver.setpolicy或
+            cpufreq_driver.target函数被调用时将使用这些定义值。
+Verify / 验证
+当用户决定使用一个新的policy（包含了policy, governor, min,max等值）时， 该policy必须被验证。
+如此，不合适的值将被更正。为了验证这些定义值， 一个频率表辅助函数被使用。
+必须确保至少有一个有效的工作频率（该频率位于policy->min 和 policy->max 之间）。
+如果必要，首先增大policy->max； 如果没有其他办法，才能选择降低 policy->min。
+target 或 setpolicy
+绝大多数cpufreq驱动，甚至大多数cpu倍频算法仅仅允许处理器被设置在一个频率上。
+此种情况下，需要使用 ->target 调用。
+某些具有处理器调频能力的处理器，能够在一定的频率范围内切换频率。
+此种情况下，需要使用->setpolicy 调用。
+target
+target调用有三个参数：
+    struct cpufreq_policy *policy
+    unsigned int target_frequency
+   unsigned int relation
+CPUFreq驱动必须在被调用的时候设置新的处理器频率。 实际频率必须根据如下规则来确定：
+1） 尽量靠近 ”target_freq“ 频率
+2） 必须满足条件   policy->min   <=  new_freq  <=  policy->max
+3)  如果  relation == CPUFREQ_REL_L,  尝试选择高于或等于 target_freq的新频率
+4） 如果  relation == CPUFREQ_REL_H,  尝试选择低于或等于target_freq的新频率
+
+setpolicy
+setpolicy函数仅仅只有一个参数。
+    struct cpufreq_policy *policy
+
+需要设置处理器低频限到 policy->min， 需要设置处理器高频限到 policy->max
+
+Frequency Table Helpers
+大多数的处理器都仅支持设置成几个特定的频率。因此，一张频率表被用来辅助驱动开发。
+通过调用函数
+
+[cpp] view plain copy
+print?
+    cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,  
+    span style="font-size:14px;">                                   </span>struct cpufreq_frequency_table *table);  
+
+cpuinfo->min_freq 被设置为 policy->min,  cpuinfo->max_freq 被设置成 policy->max。
+
+下述函数用来验证处理器频率设定。
+[cpp] view plain copy
+print?
+    int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,  
+                                       struct cpufreq_frequency_table *table);  
+
+针对 ->target 情况，  对应的函数为
+[cpp] view plain copy
+print?
+    int cpufreq_frequency_table_target(struct cpufreq_policy *policy,  
+                                       struct cpufreq_frequency_table *table,  
+                                       unsigned int target_freq,  
+                                       unsigned int relation,  
+                                       unsigned int *index);

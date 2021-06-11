@@ -1,0 +1,1319 @@
+
+Gobi_i_ubuntu(){ cat - <<'Gobi_i_ubuntu'
+[ubuntu gobinet 驱动 源代码]
+172.23.5.254
+user: tw
+pwd: 1
+驱动在/mnt/shichao/Gobi目录下
+
+[ubuntu server gobinet 驱动 编译目录]
+驱动所在目录  /home/wangfl/Gobi
+sudo insmod GobiNet.ko
+[  100.899751] GobiNet: loading out-of-tree module taints kernel.
+[  100.899794] GobiNet: module verification failed: signature and/or required key missing - tainting kernel
+[  100.900303] GobiNet: T&W_Linux&Android_GobiNet_Driver_V1.0.0.1
+[  100.900344] usbcore: registered new interface driver GobiNet
+
+sudo rmmod cdc_ether
+sudo rmmod qmi_wwan
+
+ip link set usb0 name rmnet_data0
+
+/sbin/usb/compositions/9025 # sdx55  开启gobinet功能
+stat /dev/qcqmi0            # ubuntu 确认开启gobinet
+------------------------ sdx55 kernel log ------------------------
+[  961.030318] dwc3 8a00000.dwc3: request c6278000 was not queued to ep0out
+[  961.030337] diag: USB channel diag disconnected
+[  961.085276] dwc3 8a00000.dwc3: failed to stop controller
+[  961.085797] ipa_rm ipa_rm_wq_handler:774 resource does not exists
+[  961.097449] Starting adbd: done
+[  961.164264] read descriptors
+[  961.164289] read strings
+[  961.164389] msm-dwc3 8a00000.ssusb: ep [gsi-epin,29] already configured as msm endpoint
+[  961.164402] msm-dwc3 8a00000.ssusb: ep [gsi-epout,30] already configured as msm endpoint
+[  961.271105] dwc3_gadget_suspend_interrupt(): state:0. Ignore SUSPEND.
+[  961.367011] msm-dwc3 8a00000.ssusb: Avail curr from USB = 0
+[  961.367688] android_work: android_work: sent uevent USB_STATE=DISCONNECTED
+[  961.457590] android_work: android_work: sent uevent USB_STATE=CONNECTED
+[  961.912996] android_work: android_work: sent uevent USB_STATE=DISCONNECTED
+[  961.999733] android_work: android_work: sent uevent USB_STATE=CONNECTED
+[  962.003825] android_work: android_work: sent uevent USB_STATE=DISCONNECTED
+[  962.099170] android_work: android_work: sent uevent USB_STATE=CONNECTED
+[  962.181973] android_work: android_work: sent uevent USB_STATE=DISCONNECTED
+[  962.265636] android_work: android_work: sent uevent USB_STATE=CONNECTED
+[  962.269369] android_work: android_work: sent uevent USB_STATE=DISCONNECTED
+[  962.365685] android_work: android_work: sent uevent USB_STATE=CONNECTED
+[  962.460778] android_usb gadget: high-speed config #1: 86000c8.android_usb
+[  962.460905] diag: USB channel diag connected
+[  962.461462] msm-dwc3 8a00000.ssusb: Avail curr from USB = 500
+[  962.520485] android_work: android_work: sent uevent USB_STATE=CONFIGURED
+
+------------------------ ubuntu kernel log ------------------------
+[96674.029747] usb 3-2.1: new high-speed USB device number 16 using xhci_hcd
+[96674.320715] usb 3-2.1: New USB device found, idVendor=05c6, idProduct=9025
+[96674.320741] usb 3-2.1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[96674.320743] usb 3-2.1: Product: Android
+[96674.320744] usb 3-2.1: Manufacturer: Android
+[96674.320745] usb 3-2.1: SerialNumber: 67230f4e
+[96674.327541] GobiNet 3-2.1:1.4 usb0: register 'GobiNet' at usb-0000:03:00.0-2.1, GobiNet Ethernet Device, 02:50:f4:00:00:00
+[96674.328947] creating qcqmi0
+[96674.329938] usb-storage 3-2.1:1.5: USB Mass Storage device detected
+[96674.330320] scsi host9: usb-storage 3-2.1:1.5
+[96675.334896] scsi 9:0:0:0: Direct-Access     Linux    File-Stor Gadget 0318 PQ: 0 ANSI: 2
+[96675.338025] sd 9:0:0:0: Attached scsi generic sg3 type 0
+[96675.350019] sd 9:0:0:0: [sdc] Attached SCSI removable disk
+Gobi_i_ubuntu
+}
+
+
+# 在ubuntu上进行gobinet接口usb0的测试工作
+Gobi_t_qcqmi0_ubuntu(){
+[twt_dial_test] 测试
+sudo insmod  /home/wangfl/Gobi/GobiNet.ko
+sudo rmmod cdc_ether
+sudo rmmod qmi_wwan
+cd /mnt/mdm9607_qmi/opensdk/twttest/twt_dial
+
+export DS_TARGET=DS_TARGET_MSM
+./twt_dial_test -I 0
+start
+exec dhclient -d -4 usb0
+nw_conf 0
+
+# ----------------------------------------------- 获得地址之后 ipv4测试
+ip r del default via 172.23.5.165 dev br0
+ip r add default via 10.231.240.88 dev usb0
+ping 114.114.114.114
+
+# ----------------------------------------------- 获得地址之后 ipv6测试
+ping6 2409:8070:2000:f010::1
+
+ethtool -i usb0
+
+[twt_dial_test] 测试 # ---- 该测试当前不存在问题
+./twt_dial_apn_test -i 4 -n apn4t -f ipv4v6 -u username4 -p passwd4 -a chap set
+./twt_dial_apn_test -i 5 -n apn5t -f ipv4 -u username5 -p passwd5 -a chap set
+./twt_dial_apn_test -i 6 -n apn6t -f ipv6 -u username6 -p passwd6 -a chap set
+./twt_dial_apn_test -i 6 -n apn6t -f ipv4v6 -u username6 -p passwd6 -a pap set
+./twt_dial_apn_test -i 7 -n apn7t -f ipv4v6 -u username7 -p passwd7 -a pap+chap set
+./twt_dial_apn_test -i 8 -n apn8t -f ipv4v6 -u username8 -p passwd8 set
+./twt_dial_apn_test -i 9 -n apn9t -f ipv4v6 -u username9 -p passwd9 -a chap set
+
+./twt_dial_apn_test -i 4
+./twt_dial_apn_test -i 5
+./twt_dial_apn_test -i 6
+./twt_dial_apn_test -i 6
+./twt_dial_apn_test -i 7
+./twt_dial_apn_test -i 8
+./twt_dial_apn_test -i 9
+
+./twt_dial_apn_test -i 0 -n apn01t -f ipv4v6 -u username01 -p passwd01 -a chap -U USERNAME01 -P PASSWD01 -A pap set
+./twt_dial_apn_test -i 0 get
+
+./twt_dial_apn_test -i 0 -n apn02t -f ipv4 -u username02 -p passwd02 -a chap -U USERNAME02 -P PASSWD02 -A pap set
+./twt_dial_apn_test -i 0 get
+
+./twt_dial_apn_test -i 0 -n apn03t -f ipv6 -u username03 -p passwd03 -a chap -U USERNAME03 -P PASSWD03 -A pap set
+./twt_dial_apn_test -i 0 get
+
+./twt_dial_apn_test -i 0 -n apn04t -f ipv4v6 -u username04 -p passwd04 -a chap -U USERNAME04 -P PASSWD04 -A pap+chap set
+./twt_dial_apn_test -i 0 get
+
+./twt_dial_apn_test -i 0 -n apn05t -f ipv4v6 -u username05 -p passwd05 -a chap -U USERNAME05 -P PASSWD05 -A chap set
+./twt_dial_apn_test -i 0 get
+
+./twt_dial_apn_test -i 0 -n apn06t -f ipv4v6 -u username06 -p passwd06 -a chap -U USERNAME06 -P PASSWD06 -A pap set
+./twt_dial_apn_test -i 0 get
+}
+
+Gobi_t_qcqmi0_openwrt(){
+1. opensdk 代码来源于 sdx55平台，转移到 openwrt 平台之后，存在一些移植的差异性，使得某些 头文件包含和动态库连接存在问题。
+2. 
+}
+
+
+Gobi_t_qcqmi0_twt_dial_compact(){ cat - <<'Gobi_t_qcqmi0_twt_dial_compact'
+ubus call sdk_service.wm get_network_status '{ "iface_id":"0" }'             # network_status 0:connecting 1:connected 2:idle 3:disconnecting    
+
+ubus call sdk_service.wm get_network_conf '{ "iface_id":"0" }'               # ipv4 & ipv6 public_ip,gw_addr, pri_dns_addr, sec_dns_addr         
+ubus call sdk_service.wm get_apn_info                                        # 0:"" 1:"ims" 2:"sos" 等等
+ubus call sdk_service.wm get_default_apn                                     # 0:""  # CMNET
+ubus call sdk_service.wm set_autoapn                                         # 执行脚本 autoapn
+ubus call sdk_service.wm set_netup   '{ "ip_family":"4", "iface_id":"0" }'   # IPv4
+ubus call sdk_service.wm set_netup   '{ "ip_family":"6", "iface_id":"0" }'   # IPv6
+ubus call sdk_service.wm set_netup   '{ "ip_family":"10", "iface_id":"0" }'  # IPv4&IPv6 返回 ok 基本说明拨号请求成功，error 基本说明拨号请求失败
+ubus call sdk_service.wm set_netdown '{ "iface_id":"0" }'                    #           在没有sim卡的情况亦可以执行成功
+
+ubus call sdk_service.wm set_apn_3gpp2 '{"profile_id":"0","ip_family":"4","user_id":"user_id-t7","apn_name":"apn_name-t7","auth_type":"0","auth_password":"auth_password-t7"}'
+
+# ubusd 和 netifd 
+sudo start-stop-daemon -S -b -a /usr/local/sbin/ubusd --pidfile /run/ubusd.pid    # start-stop-daemon -K -n ubusd
+sudo start-stop-daemon -S -b -a /usr/local/sbin/netifd --pidfile /run/netifd.pid  # start-stop-daemon -K -n netifd
+# /etc/config/network 
+config interface 'loopback'
+    option ifname 'lo'
+    option proto 'static'
+    option ipaddr '127.0.0.1'
+    option netmask '255.0.0.0'
+
+config interface 'lan'
+    option type 'bridge'
+    option ifname 'eth1'
+    option proto 'none'
+    option auto '1'
+
+config interface 'wan'
+    option proto 'dhcp'
+    option ifname 'usb0'
+
+config interface 'guest'
+    option ifname '@lan'
+    option proto 'static'
+    option ipaddr '192.168.3.1'
+    option netmask '255.255.255.0'
+    option type 'bridge'
+sudo start-stop-daemon -S -b -a /usr/local/sbin/procd --pidfile /run/procd.pid    # start-stop-daemon -K -n procd
+# /etc/config/system 
+config system
+        option hostname 'OpenWrt'
+        option timezone 'UTC'
+        option log_size '64'
+        option urandom_seed '0'
+        option ttylogin '1'
+
+config timeserver 'ntp'
+        option enabled '1'
+        option enable_server '0'
+        list server '0.openwrt.pool.ntp.org'
+        list server '1.openwrt.pool.ntp.org'
+        list server '2.openwrt.pool.ntp.org'
+        list server '3.openwrt.pool.ntp.org'
+
+sudo ubus list
+
+# 下一步实现... ...
+
+Gobi_t_qcqmi0_twt_dial_compact
+}
+
+
+Gobi_t_qcqmi0_twt_dial_test(){ cat - <<'Gobi_t_qcqmi0_twt_dial_test'
+[lsof]
+twt_dial_ 14192 root  cwd    DIR               8,17     4096 2416852 /mnt/mdm9607_qmi/opensdk/twttest/twt_dial
+twt_dial_ 14192 root  rtd    DIR                8,1     4096       2 /
+twt_dial_ 14192 root  txt    REG               8,17    48836 2415364 /mnt/mdm9607_qmi/opensdk/twttest/twt_dial/twt_dial_test
+twt_dial_ 14192 root  mem    REG                8,1   258880   96099 /usr/local/lib/libdsutils.so.1.0.0
+twt_dial_ 14192 root  mem    REG                8,1   171525   96730 /usr/local/lib/libqmi_client_qmux.so.1.0.0
+twt_dial_ 14192 root  mem    REG                8,1    61978   96827 /usr/local/lib/libqmi_encdec.so.1.0.0
+twt_dial_ 14192 root  mem    REG                8,1  1857312  923244 /lib/x86_64-linux-gnu/libc-2.19.so
+twt_dial_ 14192 root  mem    REG                8,1   197570   96828 /usr/local/lib/libqmi_cci.so.1.0.0
+twt_dial_ 14192 root  mem    REG                8,1   541778   96692 /usr/local/lib/libqmiservices.so.1.0.0
+twt_dial_ 14192 root  mem    REG                8,1   141574  923228 /lib/x86_64-linux-gnu/libpthread-2.19.so
+twt_dial_ 14192 root  mem    REG                8,1   288243   96799 /usr/lib/libtwt_dial.so
+twt_dial_ 14192 root  mem    REG                8,1   149120  923241 /lib/x86_64-linux-gnu/ld-2.19.so
+twt_dial_ 14192 root  mem    REG                8,1    67024   96802 /usr/lib/libqmi_client_helper.so.1.0.0
+twt_dial_ 14192 root    0u   CHR             136,13      0t0      16 /dev/pts/13
+twt_dial_ 14192 root    1u   CHR             136,13      0t0      16 /dev/pts/13
+twt_dial_ 14192 root    2u   CHR             136,13      0t0      16 /dev/pts/13
+twt_dial_ 14192 root    3u  unix 0xffff8800378c4400      0t0   31448 socket
+twt_dial_ 14192 root    4u   CHR              246,0      0t0     428 /dev/qcqmi0
+twt_dial_ 14192 root    5r  FIFO               0,10      0t0   31449 pipe
+twt_dial_ 14192 root    6w  FIFO               0,10      0t0   31449 pipe
+twt_dial_ 14192 root    7u   CHR              246,0      0t0     428 /dev/qcqmi0
+twt_dial_ 14192 root    8u   CHR              246,0      0t0     428 /dev/qcqmi0
+twt_dial_ 14192 root    9u   CHR              246,0      0t0     428 /dev/qcqmi0
+
+[task]
+14192  14194  14200
+14192 -> read(0,                                              # readline|linenoise 上
+14194 -> select(10, [4 5 7 8 9], NULL, NULL, NULL             # 监听 /dev/qcqmi0 上
+14200 -> futex(0x7fa2ab123ee4, FUTEX_WAIT_PRIVATE, 9, NULL    # 线程锁上 即 dsutil 的线程锁上
+
+
+#  // qmi_cci_xport_closed(xp->clnt);  阻塞在 pthread_mutex 调用中
+#0  pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S:185
+#1  0x00007ffff756c413 in qmi_client_release (user_handle=<optimized out>) at qmi_cci_common.c:2285
+#2  0x00007ffff7bcab24 in qdi_qmi_wds_release_qmi_client (clnt_hndl=0x3) at qdi_qmi_wds.c:587
+#3  0x00007ffff7bc4f2b in qdi_wds_srvc_release_client (user_handle=1) at qdi.c:1364
+#4  0x00007ffff7bc0ae3 in libtwt_dial_qmi_wds_stop_nw_if (iface_id=RMNET_TYPE_DATA0, ip_family=IP_TYPE_VERSION_4_6) at libtwt_dial_qmi.c:390
+#5  0x00007ffff7bbe017 in TWSDK_dial_stop_nw_if (iface_id=RMNET_TYPE_DATA0, ip_family=IP_TYPE_VERSION_4_6) at libtwt_dial.c:76
+#6  0x000000000040518b in test_twt_dial_stop ()
+#7  0x0000000000405eb5 in test_twt_dial_handle_str ()
+#8  0x00000000004067f6 in main ()
+
+ls -l /dev/ 插入之后，新增设备
+brw-rw----  1 root   disk      8,  32 Apr 14 17:24 sdc
+crw-rw----  1 root   disk     21,   3 Apr 14 17:24 sg3 
+crw-------  1 root   root    246,   0 Apr 14 17:24 qcqmi0
+Gobi_t_qcqmi0_twt_dial_test
+}
+
+Gobi_t_qcqmi0_todo(){ cat - <<'Gobi_t_qcqmi0_todo'
+1. 通过usb0拨号成功之后，获取地址问题: 1. ubus call network.interface.wan up  (编写C代码|通过fork exec外部调用) -> (IPv4|ipv6双栈和dhcp|pppoe|ppp协议问题)
+                                       2. 外置一个脚本执行后续功能 
+   或许，需要在拨号前调用 ubus call network.interface.wan up 命令，# dhclient 或者 busybox udhcp 如何重新获得 ipv4 | odhcp6c 如何重新获得 ipv6；
+   纯协议不会 影响拨号，  ubus call network.interface.wan up 命令，与 usb0 接口自动被 netifd 管理.
+   
+2. 通过usb0重新拨号的问题: sdx55拨号成功之后即可获得IP地址(地址的配置在qmi中执行)。ubuntu拨号成功之后，只有通过外部调用 proto 才能(除了地址dns gateway能通过接口获得)
+   重拨接口需要重新审视
+3. ./twt_dial_test -I 0 start ; stop 之后代码崩溃的问题
+
+拨号断开之后，重新拨号，在已经存在IP地址的情况下，不需要重新执行dhclient 请求
+
+usb0接口监控: 由于 mtk7621和高通 平台系统之间存在异步的问题，难免会出现，已经开始进行拨号了，但是usb0接口还没有启动的情况，
+也难免会出现 usb0 接口关联驱动不稳定，驱动出现问题，导致接口 usb0 自动出现消失 到 复现 (也可能自动实现消失到复现)的情况。
+这都要求，在启动前做更多检查工作，在运行状态中，持续做检查工作，尽力保证 自动重新拨号进行,
+3.1 在何种情况下重启 dhclient   进程， ---- 不需要重新拨号，只是协议状态维护
+3.2 在何种情况下重启 usb0       接口， -----  需要重新拨号，且后续或之前执行协议状态维护
+
+
+4. quectel是如何进行的? 
+
+5. busybox udhcp
+   dhclient -4 
+   dhcp6c 
+   odhcp6c 
+这些命令和工作
+
+6. 在 sdk_ubus_mgmt 中增加一个定时器功能，以便实现对usb0以及连接状态的管理。 ... ...
+/usr/bin/ld -> ld.bfd
+
+apn 设置和获取，在ubus层面按照业务进行，只是在twttest_dail支持 命令行方式配置；
+
+[56794.413654] sdk_ubus_mgmt[18571]: segfault at 28e6 ip 00000000000028e6 sp 00007fe7a6295758 error 14 in sdk_ubus_mgmt (deleted)[400000+a000]
+
+Gobi_t_qcqmi0_todo
+}
+
+Gobi_t_qcqmi0_20210213(){ cat - <<'Gobi_t_qcqmi0_20210213'
+1. 2021年04月13日 9:30 协议 v4/v6 通过 usb0 拨号成功，进行拷机测试 ping 114.114.114.114 (mutex5) 
+                                                                   ping6 2409:8070:2000:f010::1 (mutex6) 
+2409:8970:10e1:a8a8::/64 dev usb0  proto kernel  metric 256 
+2409:8970:10f0:3fab::/64 dev br0  proto kernel  metric 256 
+fe80::/64 dev vnet0  proto kernel  metric 256 
+fe80::/64 dev vnet1  proto kernel  metric 256 
+fe80::/64 dev vnet2  proto kernel  metric 256 
+fe80::/64 dev vnet3  proto kernel  metric 256 
+fe80::/64 dev br-lan  proto kernel  metric 256 
+fe80::/64 dev usb0  proto kernel  metric 256 
+default via fe80::6c57:ebd1:1ce1:c13c dev usb0  proto ra  metric 1024  expires 64041sec hoplimit 255
+wangfl@ubuntu:/mnt$ ifconfig usb0
+usb0      Link encap:Ethernet  HWaddr 02:50:f4:00:00:00  
+          inet addr:10.76.12.171  Mask:255.255.255.248
+          inet6 addr: 2409:8970:10e1:a8a8:50:f4ff:fe00:0/64 Scope:Global
+          inet6 addr: fe80::50:f4ff:fe00:0/64 Scope:Link
+          inet6 addr: 2409:8970:10e1:a8a8:e57c:1340:1fde:b95e/64 Scope:Global
+          UP RUNNING NOARP  MTU:1500  Metric:1
+          RX packets:2902 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:2921 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:272562 (272.5 KB)  TX bytes:274460 (274.4 KB)
+
+ipv4 network information:
+public address:10.76.12.171/29 gateway address:10.76.12.172/0
+dns primary:211.137.130.2 dns secondary:211.137.130.18
+ipv6 network information:
+public address:2409:8970:10e1:a8a8:e57c:1340:1fde:b95e/64 gateway address:fe80::6c57:ebd1:1ce1:c13c/0
+dns primary:2409:8070:2000:f110::1 dns secondary:2409:8070:2000:f010::1
+
+
+Tue Apr 13 03:20:59 PDT 2021 持续运行到此时，功能正常
+Gobi_t_qcqmi0_20210213
+}
+
+# 静态代码检查: cppcheck --inline-suppr --force  --language=c  --std=c99  --enable=all . 2> err.txt
+# 动态代码检查: valgrind 进行中 ......                         # 进一步看 valgrind.txt
+# strace 系统调用跟踪: strace ./sdk_ubus_mgmt && strace -p PID # 进一步看 strace_ltrace_ftrace.txt
+# 代码格式化工具: 使用 spf13 提供的代码格式化工具              # 分析中 ......
+Gobi_t_qcqmi0_develop_todoing(){ cat - <<'Gobi_t_qcqmi0_develop'
+--------------------------------------- ubuntu 系统下，编译环境说明 ---------------------------------------
+1. [build.sh]     /mnt/mdm9607_qmi/sdk_ubus_dial                  # 服务程序提供 ubus<->qmi 之间的拨号服务
+gcc -c dial_ubus.c -std=gnu99 -Wall  -Wextra -Wno-missing-braces
+gcc -c sdk_ubus_mgmt.c -std=gnu99 -Wall  -Wextra -Wno-missing-braces
+gcc dial_ubus.o sdk_ubus_mgmt.o -o sdk_ubus_mgmt -ltwt_dial -lblobmsg_json  -lubox -lblobmsg_json -lubus -llcnv 
+
+./sdk_ubus_mgmt #  gdb ./sdk_ubus_mgmt 
+
+2. [libtwt_dial.so] /mnt/mdm9607_qmi/opensdk/libtwt_dial/src      # 动态库，提供 拨号api<-> qmi 之间的拨号接口
+# 在Makefile中 新增 -std=gnu99 -Wall -Wextra -Wno-missing-braces 选项
+cd /mnt/mdm9607_qmi/opensdk/libtwt_dial/src
+rm libtwt_dial.so
+cd /mnt/mdm9607_qmi/opensdk/
+make clean && make
+cd /mnt/mdm9607_qmi/opensdk/libtwt_dial/src
+cp libtwt_dial.so /usr/lib
+
+3. [twt_dial] /mnt/mdm9607_qmi/opensdk/twttest/twt_dial            # 自测程序， 提供 命令行 <-> (拨号api<-> qmi) 之间的测试程序
+# 在Makefile中 新增 -std=gnu99 -Wall -Wextra -Wno-missing-braces 选项
+cd /mnt/mdm9607_qmi/opensdk/twttest/twt_dial
+rm twt_dial_apn_test twt_dial_test
+cd /mnt/mdm9607_qmi/opensdk/
+make clean && make
+cd /mnt/mdm9607_qmi/opensdk/twttest/twt_dial
+cp twt_dial_apn_test /usr/local/bin/
+cp twt_dial_test     /usr/local/bin/
+
+
+@4: 测试环境构建
+sudo start-stop-daemon -S -b -a /usr/local/sbin/ubusd --pidfile /run/ubusd.pid    # start-stop-daemon -K -n ubusd
+sudo start-stop-daemon -S -b -a /usr/local/sbin/netifd --pidfile /run/netifd.pid  # start-stop-daemon -K -n netifd
+sudo start-stop-daemon -S -b -a /usr/local/sbin/procd --pidfile /run/procd.pid  # start-stop-daemon -K -n procd
+/mnt/mdm9607_qmi/sdk_ubus_dial && export DS_TARGET=DS_TARGET_MSM && ./sdk_ubus_mgmt #  gdb ./sdk_ubus_mgmt 
+--------------------------------------- ubuntu 系统下，测试环境说明 ---------------------------------------
+4. [ubus]                                                                            | [wrapper]
+ubus call sdk_service.wm get_network_status  '{ "iface_id":"0" }'                    | wm_get_network_status
+ubus call sdk_service.wm get_network_conf    '{ "iface_id":"0" }'                    | wm_get_network_conf
+ubus call sdk_service.wm get_apn_info                                                | wm_get_apn_info
+ubus call sdk_service.wm get_default_apn                                             | wm_get_default_apn
+ubus call sdk_service.wm set_default_apn      '{ "apn_name":"CMNET" }'               | wm_set_default_apn CMNET
+ubus call sdk_service.wm set_autoapn                                                 | 
+ubus call sdk_service.wm set_netup            '{ "ip_family":"4", "iface_id":"0" }'  | wm_set_netup_v4
+ubus call sdk_service.wm set_netup            '{ "ip_family":"6", "iface_id":"0" }'  | wm_set_netup_v6
+ubus call sdk_service.wm set_netup            '{ "ip_family":"10", "iface_id":"0" }' | wm_set_netup_v10
+ubus call sdk_service.wm set_netdown          '{ "iface_id":"0" }'                   | wm_set_netdown
+ubus call sdk_service.wm wm_del_apn_profile_id '{"profile_id":"7"}'                  | wm_del_apn_profile_id 7 
+ubus call sdk_service.wm set_apn_3gpp '{"profile_id":"7","ip_family":"4","user_id":"user_id-t7","apn_name":"apn_name-t7","auth_type":"0","auth_password":"auth_password-t7"}'
+                                                                                     | wm_set_apn_3gpp 7 4    user_id-t7    apn_name-t7    0 auth_password-t7
+ubus call sdk_service.wm set_apn_3gpp2 '{"profile_id":"0","ip_family":"4","user_id":"user_id-t7","apn_name":"apn_name-t7","auth_type":"0","auth_password":"auth_password-t7"}'
+                                                                                     | wm_set_apn_3gpp2 0 4    user_id-t7    apn_name-t7    0 auth_password-t7
+
+[set_apn_3gpp 测试实例]
+ubus call sdk_service.wm set_apn_3gpp '{"profile_id":"7","ip_family":"4","user_id":"user_id-t7","apn_name":"apn_name-t7","auth_type":"0","auth_password":"auth_password-t7"}'
+ubus call sdk_service.wm set_apn_3gpp '{"profile_id":"7","ip_family":"6","user_id":"user_id-t7","apn_name":"apn_name-t7","auth_type":"0","auth_password":"auth_password-t7"}'
+ubus call sdk_service.wm set_apn_3gpp '{"profile_id":"7","ip_family":"10","user_id":"user_id-t7","apn_name":"apn_name-t7","auth_type":"0","auth_password":"auth_password-t7"}'
+ubus call sdk_service.wm set_apn_3gpp '{"profile_id":"7","ip_family":"4","user_id":"user_id-t7","apn_name":"apn_name-t7","auth_type":"1","auth_password":"auth_password-t7"}'
+ubus call sdk_service.wm set_apn_3gpp '{"profile_id":"7","ip_family":"6","user_id":"user_id-t7","apn_name":"apn_name-t7","auth_type":"1","auth_password":"auth_password-t7"}'
+ubus call sdk_service.wm set_apn_3gpp '{"profile_id":"7","ip_family":"10","user_id":"user_id-t7","apn_name":"apn_name-t7","auth_type":"1","auth_password":"auth_password-t7"}'
+[set_apn_3gpp2 测试实例]
+ubus call sdk_service.wm set_apn_3gpp2 '{"profile_id":"0","ip_family":"4","user_id":"user_id-t0","apn_name":"apn_name-t0","auth_password":"auth_password-t0","level_user_id":"level_user-t0","level_auth_password":"level_auth-t0"}'
+ubus call sdk_service.wm set_apn_3gpp2 '{"profile_id":"0","ip_family":"6","user_id":"user_id-t0","apn_name":"apn_name-t0","auth_password":"auth_password-t0","level_user_id":"level_user-t0","level_auth_password":"level_auth-t0"}'
+ubus call sdk_service.wm set_apn_3gpp2 '{"profile_id":"0","ip_family":"10","user_id":"user_id-t0","apn_name":"apn_name-t0","auth_password":"auth_password-t0","level_user_id":"level_user-t0","level_auth_password":"level_auth-t0"}'
+ubus call sdk_service.wm set_apn_3gpp2 '{"profile_id":"0","ip_family":"4","user_id":"user_id-t0","apn_name":"apn_name-t0","auth_password":"auth_password-t0","level_user_id":"level_user-t0","level_auth_password":"level_auth-t0"}'
+ubus call sdk_service.wm set_apn_3gpp2 '{"profile_id":"0","ip_family":"6","user_id":"user_id-t0","apn_name":"apn_name-t0","auth_password":"auth_password-t0","level_user_id":"level_user-t0","level_auth_password":"level_auth-t0"}'
+ubus call sdk_service.wm set_apn_3gpp2 '{"profile_id":"0","ip_family":"10","user_id":"user_id-t0","apn_name":"apn_name-t0","auth_password":"auth_password-t0","level_user_id":"level_user-t0","level_auth_password":"level_auth-t0"}'
+
+关键点说明: 
+4.1 [ubus] vs [wrapper] 两者的差别在于: [ubus]用于手动测试，可以配以 ubus -v list sdk_service.wm; 可读可理解性比较强；[wrapper]用于自动化测试或无脑调用，便于输入，
+4.2 功能可以从两方面介绍: 
+获取功能 get_network_status, get_network_conf, get_apn_info, get_default_apn 配置功能: set_default_apn, set_netup, set_netdown, set_apn_3gpp, set_apn_3gpp2, wm_del_apn_profile_id
+连接管理 set_netup，set_netdown APN管理， set_default_apn set_apn_3gpp set_apn_3gpp2 wm_del_apn_profile_id。
+在设计接口的时候，连接管理和APN管理不是正交的，使得理解起来很是费解，特别APN管理，又存在 set_apn_3gpp, set_apn_3gpp2, set_default_apn功能，
+在设计接口的时候，NV配置管理和 连接管理，APN管理纠缠在一起，对于那些接口会影响那些 NV配置的映射关闭，较困难。
+
+4.2.1 对设计上的magic说明一下:
+set_netup,set_netdown: 接口调用会影响，call_net_enable_%ifaceid(在rmnet_data%iface_id上拨号) call_net_num_%ifaceid(%ifaceid==%ifaceid) 
+call_net_ip_%ifaceid(ipv4v6:10 ipv4:4, ipv6:6) call_net_apn_%ifaceid(profile_id值，当前可以在profile_id=1上拨号默认值，也可以在profile_id:7上拨号，预留1路 apnname,user,passwd,auth可配置的)
+set_netup 接口上不支持多路拨号，当时，dial_init启动函数可以根据配置实现多路拨号，从设计上，通过ubus无法管理多路拨号。
+4.2.2 调用 set_apn_3gpp set_apn_3gpp2和 set_default_apn 都会影响 call_net_apn_%ifaceid 的值，只是 set_apn_3gpp set_apn_3gpp2 提供参数修改 AT侧内容，而 set_default_apn 只是修改NV。
+
+ubus call sdk_service.rm get_rx_tx_rate
+
+5. [shunit2-test] 
+进行自动化脚本测试
+D:\cygwin64\home\wangfuli\crosstool\cheatsheet\ops_doc-master\bash\shunit2\twt_dial\dial_test.sh         # 最终版本
+D:\cygwin64\home\wangfuli\crosstool\cheatsheet\ops_doc-master\bash\shunit2\twt_dial\ubuntu_dial_test.sh  # ubuntu版本，当前测试充分
+D:\cygwin64\home\wangfuli\crosstool\cheatsheet\ops_doc-master\bash\shunit2\twt_dial\openwrt_dial_test.sh # openwrt版本，当前测试中 ... ... 
+
+6. 通过 ubus 管理接口栈，在 ubuntu 中通过 ip 命令和 dhclient 实现 netifd 类似的功能
+ubus call network.interface.wan up   
+ubus call network.interface.wan6 up   
+ubus call network.interface.wan down 
+ubus call network.interface.wan6 down 
+
+7. Gobi_t_qcqmi0_ubuntu 节,  提供 ubuntu 下环境构建说明，
+8. Gobi_t_qcqmi0_openwrt 节，通过脚本构建环境 ..... 后续内容
+8.1 流量统计功能打开
+8.2 整体编译一个版本，通过tftp烧录
+8.3 修改内容入库 -> 代码兼容性问题
+#  opensdk 代码来源于 sdx55平台，转移到 openwrt 平台之后，存在一些移植的差异性，使得某些 头文件包含和动态库连接存在问题。 include <qmi/wireless_data_service_v01.h> 问题
+8.4 rmnet_data0 与 usb0 在sdx55平台上自适应 
+Gobi_t_qcqmi0_develop
+}
+
+Gobi_t_qcqmi0_20210215(){ cat - <<'Gobi_t_qcqmi0_20210215'
+[何时会出现以下内容... ...]
+Apr 14 19:06:12 ubuntu dhclient: XMT: Solicit on usb0, interval 131560ms.
+Apr 14 19:07:14 ubuntu test: (check_wm_callback:918)dial: check_wm_callback iface_id:0, msgid:00000022 family:ipv4 connection status:disconnected#012
+
+[流量统计的获取] 通过注册定时的方式，周期性修订！
+rc = qmi_client_send_msg_sync(clnt_handle,
+                            QMI_WDS_GET_PKT_STATISTICS_REQ_V01,
+                            (void *)&req,
+                            sizeof(req),
+                            (void*)stats_resp,
+                            sizeof(*stats_resp),
+                            1000);
+
+
+
+Gobi_t_qcqmi0_20210215
+}
+
+
+
+Gobi_t_qcqmi0_20210216(){ cat - <<'Gobi_t_qcqmi0_20210216'
+[何时会出现以下情况] v4 拨通之后返回内容为 0.0.0.0 # 如果返回默认网关为空，重新拨号
+Apr 16 04:02:55 ubuntu sdk_ubus_mgmt: message repeated 7 times: [ open_lookup_sock_fd: Lookup sock fd creation failed]
+Apr 16 04:02:55 ubuntu sdk_ubus_mgmt: (system_cmd:199)dial: system call: ip -4 address add 0.0.0.0/0 dev usb0 2>&1 > /dev/null
+Apr 16 04:02:55 ubuntu sdk_ubus_mgmt: (system_cmd:199)dial: system call: ip -4 route add default via 0.0.0.0 dev usb0 2>&1 > /dev/null
+Apr 16 04:02:55 ubuntu sdk_ubus_mgmt: (system_cmd:199)dial: system call: ip -6 address add fe80::50:f4ff:fe00:0/64 dev usb0 2>&1 > /dev/null
+Apr 16 04:02:55 ubuntu sdk_ubus_mgmt: (system_cmd:199)dial: system call: ip -6 route add default via fe80::71ac:2441:9d80:c7fa dev usb0 2>&1 > /dev/null
+Apr 16 04:02:55 ubuntu sdk_ubus_mgmt: (check_wm_callback:949)dial: check_wm_callback iface_id:0, msgid:00000020 family:ipv6 connection status:connected#012
+Gobi_t_qcqmi0_20210216
+}
+
+Gobi_t_qcqmi0_20210219(){ cat - <<'Gobi_t_qcqmi0_20210219'
+[出现问题]
+[183163.037871] usb 3-2.1: new high-speed USB device number 26 using xhci_hcd
+[183163.319084] usb 3-2.1: New USB device found, idVendor=05c6, idProduct=9025
+[183163.319086] usb 3-2.1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[183163.319105] usb 3-2.1: Product: Android
+[183163.319106] usb 3-2.1: Manufacturer: Android
+[183163.319107] usb 3-2.1: SerialNumber: 67230f4e
+[183163.325310] GobiNet 3-2.1:1.4 usb0: register 'GobiNet' at usb-0000:03:00.0-2.1, GobiNet Ethernet Device, 02:50:f4:00:00:00
+[183163.326534] creating qcqmi0
+[183163.327371] usb-storage 3-2.1:1.5: USB Mass Storage device detected
+[183163.327613] scsi host24: usb-storage 3-2.1:1.5
+[183164.327176] scsi 24:0:0:0: Direct-Access     Linux    File-Stor Gadget 0318 PQ: 0 ANSI: 2
+[183164.327698] sd 24:0:0:0: Attached scsi generic sg3 type 0
+[183164.333048] sd 24:0:0:0: [sdc] Attached SCSI removable disk
+[183446.263689] sdk_ubus_mgmt[12382]: segfault at 28 ip 00007fdaeacea071 sp 00007fdae3ffee60 error 4 in libtwt_dial.so[7fdaeace2000+19000]
+[183607.930332] GobiNet 3-2.1:1.4 usb0: kevent 12 may have been dropped
+[183607.938615] ICMPv6: RA: ndisc_router_discovery failed to add default route
+[187156.299446] e1000: eth0 NIC Link is Down
+[187156.307869] br0: port 1(eth0) entered disabled state
+[187158.302897] e1000: eth0 NIC Link is Up 1000 Mbps Full Duplex, Flow Control: None
+[187158.303468] br0: port 1(eth0) entered forwarding state
+[187158.303489] br0: port 1(eth0) entered forwarding state
+[187167.322414] br0: port 1(eth0) entered forwarding state
+
+[sdk_ubus_mgmt] 状态
+sendto(7, "<15>Apr 18 18:56:15 sdk_ubus_mgm"..., 84, MSG_NOSIGNAL, NULL, 0) = 84
+sendmsg(6, {msg_name(0)=NULL, msg_iov(2)=[{"\0\2\0\2@\213\265\32", 8}, {"\0\0\0T\3\0\0\10/\30K'\7\0\0H\203\0\0\22\0\10iface_id\0\0"..., 84}], msg_controllen=0, msg_flags=0}, 0) = 92
+sendto(7, "<14>Apr 18 18:56:15 sdk_ubus_mgm"..., 105, MSG_NOSIGNAL, NULL, 0) = 105
+sendmsg(6, {msg_name(0)=NULL, msg_iov(2)=[{"\0\1\0\2@\213\265\32", 8}, {"\0\0\0\24\1\0\0\10\0\0\0\0\3\0\0\10/\30K'", 20}], msg_controllen=0, msg_flags=0}, 0) = 28
+epoll_wait(3, 
+{{EPOLLIN, {u32=24277088, u64=24277088}}}, 10, -1) = 1
+recvmsg(6, {msg_name(0)=NULL, msg_iov(1)=[{"\0\5\0\2\332;\270;\0\0\0`", 12}], msg_controllen=0, msg_flags=0}, 0) = 12
+recvmsg(6, {msg_name(0)=NULL, msg_iov(1)=[{"\3\0\0\10/\30K'\4\0\0\16set_netup\0\0\0\f\0\0\troot"..., 92}], msg_controllen=0, msg_flags=0}, 0) = 92
+sendto(7, "<14>Apr 18 18:56:30 sdk_ubus_mgm"..., 83, MSG_NOSIGNAL, NULL, 0) = 83
+sendto(7, "<13>Apr 18 18:56:30 sdk_ubus_mgm"..., 141, MSG_NOSIGNAL, NULL, 0) = 141
+write(2, "ds_util.c 1985:", 15)         = 15
+write(2, "ds_get_target(): locked", 23) = 23
+write(2, "ds_util.c 1530:", 15)         = 15
+write(2, "ds_get_target_offtarget(): env D"..., 82) = 82
+write(2, "ds_util.c 2023:", 15)         = 15
+write(2, "ds_get_target(): Target: [1] : ["..., 36) = 36
+write(2, "ds_util.c 2025:", 15)         = 15
+write(2, "ds_get_target(): unlocked", 25) = 25
+socket(0x1b /* PF_??? */, SOCK_DGRAM, 0) = -1 EAFNOSUPPORT (Address family not supported by protocol)
+sendto(7, "<11>Apr 18 18:56:30 sdk_ubus_mgm"..., 87, MSG_NOSIGNAL, NULL, 0) = 87
+access("/dev/qcqmi0", F_OK)             = 0
+socket(0x1b /* PF_??? */, SOCK_DGRAM, 0) = -1 EAFNOSUPPORT (Address family not supported by protocol)
+sendto(7, "<11>Apr 18 18:56:30 sdk_ubus_mgm"..., 87, MSG_NOSIGNAL, NULL, 0) = 87
+access("/dev/qcqmi0", F_OK)             = 0
+open("/dev/qcqmi0", O_RDWR)             = 11
+fcntl(11, F_GETFL)                      = 0x8002 (flags O_RDWR|O_LARGEFILE)
+fcntl(11, F_SETFL, O_RDWR|O_NONBLOCK|O_LARGEFILE) = 0
+ioctl(11, 0x8be1
+^CProcess 2036 detache
+
+[插入/拔出] 内核情况
+[188656.624140] usb 3-2.1: USB disconnect, device number 26
+[188656.635791] GobiNet 3-2.1:1.4 usb0: unregister 'GobiNet' usb-0000:03:00.0-2.1, GobiNet Ethernet Device
+[188663.436386] usb 3-2.1: new high-speed USB device number 27 using xhci_hcd
+[188663.721968] usb 3-2.1: New USB device found, idVendor=05c6, idProduct=9025
+[188663.721978] usb 3-2.1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[188663.721984] usb 3-2.1: Product: Android
+[188663.721990] usb 3-2.1: Manufacturer: Android
+[188663.721995] usb 3-2.1: SerialNumber: 67230f4e
+[188663.738444] GobiNet 3-2.1:1.4 usb0: register 'GobiNet' at usb-0000:03:00.0-2.1, GobiNet Ethernet Device, 02:50:f4:00:00:00
+[188663.739779] creating qcqmi0
+[188663.740997] usb-storage 3-2.1:1.5: USB Mass Storage device detected
+[188663.741462] scsi host25: usb-storage 3-2.1:1.5
+[188664.743442] scsi 25:0:0:0: Direct-Access     Linux    File-Stor Gadget 0318 PQ: 0 ANSI: 2
+[188664.745020] sd 25:0:0:0: Attached scsi generic sg3 type 0
+[188664.749664] sd 25:0:0:0: [sdc] Attached SCSI removable disk
+
+0: connecting 1:
+[sdk_ubus_mgmt] 可以恢复；但是恢复状态不正确，一直处于 connecting 状态;
+root@ubuntu:/mnt/mdm9607_qmi/plla/include# /usr/local/bin/wm_get_network_status 
+{
+        "iface_id": "0",
+        "network_status": "0",  
+        "ip_family": "-1"
+}
+root@ubuntu:/mnt/mdm9607_qmi/plla/include# /usr/local/bin/wm_set_netup_v10 
+{
+        "result": "ok"
+}
+Gobi_t_qcqmi0_20210219
+}
+
+Gobi_t_qcqmi0_20210220_ipv6_ok(){ cat - <<'Gobi_t_qcqmi0_20210220'
+15: usb0: <NOARP,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 02:50:f4:00:00:00 brd ff:ff:ff:ff:ff:ff
+    inet 10.113.206.175/27 brd 10.113.206.191 scope global usb0
+       valid_lft forever preferred_lft forever
+    inet6 2409:8970:1082:4e95:68a9:f66b:8f0:24df/64 scope global temporary dynamic 
+       valid_lft 604077sec preferred_lft 85077sec
+    inet6 2409:8970:1082:4e95:50:f4ff:fe00:0/64 scope global dynamic 
+       valid_lft forever preferred_lft forever
+    inet6 fe80::50:f4ff:fe00:0/64 scope link 
+       valid_lft forever preferred_lft forever
+Gobi_t_qcqmi0_20210220
+}
+
+Gobi_t_qcqmi0_20210221_done(){ cat - <<'Gobi_t_qcqmi0_20210221_todo'
+1.  set_default_apn && get_default_apn 测试
+"set_default_apn":{"apn_name":"String"}
+"get_default_apn":{}
+
+2. 处理 littwt_dail twttest 和 dial_ubus 中告警信息 
+Gobi_t_qcqmi0_20210221_todo
+}
+Gobi_t_qcqmi0_20210221_done(){ cat - <<'Gobi_t_qcqmi0_20210221_todo'
+1. 比对 dial_ubus 和 wm_ubus 
+2. 文档中的 todo 重新看看
+
+
+http://10.99.100.214:8080/xwiki/bin/view/office/Software/SCM/chip_code/MT7621/?srid=5KujSO6L  # git版本
+cd MTK7621DA_V3.6_D-Link
+# 确保切换到了openwrt分支
+git checkout br-mtk-openwrt-sdk-v3.6-dev
+cp -rvf ./autobuild-scripts/mt7621-AP-7603-7613/config-3.10 ./target/linux/ramips/mt7621/
+cp -rvf ./autobuild-scripts/mt7621-AP-7603-7613/.config ./
+./scripts/feeds update -a             # 追加命令
+./scripts/feeds install -a -f         # 追加命令
+make -j`nproc` V=1
+
+/mnt/work2/wangfuli/MTK7621DA_V3.6_D-Link/MTK7621DA_V3.6_D-Link                               # 工作空间
+
+ip: 172.23.5.254
+user/passwd shichao/shichao
+shichao@172.23.5.254 
+Gobi_t_qcqmi0_20210221_todo
+}
+
+Gobi_t_qcqmi0_20210222_done(){ cat - <<'Gobi_t_qcqmi0_20210222_done'
+# 型号特定寄存器（MSR）
+sudo apt-get install msr-tools
+sudo modprobe msr
+sudo rdmsr
+Gobi_t_qcqmi0_20210222_done
+}
+
+
+Gobi_t_qcqmi0_20210226_done(){ cat - <<'Gobi_t_qcqmi0_20210226_done'
+1. 出问题之后不再打印.... 
+
+D:\cygwin64\ftptmp\sdk_ubus_dial\sdk_ubus_mgmt_ok.log # 有日志输出， 有sendmsg调用(ubus_reply调用) 也有 recvmsg(4 请求调用
+D:\cygwin64\ftptmp\sdk_ubus_dial\sdk_ubus_mgmt.log    # 
+
+Mon Apr 26 07:50:59 2021 user.notice sdk_ubus_mgmt: libtwt_dial_qmi.c(642)-libtwt_dial_creg -> "Registered with a network\n"
+Mon Apr 26 07:50:59 2021 user.notice sdk_ubus_mgmt: libtwt_dial_qmi.c(648)-libtwt_dial_creg -> "CS:Attached\n"
+Mon Apr 26 07:50:59 2021 user.notice sdk_ubus_mgmt: libtwt_dial_qmi.c(649)-libtwt_dial_creg -> "PS:Attached\n"
+Mon Apr 26 07:50:59 2021 user.notice sdk_ubus_mgmt: libtwt_dial_qmi.c(655)-libtwt_dial_creg -> "selected_network:3GPP network\n"
+Mon Apr 26 07:50:59 2021 user.notice sdk_ubus_mgmt: libtwt_dial_qmi.c(659)-libtwt_dial_creg -> "radio:LTE\n"
+
+lrwx------    1 root     root            64 Apr 26 08:09 0 -> /dev/null
+l-wx------    1 root     root            64 Apr 26 08:09 1 -> /dev/null
+lrwx------    1 root     root            64 Apr 26 08:09 10 -> /dev/qcqmi0
+lrwx------    1 root     root            64 Apr 26 08:09 11 -> /dev/qcqmi0
+lrwx------    1 root     root            64 Apr 26 08:09 12 -> /dev/qcqmi0
+lrwx------    1 root     root            64 Apr 26 08:09 13 -> /dev/qcqmi0
+lrwx------    1 root     root            64 Apr 26 08:09 14 -> /dev/qcqmi0
+lrwx------    1 root     root            64 Apr 26 08:09 15 -> /dev/qcqmi0
+lrwx------    1 root     root            64 Apr 26 08:09 16 -> socket:[11099]
+lrwx------    1 root     root            64 Apr 26 08:09 17 -> /dev/qcqmi0
+l-wx------    1 root     root            64 Apr 26 08:09 2 -> /dev/null
+lrwx------    1 root     root            64 Apr 26 08:09 3 -> anon_inode:[eventpoll]
+lrwx------    1 root     root            64 Apr 26 08:09 4 -> socket:[11092]             # ubus
+lrwx------    1 root     root            64 Apr 26 08:09 5 -> /dev/qcqmi0
+lr-x------    1 root     root            64 Apr 26 08:09 6 -> pipe:[11846]
+l-wx------    1 root     root            64 Apr 26 08:09 7 -> pipe:[11846]
+lrwx------    1 root     root            64 Apr 26 08:09 8 -> /data/sms_data.db
+lr-x------    1 root     root            64 Apr 26 08:09 9 -> pipe:[804]
+
+
+2. 需要提交的内容
+        modified:   opensdk/Makefile
+        modified:   opensdk/patches/002-Makefile.patch
+        modified:   qmi-framework/Makefile
+        modified:   qmi/Makefile
+        modified:   qmi/qmi/Makefile.am
+        modified:   qmi/qmi/configure.ac
+        modified:   qmi/qmi/platform/qmi_platform_config.h
+        modified:   qmi/qmi/qmi_client_helper/Makefile.am
+        sdk-ubus-mgmt/
+
+Gobi_t_qcqmi0_20210226_done
+}
+
+
+Gobi_t_qcqmi0_20210227_mt7621_log(){ cat - <<'Gobi_t_qcqmi0_20210227_mt7621_log'
+1. 出问题之后不再打印.... 
+[ 8291.572000] ESW: Link Status Changed - Port2 Link Down
+[ 8293.852000] ESW: Link Status Changed - Port2 Link UP
+[ 8310.016000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.016000] SysRq : Changing Loglevel
+[ 8310.016000] Loglevel set to 0
+[ 8310.088000] ttyS1: 1 input overrun(s)
+[ 8310.092000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.152000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.152000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.152000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.152000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.152000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.152000] SysRq : Changing Loglevel
+[ 8310.152000] Loglevel set to 0
+[ 8310.152000] SysRq : Changing Loglevel
+[ 8310.152000] Loglevel set to 0
+[ 8310.152000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.152000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.152000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.152000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.152000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+[ 8310.152000] SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) sync(s) show-task-states(t) unmount(u) show-blocked-tasks(w)
+Gobi_t_qcqmi0_20210227_mt7621_log
+}
+
+Gobi_t_qcqmi0_20210227_mt7621_todo(){ cat - <<'Gobi_t_qcqmi0_20210227_mt7621_todo'
+[线程 proc下确认]
+root@OpenWrt:/proc/5681/task# ls -al
+dr-xr-xr-x    7 root     root             0 Apr 27 06:29 .
+dr-xr-xr-x    7 root     root             0 Apr 27 06:29 ..
+dr-xr-xr-x    5 root     root             0 Apr 27 06:29 5681
+dr-xr-xr-x    5 root     root             0 Apr 27 06:29 5688
+dr-xr-xr-x    5 root     root             0 Apr 27 06:29 5693
+dr-xr-xr-x    5 root     root             0 Apr 27 06:29 5722
+dr-xr-xr-x    5 root     root             0 Apr 27 06:29 5723
+root@OpenWrt:/proc/5681/task# ls -l
+dr-xr-xr-x    5 root     root             0 Apr 27 06:29 5681
+dr-xr-xr-x    5 root     root             0 Apr 27 06:29 5693
+dr-xr-xr-x    5 root     root             0 Apr 27 06:29 5722
+dr-xr-xr-x    5 root     root             0 Apr 27 06:29 5723
+
+[ 32070线程退出日志 ]
+[pid 32063] 06:17:48.272466 <... time resumed> NULL) = 1619504268 <0.000200>
+[pid 32070] 06:17:48.272606 open("/proc/sys/vm/overcommit_memory", O_RDONLY|O_CLOEXEC <unfinished ...>
+[pid 32063] 06:17:48.272826 send(14, "<13>Apr 27 06:17:48 sdk_ubus_mgm"..., 106, MSG_NOSIGNAL <unfinished ...>
+[pid 32070] 06:17:48.272987 <... open resumed> ) = 16 <0.000201>
+[pid 32063] 06:17:48.273127 <... send resumed> ) = 106 <0.000161>
+[pid 32070] 06:17:48.273867 read(16, "0", 1) = 1 <0.000080>
+[pid 32070] 06:17:48.274267 close(16 <unfinished ...>
+[pid 32063] 06:17:48.274507 time( <unfinished ...>
+[pid 32070] 06:17:48.274707 <... close resumed> ) = 0 <0.000260>
+[pid 32063] 06:17:48.274887 <... time resumed> NULL) = 1619504268 <0.000220>
+[pid 32070] 06:17:48.275067 madvise(0x76421000, 45056, MADV_DONTNEED) = 0 <0.000100>
+[pid 32070] 06:17:48.275487 madvise(0x7653e000, 8249344, MADV_DONTNEED) = 0 <0.000160>
+[pid 32063] 06:17:48.275907 send(14, "<13>Apr 27 06:17:48 sdk_ubus_mgm"..., 107, MSG_NOSIGNAL <unfinished ...>
+[pid 32070] 06:17:48.276207 exit(0)     = ?
+[pid 32070] 06:17:48.276527 +++ exited with 0 +++
+
+
+[ 出错代码位置 ]
+./qcci/src/qmi_cci_xport_qmuxd.c:67:static void *reader_thread(void *handle)
+
+[ 触发问题的调用方法 ]
+while true; do wm_get_apn_info; done # 通过该方法调用qmi，会导致 reader_thread 线程退出来。在openwrt版本中会出现，在ubuntu版本中未出现
+Gobi_t_qcqmi0_20210227_mt7621_todo
+}
+
+Gobi_t_qcqmi0_20210228_todo(){ cat - <<'Gobi_t_qcqmi0_20210228_todo'
+Please choose the operation: 
+   1: Load system code to SDRAM via TFTP. 
+   2: Load system code then write to Flash via TFTP. 
+   3: Boot system code via Flash (default).
+   4: Entr boot command line interface.
+   5: Load system code then write to Flash via Httpd.
+   7: Load Boot Loader code then write to Flash via Serial. 
+   9: Load Boot Loader code then write to Flash via TFTP. 
+
+You chose 2
+
+ 0 
+
+   
+2: System Load Linux Kernel then write to Flash via TFTP. 
+ Warning!! Erase Linux in Flash then burn new one. Are you sure?(Y/N)
+ Please Input new ones /or Ctrl-C to discard
+        Input device IP (10.10.10.123) ==:10.10.10.123
+        Input server IP (10.10.10.3) ==:10.10.10.3
+        Input Linux Kernel filename ==:7621.bin
+Gobi_t_qcqmi0_20210228_todo
+}
+
+
+Gobi_t_qcqmi0_20210216_lsusb(){ cat - <<'Gobi_t_qcqmi0_20210216'
+Bus 003 Device 024: ID 05c6:9025 Qualcomm, Inc. Qualcomm HSUSB Device
+Device Descriptor:
+  bLength                18
+  bDescriptorType         1
+  bcdUSB               2.00
+  bDeviceClass            0 (Defined at Interface level)
+  bDeviceSubClass         0 
+  bDeviceProtocol         0 
+  bMaxPacketSize0        64
+  idVendor           0x05c6 Qualcomm, Inc.
+  idProduct          0x9025 Qualcomm HSUSB Device
+  bcdDevice            2.32
+  iManufacturer           1 Android
+  iProduct                2 Android
+  iSerial                 3 67230f4e
+  bNumConfigurations      1
+  Configuration Descriptor:
+    bLength                 9
+    bDescriptorType         2
+    wTotalLength          206
+    bNumInterfaces          6
+    bConfigurationValue     1
+    iConfiguration          0 
+    bmAttributes         0xa0
+      (Bus Powered)
+      Remote Wakeup
+    MaxPower              500mA
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        0
+      bAlternateSetting       0
+      bNumEndpoints           2
+      bInterfaceClass       255 Vendor Specific Class
+      bInterfaceSubClass    255 Vendor Specific Subclass
+      bInterfaceProtocol    255 Vendor Specific Protocol
+      iInterface              0 
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x81  EP 1 IN
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               0
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x01  EP 1 OUT
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               0
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        1
+      bAlternateSetting       0
+      bNumEndpoints           2
+      bInterfaceClass       255 Vendor Specific Class
+      bInterfaceSubClass     66 
+      bInterfaceProtocol      1 
+      iInterface             10 ADB Interface
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x02  EP 2 OUT
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               0
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x82  EP 2 IN
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               0
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        2
+      bAlternateSetting       0
+      bNumEndpoints           3
+      bInterfaceClass       255 Vendor Specific Class
+      bInterfaceSubClass      0 
+      bInterfaceProtocol      0 
+      iInterface              0 
+      ** UNRECOGNIZED:  05 24 00 10 01
+      ** UNRECOGNIZED:  05 24 01 00 00
+      ** UNRECOGNIZED:  04 24 02 02
+      ** UNRECOGNIZED:  05 24 06 00 00
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x84  EP 4 IN
+        bmAttributes            3
+          Transfer Type            Interrupt
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x000a  1x 10 bytes
+        bInterval               9
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x83  EP 3 IN
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               0
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x03  EP 3 OUT
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               0
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        3
+      bAlternateSetting       0
+      bNumEndpoints           3
+      bInterfaceClass       255 Vendor Specific Class
+      bInterfaceSubClass      0 
+      bInterfaceProtocol      0 
+      iInterface              0 
+      ** UNRECOGNIZED:  05 24 00 10 01
+      ** UNRECOGNIZED:  05 24 01 00 00
+      ** UNRECOGNIZED:  04 24 02 02
+      ** UNRECOGNIZED:  05 24 06 00 00
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x86  EP 6 IN
+        bmAttributes            3
+          Transfer Type            Interrupt
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x000a  1x 10 bytes
+        bInterval               9
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x85  EP 5 IN
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               0
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x04  EP 4 OUT
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               0
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        4
+      bAlternateSetting       0
+      bNumEndpoints           3
+      bInterfaceClass       255 Vendor Specific Class
+      bInterfaceSubClass    255 Vendor Specific Subclass
+      bInterfaceProtocol    255 Vendor Specific Protocol
+      iInterface             11 RmNet
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x87  EP 7 IN
+        bmAttributes            3
+          Transfer Type            Interrupt
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0008  1x 8 bytes
+        bInterval               9
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x8e  EP 14 IN
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               0
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x0f  EP 15 OUT
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               0
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        5
+      bAlternateSetting       0
+      bNumEndpoints           2
+      bInterfaceClass         8 Mass Storage
+      bInterfaceSubClass      6 SCSI
+      bInterfaceProtocol     80 Bulk-Only
+      iInterface              4 Mass Storage
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x88  EP 8 IN
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               0
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x05  EP 5 OUT
+        bmAttributes            2
+          Transfer Type            Bulk
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0200  1x 512 bytes
+        bInterval               1
+Device Qualifier (for other device speed):
+  bLength                10
+  bDescriptorType         6
+  bcdUSB               2.00
+  bDeviceClass            0 (Defined at Interface level)
+  bDeviceSubClass         0 
+  bDeviceProtocol         0 
+  bMaxPacketSize0        64
+  bNumConfigurations      1
+Device Status:     0x0000
+  (Bus Powered)
+Gobi_t_qcqmi0_20210216
+}
+
+Gobi_t_qcqmi0_memory_leak_todo(){ cat - <<'Gobi_t_qcqmi0_memory_leak_todo'
+[117139.246489] GobiNet::QuecDeregisterQMIDevice cdev in use by 4 tasks
+[117139.263435] GobiNet::GobiNetDriverUnbind memory leak!
+[117164.046039] usb 3-2.1: new high-speed USB device number 19 using xhci_hcd
+[117164.342346] usb 3-2.1: New USB device found, idVendor=05c6, idProduct=9025
+[117164.342348] usb 3-2.1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[117164.342350] usb 3-2.1: Product: Android
+[117164.342351] usb 3-2.1: Manufacturer: Android
+[117164.342352] usb 3-2.1: SerialNumber: 67230f4e
+[117164.348923] GobiNet 3-2.1:1.4 usb0: register 'GobiNet' at usb-0000:03:00.0-2.1, GobiNet Ethernet Device, 02:50:f4:00:00:00
+[117164.350318] creating qcqmi0
+[117164.351143] usb-storage 3-2.1:1.5: USB Mass Storage device detected
+[117164.351350] scsi host17: usb-storage 3-2.1:1.5
+[117165.368368] scsi 17:0:0:0: Direct-Access     Linux    File-Stor Gadget 0318 PQ: 0 ANSI: 2
+[117165.368951] sd 17:0:0:0: Attached scsi generic sg3 type 0
+[117165.372707] sd 17:0:0:0: [sdc] Attached SCSI removable disk
+[117286.735842] usb 3-2.1: USB disconnect, device number 19
+[117286.738792] GobiNet 3-2.1:1.4 usb0: unregister 'GobiNet' usb-0000:03:00.0-2.1, GobiNet Ethernet Device
+[117708.145843] usb 3-2.1: new high-speed USB device number 20 using xhci_hcd
+[117708.426619] usb 3-2.1: New USB device found, idVendor=05c6, idProduct=9025
+[117708.426622] usb 3-2.1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[117708.426623] usb 3-2.1: Product: Android
+[117708.426624] usb 3-2.1: Manufacturer: Android
+[117708.426625] usb 3-2.1: SerialNumber: 67230f4e
+[117708.437568] GobiNet 3-2.1:1.4 usb0: register 'GobiNet' at usb-0000:03:00.0-2.1, GobiNet Ethernet Device, 02:50:f4:00:00:00
+[117708.438787] creating qcqmi0
+[117708.440085] usb-storage 3-2.1:1.5: USB Mass Storage device detected
+[117708.440403] scsi host18: usb-storage 3-2.1:1.5
+[117709.444881] scsi 18:0:0:0: Direct-Access     Linux    File-Stor Gadget 0318 PQ: 0 ANSI: 2
+[117709.445998] sd 18:0:0:0: Attached scsi generic sg3 type 0
+[117709.452209] sd 18:0:0:0: [sdc] Attached SCSI removable disk
+[118369.435177] test[22181]: segfault at 7ffde37d3850 ip 00007ffde37d3850 sp 00007ffde37d36f8 error 15
+[118690.453358] GobiNet 3-2.1:1.4 usb0: kevent 12 may have been dropped
+[123074.135687] test[6546]: segfault at 7ffb2494096e ip 00007ffb2494096e sp 00007ffb399a3e58 error 14
+[123655.418921] test[7831]: segfault at 2636 ip 0000000000002636 sp 00007f0a57ffe768 error 14 in test[400000+a000]
+[133196.727382] e1000: eth0 NIC Link is Down
+[133196.727988] br0: port 1(eth0) entered disabled state
+
+Tue Apr 20 19:44:38 PDT 2021
+[34343.406807] GobiNet::GobiNetDriverUnbind memory leak!
+[35681.412830] usb 3-2.1: new high-speed USB device number 11 using xhci_hcd
+[35681.703066] usb 3-2.1: New USB device found, idVendor=05c6, idProduct=9025
+[35681.703071] usb 3-2.1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[35681.703074] usb 3-2.1: Product: Android
+[35681.703091] usb 3-2.1: Manufacturer: Android
+[35681.703093] usb 3-2.1: SerialNumber: 67230f4e
+[35681.714375] GobiNet 3-2.1:1.4 usb0: register 'GobiNet' at usb-0000:03:00.0-2.1, GobiNet Ethernet Device, 02:50:f4:00:00:00
+[35681.716126] creating qcqmi0
+[35681.717523] usb-storage 3-2.1:1.5: USB Mass Storage device detected
+[35681.718251] scsi host9: usb-storage 3-2.1:1.5
+[35682.734913] scsi 9:0:0:0: Direct-Access     Linux    File-Stor Gadget 0318 PQ: 0 ANSI: 2
+[35682.735717] sd 9:0:0:0: Attached scsi generic sg3 type 0
+[35682.742249] sd 9:0:0:0: [sdc] Attached SCSI removable disk
+[36131.313745] GobiNet 3-2.1:1.4 usb0: kevent 12 may have been dropped
+[36131.320905] ICMPv6: RA: ndisc_router_discovery failed to add default route
+
+Tue Apr 20 23:00:25 PDT 2021
+[52116.236607] GobiNet::GobiNetDriverUnbind memory leak!
+Gobi_t_qcqmi0_memory_leak_todo
+}
+
+Gobi_t_qcqmi0_xhci_hcd_ERROR_todo(){ cat - <<'Gobi_t_qcqmi0_memory_leak_todo'
+[151902.220241] IPv6: ADDRCONF(NETDEV_UP): br-guest: link is not ready
+[159561.871011] traps: sdk_ubus_mgmt[28129] trap invalid opcode ip:7f1272dedde1 sp:7f126bffee60 error:0 in libtwt_dial.so[7f1272de6000+18000]
+[176396.914355] xhci_hcd 0000:03:00.0: ERROR Transfer event TRB DMA ptr not part of current TD ep_index 28 comp_code 13
+[176398.013837] xhci_hcd 0000:03:00.0: Looking for event-dma 0000000033f5b5a0 trb-start 0000000033f5b210 trb-end 0000000033f5b210 seg-start 0000000033f5b000 seg-end 0000000033f5bff0
+[176398.315139] xhci_hcd 0000:03:00.0: ERROR Transfer event TRB DMA ptr not part of current TD ep_index 28 comp_code 13
+[176398.349739] xhci_hcd 0000:03:00.0: Looking for event-dma 0000000033f5b5b0 trb-start 0000000033f5b210 trb-end 0000000033f5b210 seg-start 0000000033f5b000 seg-end 0000000033f5bff0
+
+
+@ Sun Apr 18 22:18:15 PDT 2021
+[188664.749664] sd 25:0:0:0: [sdc] Attached SCSI removable disk
+[197503.779823] xhci_hcd 0000:03:00.0: ERROR Transfer event TRB DMA ptr not part of current TD ep_index 28 comp_code 13
+[197503.783013] xhci_hcd 0000:03:00.0: Looking for event-dma 0000000035983090 trb-start 0000000033f5bce0 trb-end 0000000033f5bce0 seg-start 0000000033f5b000 seg-end 0000000033f5bff0
+[197503.860849] e1000: eth0 NIC Link is Down
+[197503.860979] br0: port 1(eth0) entered disabled state
+[197503.861097] e1000 0000:02:01.0 eth0: Reset adapter
+[197507.925006] e1000: eth0 NIC Link is Up 1000 Mbps Full Duplex, Flow Control: None
+[197507.925563] br0: port 1(eth0) entered forwarding state
+[197507.925583] br0: port 1(eth0) entered forwarding state
+[197516.952579] br0: port 1(eth0) entered forwarding state
+
+Gobi_t_qcqmi0_memory_leak_todo
+}
+
+Gobi_t_qcqmi0_reconnect_qmi_todo(){ cat - <<'Gobi_t_qcqmi0_memory_leak_todo'
+@ Mon Apr 19 17:21:00 PDT 2021
+[217732.090855] e1000: eth0 NIC Link is Up 1000 Mbps Full Duplex, Flow Control: None
+[217732.091403] br0: port 1(eth0) entered forwarding state
+[217732.091423] br0: port 1(eth0) entered forwarding state
+[217740.299944] xhci_hcd 0000:03:00.0: ERROR Transfer event TRB DMA ptr not part of current TD ep_index 28 comp_code 13
+[217740.349743] xhci_hcd 0000:03:00.0: Looking for event-dma 0000000033f5b5f0 trb-start 0000000033f5b250 trb-end 0000000033f5b250 seg-start 0000000033f5b000 seg-end 0000000033f5bff0
+[217741.113394] br0: port 1(eth0) entered forwarding state
+
+重新插拔之后，会出现注网调用返回错误的情况... ... @ /var/log/syslog
+Apr 19 17:22:23 ubuntu sdk_ubus_mgmt: message repeated 15 times: [ libtwt_dial_qmi.c(616)-libtwt_dial_creg -> "libtwt_dial_creg(): failed on qmi_client_send_msg_sync(get_serving_system) with rc=-2 result:0 error:0\n"]
+Apr 19 17:22:23 ubuntu sdk_ubus_mgmt: (get_dial_nv_value:232)dial: nvm_readnv error:5#012
+Apr 19 17:22:23 ubuntu sdk_ubus_mgmt: (ubus_get_network_status:442)get network 0 status: 2,ip_family : -1!#012
+Apr 19 17:22:27 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(616)-libtwt_dial_creg -> "libtwt_dial_creg(): failed on qmi_client_send_msg_sync(get_serving_system) with rc=-2 result:0 error:0\n"
+
+即使重新拨号成功，仍然会出现注网错误... ... 重拨机制有问题 @ /var/log/syslog
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(164)-dial_wds_user_async_cb -> "rcvd QMI_WDS_START_NETWORK_INTERFACE_RESP_V01"
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -4 route add default via 10.113.206.176 dev usb0 2>&1 > /dev/null
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -6 route add default via fe80::2108:14ba:da8b:e253 dev usb0 2>&1 > /dev/null
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: (check_wm_callback:939)dial: check_wm_callback iface_id:0, msgid:00000020 family:ipv4 connection status:connected#012
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(78)-dial_wds_indication_hdlr -> "received ind_id [34] with sid [1] user_data [(nil)] ind_data [0x7fe77000be00]"
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -4 route add default via 10.113.206.176 dev usb0 2>&1 > /dev/null
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -6 route add default via fe80::2108:14ba:da8b:e253 dev usb0 2>&1 > /dev/null
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: (check_wm_callback:939)dial: check_wm_callback iface_id:0, msgid:00000022 family:ipv4 connection status:connected#012
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(164)-dial_wds_user_async_cb -> "rcvd QMI_WDS_START_NETWORK_INTERFACE_RESP_V01"
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -4 route add default via 10.113.206.176 dev usb0 2>&1 > /dev/null
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -6 route add default via fe80::2108:14ba:da8b:e253 dev usb0 2>&1 > /dev/null
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: (check_wm_callback:939)dial: check_wm_callback iface_id:0, msgid:00000020 family:ipv6 connection status:connected#012
+Apr 19 17:24:16 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(78)-dial_wds_indication_hdlr -> "received ind_id [34] with sid [1] user_data [(nil)] ind_data [0x7fe7700109e0]"
+Apr 19 17:24:19 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(616)-libtwt_dial_creg -> "libtwt_dial_creg(): failed on qmi_client_send_msg_sync(get_serving_system) with rc=-2 result:0 error:0\n"
+Apr 19 17:24:22 ubuntu dhclient: DHCPDISCOVER on usb0 to 255.255.255.255 port 67 interval 15 (xid=0x3f8f9a1c)
+Apr 19 17:24:22 ubuntu dhclient: send_packet: No such device or address
+Apr 19 17:24:22 ubuntu dhclient: dhclient.c:2041: Failed to send 300 byte long packet over usb0 interface.
+Apr 19 17:24:23 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(616)-libtwt_dial_creg -> "libtwt_dial_creg(): failed on qmi_client_send_msg_sync(get_serving_system) with rc=-2 result:0 error:0\n"
+
+Apr 19 17:24:35 ubuntu sdk_ubus_mgmt: message repeated 3 times: [ libtwt_dial_qmi.c(616)-libtwt_dial_creg -> "libtwt_dial_creg(): failed on qmi_client_send_msg_sync(get_serving_system) with rc=-2 result:0 error:0\n"]
+Apr 19 17:24:37 ubuntu dhclient: DHCPDISCOVER on usb0 to 255.255.255.255 port 67 interval 13 (xid=0x3f8f9a1c)
+Apr 19 17:24:37 ubuntu dhclient: send_packet: No such device or address
+Apr 19 17:24:37 ubuntu dhclient: dhclient.c:2041: Failed to send 300 byte long packet over usb0 interface.
+Apr 19 17:24:39 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(616)-libtwt_dial_creg -> "libtwt_dial_creg(): failed on qmi_client_send_msg_sync(get_serving_system) with rc=-2 result:0 error:0\n"
+Apr 19 17:24:47 ubuntu sdk_ubus_mgmt: message repeated 2 times: [ libtwt_dial_qmi.c(616)-libtwt_dial_creg -> "libtwt_dial_creg(): failed on qmi_client_send_msg_sync(get_serving_system) with rc=-2 result:0 error:0\n"]
+Apr 19 17:24:50 ubuntu dhclient: DHCPDISCOVER on usb0 to 255.255.255.255 port 67 interval 14 (xid=0x3f8f9a1c)
+Apr 19 17:24:50 ubuntu dhclient: send_packet: No such device or address
+Apr 19 17:24:50 ubuntu dhclient: dhclient.c:2041: Failed to send 300 byte long packet over usb0 interface.
+Apr 19 17:24:50 ubuntu dnsmasq[1977]: reading /etc/resolv.conf
+Apr 19 17:24:50 ubuntu dnsmasq[1977]: using nameserver 2409:8070:2000:f010::1#53
+Apr 19 17:24:50 ubuntu dnsmasq[1977]: using nameserver 2409:8070:2000:f110::1#53
+Apr 19 17:24:50 ubuntu dnsmasq[1977]: using nameserver 211.137.130.2#53
+Apr 19 17:24:50 ubuntu dnsmasq[1977]: using nameserver 211.137.130.18#53
+Apr 19 17:24:50 ubuntu kernel: [218327.338654] GobiNet 3-2.1:1.4 usb0: kevent 12 may have been dropped
+Apr 19 17:24:50 ubuntu kernel: [218327.343061] ICMPv6: RA: ndisc_router_discovery failed to add default route
+Apr 19 17:24:50 ubuntu dhclient: DHCPDISCOVER on usb0 to 255.255.255.255 port 67 interval 3 (xid=0xdae26c74)
+Apr 19 17:24:50 ubuntu dhclient: DHCPREQUEST of 10.113.206.175 on usb0 to 255.255.255.255 port 67 (xid=0x746ce2da)
+Apr 19 17:24:50 ubuntu dhclient: DHCPOFFER of 10.113.206.175 from 10.113.206.176
+Apr 19 17:24:50 ubuntu dhclient: DHCPACK of 10.113.206.175 from 10.113.206.176
+Apr 19 17:24:51 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(616)-libtwt_dial_creg -> "libtwt_dial_creg(): failed on qmi_client_send_msg_sync(get_serving_system) with rc=-2 result:0 error:0\n"
+Apr 19 17:24:51 ubuntu dhclient: bound to 10.113.206.175 -- renewal in 3249 seconds.
+Apr 19 17:24:55 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(616)-libtwt_dial_creg -> "libtwt_dial_creg(): failed on qmi_client_send_msg_sync(get_serving_system) with rc=-2 result:0 error:0\n"
+
+
+root@ubuntu:/mnt/mdm9607_qmi/qmi-framework# ping 114.114.114.114
+PING 114.114.114.114 (114.114.114.114) 56(84) bytes of data.
+64 bytes from 114.114.114.114: icmp_seq=1 ttl=70 time=207 ms
+64 bytes from 114.114.114.114: icmp_seq=2 ttl=70 time=61.4 ms
+64 bytes from 114.114.114.114: icmp_seq=3 ttl=87 time=76.8 ms
+64 bytes from 114.114.114.114: icmp_seq=4 ttl=92 time=49.2 ms
+64 bytes from 114.114.114.114: icmp_seq=5 ttl=82 time=52.2 ms
+
+
+# 底层不能处理... ...  1. 注网状态正常 2. 网络状态有问题，libtwt_dial_qmi_wds_stop_nw_if -> libtwt_dial_qmi_wds_start_nw_if; 3. 重拨成功。
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(78)-dial_wds_indication_hdlr -> "received ind_id [34] with sid [1] user_data [(nil)] ind_data [0x7fd88c009830]"
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: (check_wm_callback:939)dial: check_wm_callback iface_id:0, msgid:00000022 family:ipv4 connection status:disconnected#012
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(78)-dial_wds_indication_hdlr -> "received ind_id [34] with sid [1] user_data [(nil)] ind_data [0x7fd88c009830]"
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(628)-libtwt_dial_creg -> "Registered with a network\n"
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(634)-libtwt_dial_creg -> "CS:Attached\n"
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(635)-libtwt_dial_creg -> "PS:Attached\n"
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(641)-libtwt_dial_creg -> "selected_network:3GPP network\n"
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(645)-libtwt_dial_creg -> "radio:LTE\n"
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(464)-libtwt_dial_qmi_get_network_conf -> "libtwt_dial_qmi_get_network_conf() call qdi_get_addr_info fail v4:v6 = -1:-1\n"
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(358)-libtwt_dial_qmi_wds_stop_nw_if -> "libtwt_dial_qmi_wds_stop_nw_if ip_family:3\n"
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(198)-libtwt_dial_qmi_wds_start_nw_if -> "libtwt_dial_qmi_wds_start_nw_if ip_family:3\n"
+Apr 19 18:17:53 ubuntu sdk_ubus_mgmt: open_lookup_sock_fd: Lookup sock fd creation failed
+Apr 19 18:17:54 ubuntu sdk_ubus_mgmt: message repeated 7 times: [ open_lookup_sock_fd: Lookup sock fd creation failed]
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: QCCI qmi_cci_xport_recv: txn not found. svc_id: 1
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(164)-dial_wds_user_async_cb -> "rcvd QMI_WDS_START_NETWORK_INTERFACE_RESP_V01"
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -4 route add default via 10.113.206.176 dev usb0 2>&1 > /dev/null
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -6 route add default via fe80::8d88:1409:143f:443e dev usb0 2>&1 > /dev/null
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: (check_wm_callback:939)dial: check_wm_callback iface_id:0, msgid:00000020 family:ipv4 connection status:connected#012
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(78)-dial_wds_indication_hdlr -> "received ind_id [34] with sid [1] user_data [(nil)] ind_data [0x7fd88c00be00]"
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -4 route add default via 10.113.206.176 dev usb0 2>&1 > /dev/null
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -6 route add default via fe80::8d88:1409:143f:443e dev usb0 2>&1 > /dev/null
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: (check_wm_callback:939)dial: check_wm_callback iface_id:0, msgid:00000022 family:ipv4 connection status:connected#012
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(164)-dial_wds_user_async_cb -> "rcvd QMI_WDS_START_NETWORK_INTERFACE_RESP_V01"
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -4 route add default via 10.113.206.176 dev usb0 2>&1 > /dev/null
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: (system_cmd:192)dial: system call: ip -6 route add default via fe80::8d88:1409:143f:443e dev usb0 2>&1 > /dev/null
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: (check_wm_callback:939)dial: check_wm_callback iface_id:0, msgid:00000020 family:ipv6 connection status:connected#012
+Apr 19 18:18:04 ubuntu sdk_ubus_mgmt: libtwt_dial_qmi.c(78)-dial_wds_indication_hdlr -> "received ind_id [34] with sid [1] user_data [(nil)] ind_data [0x7fd88c0109e0]"
+Gobi_t_qcqmi0_memory_leak_todo
+}
+
+Gobi_t_qcqmi0_driver_log(){ cat - <<'Gobi_t_qcqmi0_driver_log'
+[去除设备]
+[177526.219772] usb 3-2.1: USB disconnect, device number 24
+[177526.221369] GobiNet 3-2.1:1.4 usb0: unregister 'GobiNet' usb-0000:03:00.0-2.1, GobiNet Ethernet Device
+
+[添加设备]
+[177611.560773] usb 3-2.1: new high-speed USB device number 25 using xhci_hcd
+[177611.842451] usb 3-2.1: New USB device found, idVendor=05c6, idProduct=9025
+[177611.842462] usb 3-2.1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[177611.842504] usb 3-2.1: Product: Android
+[177611.842511] usb 3-2.1: Manufacturer: Android
+[177611.842516] usb 3-2.1: SerialNumber: 67230f4e
+[177611.870997] GobiNet 3-2.1:1.4 usb0: register 'GobiNet' at usb-0000:03:00.0-2.1, GobiNet Ethernet Device, 02:50:f4:00:00:00
+[177611.873171] creating qcqmi0
+[177611.876100] usb-storage 3-2.1:1.5: USB Mass Storage device detected
+[177611.877205] scsi host23: usb-storage 3-2.1:1.5
+[177612.883442] scsi 23:0:0:0: Direct-Access     Linux    File-Stor Gadget 0318 PQ: 0 ANSI: 2
+[177612.884934] sd 23:0:0:0: Attached scsi generic sg3 type 0
+[177612.893640] sd 23:0:0:0: [sdc] Attached SCSI removable disk
+Gobi_t_qcqmi0_driver_log
+}
+
+
+# 20210408
+# https://github.com/joeuow/DMTP
+# https://github.com/pradeepcredenceid/tabasco_hardware_sierra
+# https://github.com/link4all/mt7628_italy/blob/2b85a082ce740044b6d76f325fda62a5e8cac2b2/package/link4all/quectel-CM/src_fangge/main.c
+
+# https://github.com/ehay64/ModemControl/tree/4411a1c89106a5288de9d0d49a638107afd0f7a4/lite/SampleApps/lite-fw-download
+
+Gobi_i_qmi_wwan(){ cat - <<'Gobi_i_programming'
+# https://stackoverflow.com/questions/25411383/how-to-send-qmi-api-request-to-the-device-like-sierra-wireless-card-by-c
+
+It really depends on whether you're using the GobiNet kernel driver (i.e. the 'official' out-of-tree driver given by manufacturers) 
+or the qmi_wwan kernel driver (i.e. the 'unofficial in-tree' driver).
+GobiNet does not use serial ports; instead it will use either:
+    A non-serial character device exposed, named something like /dev/qcqmi0
+    shared memory to talk betwen kernel and userspace (e.g. in newer Android devices).
+
+In your case, you'll likely see the qcqmi device, so the GobiAPI/SDK will use that character device to send QMI commands to the device.
+If you instead want to use the upstream qmi_wwan driver, you can use it with the libqmi library and its helper qmicli tool.
+
+该程序能够(通过/dev/qcqmi0)进行数据拨号功能
+/usr/bin/quectel-cm  # https://github.com/sensiki/quectel-cm  # WRTnode 2P EC20 拨号程序 
+Gobi_i_programming
+}
+
+Gobi_i_programming_quectel(){  cat - <<'Gobi_i_programming_quectel'
+/usr/bin/quectel-cm  # https://github.com/sensiki/quectel-cm  # WRTnode 2P EC20 拨号程序 
+/home/wangfuli/git/quectel-cm
+/mnt/mdm9607_qmi/quectel-cm 
+
+Gobi_i_programming_quectel
+}
+
+# https://www.cnblogs.com/pcat/p/5520317.html
+Gobi_i_install_glib(){  cat - <<'Gobi_i_install_glib'
+glib库是GTK+和GNOME工程的基础底层核心程序库，是一个综合用途的实用的轻量级的C程序库，
+它提供C语言的常用的数据结构的定义、相关的处理函数，有趣而实用的宏，
+它可移植的封装和一些运行时机能，如事件循环、线程、动态调用、对象系统等的API。
+它能够在类UNIX的操作系统平台（如LINUX、HP-UNIX等）、WINDOWS、OS2和BeOS等操作系统台上运行。
+
+1、[安装glib]
+http://ftp.acc.umu.se/pub/GNOME/sources/glib/
+./configure --enable-libmount=no
+make
+make install
+看起来是简单，但第一步./configure问题多多，
+
+2、[zlib问题]  # 自glib-2.23开始就需要zlib，zlib是提供数据压缩用的函式库
+http://www.zlib.net/ （下载地址在网页的中间部分）
+./configure
+make
+make install
+sudo ldconfig
+
+3、[libffi问题] # "FFI" 的全名是Foreign Function Interface，通常指的是允许以一种语言编写的代码调用另一种语言的代码。而libffi库只提供了最底层的、与架构相关的、完整的"FFI"，在它之上必须有一层来负责管理两种语言之间参数的格式转换。
+http://sourceware.org/libffi/
+./configure
+make
+make install
+sudo ldconfig
+
+4、[pkg-config问题] # pkg-config能根据软件安装时软件的.pc配置文件路径找到相应的头文件路径和库文件路径。
+https://www.freedesktop.org/wiki/Software/pkg-config/
+./configure --with-internal-glib
+make
+make install
+sudo ldconfig
+
+5、[pcre问题] # PCRE(Perl Compatible Regular Expressions)是一个Perl库，包括perl兼容的正则表达式库。这些在执行正规表达式模式匹配时用与Perl 5同样的语法和语义是很有用的，也可以来解决C语言中使用正则表达式的问题。
+./configure --enable-utf8 --enable-unicode-properties
+make
+make install
+sudo ldconfig
+
+apt-get install build-essential
+**当安装好pcre后，输入pcretest -C来打印pcre的安装情况，一般输出如下：
+pcretest -C
+
+----------------------------------------------------------------- gcc hello.c -o hello $(pkg-config --cflags --libs glib-2.0)
+#include <glib.h>
+int main(int argc, char** argv){
+    GList* list=NULL;
+    list=g_list_append(list,"Hello world!");
+    list=g_list_append(list,"made by pcat");
+    list=g_list_append(list,"http://pcat.cnblogs.com");
+    printf("The first item is %s\n",g_list_first(list)->data);
+    return 0;
+}
+Gobi_i_install_glib
+}
+
+Gobi_i_programming_sdx55(){  cat - <<'Gobi_i_programming_sdx55'
+LE vs Android # Linux Embeded vs Android
+
+启动脚本 /etc/init.d/
+启动脚本 /etc/rc5.d/
+
+Gobi_i_programming_sdx55
+}
+
+
+# 20210408 extend
+https://github.com/sensiki/Linux_Gateway-ioT
+https://github.com/sensiki/p-net
+

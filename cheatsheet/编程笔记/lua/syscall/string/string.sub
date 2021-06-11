@@ -1,0 +1,78 @@
+--[[
+原型：string.sub(s, i [, j])
+解释：返回字符串s从第i个字符到第j个字符的子串，参数i和参数j均可以为负数，如果省略参数j，默认为-1，也就是子串截止到原串的最后。
+      一些特殊的使用方法，比如我们可以调用函数string.sub(s, 1, j)是返回字符串长度为j的前缀，
+      调用函数string.sub(s, -i)返回子串长度为i的原串的后缀。
+      注意：byte: 当超出范围的时候，不会返回任何值；而不是返回nil
+      i==j 时: abs(i) < length       ASCII码
+               abs(i) > length       ""
+               abs(i) == 0           ""
+      i< j 时: i < j < length        字符串 i=1 为字符串前缀
+               i < length < j        字符串 从i到结尾
+               length < i < j        空字符串
+      i == 0  i < j < length         字符串(从1开始字符串)
+      i> j 时：                      空字符串
+      i = 负数 j不指定               字符串后缀
+      i = 负数 j正数                 空字符串
+      i = 负数 j负数 i>j             空字符串
+      i = 负数 j负数 i<j             字符串切割
+--]]
+
+-- 显示源字符串
+local sourcestr = "prefix--de asdsdjjj\0dsfdf56\0mfa54--suffix"
+print("sourcestr is", string.format("%q", sourcestr))
+
+local first_sub = string.sub(sourcestr, 4, 25)                                  -- 普通截取
+print("\nstring.sub(sourcestr, 4, 25)", string.format("%q", first_sub))         -- "fix--de asdsdjjj\000dsfdf"
+local first_sub = string.sub(sourcestr, 5, 5)
+print("\nstring.sub(sourcestr, 5, 5)", string.format("%q", first_sub))          -- "i"
+local first_sub = string.sub(sourcestr, -5, -5)
+print("\nstring.sub(sourcestr, -5, -5)", string.format("%q", first_sub))        --  "u"
+local first_sub = string.sub(sourcestr, -110, -110)
+print("\nstring.sub(sourcestr, -110, -110)", string.format("%q", first_sub))    --  "u"
+local first_sub = string.sub(sourcestr, 110, 110)
+print("\nstring.sub(sourcestr, 110, 110)", string.format("%q", first_sub))      --  "u"
+local first_sub = string.sub(sourcestr, 0, 0)
+print("\nstring.sub(sourcestr, 0, 0)", string.format("%q", first_sub))          -- ""
+local first_sub = string.sub(sourcestr, 0, 10)
+print("\nstring.sub(sourcestr, 0, 10)", string.format("%q", first_sub))         -- "prefix--de"
+
+local second_sub = string.sub(sourcestr, 1, 8)                                  -- 取字符串前缀
+print("\nstring.sub(sourcestr, 1, 8)", string.format("%q", second_sub))         -- "prefix--"
+local second_sub = string.sub(sourcestr, 20, 100)   
+print("\nstring.sub(sourcestr, 20, 100)", string.format("%q", second_sub))      -- "\000dsfdf56\000mfa54--suffix"
+local second_sub = string.sub(sourcestr, 50, 100)   
+print("\nstring.sub(sourcestr, 50, 100)", string.format("%q", second_sub))      -- ""
+local second_sub = string.sub(sourcestr, 100, 50)   
+print("\nstring.sub(sourcestr, 100, 50)", string.format("%q", second_sub))      -- ""
+
+local third_sub = string.sub(sourcestr, -10)                                    -- 取字符串后缀
+print("\nstring.sub(sourcestr, -10)", string.format("%q", third_sub))           -- "54--suffix"
+local third_sub = string.sub(sourcestr, -10, 10)  
+print("\nstring.sub(sourcestr, -10, 10)", string.format("%q", third_sub))       -- ""
+local third_sub = string.sub(sourcestr, -10, -3)  
+print("\nstring.sub(sourcestr, -10, -3)", string.format("%q", third_sub))       -- "54--suff"
+local third_sub = string.sub(sourcestr, -10, -20)  
+print("\nstring.sub(sourcestr, -10, -20)", string.format("%q", third_sub))      -- ""
+
+local fourth_sub = string.sub(sourcestr, -100)                                  -- 索引越界
+print("\nstring.sub(sourcestr, -100)", string.format("%q", fourth_sub))         -- "prefix--de asdsdjjj\000dsfdf56\000mfa54--suffix"
+local fourth_sub = string.sub(sourcestr, -100, -10) 
+print("\nstring.sub(sourcestr, -100, -10)", string.format("%q", fourth_sub))    -- "prefix--de asdsdjjj\000dsfdf56\000mfa5"
+local fourth_sub = string.sub(sourcestr, -100, -110) 
+print("\nstring.sub(sourcestr, -100, -110)", string.format("%q", fourth_sub))   -- ""
+
+local fifth_sub = string.sub(sourcestr, 100)                                    -- 索引越界
+print("\nstring.sub(sourcestr, 100)", string.format("%q", fifth_sub))           -- ""
+print("\ntype(string.sub(sourcestr, 100))", string.format("%s", type(fifth_sub)))
+
+string.sub("Hello Lua user", 7)      -- from character 7 including 7 until the end
+-- Lua user
+string.sub("Hello Lua user", 7, 9)   -- from character 7 until and including 9
+-- Lua
+string.sub("Hello Lua user", -8)     -- 8 from the end until the end
+-- Lua user
+string.sub("Hello Lua user", -8, 9)  -- 8 from the end until 9 from the start
+-- Lua
+string.sub("Hello Lua user", -8, -6) -- 8 from the end until 6 from the end
+-- Lua

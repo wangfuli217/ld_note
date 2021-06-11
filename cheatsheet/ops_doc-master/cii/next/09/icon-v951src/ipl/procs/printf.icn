@@ -1,0 +1,268 @@
+############################################################################
+#
+#	File:     printf.icn
+#
+#	Subject:  Procedures for printf-style formatting
+#
+#	Author:   William H. Mitchell
+#
+#	Date:     February 13, 2006
+#
+############################################################################
+#
+#   This file is in the public domain.
+#
+############################################################################
+#
+#	Contributors:   Cheyenne Wills, Phillip Lee Thomas,
+#			Michael Glass, Gregg M. Townsend
+#
+############################################################################
+#
+#     This procedure behaves somewhat like the standard printf.
+#  Supports d, e, s, o, and x formats like printf.  An "r" format
+#  prints real numbers in a manner similar to that of printf's "f".
+#  Though "e" differs from printf in some details, it always produces
+#  exponential format.
+#
+#     Left or right justification and field width control are provided
+#  as in printf.   %s, %r, and %e handle precision specifications.
+#
+############################################################################
+
+procedure sprintf(format, args[])
+	return _doprnt(format, args)
+end
+
+procedure fprintf(file, format, args[])
+	writes(file, _doprnt(format, args))
+	return
+end
+
+procedure printf(format, args[])
+	writes(&output, _doprnt(format, args))
+	return
+end
+
+procedure _doprnt(format, args)
+   local out, v, just, width, conv, prec, pad
+
+	out := ""
+	format ? repeat {
+		(out ||:= tab(upto('%'))) | (out ||:= tab(0) & break)
+		v := get(args)
+		move(1)
+		just := right
+		width := conv := prec := pad := &null
+		="-" & just := left
+		width := tab(many(&digits))
+		(\width)[1] == "0" & pad := "0"
+		="." & prec := tab(many(&digits))
+		conv := move(1)
+
+		##write("just: ",image(just),", width: ", width, ", prec: ",
+		## prec, ", conv: ", conv)
+		case conv of {
+		    "d": {
+			v := string(integer(v))
+			}
+		    "s": {
+			v := string(v[1:(\prec+1)|0])
+			}
+		    "x": v := hexstr(v)
+		    "o": v := octstr(v)
+		    "i": v := image(v)
+		    "r": v := fixnum(v,prec)
+		    "e": v := eformatstr(v, prec, width)
+		    default: {
+			push(args, v)
+			v := conv
+			}
+		    }
+		if \width & *v < width then {
+			v := just(v, width, pad)
+			}
+		out ||:= v
+		}
+
+	return out
+end
+
+procedure hexstr(n)
+   return _basestr(n, 4)
+end
+
+procedure octstr(n)
+   return _basestr(n, 3)
+end
+
+procedure _basestr(n, b)
+   local s, mask
+
+	n := integer(n) | return image(n)
+
+	if n = 0 then
+		return "0"
+
+	# backwards compatibility hack
+	# treat 31-bit negative integers as positive values
+	if -16r80000000 <= n <= -1 then
+		n +:= 16r100000000
+
+	s := ""
+	mask := ishift(1, b) - 1
+	while n ~= 0 & n ~= -1 do {
+		s := "0123456789abcdef" [1 + iand(n, mask)] || s
+		n := ishift(n, -b)
+		}
+	return s
+end
+
+procedure fixnum(x, prec)
+   local s
+
+	/prec := 6
+	x := real(x) | return image(x)
+
+	if x < 0 then {
+	   s := "-"
+	   x := -x
+	   }
+	else
+	   s := ""
+
+	x := string(integer(x * 10 ^ prec + 0.5))
+	if *x <= prec then
+	   x := right(x, prec + 1, "0")
+	return s || x[1:-prec] || "." || x[-prec:0]
+end
+
+
+# e-format:  [-]m.dddddde(+|-)xx
+#
+# Differs from C and Fortran E formats primarily in the
+# details, among them:
+#
+# - Single-digit exponents are not padded out to two digits.
+#
+# - The precision (number of digits after the decimal point)
+#   is reduced if needed to make the number fit in the available
+#   width, if possible.  The precision is never reduced-to-fit
+#   below 1 digit after the decimal point.
+#
+procedure eformatstr(x, prec, width)
+   local signpart, wholepart, fracpart, exppart
+   local choppart, shiftcount, toowide
+   local rslt, s
+
+   /prec := 6
+   /width := prec + 7
+
+   # Separate string representation of x into parts
+   #
+   s := string(real(x)) | return image(x)
+   s ? {
+      signpart  :=  (=("-" | "+") | "")
+      wholepart :=  1(tab(many(&digits)), any('.eE')) | return image(x) 
+      fracpart  :=  ((=".", tab(many(&digits)))  | "")
+      exppart   :=  integer((=("e"|"E"), tab(0))  | 0)
+      }
+
+   # When the integer part has more than 1 digit, shift it
+   #  right into fractional part and scale the exponent
+   #
+   if *wholepart > 1 then {
+      exppart +:= *wholepart -1
+      fracpart := wholepart[2:0] || fracpart
+      wholepart := wholepart[1]
+      }
+
+   # If the the number is unnormalized, shift the fraction
+   #   left into the whole part and scale the exponent
+   #
+   if wholepart == "0" then {
+      if shiftcount := upto('123456789', fracpart) then {
+         exppart -:= shiftcount
+         wholepart := fracpart[shiftcount] 
+         fracpart := fracpart[shiftcount+1:0]
+         }
+      }
+
+   # Adjust the fractional part to the requested precision.
+   # If the carry causes the whole part to overflow from
+   #    9 to 10 then renormalize.
+   #
+   fracpart := adjustfracprec(fracpart, prec)
+   wholepart +:= fracpart[2]
+   fracpart := fracpart[1]
+   if *wholepart > 1 then {
+      wholepart := wholepart[1]
+      exppart +:= 1
+      }
+
+   #  Assemble the final result.
+   #  - Leading "+" dropped in mantissa
+   #  - Leading "+" obligatory in exponent
+   #  - Decimal "." included iff fractional part is non-empty
+   #
+   wholepart := (signpart == "-", "-") || wholepart
+   exppart  :=  (exppart > 0, "+")   || exppart
+   fracpart :=  (*fracpart > 0, ".") || fracpart
+   rslt     := wholepart || fracpart || "e" || exppart
+
+   # Return the result.  
+   # -- If too short, pad on the left with blanks (not zeros!).
+   # -- If too long try to shrink the precision 
+   # -- If shrinking is not possible return a field of stars.
+   #
+   return (*rslt <= width,        right(rslt, width)) |  
+          (*rslt - width < prec,  eformatstr(x, prec + width - *rslt, width)) |
+          repl("*", width)
+end
+
+#  Zero-extend or round the fractional part to 'prec' digits.
+#
+#  Returns a list: 
+#
+#     [ fracpart, carry ]
+#
+#  where the fracpart has been adjusted to the requested
+#  precision, and the carry (result of possible rounding)
+#  is to be added into the whole number.
+#
+procedure adjustfracprec(fracpart, prec)
+
+   local choppart, carryout
+
+   #  Zero-extend if needed.
+   if *fracpart < prec then return [left(fracpart, prec, "0"), 0]
+
+   # When the fractional part has more digits than the requested 
+   #   precision, chop off the extras and round.
+   #
+   carryout := 0
+   if *fracpart > prec then {
+      choppart := fracpart[prec+1:0]
+      fracpart := fracpart[1+:prec]
+
+      # If rounding up is needed...
+      #
+      if choppart[1] >>= "5" then {
+
+         #  When the fractional part is .999s or the precision is 0,
+         #     then round up overflows into the whole part.
+         #
+         if (prec = 0) | (string(cset(fracpart)) == "9") then {
+            fracpart := left("0", prec, "0")
+            carryout := 1
+            }
+         #  In the usual case, round up simply increments the
+         #     fractional part.  (We put back any leading
+         #     zeros that got lost.) 
+         else {
+            fracpart := right(integer(fracpart)+1, prec, "0")
+            }
+         }
+      }
+   return [fracpart, carryout]
+end

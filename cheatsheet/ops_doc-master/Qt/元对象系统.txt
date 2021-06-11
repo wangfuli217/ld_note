@@ -1,0 +1,304 @@
+https://qtguide.ustclug.org/
+
+1. Qt 元对象系统，它是 Qt 对 C++ 做的扩展功能，用于实现信号和槽、属性系统等机制
+--- https://github.com/avmovie/learning-notes/blob/2e45b9f6ccd6c7f9a537dec7a38a75432386a863/Qt-notes/signal-slot.md
+2. 信号，类似于普通函数，只需声明，无需实现
+3. 槽函数，qt5中的任意成员函数，静态函数，全局函数，lambda表达式
+4. 可以使用qt 内部定义好的，也可以自定义
+5. 没有返回值，但是有参数
+6. 信号和槽的参数列表顺序是一致的
+7. 信号的参数数目可以大于槽函数的，反过来不行
+
+8. 信号和槽机制是Qt编程的基础，可以让应用程序编程人员把这些互不了解的对象绑定在一起。
+槽和普通的C++成员函数几乎是一样的 --- 可以是虚函数；可以被重载；可以是公有的、保护的或私有的，并且
+也可以被其他C++成员函数直接调用；还有，它们的参数可以是任意类型。唯一不同的是：槽还可以和信号连接在一起，
+着这种情况下，每当发射这个信号的时候，就会自动调用这个槽。
+connet(sender, SIGNAL(signal), receiver, SLOT(slot));
+senber 和 receiver 是指向QObject的指针，
+signal 和 slot     是不带参数的函数名。
+实际上SIGNAL()和SLOT()宏会把它们的参数转换成响应的字符串。
+
+SIGNAL(clicked(void));   将信号函数转换为const char*
+SLOT(close(void));       将槽函数转换为const char*
+
+8.1 一个信号可以连接多个槽 # 在发射这个信号的时候，会以不确定的顺序一个接一个的调用这些槽
+connect(slider, SIGNAL(valueChanged(int)), spinBox, SLOT(setValue(int)));
+connect(slider, SIGNAL(valueChanged(int)), this, SLOT(updateStatusBarIndicator(int)));
+
+QObject::connect(A,SIGNAL(sigfunc(int)),B1,SLOT(slotfunc1(int)));
+QObject::connect(A,SIGNAL(sigfunc(int)),B2,SLOT(slotfunc2(int)));
+
+8.2 多个信号可以连接同一个槽 # 无论发射那个信号都会调用这个槽
+connect(lcd, SINGAL(overflow()), this, SLOT(handleMathError()));
+connect(calculator, SIGNAL(divisionByZero()), this, SLOT(handleMathError()));
+
+QObject::connect(A1,SIGNAL(sigfunc1(int)),B,SLOT(slotfunc(int)));//ok
+QObject::connect(A2,SIGNAL(sigfunc2(int)),B,SLOT(slotfunc(int)));//ok
+
+8.3 一个信号可以另一个信号相连接
+connect(lineEdit, SIGNAL(textChanged(const QString&)), this, SIGNAL(updateRecord(const QString&)));
+当发射第一个信号时，也会发射第二个信号。除此之外，信号和信号之间的连接和信号与槽之间的连接是难以区分的。
+
+QObject::connect(A1,SIGNAL(sigfunc1(int)),A2,SIGNAL(sigfunc2(int)));//当A1发送信号时，A2的信号也将随之发送
+
+8.4 连接可以被删除
+disconnect(lcd, SINGAL(overflow()), this, SLOT(handleMathError()));
+当删除对象时，Qt会自动移除和这个对象相关的所有连接。
+要把信号成功连接到槽(或者连接到另一个信号)，它们的参数 必须具有相同的顺序和相同的类型；
+connect(ftp, SIGNAL(rawCommandReply(int, const QString &)), this, SLOT(processReply(int, const QString&)))
+例外: 如果信号的参数比它所连接的槽的参数多，那么多余的参数将会被简单的忽略掉:
+connect(ftp,SIGNAL(rawCommandReply(int, const QString&)), this, SLOT(checkErrorCode(int)));
+如果参数类型不匹配，或者如果信号或槽不存在，则当应用程序使用调试模式构建后，Qt会在运行时发出警告。
+与之相类似，如果在信号和槽的名字中包含了参数名，Qt也会发出警告。
+
+8.5 信号和槽参数要一致
+QObject::connect(A,SIGNAL(sigfunc(int)),B,SLOT(slotfunc(int)));//ok
+QObject::connect(A,SIGNAL(sigfunc(int)),B,SLOT(slotfunc(int,int)));//error
+
+8.6 可以带有缺省参数
+QObject::connect(A,SIGNAL(sigfunc(int)),B,SLOT(slotfunc(int,int=0)));//ok
+
+8.7 信号函数参数可以多，多余的将被忽略
+QObject::connect(A,SIGNAL(sigfunc(int,int)),B,SLOT(slotfunc(int)));//ok
+
+9. 语法
+1）信号
+  class XX:public QObject{
+  		Q_OBJECT //moc编译器
+  signals:
+  		void sig_func(..);//信号函数
+  };
+  注:信号函数只需声明，不能定义。
+2）槽
+  class XX:public QObject{
+  		Q_OBJECT //moc编译器
+  public slots:
+  		void sig_func(..);//槽函数
+  };  
+注：槽函数可以被连接到某个对象的信号函数上，当信号发射后，槽函数将被触发和执行；另外槽函数也可以当做普通成员函数直接调用
+
+
+
+1. Qt 程序和元对象
+----------------------
+    Qt 程序里元对象系统无处不在，元对象系统最主要的一个功能就是实现信号和槽，
+窗体和控件对象之间的沟通一般都使用信号和槽，这是非常核心的东西，
+
+2. 元对象系统简介
+----------------------
+    Qt 元对象系统实现了对象之间通信机制 -- 信号和槽，并提供了运行时类型信息和动态属性系统。
+元对象系统 1. 是 Qt 类库独有的功能，2. 是 Qt 对标准 C++ 的扩展，3. 是由纯 C++ 语言写成的。
+
+使用元对象系统的前提是需要三件事情：QObject，Q_OBJECT，moc
+2.1 直接或间接地以 QObject 为基类，这样才能利用元对象系统的功能，Qt 的窗体和控件最顶层的基类都是 QObject。
+2.2 将 Q_OBJECT 放在类声明的私有段落，以启用元对象特性，如动态属性、信号和槽等。之前遇到的例子 Q_OBJECT 
+    都是在类声明里的第一行，没有加 private 字样，因为类声明默认就是私有的。
+2.3 元对象编译器(Meta-Object Compiler，moc)为每个 QObject 的子类提供必要的代码以实现元对象特性。
+
+    moc 工具读取 C++ 源码，找到一个或多个包含 Q_OBJECT 宏的类声明，然后生成额外的代码文件，
+如 moc_widget.cpp ，里面包含实现元对象系统的代码。生成的源码文件可以包含在类原有的源文件里，
+如在 widget.cpp 里包含：
+#include "moc_widget.cpp"
+这种包含方式看起来比较别扭，Linux 上的开发工具 KDevelop 自动生成的代码是这么用的。
+
+    第二种方式是编译链接时揉到一起，QtCreator 生成的代码就是通过编译链接时，把 moc_widget.o 
+与其他目标文件链接到一起，这种方式不用改源代码，相对而言比较顺眼。
+
+3 。元对象系统特性
+----------------------
+    除了提供信号和槽机制用于对象之间的通信(这是主要任务)，元对象系统还提供了更多的特性：
+3.1 QObject::metaObject() 函数返回当前类对象关联的元对象(meta-object)。
+3.2 QMetaObject::className() 函数返回当前对象的类名称字符串，而不需要 C++ 编译器原生的运行时类型信息
+  (run-time type information，RTTI)支持。
+3.3 QObject::inherits() 函数判断当前对象是否从某个基类派生，判断某个基类是否位于从 QObject 到对象当前类的继承树上。
+3.4 QObject::tr() 和 QObject::trUtf8() 函数负责翻译国际化字符串，因为 Qt5 规定源文件字符编码是 UTF-8，所以这两个函数现在功能是一样的。
+3.5 QObject::setProperty() 和 QObject::property() 函数用于动态设置和获取属性，都通过属性名称字符串来 操作。
+3.6 QMetaObject::newInstance() 构建一个当前类的新实例对象。
+元对象系统还提供了 qobject_cast() 函数，可以对基于 QObject 的类对象进行转换，qobject_cast() 函数功能类似标准 C++ 的 dynamic_cast()。
+当然 qobject_cast() 的优势在于不需要编译器支持 RTTI，而且跨动态链接库之间的转换也是可行的。
+简单地说，原本是派生类的对象指针，就可以转为基类对象指针来用(转换得到可用值)，其他情况都会得到 NULL 指针。
+比如：
+MyWidget 是 QWidget 的派生类，并且类声明带有 Q_OBJECT 宏，新建一个对象：
+QObject *obj = new MyWidget;
+虽然 obj 是一个 QObject *，但它本质是一个 MyWidget 对象指针，可以转成基类指针：
+QWidget *widget = qobject_cast<QWidget *>(obj);
+
+但是如果将 MyWidget 对象指针转成其他无关的类对象指针，就会失败：
+ QLabel *label = qobject_cast<QLabel *>(obj);
+label的数值就是 NULL。
+
+3.1 特性
+http://www.kuqin.com/qtdocument/qobject.html
+QMetaObject * metaObject () const
+返回这个对象的元对象的指针。
+元对象包含关于一个继承QObject的类的一些信息，比如，类名称、超类名称、属性、信号和槽。每个包含Q_OBJECT宏的类也都会有一个元对象。
+在信号/槽连接机制和属性系统中需要元对象信息。函数isA()和inherits()也使用元对象
+
+const char * className () const
+返回这个对象的类名。
+这个函数是由元对象编译器生成的。
+
+bool inherits ( const char * clname ) const
+如果这个对象是继承clname的类的实例，并且clname继承QObject，那么返回真，否则返回假。
+一个类可以被认为继承了它自己。
+实例：
+    QTimer *t = new QTimer;         // QTimer继承QObject
+    t->inherits( "QTimer" );        // 返回TRUE
+    t->inherits( "QObject" );       // 返回TRUE
+    t->inherits( "QButton" );       // 返回FALSE
+    
+    // QScrollBar继承QWidget和QRangeControl
+    QScrollBar *s = new QScrollBar( 0 );
+    s->inherits( "QWidget" );       // 返回TRUE
+    s->inherits( "QRangeControl" ); // 返回FALSE
+
+QString QObject::tr ( const char * sourceText, const char * comment ) const
+QString QObject::trUtf8 ( const char * sourceText, const char * comment ) const
+返回sourceText的翻译版本，或者如果没有合适的版本返回sourceText它自己。
+
+virtual bool setProperty ( const char * name, const QVariant & value )
+设置对象的name属性值为value。
+如果操作成功，返回真，否则返回假。
+
+virtual QVariant property ( const char * name ) const
+返回对象的name属性的值。
+如果没有这样一个属性存在，返回变量是无效的。
+关于所有可用属性的信息通过metaObject()提供。
+
+
+4. SIGNAL 和 SLOT
+----------------------
+编写 connect 函数代码的时候，对于第二个参数，我们敲好 "SIGNAL(" 字样的时候，编辑器会自动提示源头对象有哪些信号
+也可以通过 Qt 帮助文档查询 QPushButton 的资料。
+
+SLOT有类似效果。
+
+4.1 槽函数命名非常严格，必须按照如下规则来写
+void on_<object name>_<signal name>(<signal parameters>);
+必须以 on_  打头，接下来是对象名，对应例子的 hungryButton，再接一个下划线，最后是信号名和信号可能的参数。
+void on_hungryButton_clicked();
+
+4.2 元对象
+    connectSlotsByName 就是完成自动关联的函数，这是元对象系统包含的功能，根据对象名、信号名与 
+on_<object name>_<signal name>(<signal parameters>) 槽函数进行自动匹配关联，可以给程序员提供便利，
+省了许多 connect 函数调用的代码。
+
+5. connect
+----------------------
+connect(ui->pushButton, SIGNAL(clicked()), this, SLOT(FoodIsComing()));
+头两个参数是源头对象和信号，后两个参数接收对象和槽函数，
+QMetaObject::Connection QObject::​connect(const QObject * sender, const char * signal, 
+                                         const QObject * receiver, const char * method, 
+                                         Qt::ConnectionType type = Qt::AutoConnection)
+                                         
+    connect 函数返回类型是 QMetaObject::Connection ，返回值就是代表信号和槽连接关系的对象，
+可以用于运行时判断关联是否正确，或者用于解除关联。每次调用 connect 函数都会生成新的连接对象，
+注意不要对同样的信号和槽重复调用 connect 函数，那样会生成多个不同的连接对象，导致一次信号
+会触发多次同样的槽函数。
+
+对于单线程的，关联一般用直连类型(Qt::DirectConnection)，信号一触发， 对应槽函数立即就被调用执行；
+对于多线程程序，跨线程的关联一般用入队关联(Qt::QueuedConnection)，信号触发后，跨线程的槽函数被加入事件 处理队列里面执行，避免干扰接收线程里的执行流程。
+Qt::AutoConnection 会自动根据源头对象和接收对象所属的线程来处理，默认都用这种类型的关联，对于多线程程序这种关联也是安全的。
+
+
+https://qtguide.ustclug.org/
+
+6. Qt 库各种窗体控件都带有预先定义好的信号和槽函数
+----------------------
+实现信号和槽的一对一关联、一对多关联和多对一关联
+
+6.1 一对一关联
+当 lineEdit 控件被用户编辑时，它会发出信号：void textEdited(const QString & text);
+标签控件自带槽函数：                        void setText(const QString &);
+connect(ui->lineEdit, SIGNAL(textEdited(QString)), ui->label, SLOT(setText(QString)));
+
+单行编辑控件、标签控件等有哪些信号和槽函数 --> 查阅 Qt 帮助文档
+
+
+6.2 一对多关联
+//关联信号到槽函数
+//接收端是标签控件
+connect(ui->lineEdit, SIGNAL(textEdited(QString)), ui->label, SLOT(setText(QString)));
+//接收端是文本浏览控件
+connect(ui->lineEdit, SIGNAL(textEdited(QString)), ui->textBrowser, SLOT(setText(QString)));
+//接收端是主窗口的 PrintText 槽
+connect(ui->lineEdit, SIGNAL(textEdited(QString)), this, SLOT(PrintText(QString)));
+
+6.3 多对一关联
+//三个按钮的信号都关联到 FoodIsComing 槽函数
+connect(ui->pushButtonAnderson, SIGNAL(clicked()), this, SLOT(FoodIsComing()));
+connect(ui->pushButtonBruce, SIGNAL(clicked()), this, SLOT(FoodIsComing()));
+connect(ui->pushButtonCastiel, SIGNAL(clicked()), this, SLOT(FoodIsComing()));
+
+
+7. 解除关联示例
+----------------------
+    对于源端的信号和接收端的槽函数，不仅可以进行关联，在关联之后，如果不需要用到它们的关联关系了，
+可以使用 disconnect 函数解除之前的关联关系。
+    disconnect 函数就是 connect 函数的逆向过程
+    bool QObject::​disconnect(const QObject * sender, const char * signal, 
+                             const QObject * receiver, const char * method)
+
+7.1 关联
+connect(ui->lineEdit, SIGNAL(textEdited(QString)), ui->label, SLOT(setText(QString)));
+7.2 解除关联
+disconnect(ui->lineEdit, SIGNAL(textEdited(QString)), ui->label, SLOT(setText(QString)));
+
+
+8. 自定义信号和槽
+----------------------
+通过手动触发信号来调用槽函数，完成两个对象之间的信息传递
+
+8.1 C++ 的沟通方式 
+----------------------
+C++ 编程中常遇到各个对象之间进行沟通的情景，需要将数据从一个对象传递给另一个对象来处理。大致的方法有如下几种：
+  接收端定义公有成员变量以供源端修改，然后接收端处理数据； (不建议用！)
+  接收端将私有成员变量通过友元方式共享给源端，源端可以修改接收端变量； (除了特殊情况，一般不建议用！)
+  接收端定义公开的 get 和 set 函数，提供给源端调用 (推荐使用，可以与信号和槽机制协同工作)；
+  源端给出回调函数约定，接收端定义相同参数和返回值类型的静态成员函数，将静态成员函数作为回调函数交给源端，源端再调用该函数(可以使用)。
+
+这些方式都是基于标准 C++ 的，在 Qt 中都可以用，但由于 Qt 有更好的信号和槽机制，因此一般更推荐使用信号和槽机制实现通信。
+
+8.2 通过自定义信号和槽沟通  qobjcomm
+----------------------
+通过信号和槽机制通信，通信的源头和接收端之间是松耦合的：
+  源头只需要顾自己发信号就行，不用管谁会接收信号；
+  接收端只需要关联自己感兴趣的信号，其他的信号都不管；
+  只要源头发了信号，关联该信号的接收端全都会收到该信号，并执行相应的槽函数。
+源头和接收端是非常自由的，connect 函数决定源头和接收端的关联关系，并会自动根据信号里的参数传递给接收端的槽函数。
+
+signals: 标识的代码段只能放置信号声明，不能放其他任何东西，普通的函数或变量、槽函数都不要放在这里。
+public slots: 是公有槽函数代码段的标志，定义了 ButtonClicked 槽函数，接收按钮被点击的信号，这个槽函数以后会触发我们自定义的信号。
+              槽函数代码段也只能放槽函数声明的代码，不要把其他的东西放在这个代码段里。
+// 用 emit 发信号
+emit SendMsg( tr("This is the message!") );
+
+重点就是在主窗体槽函数里面，我们发出了自定义的信号 SendMsg ，谁来接收它呢？
+
+
+Widget w;   //1. 主窗体对象，内部会发送 SendMsg 信号
+ShowMsg s;  //2. 接收端对象，有槽函数 RecvMsg
+//3. 关联，信号里的字符串参数会自动传递给槽函数
+QObject::connect(&w, SIGNAL(SendMsg(QString)), &s, SLOT(RecvMsg(QString)));
+
+ui->pushButton     |                 主窗体对象                      |       Showmsg对象
+  点击信号      connect   槽函数           emit  自定义信号       connect   自定义槽函数
+  clicked()        |      ButtonClicked()        SendMsg(QString)    |      RecvMsg(QString)
+
+
+8.3 信号关联到信号示例
+----------------------
+
+//关联按钮信号到自定义的信号
+connect(ui->pushButton, SIGNAL(clicked()), this, SIGNAL(SendVoid()));
+
+
+Widget w;   //①源头对象，内部发送信号 SendVoid()
+ShowVoid s; //②接收对象，有对应槽函数　RecvVoid()
+//③关联源头的信号和接收端的槽函数
+QObject::connect(&w, SIGNAL(SendVoid()), &s, SLOT(RecvVoid()));
+
+
+ui->pushButton     |     主窗体对象      |       ShowVoid对象
+  点击信号      connect  自定义信号   connect   自定义槽函数
+  clicked()        |     sendvoid()      |      RecvVoid()

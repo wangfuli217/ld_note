@@ -1,0 +1,35 @@
+#include "exynos_4412.h"
+#define NLED 4
+//GPX2_7
+//GPX1_0
+//GPF3_4
+//GPF3_5
+
+typedef struct{
+	volatile unsigned int* CON;
+	volatile unsigned int* DAT;
+	int bit;
+}onoff_t;
+
+int main()
+{
+	onoff_t led2={.CON=&GPX2.CON,.DAT=&GPX2.DAT,.bit=7};
+	onoff_t led3={.CON=&GPX1.CON,.DAT=&GPX1.DAT,.bit=0};
+	onoff_t led4={.CON=&GPF3.CON,.DAT=&GPF3.DAT,.bit=4};
+	onoff_t led5={.CON=&GPF3.CON,.DAT=&GPF3.DAT,.bit=5};
+	*led2.CON|=(0x1<<28);
+	*led3.CON|=(0x1<<0);
+	*led4.CON|=(0x1<<20);
+	*led5.CON|=(0x1<<16);
+	onoff_t* leds[NLED]={&led2,&led3,&led4,&led5};
+
+	int i=0;
+
+	for(i=0;i<NLED;i=(i+1)%NLED){
+		unsigned int time=0xfffff;
+		*leds[i]->DAT|=(0x1<<leds[i]->bit);
+		while(time--);
+		*leds[i]->DAT&=(~(0x1<<leds[i]->bit));
+	}
+	return 0;
+}

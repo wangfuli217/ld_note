@@ -1,0 +1,123 @@
+#
+# <http://github.com/e-picas/bash-utils>
+# Copyright (c) 2015 Pierre Cassat & contributors
+# License Apache 2.0 - This program comes with ABSOLUTELY NO WARRANTY.
+# For the full copyright and license information, please view the LICENSE
+# file that was distributed with this source code or see <http://www.apache.org/licenses/LICENSE-2.0>.
+#
+# GNU make:  install / cleanup / test
+# on git clones:    rebuild manpages / upgrade version / create release / validate
+#
+##   dev: make code-check                    # validate the code with ShellCheck
+##        make tests                         # run BATS tests
+##        make manpages                      # rebuild manpages with Markdown-Extended
+##        make version <VERSION=x.y.z>       # upgrade library's version
+##        make release <VERSION=x.y.z>       # make a new library's release (also run manpages & version)
+##
+##   you can use the following options to fit your environment:
+##        SHELLCHECK_CMD=/path/to/command
+##        BATS_CMD=/path/to/command
+##        MDE_CMD=/path/to/command
+##        GIT_CMD=/path/to/command
+##        MD5_CMD=/path/to/command
+##
+
+SHELLCHECK_CMD:=$(shell command -v shellcheck)
+BATS_CMD:=$(shell command -v bats)
+MDE_CMD:=$(shell command -v markdown-extended)
+GIT_CMD:=$(shell command -v git)
+MD5_CMD:=$(shell type -p gmd5sum md5sum | head -1)
+CURRENT_VERSION:=$(shell bin/bash-utils -qV | cut -s -f 2 -d ' ')
+DATE_NOW:=$(shell date +'%Y-%m-%d')
+DATE_GIT:=$(shell [ -d "$(ROOTDIR)/.git" ] && $(GIT_CMD) log -1 --format="%ci" --date=short | cut -s -f 1 -d ' ';)
+DATE:=$(DATE_NOW)
+TAGNAME:=v$(VERSION)
+TARBALLNAME:=bash-utils-$(TAGNAME).tar.gz
+GITBRANCH:=$($(GIT_CMD) rev-parse --abbrev-ref HEAD)
+STASHED=0
+
+# internal targets
+version-check:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Invalid version number '$(VERSION)' (run 'make help' to get help)." >&2; \
+		exit 1; \
+	fi
+
+git-cmd:
+	@if [ -z "$(GIT_CMD)" ] || [ ! -f "$(GIT_CMD)" ]; then \
+		echo "GIT command not found (run 'make help' to get help)." >&2; \
+		exit 1; \
+	fi
+
+git-clone-check:
+	@if [ ! -d "$(ROOTDIR)/.git" ]; then \
+		echo "Development tools can not be used on non-GIT clones (run 'make help' to get help)." >&2; \
+		exit 1; \
+	fi
+
+git-stash-to-master: git-clone-check git-cmd
+	@STASHED=$($(GIT_CMD) stash save 'pre-release stashing' && echo 1 || echo 0;)
+	@$(GIT_CMD) checkout master
+
+git-stash-back: git-clone-check git-cmd
+	@$(GIT_CMD) checkout "$(GITBRANCH)"
+	@if [ "$(STASHED)" = '1' ]; then \
+		$(GIT_CMD) stash pop; \
+	fi
+	@STASHED=0
+
+git-do-release: git-clone-check git-cmd
+	@if $(GIT_CMD) tag | grep $(TAGNAME); then \
+		echo "A tag named '$(TAGNAME)' already exists (run 'make help' to get help)." >&2; \
+		exit 1; \
+	fi
+	$(GIT_CMD) commit -am "Upgrade app to $(VERSION) (automatic commit)"
+	$(GIT_CMD) tag -a "$(TAGNAME)" -m "New release $(VERSION) (automatic tag)"
+	$(GIT_CMD) archive --format tar "$(TAGNAME)" | gzip -9 > "$(TARBALLNAME)"
+	$(MD5_CMD) "$(TARBALLNAME)" | cut -d ' ' -f 1 > "$(TARBALLNAME).md5sum"
+
+# user targets
+tests:
+	@if [ -z "$(BATS_CMD)" ] || [ ! -f "$(BATS_CMD)" ]; then \
+		echo "Bats command not found (run 'make help' to get help)." >&2; \
+		exit 1; \
+	fi
+	$(BATS_CMD) "$(ROOTDIR)"/test/*.bats
+
+code-check: git-clone-check
+	@if [ -z "$(SHELLCHECK_CMD)" ] || [ ! -f "$(SHELLCHECK_CMD)" ]; then \
+		echo "ShellCheck command not found (run 'make help' to get help)." >&2; \
+		exit 1; \
+	fi
+	for f in $(find "$(ROOTDIR)"/libexec/ -type f ! -name "*.md"); do \
+		$(SHELLCHECK_CMD) --shell=bash --exclude=SC2034,SC2016 "$f" || true; \
+	done
+	for f in $(find "$(ROOTDIR)"/etc/ -type f ! -name "*.md"); do \
+		$(SHELLCHECK_CMD) --shell=bash --exclude=SC2034,SC2016 "$f" || true; \
+	done
+
+manpages: git-clone-check
+	@if [ -z "$(MDE_CMD)" ] || [ ! -f "$(MDE_CMD)" ]; then \
+		echo "Markdown-Extended command not found (run 'make help' to get help)." >&2; \
+		exit 1; \
+	fi
+	$(MDE_CMD) --force -f man -o "$(ROOTDIR)/man/bash-utils.1.man" "$(ROOTDIR)man/MANPAGE.1.md"
+	$(MDE_CMD) --force -f man -o "$(ROOTDIR)/man/bash-utils.7.man" "$(ROOTDIR)man/MANPAGE.7.md"
+
+version: git-clone-check version-check
+	sed -i -e "s| BASH_UTILS_VERSION='.*'| BASH_UTILS_VERSION='$(VERSION)'|" "$(ROOTDIR)/libexec/bash-utils-core"
+	sed -i -e "s|^Version: .*$\|Version: $(VERSION)|;s|^Date: .*$\|Date: $(DATE)|" "$(ROOTDIR)/man/MANPAGE.1.md"
+	sed -i -e "s|^Version: .*$\|Version: $(VERSION)|;s|^Date: .*$\|Date: $(DATE)|" "$(ROOTDIR)/man/MANPAGE.7.md"
+
+release: git-clone-check version-check git-stash-to-master version manpages git-do-release git-stash-back
+	@echo "Released tag $(TAGNAME) - nothing pushed to remote(s)";
+
+release-rollback: git-clone-check version-check
+	@if $(GIT_CMD) log --oneline -1 | grep "$(VERSION) (automatic commit)"; then \
+		$(GIT_CMD) reset HEAD~1; \
+		$(GIT_CMD) checkout -- man/; \
+		$(GIT_CMD) checkout -- libexec/bash-utils-core; \
+	fi
+	@if $(GIT_CMD) tag | grep $(TAGNAME); then \
+		$(GIT_CMD) tag -d $(TAGNAME); \
+	fi

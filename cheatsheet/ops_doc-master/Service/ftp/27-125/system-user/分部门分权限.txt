@@ -1,0 +1,116 @@
+
+1、新建一分区，10G空间，ext3 文件系统，挂在到 /ftp下，作为 ftp服务器数据存放地方。
+2、四个部门：dep1，dep2， dep3， dep4，分别对应目录 /ftp/dep1，/ftp/dep2，/ftp/dep3，/ftp/dep4。另外设定一个公共目录 /ftp/public。
+3、五个用户：admin，user1，user2，user3，user4。其中：user 1/2/3/4分别对应部门dep 1/2/3/4，他们只能访问自己所属部门的目录和public目录。如：user1只能访问dep1和public目录，不能访问其它目录。admin为管理员用户，可以访问 ftp 服务器上的任何目录。
+4、用户访问权限限制：user1/2/3/4在所能访问的目录，具有上传文件、下载文件的功能，但是不能够删除文件、更改文件权限等功能。admin管理员用户对所有目录具有文件上传、下载、删除、权限更改等功能。
+5、对每个部门定制一个 quota，设置该账户的文件配额为1000个；磁盘配额为2G。
+6、匿名用户不能访问。
+
+
+第一、增加一块硬盘，然后分区，把分区挂载情况写入/etc/fstab
+
+# fdisk /dev/hdb
+# mkfs.ext3 /dev/hdb1
+# mkidr /ftp
+# mount /dev/hdb1 /ftp -o usrquota,grpquota
+
+# vim /etc/fstab
+加入下面一句
+
+/dev/hdb1               /ftp                    ext3    defaults,usrquota,grpquota      0 0
+
+
+第二、建立用户组和用户和相应的文件夹并更改权限，达到题目要求
+
+# groupadd dep1
+# groupadd dep2
+# groupadd dep3
+# groupadd dep4
+# groupadd boobooke
+
+# usradd  -G dep1,boobooke user1
+# usradd  -G dep2,boobooke user2
+# usradd  -G dep3,boobooke user3
+# usradd  -G dep4,boobooke user4
+# usradd  -G dep1,dep2,dep3,dep4,boobooke admin
+
+# passwd user1
+# passwd user2
+# passwd user3
+# passwd user4
+# passwd admin
+
+# mkdir /ftp/dep1
+# mkdir /ftp/dep2
+# mkdir /ftp/dep3
+# mkdir /ftp/dep4
+# mkdir /ftp/public
+
+# chmod uesr1:dep1 /ftp/dep1
+# chmod uesr2:dep2 /ftp/dep2
+# chmod uesr3:dep3 /ftp/dep3
+# chmod uesr4:dep4 /ftp/dep4
+# chmod admin:boobooke /ftp/public
+
+# chmod 770 /ftp/dep1
+# chmod 770 /ftp/dep2
+# chmod 770 /ftp/dep3
+# chmod 770 /ftp/dep4
+# chmod 770 /ftp/pubic
+
+
+最终结果如下
+
+-rw------- 1 root  root      8192 Jul 26 11:46 aquota.group
+-rw------- 1 root  root      7168 Jul 26 11:46 aquota.user
+drwxrwx--- 2 user1 dep1      4096 Jul 25 20:47 dep1
+drwxrwx--- 2 user2 dep2      4096 Jul 25 20:47 dep2
+drwxrwx--- 2 user3 dep3      4096 Jul 25 20:47 dep3
+drwxrwx--- 2 user4 dep4      4096 Jul 25 20:47 dep4
+drwx------ 2 root  root     16384 Jul 25 20:44 lost+found
+drwxrwx--- 2 admin boobooke  4096 Jul 25 20:48 public
+
+第三、创建quota，配置磁盘配额
+
+#mount /dev/hdb1 /ftp -o usrquota,grpquota
+# quotacheck -cuvg /dev/sdb1
+# quotaon -a
+# edquota -g dep1
+
+Disk quotas for group dep1 (gid 503):
+  Filesystem                   blocks       soft       hard     inodes     soft     hard
+  /dev/hdb1                         0    1024000    2048000          0      500     1000
+
+# edquota -g -p dep1 dep2 dep3 dep4(-u -g将源用户组和群组的quota设置套用至其他用户或群组。)
+
+
+第四、编辑VSFTPD.CONF
+
+# vim /etc/vsftpd/vsftpd.conf
+
+anonymous_enable=NO
+
+加入
+local_root=/ftp
+user_config_dir=/etc/vsftpd/ftp_config_dir 
+
+
+开启chroot
+
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd/chroot_list
+
+
+第五、建立用户的独立文件
+
+# mkdir /etc/vsftpd/ftp_config_dir
+# vim /etc/vsftpd/ftp_config_dir/user1
+
+cmds_allowed=ABOR,ACCT,APPE,CWD,CDUP,HELP,LIST,MODE,MDTM,NOOP,NLST,PASS,PASV,PORT,PWD,QUIT,REIN,RETR,SITE,SIZE,STOR,STAT,STOU,STRU,SYST,TYPE,USER
+
+
+# cp /etc/vsftpd/ftp_config_dir/user1 /etc/vsftpd/ftp_config_dir/user2
+# cp /etc/vsftpd/ftp_config_dir/user1 /etc/vsftpd/ftp_config_dir/user3
+# cp /etc/vsftpd/ftp_config_dir/user1 /etc/vsftpd/ftp_config_dir/user4
+
+第六、测试

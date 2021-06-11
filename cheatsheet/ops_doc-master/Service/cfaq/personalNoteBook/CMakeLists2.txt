@@ -1,0 +1,51 @@
+1)cmake ./   这个命令要求当前目录包含CMakeLists.txt， 执行成功会产生CMakeFiles目录 + CMakeCache.txt +  Makeflie;
+2)make -j5 使用5cpu并行编译
+3)cmake 命令可以直接传递宏定义，不修改CMakeLists.txt， 比如:  cmake -Dxxx  ./
+4)cmake编译时如果遇到xxx.h文件找不到，说明对应的lib没有安装到系统中，即使显示的添加.h路径也没用，因为还必须要有lib不然会链接错误；
+5)如果要安装一个CMakeList.txt的工程到指定目录，设置 CMAKE_INSTALL_PREFIX  
+6)通过 file xxx 可以看到文件是arm 还是 x86下编译出来的，LSB 还是 MSB;
+//////////////////////////////////////////////////////CMakeLists.txt(refer to: https://github.com/seetaface/SeetaFaceEngine/blob/master/FaceDetection/CMakeLists.txt)
+cmake_minimum_required(VERSION 3.1.0)
+project(Helloworld)   编译target名字
+
+# Build options
+option(USE_SSE         "Set to ON to build use SSE"  ON)  自定义选项，这里需要手动切换ON/OFF
+
+if (USE_SSE)
+    add_definitions(-DUSE_SSE)   打开宏定义USE_SSE
+    message(STATUS "Use SSE")   打印Log，用来调试非常方便
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.1")  追加编译参数，要求cpu支持()
+endif()
+
+
+set(CMAKE_CXX_FLAGS   "${CMAKE_CXX_FLAGS}  -O2  -g  ") 追加编译参数, -g 是为了支持debug;  C语言用 CMAKE_C_FLAGS
+set(CMAKE_CXX_STANDARD 14)                  支持C++14， g++5.4.0 就支持c++14
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+message(STATUS "C++11 support has been enabled by default.")   打印Log, 
+#message(FATAL_ERROR  "error xxx")  停止编译
+
+if(DEFINED ENV{ARCH})  在交叉编译环境下，$ARCH=arm, 普通模式无定义
+set(OpenCV_DIR  opencv-install-dir/share/OpenCV )  这行是指定OpenCV的版本路径(该路径下有个非常重要的文件OpenCVConfig.cmake)，特别是当系统中同时安装了多个版本的opencv时可以指定某个版本，比如arm版本；
+endif()
+
+find_package(OpenCV   REQUIRED)  要求当前环境安装了OpenCV package，required表示必须满足，这行其实是在搜索文件OpenCVConfig.cmake(install_dir/share/OpenCV/);
+include_directories(${OpenCV_INCLUDE_DIRS})  这个变量是在文件(OpenCVConfig.cmake)中定义的，该文件还定义了$OpenCV_LIBS;
+
+include_directories(${PROJECT_SOURCE_DIR}/include) 添加头文件目录，其中 PROJECT_SOURCE_DIR 就是CMakeLists.txt所在目录
+
+add_subdirectory(xxx,   build_xxx)   添加子目录（xxx子目录中含CMakeLists.txt ，会参与编译，结果在build_xxx目录），这个用在依赖第3方库时的源码编译
+set(src_files   xxx.cpp  xxx.cpp )  添加源文件
+#aux_source_directory(./   SRC_LIST) 添加当前目录的所有源文件
+
+add_executable(${PROJECT_NAME}    ${src_files} )  把当前project编译为可执行程序，这就是最后的输出target
+#add_library(${PROJECT_NAME}   SHARED   ${src_files})  把当前project 编译为shared lib(.so) 这就是最后的输出target
+
+target_link_libraries(${PROJECT_NAME}   ${OpenCV_LIBS}) 添加依赖的库
+target_link_libraries(${PROJECT_NAME}   pthread)  添加pthread库
+#target_link_libraries(${PROJECT_NAME}   XXX)添加依赖的库，会去搜索libxxx.a和libxxx.so;
+
+
+//////////////////////////////////其它的
+link_directories(xxx ) 添加依赖库的搜索路径
+
+

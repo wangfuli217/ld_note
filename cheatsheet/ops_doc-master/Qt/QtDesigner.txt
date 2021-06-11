@@ -1,0 +1,221 @@
+
+将图形界面设计和后台功能代码相分离，是现代 GUI 程序设计的通用思路，学会一种图形界面编程方法，其他的都可以触类旁通。
+
+https://qtguide.ustclug.org/
+
+    ui 文件其实就一个标准 XML 格式的文本文件(感兴趣的读者可以用记事本打开看看)，需要通过 uic 工具将其转换为项目里可用的 ui_*.h 头文件，
+这个头文件里才是真正可用的 C++ 代码。
+uic hello.ui -o ui_hello.h
+
+1. Qt Designer， 即 Qt 设计师。通过设计师就可以很方便地创建图形界面文件 *.ui ，然后将 ui 文件应用到源代码里面，
+做到所见即所得（What You See Is What You Get，WYSIWYG），大大方便了图形界面的设计。
+
+2. 新建窗体
+“templates/forms”常见的作为用户主界面的窗体类型， 头三个都是对话框窗口，分别为按钮居底部、按钮居右边和不带按钮。
+2.1 Dialog with Buttons Bottom   按钮居底部 对话框窗口
+2.2 Dialog with Buttons Right    按钮居右边 对话框窗口
+2.3 Dialog without Buttons       不带按钮   对话框窗口
+2.4 Main Windows                 主窗口界面，主窗口功能最为丰富，有菜单栏、工具栏、状态栏、中央部件， 并且可以添加停靠/浮动窗口。
+2.5 Widget                       最简单的通用“Widget”界面
+
+3. 主窗口界面编辑
+3.1 编辑窗口部件：为窗口拖拽控件(即部件)，编辑控件布局等。
+3.2 编辑信号/槽： 用户在图形界面的一些动作会触发窗口或控件的信号，信号对应的处理函数就是槽函数，这种模式实现二者的关联关系。
+3.3 编辑伙伴：    最常见的就是将标签控件设置为其他控件(如编辑框)的伙伴，标签控件文本就可以指明关联控件的名称/功能/用途，
+                  并且能方便地设置快捷键。
+3.4 编辑 Tab 顺序：在窗口中，用户可以按 Tab 键依次选择进入各个控件，这个模式就是编辑各个控件被选择的顺序。
+
+对象查看器是记录当前窗体里面有哪些控件， 每个控件对象的名称和类名都会列出来，可以看到默认的对象是 Form，它的类名是 QWidget；
+属性编辑器，用于编辑窗体或控件的属性，比如对象名称、窗口标题、窗口大小等等。
+第三个工具箱比较复杂，它是选项卡式的，有“资源浏览器”、“动作编辑器”和“信号/槽编辑器”三个工具箱
+
+
+4. QLabel
+4.1 objectName：对象名称，该名称决定以后在 C++ 代码里这个对象的指针变量名，用过这个对象名称就能调用该对象的函数。
+   ui 文件里的对象名称全是指针变量名，因为它们全都是用 new 创建的。
+4.2 geometry：控件显示占据的几何图形，就是显示的矩形区域，该属性是通过四个子属性控制的， 点开 "+"，展开看到 X、Y、
+    宽度、高度，设置这四个数值，可以控制控件显示的位置和控件的大小。
+4.3 text：显示的文本，标签控件就是专门用来显示文本的，这个是它最主要的功能。
+    编辑文本的时候，注意编辑框右边很小的 "..." 按钮和红色向左弯的箭头按钮， 红箭头按钮是用来清空文本编辑框的。
+点击"..."按钮会弹出编辑丰富文本的扩展对话框，
+    4.3.1 "多文本"是所见即所得的丰富文本显示模式，
+    4.3.2 "源"是指 HTML 格式源码。
+    
+"窗体"-->"预览(P)..."， 或者按快捷键 Ctrl+R，
+"文件"-->"保存(S)"，或者按快捷键 Ctrl+S
+
+
+
+
+#ifndef UI_HELLO_H
+#define UI_HELLO_H
+#include <QtCore/QVariant>
+#include <QtWidgets/QAction>
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QButtonGroup>
+#include <QtWidgets/QHeaderView>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QWidget>
+QT_BEGIN_NAMESPACE
+class Ui_Form
+{
+public:
+    QLabel *label;
+    void setupUi(QWidget *Form)
+    {
+        if (Form->objectName().isEmpty())
+            Form->setObjectName(QStringLiteral("Form"));
+        Form->resize(400, 300);
+        label = new QLabel(Form);
+        label->setObjectName(QStringLiteral("label"));
+        label->setGeometry(QRect(10, 10, 200, 40));
+        retranslateUi(Form);
+        QMetaObject::connectSlotsByName(Form);
+    } // setupUi
+    void retranslateUi(QWidget *Form)
+    {
+        Form->setWindowTitle(QApplication::translate("Form", "Form", 0));
+        label->setText(QApplication::translate("Form", "<h1>Hello Designer!</h1>", 0));
+    } // retranslateUi
+};
+namespace Ui {
+    class Form: public Ui_Form {};
+} // namespace Ui
+QT_END_NAMESPACE
+#endif // UI_HELLO_H
+
+1. QT_BEGIN_NAMESPACE 和 QT_END_NAMESPACE 这两个宏表示中间的代码是包含在名字空间里的，就是一个提示作用
+2. 第一个类是全局范围定义的 Ui_Form 类，里面首先定义了一个 label 指针，注意这个指针名称就是之前设计师里显示的 objectName。
+3. 接着定义了一个 setupUi 函数，这个是最关键的生成图形界面的函数，它接收一个 QWidget 对象的指针，
+   然后为这个 QWidget 对象设置窗口界面和控件。
+4. 还有一个 retranslateUi 函数，是专门用于支持多国语言翻译的，主窗口和标签控件的字符串都在这重新翻译一下，
+   如果有多国语言支持的翻译文件，界面的多国语言显示就通过该函数实现。
+   
+5. 定义了一个叫 Ui 的名字空间，空间里定义了一个类 Form ，简单地从 Ui_Form 类继承一下，并没有添加额外的代码。
+   使用 Ui 名字空间的好处就是避免名称冲突，所以正常都不会直接使用 Ui_Form 类，而是用名字空间里的 Ui::Form 类。
+6. 需要注意的是 ui_hello.h 头文件里没有 Q_OBJECT 宏，它里面定义的类也没有从任何窗口或控件类继承。
+   无论是 Ui_Form 类还是 Ui::Form 类，它们都不是窗口类！
+7. 通过 setupUi 函数，辅助该函数参数里的窗口对象(QWidget *Form)构建图形界面，它们帮助别的窗口类对象构建图形界面，仅此而已。
+   当然，在 setupUi 函数里新建的控件指针，如 label，是 Ui_Form 或Ui::Form 类里的成员变量，代码里需要通过这个类的成员变量来操控相应的控件。
+   
+   
+a. 如果要在项目里面使用 ui 文件(其实是 ui_*.h)，通常有三种方式：直接使用方式、多重继承使用方式和成员变量使用方式。
+1. UI 直接使用法
+ //main.cpp
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QWidget>
+#include "ui_hello.h"
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+    QWidget *hw = new QWidget();    //main GUI window
+    Ui::Form createUi;      //createUi is not a real window
+    createUi.setupUi(hw);   //createUi is a tool for creating the GUI
+    hw->show();             //hw is the real window
+    return a.exec();
+}
+
+1.1 main.cpp 包含了三个头文件 QApplication、QWidget 和 前面用 uic 生成的 ui_hello.h，
+由于 ui_hello.h 不包含 Q_OBJECT 宏，是不需要用元对象编译器 moc 处理的。
+
+1.2 Ui::Form createUi;      //createUi is not a real window
+定义了 Ui::Form 类的对象 createUi(普通变量) ，这个对象自己不是一个窗口，它可以为别的窗口对象设置图形界面。
+
+1.3 createUi.setupUi(hw);   //createUi is a tool for creating the GUI
+调用了 createUi 对象的 setupUi 函数，该函数接收一个窗体对象指针，这里是 hw。setupUi 函数里面的代码会为 
+hw 创建内部的控件，设置窗体大小等等。
+
+
+2. UI 多重继承使用法—— Hello UIWidget
+//hellouiwidget.h
+#include <QtWidgets/QWidget>
+#include <QtWidgets/QLabel>
+#include "ui_hello.h"
+class HelloUIWidget : public QWidget, public Ui::Form
+{
+    Q_OBJECT
+public:
+    explicit HelloUIWidget(QWidget *parent = 0);
+    ~HelloUIWidget();
+protected:
+    void AdjustLabel();
+};
+
+2.1 hellouiwidget.h 包含了三个头文件 QWidget、QLabel 和 使用 uic 生成的 ui_hello.h ，里面定义了一个类 HelloUIWidget 。
+    HelloUIWidget 从 QWidget、Ui::Form 两个基类继承而来，都是 public 继承方式。
+2.2 由于 基类有一个是 Qt 窗口类 QWidget，所以在类定义开始处必须加入 Q_OBJECT 宏，用于声明元对象系统。
+2.3 定义了两个公开类型（public）的函数，即构造函数和析构函数。
+2.4 最后一个是我们自己编写的保护类型（protected）的函数 AdjustLabel，用于调整 label 标签对象的显示效果。
+    使用多重继承或成员变量的方式就容易丰富窗口类的功能，我们在 HelloUIWidget  里添加了 AdjustLabel 函数，
+当然还可以添加更多的函数。
+ //hellouiwidget.cpp
+#include "hellouiwidget.h"
+HelloUIWidget::HelloUIWidget(QWidget *parent) : QWidget(parent)
+{
+    setupUi(this);  //Must call setupUi first!
+    //Then do other things.
+    AdjustLabel();
+}
+HelloUIWidget::~HelloUIWidget()
+{
+    //Do not need to delete labels/widgets manually.
+    //They will be deleted by Qt automatically.
+}
+void HelloUIWidget::AdjustLabel()
+{
+    label->setText(tr("<h1>Hello UIWidget!</h1>"));
+    label->setStyleSheet(tr("color: red; background-color: rgb(0, 255, 255)"));
+}
+1. 在 HelloUIWidget 构造函数定义处，它使用输入参数 parent 初始化了基类 QWidget，另一个基类 Ui::Form 因为它构造函数不需要参数，
+   就没必要手动编写初始化代码，C++ 编译器自己会先构造好基类。
+2. HelloUIWidget 从基类 Ui::Form 继承了 setupUi 函数，所以可直接调用该函数为自己窗口（this）构建图形界面。
+   在构建好图形界面的控件之后，我们再调用自己编写的 AdjustLabel 函数修改标签控件显示效果。
+3. HelloUIWidget 类的析构函数，里面没有实际代码。
+4. AdjustLabel ，这个函数里对 label 指针保存的对象进行处理，label 指针成员变量是也是从基类 Ui::Form 继承而来的。
+   label->setText(tr("<h1>Hello UIWidget!</h1>"));
+   更改标签控件显示的文本，更改后是 HTML 标题一类型的 “Hello UIWidget!”
+   label->setStyleSheet(tr("color: red; background-color: rgb(0, 255, 255)"));
+   setStyleSheet 是在窗口和控件通用基类 QWidget 里面定义的函数，也就是说所有的窗口和控件都可以用这个函数。
+   这个函数的用途就是设置窗口或控件的显示风格，StyleSheet 即样式表，类似编写网页用的 CSS层叠样式表，语法也和 CSS 差不多。
+   
+color: red  意思是显示文字的前景色 color 为红色 red 
+background-color: rgb(0, 255, 255)  意思是填充的背景色 background-color 为青 色 rgb(0, 255, 255)
+   英文冒号前的是样式名称，中间是英文冒号，冒号后面跟着样式的值。
+   
+//main.cpp
+#include <QtWidgets/QApplication>
+#include "hellouiwidget.h"
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+    HelloUIWidget *huiw = new HelloUIWidget();
+    huiw->show();
+    return a.exec();
+}
+   
+
+3. 用 qmake 生成程序
+cd /d D:\QtProjects\ch02\hellouiwidget 
+qmake -project "QT+=widgets"
+"QT+=widgets"是我们手动给pro文件加了一行，添加了QtWidgets模块，pro文件默认就带有QtCore和QtGui两个模块，不需要手动添加core和gui。
+qmake             生成 Makefile
+mingw32-make all  使用 make 工具生成目标程序
+Debug 调试版本程序：debug\hellouiwidget 
+Release 发行版本程序：release\hellouiwidget 
+
+qmake 把许多 uic、moc、g++ 编译链接过程的命令都自动生成了，全放在 Makefile 脚本里，用起来就特别省事。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

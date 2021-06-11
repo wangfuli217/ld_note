@@ -1,0 +1,286 @@
+https://github.com/wenquan0hf/lua/blob/master/coroutines.md
+强调点：yield函数栈间传值和resume函数的保护模式
+    (1)第一次调用resume时，所有传递给resume的额外参数将视为协同程序主函数的参数。
+    (2)调用yield时，所有传递给yield的参数将视为resume的第二个开始的返回值，resume的
+        第一个返回值为true表示没有错误，否则返回false和一条错误消息。
+    (3)第二次开始调用resume时，所有传递给resume的额外参数将视为yield的返回值。
+    (4)协同程序执行完毕后，它的主函数返回值将视为resume的第二个开始的返回值。
+
+概述 # resume和yeild的协作
+    协程具有协同的性质，它允许两个或多个方法以某种可控的方式协同工作。
+    在任何一个时刻，都只有一个协程在运行，只有当正在运行的协程主动挂起时它的执行才会被挂起(暂停)。
+    
+    上面的定义可能看上去比较模糊。接下来让我讲得很清楚一点，
+    假设我们有两个方法，一个是主程序方法，另一个是一个协程。
+        当我们使用 resume 函数调用一个协程时，协程才开始执行。
+        当在协程调用 yield 函数时，协程挂起执行。
+        再次调用 resume 函数时，协程再从上次挂起的地方继续执行。
+        这个过程一直持续到协程执行结束为止。
+    
+    2.四种状态
+　　  1. 挂起(suspended)：创建时或执行了操作coroutine.yield()
+　　  2. 运行(running)：执行了coroutine.resume()
+　　  3. 死亡(dead)：最后一次调用resume时，协同程序的内容已执行完毕，并且已经返回。resume状态为dead的协同程序将返回false及错误消息，不再执行主函数体。
+　　  4. 正常(normal)：当一个协程A唤醒另一个协程B时，A就处于一种特殊状态——既不是挂机状态(A不能继续执行)，也不是运行状态(B在运行)。
+    
+    协程中可用的函数
+        下面的表中列出 Lua 语言为支持协程而提供的所有函数以及它们的用法。
+        方法和功能
+        coroutine.create(f):用函数f创建一个协程，返回thread类型对象。
+        coroutine.resume(co[,val1,...]): 用来启动或再次启动一个协程，使其由挂起状态变成运行状态。 
+          coroutine.resume(co, ...) 调用实例：调用可以动态参数
+            可以这么说，resume函数相当于在执行协程中的方法。参数val1, ...是执行协程co时传递给协程的方法。 
+            首次执行协程co时，参数val1, ...会传递给协程co的函数f； 
+            再次执行协程co时，参数val1, ...会作为给协程co中上一次yeild的返回值。
+          coroutine.resume 返回值 状态 说明：
+            true :  代码执行正常；从f函数中退出
+            true :  代码执行正常；从yeild函数中退出
+            false:  cannot resume dead coroutine：函数f内代码执行完后，再次调用resume
+            false:  函数f中代码执行错误
+            
+          coroutine.resume函数返回什么呢？有3种情况：
+            1. 如果协程co的函数执行完毕，协程正常终止，resume返回true和函数的返回值。
+            2. 如果协程co的函数执行过程中，协程让出了(调用了yeild()方法)，那么resume返回true和协程中调用yeild传入的参数。
+            3. 如果协程co的函数执行过程中发生错误，resume返回false与错误消息。
+            可以看到resume无论如何都不会导致程序崩溃。它是在保护模式下执行的。
+            注意：resume运行在保护模式下，因此，如果协同程序内部存在错误，Lua并不会抛出错误，而是将错误返回给resume函数。
+        coroutine.running():返回正在运行的协程，以及子协程|主协程 -> false|true
+            false|true：用来判断当前执行的协程是不是主协程，如果是主协程：第2个返回值就返回true。
+        coroutine.status(co):返回指定协程的状态，
+            1. running    如果在协程的函数中调用status，传入协程自身的句柄，那么执行到这里的时候才会返回running状态。
+            2. suspended  如果协程还未结束，即自身调用了yeild或还没开始运行，那么就是suspended状态。
+            3. normal     如果协程A resume协程B时，协程A处于的状态为normal。在协程B的执行过程中，协程A就一直处于normal状态。因为它这时候既不是挂起状态、也不是运行状态。
+            4. dead       如果一个协程发生错误结束，或正常终止。那么就处于dead状态。如果这时候对它调用resume，将返回false和错误消息。
+        coroutine.wrap(f):与前面 coroutine.create 一样，coroutine.wrap 函数也创建一个协程，
+            跟create()的区别在于：
+            1. wrap()返回的是一个函数，每次调用这个函数相当于调用coroutine.resume()。
+            2. 调用这个函数相当于在执行resume()函数。
+            3. 调用这个函数时传入的参数，就相当于在调用resume时传入的除协程的句柄外的其他参数。
+            4. 调用这个函数时，它并不是在保护模式下执行的，若执行崩溃会直接向外抛出。
+        coroutine.yield(...):挂起正在执行的协程。为此函数传入的参数值作为执行协程函数resume 的额外返回值(默认会返回协程执行状态)。
+            使正在执行的函数挂起。 传递给yeild的参数会作为resume的额外返回值。
+            同时，如果对该协程不是第一次执行resume，resume函数传入的参数将会作为yield的返回值。
+
+        local tempvar1 = coroutine.yield(value1+1,value2+1) resume 1 # 将 status, value1+1,value2+1 返回给resume调用函数
+                                                            resume 2 # 将 输入参数赋值给tempvar1变量。
+        (coroutine.resume(co3, 20, 10, 100))                         # 此时不会返回任何值
+
+4.有用机制：通过一对resume-yield交换数据
+　　原理：
+　　1. 所有传递给resume的额外参数(...)都将视为协同程序主函数的参数。如：
+        co = coroutine.create ( function(a,b)  print("co:",a,b)  end )  --创建协同程序
+        coroutine.resume(co,10,20)  --> co:10  20  --启动协同程序，其中10，20就是额外参数，传递给了协同程序的主函数(匿名函数)
+    2. resume的返回值中包含传递给yield的所有参数。如：
+        co = coroutine.create( function(a,b)
+            coroutine.yield(a+b,a-b)  --在协同程序的主函数中直接调用yield
+                i = i+1  --有语法错误
+            end )　　　　　　　　　　
+        第一次调用resume：print(coroutine.resume(co,20,10)) 
+            -->true  30  10
+            --第一个返回值为true表示协同程序执行完毕或执行到yield之前没有发生错误，后面的返回值就是传递给yield的参数。　  
+        第二次调用resume：print(coroutine.resume(co,20,10)) 
+            -->false,attempt to perform arithmetic on global 'i' (a nil value) 
+            --resume 第一个返回值为true并不能说明协同程序没有错误。
+　　3. yield的返回值就是对应resume传入的额外参数。如：
+            co = coroutine.create( function() print("co:",coroutine.yield()) end)
+            coroutine.resume(co) -->   --resume中没有额外参数，则yield不会返回值，协同程序挂起
+　　4. 当协同程序结束时，它的主函数返回的值都将作为resume的返回值。如：
+            co = coroutine.create( function() return 1,2 end )
+            print(coroutine.resume(co)) -->true 1  2
+        
+    1. 这是在非首次resume协程的情况下，resume和yield的互相调用的情况。如果是首次resume协程，那么resume的参数会直接传递给协程函数。
+    
+    2. 每个coroutine.resume调用对应一个coroutine.yield函数。coroutine.create函数也对应一个coroutine.resume。
+       如果没有yield则退出coroutine，且返回状态为true，再次调用则返回状态false和cannot resume dead coroutine。
+    
+    3. 协程主函数中的return和yield具有相同的功能。
+       return 类似于yield，两者的区别在于：挂起后，还可以从挂起的地方重新进入线程，return 后则会销毁域，不能再重新进入
+    
+    4. print(co) # 协程thread类型对象地址。
+       协程thread类型对象可以看做单线程独立栈执行方式。
+    
+1. 协程的示例
+让我们通过下面的例子来理解一下协程这个概念。
+co = coroutine.create(function (value1,value2)
+   local tempvar3 =10
+   print("coroutine section 1", value1, value2, tempvar3)
+   local tempvar1 = coroutine.yield(value1+1,value2+1)
+   tempvar3 = tempvar3 + value1
+   print("coroutine section 2", tempvar1, tempvar2, tempvar3)
+   local tempvar1, tempvar2= coroutine.yield(value1+value2, value1-value2)
+   tempvar3 = tempvar3 + value1
+   print("coroutine section 3", tempvar1, tempvar2, tempvar3)
+   return value2, "end"
+end)
+
+print("main", coroutine.resume(co, 3, 2))
+print("main", coroutine.resume(co, 12,14))
+print("main", coroutine.resume(co, 5, 6))
+print("main", coroutine.resume(co, 10, 20))
+
+执行上面的程序，我们可以得到如下的输出结果：
+
+coroutine section   1   3   2   10
+main                true    4   3
+coroutine section   2   12  nil 13
+main                true    5   1
+coroutine section   3   5   6   16
+main                true    2   end
+main    false       cannot resume dead coroutine
+
+上面的例子到底做了些什么呢？
+
+和前面说到的一样，在例子中我们使用 resume 函数继续执行协程，用 yield 函数挂起协程。同样，从例子中也可以看出如何为执行协程的 resueme 函数返回多个值。下面我将逐步解释上面的代码。
+    首先，我们创建了一个协程并将其赋给变量 co。此协程允许传入两个参数。
+    第一次调用函数 resume 时，协程内局部变量 value1 和 value2 的值分别为 3 和 2。
+    为了便于理解，我们使用了局部变量 tempvar3 该变量被初始化为 10。由于变量 value1 的值为3，所以 tempvar3 在随后的协程调用过程中被先后更新为 13 和 16。
+    第一次调用 coroutine.yield 时，为 resume 函数返回了值 4 和 3，这两个值是由传入的参数 3，2 分别加 1 后的结果，这一点可以从 yield 语句中得到证实。除了显示指定的返回值外，resume 还收到隐式的返回值 true，该值表示协程执行的状态，有 true 和 false 两个可能取值。
+    上面的例子中，我们还应该关注在下一次调用 resume 时如何为协程传入参数。从例子中可以看到，coroutine.yield 函数返回后为两个变量赋值，该值即是第二次调用 resume 时传入的参数。这种参数传递的机制让可以结合前面传入的参数完成很多新的操作。
+    最后，协程中所有语句执行完后，后面的调用就会返回 false 状态，同时返回 "cannot resume dead coroutine"消息。
+    
+    
+2. 协程的示例
+下面这例子中的协程使用 yield 函数和 resume 函数依次返回数字 1 到 5。
+示例中，如果没有协程对象或对象已结束(dead)，则重新创建一个新的协程对象；若协程已经存在，则执行已经存在的协程。
+function getNumber()
+   local function getNumberHelper()
+      co = coroutine.create(function ()
+      coroutine.yield(1)
+      coroutine.yield(2)
+      coroutine.yield(3)
+      coroutine.yield(4)
+      coroutine.yield(5)
+      end)
+      return co
+   end
+   if(numberHelper) then
+      status, number = coroutine.resume(numberHelper);
+      if coroutine.status(numberHelper) == "dead" then
+         numberHelper = getNumberHelper()
+         status, number = coroutine.resume(numberHelper);
+         print("1111111111")
+      end
+      return number
+   else
+      numberHelper = getNumberHelper()
+      status, number = coroutine.resume(numberHelper);
+      print("1111111111")
+      return number
+   end
+end
+for index = 1, 10 do
+   print(index, getNumber())
+end
+
+执行上述的程序，我们可以得到如下的输出结果：
+
+1	1
+2	2
+3	3
+4	4
+5	5
+6	1
+7	2
+8	3
+9	4
+10	5
+
+3. 协程的示例
+function foo (a)
+    print("foo", a)
+    return coroutine.yield(2*a)
+end
+co = coroutine.create(function (a,b)
+           print("co-body", a, b)
+           local r = foo(a+1)
+           print("co-body", r)
+           local r, s = coroutine.yield(a+b, a-b)
+           print("co-body", r, s)
+           return b, "end"
+     end)
+     
+     print("main", coroutine.resume(co, 1, 10))
+     print("main", coroutine.resume(co, "r"))
+     print("main", coroutine.resume(co, "x", "y"))
+     print("main", coroutine.resume(co, "x", "y"))
+当你运行它，将产生下列输出：
+     co-body 1       10
+     foo     2
+     main    true    4
+     co-body r
+     main    true    11      -9
+     co-body x       y
+     main    true    10      end
+     main    false   cannot resume dead coroutine
+你也可以通过 C API 来创建及操作协程： 参见函数 lua_newthread， lua_resume， 以及 lua_yield
+
+大家经常会把协程和多线程编程语言中的线程进行对比，但我们要明白，协程有着与线程类似的特性，但是协程与线程的区别在于协程不能并发，任意时刻只会有一个协程执行，而线程允许并发的存在。(译注：译者认为本质上协程其是就是线程，不过是用户态的线罢了，它将调度问题交由程序开发人员手动完成。)
+我们通过控制程序执行顺序以满足获取某些临时信息的需求。配合全局变量的使用，协和会变得更加的灵活方便。
+
+1. coroutine.running() -- 返回当前的协程,如果是在主线程,则返回nil
+  local co = coroutine.create(
+      function () 
+          print(coroutine.running()) 
+          end)
+  
+  print(coroutine.running())
+  coroutine.resume(co)
+  print(co)
+
+2. coroutine.status
+以字符串形式返回协程 co 的状态：
+  当协程正在运行（它就是调用 status 的那个） ，返回 "running"；
+  如果协程调用 yield 挂起或是还没有开始运行，返回 "suspended"；
+  如果协程是活动的，都并不在运行（即它正在延续其它协程），返回 "normal"；
+  如果协程运行完主体函数或因错误停止，返回 "dead"。
+
+local co
+local co2 = coroutine.create(function() print("3."..coroutine.status(co)) end)
+co = coroutine.create(
+    function ()
+        print("2."..coroutine.status(co))
+        coroutine.resume(co2)
+        coroutine.yield()
+    end)
+
+print("1."..coroutine.status(co))
+coroutine.resume(co)
+print("4."..coroutine.status(co))
+coroutine.resume(co)
+print("5."..coroutine.status(co))
+
+-- Output:
+-- 1.suspended
+-- 2.running
+-- 3.normal
+-- 4.suspended
+-- 5.dead
+
+3.  coroutine.yield(...)
+挂起正在调用的协程的执行。 传递给 yield 的参数都会转为 resume 的额外返回值。
+
+local co = coroutine.create(
+    function ()
+        coroutine.yield("yield1" ,"yield2")
+    end)
+
+print(coroutine.resume(co))
+
+Output:
+true    yield1  yield2
+
+4. local wrap = coroutine.wrap(
+    function (input)
+        print("input : "..input)
+        local param1, param2 = coroutine.yield("yield")
+        print("param1 is : "..param1)
+        print("param2 is : "..param2)
+        -- return 也会将结果返回给 resume
+        return "return"
+    end)
+
+--第一次执行,将参数传给input
+print(wrap("function input"))
+print("this is main chunk")
+--第二次执行,将参数作为yield的返回值,传给param1 param2
+print(wrap("param1", "param2"))

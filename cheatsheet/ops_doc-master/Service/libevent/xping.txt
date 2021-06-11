@@ -1,0 +1,276 @@
+------------------ 模块化 ------------------
+xping: 
+xping.c        命令行解析和输出管理
+ping.c         ICMP协议收发处理            xping命令
+icmp-unpriv.c  ICMP命令-调用系统ping命令   xping-unpriv命令
+http.c         http请求                    xping-http命令
+dnsstack.c     域名解析(dns协议处理)       
+
+1. xping.c 与 ping.c icmp-unpriv.c http.c 之间的外部函数链接 + target对象
+void probe_setup();
+void probe_cleanup();
+struct probe *probe_new(const char *, void *);
+void probe_free(struct probe *);
+void probe_send(struct probe *, int);
+2. xping.c  http.c 和 dnsstack.c 之间通过注册回调函数
+dnstask_new(prb->host, resolved, prb) 回调函数在 dnstask.c 完成域名解析之后，调用resolved(prb)
+event_new(ev_base, -1, 0, sendquery, task); 回调函数在 event.c 接收到超时消息后，发起DNS域名解析请求
+evdns_base_resolve_ipv4(dns, task->host, 0, response_ipv4, task); 回调函数在 evdns.c 接收到域名响应之后，回调上层业务
+dnstask.c 内部通过event.c 和 evdns.c 实现注册，被回调。 dnstask.c和icmp.c 实现 调用注册函数和注册回调函数。
+dnstask.c 管理回调函数和回调函数待处理的数据。 icmp.c 准备注册函数和注册函数将处理的数据。
+
+------------------ icmp request/echo ------------------
+fd4 = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);{
+    struct icmp *icp;
+    int len;
+
+    len = ICMP_MINLEN + datalen;
+    icp = (struct icmp *)outpacket;
+    icp->icmp_type = ICMP_ECHO;
+    icp->icmp_code = 0;
+    icp->icmp_cksum = 0;
+    icp->icmp_seq = htons(seq);
+    icp->icmp_id = htons(ident);
+    icp->icmp_cksum = in_cksum((u_short *)icp, len);
+    return sendto(fd4, outpacket, len, 0, sa, sizeof(struct sockaddr_in));
+}
+fd6 = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);{
+    struct icmp6_hdr *icmp6h;
+    int len;
+
+    len = ICMP6_MINLEN + datalen;
+    icmp6h = (struct icmp6_hdr *)outpacket6;
+    icmp6h->icmp6_type = ICMP6_ECHO_REQUEST;
+    icmp6h->icmp6_code = 0;
+    icmp6h->icmp6_cksum = 0;
+    icmp6h->icmp6_seq = htons(seq);
+    icmp6h->icmp6_id = htons(ident);
+    return sendto(fd6, outpacket6, len, 0, sa, sizeof(struct sockaddr_in6));
+}
+# 接收数据报文处理
+ip = (struct ip *)inpacket;
+hlen = ip->ip_hl << 2;
+if (ip->ip_p != IPPROTO_ICMP) {
+    return;
+}
+if (n < hlen + ICMP_MINLEN) {
+    return;
+}
+
+icp = (struct icmp *)(inpacket + hlen);
+    
+宏 ICMP_MINLEN 和 IP_MAXPACKET
+./netinet/ip_icmp.h:212:#define ICMP_MINLEN     8 
+./netinet/ip.h:154:#define      IP_MAXPACKET    65535
+
+------------------ xping 参数和输出 ------------------
+-4 -6 指定协议
+-A -B -C -a 根据执行状态设定输出，包括蜂鸣器
+-c count -i interval 执行次数和执行间隔
+-w width 输出IP地址的宽度 
+
+输出符号以及对应意义
+.       Reply received.                                                   
+:       Reply received after timeout (recovered).                         
+?       Timeout - interval passed without any reply.                      超时
+#       Unreachable - the packet could not be delivered.                  icp->icmp_type == ICMP_UNREACH
+%       Other error e.g. TTL expired in transit.                          其他错误
+@       Resolving - waiting for dns lookup to complete.                   prb->resolved = 0
+!       sendto error e.g. permission denied or no route to destination.   sendto < 0
+"       Duplicate of some other entry                                     prb->duplicate != NULL
+$       partial transmit                                                  sendto != sent
+
+strtod(optarg, &end) strtol(optarg, &end, 10) 中对end的判断，自己常用atoi 和 atol
+
+------------------ regcomp ------------------
+regcomp(){
+                   64 bytes from 127.0.0.1: icmp_seq=0 ttl=64 time=0.030 ms
+regcomp(&re_reply,"[0-9]+ bytes.*icmp_.eq=([0-9][0-9]*) .*time=([0-9].[0-9]*)", REG_EXTENDED | REG_NEWLINE) != 0 
+                    From 192.0.2.1 icmp_seq=1 Destination Host Unreachable
+regcomp(&re_other, "From .*icmp_.eq=([0-9][0-9]*)"
+                   "( Destination Host Unreachable| Destination unreachable| )",REG_EXTENDED | REG_NEWLINE) != 0
+                   From 192.0.2.1 icmp_seq=1 Destination Net Unreachable
+regcomp(&re_xmiterr, "(ping|ping6|connect): "
+                   "(sentto|UDP connect|sendmsg|Network is unreachable)", REG_EXTENDED | REG_NEWLINE) != 0
+
+typedef struct {
+regoff_t rm_so; // start offset
+regoff_t rm_eo; // end offset
+} regmatch_t;
+
+regmatch_t match[5];
+regexec(&re_reply, buf, 5, match, 0) == 0
+regexec(&re_other, buf, 5, match, 0) == 0
+regexec(&re_xmiterr, buf, 5, match, 0) == 0
+
+
+ *  1. protocol
+ *  2. separator, protocol
+ *  3. hostname
+ *  4. separator, forced address
+ *  5. address
+ *  6. port
+ *  7. url
+#define RE_PROTO 1    protocol
+#define RE_HOST 3     hostname
+#define RE_FORCED 5   address
+#define RE_PORT 6     port
+#define RE_URL 7      url
+#define RE_MAX 8      
+regcomp(&re_target, "^(https?:(//)?)?([0-9A-Za-z.-]+)(\\[([0-9A-Fa-f.:]+)\\])?(:[0-9]+)?(/[^ ]*)?$",
+        REG_EXTENDED | REG_NEWLINE) != 0
+}
+
+------------------ uthash.h ------------------
+uthash.h
+HASH_ADD用来管理probe结构体，HASH_ADD使用结构体字段方式。
+
+HASH_ADD(hh, hash, sa, sizeof(union addr), prb);
+HASH_FIND(hh, hash, &prb->sa, sizeof(union addr), result);
+HASH_DELETE(hh, hash, prb);
+HASH_ITER(hh, hash, tmp, tmp2){}
+HASH_CLEAR(hh, hash);
+
+DL_APPEND(list, t);
+DL_FOREACH_SAFE(list, t, t_tmp){ event_free(t->ev_write); probe_free(t->prb); free(t);}
+DL_FOREACH(list, t){...}
+
+LL_APPEND(prb->sessions, session);
+LL_DELETE(session->prb->sessions, session);
+LL_FOREACH_SAFE(prb->sessions, s, s_tmp) {
+
+------------------ event & fork ------------------
+/* Check for existing ping process */
+if (prb->pid && kill(prb->pid, 0) == 0)
+    return;
+
+/* Create ipc socket pair and fork ping process */
+if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) < 0) {
+    target_mark(prb->owner, seq, '!'); /* transmit error */
+    return;
+}
+prb->seqdelta = seq - 1; /* linux ping(8) begins icmp_seq=1 */
+evutil_make_socket_nonblocking(pair[0]);
+if (prb->fd >= 0)
+    close(prb->fd);
+if (prb->ev_read != NULL)
+    event_free(prb->ev_read);
+prb->ev_read = event_new(ev_base, pair[0], EV_READ|EV_PERSIST, readping, prb);
+event_add(prb->ev_read, NULL);
+switch (pid = fork()) {
+case -1:
+    target_mark(prb->owner, seq, '!'); /* transmit error */
+    return;
+case 0:
+    evutil_closesocket(pair[0]);
+    dup2(pair[1], 1);
+    dup2(pair[1], 2);
+    execping(prb);
+    /* NEVER REACHED */
+    break;
+default:
+    evutil_closesocket(pair[1]);
+    prb->pid = pid;
+    prb->fd = pair[0];
+    break;
+}
+------------------ tinytest ------------------ tinytest.pdf
+[--verbose|--quiet|--terse] [--no-fork] --list-tests
+regress --list-tests
+    evtag/int
+    evtag/fuzz
+    evtag/encoding
+    evtag/peek
+    rpc/basic_test
+    rpc/basic_message
+    rpc/basic_client
+    rpc/basic_queued_client
+    rpc/basic_client_with_pause
+    rpc/client_timeout
+    rpc/test
+    thread/basic
+    thread/forking
+    thread/conditions_simple
+    thread/deferred_cb_skew
+regress evtag/int ssl/..              执行指定
+regress :portal/longfall :string/..   忽略指定
+regress   +..                         默认不执行，指定TT_OFF_BY_DEFAULT的不执行
+regress  --no-fork                    调试时不在新进程中test
+
+struct testcase_t {
+	const char *name; /**< An identifier for this case. */
+	testcase_fn fn; /**< The function to run to implement this case. */
+	unsigned long flags; /**< Bitfield of TT_* flags. */
+	const struct testcase_setup_t *setup; /**< Optional setup/cleanup fns*/
+	void *setup_data; /**< Extra data usable by setup function */
+};
+
+struct testgroup_t groups[] = {
+	{"blackbox/", tc_blackbox},
+	END_OF_GROUPS
+};
+
+struct testcase_t tc_blackbox[] = {
+	{"xping-localhost", test_xping_localhost, 0, &tc_setup},
+	{"xping-unpriv-localhost", test_xping_unpriv_localhost,
+	    TT_OFF_BY_DEFAULT, &tc_setup},
+	{"xping-http-localhost", test_xping_http_localhost, 0, &tc_setup},
+	{"fd-leakage-http", test_xping_http_localhost, 0, &tc_setup},
+	{"connect-unreach-http", test_xping_http_localhost, 0, &tc_setup},
+	{"memory-leakage", test_memory_leakage, 0, &tc_setup},
+	END_OF_TESTCASES
+};
+
+1. 命令测试 fork 方式
+2. mmtrace.so 和 unreach.so
+
+'tinytest_macros.h'
+tt_assert(condition);             断言，输出condition+在指定行出错
+tt_assert_msg(condition, msg);    断言，输出condition+msg+在指定行出错
+对应于上面多个函数
+tt_want_msg         
+tt_want             
+
+二进制比较 "==", "<=", "<", "!=", ">", or ">=".
+tt_int_op(a, op, b)       tt_int_op(r, ==, 0);                           tt_assert()
+tt_uint_op(a, op, b)      tt_uint_op(evbuffer_get_length(evb), ==, 0);   tt_assert()
+tt_ptr_op(a, op, b)       tt_ptr_op(cp,==,cbuf);                         tt_assert()
+tt_str_op(a, op, b)       tt_str_op(buf, ==, "Hello");                   tt_assert()
+tt_mem_op(a, op, b, len)                                                 tt_assert()
+对应于上面多个函数
+tt_want_int_op      tt_want_int_op(ev1_got, ==, EV_READ);
+tt_want_uint_op     
+tt_want_ptr_op      
+tt_want_str_op      tt_want_str_op(evhttp_uri_get_fragment(uri), ==, "fragment"); 
+
+
+tt_abort_printf((format, ...));  输出格式化内容+在指定行出错
+tt_abort_perror(op);             输出字符串+errno对应字符串+在指定行出错
+tt_abort_msg(msg);               输出字符串+在指定行出错
+tt_abort();                      在指定行出错
+对应于上面多个函数
+tt_fail_printf      
+tt_fail_perror      
+tt_fail_msg         
+tt_fail             
+
+
+
+
+------------------ Makefile ------------------ 
+Makefile
+check-libevent.c:
+check-curses.c:
+check-openssl.c:
+$(LIBEVENT)/.libs:
+install:
+clean:
+test:
+test_coverage:
+
+/test/Makefile
+test: tinytest mmtrace.so unreach.so
+unreach.so: unreach.c
+mmtrace.so: mmtrace.c
+tinytest: check_blackbox.c tests.c tinytest.c
+coverage: $(PROFDATA)

@@ -1,0 +1,735 @@
+cat - <<'EOF'
+[ip_netns_t]
+VLAN filter 主要有两个功能
+    可以给进出的数据打vlan tag ，剥离vlan tag，要看后面跟的参数
+    起到过滤功能，比如接口vid设置为100,则只让vlan100的数据通过，直接丢弃其他数据
+    
+bridge vlan add -- 增加一个VLAN过滤条目
+  dev NAME -- 与此VLAN相关的接口
+  vid VID -- 标识VLAN的VLAN ID
+  tunnel_info TUNNEL_ID -- 映射到此vlan的隧道ID(没用过，不懂什么意思)
+  pvid -- 指定的VLAN在入口时将被视为PVID。任何未标记的帧都将分配给该VLAN
+  untagged -- 指定的VLAN在出口时将被视为未标记
+  self -- 在指定的物理设备上配置了VLAN。如果该设备是bridge，则必选
+  master -- 默认配置
+  bridge vlan delete
+  bridge vlan show
+  bridge vlan tunnelshow
+有了 VLAN filter, Linux Bridge 就像一个真正的交换机，我们不再需要创建多个 VLAN 和网桥，直接在 Bridge 上打上/剥离 VLAN 标记。
+https://www.jianshu.com/p/7eb7ec6364fc
+https://github.com/generals-space/note-devops/tree/master/%E7%BD%91%E7%BB%9C%E7%B3%BB%E7%BB%9F/%E8%99%9A%E6%8B%9F%E7%BD%91%E7%BB%9C/vlan
+
+EOF
+
+ip_netns_t_vlan_filter(){ cat - <<'EOF'
+veth1 -> vid 100: veth1可以看作网线, 对数据进行透传, 其流入的数据包可能包含vlan tag, 也可能没有.
+    如果数据包是untagged的, 则不会被接收;
+    如果数据包中包含vlan tag, 但vlan id不为100, 也不会接收;
+    只有数据包中包含vlan tag且vlan id为100才会被接收并转发;
+
+1. 部署实验网络
+ip netns add netns1
+ip netns add netns2
+ip netns add netns3
+
+ip link add veth11 type veth peer name veth31
+ip link add veth22 type veth peer name veth32
+
+ip link set veth11 netns netns1
+ip link set veth22 netns netns2
+ip link set veth31 netns netns3
+ip link set veth32 netns netns3
+
+ip netns exec netns1 ip addr add 10.1.1.1/24 dev veth11
+ip netns exec netns2 ip addr add 10.1.1.2/24 dev veth22
+ip netns exec netns1 ip link set veth11 up
+ip netns exec netns2 ip link set veth22 up
+ip netns exec netns3 ip link set veth31 up
+ip netns exec netns3 ip link set veth32 up
+    
+在netns3中创建, 配置bridge, 并将veth31与veth32接入.
+ip netns exec netns3 ip link add mybr0 type bridge
+ip netns exec netns3 ip link set mybr0 up
+ip netns exec netns3 ip link set veth31 master mybr0
+ip netns exec netns3 ip link set veth32 master mybr0
+ip netns exec netns3 ip link set dev mybr0 type bridge vlan_filtering 1
+
+此时网络拓扑如下
++-------------+-------------------------------------------------------+
+|   netns1    |                  netns3                 |   netns2    |
+| 10.1.1.1/24 |                                         | 10.1.1.2/24 |
+|  +-------+  |  +-------+     +-------+     +-------+  |  +-------+  |
+|  | veth11|  |  | veth31| <-> | mybr0 | <-> | veth32|  |  | veth22|  |
+|  +---|---+  |  +---|---+     +-------+     +----|--+  |  +--|----+  |
+|      |-------------|                            |-----------|       |
++-------------+-----------------------------------------+-------------+
+
+https://github.com/generals-space/note-devops/blob/master/%E7%BD%91%E7%BB%9C%E7%B3%BB%E7%BB%9F/%E8%99%9A%E6%8B%9F%E7%BD%91%E7%BB%9C/vlan/readme%E5%AE%9E%E9%AA%8C/1.md
+EOF
+}
+
+ip_netns_t_veth_ptp(){ cat - <<'EOF'
+connect-network-ns-with-veth.sh
++------------------+              +------------------+
+|        ns1       |              |      ns2         |
+|                  |  veth pair   |                  |
+|                +-+              +-+                |
+| 192.168.1.1/24 | +--------------+ | 192.168.1.2/24 |
+|   (veth-ns1)   +-+              +-+   (veth-ns2)   |
+|                  |              |                  |
+|                  |              |                  |
+|                  |              |                  |
++------------------+              +------------------+
+
+ip netns add ns1
+ip netns add ns2
+
+ip link add veth-ns1 type veth peer name veth-ns2
+
+ip link set veth-ns1 netns ns1
+ip link set veth-ns2 netns ns2
+
+ip netns exec ns1 ip addr add 10.1.1.1/24 dev veth-ns1
+ip netns exec ns2 ip addr add 10.1.1.2/24 dev veth-ns2
+
+ip netns exec ns1 ip link set veth-ns1 up
+ip netns exec ns2 ip link set veth-ns2 up
+
+ip netns exec ns1 ping 192.168.1.2
+PING 192.168.1.2 (192.168.1.2) 56(84) bytes of data.
+64 bytes from 192.168.1.2: icmp_seq=1 ttl=64 time=0.147 ms
+64 bytes from 192.168.1.2: icmp_seq=2 ttl=64 time=0.034 ms
+EOF
+}
+
+
+ip_netns_t_veth_bridge(){ cat - <<'EOF'
+connect-network-ns-with-bridge.sh
++------------------+     +------------------+     +------------------+
+|                  |     |                  |     |                  |
+|                  |     |                  |     |                  |
+|                  |     |                  |     |                  |
+|       ns1        |     |       ns2        |     |       ns3        |
+|                  |     |                  |     |                  |
+|                  |     |                  |     |                  |
+|                  |     |                  |     |                  |
+|  192.168.1.1/24  |     |  192.168.1.2/24  |     |  192.168.1.3/24  |
++----(veth-ns1)----+     +----(veth-ns2)----+     +----(veth-ns3)----+
+        +                          +                        +
+        |                          |                        |
+        |                          |                        |
+        +                          +                        +
++--(veth-ns1-br)-------------(veth-ns2-br)------------(veth-ns3-br)--+
+|                                                                    |
+|                           linux-bridge                             |
+|                                                                    |
++--------------------------------------------------------------------+
+
+ip netns add ns1
+ip netns add ns2
+ip netns add ns3
+
+brctl addbr virtual-bridge
+
+ip link add veth-ns1 type veth peer name veth-ns1-br
+ip link set veth-ns1 netns ns1
+brctl addif virtual-bridge veth-ns1-br
+
+ip link add veth-ns2 type veth peer name veth-ns2-br
+ip link set veth-ns2 netns ns2
+brctl addif virtual-bridge veth-ns2-br
+
+ip link add veth-ns3 type veth peer name veth-ns3-br
+ip link set veth-ns3 netns ns3
+brctl addif virtual-bridge veth-ns3-br
+
+ip netns exec ns1 ip addr add local 10.1.1.1/24 dev veth-ns1
+ip netns exec ns2 ip addr add local 10.1.1.2/24 dev veth-ns2
+ip netns exec ns3 ip addr add local 10.1.1.3/24 dev veth-ns3
+
+ip link set virtual-bridge up
+ip link set veth-ns1-br up
+ip link set veth-ns2-br up
+ip link set veth-ns3-br up
+ip netns exec  ns1 ip link set veth-ns1 up
+ip netns exec  ns2 ip link set veth-ns2 up
+ip netns exec  ns3 ip link set veth-ns3 up
+
+ip netns exec ns1 ping 192.168.1.2
+PING 192.168.1.2 (192.168.1.2) 56(84) bytes of data.
+64 bytes from 192.168.1.2: icmp_seq=1 ttl=64 time=0.153 ms
+64 bytes from 192.168.1.2: icmp_seq=2 ttl=64 time=0.148 ms
+64 bytes from 192.168.1.2: icmp_seq=3 ttl=64 time=0.116 ms
+^C
+--- 192.168.1.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2015ms
+rtt min/avg/max/mdev = 0.116/0.139/0.153/0.016 ms
+ip netns exec ns1 ping 192.168.1.3
+PING 192.168.1.3 (192.168.1.3) 56(84) bytes of data.
+64 bytes from 192.168.1.3: icmp_seq=1 ttl=64 time=0.293 ms
+64 bytes from 192.168.1.3: icmp_seq=2 ttl=64 time=0.165 ms
+EOF
+}
+
+ip_netns_t_veth_route(){ cat - <<'EOF'
+connect-network-ns-with-route.sh
+cat > /etc/sysctl.d/30-ipforward.conf<<EOL
+net.ipv4.ip_forward=1
+net.ipv6.conf.default.forwarding=1
+net.ipv6.conf.all.forwarding=1
+EOL
+
+sysctl -p /etc/sysctl.d/30-ipforward.conf
+
++------------------+     +------------------+
+|                  |     |                  |
+|                  |     |                  |
+|                  |     |                  |
+|       ns1        |     |       ns2        |
+|                  |     |                  |
+|                  |     |                  |
+|                  |     |                  |
+|  192.168.1.2/24  |     |  192.168.2.2/24  |  ns1 route: 192.168.2.0/24 via 192.168.1.1
++----(veth-ns1)----+     +----(veth-ns2)----+  ns2 route: 192.168.1.0/24 via 192.168.2.1
+         +                          +
+         |                          |
+         |                          |
+         +                          +
++--(veth-ns1-br)-------------(veth-ns2-br)--+
+|   192.168.1.1               192.168.2.1   |
+|                 ns-router                 |
+|       (Linux Kernel IP Forwarding)        |
++-------------------------------------------+
+
+ip netns add ns1
+ip netns add ns2
+ip netns add ns-router
+
+
+ip link add veth-ns1 type veth peer name veth-ns1-router
+ip link set veth-ns1 netns ns1
+ip link set veth-ns1-router netns ns-router
+
+ip link add veth-ns2 type veth peer name veth-ns2-router
+ip link set veth-ns2 netns ns2
+ip link set veth-ns2-router netns ns-router
+
+ip netns exec ns1 ip addr add 192.168.1.2/24 dev veth-ns1
+ip netns exec ns2 ip addr add 192.168.2.2/24 dev veth-ns2
+ip netns exec ns-router ip addr add 192.168.1.1/24 dev veth-ns1-router
+ip netns exec ns-router ip addr add 192.168.2.1/24 dev veth-ns2-router
+
+将网卡的状态设置为up。
+ip netns exec ns1 ip link set veth-ns1 up
+ip netns exec ns2 ip link set veth-ns2 up
+ip netns exec ns-router ip link set veth-ns1-router up
+ip netns exec ns-router ip link set veth-ns2-router up
+
+
+ip netns exec ns1 ping 192.168.2.2
+ping: connect: Network is unreachable
+
+ip netns exec ns1 ip route add 192.168.2.0/24 via 192.168.1.1
+ip netns exec ns2 ip route add 192.168.1.0/24 via 192.168.2.1
+
+此时再在两个ns中尝试ping对方，就可以成功了。
+
+ip netns exec ns1 ping 192.168.2.2
+PING 192.168.2.2 (192.168.2.2) 56(84) bytes of data.
+64 bytes from 192.168.2.2: icmp_seq=1 ttl=63 time=0.064 ms
+64 bytes from 192.168.2.2: icmp_seq=2 ttl=63 time=0.086 ms
+^C
+--- 192.168.2.2 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1009ms
+rtt min/avg/max/mdev = 0.064/0.075/0.086/0.011 ms
+ip netns exec ns2 ping 192.168.1.2
+PING 192.168.1.2 (192.168.1.2) 56(84) bytes of data.
+64 bytes from 192.168.1.2: icmp_seq=1 ttl=63 time=0.106 ms
+64 bytes from 192.168.1.2: icmp_seq=2 ttl=63 time=0.087 ms
+EOF
+}
+
+
+ip_netns_t_veth_bridge_route(){ cat - <<'EOF'
+connect-network-ns-with-outside.sh
+route: default gw 192.168.1   
++------------------+     +------------------+  
+|                  |     |                  | 
+|                  |     |                  |
+|                  |     |                  | 
+|       ns1        |     |       ns2        | 
+|                  |     |                  | 
+|                  |     |                  |                  
+|                  |     |                  |                 
+|  192.168.1.2/24  |     |  192.168.1.3/24  |                
++---+(veth+ns1)+---+     +---+(veth+ns2)+---+               
+         +                          +                      
+         |                          |                     
+         |                          |                    
+         +                          +                   
++-+(veth+ns1+br)+-----------+(veth+ns2+br)+-+          
+|                                           |         
+|               Linux bridge                |                  
+|                                           |                 
++-----------------(br0)---------------------+                
+                    |                                       
+                    |                                      
+                    |                                     
++-----------------(br0)---------------------+            
+|            192.168.1.1/24                 |           
+|        default network namespace          |          
+|       (Linux Kernel IP Forwarding)        |         
+|                                           |                
+|              10.0.2.15/24                 |               
++---------------(enp0s3)--------------------+   
+
+首先创建namespace和bridge
+ip netns add ns1
+ip netns add ns2
+brctl addbr br0
+
+通过veth pair将ns1和ns2连接到bridge上。
+ip link add veth-ns1 type veth peer name veth-ns1-br
+ip link set veth-ns1 netns ns1
+brctl addif br0 veth-ns1-br
+
+ip link add veth-ns2 type veth peer name veth-ns2-br
+ip link set veth-ns2 netns ns2
+brctl addif br0 veth-ns2-br
+
+为ns1，ns2和br0设置IP地址。
+ip netns exec ns1 ip addr add local 10.1.1.2/24 dev veth-ns1
+ip netns exec ns2 ip addr add local 10.1.1.3/24 dev veth-ns2
+ip addr add local 10.1.1.1/24 dev br0
+
+将bridge和虚拟网卡的状态设置为up。
+ip link set br0 up
+ip link set veth-ns1-br up
+ip link set veth-ns2-br up
+ip netns exec ns1 ip link set veth-ns1 up
+ip netns exec ns2 ip link set veth-ns2 up
+
+在ns1和ns2中设置br0的IP为缺省网关。
+ip netns exec ns1 ip route add default via 10.1.1.1
+ip netns exec ns2 ip route add default via 10.1.1.1
+
+此时再从ns1和ns2尝试ping主机IP，发现已经可以正常通信。
+ip netns exec ns1 ping 10.0.2.15
+PING 10.0.2.15 (10.0.2.15) 56(84) bytes of data.
+64 bytes from 10.0.2.15: icmp_seq=1 ttl=64 time=0.052 ms
+^C
+--- 10.0.2.15 ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 0.052/0.052/0.052/0.000 ms
+ip netns exec ns2 ping 10.0.2.15
+PING 10.0.2.15 (10.0.2.15) 56(84) bytes of data.
+64 bytes from 10.0.2.15: icmp_seq=1 ttl=64 time=0.083 ms
+64 bytes from 10.0.2.15: icmp_seq=2 ttl=64 time=0.115 ms
+EOF
+}
+
+ip_netns_t_veth_route_route(){ cat - <<'EOF'
+route: default gw 192.168.1                                     route: default gw 192.168.2.1
+
++------------------+     +------------------+                   +------------------+     +------------------+
+|                  |     |                  |                   |                  |     |                  |
+|                  |     |                  |                   |                  |     |                  |
+|                  |     |                  |                   |                  |     |                  |
+|       ns1        |     |       ns2        |                   |       ns1        |     |       ns2        |
+|                  |     |                  |                   |                  |     |                  |
+|                  |     |                  |                   |                  |     |                  |
+|                  |     |                  |                   |                  |     |                  |
+|  192.168.1.2/24  |     |  192.168.1.3/24  |                   |  192.168.2.2/24  |     |  192.168.2.3/24  |
++---+(veth+ns1)+---+     +---+(veth+ns2)+---+                   +---+(veth+ns1)+---+     +---+(veth+ns2)+---+
+         +                          +                                    +                          +
+         |                          |                                    |                          |
+         |                          |                                    |                          |
+         +                          +                                    +                          +
++-+(veth+ns1+br)+-----------+(veth+ns2+br)+-+                   +-+(veth+ns1+br)+-----------+(veth+ns2+br)+-+
+|                                           |                   |                                           |
+|               Linux bridge                |                   |               Linux bridge                |
+|                                           |                   |                                           |
++-----------------(br0)---------------------+                   +-----------------(br0)---------------------+
+                    |                                                               |
+                    |                                                               |
+                    |                                                               |
++-----------------(br0)---------------------+                   +-----------------(br0)---------------------+
+|            192.168.1.1/24                 |                   |            192.168.2.1/24                 |
+|        default network namespace          |                   |        default network namespace          |
+|       (Linux Kernel IP Forwarding)        |                   |       (Linux Kernel IP Forwarding)        |
+|                                           |                   |                                           |
+|              10.0.2.15                    |                   |              10.0.2.16                    |
++---------------(enp0s3)--------------------+                   +---------------(enp0s3)--------------------+
+                   +                                                              +
+                   | route: 192.168.2.0/24 via 10.0.2.16                          |  route: 192.168.1.0/24 via 10.0.2.15
+                   |                                                              |
+                   |                                                              |
+                   |                                                              |
+                   +--------------------------------------------------------------+
+EOF
+}
+
+ip_netns_t_vlan_veth(){ cat - <<'EOF'
+vlan的创建方式.2.基于veth
+ip netns add netns1
+ip netns add netns2
+
+ip link add veth11 type veth peer name veth21
+ip link set veth11 netns netns1
+ip link set veth21 netns netns2
+
+ip netns exec netns1 ip addr add 10.1.1.1/24 dev veth11
+ip netns exec netns2 ip addr add 10.1.1.2/24 dev veth21
+ip netns exec netns1 ip link set veth11 up
+ip netns exec netns2 ip link set veth21 up
+
+此时的网络拓扑如下:
++----------------+----------------+
+|     netns1     |    netns2      |
+|  10.1.1.1/24   |   10.1.1.2/24  |
+|   +--------+   |   +--------+   |
+|   | veth11 |   |   | veth21 |   |
+|   +----|---+   |   +----|---+   |
+|        |----------------|       |
++----------------+----------------+
+此时两边互ping, 都是通的.
+netns1中ping 10.1.1.2
+
+1. 在veth设备的一端创建vlan子设备
+netns1中执行
+ip netns exec netns1 ip link add link veth11 name veth11.100 type vlan id 100
+ip netns exec netns1 ip link set veth11.100 up
+ip netns exec netns1 ip addr del 10.1.1.1/24 dev veth11
+ip netns exec netns1 ip addr add 10.1.1.1/24 dev veth11.100
+
+将IP地址从veth11转移到veth11.100会使路由记录变更, 之后的ping请求就会从veth11.100接口发出.
+## 转移前
+$ ip route
+10.1.1.0/24 dev veth11 proto kernel scope link src 10.1.1.1
+## 转移后
+$ ip route
+10.1.1.0/24 dev veth11.100 proto kernel scope link src 10.1.1.1
+
+此时的网络拓扑如下:
+
++--------------------------------------+----------------+
+|                           netns1     |    netns2      |
+|     10.1.1.1/24                      |    10.1.1.2/24 |
+|   +------------+        +--------+   |   +--------+   |
+|   | veth11.100 | <----> | veth11 |   |   | veth21 |   |
+|   +------------+  vlan  +----|---+   |   +----|---+   |
+|                              |----------------|       |
++--------------------------------------+----------------+
+netns1中再次ping 10.1.1.2,
+
+tcpdump -nve -i veth21
+输出中可以看到vlan字段, 正是创建veth11.100时指定的值. 这表示数据包在veth11.100 -> veth11的线路中流动时, 
+会携带前者的vlan tag. 另外, 由于不通, 抓包记录中是没有回应的.
+
+这说明veth21虽然接收到了, 但并没有能力处理带有vlan tag的数据包.
+
+但是反过来却是不同的
+
+从netns2中ping 10.1.1.1, 也ping不通, 在netns1接口上抓包显示如下
+
+$ tcpdump -nve -i veth11
+tcpdump: listening on veth11, link-type EN10MB (Ethernet), capture size 262144 bytes
+02:10:55.744054 c6:f8:f3:12:9c:3f > Broadcast, ethertype ARP (0x0806), length 42: Ethernet (len 6), IPv4 (len 4), Request who-has 10.1.1.1 tell 10.1.1.2, length 28
+02:10:56.750594 c6:f8:f3:12:9c:3f > Broadcast, ethertype ARP (0x0806), length 42: Ethernet (len 6), IPv4 (len 4), Request who-has 10.1.1.1 tell 10.1.1.2, length 28
+$ tcpdump -nve -i veth11.100
+
+2. 在veth设备的另一端也创建vlan
+接下来的我们尝试一下在netns2中也添加类似的veth vlan子接口.
+netns2中执行
+ip netns exec netns2 ip link add link veth21 name veth21.100 type vlan id 100
+ip netns exec netns2 ip link set veth21.100 up
+ip netns exec netns2 ip addr del 10.1.1.2/24 dev veth21
+ip netns exec netns2 ip addr add 10.1.1.2/24 dev veth21.100
+
+此时的网络拓扑如下:
++--------------------------------------+--------------------------------------+
+|                           netns1     |    netns2                            |
+|     10.1.1.1/24                      |                      10.1.1.2/24     |
+|   +------------+        +--------+   |   +--------+        +------------+   |
+|   | veth11.100 | <----> | veth11 |   |   | veth21 | <----> | veth21.100 |   |
+|   +------------+  vlan  +----|---+   |   +----|---+  vlan  +------------+   |
+|                              |----------------|                             |
++--------------------------------------+--------------------------------------+
+从netns1中ping 10.1.1.2, 这次成功了.
+
+
+3. 创建另一个vlan
++--------------------------------------+----------------------------------------+
+|                           netns1     |    netns2              10.1.1.2/24     |
+|                                      |                  100 +-------------+   |
+|     10.1.1.1/24                      |                |-----| veth2.100   |   |
+|   +------------+        +--------+   |   +--------+   |     +-------------+   |
+|   | veth11.100 | <----> | veth11 |   |   | veth21 |---|                       |
+|   +------------+  vlan  +----|---+   |   +----|---+   |     +-------------+   |
+|                              |----------------|       |-----|  veth2.200  |   |
+|                                      |                  200 +-------------+   |
++--------------------------------------+----------------------------------------+
++--------------------------------------+----------------------------------------+
+|                           netns1     |    netns2        100 +-------------+   |
+|     10.1.1.1/24                      |                |-----|  veth2.100  |   |
+|   +------------+        +--------+   |   +--------+   |     +-------------+   |
+|   | veth11.100 | <----> | veth11 |   |   | veth21 |---|                       |
+|   +------------+  vlan  +----|---+   |   +----|---+   |     +-------------+   |
+|                              |----------------|       |-----|  veth2.200  |   |
+|                                      |                  200 +-------------+   |
+|                                      |                        10.1.1.12/24    |
++--------------------------------------+----------------------------------------+
+
+
+总结
+    由于两个netns间的通信包都是带有vlan tag的, 所以可以得出, 包的起点是veth11.100和veth21.100.
+    实际连接两个netns的仍然是veth pair.
+    将IP从veth pair上转移到veth vlan设备是为了路由能从veth11.100或veth21.100上发出.
+    无vlan tag的数据包在veth11 -> veth11.100流通中是被阻断的.
+    veth vlan也需要匹配才能被回应, 否则ping不通.
+可以说veth vlan是用于为数据包添加vlan tag, 并且接收指定vlan tag的设备, 而veth本身则像是物理网线, 只进行数据透传, 不做任何修改.
+EOF
+}
+
+ip_netns_t_dockerd(){ cat - <<'EOF'
+- n1上创建br0
+ip link add br0 type bridge
+ip link set dev br0 up
+ip addr add 10.1.1.1/24 dev br0
+
+
+- n2上创建br1
+ip link add br1 type bridge
+ip link set dev br1 up
+ip addr add 20.1.1.1/24 dev br1
+
+
+- n1启动docker
+ dockerd -b br0
+
+- n2启动docker
+ dockerd -b br1
+tip: dockerd --help可以看到dockerd的选项
+
+- n1上写路由
+ip r a 20.1.1.0/24 via 192.168.14.133
+
+- n2上写路由
+ip r a 10.1.1.0/24 via 192.168.14.132
+
+- n1和n2 开启
+echo 1 > /proc/sys/net/ipv4/ip_forward
+iptables -P FORWARD ACCEPT
+EOF
+}
+
+# https://github.com/generals-space/note-devops/tree/master/网络系统/虚拟网络/vlan
+
+ip_netns_t_vlan_filtering_v1(){ cat - <<'EOF'
+veth1 -> vid 100: veth1可以看作网线, 对数据进行透传, 其流入的数据包可能包含vlan tag, 也可能没有.
+  如果数据包是untagged的, 则不会被接收;
+  如果数据包中包含vlan tag, 但vlan id不为100, 也不会接收;
+  只有数据包中包含vlan tag且vlan id为100才会被接收并转发;
+
+1. 部署实验网络
+ip netns add netns1
+ip netns add netns2
+ip netns add netns3
+
+ip link add veth11 type veth peer name veth31
+ip link add veth22 type veth peer name veth32
+
+ip link set veth11 netns netns1
+ip link set veth22 netns netns2
+ip link set veth31 netns netns3
+ip link set veth32 netns netns3
+
+ip netns exec netns1 ip addr add 10.1.1.1/24 dev veth11
+ip netns exec netns2 ip addr add 10.1.1.2/24 dev veth22
+ip netns exec netns1 ip link set veth11 up
+ip netns exec netns2 ip link set veth22 up
+ip netns exec netns3 ip link set veth31 up
+ip netns exec netns3 ip link set veth32 up
+
+在netns3中创建, 配置bridge, 并将veth31与veth32接入.
+ip netns exec netns3 ip link add mybr0 type bridge
+ip netns exec netns3 ip link set mybr0 up
+ip netns exec netns3 ip link set veth31 master mybr0
+ip netns exec netns3 ip link set veth32 master mybr0
+ip netns exec netns3 ip link set dev mybr0 type bridge vlan_filtering 1
+
+此时网络拓扑如下
++-------------+-------------------------------------------------------+
+|   netns1    |                  netns3                 |   netns2    |
+| 10.1.1.1/24 |                                         | 10.1.1.2/24 |
+|  +-------+  |  +-------+     +-------+     +-------+  |  +-------+  |
+|  | veth11|  |  | veth31| <-> | mybr0 | <-> | veth32|  |  | veth22|  |
+|  +---|---+  |  +---|---+     +-------+     +----|--+  |  +--|----+  |
+|      |-------------|                            |-----------|       |
++-------------+-----------------------------------------+-------------+
+
+在netns1和netns2中相互是可以ping通的.
+而且bridge中的配置如下
+$ bridge vlan show
+port	vlan ids
+veth31	 1 PVID Egress Untagged
+veth32	 1 PVID Egress Untagged
+mybr0	 1 PVID Egress Untagged
+===============================================================================
+    本例中验证的端口中没有pvid标记, 所以我们需要手动移除. 而且可能还需要通过检验流出的数据包, 确定我们的假设, 
+所以可能的连接出口需要移除untagged标记.
+bridge vlan del dev veth31 vid 1
+bridge vlan del dev veth32 vid 1
+bridge vlan add dev veth31 vid 100
+bridge vlan add dev veth32 vid 100 untagged
+
+$ bridge vlan show
+port	vlan ids
+veth31	 100
+veth32	 100    Egress Untagged
+mybr0	 1 PVID Egress Untagged
+此时在netns1中ping 10.1.1.2不通, 而且抓包时, mybr0中没有任何显示(veth32就更不用说了), 就是说没有数据包能流入.
+
+===============================================================================
+ip netns exec netns1 ip link add link veth11 name veth11.100 type vlan id 100
+ip netns exec netns1 ip link set veth11.100 up
+ip netns exec netns1 ip addr del 10.1.1.1/24 dev veth11
+ip netns exec netns1 ip addr add 10.1.1.1/24 dev veth11.100
+这会让网络拓扑变成如下结构
++-------------------------------+-------------------------------------------------------+
+|                     netns1    |                  netns3                 |   netns2    |
+|   10.1.1.1/24                 |                                         | 10.1.1.2/24 |
+|  +-----------+     +-------+  |  +-------+     +-------+     +-------+  |  +-------+  |
+|  | veth11.100| <-> | veth11|  |  | veth31| <-> | mybr0 | <-> | veth32|  |  | veth22|  |
+|  +-----------+     +---|---+  |  +---|---+     +-------+     +----|--+  |  +---|---+  |
+|                        |-------------|                            |------------|      |
++-------------------------------+-----------------------------------------+-------------+
+从veth11.100设备出发的数据包会携带值为100的vlan tag, 再经过veth11和veth31透传接入mybr0. 此时虽然在netns1中ping 10.1.1.2还是不通, 
+但是mybr0, veth32, veth22接口上已经可以抓到ARP的广播包了.
+
+$ tcpdump -nve -i veth32
+至于第2点, 就更不用说了, 可以试试.
+ip netns exec netns1 ip link del veth11.100
+ip netns exec netns1 ip link add link veth11 name veth11.200 type vlan id 200
+ip netns exec netns1 ip link set veth11.200 up
+ip netns exec netns1 ip addr add 10.1.1.1/24 dev veth11.200
+EOF
+}
+
+ip_netns_t_vlan_filtering_v2(){ cat - <<'EOF'
+veth1 -> vid 100 pvid:
+    如果数据包是untagged的, 则会被接收, 且会被打上值为100的vlan tag, 之后也会根据此值寻找合适的端口进行转发;
+    数据数据包中包含vlan tag, 但vlan id不为100, 也不会接收;
+    只有数据包中包含vlan tag且vlan id为100才会被接收并转发;
+    
+网络拓扑如下
++-------------+-------------------------------------------------------+
+|   netns1    |                  netns3                 |   netns2    |
+| 10.1.1.1/24 |                                         | 10.1.1.2/24 |
+|  +-------+  |  +-------+     +-------+     +-------+  |  +-------+  |
+|  | veth11|  |  | veth31| <-> | mybr0 | <-> | veth32|  |  | veth22|  |
+|  +---|---+  |  +---|---+     +-------+     +----|--+  |  +----|--+  |
+|      |-------------|                            |-------------|     |
++-------------+-----------------------------------------+-------------+
+
+在netns1和netns2中相互是可以ping通的.
+而且bridge中的配置如下
+$ bridge vlan show
+port	vlan ids
+veth31	 1 PVID Egress Untagged
+veth32	 1 PVID Egress Untagged
+mybr0	 1 PVID Egress Untagged
+
+===============================================================================
+bridge vlan del dev veth31 vid 1
+bridge vlan del dev veth32 vid 1
+bridge vlan add dev veth31 vid 100 pvid ## 只有这条命令与实验一不同
+bridge vlan add dev veth32 vid 100 
+
+此时vlan配置如下
+$ bridge vlan show
+port	vlan ids
+veth31	 100 PVID
+veth32	 100 
+mybr0	 1 PVID Egress Untagged
+此时在netns1中ping 10.1.1.2无法成功. 在netns3中抓包
+
+mybr0
+$ tcpdump -nve -i mybr0
+veth32
+$ tcpdump -nve -i veth32
+
+===============================================================================
+然后执行如下命令
+ip netns exec netns1 ip link add link veth11 name veth11.200 type vlan id 200
+ip netns exec netns1 ip link set veth11.200 up
+ip netns exec netns1 ip addr del 10.1.1.1/24 dev veth11
+ip netns exec netns1 ip addr add 10.1.1.1/24 dev veth11.200
+
+这会让网络拓扑变成如下结构
++-------------------------------+-------------------------------------------------------+
+|                     netns1    |                  netns3                 |   netns2    |
+|   10.1.1.1/24                 |                                         | 10.1.1.2/24 |
+|  +-----------+     +-------+  |  +-------+     +-------+     +-------+  |  +-------+  |
+|  | veth11.200| <-> | veth11|  |  | veth31| <-> | mybr0 | <-> | veth32|  |  | veth22|  |
+|  +-----------+     +---|---+  |  +---|---+     +-------+     +----|--+  |  +----|-+   |
+|                        |-------------|                            |-------------|     |
++-------------------------------+-----------------------------------------+-------------+
+
+此时在netns1中ping 10.1.1.2当然还是ping不通, 但是在netns3中抓包发现, mybr0中没有数据流入, 说明pvid的存在并不能凌驾于只有vlan tag匹配才允许接受的规则之上. 这就验证了第2点.
+
+ok, 现在我们把veth11.200修改为veth11.100, 让来自netns1的数据包中vlan tag的值修改为100.
+
+ip netns exec netns1 ip link del veth11.200
+ip netns exec netns1 ip link add link veth11 name veth11.100 type vlan id 100
+ip netns exec netns1 ip link set veth11.100 up
+ip netns exec netns1 ip addr add 10.1.1.1/24 dev veth11.100
+
+好了, 现在有了.
+mybr0
+$ tcpdump -nve -i mybr0
+veth32
+$ tcpdump -nve -i veth32
+EOF
+}
+
+ip_netns_t_vlan_filtering_v3(){ cat - <<'EOF'
+veth1.100 -> vid 200: 重点: 由于来自veth1.100流入的数据包带有的vlan tag中的vlan id为100, 所以不会被接收.
+
+EOF
+}
+
+ip_netns_t_vlan_filtering_v3(){ cat - <<'EOF'
+vid 100 -> veth1.100: 从bridge端口中流出的数据包带有值与veth vlan设备的相同的vlan tag, 可以被后者接收. 
+vid 200 -> veth1.100: 从bridge端口流出的数据包带有值为200的vlan tag, 但仍会被veth1.100修改为100. untagged -> veth1.100: 
+从bridge端口流出的数据包不带vlan tag, 也会被veth1.100添加上值为100的vlan tag.
+
+bridge vlan del dev veth31.100 vid 1
+bridge vlan del dev veth32 vid 1
+bridge vlan add dev veth31.100 vid 100
+bridge vlan add dev veth32 vid 100 pvid
+
+此时vlan配置如下
+$ bridge vlan show
+port	vlan ids
+veth32	 100 PVID
+veth31.100	 100
+veth31.100
+mybr0	 1 PVID Egress Untagged
+
+EOF
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

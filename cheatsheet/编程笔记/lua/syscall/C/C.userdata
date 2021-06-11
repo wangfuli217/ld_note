@@ -1,0 +1,91 @@
+-- https://github.com/shenjun4hxsd/ProgrammingInLua/blob/320b9de27ffc630225aad8d922648369a7030aca/%E7%AC%AC%E4%B8%80%E7%AB%A0%20Lua%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/1_18%20%E7%94%A8%E6%88%B7%E8%87%AA%E5%AE%9A%E4%B9%89%E7%B1%BB%E5%9E%8B.md
+
+-- https://www.cnblogs.com/sevenyuan/p/7297964.html
+
+--[[ 元表 -> 利用metatable标识userdata来增加代码的安全性
+  一种辨别不同类型的userdata的方法是，为每种类型创建一个唯一的元表。每当创建了一个userdata后，
+就用相应的元表来标记它。而每当得到一个userdata后，就检查它是否拥有正确的元表。由于Lua代码不能
+改变userdata的元表，因此也就无法欺骗代码了。
+
+  另外还需要有个地方来存储这个新的元表，然后才能用它来创建新的userdata，并检查给定的userdata
+是否具有正确的类型。在前面已提到过，有三个候选地可用于存储元表：注册表、环境或程序库中函数的
+upvalue。在Lua中，通常习惯是将所有新的C类型注册到注册表中，以一个类型名作为key，元表作为value。
+由于注册表中还有其他的内容，所以必须小心地选择类型名，以避免与key冲突。在示例中，将使用
+"LuaBook.array"作为其新类型的名称。
+
+通常，辅助库中提供了一些函数来帮助实现这些内容。可以使用的辅助库函数有：
+    int luaL_newmetatable(lua_State *L, const char *tname);
+    void luaL_getmetatable(lua_State *L, const char *tname);
+    void *luaL_checkudata(lua_State *L, int index, const char *tname);
+
+--]]
+
+--[[ 元表 -> 将上面的代码改造成面向对象的方式
+(1)array表只包含一个方法，也就是用来生成数组对象的new方法；
+(2)数组userdata带有metatable用于类型识别；
+(3)userdata的metatable定义__index，那么，每当访问数组的方法时，都会触发__index这个metamethod
+   (对于userdata来讲，每次被访问的时候元方法都会被调用，因为userdata根本就没有任何key)；
+(4)将metatable.__index设为该表metatable本身(__index可以为函数或者表，这里使用后者)；
+(5)metatable包含其余所有的数组操作函数。
+    那么每当调用userdata的某个方法时，比如a:size()，它等同于a.size(a)，这时会触发userdata的名为
+__index的metamethod，metatable的__index就是它本身，而metatable表中有size域，所以调用metatable的size(a)函数。
+
+    我们单独为该数组创建一个metatable，每次创建数组userdata时，我们设置其和metatable的关联。
+每次我们访问数组的时候，都检查一下其是否有一个正确的metatable即可。
+也就是利用不同的metatable来标记不同类型的userdata。
+因为Lua代码不能够改变userdata的metatable，所以Lua不会伪造我们的代码。
+--]]
+
+--[[ 元表 -> 以数组下标的形式访问
+
+--]]
+
+--[[
+1. LUA_TUSERDATA
+int lua_type (lua_State *L, int index);
+返回给定有效索引处值的类型，当索引无效(或无法访问)时则返回 LUA_TNONE。
+2. int lua_islightuserdata (lua_State *L, int index);
+当给定索引的值是一个轻量用户数据时，返回 1 ，否则返回 0 。
+3. int lua_isuserdata (lua_State *L, int index);
+当给定索引的值是一个用户数据(无论是完全的还是轻量的)时， 返回 1 ，否则返回 0 。
+4.void *lua_newuserdata (lua_State *L, size_t size);
+这个函数分配一块指定大小的内存块， 把内存块地址作为一个完全用户数据压栈， 并返回这个地址。 宿主程序可以随意使用这块内存。
+5. void lua_pushlightuserdata (lua_State *L, void *p);
+把一个轻量用户数据压栈。
+用户数据是保留在 Lua 中的 C 值。 轻量用户数据 表示一个指针 void*。 它是一个像数字一样的值： 你不需要专门创建它，它也没有独立的元表，而且也不会被收集（因为从来不需要创建）。 只要表示的 C 地址相同，两个轻量用户数据就相等。
+6. void *lua_touserdata (lua_State *L, int index);
+如果给定索引处的值是一个完全用户数据， 函数返回其内存块的地址。 如果值是一个轻量用户数据， 那么就返回它表示的指针。 否则，返回 NULL 。
+7. void *luaL_checkudata (lua_State *L, int arg, const char *tname);
+检查函数的第 arg 个参数是否是一个类型为 tname 的用户数据 （参见 luaL_newmetatable )。 它会返回该用户数据的地址 （参见 lua_touserdata）
+
+8. type (v)
+将参数的类型编码为一个字符串返回。 函数可能的返回值有 "nil" (一个字符串，而不是 nil 值)， "number"， "string"， "boolean"， "table"， "function"， "thread"， "userdata"。
+
+--]]
+
+--[[ metatable
+int lua_getmetatable (lua_State *L, int index);   // 从指定userdata或table获取metatable
+如果该索引处的值有元表，则将其元表压栈，返回 1 。 否则不会将任何东西入栈，返回 0 。
+
+void lua_setmetatable (lua_State *L, int index);  // 设置userdata或table的metatable值
+把一张表弹出栈，并将其设为给定索引处的值的元表。
+
+int luaL_getmetatable (lua_State *L, const char *tname);   // 根据全局从lua系统获取metatable(table对象)
+将注册表中 tname 对应的元表(参见 luaL_newmetatable)压栈。 如果没有 tname 对应的元表，则将 nil 压栈并返回假。
+
+void luaL_setmetatable (lua_State *L, const char *tname);
+将注册表中 tname 关联元表(参见 luaL_newmetatable)设为栈顶对象的元表。
+
+int luaL_newmetatable (lua_State *L, const char *tname);   // 创建一个元表(其实就是创建了个表而已)
+如果注册表中已存在键 tname，返回 0 。 否则， 为用户数据的元表创建一张新表。 
+向这张表加入 __name = tname 键值对， 并将 [tname] = new table 添加到注册表中， 返回 1 。 
+(__name项可用于一些错误输出函数)
+这两种情况都会把最终的注册表中关联 tname 的值压栈。
+
+--]]
+
+--[[ __gc
+    Lua以__gc元方法的方式提供了finalizers。这个元方法只对userdata类型的值有效。
+当一个userdata将被收集的时候，并且userdata有一个__gc域，Lua会调用这个域的值（应该是一个函数）：
+以userdata作为这个函数的参数调用。这个函数负责释放与userdata相关的所有资源，比如说文件描述符、窗口句柄等。
+--]]

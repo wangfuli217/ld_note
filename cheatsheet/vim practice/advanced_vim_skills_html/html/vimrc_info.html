@@ -1,0 +1,163 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>第 4 章 vimrc初步</title><link rel="stylesheet" href="http://easwy.com/blog/uploads/css/style.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.73.2"><link rel="start" href="index.html" title="vim使用进阶"><link rel="up" href="index.html" title="vim使用进阶"><link rel="prev" href="session_viminfo.html" title="第 3 章  使用会话(session)和viminfo"><link rel="next" href="use_sessionx.html" title="第 5 章 保存项目相关配置"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">第 4 章 vimrc初步</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="session_viminfo.html">上一页</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="use_sessionx.html">下一页</a></td></tr></table><hr></div><div class="chapter" lang="zh-CN"><div class="titlepage"><div><div><h2 class="title"><a name="vimrc_info"></a>第 4 章 vimrc初步</h2></div></div></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p>
+    <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-session-file-and-viminfo/">上一章</a>我们介绍了会话(session)文件和viminfo文件，其中<span class="emphasis"><em>'sessionoptions'</em></span>选项和<span class="emphasis"><em>'viminfo'</em></span>选项的配置可能会根据你的需要进行调整。但如何保存你所做的调整呢？我们将在这一章中介绍。
+  </p><p>
+    本节所用命令的帮助入口：
+  </p><pre class="programlisting">
+:help compatible
+:help mapleader
+:help map
+:help autocmd </pre><p>
+    <span class="emphasis"><em>为什么我的vim这么难用？不能语法高亮，没有折行，不能打开多个窗口多个buffer，不能...... </em></span>
+  </p><p>
+    <span class="emphasis"><em> 为什么别人用几个键就可以完成一个很复杂的功能，而我不能？ </em></span>
+  </p><p>
+    <span class="emphasis"><em> 为什么别人的vim看起来和我的很不一样？ </em></span>
+  </p><p><span class="emphasis"><em> ......  </em></span></p><p>
+    当你开始问这些问题的时候，是时候去检查一下你的vimrc了。
+  </p><p>
+    当vim在启动时，如果没有找到vimrc或gvimrc，它缺省工作VI兼容的模式。这意味着，你只能使用VI所具备的功能，而vim中的大量扩展功能将无法使用。也许这就是你的vim如此难用的原因。
+  </p><p>
+    vim中自带了一个vimrc例子，让我们从这个例子开始吧。
+  </p><p>
+    下面我以Linux下的vim为例，windows版本的vim，会在后面提到。
+  </p><p>
+    示例的vimrc(名为vimrc_example.vim)通常位于/usr/share/vim/vimXXX/目录下，其中vimXXX与你所使用的vim版本有关。
+  </p><p>
+    首先把这个示例的vimrc拷贝到相应的目录，在Linux下，应该把它拷贝到你的home目录下，名字为".vimrc"，下面是shell命令：
+  </p><pre class="programlisting">
+cp /usr/share/vim/vim70/vimrc_example.vim ~/.vimrc </pre><p>
+    或者你在vim中执行下面的命令，和上面的shell命令完成相同的功能：
+  </p><pre class="programlisting">
+:!cp $vimRUNTIME/vimrc_example.vim ~/.vimrc </pre><p>
+    现在，你退出vim后再进入，你的vim和刚才已经不一样了。
+  </p><p>
+    你可以先读一下你的vimrc，看看它都设定了什么：
+  </p><pre class="programlisting">
+:e ~/.vimrc </pre><p>
+    这是一个注释良好的文件，不需要多解释。
+  </p><p>
+    对windows版本的vim，它已经缺省的有了一个vimrc，你可以在vim在使用下面的命令来查看它：
+  </p><pre class="programlisting">
+:e $vim/_vimrc </pre><p>
+    在这个文件中，它包含了上面提到的vimrc_example.vim。同时，它会把vim设置的更符合windows的操作习惯。比如，支持CTRL-C拷贝，CTRL-V粘贴等等。Windows下的用户，可以使用$vim/_vimrc来做为你的第一个vimrc。
+  </p><p>
+    顺便提一句，在unix/linux中，文件名可以以"."开头，表明此文件是隐藏的。而在windows中，不允许文件名以"."开头，所以，windows版本的vim，将读取_vimrc来做为自己的配置文件。
+  </p><p>
+    在今后使用vim的日子里，你会频繁的更改你的vimrc。所以我们需要设置一些快捷方式，使我们能快速的访问vimrc。
+  </p><p>
+    把下面这段内容拷贝到你的vimrc中：
+  </p><pre class="programlisting">
+1    "Set mapleader
+2    let mapleader = ","
+3
+4    "Fast reloading of the .vimrc
+5    map &lt;silent&gt; &lt;leader&gt;ss :source ~/.vimrc&lt;cr&gt;
+6    "Fast editing of .vimrc
+7    map &lt;silent&gt; &lt;leader&gt;ee :e ~/.vimrc&lt;cr&gt;
+8    "When .vimrc is edited, reload it
+9    autocmd! bufwritepost .vimrc source ~/.vimrc </pre><p>
+    为了方便解释，我给每一行都加了一个行号。
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      在vimrc中，双引号开头的行，将被当作注释忽略。
+    </li><li>
+      第2行，用来设置mapleader变量，当mapleader为未设置或为空时，使用缺省的"\"来作为mapleader。
+      <p>
+        mapleader变量是作用是什么呢？看下面的介绍。
+      </p></li><li>
+      第5行定义了一个映射(map)，这个映射把<span class="command"><strong>&lt;leader&gt;ss</strong></span>，映射为命令<span class="command"><strong>:source ~/.vimrc&lt;cr&gt;</strong></span>。当定义一个映射时，可以使用<span class="emphasis"><em>&lt;leader&gt;</em></span>前缀。而在映射生效时，vim会把<span class="emphasis"><em>&lt;leader&gt;</em></span>替换成mapleader变量的值。也就是说，我们这里定义的<span class="command"><strong>&lt;leader&gt;ss</strong></span>在使用时就变成了"<span class="command"><strong>,ss</strong></span>"，当输入这一快捷方式时，就会source一次~/.vimrc文件(也就是重新执行一遍.vimrc文件)。
+    </li><li>
+      第7行，定义了<span class="command"><strong>&lt;leader&gt;ee</strong></span>快捷键，当输入<span class="command"><strong>,ee</strong></span>时，会打开~/.vimrc进行编辑。
+    </li><li>
+      第9行，定义了一个自动命令，每次写入.vimrc后，都会执行这个自动命令，source一次~/.vimrc文件。
+    </li></ul></div><p>
+    有了上面的快捷键，我们就能快速的打开vimrc文件编辑，快速重新source vimrc文件，方便多了。
+  </p><p>
+    无论在windows还是在linux中，我都使用vim作为我的缺省编辑器。并且，我想使用同一个vimrc文件。因此，我定义了一个MySys()函数，用来区分不同的平台，以进行不同的配置。
+  </p><p>
+    另外，在编辑vimrc文件时，我更喜欢新开一个标签页来编辑，而不是在当前窗口中。因此，我定义了SwitchToBuf()函数，它在所有标签页的窗口中查找指定的文件名，如果找到这样一个窗口，就跳到此窗口中；否则，它新建一个标签页来打开vimrc文件。(注：标签页(tab)功能只有在vim 7.0版本以上才支持。)
+  </p><p>
+    下面是我的vimrc中使用的设定，希望能够抛砖引玉：
+  </p><pre class="programlisting">
+" Platform
+function! MySys()
+  if has("win32")
+    return "windows"
+  else
+    return "linux"
+  endif
+endfunction
+
+function! SwitchToBuf(filename)
+    "let fullfn = substitute(a:filename, "^\\~/", $HOME . "/", "")
+    " find in current tab
+    let bufwinnr = bufwinnr(a:filename)
+    if bufwinnr != -1
+        exec bufwinnr . "wincmd w"
+        return
+    else
+        " find in each tab
+        tabfirst
+        let tab = 1
+        while tab &lt;= tabpagenr("$")
+            let bufwinnr = bufwinnr(a:filename)
+            if bufwinnr != -1
+                exec "normal " . tab . "gt"
+                exec bufwinnr . "wincmd w"
+                return
+            endif
+            tabnext
+            let tab = tab + 1
+        endwhile
+        " not exist, new tab
+        exec "tabnew " . a:filename
+    endif
+endfunction
+
+"Fast edit vimrc
+if MySys() == 'linux'
+    "Fast reloading of the .vimrc
+    map &lt;silent&gt; &lt;leader&gt;ss :source ~/.vimrc&lt;cr&gt;
+    "Fast editing of .vimrc
+    map &lt;silent&gt; &lt;leader&gt;ee :call SwitchToBuf("~/.vimrc")&lt;cr&gt;
+    "When .vimrc is edited, reload it
+    autocmd! bufwritepost .vimrc source ~/.vimrc
+elseif MySys() == 'windows'
+    " Set helplang
+    set helplang=cn
+    "Fast reloading of the _vimrc
+    map &lt;silent&gt; &lt;leader&gt;ss :source ~/_vimrc&lt;cr&gt;
+    "Fast editing of _vimrc
+    map &lt;silent&gt; &lt;leader&gt;ee :call SwitchToBuf("~/_vimrc")&lt;cr&gt;
+    "When _vimrc is edited, reload it
+    autocmd! bufwritepost _vimrc source ~/_vimrc
+endif
+
+" For windows version
+if MySys() == 'windows'
+    source $VIMRUNTIME/mswin.vim
+    behave mswin
+endif </pre><p>
+    注意：我在windows中也定义一个"HOME"环境变量，然后把_vimrc放在"HOME"环境变量所指向的目录中。如果你打算在windows中使用上面的设定，也需要这样做！
+  </p><p>
+    好了，现在我们知道如何永久更改<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-session-file-and-viminfo/"><span class="emphasis"><em>'sessionoptions'</em></span></a>选项和<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-session-file-and-viminfo/"><span class="emphasis"><em>'viminfo'</em></span></a>选项了，把对它们的配置放入你的vimrc即可。
+  </p><p>
+    vim自带的示例vimrc中，只定义最基本的配置。
+  </p><p>
+    在<a class="link" href="http://www.amix.dk/vim/vimrc.html">http://www.amix.dk/vim/vimrc.html</a>有一个非常强大的vimrc，有人戏称为"史上最强的vimrc"，或许有些言过其实。不过，如果你通读了这个vimrc，相信能从中学到很多......
+  </p><p>
+    <a class="link" href="http://blog.csdn.net/redguardtoo/archive/2006/09/03/1172136.aspx">这里</a>有一个redguardtoo修改过的版本，可以对照参考一下。
+  </p><p>
+    我的vimrc也是基于Amix的模板，然后自已做了很多修改。
+  </p><p>
+    <span class="bold"><strong>建议：</strong></span>不要照拷这个vimrc！可能这个文件的设定并不符合你的习惯。另外，这个文件的设定，可能也不能在你的工作环境中运行。
+  </p><p>
+    <span class="bold"><strong>[参考文档]</strong></span>
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      vim手册
+    </li><li><a class="link" href="http://vimcdoc.sourceforge.net/">vim中文手册</a></li><li><a class="link" href="http://www.amix.dk/vim/vimrc.html">http://www.amix.dk/vim/vimrc.html</a></li></ul></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p><span class="bold"><strong>原创文章，转载请注明：</strong></span>转载自<a class="link" href="http://easwy.com/blog/">Easwy的博客</a> [  <a class="link" href="http://easwy.com/blog/">http://easwy.com/blog/</a> ]</p><p><span class="bold"><strong>　　　　本文链接地址:</strong></span> <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-introduce-vimrc/">http://easwy.com/blog/archives/advanced-vim-skills-introduce-vimrc/</a></p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="session_viminfo.html">上一页</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="use_sessionx.html">下一页</a></td></tr><tr><td width="40%" align="left" valign="top">第 3 章 
+    使用会话(session)和viminfo
+   </td><td width="20%" align="center"><a accesskey="h" href="index.html">起始页</a></td><td width="40%" align="right" valign="top"> 第 5 章 保存项目相关配置</td></tr></table></div></body></html>

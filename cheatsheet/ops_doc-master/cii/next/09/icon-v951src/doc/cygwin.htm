@@ -1,0 +1,127 @@
+<!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+    <TITLE>Icon on Cygwin</TITLE>
+    <LINK REL="STYLESHEET" TYPE="text/css" HREF="istyle.css">
+    <LINK REL="SHORTCUT ICON" HREF="shortcut.gif">
+</HEAD>
+<BODY>
+
+<P><A HREF="http://www.cs.arizona.edu/icon/"> <IMG SRC="wwwcube.gif"
+ALT="[Icon home]" WIDTH=128 HEIGHT=144 BORDER=0 ALIGN=RIGHT> </A>
+
+<H1> Icon on Cygwin </H1>
+
+<P> Gregg M. Townsend
+<BR> <SMALL> Department of Computer Science </SMALL>
+<BR> <SMALL> The University of Arizona </SMALL>
+
+<P> Carl Sturtivant
+<BR> <SMALL> Computer Science &amp; Engineering Department </SMALL>
+<BR> <SMALL> University of Minnesota </SMALL>
+
+<P> <SMALL> www.cs.arizona.edu/icon/v951/cygwin.htm
+<BR> 
+Last updated June 5, 2013</SMALL>
+<!-- $Id: cygwin.htm,v 1.15 2013/06/05 21:05:07 gmt Exp $ -->
+
+
+<H2> Introduction </H2>
+
+<P> Most contemporary operating systems trace their underlying design
+to the Unix operating system,
+as refined and specified today by the POSIX family of standards.
+Microsoft Windows, however, was developed independently and
+defines a different set of interfaces for the programmer and the user.
+
+<P> The <A HREF="http://www.cygwin.com/">Cygwin</A> package provides a
+Unix environment under Microsoft Windows.
+This allows the latest version of Icon (and many other things)
+to be built on a Windows system.
+Successful use of Cygwin requires familiarity with both 
+Windows and Unix.
+
+<P> This document describes some of the peculiarities of the Cygwin
+port of Icon.
+These differences are not necessarily identified in other documentation.
+
+
+<H2> Building Icon </H2>
+
+<P> Icon is built in a Cygwin shell window using the same process as on
+on other platforms.
+The configuration name is <CODE>cygwin</CODE>.
+See the <A HREF=build.htm>installation documentation</A> for instructions.
+
+<P> The Cygwin package is available from
+<A HREF="http://www.cygwin.com/">www.cygwin.com</A>.
+A custom installation of the Cygwin system is required;
+the default installation provides a bare-bones system
+insufficient for building software.
+Icon requires a C compiler and the usual tools and utilities
+available on a standard POSIX development system; these are found
+in the <CODE>gcc-core</CODE> and <CODE>make</CODE> packages.
+
+<P> Additional Cygwin/X packages must also be included in the installation
+if Icon is to be built with graphics enabled.
+The necessary packages are detailed at
+<A HREF="http://x.cygwin.com">x.cygwin.com</A>.
+
+
+<H2> Running Icon programs </H2>
+
+<P> Icon is run by commands entered in a Cygwin terminal window.
+The simplest command is "<CODE>icon prog.icn</CODE>",
+which runs the program contained in the source file <CODE>prog.icn</CODE>.
+The translator <CODE>icont</CODE> can create executable programs
+from Icon source code.
+The Unix-style "man pages" for <A HREF=icon.txt><CODE>icon</CODE></A>
+and <A HREF=icont.txt><CODE>icont</CODE></A>
+describe the command options in a traditionally cryptic manner.
+
+
+<H2> Interpreter path and environment</H2>
+
+<P> Icon programs require an interpreter for execution.
+On Windows, the path of the interpreter is not embedded
+in an executable program.
+The program must be able to find
+<CODE>iconx.exe</CODE> in the search path. Icon programs
+must be run from a Cygwin command shell or xterm window.
+
+<P> The <A HREF="http://x.cygwin.com">Cygwin/X</A>
+server must be running, with a correct <CODE>DISPLAY</CODE>
+variable in the environment, to execute graphics programs.
+The Cygwin installation must therefore include Cygwin/X,
+in which case the X server may be started from 
+a shortcut or the Start menu in Windows 7, before a command is issued
+to execute such a graphics program.
+
+
+<H2> Feature test symbols </H2>
+
+<P> The symbols <CODE>_MS_WINDOWS</CODE> and <CODE>_CYGWIN</CODE>
+are defined by the Icon preprocessor.
+The symbol <CODE>_UNIX</CODE> is not defined.
+The symbol <CODE>_GRAPHICS</CODE> is defined if Icon is built with
+graphics enabled, as is the symbol <CODE>_X_WINDOW_SYSTEM</CODE>.
+The corresponding strings are produced or omitted, as appropriate,
+by the <CODE>&amp;features</CODE> keyword.
+
+
+<H2> Building dynamic libraries of loadable C code </H2>
+
+<P> The Icon function <CODE>loadfunc</CODE> allows
+specially written C code to be loaded and called by an Icon program.
+See <A HREF="cfuncs.htm">Loading C Functions in Icon</A>.
+
+<P> When building a <CODE>loadfunc</CODE> library under Cygwin,
+link to the import library <CODE>iconx.a</CODE> located in the
+<CODE>bin</CODE> directory of the Icon distribution.
+This allows callbacks to functions in <CODE>iconx</CODE>,
+which happens by default on UNIX-like platforms but not on Windows.
+
+<P> <HR>
+
+</BODY>
+</HTML>

@@ -1,0 +1,376 @@
+http://www.openwrtdl.com/wordpress/openwrt%E7%94%9F%E6%88%90%E5%9B%BA%E4%BB%B6firmware%E6%B5%81%E7%A8%8B
+
+openwrt生成固件firmware过程 # http://blog.csdn.net/viewsky11/article/details/53097672?locationNum=9&fps=1
+
+cp $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux.elf $cc/bin/ramips/openwrt-ramips-mt7620-vmlinux.elf
+cp $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux $cc/bin/ramips/openwrt-ramips-mt7620-vmlinux.bin
+ 
+#内核文件用lzma压缩，生成vmlinux.bin.lzma
+$cc/staging_dir/host/bin/lzma e $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux -lc1 -lp2 -pb2 $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux.bin.lzma
+ 
+#用mkimage命令根据vmlinux.bin.lzma生成uImage.lzma
+LZMA 4.65 : Igor Pavlov : Public domain : 2009-02-03
+mkimage -A mips -O linux -T kernel -C lzma -a 0x80000000 -e 0x80000000 -n "MIPS OpenWrt Linux-3.18.29" -d $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux.bin.lzma $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/uImage.lzma
+Image Name:   MIPS OpenWrt Linux-3.18.29
+Created:      Tue May 10 20:43:10 2016
+Image Type:   MIPS Linux Kernel Image (lzma compressed)
+Data Size:    1137576 Bytes = 1110.91 kB = 1.08 MB
+Load Address: 80000000
+Entry Point:  80000000
+#将生成的uImage.lzma复制成openwrt-ramips-mt7620-uImage.bin
+cp $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/uImage.lzma $cc/bin/ramips/openwrt-ramips-mt7620-uImage.bin
+ 
+#用mksquashfs4压缩文件系统squashfs
+$cc/staging_dir/host/bin/mksquashfs4 $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/root-ramips $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.squashfs -nopad -noappend -root-owned -comp xz -Xpreset 9 -Xe -Xlc 0 -Xlp 2 -Xpb 2  -b 256k -p '/dev d 755 0 0' -p '/dev/console c 600 0 0 5 1' -processors 1
+Parallel mksquashfs: Using 1 processor
+Creating 4.0 filesystem on $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.squashfs, block size 262144.
+Pseudo file "/dev" exists in source filesystem "$cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/root-ramips/dev".
+Ignoring, exclude it (-e/-ef) to override.
+[=============================================================================================================================================================-] 959/959 100%
+Exportable Squashfs 4.0 filesystem, xz compressed, data block size 262144
+        compressed data, compressed metadata, compressed fragments, no xattrs
+        duplicates are removed
+Filesystem size 4604.89 Kbytes (4.50 Mbytes)
+        29.59% of uncompressed filesystem size (15562.88 Kbytes)
+Inode table size 9708 bytes (9.48 Kbytes)
+        23.48% of uncompressed inode table size (41347 bytes)
+Directory table size 12216 bytes (11.93 Kbytes)
+        47.85% of uncompressed directory table size (25528 bytes)
+Number of duplicate files found 17
+Number of inodes 1247
+Number of files 933
+Number of fragments 30
+Number of symbolic links  207
+Number of device nodes 1
+Number of fifo nodes 0
+Number of socket nodes 0
+Number of directories 106
+Number of ids (unique uids + gids) 1
+Number of uids 1
+        root (0)
+Number of gids 1
+        root (0)
+############squashfs文件系统生成成功###############
+##开始生成jffs2-64k文件系统
+$cc/staging_dir/host/bin/mkfs.jffs2 --little-endian --squash-uids -v -X rtime -X lzma --compression-mode=size -x zlib -D $cc/include/device_table.txt --pad -e 64KiB -o $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.jffs2-64k -d $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/root-ramips -v 2>&1 1>/dev/null | awk '/^.+$/'
+Compression mode: size
+Compressors:
+      none             compr: 177 blocks (109257)  decompr: 0 blocks
+      zlib (prio:80) - compr: 0 blocks (0/0)  decompr: 0 blocks 
+      lzma (prio:70) + compr: 4463 blocks (6551797/15742007)  decompr: 0 blocks 
+     rtime (prio:50) + compr: 10 blocks (5292/7660)  decompr: 0 blocks 
+Compression errors: 0
+echo -ne '\xde\xad\xc0\xde' >> $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.jffs2-64k
+##生成jffs2-128k文件系统
+$cc/staging_dir/host/bin/mkfs.jffs2 --little-endian --squash-uids -v -X rtime -X lzma --compression-mode=size -x zlib -D $cc/include/device_table.txt --pad -e 128KiB -o $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.jffs2-128k -d $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/root-ramips -v 2>&1 1>/dev/null | awk '/^.+$/'
+Compression mode: size
+Compressors:
+      none             compr: 126 blocks (63985)  decompr: 0 blocks
+      zlib (prio:80) - compr: 0 blocks (0/0)  decompr: 0 blocks 
+      lzma (prio:70) + compr: 4463 blocks (6569958/15781501)  decompr: 0 blocks 
+     rtime (prio:50) + compr: 13 blocks (10252/13438)  decompr: 0 blocks 
+Compression errors: 0
+echo -ne '\xde\xad\xc0\xde' >> $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.jffs2-128k
+ 
+#生成ext4文件系统
+$cc/staging_dir/host/bin/make_ext4fs -l 50331648 -b 4096 -i 6000 -m 0 -J $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.ext4 $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/root-ramips/
+Creating filesystem with parameters:
+    Size: 50331648
+    Block size: 4096
+    Blocks per group: 32768
+    Inodes per group: 6000
+    Inode size: 256
+    Journal blocks: 0
+    Label: 
+    Blocks: 12288
+    Block groups: 1
+    Reserved blocks: 0
+    Reserved block group size: 7
+Created filesystem with 1256/6000 inodes and 5051/12288 blocks
+#生成两个jffs2文件系统的raw，但是没看到他怎么使用它
+$cc/staging_dir/host/bin/mkfs.jffs2 --little-endian --squash-uids -v -X rtime -X lzma --compression-mode=size -x zlib -D $cc/include/device_table.txt -e 64KiB -o $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.jffs2-64k-raw -d $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/root-ramips -v 2>&1 1>/dev/null | awk '/^.+$/'
+Compression mode: size
+Compressors:
+      none             compr: 177 blocks (109257)  decompr: 0 blocks
+      zlib (prio:80) - compr: 0 blocks (0/0)  decompr: 0 blocks 
+      lzma (prio:70) + compr: 4463 blocks (6551797/15742007)  decompr: 0 blocks 
+     rtime (prio:50) + compr: 10 blocks (5292/7660)  decompr: 0 blocks 
+Compression errors: 0
+$cc/staging_dir/host/bin/mkfs.jffs2 --little-endian --squash-uids -v -X rtime -X lzma --compression-mode=size -x zlib -D $cc/include/device_table.txt -e 128KiB -o $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.jffs2-128k-raw -d $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/root-ramips -v 2>&1 1>/dev/null | awk '/^.+$/'
+Compression mode: size
+Compressors:
+      none             compr: 126 blocks (63985)  decompr: 0 blocks
+      zlib (prio:80) - compr: 0 blocks (0/0)  decompr: 0 blocks 
+      lzma (prio:70) + compr: 4463 blocks (6569958/15781501)  decompr: 0 blocks 
+     rtime (prio:50) + compr: 13 blocks (10252/13438)  decompr: 0 blocks 
+Compression errors: 0
+#用dd生成最终的squashfs文件系统
+dd if=$cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.squashfs of=$cc/bin/ramips/openwrt-ramips-mt7620-root.squashfs bs=128k conv=sync
+35+1 records in
+36+0 records out
+4718592 bytes (4.7 MB) copied, 0.0153264 s, 308 MB/s
+ 
+cp $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux-mt7620a
+$cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/linux-3.18.29/scripts/dtc/dtc -O dtb -o $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/MT7620a.dtb ../dts/MT7620a.dts
+#patch-dtb命令
+$cc/staging_dir/host/bin/patch-dtb $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux-mt7620a $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/MT7620a.dtb
+ 
+#lzma生成vmlinux-mt7620a.bin.lzma
+$cc/staging_dir/host/bin/lzma e $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux-mt7620a -lc1 -lp2 -pb2 $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux-mt7620a.bin.lzma
+ 
+LZMA 4.65 : Igor Pavlov : Public domain : 2009-02-03
+ 
+#mkimage根据vmlinux-mt7620a.bin.lzma生成vmlinux-mt7620a.uImage
+mkimage -A mips -O linux -T kernel -C lzma -a 0x80000000 -e 0x80000000 -n "MIPS OpenWrt Linux-3.18.29" -d $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux-mt7620a.bin.lzma $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux-mt7620a.uImage
+Image Name:   MIPS OpenWrt Linux-3.18.29
+Created:      Tue May 10 20:43:41 2016
+Image Type:   MIPS Linux Kernel Image (lzma compressed)
+Data Size:    1139383 Bytes = 1112.68 kB = 1.09 MB
+Load Address: 80000000
+Entry Point:  80000000
+#组合vmlinux-mt7620a.uImage和root.squashfs生成最终固件openwrt-ramips-mt7620-mt7620a-squashfs-sysupgrade.bin
+cat $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/vmlinux-mt7620a.uImage $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.squashfs > $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/openwrt-ramips-mt7620-mt7620a-squashfs-sysupgrade.bin
+#padjffs2命令处理固件
+$cc/staging_dir/host/bin/padjffs2 $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/openwrt-ramips-mt7620-mt7620a-squashfs-sysupgrade.bin 4 8 16 64 128 256
+padding image to 00596000
+padding image to 00598000
+padding image to 005a0000
+padding image to 005c0000
+if [ `stat -c%s "$cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/openwrt-ramips-mt7620-mt7620a-squashfs-sysupgrade.bin"` -gt 8060928 ]; then echo "Warning: $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/openwrt-ramips-mt7620-mt7620a-squashfs-sysupgrade.bin is too big" >&2; else cp -fpR $cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/openwrt-ramips-mt7620-mt7620a-squashfs-sysupgrade.bin $cc/bin/ramips/openwrt-ramips-mt7620-mt7620a-squashfs-sysupgrade.bin; fi
+#dd处理root.jffs2-64k生成最终的文件系统
+dd if=$cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.jffs2-64k of=$cc/bin/ramips/openwrt-ramips-mt7620-root.jffs2-64k bs=128k conv=sync
+54+1 records in
+55+0 records out
+7208960 bytes (7.2 MB) copied, 0.00730228 s, 987 MB/s
+#dd处理root.jffs2-128k，生成最终的文件系统
+dd if=$cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.jffs2-128k of=$cc/bin/ramips/openwrt-ramips-mt7620-root.jffs2-128k bs=128k conv=sync
+54+1 records in
+55+0 records out
+7208960 bytes (7.2 MB) copied, 0.00964141 s, 748 MB/s
+#dd处理root.ext4，生成最终的文件系统
+dd if=$cc/build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620/root.ext4 of=$cc/bin/ramips/openwrt-ramips-mt7620-root.ext4 bs=128k conv=sync
+384+0 records in
+384+0 records out
+50331648 bytes (50 MB) copied, 0.171708 s, 293 MB/s
+( cd $cc/bin/ramips ; find -maxdepth 1 -type f \! -name 'md5sums'  -printf "%P\n" | sort | xargs md5sum --binary > md5sums )
+( cd $cc/bin/ramips ; find -maxdepth 1 -type f \! -name 'md5sums'  -printf "%P\n" | sort | xargs openssl dgst -sha256 > sha256sums )
+make[5]: Leaving directory `$cc/target/linux/ramips/image'
+make[4]: Leaving directory `$cc/target/linux/ramips'
+make[3]: Leaving directory `$cc/target/linux'
+make[2]: Leaving directory `$cc'
+export MAKEFLAGS= ;make -w -r package/index
+make[2]: Entering directory `$cc'
+Generating package index...
+Generating index for package ./IPKG_BUILD.20733/pkg_file.ipk
+Generating index for package ./base-files_157.2-unknown_ramips_24kec.ipk
+Generating index for package ./busybox_1.23.2-1_ramips_24kec.ipk
+
+
+
+
+
+生成firmware
+-------------------------------------------------------------------------------
+firmware由kernel和rootfs两个部分组成，要对两个部分先分别处理，然后再合并成一个.bin文件。先看一下这个流程。
+
+“target/linux/ramips/image/Makefile” 文件中的最后一句：$(eval $(call BuildImage))，将BuildImage展开在这里。BuildImage定义在 include/image.mk 文件中，其中定义了数个目标的规则。
+Shell
+define BuildImage
+    compile: compile-targets FORCE
+		**$(call Build/Compile)**
+
+    install: compile install-targets FORCE ... 
+	$(call Image/BuildKernel)   ## 处理vmlinux ... 
+	$(call Image/mkfs/squashfs) ## 生成squashfs，并与vmlinux合并成一个.bin文件 ... 
+	endef
+
+define BuildImage
+    compile: compile-targets FORCE
+ **$(call Build/Compile)**
+ 
+    install: compile install-targets FORCE ... 
+ $(call Image/BuildKernel)   ## 处理vmlinux ... 
+ $(call Image/mkfs/squashfs) ## 生成squashfs，并与vmlinux合并成一个.bin文件 ... 
+ endef
+
+处理vmlinux: Image/BuildKernel
+-------------------------------------------------------------------------------
+target/linux/ramips/image/Makefile:
+Shell
+define Image/BuildKernel
+	cp $(KDIR)/vmlinux.elf $(BIN_DIR)/$(VMLINUX).elf
+	cp $(KDIR)/vmlinux $(BIN_DIR)/$(VMLINUX).bin 
+    $(call CompressLzma,$(KDIR)/vmlinux,$(KDIR)/vmlinux.bin.lzma) 
+    $(call MkImage,lzma,$(KDIR)/vmlinux.bin.lzma,$(KDIR)/uImage.lzma)
+	cp $(KDIR)/uImage.lzma $(BIN_DIR)/$(UIMAGE).bin
+ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
+	cp $(KDIR)/vmlinux-initramfs.elf $(BIN_DIR)/$(VMLINUX)-initramfs.elf
+	cp $(KDIR)/vmlinux-initramfs $(BIN_DIR)/$(VMLINUX)-initramfs.bin 
+     $(call CompressLzma,$(KDIR)/vmlinux-initramfs,$(KDIR)/vmlinux-initramfs.bin.lzma) 
+     $(call MkImage,lzma,$(KDIR)/vmlinux-initramfs.bin.lzma,$(KDIR)/uImage-initramfs.lzma)
+	cp $(KDIR)/uImage-initramfs.lzma $(BIN_DIR)/$(UIMAGE)-initramfs.bin
+endif 
+$(call Image/Build/Initramfs) endef
+
+define Image/BuildKernel
+ cp $(KDIR)/vmlinux.elf $(BIN_DIR)/$(VMLINUX).elf
+ cp $(KDIR)/vmlinux $(BIN_DIR)/$(VMLINUX).bin 
+    $(call CompressLzma,$(KDIR)/vmlinux,$(KDIR)/vmlinux.bin.lzma) 
+    $(call MkImage,lzma,$(KDIR)/vmlinux.bin.lzma,$(KDIR)/uImage.lzma)
+ cp $(KDIR)/uImage.lzma $(BIN_DIR)/$(UIMAGE).bin
+ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
+ cp $(KDIR)/vmlinux-initramfs.elf $(BIN_DIR)/$(VMLINUX)-initramfs.elf
+ cp $(KDIR)/vmlinux-initramfs $(BIN_DIR)/$(VMLINUX)-initramfs.bin 
+     $(call CompressLzma,$(KDIR)/vmlinux-initramfs,$(KDIR)/vmlinux-initramfs.bin.lzma) 
+     $(call MkImage,lzma,$(KDIR)/vmlinux-initramfs.bin.lzma,$(KDIR)/uImage-initramfs.lzma)
+ cp $(KDIR)/uImage-initramfs.lzma $(BIN_DIR)/$(UIMAGE)-initramfs.bin
+endif 
+$(call Image/Build/Initramfs) endef
+
+lzma压缩内核
+-------------------------------------------------------------------------------
+build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620a/ 目录中:
+Shell
+lzma e vmlinux -lc1 -lp2 -pb2 vmlinux.bin.lzma
+
+lzma e vmlinux -lc1 -lp2 -pb2 vmlinux.bin.lzma
+
+MkImage
+-------------------------------------------------------------------------------
+build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620a/ 目录中：
+
+mkimage -A mips -O linux -T  kernel -C lzma -a 0x80000000 -e 0x80000000 -n "MIPS OpenWrt Linux-3.14.18" -d vmlinux.bin.lzma uImage.lzma
+
+mkimage -A mips -O linux -T  kernel -C lzma -a 0x80000000 -e 0x80000000 -n "MIPS OpenWrt Linux-3.14.18" -d vmlinux.bin.lzma uImage.lzma
+
+copy
+-------------------------------------------------------------------------------
+
+VMLINUX:=$(IMG_PREFIX)-vmlinux --> openwrt-ramips-mt7620a-vmlinux 
+UIMAGE:=$(IMG_PREFIX)-uImage --> openwrt-ramips-mt7620a-uImage
+cp $(KDIR)/uImage.lzma $(BIN_DIR)/$(UIMAGE).bin
+
+VMLINUX:=$(IMG_PREFIX)-vmlinux --> openwrt-ramips-mt7620a-vmlinux 
+UIMAGE:=$(IMG_PREFIX)-uImage --> openwrt-ramips-mt7620a-uImage
+cp $(KDIR)/uImage.lzma $(BIN_DIR)/$(UIMAGE).bin
+
+把uImage.lzma复制到bin/ramips/目录下：
+cp $(KDIR)/uImage.lzma bin/ramips/openwrt-ramips-mt7620a-uImage
+
+制作squashfs，生成.bin: $(call Image/mkfs/squashfs)
+-------------------------------------------------------------------------------
+define Image/mkfs/squashfs 
+   @mkdir -p $(TARGET_DIR)/overlay
+   $(STAGING_DIR_HOST)/bin/mksquashfs4 $(TARGET_DIR) $(KDIR)/root.squashfs -nopad -noappend -root-owned -comp $(SQUASHFSCOMP) $(SQUASHFSOPT) -processors 
+   $(if $(CONFIG_PKG_BUILD_JOBS),$(CONFIG_PKG_BUILD_JOBS),1) 
+      $(call Image/Build,squashfs)
+   endif
+mkdir -p $(TARGET_DIR)/overlay
+mkdir -p build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/root-ramips/overlay
+
+define Image/mkfs/squashfs 
+   @mkdir -p $(TARGET_DIR)/overlay
+   $(STAGING_DIR_HOST)/bin/mksquashfs4 $(TARGET_DIR) $(KDIR)/root.squashfs -nopad -noappend -root-owned -comp $(SQUASHFSCOMP) $(SQUASHFSOPT) -processors 
+   $(if $(CONFIG_PKG_BUILD_JOBS),$(CONFIG_PKG_BUILD_JOBS),1) 
+      $(call Image/Build,squashfs)
+   endif
+   
+mkdir -p $(TARGET_DIR)/overlay
+-------------------------------------------------------------------------------
+mkdir -p build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/root-ramips/overlay
+
+mkdir -p $(TARGET_DIR)/overlay
+
+ mkdir -p build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/root-ramips/overlay
+
+ mkdir -p build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/root-ramips/overlay
+
+mksquashfs4
+-------------------------------------------------------------------------------
+
+$(STAGING_DIR_HOST)/bin/mksquashfs4 $(TARGET_DIR) $(KDIR)/root.squashfs -nopad -noappend -root-owned -comp $(SQUASHFSCOMP) $(SQUASHFSOPT) -processors 
+$(if $(CONFIG_PKG_BUILD_JOBS),$(CONFIG_PKG_BUILD_JOBS),1)
+
+$(STAGING_DIR_HOST)/bin/mksquashfs4 $(TARGET_DIR) $(KDIR)/root.squashfs -nopad -noappend -root-owned -comp $(SQUASHFSCOMP) $(SQUASHFSOPT) -processors 
+$(if $(CONFIG_PKG_BUILD_JOBS),$(CONFIG_PKG_BUILD_JOBS),1)
+
+制作squashfs文件系统，生成root.squashfs:
+-------------------------------------------------------------------------------
+mksquashfs4 root-ramips root.squashfs -nopad -noappend -root-owned -comp gzip -b 256k -p '/dev d 755 0 0' -p '/dev/console c 600 0 0 5 1' -processors 1
+$(call Image/Build,squashfs)
+
+mksquashfs4 root-ramips root.squashfs -nopad -noappend -root-owned -comp gzip -b 256k -p '/dev d 755 0 0' -p '/dev/console c 600 0 0 5 1' -processors 1
+
+$(call Image/Build,squashfs)
+-------------------------------------------------------------------------------
+在 target/linux/ramips/image/Makefile 中：
+Shell
+define Image/Build $(call Image/Build/$(1))
+	dd if=$(KDIR)/root.$(1) of=$(BIN_DIR)/$(IMG_PREFIX)-root.$(1) bs=128k conv=sync $(call Image/Build/Profile/$(PROFILE),$(1))
+endef
+dd if=(KDIR)/root.squashfsof=(BIN_DIR)/$(IMG_PREFIX)-root.squashfs bs=128k conv=sync
+dd if=build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620a/root.squashfs of=bin/ramips/openwrt-ramips-mt7620-root.squashfs bs=128k conv=sync
+
+(callImage/Build/Profile/(PROFILE),squashfs)
+-------------------------------------------------------------------------------
+define Image/Build $(call Image/Build/$(1))
+ dd if=$(KDIR)/root.$(1) of=$(BIN_DIR)/$(IMG_PREFIX)-root.$(1) bs=128k conv=sync $(call Image/Build/Profile/$(PROFILE),$(1))
+endef
+dd if=(KDIR)/root.squashfsof=(BIN_DIR)/$(IMG_PREFIX)-root.squashfs bs=128k conv=sync
+dd if=build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620a/root.squashfs of=bin/ramips/openwrt-ramips-mt7620-root.squashfs bs=128k conv=sync
+ 
+(callImage/Build/Profile/(PROFILE),squashfs)
+
+    dd if=(KDIR)/root.squashfsof=(BIN_DIR)/$(IMG_PREFIX)-root.squashfs bs=128k conv=sync
+
+dd if=build_dir/target-mipsel_24kec+dsp_uClibc-0.9.33.2/linux-ramips_mt7620a/root.squashfs of=bin/ramips/openwrt-ramips-mt7620-root.squashfs bs=128k conv=sync
+
+    (callImage/Build/Profile/(PROFILE),squashfs)
+
+target/linux/ramips/mt7620a/profiles/00-default.mk, 中调用 Profile 函数：$(eval $(call Profile,Default))
+
+include/target.mk 中定义了 Profile 函数， 其中令 PROFILE=Default
+Shell
+define Image/Build/Profile/Default
+	$(call Image/Build/Profile/MT7620a,$(1)) ... endef
+
+define Image/Build/Profile/Default
+ $(call Image/Build/Profile/MT7620a,$(1)) ... endef
+
+规则依赖序列如下：
+Shell
+$(call Image/Build/Profile/$(PROFILE),squashfs)
+  --> $(call BuildFirmware/Default8M/squashfs,squashfs,mt7620a,MT7620a)  
+--> $(call BuildFirmware/OF,squashfs,mt7620a,MT7620a,8060928) 
+ --> $(call MkImageLzmaDtb,mt7620a,MT7620a)  
+--> $(call PatchKernelLzmaDtb,mt7620a,MT7620a) 
+ --> $(call MkImage,lzma,$(KDIR)/vmlinux-mt7620a.bin.lzma,$(KDIR)/vmlinux-mt7620a.uImage)  
+--> $(call MkImageSysupgrade/squashfs,squashfs,mt7620a,8060928)
+
+
+$(call Image/Build/Profile/$(PROFILE),squashfs)
+  --> $(call BuildFirmware/Default8M/squashfs,squashfs,mt7620a,MT7620a)  
+--> $(call BuildFirmware/OF,squashfs,mt7620a,MT7620a,8060928) 
+ --> $(call MkImageLzmaDtb,mt7620a,MT7620a)  
+--> $(call PatchKernelLzmaDtb,mt7620a,MT7620a) 
+ --> $(call MkImage,lzma,$(KDIR)/vmlinux-mt7620a.bin.lzma,$(KDIR)/vmlinux-mt7620a.uImage)  
+--> $(call MkImageSysupgrade/squashfs,squashfs,mt7620a,8060928)
+
+其中的主要步骤：
+
+    复制： cp (KDIR)/vmlinux(KDIR)/vmlinux-mt7620a
+    生成dtb文件： (LINUXDIR)/scripts/dtc/dtc?Odtb?o(KDIR)/MT7620a.dtb ../dts/MT7620a.dts
+    将内核与dtb文件合并：(STAGINGDIRHOST)/bin/patch?dtb(KDIR)/vmlinux-mt7620a $(KDIR)/MT7620a.dtb
+    使用lzma压缩：(callCompressLzma,(KDIR)/vmlinux-mt7620a,$(KDIR)/vmlinux-mt7620a.bin.lzma)
+    将lzma压缩后的文件经过mkimage工具处理，即在头部添加uboot可识别的信息。
+
+接下来就是合并生成firmware固件了：
+
+MkImageSysupgrade/squashfs, squashfs, mt7620a,8060928
+
+cat vmlinux-mt7620a.uImage root.squashfs > openwrt-ramips-mt7620-mt7620a-squashfs-sysupgrade.bin
+–> 制作squashfs bin文档, 并确认它的大小 < 8060928 才是有效的，否则报错。
+
+总结： 整个流程下来，其实最烦索的还是对内核生成文件vmlinux的操作，经过了objcopy, patch-dtb, lzma, mkimage 等过程生成一个uImage，再与mksquashfs工具制作的文件系统rootfs.squashfs合并。
+
+

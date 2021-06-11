@@ -1,0 +1,150 @@
+" 定义快捷键的前缀，: <Leader> let mapleader=";"
+
+" 开启文件类型侦测  : filetype on 
+" 根据侦测到的不同类型加载对应的插件 : filetype plugin on
+
+" 设置快捷键将选中文本块复制至系统剪贴板 vnoremap <Leader>y "+y 
+" 设置快捷键将系统剪贴板内容粘贴至 vim nmap <Leader>p "+p
+
+" 定义快捷键关闭当前分割窗口 nmap <Leader>q :q<CR> 
+" 定义快捷键保存当前窗口内容 nmap <Leader>w :w<CR>
+
+" 定义快捷键在结对符之间跳转 nmap <Leader>M %
+
+" 让配置变更立即生效 autocmd BufWritePost $MYVIMRC source $MYVIMRC
+
+搜索、vim 命令补全等设置：
+
+" 开启实时搜索功能   set incsearch
+" 搜索时大小写不敏感 set ignorecase
+" 关闭兼容模式       set nocompatible
+" vim 自身命令行模式智能补全 set wildmenu
+
+素雅 solarized（https://github.com/altercation/vim-colors-solarized ）
+多彩 molokai（https://github.com/tomasr/molokai ）
+复古 phd（http://www.vim.org/scripts/script.php?script_id=3139 ）
+
+" 禁止光标闪烁
+set gcr=a:block-blinkon0
+" 禁止显示滚动条
+set guioptions-=l
+set guioptions-=L
+set guioptions-=r
+set guioptions-=R
+" 禁止显示菜单和工具条
+set guioptions-=m
+set guioptions-=T
+
+wmctrl # 全屏
+" 将外部命令 wmctrl 控制窗口最大化的命令行参数封装成一个 vim 的函数
+fun! ToggleFullscreen()
+	call system("wmctrl -ir " . v:windowid . " -b toggle,fullscreen")
+endf
+" 全屏开/关快捷键
+map <silent> <F11> :call ToggleFullscreen()<CR>
+" 启动 vim 时自动全屏
+autocmd VimEnter * call ToggleFullscreen()
+
+" 总是显示状态栏
+set laststatus=2
+" 显示光标当前位置
+set ruler
+" 开启行号显示
+set number
+" 高亮显示当前行/列
+set cursorline
+set cursorcolumn
+" 高亮显示搜索结果
+set hlsearch
+
+借助插件 Powerline（https://github.com/Lokaltog/vim-powerline ）美化状态栏，
+" 设置状态栏主题风格
+let g:Powerline_colorscheme='solarized256'
+
+" 开启语法高亮功能
+syntax enable
+" 允许用指定语法高亮配色方案替换默认方案
+syntax on
+
+
+插件 vim-cpp-enhanced-highlight（https://github.com/octol/vim-cpp-enhanced-highlight ）进行增强
+vim-cpp-enhanced-highlight 主要通过 .vim/bundle/vim-cpp-enhanced-highlight/after/syntax/cpp.vim 控制高亮关键字及规则，所以，当你发现某个 STL 容器类型未高亮，那么将该类型追加进 cpp.vim 即可。如，initializer_list 默认并不会高亮，需要添加
+syntax keyword cppSTLtype initializer_list
+
+" 自适应不同语言的智能缩进
+filetype indent on
+" 将制表符扩展为空格
+set expandtab
+" 设置编辑时制表符占用空格数
+set tabstop=4
+" 设置格式化时制表符占用空格数
+set shiftwidth=4
+" 让 vim 把连续数量的空格视为一个制表符
+set softtabstop=4
+
+其中，注意下 expandtab、tabstop 与 shiftwidth、softtabstop、retab：
+    expandtab，把制表符转换为多个空格，具体空格数量参考 tabstop 和 shiftwidth 变量；
+    tabstop 与 shiftwidth 是有区别的。tabstop 指定我们在插入模式下输入一个制表符占据的空格数量，linux 内核编码规范建议是 8，看个人需要；shiftwidth 指定在进行缩进格式化源码时制表符占据的空格数。所谓缩进格式化，指的是通过 vim 命令由 vim 自动对源码进行缩进处理，比如其他人的代码不满足你的缩进要求，你就可以对其进行缩进格式化。缩进格式化，需要先选中指定行，要么键入 = 让 vim 对该行进行智能缩进格式化，要么按需键入多次 < 或 > 手工缩进格式化；
+    softtabstop，如何处理连续多个空格。因为 expandtab 已经把制表符转换为空格，当你要删除制表符时你得连续删除多个空格，该设置就是告诉 vim 把连续数量的空格视为一个制表符，即，只删一个字符即可。通常应将这tabstop、shiftwidth、softtabstop 三个变量设置为相同值；
+retab 
+
+
+Indent Guides（https://github.com/nathanaelkane/vim-indent-guides ）来了。安装好该插件后，增加如下配置信息：
+" 随 vim 自启动
+let g:indent_guides_enable_on_vim_startup=1
+" 从第二层开始可视化显示缩进
+let g:indent_guides_start_level=2
+" 色块宽度
+let g:indent_guides_guide_size=1
+" 快捷键 i 开/关缩进可视化
+:nmap <silent> <Leader>i <Plug>IndentGuidesToggle
+
+接口与实现快速切换
+vim-fswitch（https://github.com/derekwyatt/vim-fswitch ）
+" *.cpp 和 *.h 间切换
+nmap <silent> <Leader>sw :FSHere<cr>
+
+书签可视化的插件，vim-signature（https://github.com/kshenoy/vim-signature ）
+:echo has('signs')
+若显示 1 则具备该特性，反之 0 则不具备该特性，
+let g:SignatureMap = {
+        \ 'Leader'             :  "m",
+        \ 'PlaceNextMark'      :  "m,",
+        \ 'ToggleMarkAtLine'   :  "m.",
+        \ 'PurgeMarksAtLine'   :  "m-",
+        \ 'DeleteMark'         :  "dm",
+        \ 'PurgeMarks'         :  "mda",
+        \ 'PurgeMarkers'       :  "m<BS>",
+        \ 'GotoNextLineAlpha'  :  "']",
+        \ 'GotoPrevLineAlpha'  :  "'[",
+        \ 'GotoNextSpotAlpha'  :  "`]",
+        \ 'GotoPrevSpotAlpha'  :  "`[",
+        \ 'GotoNextLineByPos'  :  "]'",
+        \ 'GotoPrevLineByPos'  :  "['",
+        \ 'GotoNextSpotByPos'  :  "mn",
+        \ 'GotoPrevSpotByPos'  :  "mp",
+        \ 'GotoNextMarker'     :  "[+",
+        \ 'GotoPrevMarker'     :  "[-",
+        \ 'GotoNextMarkerAny'  :  "]=",
+        \ 'GotoPrevMarkerAny'  :  "[=",
+        \ 'ListLocalMarks'     :  "ms",
+        \ 'ListLocalMarkers'   :  "m?"
+        \ }
+
+够多了吧，粗体部分是按个人习惯重新定义的快捷键，请添加进 .vimrc 中。
+
+ctags -R --c++-kinds=+p+l+x+c+d+e+f+g+m+n+s+t+u+v --fields=+liaS --extra=+q --language-force=c++
+ctags --list-kinds=c++
+ctags --list-languages
+:set tags+=/data/workplace/example/tags
+
+cd /usr/include/c++/4.8 
+ctags -R --c++-kinds=+l+x+p --fields=+iaSl --extra=+q --language-force=c++ -f stdcpp.tags
+
+
+nmap <Leader>m :wa<CR>:make<CR><CR>:cw<CR>
+
+
+
+
+

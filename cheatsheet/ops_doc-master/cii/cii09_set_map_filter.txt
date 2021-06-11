@@ -1,0 +1,70 @@
+集合定义
+-------------------
+    集合是不同成员的无序汇聚，对集合的基本操作包括检查成员资格、添加成员和删除成员。
+其他操作包括集合的并、交、差和对称差。
+    给定两个集合s和t，并集 s+t是包含s和t中所有成员的一个集合，
+    交集 s*t 包含所有既在s中、也出现在t中成员
+    差集s-t包含所有仅出现在s中、而不出现在t中的成员
+    对称差通常记作 s/t，包含了所有仅出现在s或t其中之一的成员。
+    
+    全集：及所有可能成员的集合
+    补集：当确定了全集U时，可以定义集合s的补集，即 U-s
+
+    Set接口定义的集合与表类似：集合成员是键，而与键关联的值被忽略了。
+    
+接口定义
+-------------------
+    向任何set函数传递的T值或成员值为NULL，均为已检查的运行时错误(set_diff、set_inter、set_minus和set_union除外)
+这些函数将T的NULL值解释为空集。
+
+    API: 分配和释放、基本集合操作、集合遍历和接受集合操作数并返回新集合的操作，
+    T set_new(int hint,
+              int cmp(const void *x,const void *y), 
+              unsigned hash(const void *x)) 创建、初始化并返回一个空集。hint、cmp和hash的解释，参见table_new
+    void set_free(T *set) 释放*set，并将其清零。set或*set是NULL，则造成已检查的运行时错误。
+    
+    基本集合操作
+    int set_length(T set) 返回set中元素的数目
+    int set_member(T set,const void *member_data) 如果member为set的成员，则返回1，否则返回0。
+    void set_put(T set,const void *member_data)   如果必要，将member添加到set中
+    void *set_remove(T set,const void *member_data) 如果member为set成员，则将member从set中删除，并返回删除的成员，
+                                                    否则，set_remove返回NULL。
+    
+    集合遍历
+    void set_map(T set, 
+                 void apply(const void *member,void *cl),void *cl) 对set的每个成员member调用apply(member,cl)。
+                 如果apply修改set，则造成已检查的运行时错误
+    void **set_toArray(T set,void *end) 创建一个N+1个元素的数组，将set的N个成员以未指定的顺序复制到数组中，
+                                        并返回指向数组第一个元素的指针。数组的元素N为end。
+    集合操作数
+    T set_union(T s,T t) 返回s和t的并集: 其成员出现在s或t中。已检查的运行时错误，清参见set_diff
+    T set_inter(T s,T t) 返回s和t的交集: 其成员同时出现在s和t中。已检查的运行时错误，清参见set_diff
+    T set_minus(T s,T t) 返回s和t的差集: 其成员只出现在s中，不出现在t中。已检查的运行时错误，清参见set_diff
+    T set_diff(T s,T t)  返回s和t的对称差: s和t的对称差是一个集合，其成员只出现在s中或t中。如果s和t均为NULL,
+                         或二者均非NULL，但cmp和hash函数不同，则造成已检查的运行时错误。
+    函数将为NULL的s或t解释为空集，但是总是返回一个新的、非NULL的T实例。
+因而，set_union(s,NULL)返回s的一个副本。如果s和t都为NULL，或者s和t都不是NULL。
+但是二者的比较函数和哈希函数不同时，则构成已检查的运行时错误。
+即：此前调用set_new创建s和t时，必须指定了相同的比较函数和哈希函数。
+
+应用实例
+-------------------
+    xref.c 和 getword.c 交叉引用列表
+    
+    
+icon语言
+http://www2.cs.arizona.edu/icon/docs/ipd266.htm
+
+
+For documentation, see these HTML files:
+    doc/docguide.htm  documentation guide
+    doc/relnotes.htm  release notes
+    doc/macintosh.htm the Macintosh port
+    doc/cygwin.htm    the Cygwin port
+    doc/faq.htm       frequently asked questions about Icon
+    doc/install.htm   installation instructions  (for binary releases)
+    doc/build.htm     build instructions         (for source releases)
+
+Man pages showing how to run Icon are in:
+    man/man1/icon.1   man(1) page for icon
+    man/man1/icont.1  man(1) page for icont

@@ -1,0 +1,470 @@
+go语言是静态编译的一种语言,即不依赖动态库
+
+go语言的代码是通过package来组织的,package和其他语言中的libraries或者modules概念比较类似,一个package会包含一个或多个.go结束的源代码文件
+每个go源文件都是以一个package xxx来开头,表示该文件属于哪一个package,main是一个比较特殊的packet,在main这个package里,main函数也是一个特殊的函数,表示程序的入口
+
+注释符号与c,c++一样
+不需要在语句后添加分号,除非要在一行中将多个语句,声明隔开,在编译时,编译器会在一些特定符号号(比如行末是标识符,整数,浮点数,虚数,字符或字符串文字,关键字break,continue,fallthrough或return中的一个,运算符和分隔符++,--,),],}中的一个后添加分号
+所以在哪里加分号是取决go语言代码的,例如在go中函数声明和{大括号必须在同一行,而在x+y这样的表达式中,可以在+后换行,但是在+前换行则会有问题
+在go里,函数和包级别的变量或者函数是可以以任意的顺序来声明,并不影响调用
+gofmt	可以将代码格式转化成标准格式
+
+go  run			编译并运行,没有可执行文件产生
+go  build		编译产生可运行可执行文件,会删除中间生成的依赖文件,只保留最终目标
+go  install		和go build功能类似,但会保留中间生成依赖的目标,被编译的包会被保存到$GOPATH/pkg目录下,可执行程序被保存到$GOPATH/bin目录下
+go  test		是一个按照约定和组织的测试代码的驱动程序,在包目录内,所有以_test.go为后缀的源文件不是go build的一部分,他们是go test测试的一部分,会遍历所有以_test.go文件中所有符合下面命名的函数,然后生成一个临时的main包用于调用相应的测试函数,然后构建并运行,
+				在*_test.go文件中,有三种类型的函数:测试函数,基准测试函数,示例函数
+				一个测试函数是以Test为函数名前缀的函数,用于测试程序的一些逻辑是否正确,go test会去调用这些函数并报告测试结果是PASS或FAIL,每个测试函数必须导入testing包,签名func TestName(t *testing.T),Test后面名字必须以大写字母开头
+				基准测试函数是以Benchmark为函数名前缀的函数,它们用于衡量一些函数的性能,go test会去多次运行基准测试函数以计算一个平均的执行时间
+				示例函数是以Example为函数名前缀的函数,提供一个由编译器保证正确性的示例文档
+		-v  	用于打印每个测试函数的名字和运行时间
+		-run	是一个正则表达式,只有测试函数名被它正确匹配的测试函数才会被go test运行
+		-bench	是一个正则表达式,运行符合正则表达式的基准测试函数
+go  fmt			会按照go语言代码规范格式化代码包中所有源码文件,go fmt是gofmt的简单封装
+go  get			下载包
+go  list std	列出所有标准包
+go  list		可以查询可用包的信息,参数还可以使用...来匹配任意包的导入路径,-json表示用json格式打印每个包的元信息
+go  env			查看go工具包相关的环境变量的值,包括未设置的
+go  doc 		打印某个包的声明和每个成员的文档注释
+
+GOPATH			环境变量,指定当前工作目录
+GOROOT			环境变量,指定go的安装目录,还有go自带标准包的位置
+
+import 	"package"		依赖某个package需要import导入,当导入了没有用于的package,编译会报错(go只有报错,没有警告),import必须跟在package声明之后
+import (				也可采用这种方式来导入
+	"package"
+	"package"
+	)
+import(					当导入两个名字相同的包时,导入声明必须为至少一个同名包指定一个新的包名来避免名字冲突,这叫做导入包的重命名,只影响当前源文件
+	"crypto/rand"
+	mrand "math/rand"
+)
+import _ "image/png"	包的匿名导入,可以执行一些包里Init及一些导出变量的初始化,外部只用到这些时可以用匿名导入
+go语言的构建工具对包含internal名字的路径段的包导入路径做了特殊处理,一个internal包只能被和internal目录有同一个父目录的包所导入
+import 	 "C"			并没有一个叫C的包,但是会让Go编译程序在编译前先运行cgo工具
+go查找依赖包路径的解决方案如下:
+	当前包下的vendor目录
+	向上级目录查找,直到找到src目录下的vendor目录
+	在GOPATH下面查找依赖包
+	在GOROOT下面查找依赖包
+
+常见package
+flag	提供了一系列解析命令行参数的接口
+	-flag //只支持bool类型
+	-flag=x
+	-flag x //只支持非bool类型
+	String		返回一个String类型的指针,有3个参数,第一个是参数名,第二个是默认值,第三个是描述,下面同样
+	Bool
+	Int
+	Parse		通过此函数将命令行参数解析到自己定义的名字中
+	Args		获取非flag命令行参数
+fmt		包括输入,格式化输出的各种函数
+	Print		输出,不会打印换行符
+	Println		输出,ln对应line缩写,会打印换行符
+	Printf		类似C系的printf,和Println的区别是必须有格式化字符串,f代表format,一般格式化函数后面都有这个f,不会打印换行符
+		%d			int变量
+		%x,%o,%b	16进制,8进制,2进制形式的int
+		%f,%g,%e	浮点数,可以理解为单精度,双精度,科学表示法
+		%t			布尔变量,true或false
+		%c			rune(Unicode码点),Go语言里特有的Unicode字符类型
+		%s			string
+		%q			带双引号的字符串"abc"或者带单引号的'c'
+		%v			会将任意变量以易读的形式打印出来
+		%T			打印变量的类型
+		%%			%本身
+		%[1]		[1]副词告诉我们继续使用Printf的第一个操作数,%[2]是第二个...,如%[1]x,按16进制输出第一个操作数,%#[1]x,按16进制输出第一个操作数,输出时生成0,0x或0X前缀
+		%#			输出16进制,8进制的前缀
+	Sprintf			返回一个格式化的字符串
+	FormatInt		可以用不同进制来格式化数字
+	FormatUint		同上
+	Errorf			会使用Sprintf格式化错误信息并返回
+os		提供了操作系统无关的(跨平台)的,与系统交互的一些函数和相关变量
+	Args							是一个字符串(string)的slice,和python中的切片类似,os.Args[0]是命令行执行时的命令本身
+	func Open(name string) (file *File, err error)　　　打开一个文件，返回文件描述符，该文件描述符只有只读权限．他相当于OpenFile(name string,O_RDWR,0)
+	func OpenFile(name string, flag int, perm FileMode) (file *File, err error) 	指定文件权限和打开方式打开name文件或者create文件,flag标记如下
+					O_RDONLY：只读模式(read-only)
+					O_WRONLY：只写模式(write-only)
+					O_RDWR：读写模式(read-write)
+					O_APPEND：追加模式(append)
+					O_CREATE：文件不存在就创建(create a new file if none exists.)
+					O_EXCL：与 O_CREATE 一起用，构成一个新建文件的功能，它要求文件必须不存在(used with O_CREATE, file must not exist)
+					O_SYNC：同步方式打开，即不使用缓存，直接写入硬盘
+					O_TRUNC：打开并清空文件
+	Close							关闭文件
+	func (f *File) Read(b []byte) (n int, err error)	将len(b)的数据从f中读取到b中，如果无错，则返回n和nil,否则返回读取的字节数n以及响应的错误
+	func (f *File) Seek(offset int64, whence int) (ret int64, err error)　	Seek设置下一次读或写操作的偏移量offset，根据whence来解析：0意味着相对于文件的原始位置，1意味着相对于当前偏移量，2意味着相对于文件结尾。它返回新的偏移量和错误
+	Stdin							标准输入,可用入bufio创建scanner或writer的时候
+	Stdout							标准输出,可用入bufio创建scanner或writer的时候
+	func Exit(code int)    系统退出，并返回code，其中０表示执行成功并退出，非０表示错误并退出，其中执行Exit后程序会直接退出，defer函数不会执行．
+sync	提供goroutines数据同步
+	Mutex		互斥锁,是一种类型,有2种操作,Lock()和Unlock(),不能递归上锁
+	RWMutex		多读单写锁,可以并行地读取,但写操作会完全互斥,RLock()和RUnlock(),RWMutex锁只有在获得锁的大部goroutine都是读操作,而锁在竞争条件下,才能最能带来好处的,由于需要理复杂的内部记录,所以它会比一般的mutex慢一些
+	Once		解决一次性初始化的问题,是一种类型,可以执行Do(初始化函数)操作
+io/ioutil
+	func ReadDir(dirname string) ([]os.FileInfo, error)		读取一个目录下的文件目录列表
+	func ReadFile(filename string) ([]byte, error)			一次性读入一个文件的内容
+	func ReadAll(r io.Reader) ([]byte, error)				一次性读入一个文件的内容
+	func WriteFile(filename string, data []byte, perm os.FileMode) error 	WriteFile 向文件 filename 中写入数据 data,如果文件不存在，则以 perm 权限创建该文件,如果文件存在，则先清空文件，然后再写入
+strings	字符串相关
+	Join		字符串连接,如果使用+或者+=,每次连接时老的都会失效,并被垃圾回收器回收,效率很低,可以使用Join
+	Split		将一个字符串按照提供的字符划分为多个字符串
+	func Replace(s, old, new string, n int) string	返回 s 的副本，并将副本中的 old 字符串替换为 new 字符串,如果 old 为空，则在副本的每个字符之间都插入一个 new,替换次数为 n 次，如果 n 为 -1，则全部替换
+regexp  正则表达式相关
+	func Match( pattern string, b [ ] byte) ( matched bool, error error)
+	func MatchReader( pattern string, r io. RuneReader) ( matched bool, error error)
+	func MatchString( pattern string, s string) ( matched bool, error error)
+	func Compile( expr string) ( * Regexp, error)
+    func CompilePOSI X( expr string) ( * Regexp, error)
+    func MustCompile( str string) * Regexp		 MustCompile 的作用和 Compile 一样,不同的是，当正则表达式 str 不合法时,MustCompile 会抛出异常,而 Compile 仅返回一个 error 值
+    func MustCompilePOSI X( str string) * Regexp
+	func (re *Regexp) ReplaceAllString(src, repl string) string		在src中搜索匹配项,并替换为repl指定的内容,全部替换,并返回替换后的结果
+sort	排序相关
+	Strings		以升序排序string切片
+	Interface	是sort里的接口类型,外部只要实现了这个接口里的Len,Less,Swap即可自定义排序
+strconv	字符串转换相关
+	Itoa("整数到ASCII")
+	Atoi("字符串到整型")
+	ParseInt			将字符串按照指定的进制转换成对应多少位的整型
+	ParseUint
+bufio	更方便有效地处理输入和输出
+	NewScanner	创建buf.scanner对象
+	NewWriter	创建buf.writer对象
+	Scan		从创建时的流中读取,每次读取一个新行,并且会自动将行尾的换行符去掉,读取新行返回true,否则返回false
+	Text		读取到的内容用Text获取
+	Scanner		读取数据的便利的接口
+	Reader		实现了io.Reader的缓存
+	Writer		实现了io.Writer的缓存
+	ReadWriter	存储 *Reader *Writer,实现了io.ReadWriter
+image	图形包,当import了一个包路径含有多个单词的package时,比如image/color(image和color两个单词),通常只需要最后这个单词表示这个包即可,例color.White
+net		和网络相关的包
+	Listen		监听指定类型,指定端口
+	Accept		阻塞接收连接请求
+	WriteString	发送数据
+	Close		关闭连接
+net/http		与http相关操作包
+	Get			创建http请求的函数
+	func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Response, err error) 利用post方法请求指定的URl,如果body也是一个io.Closer,则在请求之后关闭它
+net/url			与url相关包
+	func QueryEscape(s string) string	对url进行编码适合网络传输
+encoding/json	json相关
+	Marshal			将类似json结构体数据的slice转为json字符串,这个过程叫编组,返回一个编码后的字节slice和错误码
+	MarshalIndent	和Marshal功能类似,但会产生一个便于阅读的格式,有额外两个字符串参数表示每一行输出的前缀和每一个层级的缩进
+	Unmarshal		解码,可以只返回感兴趣的字段,返回一个slice
+encoding/xml	xml相关
+		结构体中的XMLName字段或者类型为xml.Name的字段,会被删除.使用此字段tag上定义的属性进行解析
+		结构体tag中”-” 在解析过程中会忽略结构体中的这个字段
+		结构体tag中”name,attr” 使用name作输出为xml属性,对应字段值作为属性值
+		结构体tag中”,attr” 使用字段名作为xml属性,字段值作为xml属性值
+		结构体tag中”,chardata” 不作为xml的节点输出,把该字段对应的值作为字符输出
+		结构体tag中 “,innerxml” 如果结构体改字段是基本类型如:string,int等,和”,chardata”输出无区别,如果是一个结构体,输出值会是一个完整的xml结构
+		结构体tag中 “,comment” 输出xml中的注释
+		结构体tag中”omitempty” 该字段是go中的空值:false, 0,空指针,空接口,任何长度为0的切片,数组,字符串和map. 都会被忽略
+		结构体中不包含tag 会以改字段作为xml属性名称,值作为xml属性值
+	func Marshal(v interface{}) ([]byte, error)	Marshal 	在遇到一个数组或切片时,会对其包含的每个元素进行封装;在遇到指针时,会对指针的值进行封装,并忽略那些未nil的指针;在遇到接口时,会对接口包含的值进行封装,并忽略那些值为nil的接口;在遇到其他数据时,Marshal 将写入一个或多个包含这些数据的 XML 元素
+		在进行封装时， XML 元素的名字由一系列规则决定， 这些规则的优先级从高到低依次为：
+			如果给定的数据是一个结构， 那么使用 XMLName 字段的标签作为元素名
+			使用类型为 Name 的 XMLName 字段的值为元素名
+			将用于获取数据的结构字段的标签用作元素名
+			将用于获取数据的结构字段的名字用作元素名
+			将被封装类型的名字用作元素名
+			带有 “-” 标签的字段会被忽略 
+			带有 “name,attr” 标签的字段会成为 XML 元素的属性， 其中属性的名字为这里给定的 name 
+			带有 ”,attr” 标签的字段会成为 XML 元素的属性， 其中属性的名字为字段的名字 
+			带有 ”,chardata” 标签的字段将会被封装为字符数据而不是 XML 元素。 
+			带有 ”,cdata” 标签的字段将会被封装为字符数据而不是 XML 元素， 并且这些数据还会被一个或多个
+	func Unmarshal(data []byte, v interface{}) error	对 XML 编码的数据进行语法分析， 并将结果储存到 v 指向的值里面,其中 v 必须是一个任意的（arbitrary）结构、切片或者字符串.格式良好但是无法放入到 v 里面的数据将被抛弃
+reflect			反射相关
+	TypeOf			接收任意的interface{}类型,并返回对应动态类型的reflect.Type
+	ValueOf			接收任意的interface{}类型,并返回对应动态类型的reflect.Value,所有通过ValueOf操作返回的reflect.Value都是不可取地址的,可以调用reflect.ValueOf(&x).Elem()来获取变量x的地址
+	CanAAddr		判断一个reflect.Value是否可以被取地址
+unsafe			不安全的包,不应轻易使用,使用此包意味着放弃了Go语言与未来版本的兼容性的承诺
+	Sizeof			返回操作数在内存中的字节大小
+	Alignof			返回对应参数的类型需要内存对齐的倍数
+	Offsetof		参数必须是一个字段x.f,然后返回f字段相对于x起始地址的偏移量
+	Pointer			特别定义的一种指针类型,类似void *
+	
+内置类型
+	map			内置的key-value类型
+	
+变量声明
+	s := "" 			只能用在一个函数内部
+	var s string		依赖string类型内部的初始化机制,被初始化为""
+	var s = ""			用得很少,除非同时声明多个变量
+	var s string = ""	显式地指定变量类型
+	
+变量可以在声明时做显式初始化,如果没有,go会隐匿地给这些未初始化的变量赋予对应其具体类型的零值,比如数值类型就是0,字符串类型就是空字符串"",布尔类型就是false,接口或引用(包括slice,map,chan和函数)就是nil
+字符串类型可通过+,+=来连接赋值
+i++和i--在go语言里是语句,而不是像c系中的表达式,因此j=i++是非法的,而且++和--只能放在变量名后面,放在前面也是非法的,如--i
+
+for循环
+	for initialization;condition;post{
+		//zero or more statements
+	}
+//省略initializati,post
+	for condition{
+		//zero or more statements
+	}
+//省略initializati,condition,post
+	for {
+		//zero or more statements
+	}
+	
+if condition{				//if和else if语句还可以包含一个初始化表达式,这个表达式中的变量是这个条件判断语句中的局部变量
+}else if condition{
+}else{
+}
+	
+
+switch {					//switch后面可以不带操作对象,默认是true,然后将每个case的表达式和true值比较
+	case x>0:
+		return 1			//不用每个case语句后加上break,默认执行case后的逻辑语句会自动退出,如果想要相邻的几个case执行同一逻辑,需要显式地写上fallthrough
+	default :
+		return 0
+	case x<0
+		return -1
+}
+
+go语言关键字有25个,关键字不能用来自定义名字
+	break 	default 	func(声明函数)	 	interface 	select 		case 	defer 	go 		map 	struct 	chan 	if 	else 	goto 	package 	switch
+	const(声明常量) 	fallthrough 		range 		type(声明类型)   continue  	for    	import 	return  var(声明变量)
+	
+var  变量名字	类型 = 表达式	//创建一个特定类型的变量,然后给变量附加一个名字,其中,类型或者表达式两个部分可以省略其中一个,如果省略的是类型信息,则会根据表达式来推导变量的类型信息,如果初始化表达式被省略,那么将用零值来初始化
+var  b,f,s = true,2.3,"foru"	//同时声明一组变量,bool,float64,string
+b := rand.Float64()*3.0			//简短变量声明,变量的类型根据表达式自动推导完成,被广泛用于大部分的局部变量的声明和初始化
+i,j := 0,1						//用简短变量声明的一组变量,简短变量声明左边的变量可以已经有些已经声明过了,那么简短变量声明语句对这些已经声明过的变量就只有赋值行为了,但简短变量声明必须至少要声明一个新的变量
+new(type)						//将创建一个type类型的变量,初始化为type类型的零值,返回变量的地址,和普通变量声明语句创建的变量没有什么区别
+x,y = y,x						//元组赋值,在赋值前右边的所有表达式会先进行求值,然后再统一更新左边对应变量的值,因此,此语句交换了x,y变量
+type 类型名字	底层类型		//声明一个新的类型,就算2个类型底层类型是相同的,他们本身也是不兼容的,用来分割不同概念的类型,如颜色和密码都可用string来表示,但他们是不同的概念,底层类型相同的类型可以用(类型)变量名强制转换
+const a = 3						//常量声明可以包含一个类型和值,但如果没有显式指定类型,那么将从右边表达式推断类型
+const (							//批量声明的常量,除了第一个外其它的常量右边的初始化表达式都可以省略
+	a = 1
+	b			//默认为1
+	c = 2
+	d			//默认为2
+)
+const(							//iota在每个const出现时被重置为0,iota的值可以被编译器修改,在出现iota后,后面的每个常量都会自动叠加对应的值
+	a = iota	//0
+	b			//1
+	c			//2
+}
+无类型常量不仅可以提供更高的运算精度(最少256bit),而且可以直接用于更多的表达式而不需要转换类型,只有常量可以是类型的,go里有6种,分别是无类型的布尔型,无类型的整数,无类型的浮点数,无类型的复数,无类型的字符,无类型的字符串
+
+内建常量
+	true  false  iota  nil
+内建类型
+	int 	int8 	int16 		int32 	int64
+	uint 	uint8	uint16		uint32	uint64		uintptr
+	float32	float64	complex64(复数)		complex128(复数)
+	bool	byte(是uint8的别名)	rune	string	error
+内建函数
+	make 	len		cap		new		append		copy 		close		delete
+	complex	real(获取复数的实部)	imag(获取复数的虚部)
+	panic	recover
+上面3种预先定义的名字可以重新使用并定义,但并不常用
+名字开头字母的大小写决定了名字在包外的可见性,如果是大写的那么它是可导出的,也就是说可以被外部访问的,如fmt包的Printf函数就是导出的,在包一级内声明的变量不变开头是不是大小写,都可被同一个包内的源文件访问
+在go语言中,返回一个局部变量的地址是安全的,因为外部还在引用这个指针
+
+数组
+var a [3]int					//定义了一个元素个数和3的int型数组,数组的长度必须是常量表达式,因为数组的长度需要在编译期间确定
+var a [3]int = [3]int{1,2}		//初始化每个数组元素,未初始化的元素置为类型的零值
+q := [...]{1,2,3}				//如果数组字面的位置出现了...,表示数组的长度是根据初始化值的个数来计算的
+s := [...]string{0:"pw",1:"pa"}	//指定索引和对应值列表方式初始化
+r := [...]int{99:-1}			//定义了一个100长度的数组,最后一个元素被初始化为-1,其他都是0
+数组是可以用==和!=进行比较的,只有数组的每个元素都相等,他们才是相等的(首先,两个数组的类型要一样)
+在go语言里面将数组作为参数传递是低效的,因为要拷贝,可以采用数组指针,如 ptr *[32]byte,但传参数的时候也只可以传 [32]byte类型的数组
+
+slice(切片)
+slice底层也是由数组实现的,一个slice一般由3个部分构成,指针,长度,容量.长度对应slice中元素的数目,长度不能超过容量,指针指向第一个slice元素对应的底层地址,但并不一定对应底层数组的第一个元素
+多个slice可以共享底层的数据,并且引用的数组部分区间可能重叠
+[]T								//T代表slice的类型,slice没有固定长度,且每个元素有相同的类型,内置函数len和cap就可获取slice的长度和容量
+s := q[1:3]						//定义了一个s切片,引用了数组第1个元素和第2个元素
+在传参数时可以使用slice,因为slice包含了指向slice第一个元素的地址,所以修改了slice,即可修改对应的数组
+slice之间不能直接比较,必须自己展开每个元素进行比较,唯一合法的比较操作是和nil比较
+
+map
+map[string]int{}					//创建一个空的map
+ages := map[string]int{				//创建的同时可以指定一些最初的key/value
+	"alice": 31,
+	"charlie": 34,
+}
+ages["alice"]=32					//修改map中的值
+ages["alice"]++						//++也可用在map元素上
+map中的元素并不是一个变量,所以对map元素进行取址是错误的,如&ages["alice"]
+map的迭代顺序是随机的,不固定的
+map的零值是nil,对于一个nil值的map进行查找,删除,len和range循环都可以正常工作,但是向一个nil值的map存入元素则会报错
+通过key作为索引来访问map将产生一个value,如果key存在,则返回对应的值,如果key不存在,则返回对应类型的零值,要判断是否存在这个元素,则可以判断map的第二个返回值是true还是false
+map之间不能进行相等性比较,和nil比较除外
+
+结构体
+type Employee struct{				//声明了一个结构体,如果结构体成员名字是开头是大写的,那么它就是可导出的
+	ID		int		`json:"released"`		//后面跟着的字符串是结构体成员的TAG,一个结构体成员TAG是和在编译阶段关联到该成员的元信息字符串,json开头键名对应的值用于控制encoding/json包的编码和解码行为,并且encoding/...下面的包也遵守这个约定
+	Name	string
+}
+结构体面值
+type Point struct{X,Y int}
+p  := Point{1,2}						//按X,Y顺序初始化,X是1,Y是2
+p1 := Point{X:1}						//这种比上一种更常用,指定了名字
+pp := &Point{1,2}						//因为结构体通常用指针处理,一般用这种写法可以创建一个指向这个结构钵的指针
+如果结构体的全部成员是可以比较的,那么结构体也是可以比较的,比如p==p1,可比较的结构体类型和其他可比较的类型一样,可以作为map的key
+结构体嵌入和匿名成员
+type Point struct{
+	X,Y int
+}
+type Circle struct{
+	Point					//只声明一个成员对应的数据类型而不指定成员的名字,叫作匿名成员,匿名成员的数据类型必须是命名的类型或指向一个命名的类型的指针
+	Radius int
+}
+type Wheel struct{
+	Circle					//此处可以说Circle被嵌入到了Wheel结构体
+	Spokes int
+}
+var w Wheel
+w.X = 8				// 即w.Circle.Point.X
+但结构体字面值无法使用匿名成员的特性,必须 w = Wheel{Circle{Point{8,8},5},20}(按顺序),也可以填上名称
+
+delete
+内置的delete可以删除map中的元素,如delete(ages,"alice")			//这个操作始终是安全的,即始alice不在map中
+
+make
+内置函数make创建一个指定元素类型,长度和容量的slice,容量部分可以省略,即容量等于长度
+在底层,make创建了一个匿名的数组变量,然后返回一个slice,只能通过返回的slice才能引用底层匿名的数组变量
+make([]T,len)
+make([]T,len,cap)
+make也可用于创建一个map
+ages := make(map[string]int)		//创建一个key为string,value为int的map,map的key必须是支持==运算符的类型
+
+append
+内置的append函数用于向slice追加元素,还可以一次追加多个元素,如 x = append(x,1,2,3,4)
+runes := append(runes,r)
+
+copy(目标slice,源slice)			//将返回成功复制的元素的个数,等于2个slice中较小的长度,不必担心会超出范围
+
+range		
+	返回当前迭代的下标以及在该下标处元素的值,可用来遍历map或slice,_表示空白变量,即lua中的哑变量
+	
+panic
+	直接调用panic也会引发panic异常,接受任何值作为参数,当某些不应该发生的场景发生时,可以调用panic函数,一般只用于严重错误
+	
+
+defer
+	只要在调用普通函数或方法前加上关键字defer,就完成了defer的语法
+	当defer语句被执行时,跟在defer后面的函数会被延迟执行,直到包含该defer语句的函数执行完毕(不管是正常return,还是panic异常)
+	可以在一个函数中执行多个defer语句,它们的执行顺序与声明顺序相反
+	经常被用于成对的操作,如打开,关闭,连接,断开,加锁,释放锁等
+	如果在defer后面调用的函数后面跟着函数内容,则在函数后面还要加上一对()
+	
+recover
+	在defer函数内部调用recover函数,并且定义该defer语句的函数发生了panic异常,recover会使程序从panic恢复,并返回panic value,导致panic异常的函数不会继续运行,但能正常返回
+
+go语言里的init函数,格式 func init() {/*...*/}
+在同一个package中，可以多个文件中定义init方法
+在同一个go文件中，可以重复定义init方法
+在同一个package中，不同文件中的init方法的执行按照文件名先后执行各个文件中的init方法
+在同一个文件中的多个init方法，按照在代码中编写的顺序依次执行不同的init方法
+
+函数
+	func (p MyType)name(parameter-list) (result-list){		//函数声明,在参数列表中,如果某个参数名是'_',意味着强调了这个参数没有被使用,没有默认参数值,也无法通过参数名指定形参
+		body
+	}(parameter-list)								//此小括号里面是匿名函数传入的参数
+	p myType 即表示给myType声明了一个方法， p myType 不是必须的。如果没有，则纯粹是一个函数，通过包名称访问
+	如果遇到没有函数体的函数声明,则表示这个函数不是Go实现的,这样的声明定义了函数标识符
+	如果一个函数所有的返回值都定义了名称,则这个函数在return的时候可以省略后面的返回操作数,这称之为bare return
+	在go中,函数被看成第一类值,拥有类型,可以被赋值给其他变量,传递给函数,从函数返回,函数值之间是不能比较的,也不能用作map的key
+	函数字面量和函数声明非常像,只不过函数字面量frunc后面没有函数名,函数字面量是一种表达式,它的值被称为匿名函数,也叫闭包
+	如果匿名函数要被递归调用,必须首先声明一个变量,再把匿名函数赋值给这个变量,如果不分成2部,则在匿名函数内部无法访问匿名函数本身
+	可变参数函数 -- 参数数量可变的函数称为可变参数函数
+	在声明可变参数函数时,需要在参数列表的最后一个参数类型之前加上省略号...,这表示该函数会接收任意数量的该类型参数,参数类型是一个slice,如果想传一个数组给这个可变参数的函数,需要在传参时加上...
+
+方法
+	在一个函数声明时,在其名字前放上一个变量,即是一个方法,这个附加的参数会将该函数附加到这种类型上,相当于为这种类型定义了一个独占的方法
+	方法可以被声明到任意一个类型,如int,map等,只要不是一个指针或者interface即可
+	go语言里没有重载,一个类型,其内部的方法都必须有唯一的方法名,但是不同的类型可以有相同的方法名
+	当对象比较大时,可以在接收器里指定接收指定类型的指针
+	例:
+		func (p *Point) ScaleBy(factor float64){}		//这个方法的名字是(*Pint).ScaleBy,后面不管是使用指针还是对象调用些函数都需要使用'.',如果调用都是一个对象,接收器是一个指针,则编译器会隐匿地帮我们转换好
+	
+接口
+	接口类型是一种抽象的类型,它不会暴露出它所代表的对象的内部的结构和这个对象支持的基础操作的集合,它们只展示出它们自己的方法
+	接口类型描述了一系列方法的集合,一个实现了这些方法的具体类型是这个接口类型的实例
+	一个类型如果拥有一个需要的所有方法,那么这个类型就实现了这个接口
+	interface{} 空接口类型对实现它的类型没有要求,所以可以将任意一个类型的值赋给空接口类型
+	类似于结构体的内嵌,接口也可以内嵌
+	一个接口的零值就是它的类型和值的部分都是nil
+	接口值是可以相互比较的,两个接口值相等仅当它们都是nil或者它们的动态类型相同并且动态值也根据这个动态类型的==相等,因此,接口值是可以作为map的键或者switch操作数,如果两个接口值动态类型相同,但这个动态类型是不可比较的,将它们比较就会panic
+	声明接口
+		type ReadWriter interface{				//声明了一个ReadWriter接口
+			Read(p []byte) (n int,err error)
+			Write(p []byte) (n int,err error)
+		}
+	类型断言 -- 是一个使用在接口值上的操作,语法上看下来像x.(T),这里x表示一个接口的类型,T表示一个类型(可以是具体类型,也可以是接口类型),类型断言检查它操作对象的动态类型是否和断言的类型匹配
+	第一种，如果断言的类型T是一个具体类型，类型断言x.(T)就检查x的动态类型是否和T的类型相同。
+		如果这个检查成功了，类型断言的结果是一个类型为T的对象，该对象的值为接口变量x的动态值。换句话说，具体类型的类型断言从它的操作对象中获得具体的值。
+		如果检查失败，接下来这个操作会抛出panic，除非用两个变量来接收检查结果，如：f, ok := w.(*os.File)
+	第二种，如果断言的类型T是一个接口类型，类型断言x.(T)检查x的动态类型是否满足T接口。
+		如果这个检查成功，则检查结果的接口值的动态类型和动态值不变，但是该接口值的类型被转换为接口类型T。换句话说，对一个接口类型的类型断言改变了类型的表述方式，改变了可以获取的方法集合（通常更大），但是它保护了接口值内部的动态类型和值的部分。
+		如果检查失败，接下来这个操作会抛出panic，除非用两个变量来接收检查结果，如：f, ok := w.(io.ReadWriter)
+	类型开关
+		switch x := x.(type){/*...*/}		//这个新变量x可以用在switch中,不会和外面的x变量冲突
+		
+Goroutines -- 每一个并发的执行单元叫做goroutine
+	当一个程序启动时,主函数会在一个单独的goroutine中运行,它被叫做main goroutine,新的goroutine需要用go语句来创建
+	go创建goroutines的语法是在一个普通的函数或方法调用前加上关键字go,例 go f()
+	与线程的区别
+		线程有固定的栈大小,一般是2M,对于小线程来说浪费,对于递归函数来说可能不够,但goroutines的栈大小并不是固定的,一般从2KB开始,会动态地伸缩,最大值是1G
+		线程会被操作系统内核调度,每隔几毫秒,一个硬件计时器会中断处理器,这会调用一个叫作scheduler的内核函数,这个函数会挂起当前执行的线程并保存寄存器中的内容,检查线程列表并决定下一次哪个线程可以被运行,并从内存中恢复该线程的寄存信息,一个线程向另一个线程"移动"需要完整的上下文切换,这几步操作很慢,且会增加cpu周期
+		Go运行时包含了自己的调度器,这个调度使用了一些技术手段,比如m:n调度,其会在n个操作系统线程上多工(调度)m个goroutine,这个调度和操作系统的调度类似,但是这个调度器只关注单独的Go程序中的goroutine(按程序独立)
+		Go调度器并不是用一个硬件定时器而是被Go语言"建筑"本身进行调度,例如,当一个goroutine调用了sleep或者被channel调用或者mutex操作阻塞时,调度器会使其进入休眠并开始执行另一个goroutine,因为这种调度方式不需要进入内核上下文切换,所以重新调度一个goroutine比调度一个线程代价要低很多
+		Go调度器使用了一个叫做GOMAXPROCS的变量来决定会有多少个操作系统的线程同时执行Go的代码,默认值是运行机器上的cpu核心数
+		goroutine没有线程的ID概念
+		
+Channels -- 一个channels是一个通信机制,它可以让一个goroutine通过它给另一个goroutine发送值消息,每个channel都有一个特殊的类型,也就是channels可发送的数据类型
+	一个可以发送int数据类型的channel一般写作chan int,也可使用内置的函数 ch := make(chan int)
+	和map类似,channel也是一个对应make创建的底层数据的引用,当复制一个chanel或用于函数参数传递时,只是拷贝了一个channel的引用,因此调用都和被调用者都将引用同一个channel对象,channel的零值也是nil
+	相同类型的channel可以用==比较,一个channel也可以和nil进行比较
+	一个channel有发送和接收2个主要操作,都是通信行为,一个发送语句将一个值从一个goroutine通过channel发送到另一个执行接收操作的channel,发送和接收操作都是用<-运算符
+	在发送语句中,<-运算符分割channel和要发送的值,在接收语句中,<-运算符写在channel对象之前,一个不使用接收结果的接收操作也是合法的
+	channel还支持close(内置的)操作,用于关闭channel,随后对该channel的任何发送操作都会导致panic异常,对于一个已经close过的channel执行接收操作依然可以接收到之前已经成功发送的数据,如果channel中没有数据,则产生一个零值的数据
+	其实不需要关闭每个channel,当channel不再被引用时,会被Go的垃圾回收器回收,这个关闭和关闭文件不一样,没有占到操作系统的资源,重复关闭或者关闭一个nil的channel都会导致panic异常
+	以最简单方式调用make函数创建的一个channel是一个无缓存的channel,但是我们可以指定第2个整形参数,对应channel的容量,如果channel的容量大于0,那么该channel就是带缓存的
+	一个基于无缓存的channel的发送操作将导致发送者goroutine阻塞,直到另一个goroutine在相同的channel上执行了接收操作
+	range可以直接在channel上迭代,它依次从channel上接收数据,当channel被关闭并且没有值时退出循环
+	类型chan<-int表示一个只发送int的channel,只能发送不能接收,相反,类型<-chan int表示一个只能接收int的channel,只能接收不能发送,这种限制将在编译期检测,且只能对发送channel调用close,对接收channel调用close会导致编译错误
+	带缓存的channel内部持有一个元素队列,队列的最大容量是在调用make函数创建channel时第二个参数指定的,向缓存的channel发送操作就是向内部缓存队列尾部插入,接收操作则是从队列的头部删除,如果内部缓存队列是满的，那么发送操作将阻塞直到因另一个goroutine执行接收操作而释放了新的队列空间。相反，如果channel是空的，接收操作将阻塞直到有另一个goroutine执行发送操作而向队列插入元素
+	同样,len和cap可以获取channel里的有效元素个数和容量
+	也可以使用1个缓存的channel当作互斥量来使用,函数执行前对channel发数据,执行完毕后接收数据
+	
+select{					//用于配合channels使用,用于等待一个或者多个channel的输出,一个空的select{}会永远的等待下去,如果多个case同时就绪,select会随机地选择一个执行,保证每一个channel都有平等的被select的机会
+	case <-ch1:
+		//...
+	case x := <-ch2:
+		//...use x...
+	case ch3<-y:
+		//...
+	default				//如果没有一个case被执行,则会执行default里的内容,若无default,则select一直阻塞
+		//...
+}
+
+竞争条件检测
+	只要在go build或者go run后面加上-race的flag,就会使编译器创建一个应用的修改版,它附带了能够记录所有运行期间对共享变量的访问工具的test,并且会记录每一次读或者写共享变量的goruntine身份信息
+	另外,修改版的程序会记录下所有的同步事件,比如channel操作,以及对(*sync.Mutex).Lock,(*sync.WatiGroup).Wait等等的调用
+	
+反射
+	一种在运行时更新变量和检查他们的值,调用它们的方法的机制,但是在编译时并不知道这些变量的类型
+	
+算术运算,逻辑运算和比较运算符,按照优先级递减的方式排列,go中取模符号总是和被取模的数的符号一致
+*  /  %  <<  >>(算术右移)  &  &^(位清空,即AND NOT,将运算符左边数据与右边相异的位保留，相同位清零)
++  -  |  ^
+== != <  <=  >   >=
+&&
+||
+
+//字符串不可被修改
+string[i:j]		//输出第i个字节开始到j个字节(并不包含j本身),不管是i或j都可以被忽略,i被忽略就是0,j被忽略就是len(string)
+`string...`		//字符串字面值,使用反引号代替双引号,里面没有任务转义操作
+
+"世界"			//以下三行都是"世界"的unicode编码写法,\u对应16bit码点值,\U对应32bit码点值
+"\xe4\xb8\x96\xe7\x95\x8c"
+"\u4e16\u754c"
+"\U00004e16\U0000754c"
+
+在go语言中,所有的函数参数都是值拷贝传入的

@@ -1,0 +1,53 @@
+引用 AC_INIT，AM_INIT_AUTOMAKE，AC_CONFIG_HEADER 等等
+选项，比如：AC_ARG_ENABLE
+程序检测，比如：AC_CHECK_PROG
+库的检测
+头文件检测
+typedefs 和 结构体的检测
+函数的检测
+输出：AC_OUTPUT
+
+
+
+
+automake usage
+（1）首先，编写源文件hello.c。
+#include <stdio.h>  
+int main(int argc, char** argv[])  
+{  
+    printf("hello, world!\n");  
+    return 1;  
+}  
+（2）接下来，我们需要创建一个Makefile.am，同时编写上脚本。 
+SUBDIRS=  
+  
+bin_PROGRAMS=hello  
+hello_SOURCES=hello.c    
+
+（3）直接输入autoscan，生成文件configure.scan，再改名为configure.in。
+
+修改脚本AC_INIT(FULL-PACKAGE-NAME, VERSION, BUG-REPORT-ADDRESS) 为AC_INIT(hello, 1.0, feixiaoxing@163.com) ---comment, optional
+
+同时，在AC_CONFIG_HEADER([config.h])后面添加 AM_INIT_AUTOMAKE(hello, 0.1) ---comment, or just add AM_INIT_AUTOMAKE
+
+（4）依次输入aclocal命令、autoheader命令
+
+（5）创建4个文件，分别为README、NEWS、AUTHORS和ChangeLog
+
+（6）依次输入automake -a、autoconf命令
+
+（7）输入./configure，生成最终的Makefile
+
+（8）如果需要编译，输入make；如果需要安装， 输入make install；如果需要发布软件包，输入make dist
+
+补充：
+
+若再增加新模块
+
+1.编写源文件并修改Makefile.am
+
+2.执行autoreconf
+
+3.执行./configure
+
+4.make

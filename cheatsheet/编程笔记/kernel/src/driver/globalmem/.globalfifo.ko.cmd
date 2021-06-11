@@ -1,0 +1,1 @@
+cmd_/home/hask/.src/driver/globalmem/globalfifo.ko := ld -r -m elf_i386 -T /usr/src/linux-2.6.36-ARCH/scripts/module-common.lds --build-id  -o /home/hask/.src/driver/globalmem/globalfifo.ko /home/hask/.src/driver/globalmem/globalfifo.o /home/hask/.src/driver/globalmem/globalfifo.mod.o

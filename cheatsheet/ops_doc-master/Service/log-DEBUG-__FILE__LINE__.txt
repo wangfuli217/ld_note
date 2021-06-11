@@ -1,0 +1,76 @@
+#include <stdio.h>
+#include <stdarg.h>
+
+void debug(const char *, ...);
+void dbginfo(int, const char *);
+#define DEBUG dbginfo(__LINE__, __FILE__), debug
+
+static const char *dbgfile;
+static int dbgline;
+
+void dbginfo(int line, const char *file)
+{
+	dbgfile = file;
+	dbgline = line;
+}
+
+void debug(const char *fmt, ...)
+{
+	va_list argp;
+	fprintf(stderr, "DEBUG: \"%s\", line %d: ", dbgfile, dbgline);
+	va_start(argp, fmt);
+	vfprintf(stderr, fmt, argp);
+	va_end(argp);
+	fprintf(stderr, "\n");
+}
+
+With this machinery in place, a call to
+
+	DEBUG("i is %d", i);
+
+expands to
+
+	dbginfo(__LINE__, __FILE__), debug("i is %d", i);
+
+and prints something like
+
+	DEBUG: "x.c", line 10: i is 42
+
+A cunning improvement is the idea of having the stashing function return a pointer to the bona-fide varargs function:
+
+void debug(const char *, ...);
+void (*dbginfo(int, const char *))(const char *, ...);
+#define DEBUG (*dbginfo(__LINE__, __FILE__))
+
+void (*dbginfo(int line, const char *file))(const char *, ...)
+{
+	dbgfile = file;
+	dbgline = line;
+	return debug;
+}
+
+With these definitions,
+
+	DEBUG("i is %d", i);
+
+gets expanded to
+
+	(*dbginfo(__LINE__, __FILE__))("i is %d", i);
+
+Another, perhaps easier way might simply be to
+
+	#define DEBUG printf("DEBUG: \"%s\", line %d: ", \
+		__FILE__,__LINE__),printf
+
+Now,
+
+	DEBUG("i is %d", i);
+
+simply expands to
+
+	printf("DEBUG: \"%s\", line %d: ",
+		__FILE__,__LINE__),printf("i is %d", i);
+
+Finally, you may be able to use the
+
+	#define _ ,

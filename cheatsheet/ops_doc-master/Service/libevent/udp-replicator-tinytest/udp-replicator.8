@@ -1,0 +1,38 @@
+.Dd June 29, 2017
+.Dt UDP_REPLICATOR 8
+.Os
+.Sh NAME
+.Nm udp-replicator
+.Nd copy udp packets to multiple destinations
+.Sh SYNOPSIS
+.Nm
+.Op Fl g Ar nflog-group
+.Op Fl p Ar port
+.Ar address:port
+.Op Ar address:port Op Ar ...
+.Sh DESCRIPTION
+.Nm
+will listen for UDP datagrams on either
+.Ar port
+or via NFLOG
+.Ar nflog-group
+and transparently forward these to address and port speficifications given.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl g Ar nflog-group
+Listen for UDP datagrams on given
+.Ar nflog-group .
+.It Fl p Ar port
+Use a regular UDP to Listen on
+.Ar port
+for packets to forward.
+.Sh EXAMPLES
+To send packets to a group using
+.Xr iptables 8 add a rule like
+.Pp
+.Bd -literal -offset indent
+# iptables -I INPUT -p udp --dport 7 -j NFLOG --nflog-group 1
+# udp-replicator -g 1 192.0.2.2:9
+.Ed
+.Sh SEE ALSO
+.Xr iptables 8

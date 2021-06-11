@@ -1,0 +1,159 @@
+1. grub.exe; menu.lst; grldr 入C:
+
+2. 打开隐藏boot.ini,加入C:\grldr="GRUB"(系统会自动改成Grub For DOS)
+   若找不到boot.ini,则'我的电脑'-'属性'-'高级'-'编辑'，自动打开该文件
+
+3. memu.lst中为Grub4DOS的选项，'title'为显示出的选项名
+
+4. 添入title centOs 5.3
+       kernel (hd0,0)/vmlinuz     
+       initrd (hd0,0)/initrd.img
+   
+kernel,initrd入ntfs和fat32随意
+
+grub在启动时会打开A20h地址线
+
+grub和gnu grub的命令不同，但大致是
+root (hd0,0)/rootnoverify (hd0,0)
+active
+chainloader +1
+boot
+
+fedora:
+choose fixed size 1000mb
+every 3 /dev/md127pX(same size) bind to a /dev/mdX (RAID5 needs at least 3)
+bootable device only can be set to RAID1
+our Dell Workstation has 3 WD 1T(total 3T) disk, RAID BIOS set them to RAID5, so only "2T" could be available
+/etc/sysconfig/i18n LANG="zh_CH.UTF-8"
+
+arch:
+fatal error: bad primary partition 3: partition ends after end-of-disk      fdisk /dev/sda to delete all
+cfdisk /dev/sda
+sfdisk -d /dev/sda > table && sfdisk /dev/sdb < table
+modprobe raid0 raid1 raid5
+mdadm --create /dev/md1 --level=1 --raid-devices=3 /dev/sda1 /dev/sdb1 /dev/sdc1 --metadata=0.90 (for grub 1, and default is 1.2)
+mdadm --create /dev/md6 --level=1 --raid-devices=3 /dev/sda6 /dev/sdb6 /dev/sdc6 (set raid info to every partition)
+
+mdadm --assemble /dev/md1 /dev/sda1 /dev/sdb1 /dev/sdc1 (after reboot, assemble manually)
+
+/dev/sdaX /dev/sdbX are physical, while /dev/mdX is hal, so making fs on /dev/mdX is set it to the physical disk
+/arch/setup
+after install the packages, add module mdadm to /etc/mkinitcpio.conf, then mkinitcpio -c /mnt/etc/mkinitcpio.conf -g /mnt/boot/kernel26.img
+rm /mnt/etc/mdadm.conf && mdadm --examine --scan > /mnt/etc/mdadm.conf
+
+in grub, "root" cmd refers to "/boot", not the "root" in menu.lst
+
+root device mounted succesfully but /sbin/init does not exist
+int grub/menu.lst:
+root (hd0,0)
+kernel /boot/kernel26.img root=/dev/sda5(/, not /boot)
+
+unable to determine major/minor number of root device /dev/md2
+
+pacman -U libdaemon ifplugd
+/etc/rc.d/ifplugd start     or cp /etc/network.d/examples/ethernet-dhcp /etc/network/myconnection && netcfg myconnection
+
+1.没有光驱,下载archlinux的croe版本的img.弄成usb启动 dd if=archlinux-xxxx-croe.img of=/dev/sdb bs=6M #sdb是我的u盘了 
+2.启动，就准备安装了。安装base.base-devel不装了。麻烦
+3.安装完成后，配置一下rc.conf弄好主机名称，配置下hosts弄好本地解析。locale.gen也弄了一下。多好 
+4.设置好grub后，重新启动。很不错。很快啦 
+5.学习一下pacman发现跟yum/apt-get/emerge都差不多啦 
+pacman -S packagename #安装软件包 
+pacman -R packagename #删除软件包 
+pacman -Syu #升级系统中的所有包 
+pacman -Ss package #查询软件包 
+pacman -Qs package #查询已安装的包 
+pacman -Sw package #下载但不安装包 
+pacman -U /path/package.pkg.tar.gz #安装本地包 
+pacman -Scc #清理包缓存 
+pacman -Sf pacman #重新安装包 中了。
+6.选择最快的源 rankmirrors /etc/pacman.d/mirrorlist > ~/mirrors 
+7.替换现在的源 mv ~/mirrors /etc/pacman.d/mirrorlist 
+8.利用hwd来调整xorg.conf 1)pacman -S hwd 2)hwd -xa #利用hwd配置xorg.conf 目前hwd已经移出源。可以使用X来进行配置 1)X -configure 2)X -config ~/xorg.conf.new 我的显卡会出现黑屏但无所谓的。全部安装好后就可以启动图形。 
+9.安装显卡驱动 pacman -S xf86-video-intel 
+10.提高pacman数据库的访问速度 pacman-optimize && sync 
+11.提高下载速度,用aria2替换wget 
+pacman -S pacman #确保是最新的pacman 
+pacman -S aria2 
+修改/etc/pacman.conf,在[Option]加入 XferCommand = /usr/bin/aria2c -s 10 -m 2 -d / -o %o %u 
+各个参数的意思： /usr/bin/aria2c - aria2主程序 -s 10 - 开两线程下载(你可以将数字改大，但是速度不一定会有太大改观) -m 2 - 设置每个镜像的重试次数为2 -o %o - 将下载的文件命名为pacman指定的名字 %u - 下载pacman指定的文件 
+12.xorg pacman -S xorg 
+13.gdm pacman -S gdm 安装完成后，编辑/etc/inittab 老规矩由3改为5 然后找到 #x:5:respawn:/usr/sbin/gdm-nodaemon 将注释去掉 
+14.gnome pacman -S gnome 安装完成后修改/etc/rc.conf找到MODULES=(),将其改为MODULES=(fuse) 
+15.gnome-terminal pacman -S gnome-terminal 
+16.fcitx pacman -S fcitx 制作全局输入法启动脚本 vi /etc/X11/xinit/xinitrc.d/100-fcitx #! /bin/bash export XMODIFIERS="@im=fcitx" export GTK_IM_MODULE=xim export QT_IM_MODULE=xim fcitx & 为100-fcitx增加执行权利:chmod 755 /etc/X11/xinit/xinitrc.d/100-fcitx 
+17.安装中文字体 pacman -Ss ttf-arphic-ukai ttf-arphic-uming wqy-bitmapfont wqy-zenhei 
+18.安装笔记本控制程序 pacman -S laptop-mode-tools 修改/etc/laptop-mode/laptop-mode.conf 将CONTROL_开头的打开就可以监控cpu，硬盘什么的了。一般都不用改 
+18.安装电源管理与cpu调节 pacman -Ss gnome-power-manager cpufreqd cpufrequtils acpid 在/etc/rc.conf中找到DAEMONS=这个字段，在()中追加一个acpid，让其自己启动 
+19.安装alsa-utils pacman -S alsa-utils 
+alsaconf配置一下声卡。将账户添加到audio组中。 
+20.实现自动加载U盘，并有中文 pacman -S hal pmount 编辑/etc/rc.conf，将hal加入DAEMONS行， 将用户加入组hal、dbus、storage 
+乱码解决 首先安装gconf-editor 开启gconf-editor 在systerm-->storage-->default_options-->vfat:mount_options中，点击 “添加” 输入iocharset=utf8 
+21.无线网卡 在安装的时候我就选择了5100AGN的网卡固件iwlwifi-5000-ucode。发现ifconfig不能激活。但是已经认识出来了。我想了半天发现了问题。呵呵 pacman -S networkmanager gnome-network-manager 先改下 /etc/rc.conf将网卡出添加成这个样子: eth0="eth0 192.168.0.1 netmask 255.255.255.0 broadcast 192.168.0.255" wlan0="dhcp" wlan_wlan0="wlan0 mode managed essid ESSID号 key 十六进制WEP密钥" INTERFACES=(eth0 wlan0) 再在最后一行加入networkmanager，就像这个样子: DAEMONS=(syslog-ng network networkmanager netfs crond acpid) 好了，以后在启动gnome后，就让gnome-network-manager管理无线好了。因为ifconfig不支持,这似乎是个bugs。算了反正能用了 
+22.Mplayer与编码 pacman -S mplayer mplayer-plugin codecs gstreamer0.10 gstreamer0.10-bad gstreamer0.10-bad-plugins gstreamer0.10-base gstreamer0.10-base-plugins gstreamer0.10-ffmpeg gstreamer0.10-good gstreamer0.10-good-plugins gstreamer0.10-ugly gstreamer0.10-ugly-plugins 
+23.Gnome下的光盘刻录,这个我最喜欢了。直接右键单击就直接刻了。哈哈 pacman -S brasero 
+24.图形压缩于解压工具 pacman -S file-roller 
+25.计算器 pacman -S gcalctool 
+26.Gnome菜单编辑程序 pacman -S alacarte 
+27.屏幕截图工具 pacman -S scrot 
+28.屏幕录像工具 pacman -S xvidcap 
+29.gdesklets与GoodWeather pacman -S gdesklets 完成后去http://gdesklets.de下载GoodWeather 修改文件~/.gdesklets/Sensors/GoodWeather/__init__.py，找到: WEATHER_SOURCE = "http://xoap.weather.com/weather/local/" \ "%(weather_code)s?cc=*&dayf=5∏=xoap&" \ "par=1003832479&key=bb12936706a2d601 在最尾部加入&link=xoap就可以了.如下 class GoodWeatherSensor(Sensor): WEATHER_SOURCE = "http://xoap.weather.com/weather/local/" \ "%(weather_code)s?cc=*&dayf=5∏=xoap&" \ "par=1003832479&key=bb12936706a2d601&link=xoap" 别忘记改下天气区域将GMXX0007改为北京的CHXX0008就可以了 
+30.安装dillo pacman -S dillo 安装完成后，必须添加中文字体才可以显示中文阿。修改方法 
+	30-1)vim /etc/dillo/dillorc 
+	30-2)找到vw_fontname与fw_fontname，加入: vw_fontname="WenQuanYi Bitmap Song" fw_fontname="WenQuanYi Bitmap Song" 
+31.安装stardict pacman -S stardict 安装完成后，需要去stardict官方下字典。地址http://stardict.sourceforge.net/cn/Dictionaries_zh_CN.php 找到所需要的字段后下载。下载完成后，将字典安装到stardict的词典目录中 tar xvfj 所需要的词典 -C /usr/share/stardict/dic/ /usr/share/stardict/dic这个目录就是stardict的词典目录，如果不存在这个目录，你可以手动建立。 
+32.安装个人日程安排软件Osmo与便签程序,日程安排中还是认为sunbrid不错，思维导图推荐采用vym。 pacman -S sunbrid sunbrid-i18n xpad vym 
+33.安装awn pacman -S avant-window-navigator awn-extras-applets 找主题呵呵。然后弄倒影和3D效果。这个必须得有gconf-editor才可以阿 点击“Applicatons → System Tools → Configuration Editor”菜单命令，打开 Gconf； 选择“Apps → Avant-Window-Navigator → Bar”； 将“Bar_angle”的值更改为 45； 将“Icon_offset”的值更改为 25； 关闭 Gconf，并重新运行 AWN。 至此全部完成。终于可以用了。启动速度那叫一个舒服
+
+
+http://hi.baidu.com/sunblackshine/blog/item/307f50acb2f911034b36d6c9.html
+http://t.webofgoo.com/2008/07/11/arch-linux-installation-from-ground-up/
+http://hi.baidu.com/krup/blog/item/44c1741fe70742fee0fe0b0e.html
+
+pacman -S pacman-color
+powerpill - a wrapper and download accelerator for pacman
+pacman -S ibus ibus-pinyin
+sudo pacman -S alacarte
+sudo nvidia-xconfig --composite
+sudo nvidia-xconfig --add-argb-glx-visuals
+sudo pacman -S beryl
+
+以普通用户身份运行：
+alsamixer
+用左右光标键移动到Master和PCM声道上，按M取消掉静音。用向上键增加音量
+测试你的声音配置：aplay /usr/share/sounds/alsa/Front_Center.wav 
+pacman -S networkmanager network-manager-applet
+gpasswd -a jedi network
+gpasswd -a jedi dbus
+lspci 查看无线网卡驱动是否安装
+
+http://wiki.archlinux.org/index.php/NetworkManager_(简体中文)
+http://wiki.archlinux.org/index.php/Wireless_Setup_(简体中文)
+http://www.linuxsir.org/bbs/thread347107.html
+http://bbs.archlinux.org/viewtopic.php?id=46066
+
+pacman -S slim
+Add slim to the DAEMONS array in /etc/rc.conf or update /etc/inittab ----
+#x:5:respawn:/usr/bin/xdm -nodaemon   注释这行
+x:5:respawn:/usr/bin/slim >& /dev/null   取消这行
+
+cpu save -- granola
+http://j-lite.net/blog/2010/05/10/granola
+
+metacity 的主题太僵硬
+apps=>metacity=>general,在右边框中找到 compositing_manager 在右边小框中打钩
+
+/etc/X11/xorg.conf 
+24 color depth, not 16
+Compiz 的设置菜单中看到了 Loose Binding 一项，不知道是干啥的，好奇的选择了一下，结果发现 CPU 占用率高的现象立马消失了～ 
+
+lyanry 说这个 Loose Binding 选项似乎和 Nvidia 的显卡驱动有关，不过没有定论：
+
+With strict binding textures are bound whenever they are enabled, with loose binding they are enabled when created. The Nvidia driver seems a bit slow when binding textures, that's why this option gives a heavy performance increase on Nvidia.
+
+
+raid:   real(too expensive)/fake(bios control)/soft(disk controler has no capability, os' duty)
+raid0   strip
+raid1   mirror
+raid5   parity(at least 3)
+

@@ -1,0 +1,139 @@
+zunkfs is a "content-addressable-filesystem." Ie, everything in it is kept 
+via SHA1 hashes.  And it's got some light encryption in it too.
+
+Files and directories are described by a "disk directory entry" (disk_dentry 
+or ddent for short.) A ddent has the following stuff in it:
+  - name of the file/directory (upto 196 chars)
+  - 20 byte, SHA1 hash desribing the "root chunk" [1] of the file.
+  - 20 byte, SHA1 hash desribing the "secret chunk" [2] of the file.
+  - file/directory size (bytes or # of entries)
+  - "mode" (rwx, file or directory)
+  - create time (in seconds)
+  - modify time (in seconds)
+
+The fs itself is described by the ddent that defines the / directory.
+All entries and divided up into 64k-sized chunks, and are stored in
+a tree structure. The tree is dynamically expanded to fit all chunks
+needed for the file. Internal nodes of the tree are also chunks, which contain
+lists of 20-byte hashes of other chunks.
+
+       [ root chunk ]
+        /    |      \
+ [ leaf 1 ] [leaf 2] [leaf 3]
+
+In the case of files, leaf chunks contain file data. For directories, leaf 
+chunks contain arrays of ddents.
+
+[1] The "root chunk" of the file contains the root chunk of a chunk tree 
+which contains the files data.
+
+[2] The "secret chunk" is used to do simple XOR-based mangling of all chunks.
+All chunks in a files chunk tree are mangled with this XOR. The hash that is 
+stored is that of the final XORed data. When a file or directory is created, 
+a new random chunk is also created to be the secret chunk for that ddent.
+
+At the moment, chunks are stored a ".chunks" directory in the current working
+directory. I've verified that I can copy some files and create directories 
+within a zunkfs mount. Created files will match the expected SHA1 hash of the 
+original. And they are preserved accross remounts.
+
+--- random thoughts captured from drze ---
+
+try running: zunkfs-list-ddents in a zunkfs directory
+
+zunkfs-add-ddents lets you add stuff from somebody else's zunkfs
+If you were to create an empty zunkfs then do 
+  $ zunkfs-add-ddent file <digest> <secret digest> <size> <name>
+zunkfs-list-ddents lists the <digest> <secret digest> <mode> <size> <ctime> <mtime> <name>
+If we were all connected to some shared chunk-db btu we've got our own zunkfs 
+roots and I want a file that you have got you just give me three things:
+  1) digest
+  2) secret digest
+  3) size
+and from that, I can get at that file (same thing applies to directories)
+
+zunkfs-list-ddents --car
+
+----
+A protocol for zunkfs (dirt simple) - run down in IRC by drze:
+
+Defines 6 messages:
+
+- find_chunk <digest>
+	Search for a chunk, digest specified as a hex string.
+	Valid replies include store_chunk, store_node, and 
+	requeset_done.
+
+- store_chunk <chunk>
+	Store a chunk, passed in base64-encoded (*).
+	Valid replies are request_done or store_node.
+
+- forward_chunk <chunk>
+	Store a chunk, passed in base64-connected (*).
+	The only valid reply is request_done. A node receiving this
+	message will behave as a client for sending this chunk
+	to other nodes via store_chunk.
+
+- push_chunk <max_distance> <chunk>
+	Same as forward_chunk, but node will only forward the chunk
+	to nodes whose distance < max_distance.
+
+- store_node <ip:port>
+	As a reply, means that request should be sent to 
+	this ip:port too. As a request, the ZunkDB should
+	store ip:port. If 'ip' is not passed in, the IP address
+	of the sender is used. And if zunkdb was started with --promote-nodes,
+	then the sender is promoted to be a "node", instead of just
+	a client.
+
+- request_done <digest>
+	Reply ending find_chunk and store_chunk. Digest should match
+	the chunk in question.
+
+(*) base64 encoding isn't quite MIME-compliant, as it doesn't insert \r\n for
+76th character. Why? It makes other things easier.  (Let us not callit base64,
+and instead call it z64 encoding so people aren't sad by non-compliance?)
+
+The point of "store_node" is to allow ZunkDB to work more like a P2P system. 
+ZunkDBs can be distributed and know of other ZunkDB "nodes". When a ZunkDB
+receives a request, and deems that another node should process it, it'll tell
+the client to send the request to the given address. The only exception to
+this is 'forward_chunk', which makes the receiving node behave as a client.
+This node will take care of sending the chunk to other nodes.
+
+"forward_chunk" was introduced to reduce uplink usage for end clients.
+By using "forward_chunk", a client only needs to send the chunk to one
+node. Nodes should not use this message between each other, as it can
+lead to infinite loops.
+
+----
+A useful tool to test zunkfs backends is chunk-db-unit-test. It can be used
+to store and retrieve chunks from any chunk-db backend. I (z) used it to test
+zunkdb as follows:
+
+
+1) start 100 zunkdbs using ports starting @ 10000, and using memory backing
+   for chunks:
+
+$ for ((ii=10000;ii<10100;ii++)); do
+> zunkdb --chunk-db rw,mem:100 \
+>        --addr :$ii \
+>        --peer localhost:$((ii-1)) \
+>        --log T,/tmp/zdb.$ii &
+> done
+
+2) using an old .chunks directory, push some chunks to the database:
+
+$ chunk-db-unit-test --db zunkdb:localhost:10008,timeout=5 --store .chunks/*
+
+3) check where the chunks ended up:
+
+$ grep write_chunk /tmp/zdb.*
+
+4) verify that all chunks are accessible from any starting node:
+
+$ for ((ii=10000;ii<10100;ii++)); do
+> chunk-db-unit-test --db zunkdb:localhost:$ii,timeout=5 --find $(ls .chunks)
+> done
+
+

@@ -1,0 +1,969 @@
+# -*-Shell-script-*-
+# http://www.cnblogs.com/f-ck-need-u/p/7518142.html
+# https://www.cnblogs.com/sunfie/p/5149678.html
+# functions This file contains functions to be used by most or all
+#       shell scripts in the /etc/init.d directory.
+# 同时也被 /etc/rc.d/rc.sysinit ，例如 success、action、failure 等函数
+# daemon 启动一个服务程序。启动前还检查进程是否已在运行。
+#  
+#  ./etc/init.d/function
+
+# 启动进程时，pid特别重要，不仅可以通过它判断进程是否运行，还可以从中读取pid号用来杀死进程
+
+显示函数 # 功能说明
+  success：显示绿色的OK，表示成功
+  failure：显示红色的FAILED，表示失败
+  passed：显示黄色的PASSED，表示pass该任务
+  warning：显示黄色的warning，表示警告
+  confirm：提示(Y)es/(N)o/(C)ontinue? [Y]并判断、传递输入的值
+  is_true：$1的布尔值代表为真时，返回状态码0，否则返回1；包括t/y/yes/true，不区分大小写
+  is_false：$1的布尔值代表为假时，返回状态码0，否则返回1；包括f/n/no/false，不区分大小写
+  action：根据进程退出状态码自行判断是执行success还是failure
+
+进程函数 # 功能说明，输入，输出和返回值
+  checkpid：检查/proc下是否有给定pid对应的目录，给定多个pid时，只要存在一个目录都返回状态码0
+  __pids_var_run：检查pid是否存在，并保存到变量pid中，同时返回几种进程状态码
+  __pids_pidof：获取进程pid
+  pidfileofproc：获取进程pid，但只能获取/var/run下的pid文件中的值
+  pidofproc：获取进程pid，可获取任意给定pidfile或默认/var/run下pidfile中的值
+  status：检查给定进程的运行状态                         [status]
+  daemon：启动一个服务程序，启动前还检查进程是否已在运行 [start]
+  killproc：杀掉给定的服务进程                           [stop]
+        
+TEXTDOMAIN=initscripts   # 设置 TEXTDOMAIN 变量
+# Make sure umask is sane # sane(明智的; 稳健的) # 确保 root 用户的 umask 是正确的 022 (也就是 rwxr-xr-x)
+umask 022                            # 文件执行权限
+# Set up a default search path.      # 设置默认的 PATH 变量
+PATH="/sbin:/usr/sbin:/bin:/usr/bin" # 默认为 /sbin:/usr/sbin:/bin:/usr/bin:/usr/X11R6/bin
+export PATH                          # 导出为环境变量
+
+# Get a sane screen width           # 设置正确的屏幕宽度
+[ -z "${COLUMNS:-}" ] && COLUMNS=80 # 如果COLUMNS环境变量为空，则设置为 80 
+[ -z "${CONSOLETYPE:-}" ] && CONSOLETYPE="$(/sbin/consoletype)" #如果 CONSOLETYPE 为空则设置 CONSOLETYPE 为 /sbin/consoletype 命令返回的值
+                                                                # 一般是 vt 或者 pty 、serial
+# 语言信息导入，
+if [ -f /etc/sysconfig/i18n -a -z "${NOLOCALE:-}" -a -z "${LANGSH_SOURCED:-}" ] ; then  # 如果存在 /etc/sysconfig/i18n 且 NOLOCALE 变量的值为空，则
+  . /etc/profile.d/lang.sh 2>/dev/null                  # 执行 /etc/sysconfig/i18n 文件，取得 LANG 变量的值
+  # avoid propagating LANGSH_SOURCED any further
+  unset LANGSH_SOURCED
+fi
+# 导入环境变量 或者使用默认值 说明文件见/usr/doc/initscripts-*/sysconfig.txt
+# Read in our configuration
+if [ -z "${BOOTUP:-}" ]; then             # 首先如果 BOOTUP 变量为空，则
+  if [ -f /etc/sysconfig/init ]; then     # 如果存在 /etc/sysconfig/init 文件，执行 /etc/sysconfig/init 文件
+      . /etc/sysconfig/init
+  else                                    # 否则我们就手工设置
+    # This all seem confusing? Look in /etc/sysconfig/init,
+    # or in /usr/doc/initscripts-*/sysconfig.txt
+    BOOTUP=color                              # 第一设置 BOOTUP 变量，默认就是 color 
+    RES_COL=60                                # 第二设置设置在屏幕的第几列输出后面的 "[ xxx ]" ，默认是第60列
+    MOVE_TO_COL="echo -en \\033[${RES_COL}G"  # MOVE_TO_COL 是用于打印 "OK" 或者 "FAILED" ,或者 "PASSED" ,或者 "WARNING" 之前的部分，不含 "["
+    SETCOLOR_SUCCESS="echo -en \\033[1;32m"   # SETCOLOR_SUCCESS 设置后面的字体都为绿色
+    SETCOLOR_FAILURE="echo -en \\033[1;31m"   # SETCOLOR_FAILURE 设置后面将要输出的字体都为红色
+    SETCOLOR_WARNING="echo -en \\033[1;33m"   # SETCOLOR_WARNING 设置后面将要输出的字体都为黄色
+    SETCOLOR_NORMAL="echo -en \\033[0;39m"    # SETCOLOR_NORMAL 设置后面输出的字体都为白色(默认)
+    LOGLEVEL=1
+  fi #如果输出口为串口                        
+  if [ "$CONSOLETYPE" = "serial" ]; then      # 如果是通过串口登录的，则全部取消彩色输出
+      BOOTUP=serial
+      MOVE_TO_COL=
+      SETCOLOR_SUCCESS=
+      SETCOLOR_FAILURE=
+      SETCOLOR_WARNING=
+      SETCOLOR_NORMAL=
+  fi
+fi
+
+if [ "${BOOTUP:-}" != "verbose" ]; then                                # 如果 BOOTUP 变量的值不为 verbose ，则
+    INITLOG_ARGS="-q" # 把 INITLOG_ARGS 的值设置为 -q (安静模式)
+else                                                                   # 否则
+    INITLOG_ARGS=                                                       # 把 INITLOG_ARGS 的值请空 
+fi
+
+# Interpret escape sequences in an fstab entry # escape (逃脱; 逃离; 躲过; 泄露)
+fstab_decode_str() {
+    fstab-decode echo "$1" # fstab-decode echo "$(awk '$3 == "ext4" { print $2 }' /etc/fstab)"
+}
+###################
+# 5.pid检测相关函数
+# 启动进程时，pid文件非常重要。不仅可以通过它判断进程是否在运行，还可以从中读取pid号用来杀进程。
+# 5.1 checkpid、__pids_var_run和__pids_pidof函数
+#  1. pid文件的路径可能为/var/run/$base.pid文件($base表示进程名的basename)，
+#     也可能是自定义的路径，例如mysql的pid可以自定义为/mysql/data/mysql01.pid。
+#     但无论哪种情况，functions中的__pids_var_run函数都可以处理。
+#  2. pid文件中可能有多行，表示多实例。
+#  3. 每个进程都必有一个pid，但并不一定都记录在pid文件中，例如线程的pid。
+#     但无论如何，在/proc/目录下，一定会有pid号命名的目录，只要有对应pid号的目录，就表示该进程已经在运行。
+#     函数checkpid专门检测给定的pid值在/proc下是否有对应的目录存在。
+#  4. 为了获取进程名的pid值，此处函数__pids_pidof使用的是pidof命令。
+#     该命令专门设计用来在脚本中取给定进程的pid。它的"-o"选项用于忽略某些进程号，
+#     在脚本中应用时常被忽略的是调用pidof的shell的PID，当前shell的PID以及父shell的pid。
+#     总之，该函数的目的就是为了获取合理无误的进程pid。
+####################
+
+## 检查/proc下是否有给定pid对应的目录。给定多个pid时，只要存在一个目录都返回状态码0。
+# Check if any of $pid (could be plural) are running
+# 输入为1个或多个进程pid值，输出为进程是否存在
+# 对应pid的进程是否存在，返回值：0表示进程正在运行；1表示进程未在运行。
+# 
+# 调用方法：checkpid pid_list
+checkpid(检查pid参数列表是否为正在运行进程) { 检查 /proc 下是否存在指定的目录(例如 /proc/1/); 如果有任意一个存在，则返回0；
+    local i
+# 遍历从1到$#的所有参数，$*：命令行所有参数
+    for i in $* ; do                   # 检测/proc目录下是否存在给定的进程目录
+        [ -d "/proc/$i" ] && return 0
+    done
+    return 1                           # 如果给出的参数全部不存在对应的目录，则返回1
+}
+
+# 返回文件相对路径名，链接文件返回../../之类的路径
+__readlink() {
+    ls -bl "$@" 2>/dev/null| awk '{ print $NF }' # 返回链接文件的路径信息
+}
+
+# grep "$1" "$2"
+#在文件中查找， 参数1为关键字，参数2为文件名
+__fgrep(输出字符串在文件中匹配的行) { 
+    s=$1
+    f=$2
+    while read line; do
+    if strstr "$line" "$s"; then #查找子字符串
+        echo $line
+        return 0
+    fi
+    done < $f
+    return 1
+}
+
+# __umount_loop awk_program fstab_file first_msg retry_msg retry_umount_args
+# awk_program should process fstab_file and return a list of fstab-encoded
+# paths; it doesn't have to handle comments in fstab_file.
+__umount_loop() { #卸载文件系统
+    local remaining sig=    # 变量和变量之间，空格即可
+    local retry=3 count     # 变量和变量之间，空格即可
+
+    remaining=$(LC_ALL=C awk "/^#/ {next} $1" "$2" | sort -r) #LC_ALL=C 将环境变量临时设置为C，标准格式
+    while [ -n "$remaining" -a "$retry" -gt 0 ]; do # -a -o -n -> []
+        if [ "$retry" -eq 3 ]; then
+            action "$3" fstab-decode umount $remaining
+        else
+            action "$4" fstab-decode umount $5 $remaining
+        fi
+        count=4
+        remaining=$(LC_ALL=C awk "/^#/ {next} $1" "$2" | sort -r)
+        while [ "$count" -gt 0 ]; do
+            [ -z "$remaining" ] && break
+            count=$(($count-1))
+            usleep 500000 #睡眠命令 微秒
+            remaining=$(LC_ALL=C awk "/^#/ {next} $1" "$2" | sort -r)
+        done
+        [ -z "$remaining" ] && break
+        fstab-decode /sbin/fuser -k -m $sig $remaining >/dev/null
+        sleep 3           #睡眠命令
+        retry=$(($retry -1))
+        sig=-9
+    done
+}
+
+# Similar to __umount loop above, specialized for loopback devices
+__umount_loopback_loop() { #卸载回环文件系统
+    local remaining devremaining sig=
+    local retry=3
+
+    remaining=$(awk '$1 ~ /^\/dev\/loop/ && $2 != "/" {print $2}' /proc/mounts)
+    devremaining=$(awk '$1 ~ /^\/dev\/loop/ && $2 != "/" {print $1}' /proc/mounts)
+    while [ -n "$remaining" -a "$retry" -gt 0 ]; do
+        if [ "$retry" -eq 3 ]; then
+            action $"Unmounting loopback filesystems: " \
+                fstab-decode umount $remaining
+        else
+            action $"Unmounting loopback filesystems (retry):" \
+                fstab-decode umount $remaining
+        fi
+        for dev in $devremaining ; do
+            losetup $dev > /dev/null 2>&1 && \
+                action $"Detaching loopback device $dev: " \
+                losetup -d $dev
+        done
+        remaining=$(awk '$1 ~ /^\/dev\/loop/ && $2 != "/" {print $2}' /proc/mounts)
+        devremaining=$(awk '$1 ~ /^\/dev\/loop/ && $2 != "/" {print $1}' /proc/mounts)
+        [ -z "$remaining" ] && break
+        fstab-decode /sbin/fuser -k -m $sig $remaining >/dev/null
+        sleep 3
+        retry=$(($retry -1))
+        sig=-9
+    done
+}
+
+## 检查pid是否存在，并保存到变量pid中，同时返回几种进程状态码。是functions中重要函数之一。
+# 只有当pid文件存在，且/proc下有pid对应的目录时，才表示进程在运行
+# __proc_pids {program} [pidfile]
+# Set $pid to pids from /var/run* for {program}.  $pid should be declared
+# local in the caller.
+# Returns LSB exit code for the 'status' action.
+# 输入参数：1) 进程名称+进程pidfile文件路径 2) 进程名称, 未指定进程pidfile的情况下，以/var/run/prog.pid为pidfile。
+# 输出参数：pid全局变量 和 return 返回值
+# return 返回值: 
+## 0 存在且正常运行； 
+## 1 存在但未运行 
+## 3 不存在且未运行 
+## 4 用户无权限访问Pid文件
+# pidfile为进程pid文件名，如果不给定pidfile，则默认为/var/run/$base.pid文件
+## pidfile的路径可能为/var/run/$base.pid文件($base表示进程名的basename)，此路径为默认值
+## pidfile的路径也可能是自定义的路径，例如mysql的pid可以自定义为/mysql/data/mysql01.pid
+# pid 为__pids_var_run隐形的返回值, 在返回值等0情况下，返回/var/run/prog.pid文件存储的正在运行进程对应的pid。
+#
+# 不仅从pidfile中获取并保存pid号码，还根据情况返回几种状态码，这几个状态码是status函数的重要依据。
+# 
+# 调用方法：__pids_var_run program [pidfile]
+__pids_var_run(根据进程pidfile,返回当前进程状态和pid值) {  # 通过检测pid判断程序是否已在运行
+    local base=${1##*/}                                    # 获取进程名的basename
+    local pid_file=${2:-/var/run/$base.pid} # ${VAR:-$VALUE}：如果VAR为空或未设置，返回VALUE；否则，返回VAR值；
+
+    pid=         # 把 pid 变量的值清空。注意，不是指 pid 变量的值等于下面脚本的执行结果，要看清楚
+    if [ -f "$pid_file" ] ; then    # 给定的pid文件是否存在
+            local line p
+
+        [ ! -r "$pid_file" ] && return 4 # "user had insufficient privilege"
+        while : ; do     # 将pid文件中的pid值(可能有多行)赋值给pid变量; true (or :)
+            read line    # 使用read命令读取字符串到变量中。
+            [ -z "$line" ] && break # 如果字符串为空，则退出
+            for p in $line ; do # for [name] in [words] 
+                [ -z "${p//[0-9]/}" -a -d "/proc/$p" ] && pid="$pid $p"  # test EXPR1 -a EXPR2
+            done
+        done < "$pid_file"  # cmd < file 将文件内容重定向到命令的输入
+
+        if [ -n "$pid" ]; then # pid存在，则返回0。否则表示pid文件存在，但/proc下没有对应命令
+                return 0       # 即进程已死，但pid文件却存在，返回状态码1。
+        fi
+        return 1 # "Program is dead and /var/run pid file exists"
+    fi
+    return 3 # "Program is not running"
+}
+
+## 用来获取给定进程的pid
+# Output PIDs of matching processes, found using pidof
+# 返回进程名对应的执行pid:输入参数为进程名[可以包括路径名],输出为正在运行进程pid，
+# 如果进程为多线程或者多实例，会返回所有正在运行进程|线程pid 
+#
+# __pids_pidof中使用了pidof命令，其中使用了几个"-o"选项，它用于忽略指定的pid。
+# 但看上去"$$""$PPID""%PPID"不是很好理解。"-o $$"是忽略的是shell进程，
+# 大多数时候它会继承父shell的pid，但在脚本中时它代表的是脚本所在shell的pid。
+# "-o $PPID"忽略的是父shell。"-o %PPID"忽略的是调用pidof命令的shell。
+__pids_pidof(指定程序名对应正在运行进程Pid) {
+
+# 该函数使用了pidof命令，获取给定进程的pid值会更加精确，其中使用了几个-o选项，它用于忽略指定的pid
+## -o $$表示忽略当前shell进程PID，大多数时候它会继承父shell的pid，但在脚本中时它代表的是脚本所在shell的pid
+## -o $PPID表示忽略父shell进程PID
+## -o %PPID表示忽略调用pidof命令的shell进程PID
+    
+    pidof -c -o $$ -o $PPID -o %PPID -x "$1" || \  # 忽略当前shell的PID，父shell的pid和调用pidof程序的shell的pid
+        pidof -c -o $$ -o $PPID -o %PPID -x "${1##*/}" # 总之就是找出合理的pid
+}
+
+## 启动一个服务程序。启动前还检查进程是否已在运行。
+# daemon --pidfile="$PIDFILE" $exec -i "$PIDFILE" $SYSLOGD_OPTIONS
+# daemon $prog $CRONDARGS
+# daemon $dnsmasq $OPTIONS
+# A function to start a program.
+# /etc/sysconfig/foo 1. DAEMON_COREFILE_LIMIT 2. NICELEVEL 3. CGROUP_DAEMON 4. BOOTUP
+#
+# daemon函数调用方法：
+# daemon [--check=servicename] [--user=USER] [--pidfile=PIDFILE] [--force] program [prog_args]
+#   只有"--user"可以用来控制program启动的环境。
+#   "--check"和"--pidfile"都是用来检查是否已运行的，不是用来启动的，如果提供了"--check"，则检查的是名为servicename的进程，否则检查的是program名称的进程。
+#   "--force"则表示进程已存在时仍启动。
+#   prog_args是向program传递它的运行参数，一般会从/etc/sysconfig/$base文件中获取。
+#
+# httpd的启动脚本中。
+#   echo -n $"Starting $prog: "
+#   daemon --pidfile=${pidfile} $httpd $OPTIONS
+daemon(根据配置和环境变量运行某个守护进程) { daemon 函数，它的作用是启动某项服务。/etc/init.d/ 下的脚本的 start 部分都会用到它
+    # Test syntax.
+    local gotbase= force= nicelevel corelimit
+    local pid base= user= nice= bg= pid_file=
+    local cgroup=
+    nicelevel=0
+    
+    # daemon 函数本身可以指定多个选项，例如 --check <value> ，--check=<value> ，
+    # ${VAR##$substring}：从变量$VAR的开头, 删除最长匹配$substring的子串
+    # test STRING1 != STRING2
+    # while CONDITION; do 循环体 done
+    while [ "$1" != "${1##[-+]}" ]; do # 当参数$1以"-"或"+"开头时进入循环，但$1为空时也满足
+      case $1 in  # 没有参数
+        '')    echo $"$0: Usage: daemon [+/-nicelevel] {program}"     # 也可以指定 nice 值
+               return 1;;
+        --check) # daemon接受"--arg value"和"--arg=value"两种格式的参数
+           base=$2
+           gotbase="yes"
+           shift 2
+           ;;
+        # ?只能匹配单个字符，
+        # *匹配任何字符串，包括空字符串
+        --check=?*)
+        # ${VAR#$substring}：从变量$VAR的开头, 删除最短匹配$substring的子串
+           base=${1#--check=}
+           gotbase="yes"
+           shift
+           ;;
+        --user)    # 也可以指定要以什么用户身份运行（--user <usr> , --user=<usr>)
+           user=$2
+           shift 2
+           ;;
+        --user=?*)
+               user=${1#--user=}
+           shift
+           ;;
+        --pidfile)
+           pid_file=$2
+           shift 2
+           ;;
+        --pidfile=?*)
+           pid_file=${1#--pidfile=}
+           shift
+           ;;
+        --force)            # --force 表示强制运行
+           force="force"
+           shift
+           ;;
+        [-+][0-9]*) # -|+ [0-9] 优先级; 如果 daemon 的第一个参数是数字，则认为是 nice 值
+           nice="nice -n $1"
+               shift
+           ;; # 错误参数
+        *)     echo $"$0: Usage: daemon [+/-nicelevel] {program}"
+               return 1;;
+      esac
+    done
+
+    # basename 就是从服务器的二进制程序的 full path 中取出最后的部分
+    # Save basename.如果--check不存在，则 program 名字 base .即 --check 不存在，则 program 输入为全路径
+    [ -z "$gotbase" ] && base=${1##*/} # 若未传递"--check"，则此处获取bashname
+
+    # See if it's already running. Look *only* at the pid file.
+    __pids_var_run "$base" "$pid_file" # 关注pid,
+
+    # 如果 pid 变量最终为空，则 force 变量为空(不强制启动)，则返回
+    # test EXPR1 -a EXPR2
+    [ -n "$pid" -a -z "$force" ] && return # 如进程已在运行(已检测出pid)，且没有使用force，强制启动，则退出daemon函数
+
+    # ulimit 是控制由该 shell 启动的进程能够使用的资源，-S 是 soft control 的意思，-c 是指最大的 core
+    # dump 文件大小，如果 DEAMON_COREFILE_LIMIT 为空，则默认为 0
+    # make sure it doesn't core dump anywhere unless requested
+    # -S        use the  'soft' resource limit; 
+    # -c        the maximum size of core files created
+    corelimit="ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}" # corelimit、cgroup和资源控制有关，忽略它
+    
+    # if they set NICELEVEL in /etc/sysconfig/foo, honor it
+    [ -n "${NICELEVEL:-}" ] && nice="nice -n $NICELEVEL"
+    
+    # if they set CGROUP_DAEMON in /etc/sysconfig/foo, honor it
+    # 
+    if [ -n "${CGROUP_DAEMON}" ]; then
+        if [ ! -x /bin/cgexec ]; then  #cgexec - run the task in given control groups
+            echo -n "Cgroups not installed"; warning
+            echo
+        else
+            cgroup="/bin/cgexec";
+            for i in $CGROUP_DAEMON; do
+                cgroup="$cgroup -g $i";
+            done
+        fi
+    fi
+
+    # Echo daemon
+    # 如果 BOOTUP 的值为 verbose ，则打印一个服务名
+    [ "${BOOTUP:-}" = "verbose" -a -z "${LSB:-}" ] && echo -n " $base"
+
+    # And start it up.
+    # 启动程序。runuser的"-s"指定执行程序的shell，$user指定运行的身份，"$*"是剔除掉daemon选项后程序的启动指令。
+    if [ -z "$user" ]; then # -c command
+       $cgroup $nice /bin/bash -c "$corelimit >/dev/null 2>&1 ; $*"  # 按照root用户运行
+    else            # Change the effective user id and group id to that of USER
+       $cgroup $nice runuser -s /bin/bash $user -c "$corelimit >/dev/null 2>&1 ; $*" #按照指定用户运行
+    fi
+    # "$?" 数值比较可以指定 '"' 双引号
+    # if [ "$?" -eq 0  ] ; then success $"$base startup" ; else failure $"$base startup ; fi 模式
+    [ "$?" -eq 0 ] && success $"$base startup" || failure $"$base startup" # 一种漂亮的返回方式
+}
+
+# killproc函数的作用是根据给定程序名杀进程。中间它会获取程序名对应的pid号，且保证/proc目录下没有pid对应的目录才表示进程关闭成功。
+## 杀掉给定的服务进程
+# A function to stop a program. #停止一个进程
+# 
+# 0: 正在运行
+# 1: 当前未在运行
+# 4：用户无权限访问Pid文件 
+# 7：要停止的程序未运行
+# 函数会删除pidfile文件
+# 
+# 关闭进程时，需要再三确定pid文件是否存在，/proc下是否有和pid对应的目录。直到/proc下已经没有了和pid对应的目录时，才表示进程真正杀死了。但此时pid文件仍可能存在，因此还要保证pid文件已被移除。
+# 该函数的调用方法：
+# killproc [-p pidfile] [ -d delay] {program} [-signal]
+killproc(杀死进程：Usage,正常&异常：字符串输出+状态码输出) { /etc/init.d/ 下面的脚本的 stop 部分都会用到它
+    local RC killlevel= base pid pid_file= delay
+
+    RC=0; delay=3                 # RC 是最终返回的值，初始化为 0
+    # Test syntax.
+    if [ "$#" -eq 0 ]; then # killproc 函数的语法格式是 killproc <service> [<signal>] ，例如 killproc sm-client 9
+        echo $"Usage: killproc [-p pidfile] [ -d delay] {program} [-signal]"
+        return 1
+    fi
+    if [ "$1" = "-p" ]; then # 指定pid_file。不给"-p"时，"__pids_var_run"将检查/var/run下的文件
+        pid_file=$2
+        shift 2
+    fi
+    if [ "$1" = "-d" ]; then # awk的多目运算符。delay的有效值单位为d(天)、时(h)、分(m)、秒(s)。
+        delay=$2             # 不写单位时默认为秒。该语句将所给时间转换成秒，接受小数，做四舍五入计算
+        shift 2
+    fi
+        
+
+    # check for second arg to be kill level
+    # ${VAR:-$VALUE}：如果VAR为空或未设置，返回VALUE；否则，返回VAR值；
+    [ -n "${2:-}" ] && killlevel=$2 # 获取稍后的kill程序将要发送的信号
+
+        # Save basename.
+        base=${1##*/}
+
+        # Find pid.                 # 获取program的pid号，以让kill程序杀掉
+    __pids_var_run "$1" "$pid_file" # 检查program是否已有对应pid文件，并返回pidfile中所有pid值
+    RC=$?
+    if [ -z "$pid" ]; then
+        if [ -z "$pid_file" ]; then # 通过进程名获得进程pid
+            pid="$(__pids_pidof "$1")" # pid为空，且没有pidfile时，获取program的pid
+        else # 当判断两边都是 双引号的时候，就认为按照字符串判断。
+            [ "$RC" = "4" ] && { failure $"$base shutdown" ; return $RC ;}
+        fi
+    fi
+
+    # 补充 ：注意，并不是说用户没有指定信号地停止某项服务时，就会立即用 kill -9 这样的方式强制杀死，而是先用 TERM 信号，然后再用 KILL
+    # Kill it. # 根据pid，杀掉已存在的进程
+    if [ -n "$pid" ] ; then # 如果进程pid存在，则杀死它
+        [ "$BOOTUP" = "verbose" -a -z "${LSB:-}" ] && echo -n "$base " # 且 BOOTUP 的值为 verbose ，且 LSB 变量不为空，则打印一个服务名
+        if [ -z "$killlevel" ] ; then # 没有指定要传递的信号时
+               if checkpid $pid 2>&1; then # 给定pid在/proc目录中是否有对应目录
+               # TERM first, then KILL if not dead
+               kill -TERM $pid >/dev/null 2>&1 # 先发送TERM信号，不行再用 KILL 信号
+               usleep 100000
+               if checkpid $pid && sleep 1 &&       #  1秒后还没死透，则
+                  checkpid $pid && sleep $delay &&  # 在给定delay时间内不断检测是否已死
+                  checkpid $pid ; then              # 超出delay后，发送KILL信号强制杀死
+                  kill -KILL $pid >/dev/null 2>&1
+                  usleep 100000
+               fi
+                fi
+            checkpid $pid # 若/proc下还有pid对应的目录，则进程关闭失败
+            RC=$?
+            # if  [ "$RC" -eq 0 ]; then  failure $"$base shutdown" ; else  success $"$base shutdown" fi
+            [ "$RC" -eq 0 ] && failure $"$base shutdown" || success $"$base shutdown"
+            RC=$((! $RC))
+        # use specified level only
+        else # 使用指定的信号杀进程
+            if checkpid $pid; then # cmd > file 2>&1  redirect both stdout and stderr of cmd to a File.
+                kill $killlevel $pid >/dev/null 2>&1 # 
+                RC=$?
+                # 此处按照数值比较; command && success || failure; 如果command成功则success，否则 failure
+                [ "$RC" -eq 0 ] && success $"$base $killlevel" || failure $"$base $killlevel"
+            elif [ -n "${LSB:-}" ]; then
+                RC=7 # Program is not running
+            fi
+        fi
+    else # 如果进程pid不存在，表示未运行
+        if [ -n "${LSB:-}" -a -n "$killlevel" ]; then
+            RC=7 # Program is not running
+        else
+            failure $"$base shutdown"
+            RC=0
+        fi
+    fi
+
+    # 根据具体情况可能需要删除 pid 文件
+    if [ -z "$killlevel" ]; then # 未给定信号时，可能KILL信号强杀时使得pid文件还存在，手动移除它
+            rm -f "${pid_file:-/var/run/$base.pid}"
+    fi
+    return $RC # 并把 RC 作为 exit status 返回
+}
+
+###### __pids_pidof pidfileofproc pidofproc
+# 都是获取进程pid，
+# 第一个函数和后两个的区别主要在于获取的pid是bash进程时更精确，
+# 第二个和第三个函数的区别在于第2个函数只能获取/var/run下pid文件中的pid值。
+#
+# 如果要找出进程的"master"进程号，例如要向主进程发送HUP信号reload配置文件时，应该用pidofproc并使用"-p"指定pid文件。
+# 其余时候用__pids_pidof准没错，也正是如此，在daemon和killproc函数中都使用了它。
+# 另外，在多实例的情况下，也可以考虑使用pidofproc来根据pidfile搜索对应实例的pid。
+# 
+## 获取进程的pid。但只能获取/var/run下的pid文件中的值。
+# A function to find the pid of a program. Looks *only* at the pidfile
+# 输入参数为进程名，输出为根据进程名对应在/var/run/prog.pid中的进程Pid。
+# 根据进程名prog对应在/var/run/prog.pid文件，获得进程对应pid值
+#
+# 如crond启动脚本中借助pidfileofproc来杀进程
+pidfileofproc(返回指定进程的状态,正常:字符串输出+状态码输出) { pidfileofproc 函数和 checkpid 类似，但不执行 pidof 命令，只查询 pid 文件
+    local pid
+
+    # 测试语法
+    if [ "$#" = 0 ] ; then
+        echo $"Usage: pidfileofproc {program}"
+        return 1
+    fi
+
+    __pids_var_run "$1"
+    [ -n "$pid" ] && echo $pid
+    return 0
+}
+# pidfileofproc只能搜索/var/run下的pid，而pidofproc可以搜索自给定的pidfile或/var/run/下的pid。
+## 获取进程的pid。可获取任意给定pidfile或默认/var/run下pidfile中的值。
+# A function to find the pid of a program.
+# 根据指定进程名|pidfile输出指定执行程序名的pid，总是返回正常
+# 
+# dnsbind的named服务启动脚本中借助pidofproc来判断进程是否已在运行。
+pidofproc(返回指定进程的状态,正常:字符串输出+状态码输出) { 下面的 pidofproc 函数和上面的 pidfileofproc 函数类似，但多了一步 pidof 命令
+    local RC pid pid_file=
+
+    # 字符串判断
+    if [ "$#" = 0 ]; then
+        echo $"Usage: pidofproc [-p pidfile] {program}"
+        return 1
+    fi
+    if [ "$1" = "-p" ]; then
+        pid_file=$2
+        shift 2
+    fi
+    fail_code=3 # "Program is not running"
+
+    # First try "/var/run/*.pid" files
+    __pids_var_run "$1" "$pid_file"
+    RC=$?
+    if [ -n "$pid" ]; then
+        echo $pid
+        return 0
+    fi
+
+    [ -n "$pid_file" ] && return $RC
+    __pids_pidof "$1" || return $RC
+}
+## 检查给定进程的运行状态
+# 0：正在运行 1：进程已经死掉，pidfile文件还在。4: 没有权限查看pidfile
+# 2: 进程已经死掉，/var/lock/subsys/pidfile文件还在。3：进程已停止运行
+# tatus函数用于获取进程的运行状态，有以下几种状态：
+#
+#  ${base} (pid $pid) is running...
+#  ${base} dead but pid file exists
+#  ${base} status unknown due to insufficient privileges.
+#  ${base} dead but subsys locked
+#  ${base} is stopped
+# 
+# 函数调用方法：
+# status [-p pidfile] [-l lockfile] program
+# 由于函数定义原因，如果同时提供"-p"和"-l"选项，"-l"选项必须放在"-p"的后面。
+status(返回指定进程的状态Usage,正常&异常：字符串输出+状态码输出) { 下面的 status 函数是判断服务的状态，总共有4种
+    local base pid lock_file= pid_file=
+
+    # Test syntax.
+    if [ "$#" = 0 ] ; then
+        echo $"Usage: status [-p pidfile] {program}"
+        return 1
+    fi
+    if [ "$1" = "-p" ]; then # 指定pidfile
+        pid_file=$2
+        shift 2
+    fi
+    if [ "$1" = "-l" ]; then # 指定lockfile
+        lock_file=$2
+        shift 2
+    fi
+    base=${1##*/}
+
+    # First try "pidof"  1. pidfile文件
+    __pids_var_run "$1" "$pid_file"
+    RC=$?
+    if [ -z "$pid_file" -a -z "$pid" ]; then # 1. pidof 命令
+        pid="$(__pids_pidof "$1")"
+    fi
+    if [ -n "$pid" ]; then
+        echo $"${base} (pid $pid) is running..."
+        return 0
+    fi
+
+    case "$RC" in
+        0)
+            echo $"${base} (pid $pid) is running..."
+            return 0
+            ;;
+        1)
+                    echo $"${base} dead but pid file exists"
+                    return 1
+            ;;
+        4)
+            echo $"${base} status unknown due to insufficient privileges."
+            return 4
+            ;;
+    esac
+    if [ -z "${lock_file}" ]; then # lockfile
+        lock_file=${base}
+    fi
+    # See if /var/lock/subsys/${lock_file} exists
+    if [ -f /var/lock/subsys/${lock_file} ]; then
+        echo $"${base} dead but subsys locked"
+        return 2
+    fi
+    echo $"${base} is stopped"
+    return 3
+}
+
+
+echo_success(输出内容和输出颜色, 返回值) {
+  [ "$BOOTUP" = "color" ] && $MOVE_TO_COL         # 首先是打印 “[” 之前的空格
+  echo -n "["                                     # 然后打印 "[" 
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_SUCCESS    # 设置字体为红色
+  echo -n $"  OK  "                               # 打印 OK
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL     # 打印 "]"    
+  echo -n "]"                                     # 换行。
+  echo -ne "\r"                                   # 返回 0，其他一律返回 1
+  return 0
+}
+
+echo_failure(输出内容和输出颜色, 返回值) {
+  [ "$BOOTUP" = "color" ] && $MOVE_TO_COL
+  echo -n "["
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
+  echo -n $"FAILED"
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+  echo -n "]"
+  echo -ne "\r"
+  return 1
+}
+
+echo_passed(输出内容和输出颜色, 返回值) {
+  [ "$BOOTUP" = "color" ] && $MOVE_TO_COL
+  echo -n "["
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
+  echo -n $"PASSED"
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+  echo -n "]"
+  echo -ne "\r"
+  return 1
+}
+
+echo_warning(输出内容和输出颜色, 返回值) {
+  [ "$BOOTUP" = "color" ] && $MOVE_TO_COL
+  echo -n "["
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
+  echo -n $"WARNING"
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+  echo -n "]"
+  echo -ne "\r"
+  return 1
+}
+
+# Inform the graphical boot of our current state
+update_boot_stage() {
+  if [ -x /bin/plymouth ]; then
+      /bin/plymouth --update="$1"
+  fi
+  return 0
+}
+
+## 显示绿色的"OK"，表示成功
+# Log that something succeeded
+success(根据配置输出，不改变程序返回值) {
+  [ "$BOOTUP" != "verbose" -a -z "${LSB:-}" ] && echo_success
+  return 0
+}
+
+##显示红色的"FAILED"，表示失败
+# Log that something failed
+failure(根据配置输出，不改变程序返回值) {
+  local rc=$?
+  [ "$BOOTUP" != "verbose" -a -z "${LSB:-}" ] && echo_failure
+  [ -x /bin/plymouth ] && /bin/plymouth --details
+  return $rc
+}
+
+## 显示绿色的"PASSED"，表示pass该任务
+# Log that something passed, but may have had errors. Useful for fsck
+passed(根据配置输出，不改变程序返回值) {
+  local rc=$?
+  [ "$BOOTUP" != "verbose" -a -z "${LSB:-}" ] && echo_passed
+  return $rc
+}  
+
+## 显示绿色的"warning"，表示警告
+# Log a warning
+warning(根据配置输出，不改变程序返回值) {
+  local rc=$?
+  [ "$BOOTUP" != "verbose" -a -z "${LSB:-}" ] && echo_warning
+  return $rc
+}  
+
+## 根据进程退出状态码自行判断是执行success还是failure
+# Run some action. Log its output.
+# 执行命令，根据命令的返回值打印success和failure
+# 
+# 先将第一个参数保存并踢掉，再执行后面的命令("$@"表示执行后面的命令)。
+# 所以，当action函数只有一个参数时，action直接返回OK，状态码为0，
+# 当超过一个参数时，第一个参数先被打印，再执行从第二个参数开始的命令。
+# 
+# 在脚本中使用action函数时，可以让命令执行成功与否的判断显得更"专业"。
+# action $"MESSAGES: " /bin/true 
+# action $"MESSAGES: " /bin/false
+action(基于$1提示符执行$2命令及$3后续参数) {  根据退出状态码自动调用success 和 failure
+  local STRING rc
+
+  STRING=$1 #先将第一个参数保存并踢掉，再执行后面的命令("$@"表示执行后面的命令)
+  echo -n "$STRING "
+  shift # 当超过一个参数时，第一个参数先被打印，再执行从第二个参数开始的命令
+  "$@" && success $"$STRING" || failure $"$STRING" # $"string"和"string"没有区别。详细内容可参考本文的评论区
+  rc=$?
+  echo
+  return $rc
+}
+# 判断第一个参数"$1"中是否包含了"$2"，如果包含了则返回状态码0。
+# returns OK if $1 contains $2
+strstr(字符串$1包含字符串$2) { # 字符串查找
+  [ "${1#*$2*}" = "$1" ] && return 1  # 参数$1中不包含$2时，返回1，否则返回0
+  return 0
+}
+
+
+## 提示"(Y)es/(N)o/(C)ontinue? [Y]"并判断、传递输入的值。
+# Confirm whether we really want to run this service
+# 
+# 根据交互式输入的值返回不同的状态码，
+# 如果输入的是y或Y或不输入时，返回0。
+# 输入的是c或C时，返回状态码2，
+# 输入的是n或N时返回状态码1。
+confirm(基于read命令的请求应答) { confirm 函数是用于交互式的启动服务
+  [ -x /bin/plymouth ] && /bin/plymouth --hide-splash
+  while : ; do  # : 空命令，返回值为成功
+      echo -n $"Start service $1 (Y)es/(N)o/(C)ontinue? [Y] " # 会打印一个提示信息
+      read answer
+      if strstr $"yY" "$answer" || [ "$answer" = "" ] ; then    # 如果 answer 变量是 y 或者 Y 则
+         return 0                                               # 返回 0（但未真正启动）
+      elif strstr $"cC" "$answer" ; then                        # 如果 answer 是 c 或者 C ，则
+        rm -f /var/run/confirm                                  # 删除 /var/run/confirm 文件 
+        [ -x /bin/plymouth ] && /bin/plymouth --show-splash
+         return 2                                               # 返回2
+      elif strstr $"nN" "$answer" ; then                        # 如果 answer 是 n 或者 N，则
+         return 1                                               # 直接返回1
+      fi
+  done
+}
+
+# resolve a device node to its major:minor numbers in decimal or hex
+get_numeric_dev(打印/dev/下设备文件的主次版本号) {
+(
+    fmt="%d:%d"
+    if [ "$1" == "hex" ]; then
+        fmt="%x:%x"
+    fi
+    ls -lH "$2" | awk '{ sub(/,/, "", $5); printf("'"$fmt"'", $5, $6); }'
+) 2>/dev/null
+}
+
+# Check whether file $1 is a backup or rpm-generated file and should be ignored
+is_ignored_file(判断$1是否以某个后缀名结尾) {
+    case "$1" in
+    *~ | *.bak | *.orig | *.rpmnew | *.rpmorig | *.rpmsave)
+        return 0
+        ;;
+    esac
+    return 1
+}
+# 转换输入的布尔值为状态码。
+## 当is_true函数的第一个参数(后面的参数会忽略掉)为忽略大小写的t、y、yes或true时，返回状态码0，否则返回1。
+# Evaluate shvar-style booleans
+is_true(判断$1是否为True或Yes) {
+
+# case 支持模式判断
+    case "$1" in
+    [tT] | [yY] | [yY][eE][sS] | [tT][rR][uU][eE])
+    return 0
+    ;;
+    esac
+    return 1
+}
+# 转换输入的布尔值为状态码。
+## 当is_false函数的第一个参数(后面的参数会忽略掉)为忽略大小写的f、n、no或false时，返回状态码0，否则返回1。
+# Evaluate shvar-style booleans
+is_false(判断$1是否为No或False) {
+    case "$1" in
+    [fF] | [nN] | [nN][oO] | [fF][aA][lL][sS][eE])
+    return 0
+    ;;
+    esac
+    return 1
+}
+
+# Apply sysctl settings, including files in /etc/sysctl.d
+apply_sysctl(将sysctl.conf文件和sysctl.d目录下文件包含的内核参数应用给内核) {
+    sysctl -e -p /etc/sysctl.conf >/dev/null 2>&1
+    for file in /etc/sysctl.d/* ; do
+        is_ignored_file "$file" && continue
+        test -f "$file" && sysctl -e -p "$file" >/dev/null 2>&1
+    done
+}
+
+key_is_random() {
+    [ "$1" = "/dev/urandom" -o "$1" = "/dev/hw_random" \
+    -o "$1" = "/dev/random" ]
+}
+
+find_crypto_mount_point() {
+    local fs_spec fs_file fs_vfstype remaining_fields
+    local fs
+    while read fs_spec fs_file remaining_fields; do
+    if [ "$fs_spec" = "/dev/mapper/$1" ]; then
+        echo $fs_file
+        break;
+    fi
+    done < /etc/fstab
+}
+
+# Because of a chicken/egg problem, init_crypto must be run twice.  /var may be
+# encrypted but /var/lib/random-seed is needed to initialize swap.
+init_crypto() {
+    local have_random dst src key opt mode owner params makeswap skip arg opt
+    local param value rc ret mke2fs mdir prompt mount_point
+
+    ret=0
+    have_random=$1
+    while read dst src key opt; do
+    [ -z "$dst" -o "${dst#\#}" != "$dst" ] && continue
+        [ -b "/dev/mapper/$dst" ] && continue;
+    if [ "$have_random" = 0 ] && key_is_random "$key"; then
+        continue
+    fi
+    if [ -n "$key" -a "x$key" != "xnone" ]; then
+        if test -e "$key" ; then
+        owner=$(ls -l $key | (read a b owner rest; echo $owner))
+        if ! key_is_random "$key"; then
+            mode=$(ls -l "$key" | cut -c 5-10)
+            if [ "$mode" != "------" ]; then
+               echo $"INSECURE MODE FOR $key"
+            fi
+        fi
+        if [ "$owner" != root ]; then
+            echo $"INSECURE OWNER FOR $key"
+        fi
+        else
+        echo $"Key file for $dst not found, skipping"
+        ret=1
+        continue
+        fi
+    else
+        key=""
+    fi
+    params=""
+    makeswap=""
+    mke2fs=""
+    skip=""
+    # Parse the src field for UUID= and convert to real device names
+    if [ "${src%%=*}" == "UUID" ]; then
+        src=$(/sbin/blkid -t "$src" -l -o device)
+    elif [ "${src/^\/dev\/disk\/by-uuid\/}" != "$src" ]; then
+        src=$(__readlink $src)
+    fi
+    # Is it a block device?
+    [ -b "$src" ] || continue
+    # Is it already a device mapper slave? (this is gross)
+    devesc=${src##/dev/}
+    devesc=${devesc//\//!}
+    for d in /sys/block/dm-*/slaves ; do
+        [ -e $d/$devesc ] && continue 2
+    done
+    # Parse the options field, convert to cryptsetup parameters and
+    # contruct the command line
+    while [ -n "$opt" ]; do
+        arg=${opt%%,*}
+        opt=${opt##$arg}
+        opt=${opt##,}
+        param=${arg%%=*}
+        value=${arg##$param=}
+
+        case "$param" in
+        cipher)
+        params="$params -c $value"
+        if [ -z "$value" ]; then
+            echo $"$dst: no value for cipher option, skipping"
+            skip="yes"
+        fi
+        ;;
+        size)
+        params="$params -s $value"
+        if [ -z "$value" ]; then
+            echo $"$dst: no value for size option, skipping"
+            skip="yes"
+        fi
+        ;;
+        hash)
+        params="$params -h $value"
+        if [ -z "$value" ]; then
+            echo $"$dst: no value for hash option, skipping"
+            skip="yes"
+        fi
+        ;;
+        verify)
+            params="$params -y"
+        ;;
+        swap)
+        makeswap=yes
+        ;;
+        tmp)
+        mke2fs=yes
+        esac
+    done
+    if [ "$skip" = "yes" ]; then
+        ret=1
+        continue
+    fi
+    if [ -z "$makeswap" ] && cryptsetup isLuks "$src" 2>/dev/null ; then
+        if key_is_random "$key"; then
+        echo $"$dst: LUKS requires non-random key, skipping"
+        ret=1
+        continue
+        fi
+        if [ -n "$params" ]; then
+        echo "$dst: options are invalid for LUKS partitions," \
+            "ignoring them"
+        fi
+        if [ -n "$key" ]; then
+        /sbin/cryptsetup -d $key luksOpen "$src" "$dst" <&1 2>/dev/null && success || failure
+        rc=$?
+        else
+        mount_point="$(find_crypto_mount_point $dst)"
+        [ -n "$mount_point" ] || mount_point=${src##*/}
+        prompt=$(printf $"%s is password protected" "$mount_point")
+        plymouth ask-for-password --prompt "$prompt" --command="/sbin/cryptsetup luksOpen -T1 $src $dst" <&1
+        rc=$?
+        fi
+    else
+        [ -z "$key" ] && plymouth --hide-splash
+        /sbin/cryptsetup $params ${key:+-d $key} create "$dst" "$src" <&1 2>/dev/null && success || failure
+        rc=$?
+        [ -z "$key" ] && plymouth --show-splash
+    fi
+    if [ $rc -ne 0 ]; then
+        ret=1
+        continue
+    fi
+    if [ -b "/dev/mapper/$dst" ]; then
+        if [ "$makeswap" = "yes" ]; then
+        mkswap "/dev/mapper/$dst" 2>/dev/null >/dev/null
+        fi
+        if [ "$mke2fs" = "yes" ]; then
+        if mke2fs "/dev/mapper/$dst" 2>/dev/null >/dev/null \
+            && mdir=$(mktemp -d /tmp/mountXXXXXX); then
+            mount "/dev/mapper/$dst" "$mdir" && chmod 1777 "$mdir"
+            umount "$mdir"
+            rmdir "$mdir"
+        fi
+        fi
+    fi
+    done < /etc/crypttab
+    return $ret
+}
+
+# A sed expression to filter out the files that is_ignored_file recognizes
+__sed_discard_ignored_files='/\(~\|\.bak\|\.orig\|\.rpmnew\|\.rpmorig\|\.rpmsave\)$/d'

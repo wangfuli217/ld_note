@@ -1,0 +1,108 @@
+
+
+进程间通信不论是单机还是分布式，都建议使用Socket.单机IPC用unix socket file, 跨机用ip socket; 简单点用DGram数据报, 复杂点用Stream字节流, 
+数据格式简单点用字符JSON,复杂点用protobuf二进制；
+
+《UNIX 网络编程-套接字联网API》第1卷
+TCP server:
+int listenfd= socket(AF_INET/*ipv4*/, SOCK_STREAM,IPPROTO_TCP);    listenfd :监听套接字,一个服务器一个
+         bind(listenfd ,(struct sockaddr*)&servAddr,sizeof(servAddr));//srvfd<->ip&port
+         listen(listenfd ,5);//servel start to listen,maxNum=5  这行代码是非阻塞的
+         acceptedfd = accept(listenfd ,(struct sockaddr*)&clientAddr,&addrLen);//返回的acceptedfd 对应1个客户连接，用于数据通信；这行是阻塞的；
+                             accept4(listenfd , sockaddr_cast(addr), &addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);//set acceptedfd nonblock after succuess accept;
+         n = read(acceptedfd , buff, MAXLINE);//
+         write(acceptedfd , buff, strlen(buff) +1);//如果fd的状态不可写，那进程就阻塞了；
+         close(acceptedfd );
+       ::getsockname(acceptedfd , &localaddr, &addrlen);//get local addr
+       ::getpeername(sockfd, &peeraddr, &addrlen); //get peer addr
+       select/poll/epoll: for io multiplex
+
+TCP client:
+         clientfd = socket(AF_INET,SOCK_STREAM,0);//invalid fd(-1)
+         connect(clientfd,(struct sockaddr*)&servaddr,sizeof(servaddr));//kernel will determine the ip&port for clientfd, so no need bind;触发3次握手，如果失败，则需要关闭，不能复用，必须建立新的socketfd来重新发起连接；如果成功则后续用clientfd来数据通信；
+
+UDP socket API: UDP通信也需要创建socketfd 并 bind 端口号,然后就可以收发数据了， UDP服务器和客户端的API是一样的 : 
+sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *to, socklen_t addrlen);
+ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *addrlen);阻塞，这里的参数from是个输出，如果为null说明我们不关心是谁发的数据，任何节点发过来的数据都能收到；       
+connect(sockfd, peeraddr, size);//如果UDP fd调用了connect,那这个fd就只能和指定的节点通信了，不能再收到其他来源的UDP数据，极少数这么使用；如果不调用connect，则可以接收任意节点的UDP报文；
+
+Unix Socket: 参考15章<Unix域协议>
+fd = socket(AF_UNIX, SOCK_STREAM, 0); //单机内IPC字节流通信
+fd = socket(AF_UNIX, SOCK_DGRAM, 0); //单机内IPC数据报通信，推荐；
+bind()/listen()/accept()/send/recv; 还需要调用unlink(filename)
+
+fcntl(int fd, int cmd, long arg) //get/set socket property;
+flag = fcntl(sockfd, F_GETFL); flag |= O_NONBLOCK; fcntl(sockfd, F_SETFL, flag);
+
+IP socket 和 unix domain socket 比较：共同点：都支持stream/datagram 两种通信方式；区别：前者是RPC通信，后者是单机IPC通信；
+区别： IP socket 用于网络tcp udp 通信，需要绑定到一个端口和ip， 数据需要经过内核的tcp/ip协议栈，而unix socket用于单机内不同进程之间通信，不需要绑定端口，只需要一个filename（不需要真实的文件），数据不经过tcp/ip协议栈，但也需要经过内核拷贝;
+unix socket : https://blog.csdn.net/z2066411585/article/details/78966434/
+
+TCP(Sock_Stream) 和 UDP(Sock_DGRAM) 比较： TCP是字节流，没有边界，需要应用层设置标记来分割字节流得到一个完整报文，而且每次收到的不一定是一个完整的报文，需要去拆解；
+UDP是一个个数据报，每次收到的都是一个完整的报文（有最大限制），应用层解析比较方便，程序可以使用UDP通信+应用层自定义重传机制来通信；
+UDP是一个无连接协议，客户端可以用1个socket和多个服务器通信；
+TCP UDP相同点： 都需要创建socket, 需要 bind port (服务器肯定要bind, 客户端可以由内核自动分配) ；
+区别：TCP服务器需要调用listen, accept, 不同客户端对应不同的connectfd,  而UDP服务器只用 1个fd 来接收不同客户的数据；UDP服务器和UDP客户端其实在程序上没有区别，调用的API都是一样的，
+同一个机器的TCP和UDP可以使用相同的端口号（因为可以通过协议字段区分) 同时做TCP 和 UDP服务器(fd独立)，并使用同一个select 来监听数据；
+
+0.图1-17列出了32、64cpu对基本数据类型的影响，只有long 和 指针类型变长了，其它不变。
+
+0.内核会为每个socketfd创建1个buffer区，用来存放收到的网络数据，只要创建了socketfd, 内核会主动去接收数据，不需要应用层指示，如果应用层不取读取这块buffer, buffer满了就没法接收新数据了，所以程序只要使用了socekt就可以一直接收数据，不一定需要建立TCP连接；
+
+0.socket是字节流传输，可以避免异构系统因为平台的差异导致消息解析不同，比如不同的编译器对同样的struct的sizeof()结果不同（对齐的原因），这意味着编程时如果要传输一个对象，只能逐个字段写入，不能整个对象一起写入？ 而且只能传输整型，不能传输Float；
+
+0.socketIO是双向的，可同时读写（可看做操作两份独立的内存），而磁盘IO不能同时读写；
+0.虽然理论上可以由2个线程同时对一个socket进行read/write操作（因为socket是双向的），但是尽量不要让fd跨线程，因为带来的麻烦会得不偿失，所以一个fd应该由一个进程中的一个线程来读写；
+
+1.unix中产生新进程的唯一方法: fork()
+pid_t fork();//调用1次，返回2次，父进程中返回子进程PID，子进程中返回0，返回值本身区分当前进程是父进程还是子进程；父进程中调用fork之前打开的所有描述符由子进程共享；
+int execv(const char* pathname,char* const argv[]);//把当前进程映像替换为新的程序文件，从新程序的main()开始执行，PID不变；这个调用只有出错时才返回，正常情况下控制权直接给了新程序（不是新进程）；
+
+2.IO multiplex （监听多fd的接口）: select/poll/epoll, 3个都是阻塞接口
+  2.IO Multiplexing:select/poll/epoll，这里的IO复用其实是复用IO线程，不是复用IO socket, 是让多个socked由同一个线程处理，本质是事件驱动机制；
+  这3种模式各有优劣，主要取决于适用场景，比如嵌入式实时系统只用select(时间精度是纳秒)，处理大量不活动连接(>1024)用"epoll+单线程"，处理大量活动连接用"线程池+Poll";
+  实际网络产品中，应该不会直接使用这些接口，而是用它们的封装库，比如libevent;
+  一般而言，进程会先调用这3个接口去获取可读写的fd，然后再调用read/write,如果直接调用read/write很可能被阻塞，又不能处理其他就绪的fd;这个就叫IO复用；
+  优势：在监听的fd非常多时,性能好于多线程，因为避免了线程切换的开销；
+  劣势：在监听的fd很少的情况下，性能不如：multi-thread+blockingIO;因为每次获取数据都需要2次系统调用（select+read）；
+  在使用这些接口时，传入的socketfd一般都设置为non-blocking的，但进程本身会被这些接口阻塞的（直到可以读写），所以这3个接口都是同步IO；
+  retval = select(int maxfdp1,fd_set *readset,fd_set *writeset,fd_set *exceptset,const struct timeval *timeout);//
+  nready = poll ( struct pollfd * fds, unsigned int nfds, int timeout);//timeout指定为负数表示一直等下去,timeout为0指示poll调用立即返回，正数超时返回;
+
+2.poll/select:用于active connection比较多时，需要用户程序遍历找到哪些是active socket，找到active socket;
+  poll 只支持LT模式；poll/select区别是poll没有连接数限制；
+  epoll用于idle connection比较多时； epoll_ctl()注册/epoll_wait()等待事件； 内核会返回active socket,不需要用户程序遍历；
+  epoll ET模式：edge-trigger:只通知一次，只支持non-block socket;
+  epoll LT模式：level-trigger:同时支持block/non-block socket,多次通知直到事件被处理；
+  epoll效率高： 1)epoll机制在内核中的实现采用register+callback机制来收集active fd,而poll/select采用遍历方式来收集；
+             2)epoll返回结果后，进程可以直接使用，而poll/select还需要进程去扫描，所以poll/select的效率随着fd个数增加线性下降；
+  epoll支持的fd个数特别大(1G内存可以支持10万个)，select支持1024个（因为内核用了数组），poll支持的比select多（因为内核用了链表）； 
+
+
+
+2.1: block IO: 如果fd读写状态没就绪直接调用read/write接口，那进程会被block直到成功或异常返回；
+     nonblock IO: 如果fd没就绪，则立即返回，不阻塞进程，进程则需要主动的询问是否ok；
+     read(fd): 1）如果fd is block的，那么进程会被阻塞直到事件收到；2)如果是non-block的，会立即得到结果(errno==EAGAIN)，提醒稍后再试,采用非阻塞方式的线程一般是循环或定时询问；
+     read()本身是没有block/non-block属性的，取决于fd被创建时候的属性；
+     非阻塞和异步的区别是:
+
+2.2: sync IO: IO multiplex 都算同步IO，因为在未收到事件之前这些调用不会返回，进程被阻塞，而且之后的调用recvfrom()从内核拷贝数据到用户空间，也会被短暂的block;
+     asyc IO: 进程让内核去监听fd后立即返回做其它事情，内核发现fd就绪后会主动的拷贝数据到用户buff,并发signal通知进程，进程通过回调函数处理，整个过程完全没有被阻塞；   
+              linux下的AIO是异步IO;     
+
+3.内核保存了一个tcp已连接队列，因为如果服务器比较繁忙的话来不及accept(3次握手已经完成)，这时如果客户断开连接那么内核会从已连接队列中剔除这个链接，稍后的accept调用会感知不到这个短暂的connection, 所以在select(listenfd)之后要立即设置listenfd为nonblock再accept, 这种情况就不会阻塞在accept.
+
+
+4.readn/writen/readline: 通常需要自定义这3个函数来取代标准的read/write，因为对于socket, read/write返回的字节数可能会少于预期，比如内核socket buff满了或者网络延迟数据；
+
+5.采用Socket传输struct二进制数据时，需要考虑双方系统差异，比如大小端字节序，结构对齐导致的sizeof(struct)不同，long数据类型的大小，所以建议：1）转换为字符串传输；2）定义第3方消息格式，比如google protobuffer;
+
+
+
+
+1.调试工具： tcpdump, netstat , lsof, IPython(写测试程序)
+  tcpdump: 可以根据规则抓取socket数据， 
+  netstat: 显示哪些IP地址和端口正在使用，以及各个TCP连接的状态，
+  lsof: 显示指定IP地址，端口上的进程信息
+

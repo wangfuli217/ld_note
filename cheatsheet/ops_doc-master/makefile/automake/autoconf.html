@@ -1,0 +1,6789 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.52
+     from ../texi/autoconf.texi on 20 June 1999 -->
+
+<TITLE>Autoconf</TITLE>
+</HEAD>
+<BODY>
+<H1>Autoconf</H1>
+<H2>Creating Automatic Configuration Scripts</H2>
+<H2>Edition 2.13, for Autoconf version 2.13</H2>
+<H2>December 1998</H2>
+<ADDRESS>by David MacKenzie and Ben Elliston</ADDRESS>
+<P>
+<P><HR><P>
+<H1>目录</H1>
+<UL>
+<LI><A NAME="TOC1" HREF="autoconf.html#SEC1">介绍</A>
+<LI><A NAME="TOC2" HREF="autoconf.html#SEC2">创建<CODE>configure</CODE>脚本</A>
+<UL>
+<LI><A NAME="TOC3" HREF="autoconf.html#SEC3">编写<TT>`configure.in'</TT></A>
+<LI><A NAME="TOC4" HREF="autoconf.html#SEC4">用<CODE>autoscan</CODE>创建<TT>`configure.in'</TT></A>
+<LI><A NAME="TOC5" HREF="autoconf.html#SEC5">用<CODE>ifnames</CODE>列举条件</A>
+<LI><A NAME="TOC6" HREF="autoconf.html#SEC6">用<CODE>autoconf</CODE>创建<CODE>configure</CODE></A>
+<LI><A NAME="TOC7" HREF="autoconf.html#SEC7">用<CODE>autoreconf</CODE>更新<CODE>configure</CODE>脚本</A>
+</UL>
+<LI><A NAME="TOC8" HREF="autoconf.html#SEC8">初始化和输出文件</A>
+<UL>
+<LI><A NAME="TOC9" HREF="autoconf.html#SEC9">寻找<CODE>configure</CODE>的输入文件</A>
+<LI><A NAME="TOC10" HREF="autoconf.html#SEC10">创建输出文件</A>
+<LI><A NAME="TOC11" HREF="autoconf.html#SEC11">Makefile中的替换</A>
+<UL>
+<LI><A NAME="TOC12" HREF="autoconf.html#SEC12">预定义输出变量</A>
+<LI><A NAME="TOC13" HREF="autoconf.html#SEC13">创建目录</A>
+<LI><A NAME="TOC14" HREF="autoconf.html#SEC14">自动地重新创建</A>
+</UL>
+<LI><A NAME="TOC15" HREF="autoconf.html#SEC15">配置头文件</A>
+<UL>
+<LI><A NAME="TOC16" HREF="autoconf.html#SEC16">配置头文件模板</A>
+<LI><A NAME="TOC17" HREF="autoconf.html#SEC17">用<CODE>autoheader</CODE>创建<TT>`config.h.in'</TT></A>
+</UL>
+<LI><A NAME="TOC18" HREF="autoconf.html#SEC18">在子目录中配置其它包</A>
+<LI><A NAME="TOC19" HREF="autoconf.html#SEC19">缺省的前缀</A>
+<LI><A NAME="TOC20" HREF="autoconf.html#SEC20"><CODE>configure</CODE>中的版本号</A>
+</UL>
+<LI><A NAME="TOC21" HREF="autoconf.html#SEC21">现有的测试</A>
+<UL>
+<LI><A NAME="TOC22" HREF="autoconf.html#SEC22">对程序的选择</A>
+<UL>
+<LI><A NAME="TOC23" HREF="autoconf.html#SEC23">对特定程序的检查</A>
+<LI><A NAME="TOC24" HREF="autoconf.html#SEC24">对普通程序和文件的检查</A>
+</UL>
+<LI><A NAME="TOC25" HREF="autoconf.html#SEC25">库文件</A>
+<LI><A NAME="TOC26" HREF="autoconf.html#SEC26">库函数</A>
+<UL>
+<LI><A NAME="TOC27" HREF="autoconf.html#SEC27">对特定函数的检查</A>
+<LI><A NAME="TOC28" HREF="autoconf.html#SEC28">对普通函数的检查</A>
+</UL>
+<LI><A NAME="TOC29" HREF="autoconf.html#SEC29">头文件</A>
+<UL>
+<LI><A NAME="TOC30" HREF="autoconf.html#SEC30">对特定头文件的检查</A>
+<LI><A NAME="TOC31" HREF="autoconf.html#SEC31">对普通头文件的检查</A>
+</UL>
+<LI><A NAME="TOC32" HREF="autoconf.html#SEC32">结构</A>
+<LI><A NAME="TOC33" HREF="autoconf.html#SEC33">类型定义</A>
+<UL>
+<LI><A NAME="TOC34" HREF="autoconf.html#SEC34">对特定类型定义的检查</A>
+<LI><A NAME="TOC35" HREF="autoconf.html#SEC35">对普通类型定义的检查</A>
+</UL>
+<LI><A NAME="TOC36" HREF="autoconf.html#SEC36">C编译器的特征</A>
+<LI><A NAME="TOC37" HREF="autoconf.html#SEC37">Fortran 77编译器的特征</A>
+<LI><A NAME="TOC38" HREF="autoconf.html#SEC38">系统服务</A>
+<LI><A NAME="TOC39" HREF="autoconf.html#SEC39">UNIX变种</A>
+</UL>
+<LI><A NAME="TOC40" HREF="autoconf.html#SEC40">编写测试</A>
+<UL>
+<LI><A NAME="TOC41" HREF="autoconf.html#SEC41">检验声明</A>
+<LI><A NAME="TOC42" HREF="autoconf.html#SEC42">检验语法</A>
+<LI><A NAME="TOC43" HREF="autoconf.html#SEC43">检验库</A>
+<LI><A NAME="TOC44" HREF="autoconf.html#SEC44">检查运行时的特征</A>
+<UL>
+<LI><A NAME="TOC45" HREF="autoconf.html#SEC45">运行测试程序</A>
+<LI><A NAME="TOC46" HREF="autoconf.html#SEC46">测试程序指南</A>
+<LI><A NAME="TOC47" HREF="autoconf.html#SEC47">测试函数</A>
+</UL>
+<LI><A NAME="TOC48" HREF="autoconf.html#SEC48">可移植的Shell编程</A>
+<LI><A NAME="TOC49" HREF="autoconf.html#SEC49">测试值和文件</A>
+<LI><A NAME="TOC50" HREF="autoconf.html#SEC50">多种情况</A>
+<LI><A NAME="TOC51" HREF="autoconf.html#SEC51">对语言的选择</A>
+</UL>
+<LI><A NAME="TOC52" HREF="autoconf.html#SEC52">测试的结果</A>
+<UL>
+<LI><A NAME="TOC53" HREF="autoconf.html#SEC53">定义C预处理器符号</A>
+<LI><A NAME="TOC54" HREF="autoconf.html#SEC54">设定输出变量</A>
+<LI><A NAME="TOC55" HREF="autoconf.html#SEC55">缓存结果</A>
+<UL>
+<LI><A NAME="TOC56" HREF="autoconf.html#SEC56">缓存变量名</A>
+<LI><A NAME="TOC57" HREF="autoconf.html#SEC57">缓存文件</A>
+</UL>
+<LI><A NAME="TOC58" HREF="autoconf.html#SEC58">打印消息</A>
+</UL>
+<LI><A NAME="TOC59" HREF="autoconf.html#SEC59">编写宏</A>
+<UL>
+<LI><A NAME="TOC60" HREF="autoconf.html#SEC60">宏定义</A>
+<LI><A NAME="TOC61" HREF="autoconf.html#SEC61">宏名</A>
+<LI><A NAME="TOC62" HREF="autoconf.html#SEC62">引用</A>
+<LI><A NAME="TOC63" HREF="autoconf.html#SEC63">宏之间的依赖性</A>
+<UL>
+<LI><A NAME="TOC64" HREF="autoconf.html#SEC64">首要的宏</A>
+<LI><A NAME="TOC65" HREF="autoconf.html#SEC65">建议的顺序</A>
+<LI><A NAME="TOC66" HREF="autoconf.html#SEC66">过时的宏</A>
+</UL>
+</UL>
+<LI><A NAME="TOC67" HREF="autoconf.html#SEC67">手工配置</A>
+<UL>
+<LI><A NAME="TOC68" HREF="autoconf.html#SEC68">指定系统的类型</A>
+<LI><A NAME="TOC69" HREF="autoconf.html#SEC69">获取规范的系统类型</A>
+<LI><A NAME="TOC70" HREF="autoconf.html#SEC70">系统类型变量</A>
+<LI><A NAME="TOC71" HREF="autoconf.html#SEC71">使用系统类型</A>
+</UL>
+<LI><A NAME="TOC72" HREF="autoconf.html#SEC72">站点配置</A>
+<UL>
+<LI><A NAME="TOC73" HREF="autoconf.html#SEC73">与外部软件一起工作</A>
+<LI><A NAME="TOC74" HREF="autoconf.html#SEC74">选择包选项</A>
+<LI><A NAME="TOC75" HREF="autoconf.html#SEC75">配置站点细节</A>
+<LI><A NAME="TOC76" HREF="autoconf.html#SEC76">在安装的时候改变程序的名称</A>
+<UL>
+<LI><A NAME="TOC77" HREF="autoconf.html#SEC77">转换选项</A>
+<LI><A NAME="TOC78" HREF="autoconf.html#SEC78">转换的例子</A>
+<LI><A NAME="TOC79" HREF="autoconf.html#SEC79">转换的规则</A>
+</UL>
+<LI><A NAME="TOC80" HREF="autoconf.html#SEC80">设定站点缺省值</A>
+</UL>
+<LI><A NAME="TOC81" HREF="autoconf.html#SEC81">运行<CODE>configure</CODE>脚本</A>
+<LI><A NAME="TOC82" HREF="autoconf.html#SEC82">重新创建一个配置</A>
+<LI><A NAME="TOC83" HREF="autoconf.html#SEC83">关于Autoconf的问题</A>
+<UL>
+<LI><A NAME="TOC84" HREF="autoconf.html#SEC84">发布<CODE>configure</CODE>脚本</A>
+<LI><A NAME="TOC85" HREF="autoconf.html#SEC85">为什么需要使用GNU <CODE>m4</CODE>？</A>
+<LI><A NAME="TOC86" HREF="autoconf.html#SEC86">我如何解开死结？</A>
+<LI><A NAME="TOC87" HREF="autoconf.html#SEC87">为什么不使用Imake？</A>
+</UL>
+<LI><A NAME="TOC88" HREF="autoconf.html#SEC88">从版本1中升级</A>
+<UL>
+<LI><A NAME="TOC89" HREF="autoconf.html#SEC89">改变了的文件名</A>
+<LI><A NAME="TOC90" HREF="autoconf.html#SEC90">改变了的Makefile</A>
+<LI><A NAME="TOC91" HREF="autoconf.html#SEC91">改变了的宏</A>
+<LI><A NAME="TOC92" HREF="autoconf.html#SEC92">用<CODE>autoupdate</CODE>更新<CODE>configure</CODE></A>
+<LI><A NAME="TOC93" HREF="autoconf.html#SEC93">改变了的结果</A>
+<LI><A NAME="TOC94" HREF="autoconf.html#SEC94">改变了的宏的编写</A>
+</UL>
+<LI><A NAME="TOC95" HREF="autoconf.html#SEC95">Autoconf的历史</A>
+<UL>
+<LI><A NAME="TOC96" HREF="autoconf.html#SEC96">起源（Genesis）</A>
+<LI><A NAME="TOC97" HREF="autoconf.html#SEC97">出发（Exodus）</A>
+<LI><A NAME="TOC98" HREF="autoconf.html#SEC98">上路（Leviticus）</A>
+<LI><A NAME="TOC99" HREF="autoconf.html#SEC99">发展（Numbers）</A>
+<LI><A NAME="TOC100" HREF="autoconf.html#SEC100">现状（Deuteronomy）</A>
+</UL>
+<LI><A NAME="TOC101" HREF="autoconf.html#SEC101">陈旧的宏名</A>
+<LI><A NAME="TOC102" HREF="autoconf.html#SEC102">环境变量索引</A>
+<LI><A NAME="TOC103" HREF="autoconf.html#SEC103">输出变量索引</A>
+<LI><A NAME="TOC104" HREF="autoconf.html#SEC104">预处理器符号索引</A>
+<LI><A NAME="TOC105" HREF="autoconf.html#SEC105">宏索引</A>
+</UL>
+<P><HR><P>
+
+<P>
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+</P>
+<P>
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+</P>
+<P>
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation
+approved by the Free Software Foundation.
+
+</p>
+<p>
+只要版权声明和本许可声明保留在所有副本中，您就被授权制作和发行本手册的
+原文副本。
+
+</p>
+<p>
+只要整个最终派生工作按照与本手册相同的许可声明发行，您就被授权按照与
+发行原文相同的条件复制和发行本手册的修改版本。
+
+</p>
+<p>
+除了本许可声明应该使用由基金会批准的译文之外，您被授权按照与上述修改
+版本相同的条件复制和发行本手册的其它语言的译文。
+
+</P>
+
+<HR>
+
+<P>本文档由王立翻译。 1999.12.16</P>
+<P>译者在此声明：不对任何由译文错误或者对译文的误解承担任何责任。</P>
+
+<HR>
+
+<H1><A NAME="SEC1" HREF="autoconf.html#TOC1">介绍</A></H1>
+
+<PRE>
+A physicist, an engineer, and a computer scientist were
+discussing the nature of God.  Surely a Physicist, said the
+physicist, because early in the Creation, God made Light; and you
+know, Maxwell's equations, the dual nature of electro-magnetic
+waves, the relativist consequences... An Engineer!, said the
+engineer, because before making Light, God split the Chaos into
+Land and Water; it takes a hell of an engineer to handle that big
+amount of mud, and orderly separation of solids from
+liquids... The computer scientist shouted: And the Chaos,
+where do you think it was coming from, hmm?
+
+---Anonymous
+</PRE>
+
+<P>Autoconf是一个用于生成可以自动地配置软件源代码包以适应多种Unix类系统的
+shell脚本的工具。由Autoconf生成的配置脚本在运行的时候与Autoconf是无关的，
+就是说配置脚本的用户并不需要拥有Autoconf。
+
+</P>
+<P>
+由Autoconf生成的配置脚本在运行的时候不需要用户的手工干预；通常它们甚至不需要
+通过给出参数以确定系统的类型。相反，它们对软件包可能需要的各种特征进行独立
+的测试。（在每个测试之前，它们打印一个单行的消息以说明它们正在进行的检测，
+以使得用户不会因为等待脚本执行完毕而焦躁。）因此，它们在混合系统或者从各种
+常见Unix变种定制而成的系统中工作的很好。没有必要维护文件以储存由各个Unix变种
+、各个发行版本所支持的特征的列表。
+
+</P>
+<P>
+对于每个使用了Autoconf的软件包，Autoconf从一个列举了该软件包需要的，或者可以
+使用的系统特征的列表的模板文件中生成配置脚本。在shell代码识别并响应了一个被
+列出的系统特征之后，Autoconf允许多个可能使用（或者需要）该特征的软件包共享该特征。
+如果后来因为某些原因需要调整shell代码，就只要在一个地方进行修改；
+所有的配置脚本都将被自动地重新生成以使用更新了的代码。
+
+</P>
+<P>
+Metaconfig包在目的上与Autoconf很相似，但它生成的脚本需要用户的手工干预，在配置一个
+大的源代码树的时候这是十分不方便的。不象Metaconfig脚本，如果在编写脚本时小心谨慎，
+Autoconf可以支持交叉编译（cross-compiling）。
+
+</P>
+<P>
+Autoconf目前还不能完成几项使软件包可移植的工作。其中包括为所有标准的目标自动
+创建<TT>`Makefile'</TT>文件，包括在缺少标准库函数和头文件的系统上提供替代品。
+目前正在为在将来添加这些特征而工作。
+
+</P>
+<P>
+对于在C程序中的<CODE>#ifdef</CODE>中使用的宏的名字，Autoconf施加了一些限制
+（参见<A HREF="autoconf.html#SEC104">预处理器符号索引</A>）。
+
+</P>
+<P>
+Autoconf需要GNU <CODE>m4</CODE>以便于生成脚本。它使用了某些UNIX版本的<CODE>m4</CODE>
+所不支持的特征。它还会超出包括GNU <CODE>m4</CODE> 1.0在内的某些<CODE>m4</CODE>版本的内部
+限制。你必须使用GNU <CODE>m4</CODE>的1.1版或者更新的版本。使用1.3版或者更新的版本将比1.1
+或1.2版快许多。
+
+</P>
+<P>
+关于从版本1中升级的详情，参见<A HREF="autoconf.html#SEC88">从版本1中升级</A>。
+关于Autoconf的开发历史，参见<A HREF="autoconf.html#SEC95">Autoconf的历史</A>。
+对与Autoconf有关的常见问题的回答，参见<A HREF="autoconf.html#SEC83">关于Autoconf的问题</A>。
+
+</P>
+<P>
+把关于Autoconf的建议和bug报告发送到<CODE>bug-gnu-utils@prep.ai.mit.edu</CODE>。
+请把你通过运行<SAMP>`autoconf --version'</SAMP>而获得的Autoconf的版本号包括在内。
+
+</P>
+
+
+<H1><A NAME="SEC2" HREF="autoconf.html#TOC2">创建<CODE>configure</CODE>脚本</A></H1>
+
+<P>
+由Autoconf生成的配置脚本通常被称为<CODE>configure</CODE>。在运行的时候，<CODE>configure</CODE>
+创建一些文件，在这些文件中以适当的值替换配置参数。由<CODE>configure</CODE>创建的文件有：
+
+</P>
+
+<UL>
+<LI>
+
+一个或者多个<TT>`Makefile'</TT>文件，在包的每个子目录中都有一个（参见
+<A HREF="autoconf.html#SEC11">Makefile中的替换</A>）；
+
+<LI>
+
+有时创建一个C头文件，它的名字可以被配置，该头文件包含一些<CODE>#define</CODE>命令
+（参见<A HREF="autoconf.html#SEC15">配置头文件</A>）；
+
+<LI>
+
+一个名为<TT>`config.status'</TT>的shell脚本，在运行时，它将重新创建上述文件。
+（参见<A HREF="autoconf.html#SEC82">重新创建一个配置</A>）；
+
+<LI>
+
+一个名为<TT>`config.cache'</TT>的shell脚本，它储存了许多测试的运行结果
+（参见<A HREF="autoconf.html#SEC57">缓存文件</A>）；
+
+<LI>
+
+一个名为<TT>`config.log'</TT>的文件，它包含了由编译器生成的许多消息，以便于
+在<CODE>configure</CODE>出现错误时进行调试。
+</UL>
+
+<P>
+为了使用Autoconf创建一个<CODE>configure</CODE>脚本，你需要编写一个Autoconf的输入文件
+<TT>`configure.in'</TT>并且对它运行<CODE>autoconf</CODE>。如果你自行编写了特征测试以补充
+Autoconf所提供的测试，你可能还要编写一个名为<TT>`aclocal.m4'</TT>的文件和一个名为
+<TT>`acsite.m4'</TT>的文件。如果你使用了包含<CODE>#define</CODE>指令的C头文件，你可能
+还要编写<TT>`acconfig.h'</TT>，并且你需要与软件包一同发布由Autoconf生成的文件
+<TT>`config.h.in'</TT>。
+
+</P>
+<P>
+下面是一个说明了在配置中使用的文件是如何生成的图。运行的程序都标以后缀<SAMP>`*'</SAMP>。
+可能出现的文件被方括号(<SAMP>`[]'</SAMP>)括起来。<CODE>autoconf</CODE>和<CODE>autoheader</CODE>
+还读取安装了的Autoconf宏文件（通过读取<TT>`autoconf.m4'</TT>）。
+
+</P>
+<P>
+在准备发布软件包的过程中使用的文件：
+
+<PRE>
+你的源文件 --&#62; [autoscan*] --&#62; [configure.scan] --&#62; configure.in
+
+configure.in --.   .------&#62; autoconf* -----&#62; configure
+               +---+
+[aclocal.m4] --+   `---.
+[acsite.m4] ---'       |
+                       +--&#62; [autoheader*] -&#62; [config.h.in]
+[acconfig.h] ----.     |
+                 +-----'
+[config.h.top] --+
+[config.h.bot] --'
+
+Makefile.in -------------------------------&#62; Makefile.in
+</PRE>
+
+<P>
+在配置软件包的过程中使用的文件：
+
+<PRE>
+                       .-------------&#62; config.cache
+configure* ------------+-------------&#62; config.log
+                       |
+[config.h.in] -.       v            .-&#62; [config.h] -.
+               +--&#62; config.status* -+               +--&#62; make*
+Makefile.in ---'                    `-&#62; Makefile ---'
+</PRE>
+
+
+
+<H2><A NAME="SEC3" HREF="autoconf.html#TOC3">编写<TT>`configure.in'</TT></A></H2>
+
+<P>
+为了为软件包创建<CODE>configure</CODE>脚本，需要编写一个名为<TT>`configure.in'</TT>
+的文件，该文件包含了对那些你的软件包需要或者可以使用的系统特征进行测试的Autoconf宏的调用。
+现有的Autoconf宏可以检测许多特征； 对于它们的描述可以参见<A HREF="autoconf.html#SEC21">现有的测试</A>。
+对于大部分其他特征，你可以使用Autconf模板宏以创建定制的测试；关于它们的详情，参见
+<A HREF="autoconf.html#SEC40">编写测试</A>。对于特别古怪或者特殊的特征，<TT>`configure.in'</TT>
+可能需要包含一些手工编写的shell命令。程序<CODE>autoscan</CODE>可以为你编写<TT>`configure.in'</TT>
+开个好头（详情请参见<A HREF="autoconf.html#SEC4">用<CODE>autoscan</CODE>创建<TT>`configure.in'</TT></A>）。
+
+</P>
+<P>
+除了少数特殊情况之外，在<TT>`configure.in'</TT>中调用Autoconf宏的顺序并不重要。
+在每个<TT>`configure.in'</TT>中，必须在进行任何测试之间包含一个对<CODE>AC_INIT</CODE>的调用，
+并且在结尾处包含一个对<CODE>AC_OUTPUT</CODE>的调用（参见<A HREF="autoconf.html#SEC10">创建输出文件</A>）。
+此外，有些宏要求其他的宏在它们之前被调用，这是因为它们通过检查某些变量在前面设定的值以决定作些什么。
+这些宏在独立的说明中给出（参见<A HREF="autoconf.html#SEC21">现有的测试</A>），而且如果没有
+按照顺序调用宏，在生成<CODE>configure</CODE>时会向你发出警告。
+
+</P>
+<P>
+为了提高一致性，下面是调用Autoconf宏的推荐顺序。通常，在本列表中靠后的项目依赖于表中靠前的项目。
+例如，库函数可能受到typedefs和库的影响。
+
+</P>
+
+<PRE>
+<CODE>AC_INIT(<VAR>file</VAR>)</CODE>
+checks for programs
+checks for libraries
+checks for header files
+checks for typedefs
+checks for structures
+checks for compiler characteristics
+checks for library functions
+checks for system services
+<CODE>AC_OUTPUT([<VAR>file...</VAR>])</CODE>
+</PRE>
+
+<P>
+最好让每个宏调用在<TT>`configure.in'</TT>中占据单独的一行。大部分宏并不添加额外的新行；
+它们依赖于在宏调用之后的新行以结束命令。这种方法使得生成的<CODE>configure</CODE>脚本
+在不必添加大量的空行的情况下比较容易阅读。在宏调用的同一行中设置shell变量通常是安全的，
+这是因为shell允许出现没有用新行间隔的赋值。
+
+</P>
+<P>
+在调用带参数的宏的时候，在宏名和左括号之间不能出现任何空格。如果参数被<CODE>m4</CODE>
+引用字符<SAMP>`['</SAMP>和<SAMP>`]'</SAMP>所包含，参数就可以多于一行。如果你有一个长行，
+比如说一个文件名列表，你通常可以在行的结尾使用反斜线以便在逻辑上把它与下一行进行连接
+（这是由shell实现的，Autoconf对此没有进行任何特殊的处理）。
+
+</P>
+<P>
+有些宏处理两种情况：如果满足了某个给定的条件就做什么，如果没有满足某个给定的条件就做什么。
+在有些地方，你可能希望在条件为真的情况下作些事，在为假时什么也不作。反之亦然。为了忽略
+为真的情况，把空值作为参数<VAR>action-if-found</VAR>传递给宏。为了忽略为假的情况，可以
+忽略包括前面的逗号在内的宏的参数<VAR>action-if-not-found</VAR>。
+
+</P>
+<P>
+你可以在文件<TT>`configure.in'</TT>中添加注释。注释以<CODE>m4</CODE>预定义宏<CODE>dnl</CODE>
+开头，该宏丢弃在下一个新行之前的所有文本。这些注释并不在生成的<CODE>configure</CODE>脚本中
+出现。例如，把下面给出的行作为文件<TT>`configure.in'</TT>的开头是有好处的：
+
+</P>
+
+<PRE>
+dnl Process this file with autoconf to produce a configure script.
+</PRE>
+
+
+
+<H2><A NAME="SEC4" HREF="autoconf.html#TOC4">用<CODE>autoscan</CODE>创建<TT>`configure.in'</TT></A></H2>
+
+<P>
+程序<CODE>autoscan</CODE>可以帮助你为软件包创建<TT>`configure.in'</TT>文件。如果在命令行中给出了目录，
+<CODE>autoscan</CODE>就在给定目录及其子目录树中检查源文件，如果没有给出目录，就在当前目录及其子目录树中
+进行检查。它搜索源文件以寻找一般的移植性问题并创建一个文件<TT>`configure.scan'</TT>，该文件就是软件包
+的<TT>`configure.in'</TT>预备版本。
+
+</P>
+<P>
+在把<TT>`configure.scan'</TT>改名为<TT>`configure.in'</TT>之前，你应该手工地检查它；它可能需要一些调整。
+<CODE>autoscan</CODE>偶尔会按照相对于其他宏的错误的顺序输出宏，为此<CODE>autoconf</CODE>将给出警告；你需要
+手工地移动这些宏。还有，如果你希望包使用一个配置头文件，你必须添加一个对<CODE>AC_CONFIG_HEADER</CODE>的调用。
+（参见<A HREF="autoconf.html#SEC15">配置头文件</A>）。可能你还必须在你的程序中修改或者添加一些<CODE>#if</CODE>
+指令以使得程序可以与Autoconf合作。（关于有助于该工作的程序的详情，参见
+<A HREF="autoconf.html#SEC5">用<CODE>ifnames</CODE>列举条件</A>）。
+
+</P>
+<P>
+<CODE>autoscan</CODE>使用一些数据文件，它们是随发布的Autoconf宏文件一起安装的，以便当它在包中的源文件中发现
+某些特殊符号时决定输出那些宏。这些文件都具有相同的格式。每一个都是由符号、空白和在符号出现时应该输出的Autoconf
+宏。以<SAMP>`#'</SAMP>开头的行是注释。
+
+</P>
+<P>
+只有在你安装了Perl的情况下才安装<CODE>autoscan</CODE>。
+<CODE>autoscan</CODE>接受如下选项：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>--help</CODE>
+<DD>
+打印命令行选项的概述并且退出。
+
+<DT><CODE>--macrodir=<VAR>dir</VAR></CODE>
+<DD>
+<A NAME="IDX1"></A>
+在目录<VAR>dir</VAR>中，而不是在缺省安装目录中寻找数据文件。你还可以把环境变量<CODE>AC_MACRODIR</CODE>设置成
+一个目录；本选项将覆盖该环境变量。
+
+<DT><CODE>--verbose</CODE>
+<DD>
+打印它检查的文件名称以及在这些文件中发现的可能感兴趣的符号。它的输出可能很冗长。
+
+<DT><CODE>--version</CODE>
+<DD>
+打印Autoconf的版本号并且退出。
+</DL>
+
+
+
+<H2><A NAME="SEC5" HREF="autoconf.html#TOC5">用<CODE>ifnames</CODE>列举条件</A></H2>
+
+<P>
+在为一个软件包编写<TT>`configure.in'</TT>时，<CODE>ifnames</CODE>可以提供一些帮助。它打印出包已经在C预处理条件
+中使用的标识符。如果包已经被设置得具备了某些可移植性，该程序可以帮助你找到<CODE>configure</CODE>所需要进行
+的检查。它可能有助于补足由<CODE>autoscan</CODE>生成的<TT>`configure.in'</TT>中的某些缺陷。
+（参见<A HREF="autoconf.html#SEC4">用<CODE>autoscan</CODE>创建<TT>`configure.in'</TT></A>）。
+
+</P>
+<P>
+<CODE>ifnames</CODE>扫描所有在命令行中给出的C源代码文件（如果没有给出，就扫描标准输入）并且把排序后的、由
+所有出现在这些文件中的<CODE>#if</CODE>、<CODE>#elif</CODE>、<CODE>#ifdef</CODE>或者<CODE>#ifndef</CODE>
+命令中的标识符列表输出到标准输出中。它为每个标识符输出单独的一行，行中标识符之后是一个由空格分隔的、使用
+了该标识符的文件名列表。
+
+</P>
+<P>
+<CODE>ifnames</CODE>接受如下选项：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>--help</CODE>
+<DD>
+<DT><CODE>-h</CODE>
+<DD>
+打印命令行选项的概述并且退出。
+
+<DT><CODE>--macrodir=<VAR>dir</VAR></CODE>
+<DD>
+<DT><CODE>-m <VAR>dir</VAR></CODE>
+<DD>
+<A NAME="IDX2"></A>
+在目录<VAR>dir</VAR>中，而不是缺省安装目录中寻找Autoconf宏文件。仅仅被用于获取版本号。
+你还可以把环境变量<CODE>AC_MACRODIR</CODE>设置成一个目录；本选项将覆盖该环境变量。
+
+<DT><CODE>--version</CODE>
+<DD>
+打印Autoconf的版本号并且退出。
+</DL>
+
+
+
+<H2><A NAME="SEC6" HREF="autoconf.html#TOC6">用<CODE>autoconf</CODE>创建<CODE>configure</CODE></A></H2>
+
+<P>
+为了从<TT>`configure.in'</TT>生成<CODE>configure</CODE>，不带参数地运行程序<CODE>autoconf</CODE>。
+<CODE>autoconf</CODE>用使用Autoconf宏的<CODE>m4</CODE>宏处理器处理<TT>`configure.in'</TT>。
+如果你为<CODE>autoconf</CODE>提供了参数，它读入给出的文件而不是<TT>`configure.in'</TT>并且
+把配置脚本输出到标准输出而不是<CODE>configure</CODE>。如果你给<CODE>autoconf</CODE>以参数<SAMP>`-'</SAMP>，
+它将从标准输入，而不是<TT>`configure.in'</TT>中读取并且把配置脚本输出到标准输出。
+
+</P>
+<P>
+Autoconf宏在几个文件中定义。在这些文件中，有些是与Autconf一同发布的；<CODE>autoconf</CODE>首先读入它们。
+而后它在包含了发布的Autoconf宏文件的目录中寻找可能出现的文件<TT>`acsite.m4'</TT>，并且在当前目录中寻找
+可能出现的文件<TT>`aclocal.m4'</TT>。这些文件可以包含你的站点的或者包自带的Autoconf宏定义（详情请参见
+<A HREF="autoconf.html#SEC59">编写宏</A>）。如果宏在多于一个由<CODE>autoconf</CODE>读入了的文件中被
+定义，那么后面的定义将覆盖前面的定义。
+
+</P>
+<P>
+<CODE>autoconf</CODE>接受如下参数：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>--help</CODE>
+<DD>
+<DT><CODE>-h</CODE>
+<DD>
+输出命令行选项的概述并且退出。
+
+<DT><CODE>--localdir=<VAR>dir</VAR></CODE>
+<DD>
+<DT><CODE>-l <VAR>dir</VAR></CODE>
+<DD>
+在目录<VAR>dir</VAR>中，而不是当前目录中寻找包文件<TT>`aclocal.m4'</TT>。
+
+<DT><CODE>--macrodir=<VAR>dir</VAR></CODE>
+<DD>
+<DT><CODE>-m <VAR>dir</VAR></CODE>
+<DD>
+<A NAME="IDX3"></A>
+在目录<VAR>dir</VAR>中寻找安装的宏文件。你还可以把环境变量<CODE>AC_MACRODIR</CODE>设置成
+一个目录；本选项将覆盖该环境变量。
+
+<DT><CODE>--version</CODE>
+<DD>
+打印Autoconf的版本号并且退出。
+</DL>
+
+
+
+<H2><A NAME="SEC7" HREF="autoconf.html#TOC7">用<CODE>autoreconf</CODE>更新<CODE>configure</CODE>脚本</A></H2>
+
+<P>
+如果你有大量由Autoconf生成的<CODE>configure</CODE>脚本，程序<CODE>autoreconf</CODE>可以保留你的一些工作。
+它重复地运行<CODE>autoconf</CODE>（在适当的情况下还运行<CODE>autoheader</CODE>）以重新创建以当前目录为根
+的目录树的Autoconf <CODE>configure</CODE>脚本和配置头文件。在缺省情况下，它只重新创建那些比对应的
+<TT>`configure.in'</TT>或者（如果出现）<TT>`aclocal.m4'</TT>要旧的文件。由于在文件没有被改变的情况下，
+<CODE>autoheader</CODE>并不改变它的输出文件的时间标记（timestamp）。这是为了使工作量最小化，修改时间标记是不必要的。
+如果你安装了新版本的Autoconf，你可以以选项<SAMP>`--force'</SAMP>调用<CODE>autoreconf</CODE>而重新创建
+<EM>所有</EM>的文件。
+
+</P>
+<P>
+如果你在调用<CODE>autoreconf</CODE>时给出选项<SAMP>`--macrodir=<VAR>dir</VAR>'</SAMP>或者
+<SAMP>`--localdir=<VAR>dir</VAR>'</SAMP>，它将把它们传递给<CODE>autoconf</CODE>和<CODE>autoheader</CODE>
+（相对路径将被正确地调整）。
+
+</P>
+<P>
+在同一个目录树中，<CODE>autoreconf</CODE>不支持两个目录作为同一个大包的一部分（共享<TT>`aclocal.m4'</TT>和
+<TT>`acconfig.h'</TT>），也不支持每个目录都是独立包（每个目录都有它们自己的<TT>`aclocal.m4'</TT>和
+<TT>`acconfig.h'</TT>）。
+如果你使用了<SAMP>`--localdir'</SAMP>，它假定所有的目录都是同一个包的一部分。如果你没有使用
+<SAMP>`--localdir'</SAMP>，它假定每个目录都是一个独立的包，这条限制在将来可能被取消。
+
+</P>
+<P>
+关于在<CODE>configure</CODE>脚本的源文件发生变化的情况下自动地重新创建它们的<TT>`Makefile'</TT>规则的细节，
+参见<A HREF="autoconf.html#SEC14">自动地重新创建</A>。这种方法正确地处理了配置头文件模板的时间标记，但并不
+传递<SAMP>`--macrodir=<VAR>dir</VAR>'</SAMP>或者<SAMP>`--localdir=<VAR>dir</VAR>'</SAMP>。
+
+</P>
+<P>
+<CODE>autoreconf</CODE>接受如下选项：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>--help</CODE>
+<DD>
+<DT><CODE>-h</CODE>
+<DD>
+打印命令行选项的概述并且退出。
+
+<DT><CODE>--force</CODE>
+<DD>
+<DT><CODE>-f</CODE>
+<DD>
+即使在<TT>`configure'</TT>脚本和配置头文件比它们的输入文件（<TT>`configure.in'</TT>，如果出现
+了<TT>`aclocal.m4'</TT>，也包括它）更新的时候，也要重新创建它们。
+
+<DT><CODE>--localdir=<VAR>dir</VAR></CODE>
+<DD>
+<DT><CODE>-l <VAR>dir</VAR></CODE>
+<DD>
+让<CODE>autoconf</CODE>和<CODE>autoheader</CODE>在目录<VAR>dir</VAR>中，而不是在每个包含<TT>`configure.in'</TT>
+的目录中寻找包文件<TT>`aclocal.m4'</TT>和（仅指<CODE>autoheader</CODE>）<TT>`acconfig.h'</TT>
+（但不包括<TT>`<VAR>file</VAR>.top'</TT>和<TT>`<VAR>file</VAR>.bot'</TT>）。
+
+<DT><CODE>--macrodir=<VAR>dir</VAR></CODE>
+<DD>
+<DT><CODE>-m <VAR>dir</VAR></CODE>
+<DD>
+<A NAME="IDX4"></A>
+在目录<VAR>dir</VAR>中，而不是缺省安装目录中寻找Autoconf宏文件。你还可以把环境变量
+<CODE>AC_MACRODIR</CODE>设置成一个目录；本选项将覆盖该环境变量。
+
+<DT><CODE>--verbose</CODE>
+<DD>
+打印<CODE>autoreconf</CODE>运行<CODE>autoconf</CODE>（如果适当，还有<CODE>autoheader</CODE>）
+的每个目录的目录名。
+
+<DT><CODE>--version</CODE>
+<DD>
+打印Autoconf的版本号并且退出。
+</DL>
+
+
+
+<H1><A NAME="SEC8" HREF="autoconf.html#TOC8">初始化和输出文件</A></H1>
+
+<P>
+Autoconf生成的<CODE>configure</CODE>脚本需要一些关于如何进行初始化，诸如如何寻找包的源文件，的信息；
+以及如何生成输出文件的信息。本节叙述如何进行初始化和创建输出文件。
+
+</P>
+
+
+
+<H2><A NAME="SEC9" HREF="autoconf.html#TOC9">寻找<CODE>configure</CODE>的输入文件</A></H2>
+
+<P>
+所有<CODE>configure</CODE>脚本在作任何其他事情之前都必须调用<CODE>AC_INIT</CODE>。此外唯一必须调用的宏是
+<CODE>AC_OUTPUT</CODE>（参见<A HREF="autoconf.html#SEC10">创建输出文件</A>）。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_INIT</B> <I>(<VAR>unique-file-in-source-dir</VAR>)</I>
+<DD><A NAME="IDX5"></A>
+<A NAME="IDX6"></A>
+处理所有命令行参数并且寻找源代码目录。<VAR>unique-file-in-source-dir</VAR>是一些在包的源代码目录中文件；
+<CODE>configure</CODE>在目录中检查这些文件是否存在以确定该目录是否包含源代码。
+人们可能偶尔会用<SAMP>`--srcdir'</SAMP>给出错误的目录；这是一种安全性检查。
+详情请参见<A HREF="autoconf.html#SEC81">运行<CODE>configure</CODE>脚本</A>。
+</DL>
+
+</P>
+<P>
+对于需要手工配置或者使用<CODE>install</CODE>程序的包来说，虽然在缺省源代码位置在大部分情况
+下看起来是正确的，包还是可能需要通过调用<CODE>AC_CONFIG_AUX_DIR</CODE>来告诉
+<CODE>configure</CODE>到那里去寻找一些其他的shell脚本。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CONFIG_AUX_DIR</B> <I>(<VAR>dir</VAR>)</I>
+<DD><A NAME="IDX7"></A>
+<A NAME="IDX8"></A>
+在目录<VAR>dir</VAR>中使用<TT>`install-sh'</TT>、<TT>`config.sub'</TT>、<TT>`config.guess'</TT>和
+Cygnus <CODE>configure</CODE>配置脚本。它们是配置中使用的辅助文件。<VAR>dir</VAR>既可以是绝对路径，
+也可以是相对于<TT>`<VAR>srcdir</VAR>'</TT>的相对路径。缺省值是在<TT>`<VAR>srcdir</VAR>'</TT>或者
+<TT>`<VAR>srcdir</VAR>/..'</TT>或者<TT>`<VAR>srcdir</VAR>/../..'</TT>中首先找到<TT>`install-sh'</TT>
+的目录。不对其他文件进行检查，以便使<CODE>AC_PROG_INSTALL</CODE>不会自动地发布其他辅助文件。它还要
+检查<TT>`install.sh'</TT>，但因为有些<CODE>make</CODE>程序包含了在没有<TT>`Makefile'</TT>的情况下
+从<TT>`install.sh'</TT>中创建<TT>`install'</TT>的规则，所以那个名字过时了。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC10" HREF="autoconf.html#TOC10">创建输出文件</A></H2>
+
+<P>
+每个Autoconf生成的<CODE>configure</CODE>脚本必须以对<CODE>AC_OUTPUT</CODE>的调用结尾。它是一个创建
+作为配置结果的<TT>`Makefile'</TT>以及其他一些可能的文件的宏。此外唯一必须调用的宏是<CODE>AC_INIT</CODE>
+（参见<A HREF="autoconf.html#SEC9">寻找<CODE>configure</CODE>的输入文件</A>）。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_OUTPUT</B> <I>([<VAR>file</VAR>... [, <VAR>extra-cmds</VAR> [, <VAR>init-cmds</VAR>]]])</I>
+<DD><A NAME="IDX9"></A>
+<A NAME="IDX10"></A>
+创建输出文件。在<TT>`configure.in'</TT>的末尾调用本宏一次。参数<VAR>file</VAR>...是一个以空格分隔的输出文件
+的列表；它可能为空。本宏通过从一个输入文件（缺省情况下名为<TT>`<VAR>file</VAR>.in'</TT>）中复制，并替换输出
+变量的值以创建每个给出的<TT>`<VAR>file</VAR>'</TT>。
+关于使用输出变量的详情，请参见<A HREF="autoconf.html#SEC11">Makefile中的替换</A>。
+关于创建输出变量的详情，请参见<A HREF="autoconf.html#SEC54">设定输出变量</A>。
+如果输出文件所在的目录不存在，本宏将创建该目录（但不会创建目录的父目录）。通常，<TT>`Makefile'</TT>是按照这种
+方式创建的，但其他文件，例如<TT>`.gdbinit'</TT>，也可以这样创建。
+
+</P>
+<P>
+如果调用了<CODE>AC_CONFIG_HEADER</CODE>、<CODE>AC_LINK_FILES</CODE>或者<CODE>AC_CONFIG_SUBDIRS</CODE>，本宏
+也将创建出现在它们的参数中的文件。
+
+</P>
+<P>
+一个典型的对<CODE>AC_OUTPUT</CODE>调用如下：
+
+<PRE>
+AC_OUTPUT(Makefile src/Makefile man/Makefile X/Imakefile)
+</PRE>
+
+<P>
+你可以通过在<VAR>file</VAR>之后添加一个用冒号分隔的输入文件列表以自行设定输入文件名。例如：
+
+<PRE>
+AC_OUTPUT(Makefile:templates/top.mk lib/Makefile:templates/lib.mk)
+AC_OUTPUT(Makefile:templates/vars.mk:Makefile.in:templates/rules.mk)
+</PRE>
+
+<P>
+这样做可以使得你的文件名能够被MS-DOS接受，或者可以把模板文件（boilerplate）添加到文件的开头或者结尾。
+
+</P>
+<P>
+如果你给出了<VAR>extra-cmds</VAR>，那么这些命令将被插入到<TT>`config.status'</TT>中以便在<TT>`config.status'</TT>
+完成了其他的所有处理之后运行<VAR>extra-cmds</VAR>。如果给出了<VAR>init-cmds</VAR>，它们就被插入
+<VAR>extra-cmds</VAR>之前，并且在<CODE>configure</CODE>中将对它们进行shell变量、命令和反斜线替换。你可以用
+<VAR>init-cmds</VAR>把变量从<CODE>configure</CODE>中传递到<VAR>extra-cmds</VAR>。如果调用了
+<CODE>AC_OUTPUT_COMMANDS</CODE>，在其中给出的命令将紧贴在由本宏给出的命令之前运行。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_OUTPUT_COMMANDS</B> <I>(<VAR>extra-cmds</VAR> [, <VAR>init-cmds</VAR>])</I>
+<DD><A NAME="IDX11"></A>
+指定在<TT>`config.status'</TT>末尾运行的附加的shell命令，以及用于初始化来自于<CODE>configure</CODE>
+的所有变量的shell命令。本宏可以被调用多次。下面是一个不太实际的例子：
+
+</P>
+
+<PRE>
+fubar=27
+AC_OUTPUT_COMMANDS([echo this is extra $fubar, and so on.], fubar=$fubar)
+AC_OUTPUT_COMMANDS([echo this is another, extra, bit], [echo init bit])
+</PRE>
+
+</DL>
+
+<P>
+如果你在子目录中运行<CODE>make</CODE>，你应该通过使用<CODE>make</CODE>变量<CODE>MAKE</CODE>来运行它。
+<CODE>make</CODE>的大部分版本把<CODE>MAKE</CODE>设置成<CODE>make</CODE>的程序名以及它所需要的任何选项。
+（但许多版本并没有把在命令行中设定的变量的值包括进来，因此它们没有被自动地传递。）一些老版本的
+<CODE>make</CODE>并不设定这个变量。以下的宏使你可以在这些版本上使用它。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_MAKE_SET</B>
+<DD><A NAME="IDX12"></A>
+<A NAME="IDX13"></A>
+<A NAME="IDX14"></A>
+如果<CODE>make</CODE>预定义了变量<CODE>MAKE</CODE>，把输出变量<CODE>SET_MAKE</CODE>定义为空。否则，把
+<CODE>SET_MAKE</CODE>定义成<SAMP>`MAKE=make'</SAMP>。为<CODE>SET_MAKE</CODE>调用<CODE>AC_SUBST</CODE>。
+</DL>
+
+</P>
+<P>
+为了使用这个宏，在每个其他的、运行<CODE>MAKE</CODE>的目录中的<TT>`Makefile.in'</TT>添加一行：
+
+</P>
+
+<PRE>
+@SET_MAKE@
+</PRE>
+
+
+
+<H2><A NAME="SEC11" HREF="autoconf.html#TOC11">Makefiles中的替换</A></H2>
+
+<P>
+发布版本中每个包含了需要被编译或者被安装的文件的目录都应该含有一个文件<TT>`Makefile.in'</TT>，
+<CODE>configure</CODE>将利用它在那个目录中创建一个<TT>`Makefile'</TT>。
+为了创建<TT>`Makefile'</TT>，<CODE>configure</CODE>进行一个简单的变量替换：用<CODE>configure</CODE>
+为<SAMP>`@<VAR>variable</VAR>@'</SAMP>选取的值，在<TT>`Makefile.in'</TT>中对它们进行替换。
+按照这种方式被替换到输出文件中的变量被称为<EM>输出变量</EM>。在<CODE>configure</CODE>中，它们是普通
+的shell变量。为了让<CODE>configure</CODE>把特殊的变量替换到输出文件中，必须把那个变量的名字作为调用
+<CODE>AC_SUBST</CODE>的参数。其他变量的任何<SAMP>`@<VAR>variable</VAR>@'</SAMP>都保持不变。关于
+使用<CODE>AC_SUBST</CODE>创建输出变量的详情，请参见<A HREF="autoconf.html#SEC54">设定输出变量</A>。
+
+</P>
+<P>
+使用<CODE>configure</CODE>脚本的软件应该发布文件<TT>`Makefile.in'</TT>，而不是<TT>`Makefile'</TT>；
+这样，用户就可以在编译它之前正确地为本地系统进行配置了。
+
+</P>
+<P>
+关于应该把哪些东西放入<TT>`Makefile'</TT>的详情，请参见<CITE>GNU编码标准</CITE>中的`Makefile惯例'。
+
+</P>
+
+
+
+<H3><A NAME="SEC12" HREF="autoconf.html#TOC12">预定义输出变量</A></H3>
+
+<P>
+有些输出变量是由Autoconf宏预定义的。一部分Autoconf宏设置一些附加的输出变量，这些变量在对这些宏的描述
+中被说明。关于输出变量的完整列表，参见<A HREF="autoconf.html#SEC103">输出变量索引</A>。下面是每个预
+定义变量所包含的内容。关于变量名以<SAMP>`dir'</SAMP>结尾的变量，参见<CITE>GNU编码标准</CITE>中的
+`为安装目录而提供的变量'。
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>bindir</B>
+<DD><A NAME="IDX15"></A>
+<A NAME="IDX16"></A>
+用于安装由用户运行的可执行文件的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>configure_input</B>
+<DD><A NAME="IDX17"></A>
+<A NAME="IDX18"></A>
+一个用于说明文件是由<CODE>configure</CODE>自动生成的，并且给出了输入文件名的注释。
+<CODE>AC_OUTPUT</CODE>在它创建的每个<TT>`Makefile'</TT>文件的开头添加一个包括了这个变量的注释行。
+对于其他文件，你应该在每个输入文件开头处的注释中引用这个变量。例如，一个输入shell脚本应该以如下
+行开头：
+
+</P>
+
+<PRE>
+#! /bin/sh
+# @configure_input@
+</PRE>
+
+<P>
+这一行的存在也提醒了人们在编辑这个文件之后需要用<CODE>configure</CODE>进行处理以使用它。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>datadir</B>
+<DD><A NAME="IDX19"></A>
+<A NAME="IDX20"></A>
+用于安装只读的与结构无关的数据的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>exec_prefix</B>
+<DD><A NAME="IDX21"></A>
+<A NAME="IDX22"></A>
+与结构有关的文件的安装前缀。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>includedir</B>
+<DD><A NAME="IDX23"></A>
+<A NAME="IDX24"></A>
+用于安装C头文件的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>infodir</B>
+<DD><A NAME="IDX25"></A>
+<A NAME="IDX26"></A>
+用于安装Info格式文档的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>libdir</B>
+<DD><A NAME="IDX27"></A>
+<A NAME="IDX28"></A>
+用于安装目标代码库的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>libexecdir</B>
+<DD><A NAME="IDX29"></A>
+<A NAME="IDX30"></A>
+用于安装由其他程序运行的可执行文件的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>localstatedir</B>
+<DD><A NAME="IDX31"></A>
+<A NAME="IDX32"></A>
+用于安装可以被修改的单机数据的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>mandir</B>
+<DD><A NAME="IDX33"></A>
+<A NAME="IDX34"></A>
+用于安装man格式的文档的顶层目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>oldincludedir</B>
+<DD><A NAME="IDX35"></A>
+<A NAME="IDX36"></A>
+用于安装由非gcc编译器使用的C头文件的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>prefix</B>
+<DD><A NAME="IDX37"></A>
+<A NAME="IDX38"></A>
+与结构无关的文件的安装前缀。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>sbindir</B>
+<DD><A NAME="IDX39"></A>
+<A NAME="IDX40"></A>
+用于安装由系统管理员运行的可执行文件的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>sharedstatedir</B>
+<DD><A NAME="IDX41"></A>
+<A NAME="IDX42"></A>
+用于安装可以修改的、与结构无关的数据的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>srcdir</B>
+<DD><A NAME="IDX43"></A>
+<A NAME="IDX44"></A>
+包含了由<TT>`Makefile'</TT>使用的源代码的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>sysconfdir</B>
+<DD><A NAME="IDX45"></A>
+<A NAME="IDX46"></A>
+用于安装只读的单机数据的目录。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>top_srcdir</B>
+<DD><A NAME="IDX47"></A>
+<A NAME="IDX48"></A>
+包的顶层源代码目录。在目录的顶层，它与<CODE>srcdir</CODE>相同。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>CFLAGS</B>
+<DD><A NAME="IDX49"></A>
+<A NAME="IDX50"></A>
+为C编译器提供的调试和优化选项。如果在运行<CODE>configure</CODE>时，没有在环境中设置它，就在你
+调用<CODE>AC_PROG_CC</CODE>的时候设置它的缺省值（如果你没有调用<CODE>AC_PROG_CC</CODE>，它就为空）。
+<CODE>configure</CODE>在编译程序以测试C的特征时，使用本变量。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>CPPFLAGS</B>
+<DD><A NAME="IDX51"></A>
+<A NAME="IDX52"></A>
+为C预处理器和编译器提供头文件搜索目录选项（<SAMP>`-I<VAR>dir</VAR>'</SAMP>）以及其他各种选项。如果在运行
+<CODE>configure</CODE>时，在环境中没有设置本变量，缺省值就是空。<CODE>configure</CODE>在编译或者预处理
+程序以测试C的特征时，使用本变量。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>CXXFLAGS</B>
+<DD><A NAME="IDX53"></A>
+<A NAME="IDX54"></A>
+为C++编译器提供的调试和优化选项。如果在运行<CODE>configure</CODE>时，没有在环境中设置本变量，那么
+就在你调用<CODE>AC_PROG_CXX</CODE>时设置它的缺省值（如果你没有调用<CODE>AC_PROG_CXX</CODE>，它就为空）。
+<CODE>configure</CODE>在编译程序以测试C++的特征时，使用本变量。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>FFLAGS</B>
+<DD><A NAME="IDX55"></A>
+<A NAME="IDX56"></A>
+为Fortran 77编译器提供的调试和优化选项。如果在运行<CODE>configure</CODE>时，在环境中没有设置本变量，那么它的
+缺省值就在你调用<CODE>AC_PROG_F77</CODE>时被设置（如果你没有调用<CODE>AC_PROG_F77</CODE>，它就为空）。
+<CODE>configure</CODE>在编译程序以测试Fortran 77的特征时，使用本变量。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>DEFS</B>
+<DD><A NAME="IDX57"></A>
+<A NAME="IDX58"></A>
+传递给C编译器的<SAMP>`-D'</SAMP>选项。如果调用了<CODE>AC_CONFIG_HEADER</CODE>，<CODE>configure</CODE>就用
+<SAMP>`-DHAVE_CONFIG_H'</SAMP>代替<SAMP>`@DEFS@'</SAMP>（参见<A HREF="autoconf.html#SEC15">配置头文件</A>）。
+在<CODE>configure</CODE>进行它的测试时，本变量没有被定义，只有在创建输出文件时候才定义。关于如何检查从前的
+测试结果，请参见<A HREF="autoconf.html#SEC54">设定输出变量</A>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>LDFLAGS</B>
+<DD><A NAME="IDX59"></A>
+<A NAME="IDX60"></A>
+为连接器提供的Stripping（<SAMP>`-s'</SAMP>）选项和其他各种选项。如果在运行<CODE>configure</CODE>时，
+在环境中没有设置本变量，它的缺省值就是空。
+<CODE>configure</CODE>在连接程序以测试C的特征时使用本变量。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>LIBS</B>
+<DD><A NAME="IDX61"></A>
+<A NAME="IDX62"></A>
+传递给连接器的<SAMP>`-l'</SAMP>和<SAMP>`-L'</SAMP>选项。
+</DL>
+
+</P>
+
+
+<H3><A NAME="SEC13" HREF="autoconf.html#TOC13">创建目录</A></H3>
+
+<P>
+你可以支持从一个软件包的一份源代码拷贝中为多种结构同时进行编译的功能。为每种结构生成的目标文件都在
+它们自己的目录中储存。
+
+</P>
+<P>
+为了支持这个功能，<CODE>make</CODE>用变量<CODE>VPATH</CODE>来寻找储存在源代码目录中的文件。
+GNU <CODE>make</CODE>和其他大部分近来的<CODE>make</CODE>程序都可以这样做。老版本的<CODE>make</CODE>
+程序不支持<CODE>VPATH</CODE>；在使用它们的时候，源代码必须与目标代码处于同一个目录。
+
+</P>
+<P>
+为了支持<CODE>VPATH</CODE>，每个<TT>`Makefile.in'</TT>文件都应该包含下列两行：
+
+</P>
+
+<PRE>
+srcdir = @srcdir@
+VPATH = @srcdir@
+</PRE>
+
+<P>
+不要把<CODE>VPATH</CODE>设置成其他变量的值，比如说<SAMP>`VPATH = $(srcdir)'</SAMP>，这是因为
+某些版本的<CODE>make</CODE>并不对<CODE>VPATH</CODE>的值进行变量替换。
+
+</P>
+<P>
+在<CODE>configure</CODE>生成<TT>`Makefile'</TT>的时候，它用正确的值对<CODE>srcdir</CODE>进行替换。
+
+</P>
+<P>
+除非在隐含规则中，不要使用<CODE>make</CODE>变量<CODE>$&#60;</CODE>，它将被展开成到源代码目录的文件
+的路径（通过<CODE>VPATH</CODE>找到的）。（诸如<SAMP>`.c.o'</SAMP>的隐含规则用于说明如何从<TT>`.c'</TT>
+文件创建<TT>`.o'</TT>文件）有些版本的<CODE>make</CODE>在隐含规则中不设置<CODE>$&#60;</CODE>；
+它们被展开成空值。
+
+</P>
+<P>
+<TT>`Makefile'</TT>命令行总是应该通过使用前缀<SAMP>`$(srcdir)/'</SAMP>来引用源代码文件。例如：
+
+</P>
+
+<PRE>
+time.info: time.texinfo
+        $(MAKEINFO) $(srcdir)/time.texinfo
+</PRE>
+
+
+
+<H3><A NAME="SEC14" HREF="autoconf.html#TOC14">自动地重新创建</A></H3>
+
+<P>
+你可以在包的顶层目录中的<TT>`Makefile.in'</TT>文件中添加如下的规则，以使得在你更新了配置文件之后
+可以自动地更新配置信息。这个例子包括了所有可选的文件，例如<TT>`aclocal.m4'</TT>和那些与配置头文件
+有关的文件。从<TT>`Makefile.in'</TT>规则中忽略所有你的所不需要的文件。
+
+</P>
+<P>
+因为<CODE>VPATH</CODE>机制的限制，应该包含<SAMP>`${srcdir}/'</SAMP>前缀。
+
+</P>
+<P>
+在重新创建不改变<TT>`config.h.in'</TT>和<TT>`config.h'</TT>的内容的情况下，就不会改变这两个文件的时间标记
+，因此需要<TT>`stamp-'</TT>文件。这个特征避免了不必要的重新编译工作。你应该把文件<TT>`stamp-h.in'</TT>
+包含在你的包的发布中，以便<CODE>make</CODE>能够把<TT>`config.h.in'</TT>看作是更新了的文件。在一些
+老的BSD系统中，<CODE>touch</CODE>或者任何可能导致空文件的命令不会更改时间标记，所以使用诸如<CODE>echo</CODE>
+之类的命令。
+
+</P>
+
+<PRE>
+${srcdir}/configure: configure.in aclocal.m4
+        cd ${srcdir} &#38;&#38; autoconf
+
+# autoheader might not change config.h.in, so touch a stamp file.
+${srcdir}/config.h.in: stamp-h.in
+${srcdir}/stamp-h.in: configure.in aclocal.m4 acconfig.h \
+    config.h.top config.h.bot
+        cd ${srcdir} &#38;&#38; autoheader
+        echo timestamp &#62; ${srcdir}/stamp-h.in
+
+config.h: stamp-h
+stamp-h: config.h.in config.status
+        ./config.status
+
+Makefile: Makefile.in config.status
+        ./config.status
+
+config.status: configure
+        ./config.status --recheck
+</PRE>
+
+<P>
+此外，你应该把<SAMP>`echo timestamp &#62; stamp-h'</SAMP>作为<VAR>extra-cmds</VAR>参数传递给<CODE>AC_OUTPUT</CODE>，
+以便<TT>`config.status'</TT>能够确认<TT>`config.h'</TT>是更新了的。关于<CODE>AC_OUTPUT</CODE>的详情，请参见
+<A HREF="autoconf.html#SEC10">创建输出文件</A>。
+
+</P>
+<P>
+关于处理与配置相关的依赖性问题的更多例子，请参见<A HREF="autoconf.html#SEC82">重新创建一个配置</A>。
+
+</P>
+
+
+<H2><A NAME="SEC15" HREF="autoconf.html#TOC15">配置头文件</A></H2>
+
+<P>
+在包测试的C预处理器符号比较多的时候，用于把<SAMP>`-D'</SAMP>传递给编译器的命令行就会变得很长。
+这导致了两个问题。一个是通过观察寻找<CODE>make</CODE>输出中的错误变得困难了。更严重的是，命令行
+可能超过某些操作系统的长度限制。作为把<SAMP>`-D'</SAMP>选项传递给编译器的替代办法，<CODE>configure</CODE>
+脚本可以创建一个包含了<SAMP>`#define'</SAMP>指令的C头文件。宏<CODE>AC_CONFIG_HEADER</CODE>
+选择了这种输出。它应该在<CODE>AC_INIT</CODE>之后立即调用。
+
+</P>
+<P>
+包应该在引入其他任何头文件之前<SAMP>`#include'</SAMP>配置头文件，以防止出现声明中的不一致性
+（例如，配置头文件可能重定义了<CODE>const</CODE>）。使用<SAMP>`#include &#60;config.h&#62;'</SAMP>
+并且把选项<SAMP>`-I.'</SAMP>（或者是<SAMP>`-I..'</SAMP>；或者是任何包含<TT>`config.h'</TT>
+的目录）传递给C编译器，而不是使用<SAMP>`#include "config.h"'</SAMP>。按照这种方式，即使源代码
+自行进行配置（可能是创建发布版本），其他创建目录也可以在没有找到<TT>`config.h'</TT>的情况下，
+从源代码目录进行配置。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CONFIG_HEADER</B> <I>(<VAR>header-to-create</VAR> ...)</I>
+<DD><A NAME="IDX63"></A>
+<A NAME="IDX64"></A>
+<A NAME="IDX65"></A>
+使得<CODE>AC_OUTPUT</CODE>创建出现在以空格分隔的列表<VAR>header-to-create</VAR>中的文件，
+以包含C预处理器<CODE>#define</CODE>语句，并在生成的文件中用<SAMP>`-DHAVE_CONFIG_H'</SAMP>
+，而不是用<CODE>DEFS</CODE>的值，替换<SAMP>`@DEFS@'</SAMP>。常用在<VAR>header-to-create</VAR>
+中的文件名是<TT>`config.h'</TT>。
+
+</P>
+<P>
+如果<VAR>header-to-create</VAR>给出的文件已经存在并且它的内容和<CODE>AC_OUTPUT</CODE>将要生成的
+内容完全一致，这些文件就保持不变。这样做就使得对配置的某些修改不会导致对依赖于头文件的目标文件进行
+不必要的重新编译。
+
+</P>
+<P>
+通常输入文件被命名为<TT>`<VAR>header-to-create</VAR>.in'</TT>；然而，你可以通过在<VAR>header-to-create</VAR>
+之后添加由冒号分隔的输入文件列表来覆盖原输入文件名。
+例：
+
+<PRE>
+AC_CONFIG_HEADER(defines.h:defines.hin)
+AC_CONFIG_HEADER(defines.h:defs.pre:defines.h.in:defs.post)
+</PRE>
+
+<P>
+这样做使得你的文件名能够被MS-DOS所接受，或者可以把模板（boilerplate）添加到文件的开头和/或结尾。
+</DL>
+
+</P>
+
+
+
+<H3><A NAME="SEC16" HREF="autoconf.html#TOC16">配置头文件模板</A></H3>
+
+<P>
+你的发布版本应该包含一个如你所望的最终的头文件那样的模板文件，它包括注释、以及<CODE>#define</CODE>
+语句的缺省值。例如，假如你的<TT>`configure.in'</TT>进行了下列调用：
+
+</P>
+
+<PRE>
+AC_CONFIG_HEADER(conf.h)
+AC_CHECK_HEADERS(unistd.h)
+</PRE>
+
+<P>
+那么你就应该在<TT>`conf.h.in'</TT>中包含下列代码。
+在含有<TT>`unistd.h'</TT>的系统中，<CODE>configure</CODE>应该把0改成1。在其他系统中，这一行将保持不变。
+
+</P>
+
+<PRE>
+/* Define as 1 if you have unistd.h.  */
+#define HAVE_UNISTD_H 0
+</PRE>
+
+<P>
+如果你的代码使用<CODE>#ifdef</CODE>而不是<CODE>#if</CODE>来测试配置选项，缺省值就可能是取消对一个变量
+的定义而不是把它定义成一个值。在含有<TT>`unistd.h'</TT>的系统中，<CODE>configure</CODE>将修改读入的第二行
+<SAMP>`#define HAVE_UNISTD_H 1'</SAMP>。在其他的系统中，（在系统预定义了那个符号的情况下）
+<CODE>configure</CODE>将以注释的方式排除这一行。
+
+</P>
+
+<PRE>
+/* Define if you have unistd.h.  */
+#undef HAVE_UNISTD_H
+</PRE>
+
+
+
+<H3><A NAME="SEC17" HREF="autoconf.html#TOC17">用<CODE>autoheader</CODE>创建<TT>`config.h.in'</TT></A></H3>
+
+<P>
+程序<CODE>autoheader</CODE>可以创建含有C的<SAMP>`#define'</SAMP>语句的模板文件以供<CODE>configure</CODE>使用。
+如果<TT>`configure.in'</TT>调用了<CODE>AC_CONFIG_HEADER(<VAR>file</VAR>)</CODE>，<CODE>autoheader</CODE>就创建
+<TT>`<VAR>file</VAR>.in'</TT>；如果给出了多文件参数，就使用第一个文件。否则，<CODE>autoheader</CODE>就创建
+<TT>`config.h.in'</TT>。
+
+</P>
+<P>
+如果你为<CODE>autoheader</CODE>提供一个参数，它就使用给出的文件而不是<TT>`configure.in'</TT>，并且把头文件输出
+到标准输出中去，而不是输出到<TT>`config.h.in'</TT>。如果你把<SAMP>`-'</SAMP>作为参数提供给<CODE>autoheader</CODE>
+，它就从标准输入中，而不是从<TT>`configure.in'</TT>中读出，并且把头文件输出到标准输出中去。
+
+</P>
+<P>
+<CODE>autoheader</CODE>扫描<TT>`configure.in'</TT>并且找出它可能要定义的C预处理器符号。它从一个名为
+<TT>`acconfig.h'</TT>的文件中复制注释、<CODE>#define</CODE>和<CODE>#undef</CODE>语句，该文件与Autoconf一同发布
+并且一同安装。如果当前目录中含有<TT>`acconfig.h'</TT>文件，它也会使用这个文件。如果你用<CODE>AC_DEFINE</CODE>
+定义了任何附加的符号，你必须在创建的那个<TT>`acconfig.h'</TT>文件中包含附加的符号。对于由
+<CODE>AC_CHECK_HEADERS</CODE>、<CODE>AC_CHECK_FUNCS</CODE>、<CODE>AC_CHECK_SIZEOF</CODE>或者
+<CODE>AC_CHECK_LIB</CODE>定义的符号，<CODE>autoheader</CODE>生成注释和<CODE>#undef</CODE>语句，而不是从一个
+文件中复制它们，这是因为可能的符号是无限的。
+
+</P>
+<P>
+<CODE>autoheader</CODE>创建的文件包含了大部分<CODE>#define</CODE>和<CODE>#undef</CODE>语句，以及相关的注释。
+如果<TT>`./acconfig.h'</TT>包含了字符串<SAMP>`@TOP@'</SAMP>，<CODE>autoheader</CODE>就把在包含<SAMP>`@TOP@'</SAMP>
+的行之前的所有行复制到它生成的文件的开头。相似地，如果<TT>`./acconfig.h'</TT>包含了字符串<SAMP>`@BOTTOM@'</SAMP>，
+<CODE>autoheader</CODE>就把那一行之后的所有行复制到它生成的文件的末尾。这两个字符串的任何一个都可以被忽略，
+也可以被同时忽略。
+
+</P>
+<P>
+产生相同效果的另一种办法是在当前目录中创建文件<TT>`<VAR>file</VAR>.top'</TT>（通常是<TT>`config.h.top'</TT>）和/或
+文件<TT>`<VAR>file</VAR>.bot'</TT>。如果它们存在，<CODE>autoheader</CODE>就把它们分别复制到它的输出的开头和末尾。
+不鼓励使用它们是因为它们的文件名含有两个点，并因此不能在MS-DOS中储存；它们在目录中多创建了两个文件。但如果你给出
+选项<SAMP>`--localdir=<VAR>dir</VAR>'</SAMP>以使用在其他目录中的<TT>`acconfig.h'</TT>，它们就为你提供了一种把
+定制的模板（boilerplate）放入各个独立的<TT>`config.h.in'</TT>中的方式。
+
+</P>
+<P>
+<CODE>autoheader</CODE>接受如下选项：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>--help</CODE>
+<DD>
+<DT><CODE>-h</CODE>
+<DD>
+打印对命令行选项的概述并且退出。
+
+<DT><CODE>--localdir=<VAR>dir</VAR></CODE>
+<DD>
+<DT><CODE>-l <VAR>dir</VAR></CODE>
+<DD>
+在目录<VAR>dir</VAR>中，而不是在当前目录中，寻找包文件<TT>`aclocal.m4'</TT>和<TT>`acconfig.h'</TT>
+（但不包括<TT>`<VAR>file</VAR>.top'</TT>和<TT>`<VAR>file</VAR>.bot'</TT>）。
+
+<DT><CODE>--macrodir=<VAR>dir</VAR></CODE>
+<DD>
+<DT><CODE>-m <VAR>dir</VAR></CODE>
+<DD>
+<A NAME="IDX66"></A>
+在目录<VAR>dir</VAR>中寻找安装的宏文件和<TT>`acconfig.h'</TT>。你还可以把环境变量<CODE>AC_MACRODIR</CODE>
+设置成一个目录；本选项将覆盖该环境变量。
+
+<DT><CODE>--version</CODE>
+<DD>
+打印Autoconf的版本号并且退出。
+</DL>
+
+
+
+<H2><A NAME="SEC18" HREF="autoconf.html#TOC18">在子目录中配置其它包</A></H2>
+
+<P>
+在大多数情况下，调用<CODE>AC_OUTPUT</CODE>足以在子目录中生成<TT>`Makefile'</TT>。然而，控制了多于一个
+独立包的<CODE>configure</CODE>脚本可以使用<CODE>AC_CONFIG_SUBDIRS</CODE>来为每个子目录中的其他包运行
+<CODE>configure</CODE>脚本。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CONFIG_SUBDIRS</B> <I>(<VAR>dir</VAR> ...)</I>
+<DD><A NAME="IDX67"></A>
+<A NAME="IDX68"></A>
+<A NAME="IDX69"></A>
+使得<CODE>AC_OUTPUT</CODE>在每个以空格分隔的列表中给出的子目录<VAR>dir</VAR>中运行<CODE>configure</CODE>。
+如果没有发现某个给出的<VAR>dir</VAR>，不会作为错误报告，所以一个<CODE>configure</CODE>脚本可以配置一个
+大的源代码树中出现的任何一个部分。如果在给出的<VAR>dir</VAR>中包含了<TT>`configure.in'</TT>，但没有包含
+<CODE>configure</CODE>，就使用由<CODE>AC_CONFIG_AUXDIR</CODE>找到的Cygnus <CODE>configure</CODE>脚本。
+
+</P>
+<P>
+用与本<CODE>configure</CODE>脚本完全相同的命令行参数调用子目录中的<CODE>configure</CODE>脚本，如果需要，
+会有较小的修改（例如，为缓冲文件或者源代码目录调整相对路径）。本宏还把输出变量<CODE>subdirs</CODE>设置成
+目录列表<SAMP>`<VAR>dir</VAR>...'</SAMP>。<TT>`Makefile'</TT>规则可以使用该变量以确定需要进入那些子目录。
+这个宏可以多次调用。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC19" HREF="autoconf.html#TOC19">缺省的前缀</A></H2>
+
+<P>
+在缺省状态下，<CODE>configure</CODE>把它所安装的文件的前缀设置成<TT>`/usr/local'</TT>。
+<CODE>configure</CODE>的用户可以通过选项<SAMP>`--prefix'</SAMP>和<SAMP>`--exec-prefix'</SAMP>选择一个不同的前缀。
+有两种方式修改缺省的行为：在创建<CODE>configure</CODE>时，和运行<CODE>configure</CODE>时。
+
+</P>
+<P>
+有些软件包在缺省情况下可能需要安装到<TT>`/usr/local'</TT>以外的目录中。为此，使用宏<CODE>AC_PREFIX_DEFAULT</CODE>。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PREFIX_DEFAULT</B> <I>(<VAR>prefix</VAR>)</I>
+<DD><A NAME="IDX70"></A>
+把缺省的安装前缀设置成<VAR>prefix</VAR>，而不是<TT>`/usr/local'</TT>。
+</DL>
+
+</P>
+<P>
+对于用户来说，让<CODE>configure</CODE>根据它们已经安装的相关程序的位置来猜测安装前缀，可能会带来方便。如果你
+希望这样做，你可以调用<CODE>AC_PREFIX_PROGRAM</CODE>。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PREFIX_PROGRAM</B> <I>(<VAR>program</VAR>)</I>
+<DD><A NAME="IDX71"></A>
+<A NAME="IDX72"></A>
+如果用户没有给出安装前缀（使用选项<SAMP>`--prefix'</SAMP>），就按照shell的方式，在<CODE>PATH</CODE>中寻找
+<VAR>program</VAR>，从而猜出一个安装前缀。如果找到了<VAR>program</VAR>，就把前缀设置成包含<VAR>program</VAR>
+的目录的父目录；否则，就不改变在<TT>`Makefile.in'</TT>中给定的前缀。例如，如果<VAR>program</VAR>是
+<CODE>gcc</CODE>，并且<CODE>PATH</CODE>包括了<TT>`/usr/local/gnu/bin/gcc'</TT>，就把前缀设置为
+<TT>`/usr/local/gnu'</TT>。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC20" HREF="autoconf.html#TOC20"><CODE>configure</CODE>中的版本号</A></H2>
+
+<P>
+以下的宏为<CODE>configure</CODE>脚本管理版本号。使用它们是可选的。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PREREQ</B> <I>(<VAR>version</VAR>)</I>
+<DD><A NAME="IDX73"></A>
+<A NAME="IDX74"></A>
+确保使用的是足够新的Autoconf版本。如果用于创建<CODE>configure</CODE>的Autoconf的版本比<VAR>version</VAR>
+要早，就在标准错误输出打印一条错误消息并不会创建<CODE>configure</CODE>。例如：
+
+</P>
+
+<PRE>
+AC_PREREQ(1.8)
+</PRE>
+
+<P>
+如果你的<TT>`configure.in'</TT>依赖于在不同Autoconf版本中改变了的、不明显的行为，本宏就是有用的。
+如果它仅仅是需要近来增加的宏，那么<CODE>AC_PREREQ</CODE>就不太有用，这是因为程序<CODE>autoconf</CODE>已经
+告诉了用户那些宏没有被找到。如果<TT>`configure.in'</TT>是由一个在提供<CODE>AC_PREREQ</CODE>之前的更旧的
+Autoconf版本处理的，也会发生同样的事。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_REVISION</B> <I>(<VAR>revision-info</VAR>)</I>
+<DD><A NAME="IDX75"></A>
+<A NAME="IDX76"></A>
+把删除了任何美元符或者双引号的修订标记（revision stamp）复制到<CODE>configure</CODE>脚本中。
+本宏使得你的从<TT>`configure.in'</TT>传递到<CODE>configure</CODE>的修订标记不会在你提交（check in）
+<CODE>configure</CODE>的时候被RCS或者CVS修改。你可以容易地决定一个特定的<CODE>configure</CODE>
+对应与<TT>`configure.in'</TT>的哪个修订版。
+
+</P>
+<P>
+把本宏放在<CODE>AC_INIT</CODE>之前是个好主意，它可以使修订号接近<TT>`configure.in'</TT>和<CODE>configure</CODE>
+的开头。为了支持你这样做，<CODE>AC_REVISION</CODE>就像<CODE>configure</CODE>通常作的那样，以
+<SAMP>`#! /bin/sh'</SAMP>开始它的输出。
+
+</P>
+<P>
+例如，在<TT>`configure.in'</TT>中这一行为：
+
+</P>
+
+<PRE>
+AC_REVISION($Revision: 1.1 $)dnl
+</PRE>
+
+<P>
+在<CODE>configure</CODE>中产生了：
+
+</P>
+
+<PRE>
+#! /bin/sh
+# From configure.in Revision: 1.30
+</PRE>
+
+</DL>
+
+
+
+<H1><A NAME="SEC21" HREF="autoconf.html#TOC21">现有的测试</A></H1>
+
+<P>
+这些宏测试了包可能需要或者需要使用的特定的系统特征。如果你要测试这些宏所不能测试的特征，可能你可以用
+适当的参数调用主测试宏来达到目的（参见<A HREF="autoconf.html#SEC40">编写测试</A>）。
+
+</P>
+<P>
+这些宏打印消息以告诉用户它们正在测试的特征，以及它们的测试结果。它们为未来运行的<CODE>configure</CODE>
+储存测试结果（参见<A HREF="autoconf.html#SEC55">缓存结果</A>）。
+
+</P>
+<P>
+在这些宏中，有的宏设置输出变量。关于如何获取它们的值，请参见<A HREF="autoconf.html#SEC11">Makefile中的替换</A>。
+在下面出现的术语“定义<VAR>name</VAR>”是“把C预处理符号<VAR>name</VAR>定义成1”的简称。
+关于如何把这些符号的定义放入你的程序中，参见<A HREF="autoconf.html#SEC53">定义C预处理器符号</A>。
+
+</P>
+
+
+
+<H2><A NAME="SEC22" HREF="autoconf.html#TOC22">对程序的选择</A></H2>
+
+<P>
+这些宏检查了特定程序的存在或者特定程序的特征。它们被用于在几个可以相互替代的程序间进行选择，并且在决定选用
+某一个的时候作些什么。如果没有为你要使用的程序定义特定的宏，并且你不需要检查它的任何特殊的特征，那么你就
+可以选用一个通用程序检查宏。
+
+</P>
+
+
+
+<H3><A NAME="SEC23" HREF="autoconf.html#TOC23">对特定程序的检查</A></H3>
+
+<P>
+这些宏检查特定的程序--它们是否存在，并且在某些情况下它们是否支持一些特征。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_DECL_YYTEXT</B>
+<DD><A NAME="IDX77"></A>
+<A NAME="IDX78"></A>
+<A NAME="IDX79"></A>
+<A NAME="IDX80"></A>
+如果<CODE>yytext</CODE>的类型是<SAMP>`char *'</SAMP>而不是<SAMP>`char []'</SAMP>，就定义<CODE>YYTEXT_POINTER</CODE>。
+本宏还把输出变量<CODE>LEX_OUTPUT_ROOT</CODE>设置由lex生成的文件名的基文件名；通常是<TT>`lex.yy'</TT>，
+但有时是其他的东西。它的结果依使用<CODE>lex</CODE>还是使用<CODE>flex</CODE>而定。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_AWK</B>
+<DD><A NAME="IDX81"></A>
+<A NAME="IDX82"></A>
+<A NAME="IDX83"></A>
+按顺序查找<CODE>mawk</CODE>、<CODE>gawk</CODE>、<CODE>nawk</CODE>和<CODE>awk</CODE>，并且把输出变量<CODE>AWK</CODE>
+的值设置成第一个找到的程序名。首先寻找<CODE>mawk</CODE>是因为据说它是最快的实现。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_CC</B>
+<DD><A NAME="IDX84"></A>
+<A NAME="IDX85"></A>
+<A NAME="IDX86"></A>
+<A NAME="IDX87"></A>
+确定C的编译器。如果在环境中没有设定<CODE>CC</CODE>，就查找<CODE>gcc</CODE>，如果没有找到，就使用<CODE>cc</CODE>。
+把输出变量<CODE>CC</CODE>设置为找到的编译器的名字。
+
+</P>
+<P>
+如果要使用GNU C编译器，把shell变量<CODE>GCC</CODE>设置为<SAMP>`yes'</SAMP>，否则就设置成空。如果还没有设置输出变量
+<CODE>CFLAGS</CODE>，就为GNU C编译器把<CODE>CFLAGS</CODE>设置成<SAMP>`-g -O2'</SAMP>（在GCC不接受<SAMP>`-g'</SAMP>
+的系统中就设置成<SAMP>`-O2'</SAMP>），为其他编译器把<CODE>CFLAGS</CODE>设置成<SAMP>`-g'</SAMP>。
+
+</P>
+<P>
+如果被使用的C编译器并不生成可以在<CODE>configure</CODE>运行的系统上运行的可执行文件，就把shell变量
+<CODE>cross_compiling</CODE>设置成<SAMP>`yes'</SAMP>，否则设置成<SAMP>`no'</SAMP>。换句话说，它检查创建系统类型
+是否与主机系统类型不同（目标系统与本测试无关）。关于对交叉编译的支持，参见<A HREF="autoconf.html#SEC67">手工配置</A>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_CC_C_O</B>
+<DD><A NAME="IDX88"></A>
+<A NAME="IDX89"></A>
+<A NAME="IDX90"></A>
+对于不能同时接受<SAMP>`-c'</SAMP>和<SAMP>`-o'</SAMP>选项的C编译器，定义<CODE>NO_MINUS_C_MINUS_O</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_CPP</B>
+<DD><A NAME="IDX91"></A>
+<A NAME="IDX92"></A>
+<A NAME="IDX93"></A>
+把输出变量<CODE>CPP</CODE>设置成运行C预处理器的命令。如果<SAMP>`$CC -E'</SAMP>不能工作，就使用<TT>`/lib/cpp'</TT>。
+只有对以<TT>`.c'</TT>为扩展名的文件运行<CODE>CPP</CODE>才是可以移植的（portable）。
+
+</P>
+<P>
+如果当前语言是C（参见<A HREF="autoconf.html#SEC51">对语言的选择</A>），许多特定的测试宏通过调用<CODE>AC_TRY_CPP</CODE>、
+<CODE>AC_CHECK_HEADER</CODE>、<CODE>AC_EGREP_HEADER</CODE>或者<CODE>AC_EGREP_CPP</CODE>，间接地使用了<CODE>CPP</CODE>的值。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_CXX</B>
+<DD><A NAME="IDX94"></A>
+<A NAME="IDX95"></A>
+<A NAME="IDX96"></A>
+<A NAME="IDX97"></A>
+确定C++编译器。检查环境变量<CODE>CXX</CODE>或者<CODE>CCC</CODE>（按照这个顺序）是否被设置了；如果设置了，就把输出变量
+<CODE>CXX</CODE>设置成它的值。否则就搜索类似名称（<CODE>c++</CODE>、<CODE>g++</CODE>、<CODE>gcc</CODE>、<CODE>CC</CODE>、
+<CODE>cxx</CODE>和<CODE>cc++</CODE>）的C++编译器。如果上述测试都失败了，最后的办法就是把<CODE>CXX</CODE>设置成
+<CODE>gcc</CODE>。
+
+</P>
+<P>
+如果使用GNU C++编译器，就把shell变量<CODE>GXX</CODE>设置成<SAMP>`yes'</SAMP>，否则就设置成空。
+如果还没有设置输出变量<CODE>CXXFLAGS</CODE>，就为GNU C++编译器把<CODE>CXXFLAGS</CODE>设置成<SAMP>`-g -O2'</SAMP>
+（在G++不接受<SAMP>`-g'</SAMP>的系统上设置成<SAMP>`-O2'</SAMP>），或者为其他编译器把<CODE>CXXFLAGS</CODE>设置成
+<SAMP>`-g'</SAMP>。
+.
+
+</P>
+<P>
+如果使用的C++编译器并不生成在<CODE>configure</CODE>运行的系统上运行的可执行文件，就把shell变量<CODE>cross_compiling</CODE>
+设置成<SAMP>`yes'</SAMP>，否则就设置成<SAMP>`no'</SAMP>。换句话说，它检查创建系统类型是否与主机系统类型不同
+（目标系统类型与本测试无关）。关于对交叉编译的支持，参见<A HREF="autoconf.html#SEC67">手工配置</A>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_CXXCPP</B>
+<DD><A NAME="IDX98"></A>
+<A NAME="IDX99"></A>
+<A NAME="IDX100"></A>
+把输出变量<CODE>CXXCPP</CODE>设置成运行C++预处理器的命令。如果<SAMP>`$CXX -E'</SAMP>不能工作，使用<TT>`/lib/cpp'</TT>。
+只有对以<TT>`.c'</TT>、<TT>`.C'</TT>或者<TT>`.cc'</TT>为扩展名的文件运行<CODE>CPP</CODE>才是可以移植的（portable）。
+
+</P>
+<P>
+如果当前语言是C++（参见<A HREF="autoconf.html#SEC51">对语言的选择</A>），许多特定的测试宏通过调用
+<CODE>AC_TRY_CPP</CODE>、<CODE>AC_CHECK_HEADER</CODE>、<CODE>AC_EGREP_HEADER</CODE>或者<CODE>AC_EGREP_CPP</CODE>，
+间接地使用了<CODE>CXXCPP</CODE>的值。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_F77</B>
+<DD><A NAME="IDX101"></A>
+<A NAME="IDX102"></A>
+<A NAME="IDX103"></A>
+<A NAME="IDX104"></A>
+确定Fortran 77编译器。如果在环境中没有设置<CODE>F77</CODE>，就按顺序检查<CODE>g77</CODE>、<CODE>f77</CODE>和
+<CODE>f2c</CODE>。把输出变量<CODE>F77</CODE>设置成找到的编译器的名字。
+
+</P>
+<P>
+如果使用<CODE>g77</CODE>（GNU Fortran 77编译器），那么<CODE>AC_PROG_F77</CODE>将把shell变量<CODE>G77</CODE>设置成
+<SAMP>`yes'</SAMP>，否则就设置成空。如果在环境中没有设置输出变量<CODE>FFLAGS</CODE>，那么就为<CODE>g77</CODE>
+把<CODE>FFLAGS</CODE>设置成<SAMP>`-g -02'</SAMP>（或者在<CODE>g77</CODE>不支持<SAMP>`-g'</SAMP>的时候设置成
+<SAMP>`-O2'</SAMP>）。否则，就为所有其它的Fortran 77编译器把<CODE>FFLAGS</CODE>设置成<SAMP>`-g'</SAMP>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_F77_C_O</B>
+<DD><A NAME="IDX105"></A>
+<A NAME="IDX106"></A>
+<A NAME="IDX107"></A>
+测试Fortran 77编译器是否能够同时接受选项<SAMP>`-c'</SAMP>和<SAMP>`-o'</SAMP>，并且如果不能同时接受的话，就
+定义<CODE>F77_NO_MINUS_C_MINUS_O</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_GCC_TRADITIONAL</B>
+<DD><A NAME="IDX108"></A>
+<A NAME="IDX109"></A>
+<A NAME="IDX110"></A>
+如果在没有给出<SAMP>`-traditional'</SAMP>的情况下，用GNU C和<CODE>ioctl</CODE>不能正确地工作，就把
+<SAMP>`-traditional'</SAMP>添加到输出变量<CODE>CC</CODE>中。这通常发生在旧系统上没有安装修正了的头文件
+的时候。因为新版本的GNU C编译器在安装的时候自动地修正了头文件，它就不是一个普遍的问题了。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_INSTALL</B>
+<DD><A NAME="IDX111"></A>
+<A NAME="IDX112"></A>
+<A NAME="IDX113"></A>
+<A NAME="IDX114"></A>
+<A NAME="IDX115"></A>
+<A NAME="IDX116"></A>
+如果在当前<CODE>PATH</CODE>中找到了一个与BSD兼容的<CODE>install</CODE>程序，就把输出变量<CODE>INSTALL</CODE>设置
+成到该程序的路径。否则，就把<CODE>INSTALL</CODE>设置成<SAMP>`<VAR>dir</VAR>/install-sh -c'</SAMP>，检查由
+<CODE>AC_CONFIG_AUX_DIR</CODE>指明的目录（或者它的缺省目录）以确定<VAR>dir</VAR>（参见
+<A HREF="autoconf.html#SEC10">创建输出文件</A>）。本宏还把变量<CODE>INSTALL_PROGRAM</CODE>和<CODE>INSTALL_SCRIPT</CODE>
+设置成<SAMP>`${INSTALL}'</SAMP>，并且把<CODE>INSTALL_DATA</CODE>设置成<SAMP>`${INSTALL} -m 644'</SAMP>。
+
+</P>
+<P>
+本宏忽略各种已经确认的不能工作的<CODE>install</CODE>程序。为了提高速度，它更希望找到一个C程序而不是shell脚本。
+除了<TT>`install-sh'</TT>，它还能够使用<TT>`install.sh'</TT>，但因为有些<CODE>make</CODE>含有一条在没有
+<TT>`Makefile'</TT>的情况下，从<TT>`install.sh'</TT>创建<TT>`install'</TT>的规则，所以这个名字过时了。
+
+</P>
+<P>
+你可能使用的<TT>`install-sh'</TT>的一个副本来自于Autoconf。如果你使用<CODE>AC_PROG_INSTALL</CODE>，你必须在你的
+发布版本中包含<TT>`install-sh'</TT>或者<TT>`install.sh'</TT>，否则即使你所在的系统含有一个好的<CODE>install</CODE>
+程序，<CODE>configure</CODE>也将输出一条找不到它们的错误消息。
+
+</P>
+<P>
+如果你因为你自己的安装程序提供了一些在标准<CODE>install</CODE>程序中没有的特征，而需要使用你自己的安装程序，
+就没有必要使用<CODE>AC_PROG_INSTALL</CODE>；直接把你的程序的路径名放入你的<TT>`Makefile.in'</TT>文件即可。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_LEX</B>
+<DD><A NAME="IDX117"></A>
+<A NAME="IDX118"></A>
+<A NAME="IDX119"></A>
+<A NAME="IDX120"></A>
+如果找到了<CODE>flex</CODE>，就把输出变量<CODE>LEX</CODE>设置成<SAMP>`flex'</SAMP>，并且在flex库在标准位置的时候，
+把<CODE>LEXLIB</CODE>设置成<SAMP>`-lfl'</SAMP>。否则，就把<CODE>LEX</CODE>设置成<SAMP>`lex'</SAMP>并且把
+<CODE>LEXLIB</CODE>设置成<SAMP>`-ll'</SAMP>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_LN_S</B>
+<DD><A NAME="IDX121"></A>
+<A NAME="IDX122"></A>
+<A NAME="IDX123"></A>
+如果<SAMP>`ln -s'</SAMP>能够在当前文件系统中工作（操作系统和文件系统支持符号连接），就把输出变量
+<CODE>LN_S</CODE>设置成<SAMP>`ln -s'</SAMP>，否则就把它设置成<SAMP>`ln'</SAMP>。
+
+</P>
+<P>
+如果连接出现在其他目录而不是在当前目录中，它的含义依赖于是使用了<SAMP>`ln'</SAMP>，还是使用了<SAMP>`ln -s'</SAMP>。
+为了用<SAMP>`$(LN_S)'</SAMP>安全地创建连接，既可以找到正在使用的形式并且调整参数，也可以总是在创建连接的
+目录中调用<CODE>ln</CODE>。
+
+</P>
+<P>
+换句话说，它不能像下面那样工作：
+
+<PRE>
+$(LN_S) foo /x/bar
+</PRE>
+
+<P>
+而是要：
+
+</P>
+
+<PRE>
+(cd /x &#38;&#38; $(LN_S) foo bar)
+</PRE>
+
+</DL>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_RANLIB</B>
+<DD><A NAME="IDX124"></A>
+<A NAME="IDX125"></A>
+<A NAME="IDX126"></A>
+如果找到了<CODE>ranlib</CODE>，就把输出变量<CODE>RANLIB</CODE>设置成<SAMP>`ranlib'</SAMP>，否则就设置成
+<SAMP>`:'</SAMP>（什么也不作）。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROG_YACC</B>
+<DD><A NAME="IDX127"></A>
+<A NAME="IDX128"></A>
+<A NAME="IDX129"></A>
+如果找到了<CODE>bison</CODE>，就把输出变量<CODE>YACC</CODE>设置成<SAMP>`bison -y'</SAMP>。
+否则，如果找到了<CODE>byacc</CODE>。就把<CODE>YACC</CODE>设置成<SAMP>`byacc'</SAMP>。否则，
+就把<CODE>YACC</CODE>设置成<SAMP>`yacc'</SAMP>。
+</DL>
+
+</P>
+
+
+<H3><A NAME="SEC24" HREF="autoconf.html#TOC24">对普通程序和文件的检查</A></H3>
+
+<P>
+这些宏用于寻找没有包含在特定程序测试宏中的程序。如果你除了需要确定程序是否存在，还需要检测程序的行为，你就
+不得不为它编写你自己的测试了（参见<A HREF="autoconf.html#SEC40">编写测试</A>）。在缺省情况下，这些宏使用
+环境变量<CODE>PATH</CODE>。如果你需要检查可能不会出现在<CODE>PATH</CODE>中的程序，你可能要按照下面的方式
+给出修改了的路径：
+
+</P>
+
+<PRE>
+AC_PATH_PROG(INETD, inetd, /usr/libexec/inetd,
+  $PATH:/usr/libexec:/usr/sbin:/usr/etc:etc)
+</PRE>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_FILE</B> <I>(<VAR>file</VAR> [, <VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX130"></A>
+<A NAME="IDX131"></A>
+检查文件<VAR>file</VAR>是否出现在本地系统中。如果找到了，就执行<VAR>action-if-found</VAR>。否则，就在给出了
+<VAR>action-if-not-found</VAR>的时候执行<VAR>action-if-not-found</VAR>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_FILES</B> <I>(<VAR>files</VAR>[, <VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX132"></A>
+<A NAME="IDX133"></A>
+为每个在<VAR>files</VAR>中给出的文件运行<CODE>AC_CHECK_FILE</CODE>。并且为每个找到的文件定义
+<SAMP>`HAVE<VAR>file</VAR>'</SAMP>，定义成1。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_PROG</B> <I>(<VAR>variable</VAR>, <VAR>prog-to-check-for</VAR>, <VAR>value-if-found</VAR> [, <VAR>value-if-not-found</VAR> [, <VAR>path</VAR>, [ <VAR>reject</VAR> ]]])</I>
+<DD><A NAME="IDX134"></A>
+<A NAME="IDX135"></A>
+检查程序<VAR>prog-to-check-for</VAR>是否存在于<CODE>PATH</CODE>之中。如果找到了，就把变量
+<VAR>variable</VAR>设置成<VAR>value-if-found</VAR>，否则就在给出了<VAR>value-if-not-found</VAR>的时候
+把<VAR>variable</VAR>设置成它。即使首先在搜索路径中找到<VAR>reject</VAR>（一个绝对文件名），本宏也会忽略它；
+在那种情况下，用找到的<VAR>prog-to-check-for</VAR>，不同于<VAR>reject</VAR>的绝对文件名来设置<VAR>variable</VAR>。
+如果<VAR>variable</VAR>已经被设置了，就什么也不作。为<VAR>variable</VAR>调用<CODE>AC_SUBST</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_PROGS</B> <I>(<VAR>variable</VAR>, <VAR>progs-to-check-for</VAR> [, <VAR>value-if-not-found</VAR> [, <VAR>path</VAR>]])</I>
+<DD><A NAME="IDX136"></A>
+<A NAME="IDX137"></A>
+在<CODE>PATH</CODE>中寻找每个出现在以空格分隔的列表<VAR>progs-to-check-for</VAR>中的程序。
+如果找到了，就把<VAR>variable</VAR>设置成那个程序的名字。否则，继续寻找列表中的下一个程序。如果列表
+中的任何一个程序都没有被找到，就把<VAR>variable</VAR>设置成<VAR>value-if-not-found</VAR>；如果没有
+给出<VAR>value-if-not-found</VAR>，<VAR>variable</VAR>的值就不会被改变。为<VAR>variable</VAR>调用
+<CODE>AC_SUBST</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_TOOL</B> <I>(<VAR>variable</VAR>, <VAR>prog-to-check-for</VAR> [, <VAR>value-if-not-found</VAR> [, <VAR>path</VAR>]])</I>
+<DD><A NAME="IDX138"></A>
+<A NAME="IDX139"></A>
+除了把<CODE>AC_CANONICAL_HOST</CODE>确定的主机类型和破折号作为前缀之外，类似于<CODE>AC_CHECK_PROG</CODE>，
+寻找<VAR>prog-to-check-for</VAR>（参见<A HREF="autoconf.html#SEC69">获取规范的系统类型</A>）。
+例如，如果用户运行<SAMP>`configure --host=i386-gnu'</SAMP>，那么下列调用：
+
+<PRE>
+AC_CHECK_TOOL(RANLIB, ranlib, :)
+</PRE>
+
+<P>
+当<TT>`i386-gnu-ranlib'</TT>在<CODE>PATH</CODE>中存在的时候，就把<CODE>RANLIB</CODE>设置成<TT>`i386-gnu-ranlib'</TT>，
+或者当<SAMP>`ranlib'</SAMP>在<CODE>PATH</CODE>中存在的时候，就把<CODE>RANLIB</CODE>设置成<SAMP>`ranlib'</SAMP>，
+或者在上述两个程序都不存在的时候，把<CODE>RANLIB</CODE>设置成<SAMP>`:'</SAMP>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PATH_PROG</B> <I>(<VAR>variable</VAR>, <VAR>prog-to-check-for</VAR> [, <VAR>value-if-not-found</VAR> [, <VAR>path</VAR>]])</I>
+<DD><A NAME="IDX140"></A>
+<A NAME="IDX141"></A>
+类似于<CODE>AC_CHECK_PROG</CODE>，但在找到<VAR>prog-to-check-for</VAR>的时候，把<VAR>variable</VAR>设置
+成<VAR>prog-to-check-for</VAR>的完整路径。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PATH_PROGS</B> <I>(<VAR>variable</VAR>, <VAR>progs-to-check-for</VAR> [, <VAR>value-if-not-found</VAR> [, <VAR>path</VAR>]])</I>
+<DD><A NAME="IDX142"></A>
+<A NAME="IDX143"></A>
+类似于<CODE>AC_CHECK_PROGS</CODE>，但在找到任何一个<VAR>progs-to-check-for</VAR>的时候，把<VAR>variable</VAR>
+设置成找到的程序的完整路径。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC25" HREF="autoconf.html#TOC25">库文件</A></H2>
+
+<P>
+下列的宏检查某些C、C++或者Fortran 77库文件是否存在。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_LIB</B> <I>(<VAR>library</VAR>, <VAR>function</VAR> [, <VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR> [, <VAR>other-libraries</VAR>]]])</I>
+<DD><A NAME="IDX144"></A>
+<A NAME="IDX145"></A>
+依赖于当前的语言（参见<A HREF="autoconf.html#SEC51">对语言的选择</A>），试图通过检查一个测试程序是否可以和
+库<VAR>library</VAR>进行连接以获取C、C++或者Fortran 77函数<VAR>function</VAR>，从而确认函数<VAR>function</VAR>
+是可以使用的。<VAR>library</VAR>是库的基本名字；例如，为了检查<SAMP>`-lmp'</SAMP>，就把<SAMP>`mp'</SAMP>作为
+参数<VAR>library</VAR>。
+
+</P>
+<P>
+<VAR>action-if-found</VAR>是一个在与库成功地进行了连接的时候运行的shell命令列表；
+<VAR>action-if-not-found</VAR>是一个在与库的连接失败的时候运行的shell命令列表。
+如果没有给出<VAR>action-if-found</VAR>，缺省的动作就是把<SAMP>`-l<VAR>library</VAR>'</SAMP>添加到
+<CODE>LIBS</CODE>中，并且定义<SAMP>`HAVE_LIB<VAR>library</VAR>'</SAMP>（全部使用大写字母）。
+
+</P>
+<P>
+如果与<VAR>library</VAR>的连接导致了未定义符号错误（unresolved symbols），而这些错误可以通过与其他库的连接来解决，
+就把这些库用空格分隔，并作为<VAR>other-libraries</VAR>参数给出：<SAMP>`-lXt -lX11'</SAMP>。否则，本宏
+对<VAR>library</VAR>是否存在的检测将会失败，这是因为对测试程序的连接将总是因为含有未定义符号错误而失败。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_HAVE_LIBRARY</B> <I>(<VAR>library</VAR>, [, <VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR> [, <VAR>other-libraries</VAR>]]])</I>
+<DD><A NAME="IDX146"></A>
+<A NAME="IDX147"></A>
+本宏等价于<VAR>function</VAR>参数为<CODE>main</CODE>的，对<CODE>AC_CHECK_LIB</CODE>的调用。
+此外，<VAR>library</VAR>可以写作<SAMP>`foo'</SAMP>、<SAMP>`-lfoo'</SAMP>或者<SAMP>`libfoo.a'</SAMP>。
+对于以上任一种形式，编译器都使用<SAMP>`-lfoo'</SAMP>。但是，<VAR>library</VAR>不能是一个shell变量；
+它必须是一个文字名（literal name）。本宏是一个过时的宏。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_SEARCH_LIBS</B> <I>(<VAR>function</VAR>, <VAR>search-libs</VAR> [, <VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR> [, <VAR>other-libraries</VAR>]]])</I>
+<DD><A NAME="IDX148"></A>
+<A NAME="IDX149"></A>
+如果<VAR>function</VAR>还不可用，就寻找一个定义了<VAR>function</VAR>的库。这等同于首先不带库调用
+<CODE>AC_TRY_LINK_FUNC</CODE>，而后为每个在<VAR>search-libs</VAR>中列举的库调用<CODE>AC_TRY_LINK_FUNC</CODE>。
+
+</P>
+<P>
+如果找到了函数，就运行<VAR>action-if-found</VAR>。否则运行<VAR>action-if-not-found</VAR>。
+
+</P>
+<P>
+如果与库<VAR>library</VAR>的连接导致了未定义符号错误，而这些错误可以通过与附加的库进行连接来解决，就把这些库
+用空格分隔，并作为<VAR>other-libraries</VAR>参数给出：<SAMP>`-lXt -lX11'</SAMP>。否则，本宏对<VAR>function</VAR>
+是否存在的检测将总是失败，这是因为对测试程序的连接将总是因为含有未定义符号错误而失败。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_SEARCH_LIBS</B> <I>(<VAR>function</VAR>, <VAR>search-libs</VAR>[, <VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX150"></A>
+<A NAME="IDX151"></A>
+本宏等价于为每个在<VAR>search-libs</VAR>中列举的库调用一次<CODE>AC_TRY_LINK_FUNC</CODE>。为找到的第一个含有
+<VAR>function</VAR>的库，把<SAMP>`-l<VAR>library</VAR>'</SAMP>添加到<CODE>LIBS</CODE>中，并且执行
+<VAR>action-if-found</VAR>。否则就执行<VAR>action-if-not-found</VAR>。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC26" HREF="autoconf.html#TOC26">库函数</A></H2>
+
+<P>
+以下的宏用于检测特定的C库函数。如果没有为你需要的函数定义特定的宏，而且你不需要检查它的任何特殊性质，
+那么你可以使用一个通用函数检测宏。
+
+</P>
+
+
+
+<H3><A NAME="SEC27" HREF="autoconf.html#TOC27">对特定函数的检查</A></H3>
+
+<P>
+这些宏用于检测特定的C函数--它们是否存在，以及在某些情况下，当给出了特定的参数时，它们是如何响应的。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_ALLOCA</B>
+<DD><A NAME="IDX152"></A>
+<A NAME="IDX153"></A>
+<A NAME="IDX154"></A>
+<A NAME="IDX155"></A>
+<A NAME="IDX156"></A>
+检测如何获得<CODE>alloca</CODE>。本宏试图通过检查<TT>`alloca.h'</TT>或者预定义C预处理器宏
+<CODE>__GNUC__</CODE>和<CODE>_AIX</CODE>来获得<CODE>alloca</CODE>的内置（builtin）版本。
+如果本宏找到了<TT>`alloca.h'</TT>，它就定义<CODE>HAVE_ALLOCA_H</CODE>。
+
+</P>
+<P>
+如果上述尝试失败了，本宏就在标准C库中寻找函数。如果下列任何方法成功了，本宏就定义<CODE>HAVE_ALLOCA</CODE>。
+否则，它把输出变量<CODE>ALLOCA</CODE>设置成<SAMP>`alloca.o'</SAMP>并且定义<CODE>C_ALLOCA</CODE>
+（这样程序就可以周期性地调用<SAMP>`alloca(0)'</SAMP>以进行垃圾的收集）。本变量是从<CODE>LIBOBJS</CODE>中
+分离出来的，因此在只有一部分程序使用<CODE>LIBOBJS</CODE>中的代码时，多个程序就可以不必创建实际的库而
+共享<CODE>ALLOCA</CODE>的值。
+
+</P>
+<P>
+本宏并不试图从System V R3的<TT>`libPW'</TT>中，或者从System V R4的<TT>`libucb'</TT>中获取<CODE>alloca</CODE>，
+这是因为这些库包含了一些造成麻烦的不兼容的函数。有些版本甚至不含有<CODE>alloca</CODE>或者含有带bug的版本。
+如果你仍然需要使用它们的<CODE>alloca</CODE>，用<CODE>ar</CODE>把<TT>`alloca.o'</TT>从这些库中提取出来，
+而不是编译<TT>`alloca.c'</TT>。
+
+</P>
+<P>
+使用<CODE>alloca</CODE>的源文件应该以如下一段代码开头，以正确地声明它。在某些AIX版本中，对<CODE>alloca</CODE>
+的声明必须在除了注释和预处理指令之前的任何东西之前出现。<CODE>#pragma</CODE>指令被缩进（indented），以便让
+预标准C编译器（pre-ANSI C compiler）忽略它，而不是导致错误（choke on it）。
+
+</P>
+
+<PRE>
+/* AIX requires this to be the first thing in the file.  */
+#ifndef __GNUC__
+# if HAVE_ALLOCA_H
+#  include &#60;alloca.h&#62;
+# else
+#  ifdef _AIX
+ #pragma alloca
+#  else
+#   ifndef alloca /* predefined by HP cc +Olibcalls */
+char *alloca ();
+#   endif
+#  endif
+# endif
+#endif
+</PRE>
+
+</DL>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_CLOSEDIR_VOID</B>
+<DD><A NAME="IDX157"></A>
+<A NAME="IDX158"></A>
+<A NAME="IDX159"></A>
+如果函数<CODE>closedir</CODE>不返回有意义的值，就定义<CODE>CLOSEDIR_VOID</CODE>。否则，调用者就应该
+把它的返回值作为错误指示器来进行检查。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_FNMATCH</B>
+<DD><A NAME="IDX160"></A>
+<A NAME="IDX161"></A>
+<A NAME="IDX162"></A>
+如果可以使用<CODE>fnmatch</CODE>函数，并且能够工作（不象SunOS 5.4中的<CODE>fnmatch</CODE>那样），
+就定义<CODE>HAVE_FNMATCH</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_GETLOADAVG</B>
+<DD><A NAME="IDX163"></A>
+<A NAME="IDX164"></A>
+<A NAME="IDX165"></A>
+<A NAME="IDX166"></A>
+<A NAME="IDX167"></A>
+<A NAME="IDX168"></A>
+<A NAME="IDX169"></A>
+<A NAME="IDX170"></A>
+<A NAME="IDX171"></A>
+<A NAME="IDX172"></A>
+<A NAME="IDX173"></A>
+<A NAME="IDX174"></A>
+<A NAME="IDX175"></A>
+检查如何才能获得系统平均负载。如果系统含有<CODE>getloadavg</CODE>函数，本宏就定义<CODE>HAVE_GETLOADAVG</CODE>，
+并且把为了获得该函数而需要的库添加到<CODE>LIBS</CODE>中。
+
+</P>
+<P>
+否则，它就把<SAMP>`getloadavg.o'</SAMP>添加到输出变量<CODE>LIBOBJS</CODE>之中，并且可能定义几个其他的C预处理器
+宏和输出变量：
+
+</P>
+
+<OL>
+<LI>
+
+如果在相应的系统中，就根据系统类型定义宏<CODE>SVR4</CODE>、<CODE>DGUX</CODE>、<CODE>UMAX</CODE>或者<CODE>UMAX4_3</CODE>。
+
+<LI>
+
+如果它找到了<TT>`nlist.h'</TT>，就定义<CODE>NLIST_STRUCT</CODE>。
+
+<LI>
+
+如果结构<SAMP>`struct nlist'</SAMP>含有成员<SAMP>`n_un'</SAMP>，就定义<CODE>NLIST_NAME_UNION</CODE>。
+
+<LI>
+
+如果在编译<TT>`getloadavg.c'</TT>时定义了<CODE>LDAV_PRIVILEGED</CODE>，为了使<CODE>getloadavg</CODE>能够
+工作，程序就必须特殊地安装在系统中，并且本宏定义<CODE>GETLOADAVG_PRIVILEGED</CODE>。
+
+<LI>
+
+本宏设置输出变量<CODE>NEED_SETGID</CODE>。如果需要进行特别的安装，它的值就是<SAMP>`true'</SAMP>，否则
+值就是<SAMP>`false'</SAMP>。如果<CODE>NEED_SETGID</CODE>为<SAMP>`true'</SAMP>，本宏把<CODE>KMEM_GROUP</CODE>
+设置成将拥有被安装的程序的组（group）的名字。
+</OL>
+
+</DL>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_GETMNTENT</B>
+<DD><A NAME="IDX176"></A>
+<A NAME="IDX177"></A>
+<A NAME="IDX178"></A>
+为Irix 4、PTX和Unixware在库<TT>`sun'</TT>、<TT>`seq'</TT>和<TT>`gen'</TT>中分别查找<CODE>getmntent</CODE>函数。
+那么，如果可以使用<CODE>getmntent</CODE>，就定义<CODE>HAVE_GETMNTENT</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_GETPGRP</B>
+<DD><A NAME="IDX179"></A>
+<A NAME="IDX180"></A>
+<A NAME="IDX181"></A>
+如果<CODE>getpgrp</CODE>不接受参数（POSIX.1版），就定义<CODE>GETPGRP_VOID</CODE>。否则，它就是一个把
+进程ID作为参数的BSD版本。本宏根本不检查<CODE>getpgrp</CODE>是否存在；如果你需要检查它的存在性，就首先为
+<CODE>getpgrp</CODE>函数调用<CODE>AC_CHECK_FUNC</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_MEMCMP</B>
+<DD><A NAME="IDX182"></A>
+<A NAME="IDX183"></A>
+<A NAME="IDX184"></A>
+如果不能使用<CODE>memcmp</CODE>函数，或者不能处理8位数据（就像SunOS 4.1.3中的那样），就把<SAMP>`memcmp.o'</SAMP>
+添加到输出变量<CODE>LIBOBJS</CODE>中去。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_MMAP</B>
+<DD><A NAME="IDX185"></A>
+<A NAME="IDX186"></A>
+<A NAME="IDX187"></A>
+如果函数<CODE>mmap</CODE>存在并且能够正确地工作，就定义<CODE>HAVE_MMAP</CODE>。只检查已经映射（already-mapped）
+的内存的私有固定映射（private fixed mapping）。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_SELECT_ARGTYPES</B>
+<DD><A NAME="IDX188"></A>
+<A NAME="IDX189"></A>
+<A NAME="IDX190"></A>
+<A NAME="IDX191"></A>
+<A NAME="IDX192"></A>
+确定函数<CODE>select</CODE>的每个参数的正确类型，并且把这些类型分别定义成<CODE>SELECT_TYPE_ARG1</CODE>、
+<CODE>SELECT_TYPE_ARG234</CODE>和<CODE>SELECT_TYPE_ARG5</CODE>。<CODE>SELECT_TYPE_ARG1</CODE>的缺省值
+是<SAMP>`int'</SAMP>，<CODE>SELECT_TYPE_ARG234</CODE>的缺省值是<SAMP>`int *'</SAMP>，
+<CODE>SELECT_TYPE_ARG5</CODE>的缺省值是<SAMP>`struct timeval *'</SAMP>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_SETPGRP</B>
+<DD><A NAME="IDX193"></A>
+<A NAME="IDX194"></A>
+<A NAME="IDX195"></A>
+如果<CODE>setpgrp</CODE>不接受参数（POSIX.1版），就定义<CODE>SETPGRP_VOID</CODE>。否则，该函数就是一个
+把两个进程ID作为参数的BSD版本。本宏并不检查函数<CODE>setpgrp</CODE>是否存在；如果你需要检查该函数的存在
+性，就首先为<CODE>setpgrp</CODE>调用<CODE>AC_CHECK_FUNC</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_SETVBUF_REVERSED</B>
+<DD><A NAME="IDX196"></A>
+<A NAME="IDX197"></A>
+<A NAME="IDX198"></A>
+如果函数<CODE>setvbuf</CODE>的第二个参数是缓冲区的类型并且第三个参数是缓冲区指针，而不是其他形式，
+就定义<CODE>SETVBUF_REVERSED</CODE>。这是在System V第3版以前的情况。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_STRCOLL</B>
+<DD><A NAME="IDX199"></A>
+<A NAME="IDX200"></A>
+<A NAME="IDX201"></A>
+如果函数<CODE>strcoll</CODE>存在并且可以正确地工作，就定义<CODE>HAVE_STRCOLL</CODE>。
+由于有些系统包含了错误定义的<CODE>strcoll</CODE>，这时就不应该使用<CODE>strcoll</CODE>，
+因此本宏要比<SAMP>`AC_CHECK_FUNCS(strcoll)'</SAMP>多作一些检查。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_STRFTIME</B>
+<DD><A NAME="IDX202"></A>
+<A NAME="IDX203"></A>
+<A NAME="IDX204"></A>
+对于SCO UNIX，在库<TT>`intl'</TT>中查找<CODE>strftime</CODE>。而后，如果可以使用<CODE>strftime</CODE>，
+就定义<CODE>HAVE_STRFTIME</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_UTIME_NULL</B>
+<DD><A NAME="IDX205"></A>
+<A NAME="IDX206"></A>
+<A NAME="IDX207"></A>
+如果<SAMP>`utime(<VAR>file</VAR>, NULL)'</SAMP>把<VAR>file</VAR>的时间标记设置成现在，就定义
+<CODE>HAVE_UTIME_NULL</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_VFORK</B>
+<DD><A NAME="IDX208"></A>
+<A NAME="IDX209"></A>
+<A NAME="IDX210"></A>
+<A NAME="IDX211"></A>
+如果找到了<TT>`vfork.h'</TT>，就定义<CODE>HAVE_VFORK_H</CODE>。如果找不到可以工作的<CODE>vfork</CODE>，
+就把<CODE>vfork</CODE>定义成<CODE>fork</CODE>。本宏检查一些已知的<CODE>vfork</CODE>实现中的错误
+并且认为如果<CODE>vfork</CODE>的实现含有任何一个错误，系统就不含有可以工作的<CODE>vfork</CODE>。
+由于子进程很少改变它们的信号句柄（signal handler），所以如果子进程的<CODE>signal</CODE>调用（invocation）
+修改了父进程的信号句柄，将不会被当作实现的错误。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_VPRINTF</B>
+<DD><A NAME="IDX212"></A>
+<A NAME="IDX213"></A>
+<A NAME="IDX214"></A>
+<A NAME="IDX215"></A>
+如果找到了<CODE>vprintf</CODE>，就定义<CODE>HAVE_VPRINTF</CODE>。否则，如果找到了<CODE>_doprnt</CODE>，
+就定义<CODE>HAVE_DOPRNT</CODE>。（如果可以使用<CODE>vprintf</CODE>，你就可以假定也可以使用<CODE>vfprintf</CODE>
+和<CODE>vsprintf</CODE>。）
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_FUNC_WAIT3</B>
+<DD><A NAME="IDX216"></A>
+<A NAME="IDX217"></A>
+<A NAME="IDX218"></A>
+如果找到了<CODE>wait3</CODE>并且该函数填充它的第三个参数的内容（<SAMP>`struct rusage *'</SAMP>），
+就定义<CODE>HAVE_WAIT3</CODE>。在HP-UX中，该函数并不这样做。
+</DL>
+
+</P>
+
+
+<H3><A NAME="SEC28" HREF="autoconf.html#TOC28">对普通函数的检查</A></H3>
+
+<P>
+这些宏被用于寻找没有包括在特定函数测试宏中的函数。如果函数可能出现在除了缺省C库以外的库中，就
+要首先为这些库调用<CODE>AC_CHECK_LIB</CODE>。如果你除了需要检查函数是否存在之外，还要检查函数
+的行为，你就不得不为此而编写你自己的测试（参见<A HREF="autoconf.html#SEC40">编写测试</A>）。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_FUNC</B> <I>(<VAR>function</VAR>, [<VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX219"></A>
+<A NAME="IDX220"></A>
+如果可以使用C函数<VAR>function</VAR>，就运行shell命令<VAR>action-if-found</VAR>，否则运行
+<VAR>action-if-not-found</VAR>。如果你只希望在函数可用的时候定义一个符号，就考虑使用
+<CODE>AC_CHECK_FUNCS</CODE>。由于C++比C更加标准化，即使在调用了<CODE>AC_LANG_CPLUSPLUS</CODE>
+的时候，本宏仍然用C的连接方式对函数进行检查。（关于为测试选择语言的详情，请参见
+<A HREF="autoconf.html#SEC51">对语言的选择</A>）
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_FUNCS</B> <I>(<VAR>function</VAR>... [, <VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX221"></A>
+<A NAME="IDX222"></A>
+<A NAME="IDX223"></A>
+对于每个在以空格分隔的函数列表<VAR>function</VAR>中出现的函数，如果可用，就定义<CODE>HAVE_<VAR>function</VAR></CODE>
+（全部大写）。如果给出了<VAR>action-if-found</VAR>，它就是在找到一个函数的时候执行的附加的shell代码。你可以给出
+<SAMP>`break'</SAMP>以便在找到第一个匹配的时候跳出循环。如果给出了<VAR>action-if-not-found</VAR>，它就在找不到
+某个函数的时候执行。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_REPLACE_FUNCS</B> <I>(<VAR>function</VAR>...)</I>
+<DD><A NAME="IDX224"></A>
+<A NAME="IDX225"></A>
+<A NAME="IDX226"></A>
+本宏的功能就类似于以将<SAMP>`<VAR>function</VAR>.o'</SAMP>添加到输出变量<CODE>LIBOBJS</CODE>的shell
+代码为参数<VAR>action-if-not-found</VAR>，调用<CODE>AC_CHECK_FUNCS</CODE>。你可以通过用
+<SAMP>`#ifndef HAVE_<VAR>function</VAR>'</SAMP>包围你为函数提供的替代版本的原型来声明函数。
+如果系统含有该函数，它可能在一个你应该引入的头文件中进行声明，所以你不应该重新声明它，以避免声明冲突。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC29" HREF="autoconf.html#TOC29">头文件</A></H2>
+
+<P>
+下列宏检查某些C头文件是否存在。如果没有为你需要检查的头文件定义特定的宏，而且你不需要检查它的任何特殊
+属性，那么你就可以使用一个通用的头文件检查宏。
+
+</P>
+
+
+
+<H3><A NAME="SEC30" HREF="autoconf.html#TOC30">对特定头文件的检查</A></H3>
+
+<P>
+这些宏检查特定的系统头文件--它们是否存在，以及在某些情况下它们是否定义了特定的符号。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_DECL_SYS_SIGLIST</B>
+<DD><A NAME="IDX227"></A>
+<A NAME="IDX228"></A>
+<A NAME="IDX229"></A>
+如果在系统头文件，<TT>`signal.h'</TT>或者<TT>`unistd.h'</TT>，中定义了变量<CODE>sys_siglist</CODE>，
+就定义<CODE>SYS_SIGLIST_DECLARED</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_DIR_HEADER</B>
+<DD><A NAME="IDX230"></A>
+<A NAME="IDX231"></A>
+<A NAME="IDX232"></A>
+<A NAME="IDX233"></A>
+<A NAME="IDX234"></A>
+<A NAME="IDX235"></A>
+<A NAME="IDX236"></A>
+类似于调用<CODE>AC_HEADER_DIRENT</CODE>和<CODE>AC_FUNC_CLOSEDIR_VOID</CODE>，但为了指明找到了
+哪个头文件而定义了不同的一组C预处理器宏。本宏和它定义的名字是过时的。它定义的名字是：
+
+</P>
+<DL COMPACT>
+
+<DT><TT>`dirent.h'</TT>
+<DD>
+<CODE>DIRENT</CODE>
+<DT><TT>`sys/ndir.h'</TT>
+<DD>
+<CODE>SYSNDIR</CODE>
+<DT><TT>`sys/dir.h'</TT>
+<DD>
+<CODE>SYSDIR</CODE>
+<DT><TT>`ndir.h'</TT>
+<DD>
+<CODE>NDIR</CODE>
+</DL>
+
+<P>
+此外，如果<CODE>closedir</CODE>不能返回一个有意义的值，就定义<CODE>VOID_CLOSEDIR</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_HEADER_DIRENT</B>
+<DD><A NAME="IDX237"></A>
+<A NAME="IDX238"></A>
+<A NAME="IDX239"></A>
+<A NAME="IDX240"></A>
+<A NAME="IDX241"></A>
+<A NAME="IDX242"></A>
+对下列头文件进行检查，并且为第一个找到的头文件定义<SAMP>`DIR'</SAMP>，以及列出的C预处理器宏：
+
+</P>
+<DL COMPACT>
+
+<DT><TT>`dirent.h'</TT>
+<DD>
+<CODE>HAVE_DIRENT_H</CODE>
+<DT><TT>`sys/ndir.h'</TT>
+<DD>
+<CODE>HAVE_SYS_NDIR_H</CODE>
+<DT><TT>`sys/dir.h'</TT>
+<DD>
+<CODE>HAVE_SYS_DIR_H</CODE>
+<DT><TT>`ndir.h'</TT>
+<DD>
+<CODE>HAVE_NDIR_H</CODE>
+</DL>
+
+<P>
+源代码中的目录库声明应该以类似于下面的方式给出：
+
+</P>
+
+<PRE>
+#if HAVE_DIRENT_H
+# include &#60;dirent.h&#62;
+# define NAMLEN(dirent) strlen((dirent)-&#62;d_name)
+#else
+# define dirent direct
+# define NAMLEN(dirent) (dirent)-&#62;d_namlen
+# if HAVE_SYS_NDIR_H
+#  include &#60;sys/ndir.h&#62;
+# endif
+# if HAVE_SYS_DIR_H
+#  include &#60;sys/dir.h&#62;
+# endif
+# if HAVE_NDIR_H
+#  include &#60;ndir.h&#62;
+# endif
+#endif
+</PRE>
+
+<P>
+使用上述声明，程序应该把变量定义成类型<CODE>struct dirent</CODE>，而不是<CODE>struct direct</CODE>，并且应该
+通过把指向<CODE>struct direct</CODE>的指针传递给宏<CODE>NAMLEN</CODE>来获得目录项的名称的长度。
+
+</P>
+<P>
+本宏还为SCO Xenix检查库<TT>`dir'</TT>和<TT>`x'</TT>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_HEADER_MAJOR</B>
+<DD><A NAME="IDX243"></A>
+<A NAME="IDX244"></A>
+<A NAME="IDX245"></A>
+<A NAME="IDX246"></A>
+如果<TT>`sys/types.h'</TT>没有定义<CODE>major</CODE>、<CODE>minor</CODE>和<CODE>makedev</CODE>，
+但<TT>`sys/mkdev.h'</TT>定义了它们，就定义<CODE>MAJOR_IN_MKDEV</CODE>；
+否则，如果<TT>`sys/sysmacros.h'</TT>定义了它们，就定义<CODE>MAJOR_IN_SYSMACROS</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_HEADER_STDC</B>
+<DD><A NAME="IDX247"></A>
+<A NAME="IDX248"></A>
+<A NAME="IDX249"></A>
+如果含有标准C（ANSI C）头文件，就定义<CODE>STDC_HEADERS</CODE>。
+特别地，本宏检查<TT>`stdlib.h'</TT>、<TT>`stdarg.h'</TT>、<TT>`string.h'</TT>和<TT>`float.h'</TT>；
+如果系统含有这些头文件，它可能也含有其他的标准C头文件。本宏还检查<TT>`string.h'</TT>是否定义了<CODE>memchr</CODE>
+（并据此对其他<CODE>mem</CODE>函数做出假定），<TT>`stdlib.h'</TT>是否定义了<CODE>free</CODE>（并据此
+对<CODE>malloc</CODE>和其他相关函数做出假定），以及<TT>`ctype.h'</TT>宏是否按照标准C的要求而可以
+用于被设置了高位的字符。
+
+</P>
+<P>
+因为许多含有GCC的系统并不含有标准C头文件，所以用<CODE>STDC_HEADERS</CODE>而不是<CODE>__STDC__</CODE>
+来决定系统是否含有服从标准（ANSI-compliant）的头文件（以及可能的C库函数）。
+
+</P>
+<P>
+在没有标准C头文件的系统上，变种太多，以至于可能没有简单的方式对你所使用的函数进行定义以
+使得它们与系统头文件声明的函数完全相同。某些系统包含了ANSI和BSD函数的混合；某些基本上是标准（ANSI）
+的，但缺少<SAMP>`memmove'</SAMP>；有些系统在<TT>`string.h'</TT>或者<TT>`strings.h'</TT>中以宏的方式
+定义了BSD函数；有些系统除了含有<TT>`string.h'</TT>之外，只含有BSD函数；某些系统在<TT>`memory.h'</TT>
+中定义内存函数，有些在<TT>`string.h'</TT>中定义；等等。对于一个字符串函数和一个内存函数的检查可能
+就够了；如果库含有这些函数的标准版，那么它就可能含有其他大部分函数。如果你在<TT>`configure.in'</TT>
+中安放了如下代码：
+
+</P>
+
+<PRE>
+AC_HEADER_STDC
+AC_CHECK_FUNCS(strchr memcpy)
+</PRE>
+
+<P>
+那么，在你的代码中，你就可以像下面那样放置声明：
+
+</P>
+
+<PRE>
+#if STDC_HEADERS
+# include &#60;string.h&#62;
+#else
+# ifndef HAVE_STRCHR
+#  define strchr index
+#  define strrchr rindex
+# endif
+char *strchr (), *strrchr ();
+# ifndef HAVE_MEMCPY
+#  define memcpy(d, s, n) bcopy ((s), (d), (n))
+#  define memmove(d, s, n) bcopy ((s), (d), (n))
+# endif
+#endif
+</PRE>
+
+<P>
+如果你使用没有等价的BSD版的函数，诸如<CODE>memchr</CODE>、<CODE>memset</CODE>、<CODE>strtok</CODE>
+或者<CODE>strspn</CODE>，那么仅仅使用宏就不够了；你必须为每个函数提供一个实现。以<CODE>memchr</CODE>为例，
+一种仅仅在需要的时候（因为系统C库中的函数可能经过了手工优化）与你的实现协作的简单方式是把实现放入
+<TT>`memchr.c'</TT>并且使用<SAMP>`AC_REPLACE_FUNCS(memchr)'</SAMP>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_HEADER_SYS_WAIT</B>
+<DD><A NAME="IDX250"></A>
+<A NAME="IDX251"></A>
+<A NAME="IDX252"></A>
+如果<TT>`sys/wait.h'</TT>存在并且它和POSIX.1相兼容，就定义<CODE>HAVE_SYS_WAIT_H</CODE>。
+如果<TT>`sys/wait.h'</TT>不存在，或者如果它使用老式BSD <CODE>union wait</CODE>，而不是
+<CODE>int</CODE>来储存状态值，就可能出现不兼容。如果<TT>`sys/wait.h'</TT>不与POSIX.1兼容，
+那就不是引入该头文件，而是按照它们的常见解释定义POSIX.1宏。下面是一个例子：
+
+</P>
+
+<PRE>
+#include &#60;sys/types.h&#62;
+#if HAVE_SYS_WAIT_H
+# include &#60;sys/wait.h&#62;
+#endif
+#ifndef WEXITSTATUS
+# define WEXITSTATUS(stat_val) ((unsigned)(stat_val) &#62;&#62; 8)
+#endif
+#ifndef WIFEXITED
+# define WIFEXITED(stat_val) (((stat_val) &#38; 255) == 0)
+#endif
+</PRE>
+
+</DL>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_MEMORY_H</B>
+<DD><A NAME="IDX253"></A>
+<A NAME="IDX254"></A>
+<A NAME="IDX255"></A>
+在<TT>`string.h'</TT>中，如果没有定义<CODE>memcpy</CODE>, <CODE>memcmp</CODE>等函数，并且<TT>`memory.h'</TT>
+存在，就定义<CODE>NEED_MEMORY_H</CODE>。本宏已经过时；可以用<CODE>AC_CHECK_HEADERS(memory.h)</CODE>来代替。
+参见为<CODE>AC_HEADER_STDC</CODE>提供的例子。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_UNISTD_H</B>
+<DD><A NAME="IDX256"></A>
+<A NAME="IDX257"></A>
+<A NAME="IDX258"></A>
+如果系统含有<TT>`unistd.h'</TT>，就定义<CODE>HAVE_UNISTD_H</CODE>。本宏已经过时；可以用
+<SAMP>`AC_CHECK_HEADERS(unistd.h)'</SAMP>来代替。
+
+</P>
+<P>
+检查系统是否支持POSIX.1的方式是：
+
+</P>
+
+<PRE>
+#if HAVE_UNISTD_H
+# include &#60;sys/types.h&#62;
+# include &#60;unistd.h&#62;
+#endif
+
+#ifdef _POSIX_VERSION
+/* Code for POSIX.1 systems.  */
+#endif
+</PRE>
+
+<P>
+<A NAME="IDX259"></A>
+在POSIX.1系统中包含了<TT>`unistd.h'</TT>的时候定义<CODE>_POSIX_VERSION</CODE>。
+如果系统中没有<TT>`unistd.h'</TT>，那么该系统就一定不是POSIX.1系统。但是，有些非POSIX.1（non-POSIX.1）
+系统也含有<TT>`unistd.h'</TT>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_USG</B>
+<DD><A NAME="IDX260"></A>
+<A NAME="IDX261"></A>
+<A NAME="IDX262"></A>
+如果系统并不含有<TT>`strings.h'</TT>、<CODE>rindex</CODE>、<CODE>bzero</CODE>等头文件或函数，就定义<CODE>USG</CODE>。
+定义<CODE>USG</CODE>就隐含地表明了系统含有<TT>`string.h'</TT>、<CODE>strrchr</CODE>、<CODE>memset</CODE>等头文件或函数。
+
+</P>
+<P>
+符号<CODE>USG</CODE>已经过时了。作为本宏的替代，参见为<CODE>AC_HEADER_STDC</CODE>提供的例子。
+</DL>
+
+</P>
+
+
+<H3><A NAME="SEC31" HREF="autoconf.html#TOC31">对普通头文件的检查</A></H3>
+
+<P>
+这些宏被用于寻找没有包括在特定测试宏中的系统头文件。如果你除了检查头文件是否存在之外还要检查它的内容，
+你就不得不为此而编写你自己的测试（参见<A HREF="autoconf.html#SEC40">编写测试</A>）。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_HEADER</B> <I>(<VAR>header-file</VAR>, [<VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX263"></A>
+<A NAME="IDX264"></A>
+如果系统头文件<VAR>header-file</VAR>存在，就执行shell命令<VAR>action-if-found</VAR>，
+否则执行<VAR>action-if-not-found</VAR>。如果你只需要在可以使用头文件的时候定义一个符号，就考虑使用
+<CODE>AC_CHECK_HEADERS</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_HEADERS</B> <I>(<VAR>header-file</VAR>... [, <VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX265"></A>
+<A NAME="IDX266"></A>
+<A NAME="IDX267"></A>
+对于每个在以空格分隔的参数列表<VAR>header-file</VAR>出现的头文件，如果存在，就定义
+<CODE>HAVE_<VAR>header-file</VAR></CODE>（全部大写）。如果给出了<VAR>action-if-found</VAR>，
+它就是在找到一个头文件的时候执行的附加shell代码。你可以把<SAMP>`break'</SAMP>作为它的值
+以便在第一次匹配的时候跳出循环。如果给出了<VAR>action-if-not-found</VAR>，它就在找不到
+某个头文件的时候被执行。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC32" HREF="autoconf.html#TOC32">结构</A></H2>
+
+<P>
+以下的宏检查某些结构或者某些结构成员。为了检查没有在此给出的结构，使用<CODE>AC_EGREP_CPP</CODE>
+（参见<A HREF="autoconf.html#SEC41">检验声明</A>）或者使用<CODE>AC_TRY_COMPILE</CODE>
+（参见<A HREF="autoconf.html#SEC42">检验语法</A>）。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_HEADER_STAT</B>
+<DD><A NAME="IDX268"></A>
+<A NAME="IDX269"></A>
+<A NAME="IDX270"></A>
+如果在<TT>`sys/stat.h'</TT>中定义的<CODE>S_ISDIR</CODE>、<CODE>S_ISREG</CODE>等宏不能正确
+地工作（返回错误的正数），就定义<CODE>STAT_MACROS_BROKEN</CODE>。这种情况出现在Tektronix UTekV、
+Amdahl UTS和Motorola System V/88上。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_HEADER_TIME</B>
+<DD><A NAME="IDX271"></A>
+<A NAME="IDX272"></A>
+<A NAME="IDX273"></A>
+如果程序可能要同时引入<TT>`time.h'</TT>和<TT>`sys/time.h'</TT>，就定义<CODE>TIME_WITH_SYS_TIME</CODE>。
+在一些老式系统中，<TT>`sys/time.h'</TT>引入了<TT>`time.h'</TT>，但<TT>`time.h'</TT>没有用多个包含保护
+起来，所以程序不应该显式地同时包含这两个文件。例如，本宏在既使用<CODE>struct timeval</CODE>或
+<CODE>struct timezone</CODE>，又使用<CODE>struct tm</CODE>程序中有用。它最好和
+<CODE>HAVE_SYS_TIME_H</CODE>一起使用，该宏可以通过调用<CODE>AC_CHECK_HEADERS(sys/time.h)</CODE>来检查。
+
+</P>
+
+<PRE>
+#if TIME_WITH_SYS_TIME
+# include &#60;sys/time.h&#62;
+# include &#60;time.h&#62;
+#else
+# if HAVE_SYS_TIME_H
+#  include &#60;sys/time.h&#62;
+# else
+#  include &#60;time.h&#62;
+# endif
+#endif
+</PRE>
+
+</DL>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_STRUCT_ST_BLKSIZE</B>
+<DD><A NAME="IDX274"></A>
+<A NAME="IDX275"></A>
+<A NAME="IDX276"></A>
+如果<CODE>struct stat</CODE>包含一个<CODE>st_blksize</CODE>成员，就定义<CODE>HAVE_ST_BLKSIZE</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_STRUCT_ST_BLOCKS</B>
+<DD><A NAME="IDX277"></A>
+<A NAME="IDX278"></A>
+<A NAME="IDX279"></A>
+<A NAME="IDX280"></A>
+如果<CODE>struct stat</CODE>包含一个<CODE>st_blocks</CODE>成员，就定义<CODE>HAVE_ST_BLOCKS</CODE>。
+否则，就把<SAMP>`fileblocks.o'</SAMP>添加到输出变量<CODE>LIBOBJS</CODE>中。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_STRUCT_ST_RDEV</B>
+<DD><A NAME="IDX281"></A>
+<A NAME="IDX282"></A>
+<A NAME="IDX283"></A>
+如果<CODE>struct stat</CODE>包含一个<CODE>st_rdev</CODE>成员，就定义<CODE>HAVE_ST_RDEV</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_STRUCT_TM</B>
+<DD><A NAME="IDX284"></A>
+<A NAME="IDX285"></A>
+<A NAME="IDX286"></A>
+如果<TT>`time.h'</TT>没有定义<CODE>struct tm</CODE>，就定义<CODE>TM_IN_SYS_TIME</CODE>，它意味着
+引入<TT>`sys/time.h'</TT>将得到一个定义得更好的<CODE>struct tm</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_STRUCT_TIMEZONE</B>
+<DD><A NAME="IDX287"></A>
+<A NAME="IDX288"></A>
+<A NAME="IDX289"></A>
+<A NAME="IDX290"></A>
+确定如何获取当前的时区。如果<CODE>struct tm</CODE>有<CODE>tm_zone</CODE>成员，就定义<CODE>HAVE_TM_ZONE</CODE>。
+否则，如果找到了外部数组<CODE>tzname</CODE>，就定义<CODE>HAVE_TZNAME</CODE>。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC33" HREF="autoconf.html#TOC33">类型定义</A></H2>
+
+<P>
+以下的宏检查C typedefs。如果没有为你需要检查的typedef定义特定的宏，并且你不需要检查该类型
+的任何特殊的特征，那么你可以使用一个普通的typedef检查宏。
+
+</P>
+
+
+
+<H3><A NAME="SEC34" HREF="autoconf.html#TOC34">对特定类型定义的检查</A></H3>
+
+<P>
+这些宏检查在<TT>`sys/types.h'</TT>和<TT>`stdlib.h'</TT>（如果它存在）中定义的特定的C typedef。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TYPE_GETGROUPS</B>
+<DD><A NAME="IDX291"></A>
+<A NAME="IDX292"></A>
+<A NAME="IDX293"></A>
+把<CODE>GETGROUPS_T</CODE>定义成<CODE>getgroups</CODE>的数组参数的基类型<CODE>gid_t</CODE>或者<CODE>int</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TYPE_MODE_T</B>
+<DD><A NAME="IDX294"></A>
+<A NAME="IDX295"></A>
+<A NAME="IDX296"></A>
+如果没有定义<CODE>mode_t</CODE>，就把<CODE>mode_t</CODE>定义成<CODE>int</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TYPE_OFF_T</B>
+<DD><A NAME="IDX297"></A>
+<A NAME="IDX298"></A>
+<A NAME="IDX299"></A>
+如果没有定义<CODE>off_t</CODE>，就把<CODE>off_t</CODE>定义成<CODE>long</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TYPE_PID_T</B>
+<DD><A NAME="IDX300"></A>
+<A NAME="IDX301"></A>
+<A NAME="IDX302"></A>
+如果没有定义<CODE>pid_t</CODE>，就把<CODE>pid_t</CODE>定义成<CODE>int</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TYPE_SIGNAL</B>
+<DD><A NAME="IDX303"></A>
+<A NAME="IDX304"></A>
+<A NAME="IDX305"></A>
+如果<TT>`signal.h'</TT>把<CODE>signal</CODE>声明成一个指向返回值为<CODE>void</CODE>的函数的指针，
+就把<CODE>RETSIGTYPE</CODE>定义成<CODE>void</CODE>；否则，就把它定义成<CODE>int</CODE>。
+
+</P>
+<P>
+把信号处理器（signal handler）的返回值类型定义为<CODE>RETSIGTYPE</CODE>：
+
+</P>
+
+<PRE>
+RETSIGTYPE
+hup_handler ()
+{
+...
+}
+</PRE>
+
+</DL>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TYPE_SIZE_T</B>
+<DD><A NAME="IDX306"></A>
+<A NAME="IDX307"></A>
+<A NAME="IDX308"></A>
+如果没有定义<CODE>size_t</CODE>，就把<CODE>size_t</CODE>定义成<CODE>unsigned</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TYPE_UID_T</B>
+<DD><A NAME="IDX309"></A>
+<A NAME="IDX310"></A>
+<A NAME="IDX311"></A>
+<A NAME="IDX312"></A>
+如果没有定义<CODE>uid_t</CODE>，就把<CODE>uid_t</CODE>定义成<CODE>int</CODE>并且把
+<CODE>gid_t</CODE>定义成<CODE>int</CODE>。
+</DL>
+
+</P>
+
+
+<H3><A NAME="SEC35" HREF="autoconf.html#TOC35">对普通类型定义的检查</A></H3>
+
+<P>
+本宏用于检查没有包括在特定类型测试宏中的typedef。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_TYPE</B> <I>(<VAR>type</VAR>, <VAR>default</VAR>)</I>
+<DD><A NAME="IDX313"></A>
+<A NAME="IDX314"></A>
+如果<TT>`sys/types.h'</TT>或者<TT>`stdlib.h'</TT>或者<TT>`stddef.h'</TT>存在，而类型
+<VAR>type</VAR>没有在它们之中被定义，就把<VAR>type</VAR>定义成C（或者C++）预定义类型
+<VAR>default</VAR>；例如，<SAMP>`short'</SAMP>或者<SAMP>`unsigned'</SAMP>。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC36" HREF="autoconf.html#TOC36">C编译器的特征</A></H2>
+
+<P>
+下列宏检查C编译器或者机器结构的特征。为了检查没有在此列出的特征，使用<CODE>AC_TRY_COMPILE</CODE>
+（参见<A HREF="autoconf.html#SEC42">检验语法</A>）或者<CODE>AC_TRY_RUN</CODE>
+（参见<A HREF="autoconf.html#SEC44">检查运行时的特征</A>)
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_C_BIGENDIAN</B>
+<DD><A NAME="IDX315"></A>
+<A NAME="IDX316"></A>
+<A NAME="IDX317"></A>
+如果字（word）按照最高位在前的方式储存（比如Motorola和SPARC，但不包括Intel和VAX，CPUS），就定义
+<CODE>WORDS_BIGENDIAN</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_C_CONST</B>
+<DD><A NAME="IDX318"></A>
+<A NAME="IDX319"></A>
+<A NAME="IDX320"></A>
+如果C编译器不能完全支持关键字<CODE>const</CODE>，就把<CODE>const</CODE>定义成空。有些编译器并不定义
+<CODE>__STDC__</CODE>，但支持<CODE>const</CODE>；有些编译器定义<CODE>__STDC__</CODE>，但不能完全支持
+<CODE>const</CODE>。程序可以假定所有C编译器都支持<CODE>const</CODE>，并直接使用它；对于那些不能完全
+支持<CODE>const</CODE>的编译器，<TT>`Makefile'</TT>或者配置头文件将把<CODE>const</CODE>定义为空。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_C_INLINE</B>
+<DD><A NAME="IDX321"></A>
+<A NAME="IDX322"></A>
+<A NAME="IDX323"></A>
+如果C编译器支持关键字<CODE>inline</CODE>，就什么也不作。如果C编译器可以接受<CODE>__inline__</CODE>或者<CODE>__inline</CODE>，就把<CODE>inline</CODE>定义成可接受的关键字，否则就把<CODE>inline</CODE>定义为空。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_C_CHAR_UNSIGNED</B>
+<DD><A NAME="IDX324"></A>
+<A NAME="IDX325"></A>
+<A NAME="IDX326"></A>
+除非C编译器预定义了<CODE>__CHAR_UNSIGNED__</CODE>，如果C类型<CODE>char</CODE>是无符号的，就定义
+<CODE>__CHAR_UNSIGNED__</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_C_LONG_DOUBLE</B>
+<DD><A NAME="IDX327"></A>
+<A NAME="IDX328"></A>
+<A NAME="IDX329"></A>
+如果C编译器支持<CODE>long double</CODE>类型，就定义<CODE>HAVE_LONG_DOUBLE</CODE>。
+有些C编译器并不定义<CODE>__STDC__</CODE>但支持<CODE>long double</CODE>类型；有些编译器定义
+<CODE>__STDC__</CODE>但不支持<CODE>long double</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_C_STRINGIZE</B>
+<DD><A NAME="IDX330"></A>
+<A NAME="IDX331"></A>
+<A NAME="IDX332"></A>
+如果C预处理器支持字符串化操作符（stringizing operator），就定义<CODE>HAVE_STRINGIZE</CODE>。字符串化操作符是
+<SAMP>`#'</SAMP>并且它在宏定义中以如下方式出现：
+
+</P>
+
+<PRE>
+#define x(y) #y
+</PRE>
+
+</DL>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECK_SIZEOF</B> <I>(<VAR>type</VAR> [, <VAR>cross-size</VAR>])</I>
+<DD><A NAME="IDX333"></A>
+<A NAME="IDX334"></A>
+把<CODE>SIZEOF_<VAR>uctype</VAR></CODE>定义为C（或C++）预定义类型<VAR>type</VAR>的，以字节为单位的大小，
+例如<SAMP>`int'</SAMP> or <SAMP>`char *'</SAMP>。如果编译器不能识别<SAMP>`type'</SAMP>，它就被定义为0。
+<VAR>uctype</VAR>就是把<VAR>type</VAR>中所有小写字母转化为大写字母，空格转化成下划线，星号转化成<SAMP>`P'</SAMP>
+而得到的名字。在交叉编译中，如果给出了<VAR>cross-size</VAR>，就使用它，否则<CODE>configure</CODE>就
+生成一个错误并且退出。
+
+</P>
+<P>
+例如，调用
+
+<PRE>
+AC_CHECK_SIZEOF(int *)
+</PRE>
+
+<P>
+在DEC Alpha AXP系统中，把<CODE>SIZEOF_INT_P</CODE>定义为8。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_INT_16_BITS</B>
+<DD><A NAME="IDX335"></A>
+<A NAME="IDX336"></A>
+<A NAME="IDX337"></A>
+如果C类型<CODE>int</CODE>是16为宽，就定义<CODE>INT_16_BITS</CODE>。本宏已经过时；更常见的方式是用
+<SAMP>`AC_CHECK_SIZEOF(int)'</SAMP>来代替。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_LONG_64_BITS</B>
+<DD><A NAME="IDX338"></A>
+<A NAME="IDX339"></A>
+<A NAME="IDX340"></A>
+如果C类型<CODE>long int</CODE>是64位宽，就定义<CODE>LONG_64_BITS</CODE>。
+本宏已经过时；更常见的方式是用<SAMP>`AC_CHECK_SIZEOF(long)'</SAMP>来代替。
+</DL>
+
+</P>
+
+
+
+<H2><A NAME="SEC37" HREF="autoconf.html#TOC37">Fortran 77编译器的特征</A></H2>
+
+<P>
+下列的宏检查Fortran 77编译器的特征。为了检查没有在此列出的特征，使用<CODE>AC_TRY_COMPILE</CODE>
+（参见<A HREF="autoconf.html#SEC42">检验语法</A>）或者<CODE>AC_TRY_RUN</CODE>
+（参见<A HREF="autoconf.html#SEC44">检验运行时的特征</A>），但首先必须确认当前语言被设置成
+Fortran 77 <CODE>AC_LANG_FORTRAN77</CODE>（参见<A HREF="autoconf.html#SEC51">对语言的选择</A>）。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_F77_LIBRARY_LDFLAGS</B>
+<DD><A NAME="IDX341"></A>
+<A NAME="IDX342"></A>
+<A NAME="IDX343"></A>
+为成功地连接Fotran 77或者共享库而必须的Fortran 77内置函数（intrinsic）和运行库确定连接选项
+（例如，<SAMP>`-L'</SAMP>和<SAMP>`-l'</SAMP>）。输出变量<CODE>FLIBS</CODE>被定义为这些选项。
+
+</P>
+<P>
+本宏的目的是用于那些需要把C++和Fortran 77源代码混合到一个程序或者共享库中的情况
+（参见<CITE>GNU Automake</CITE>中的`Mixing Fortran 77 With C and C++'节）。
+
+</P>
+<P>
+例如，如果来自C++和Fortran 77编译器的目标文件必须被连接到一起，那么必须用C++编译器/连接器来连接
+（因为有些C++特定的任务要在连接时完成，这样的任务有调用全局构造函数、模板的实例化、启动例外
+（exception）支持，等等）。
+
+</P>
+<P>
+然而，Fortran 77内置函数和运行库也必须被连接，但C++编译器/连接器在缺省情况下不知道如何添加这些
+Fortran 77库。因此，就创建<CODE>AC_F77_LIBRARY_LDFLAGS</CODE>宏以确认这些Fortran 77库。
+</DL>
+
+</P>
+
+
+
+<H2><A NAME="SEC38" HREF="autoconf.html#TOC38">系统服务</A></H2>
+
+<P>
+下列宏检查操作系统服务或者操作系统能力。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CYGWIN</B>
+<DD><A NAME="IDX344"></A>
+<A NAME="IDX345"></A>
+检查Cygwin环境。如果存在，就把shell变量<CODE>CYGWIN</CODE>设置成<SAMP>`yes'</SAMP>。
+如果不存在，就把<CODE>CYGWIN</CODE>设置成空字符串。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_EXEEXT</B>
+<DD><A NAME="IDX346"></A>
+<A NAME="IDX347"></A>
+<A NAME="IDX348"></A>
+根据编译器的输出，定义替换变量<CODE>EXEEXT</CODE>，但不包括.c、.o和.obj文件。
+对于Unix来说典型的值为空，对Win32来说典型的值为<SAMP>`.exe'</SAMP>或者<SAMP>`.EXE'</SAMP>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_OBJEXT</B>
+<DD><A NAME="IDX349"></A>
+<A NAME="IDX350"></A>
+<A NAME="IDX351"></A>
+根据编译器的输出，定义替换变量<CODE>OBJEXT</CODE>，但不包括.c文件。
+对于Unix来说典型的值为<SAMP>`.o'</SAMP>，对Win32来说典型的值为<SAMP>`.obj'</SAMP>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_MINGW32</B>
+<DD><A NAME="IDX352"></A>
+<A NAME="IDX353"></A>
+检查MingW32编译环境。如果存在，就把shell变量<CODE>MINGW32</CODE>设置成<SAMP>`yes'</SAMP>。
+如果不存在，就把<CODE>MINGW32</CODE>设置成空。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PATH_X</B>
+<DD><A NAME="IDX354"></A>
+<A NAME="IDX355"></A>
+试图找到X Window系统的头文件和库文件。如果用户给出了命令行选项<SAMP>`--x-includes=<VAR>dir</VAR>'</SAMP>和
+<SAMP>`--x-libraries=<VAR>dir</VAR>'</SAMP>，就使用这些目录。如果没有给出任一个选项，或者都没有给出，就通过
+运行<CODE>xmkmf</CODE>以处理一个测试<TT>`Imakefile'</TT>，并且检查它所生成的<TT>`Makefile'</TT>，来得到没有
+给出的目录。如果这失败了（比如说，<CODE>xmkmf</CODE>不存在），就在它们通常存在的几个目录中寻找。如果任何一种
+方法成功了，就把shell变量<CODE>x_includes</CODE>和<CODE>x_libraries</CODE>设置成相应的位置，除非这些目录就在
+编译器搜索的缺省目录中。
+
+</P>
+<P>
+如果两种方法都失败了，或者用户给出命令行选项<SAMP>`--without-x'</SAMP>，就把shell变量<CODE>no_x</CODE>
+设置成<SAMP>`yes'</SAMP>；否则就把它设置成空字符串。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PATH_XTRA</B>
+<DD><A NAME="IDX356"></A>
+<A NAME="IDX357"></A>
+<A NAME="IDX358"></A>
+<A NAME="IDX359"></A>
+<A NAME="IDX360"></A>
+<A NAME="IDX361"></A>
+<CODE>AC_PATH_X</CODE>的增强版。它把X需要的C编译器选项添加到输出变量<CODE>X_CFLAGS</CODE>，并且把
+X的连接选项添加到<CODE>X_LIBS</CODE>。如果不能使用X系统，就把<SAMP>`-DX_DISPLAY_MISSING'</SAMP>
+设置成<CODE>X_CFLAGS</CODE>。
+
+</P>
+<P>
+本宏还检查在某些系统中为了编译X程序而需要的特殊库。它把所有系统需要的库添加到输出变量<CODE>X_EXTRA_LIBS</CODE>。
+并且它检查需要在<SAMP>`-lX11'</SAMP>之前被连接的特殊X11R6库，并且把找到的所有库添加到输出变量<CODE>X_PRE_LIBS</CODE>。
+
+</P>
+</DL>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_SYS_INTERPRETER</B>
+<DD><A NAME="IDX362"></A>
+<A NAME="IDX363"></A>
+检查系统是否支持以形式为<SAMP>`#! /bin/csh'</SAMP>的行开头的脚本选择执行该脚本的解释器。
+在运行本宏之后，<CODE>configure.in</CODE>中的shell代码就可以检查shell变量<CODE>interpval</CODE>；
+如果系统支持<SAMP>`#!'</SAMP>，<CODE>interpval</CODE>将被设置成<SAMP>`yes'</SAMP>，如果不支持
+就设置成<SAMP>`no'</SAMP>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_SYS_LONG_FILE_NAMES</B>
+<DD><A NAME="IDX364"></A>
+<A NAME="IDX365"></A>
+<A NAME="IDX366"></A>
+如果系统支持长于14个字符的文件名，就定义<CODE>HAVE_LONG_FILE_NAMES</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_SYS_RESTARTABLE_SYSCALLS</B>
+<DD><A NAME="IDX367"></A>
+<A NAME="IDX368"></A>
+<A NAME="IDX369"></A>
+如果系统自动地重新启动被信号所中断的系统调用，就定义<CODE>HAVE_RESTARTABLE_SYSCALLS</CODE>。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC39" HREF="autoconf.html#TOC39">UNIX变种</A></H2>
+
+<P>
+下列宏检查对于有些程序来说需要特殊处理的一些操作系统，这是因为它们的头文件或库文件中含有特别
+怪异的东西。这些宏不讨人喜欢；它们将根据它们所支持的函数或者它们提供的环境，被更加系统化的方法所代替。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_AIX</B>
+<DD><A NAME="IDX370"></A>
+<A NAME="IDX371"></A>
+<A NAME="IDX372"></A>
+如果在AIX系统中，就定义<CODE>_ALL_SOURCE</CODE>。允许使用一些BSD函数。应该在所有运行C编译器的宏之前
+调用本宏。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_DYNIX_SEQ</B>
+<DD><A NAME="IDX373"></A>
+<A NAME="IDX374"></A>
+如果在Dynix/PTX (Sequent UNIX)系统中，就把<SAMP>`-lseq'</SAMP>添加到输出变量<CODE>LIBS</CODE>中。
+本宏已经过时；用<CODE>AC_FUNC_GETMNTENT</CODE>来代替。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_IRIX_SUN</B>
+<DD><A NAME="IDX375"></A>
+<A NAME="IDX376"></A>
+如果在IRIX(Silicon Graphics UNIX)系统中，就把<SAMP>`-lsun'</SAMP>添加到输出变量<CODE>LIBS</CODE>中。
+本宏已经过时。如果你用本宏来获取<CODE>getmntent</CODE>，就用<CODE>AC_FUNC_GETMNTENT</CODE>来代替。
+如果你为了口令（password）和组函数的NIS版本而使用本宏，就用<SAMP>`AC_CHECK_LIB(sun, getpwnam)'</SAMP>来代替。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_ISC_POSIX</B>
+<DD><A NAME="IDX377"></A>
+<A NAME="IDX378"></A>
+<A NAME="IDX379"></A>
+<A NAME="IDX380"></A>
+如果在POSIX化（POSIXized） ISC UNIX系统中，就定义<CODE>_POSIX_SOURCE</CODE>，并且把<SAMP>`-posix'</SAMP>
+（对于GNU C编译器）或者<SAMP>`-Xp'</SAMP>（对于其他C编译器）添加到输出变量<CODE>CC</CODE>中。本宏允许使用
+POSIX工具。必须在调用<CODE>AC_PROG_CC</CODE>之后，在调用其他任何运行C编译器的宏之前，调用本宏。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_MINIX</B>
+<DD><A NAME="IDX381"></A>
+<A NAME="IDX382"></A>
+<A NAME="IDX383"></A>
+<A NAME="IDX384"></A>
+<A NAME="IDX385"></A>
+如果在Minix系统中，就定义<CODE>_MINIX</CODE>和<CODE>_POSIX_SOURCE</CODE>，并且把<CODE>_POSIX_1_SOURCE</CODE>
+定义成2。本宏允许使用POSIX工具。应该在所有运行C编译器的宏之前调用本宏。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_SCO_INTL</B>
+<DD><A NAME="IDX386"></A>
+<A NAME="IDX387"></A>
+<A NAME="IDX388"></A>
+如果在SCO UNIX系统中，就把<SAMP>`-lintl'</SAMP>添加到输出变量<CODE>LIBS</CODE>。本宏已经过时；
+用<CODE>AC_FUNC_STRFTIME</CODE>来代替。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_XENIX_DIR</B>
+<DD><A NAME="IDX389"></A>
+<A NAME="IDX390"></A>
+<A NAME="IDX391"></A>
+如果在Xenix系统中，就把<SAMP>`-lx'</SAMP>添加到输出变量<CODE>LIBS</CODE>。还有，如果使用了<TT>`dirent.h'</TT>，
+就把<SAMP>`-ldir'</SAMP>添加到<CODE>LIBS</CODE>。本宏已经过时；用<CODE>AC_HEADER_DIRENT</CODE>来代替。
+</DL>
+
+</P>
+
+
+<H1><A NAME="SEC40" HREF="autoconf.html#TOC40">编写测试</A></H1>
+
+<P>
+如果现有的特征测试不能完成你所需要的工作，你就必须编写一个新的。这些宏是创建模块。它们为其它宏提供了检查各种
+特征是否存在并且报告结果的方式。
+
+</P>
+<P>
+本章包括一些建议和一些关于现有的测试的为什么要那样编写的原因。通过阅读现有的测试，你还可以学到许多关于编写
+Autoconf测试的方法。如果在一个或多个Autoconf测试中出现了错误，这些信息可以帮助你理解它们意味着什么，这有助
+于你找到最佳的解决问题的办法。
+
+</P>
+<P>
+这些宏检查C编译器系统的输出。它们并不为未来的使用而缓存测试的结果（参见<A HREF="autoconf.html#SEC55">缓存结果</A>），
+这是因为它们没有足够的信息以生成缓存变量名。基于同样的原因，它们还不会输出任何消息。对特殊的C的特征进行的测试
+调用这些宏并且缓存它们的结果、打印关于它们所进行的测试的消息。
+
+</P>
+<P>
+当你编写了一个可以适用于多于一个软件包的特征测试时，最好的方式就是用一个新宏封装它。关于如何封装，参见
+<A HREF="autoconf.html#SEC59">编写宏</A>。
+
+</P>
+
+
+
+<H2><A NAME="SEC41" HREF="autoconf.html#TOC41">检验声明</A></H2>
+
+<P>
+宏<CODE>AC_TRY_CPP</CODE>用于检测某个特定的头文件是否存在。你可以一次检查一个头文件，或者如果你为了某些目的
+而希望多个头文件都存在，也可以一次检查多个头文件。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TRY_CPP</B> <I>(<VAR>includes</VAR>, [<VAR>action-if-true</VAR> [, <VAR>action-if-false</VAR>]])</I>
+<DD><A NAME="IDX392"></A>
+<A NAME="IDX393"></A>
+<VAR>includes</VAR>是C或C++的<CODE>#include</CODE>语句和声明，对于它，将进行shell变量、反引用（backquote）、以及反斜线
+（backslash）替换。（实际上，它可以是任何C程序，但其它的语句可能没有用。）如果预处理器在处理它的时候没有报告错误，
+就运行shell命令<VAR>action-if-true</VAR>。否则运行shell命令<VAR>action-if-false</VAR>。
+
+</P>
+<P>
+本宏使用<CODE>CPPFLAGS</CODE>，而不使用<CODE>CFLAGS</CODE>，这是因为<SAMP>`-g'</SAMP>、<SAMP>`-O'</SAMP>等选项对于
+许多C预处理器来说都是不合法的选项。
+</DL>
+
+</P>
+<P>
+下面是如何确认在某个头文件中是否包含一个特定的声明，比如说typedef、结构、结构成员或者一个函数。使用
+<CODE>AC_EGREP_HEADER</CODE>而不是对头文件直接运行<CODE>grep</CODE>；在某些系统中，符号可能是在另一个你所检查的
+<SAMP>`#include'</SAMP>文件。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_EGREP_HEADER</B> <I>(<VAR>pattern</VAR>, <VAR>header-file</VAR>, <VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>])</I>
+<DD><A NAME="IDX394"></A>
+<A NAME="IDX395"></A>
+如果对系统头文件<VAR>header-file</VAR>运行预处理器所产生的输出与<CODE>egrep</CODE>常规表达式<VAR>pattern</VAR>相匹配，
+就执行shell命令<VAR>action-if-found</VAR>，否则执行<VAR>action-if-not-found</VAR>。
+</DL>
+
+</P>
+<P>
+为了检查由头文件或者C预处理器预定义的C预处理器符号，使用<CODE>AC_EGREP_CPP</CODE>。下面是后者的一个例子：
+
+</P>
+
+<PRE>
+AC_EGREP_CPP(yes,
+[#ifdef _AIX
+  yes
+#endif
+], is_aix=yes, is_aix=no)
+</PRE>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_EGREP_CPP</B> <I>(<VAR>pattern</VAR>, <VAR>program</VAR>, [<VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX396"></A>
+<A NAME="IDX397"></A>
+<VAR>program</VAR>是C或者C++的程序文本，对于它，将进行shell变量、反引号（backquote）以及反斜线（backslash）替换。
+如果对<VAR>program</VAR>运行预处理器产生的输出与<CODE>egrep</CODE>常规表达式（regular expression）<VAR>pattern</VAR>
+相匹配，就执行shell命令<VAR>action-if-found</VAR>，否则执行<VAR>action-if-not-found</VAR>。
+
+</P>
+<P>
+如果宏还没有调用<CODE>AC_PROG_CPP</CODE>或者<CODE>AC_PROG_CXXCPP</CODE>（根据当前语言来确定使用那个宏，
+参见<A HREF="autoconf.html#SEC51">对语言的选择</A>），本宏将调用它。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC42" HREF="autoconf.html#TOC42">检验语法</A></H2>
+
+<P>
+为了检查C、C++或者Fortran 77编译器的语法特征，比如说它是否能够识别某个关键字，就使用<CODE>AC_TRY_COMPILE</CODE>
+来尝试编译一个小的使用该特征的程序。你还可以用它检查不是所有系统都支持的结构和结构成员。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TRY_COMPILE</B> <I>(<VAR>includes</VAR>, <VAR>function-body</VAR>, [<VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX398"></A>
+<A NAME="IDX399"></A>
+创建一个C、C++或者Fortran 77测试程序（依赖于当前语言，参见<A HREF="autoconf.html#SEC51">对语言的选择</A>），
+来察看由<VAR>function-body</VAR>组成的函数是否可以被编译。
+
+</P>
+<P>
+对于C和C++，<VAR>includes</VAR>是所有<VAR>function-body</VAR>中的代码需要的<CODE>#include</CODE>语句
+（如果当前选择的语言是Fortran 77，<VAR>includes</VAR>将被忽略）。如果当前选择的语言是C或者C++，本宏还将
+在编译的时侯使用<CODE>CFLAGS</CODE>或者<CODE>CXXFLAGS</CODE>，以及<CODE>CPPFLAGS</CODE>。如果当前选择的
+语言是Fortran 77，那么就在编译的时候使用<CODE>FFLAGS</CODE>。
+
+</P>
+<P>
+如果文件被成功地编译了，就运行shell命令<VAR>action-if-found</VAR>，否则运行<VAR>action-if-not-found</VAR>。
+
+</P>
+<P>
+本宏并不试图进行连接；如果你希望进行连接，使用<CODE>AC_TRY_LINK</CODE>
+（参见<A HREF="autoconf.html#SEC43">检验库</A>）。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC43" HREF="autoconf.html#TOC43">检验库</A></H2>
+
+<P>
+为了检查一个库、函数或者全局变量，Autoconf <CODE>configure</CODE>脚本试图编译并连接一个使用它的小程序。
+不像Metaconfig，它在缺省情况下对C库使用<CODE>nm</CODE>或者<CODE>ar</CODE>以试图确认可以使用那个函数。
+由于与函数相连接避免了处理<CODE>nm</CODE>和<CODE>ar</CODE>的各个变种的选项及输出格式，而且不必处理标准库的位置，
+所以与函数连接通常是更加可靠的办法。如果需要，它还允许进行交叉配置或者检查函数的运行是特征。另一方面，
+它比一次性扫描库要慢一些。
+
+</P>
+<P>
+少数系统的连接器在出现找不到的函数错误（unresolved functions）时不返回失败的退出状态。这个错误使得由Autoconf
+生成的配置脚本不能在这样的系统中使用。然而，有些这样的连接器允许给出选项以便正确地返回错误状态。
+Autoconf目前还不能自动地处理这个问题。如果用户遇到了这样的问题，他们可能可以通过在环境中设置<CODE>LDFLAGS</CODE>
+以把连接器所需要的选项（例如，<SAMP>`-Wl,-dn'</SAMP> on MIPS RISC/OS）传递给连接器，从而解决这个问题。
+
+</P>
+<P>
+<CODE>AC_TRY_LINK</CODE>用于编译测试程序，以测试函数和全局变量。<CODE>AC_CHECK_LIB</CODE>还用本宏把被测试的库
+暂时地加入<CODE>LIBS</CODE>并试图连接一个小程序，从而对库进行检查（参见<A HREF="autoconf.html#SEC25">库文件</A>）。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TRY_LINK</B> <I>(<VAR>includes</VAR>, <VAR>function-body</VAR>, [<VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX400"></A>
+<A NAME="IDX401"></A>
+根据当前语言（参见<A HREF="autoconf.html#SEC51">对语言的选择</A>），创建一个测试程序以察看一个
+函数体为<VAR>function-body</VAR>的函数是否可以被编译和连接。
+
+</P>
+<P>
+对C和C++来说，<VAR>includes</VAR>给出了所有<VAR>function-body</VAR>中的代码需要的<CODE>#include</CODE>语句
+（如果当前选定的语言是Fortran 77，<VAR>includes</VAR>将被忽略）。如果当前语言是C或者C++，本宏在编译时还将使用
+<CODE>CFLAGS</CODE>或者<CODE>CXXFLAGS</CODE>，以及<CODE>CPPFLAGS</CODE>。如果当前选定的语言是Fortran 77，那么
+在编译时将使用<CODE>FFLAGS</CODE>。然而，在任何情况下，连接都将使用<CODE>LDFLAGS</CODE>和<CODE>LIBS</CODE>。
+
+</P>
+<P>
+如果文件被成功地编译和连接了，就运行shell命令<VAR>action-if-found</VAR>，否则就运行<VAR>action-if-not-found</VAR>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TRY_LINK_FUNC</B> <I>(<VAR>function</VAR>, [<VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX402"></A>
+<A NAME="IDX403"></A>
+根据当前语言（参见<A HREF="autoconf.html#SEC51">对语言的选择</A>），创建一个测试程序以察看一个含有<VAR>function</VAR>
+原型和对它的调用的程序是否可以被编译和连接。
+
+</P>
+<P>
+如果文件被成功地编译和连接了，就运行shell命令<VAR>action-if-found</VAR>，否则就运行<VAR>action-if-not-found</VAR>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TRY_LINK_FUNC</B> <I>(<VAR>function</VAR>, [<VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>]])</I>
+<DD><A NAME="IDX404"></A>
+<A NAME="IDX405"></A>
+试图编译并且连接一个与<VAR>function</VAR>相连接的小程序。如果文件被成功地编译和连接了，就运行shell命令
+<VAR>action-if-found</VAR>，否则就运行<VAR>action-if-not-found</VAR>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_COMPILE_CHECK</B> <I>(<VAR>echo-text</VAR>, <VAR>includes</VAR>, <VAR>function-body</VAR>, <VAR>action-if-found</VAR> [, <VAR>action-if-not-found</VAR>])</I>
+<DD><A NAME="IDX406"></A>
+<A NAME="IDX407"></A>
+本宏是<CODE>AC_TRY_LINK</CODE>的一个过时的版本。此外，如果<VAR>echo-text</VAR>不为空，它首先还要把
+<SAMP>`checking for <VAR>echo-text</VAR>'</SAMP>打印到标准输出。用<CODE>AC_MSG_CHECKING</CODE>
+和<CODE>AC_MSG_RESULT</CODE>来代替本宏的打印消息的功能（参见<A HREF="autoconf.html#SEC58">打印消息</A>）。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC44" HREF="autoconf.html#TOC44">检验运行时的特征</A></H2>
+
+<P>
+有时候，你需要知道系统在运行时作了些什么，比如说某个给定的函数是否具备某种能力或者是否含有错误。如果你能，
+你可以在你的程序初始化时自行检查这类事件（比如说machine's endianness）。
+
+</P>
+<P>
+如果你实在需要在配置时刻检查运行时的特征，你可以编写一个测试程序以确定结果，并且通过<CODE>AC_TRY_RUN</CODE>
+来编译和运行它。如果可能就避免运行测试程序，这是因为使用它们使得人们不能对你的包进行交叉编译。
+
+</P>
+
+
+
+<H3><A NAME="SEC45" HREF="autoconf.html#TOC45">运行测试程序</A></H3>
+
+<P>
+如果你希望在配置的时候测试系统运行时的特征，就使用如下的宏。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_TRY_RUN</B> <I>(<VAR>program</VAR>, [<VAR>action-if-true</VAR> [, <VAR>action-if-false</VAR> [, <VAR>action-if-cross-compiling</VAR>]]])</I>
+<DD><A NAME="IDX408"></A>
+<A NAME="IDX409"></A>
+<VAR>program</VAR>是C程序的文本，将对该文本进行shell变量和反引用（backquote）替换。如果它被成功地编译和连接了并且
+在执行的时候返回的退出状态为0，就运行shell命令<VAR>action-if-true</VAR>。否则就运行shell命令<VAR>action-if-false</VAR>；
+程序的退出状态可以通过shell变量<SAMP>`$?'</SAMP>得到。本宏在编译时使用<CODE>CFLAGS</CODE>或者<CODE>CXXFLAGS</CODE>以及
+<CODE>CPPFLAGS</CODE>、<CODE>LDFLAGS</CODE>和<CODE>LIBS</CODE>。
+
+</P>
+<P>
+如果使用的C编译器生成的不是在<CODE>configure</CODE>运行的系统上运行的可执行文件，那么测试程序就不运行。
+如果给出了可选的shell命令<VAR>action-if-cross-compiling</VAR>，它们就代替生成的可执行文件执行。否则，
+<CODE>configure</CODE>打印一条错误消息并且退出。
+</DL>
+
+</P>
+<P>
+当交叉编译使运行时测试变得不可能的时候，就尝试提供一个应急（pessimistic）的缺省值以供使用。你通过把可选的最后一个参数
+传递给<CODE>AC_TRY_RUN</CODE>来完成这个工作。在每次生成<CODE>configure</CODE>的过程中，每次遇到没有提供
+<VAR>action-if-cross-compiling</VAR>参数的<CODE>AC_TRY_RUN</CODE>调用时，<CODE>autoconf</CODE>都打印一条警告消息。
+虽然用户将不能为交叉编译你的包而进行配置，你仍可以忽略该警告。与Autoconf一同发行的少数宏产生该警告消息。
+
+</P>
+<P>
+为了为交叉编译进行配置，你还可以根据规范系统名（canonical system name）为这些参数选择值
+（参见<A HREF="autoconf.html#SEC67">手工配置</A>）。另一种方式是把测试缓存文件设置成目标系统的正确值
+（参见<A HREF="autoconf.html#SEC55">缓存结果</A>）。
+
+</P>
+<P>
+为了给嵌入到其它宏（包括少数与Autoconf一同发行的宏）中的，对<CODE>AC_TRY_RUN</CODE>的调用提供缺省值，
+你可以在它们运行之前调用<CODE>AC_PROG_CC</CODE>。那么，如果shell变量<CODE>cross_compiling</CODE>被设置成
+<SAMP>`yes'</SAMP>，就使用另一种方法来获取结果，而不是调用宏。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_C_CROSS</B>
+<DD><A NAME="IDX410"></A>
+<A NAME="IDX411"></A>
+本宏已经过时；它不作任何事情。
+</DL>
+
+</P>
+
+
+<H3><A NAME="SEC46" HREF="autoconf.html#TOC46">测试程序指南</A></H3>
+
+<P>
+测试程序不应该向标准输出输出任何信息。如果测试成功，它们应该返回0，否则返回非0，以便于把成功的执行
+从core dump或者其它失败中区分出来；段冲突（segmentation violations）和其它失败产生一个非0的退出状态。
+测试程序应该从<CODE>main</CODE>中<CODE>exit</CODE>，而不是<CODE>return</CODE>，这是因为在某些系统中
+（至少在老式的Sun上），<CODE>main</CODE>的<CODE>return</CODE>的参数将被忽略。
+
+</P>
+<P>
+测试程序可以使用<CODE>#if</CODE>或者<CODE>#ifdef</CODE>来检查由已经执行了的测试定义的预处理器宏的值。
+例如，如果你调用<CODE>AC_HEADER_STDC</CODE>，那么在<TT>`configure.in'</TT>的随后部分，你可以使用一个有
+条件地引入标准C头文件的测试程序：
+
+</P>
+
+<PRE>
+#if STDC_HEADERS
+# include &#60;stdlib.h&#62;
+#endif
+</PRE>
+
+<P>
+如果测试程序需要使用或者创建数据文件，其文件名应该以<TT>`conftest'</TT>开头，例如<TT>`conftestdata'</TT>。
+在运行测试程序之后或者脚本被中断时，<CODE>configure</CODE>将通过运行<SAMP>`rm -rf conftest*'</SAMP>来清除数据文件。
+
+</P>
+
+
+<H3><A NAME="SEC47" HREF="autoconf.html#TOC47">测试函数</A></H3>
+
+<P>
+在测试程序中的函数声明应该条件地含有为C++提供的原型。虽然实际上测试程序很少需要带参数的函数。
+
+</P>
+
+<PRE>
+#ifdef __cplusplus
+foo(int i)
+#else
+foo(i) int i;
+#endif
+</PRE>
+
+<P>
+测试程序声明的函数也应该有条件地含有为C++提供的，需要<SAMP>`extern "C"'</SAMP>的原型。要确保不要引入
+任何包含冲突原型的头文件。
+
+</P>
+
+<PRE>
+#ifdef __cplusplus
+extern "C" void *malloc(size_t);
+#else
+char *malloc();
+#endif
+</PRE>
+
+<P>
+如果测试程序以非法的参数调用函数（仅仅看它是否存在），就组织程序以确保它从不调用这个函数。你可以
+在另一个从不调用的函数中调用它。你不能把它放在对<CODE>exit</CODE>的调用之后，这是因为GCC第2版知道
+<CODE>exit</CODE>永远不会返回，并且把同一块中该调用之后的所有代码都优化掉。
+
+</P>
+<P>
+如果你引入了任何头文件，确保使用正确数量的参数调用与它们相关的函数，即使它们不带参数也是如此，
+以避免原型造成的编译错误。GCC第2版为有些它自动嵌入（inline）的函数设置了内置原型；例如，
+<CODE>memcpy</CODE>。为了在检查它们时避免错误，既可以给它们正确数量的参数，也可以以不同的返回
+类型（例如<CODE>char</CODE>）重新声明它们。
+
+</P>
+
+
+<H2><A NAME="SEC48" HREF="autoconf.html#TOC48">可移植的Shell编程</A></H2>
+
+<P>
+在编写你自己的测试时，为了使你的代码可以移植，你应该避免使用某些shell脚本编程技术。
+Bourne shell和诸如Bash和Korn shell之类的向上兼容的shell已经发展了多年，但为了避免麻烦，不要利用
+在UNIX版本7，circa 1977之后添加的新特征。你不应该使用shell函数、别名、负字符集（negated character classes）
+或者其它不是在所有与Bourne兼容的shell中都能找到的特征；把你自己限制到最低的风险中去。
+（the lowest common denominator）。即使是<CODE>unset</CODE>都不能够被所有的shell所支持！
+还有，像下面那样在指定解释器的惊叹号之后给出空格：
+
+<PRE>
+#! /usr/bin/perl
+</PRE>
+
+<P>
+如果你忽略了路径之前的空格，那么基于4.2BSD的系统（比如说Sequent DYNIX）将忽略这一行，这是因为它们把
+<SAMP>`#! /'</SAMP>看作一个四字节的魔数（magic number）。
+
+</P>
+<P>
+你在<CODE>configure</CODE>脚本中运行的外部程序，应该是一个相当小的集合。关于可用的外部程序列表，参见
+<CITE>GNU编码标准</CITE>中的‘Makefile中的工具’一节。这个限制允许用户在只拥有相当少的程序时进行配置
+和编译，这避免了软件包之间过多的依赖性。
+
+</P>
+<P>
+此外，这些外部工具中的某些工具只有一部分特征是可移植的。例如，不要依赖<CODE>ln</CODE>支持<SAMP>`-f'</SAMP>选项，
+也不要依赖<CODE>cat</CODE>含有任何选项。<CODE>sed</CODE>脚本不应该含有注释，也不应该使用长于8个字符的分支标记。
+不要使用<SAMP>`grep -s'</SAMP>来禁止（suppress）输出。而要把<CODE>grep</CODE>的标准输出和标准错误输出
+（在文件不存在的情况下会输出信息到标准错误输出）重新定向到<TT>`/dev/null'</TT>中。检查<CODE>grep</CODE>的退出
+状态以确定它是否找到了一个匹配。
+
+</P>
+
+
+<H2><A NAME="SEC49" HREF="autoconf.html#TOC49">测试值和文件</A></H2>
+
+<P>
+<CODE>configure</CODE>脚本需要测试许多文件和字符串的属性。下面是在进行这些测试的时候需要提防的一些移植性问题。
+
+</P>
+<P>
+程序<CODE>test</CODE>是进行许多文件和字符串测试的方式。人们使用替代（alternate）名<SAMP>`['</SAMP>来调用它，
+但因为<SAMP>`['</SAMP>是一个<CODE>m4</CODE>的引用字符，在Autoconf代码中使用<SAMP>`['</SAMP>将带来麻烦。
+
+</P>
+<P>
+如果你需要通过<CODE>test</CODE>创建多个检查，就用shell操作符<SAMP>`&#38;&#38;'</SAMP>和<SAMP>`||'</SAMP>
+把它们组合起来，而不是使用<CODE>test</CODE>操作符<SAMP>`-a'</SAMP>和<SAMP>`-o'</SAMP>。在System V中，
+<SAMP>`-a'</SAMP>和<SAMP>`-o'</SAMP>相对于unary操作符的优先级是错误的；为此，POSIX并未给出它们，所以使用它们是
+不可移植的。如果你在同一个语句中组合使用了<SAMP>`&#38;&#38;'</SAMP>和<SAMP>`||'</SAMP>，要记住它们的
+优先级是相同的。
+
+</P>
+<P>
+为了使得<CODE>configure</CODE>脚本可以支持交叉编译，它们不能作任何测试主系统而不是测试目标系统的事。但你偶尔
+可以发现有必要检查某些特定（arbitrary）文件的存在。为此，使用<SAMP>`test -f'</SAMP>或者<SAMP>`test -r'</SAMP>。
+不要使用<SAMP>`test -x'</SAMP>，因为4.3BSD不支持它。
+
+</P>
+<P>
+另一个不可移植的shell编程结构是
+
+<PRE>
+<VAR>var</VAR>=${<VAR>var</VAR>:-<VAR>value</VAR>}
+</PRE>
+
+<P>
+它的目的是仅仅在没有设定<VAR>var</VAR>的值的情况下，把<VAR>var</VAR>设置成<VAR>value</VAR>，
+但如果<VAR>var</VAR>已经含有值，即使是空字符串，也不修改<VAR>var</VAR>。老式BSD shell，包括
+Ultrix <CODE>sh</CODE>，不接受这个冒号，并且给出错误并停止。一个可以移植的等价方式是
+
+<PRE>
+: ${<VAR>var</VAR>=<VAR>value</VAR>}
+</PRE>
+
+
+
+<H2><A NAME="SEC50" HREF="autoconf.html#TOC50">多种情况</A></H2>
+
+<P>
+有些操作是以几种可能的方式完成的，它依赖于UNIX的变种。检查它们通常需要一个"case 语句"。Autoconf不能直接提供该语句；
+然而，通过用一个shell变量来记录是否采用了操作的某种已知的方式，可以容易地模拟该语句。
+
+</P>
+<P>
+下面是用shell变量<CODE>fstype</CODE>记录是否还有需要检查的情况的例子。
+
+</P>
+
+<PRE>
+AC_MSG_CHECKING(how to get filesystem type)
+fstype=no
+# The order of these tests is important.
+AC_TRY_CPP([#include &#60;sys/statvfs.h&#62;
+#include &#60;sys/fstyp.h&#62;], AC_DEFINE(FSTYPE_STATVFS) fstype=SVR4)
+if test $fstype = no; then
+AC_TRY_CPP([#include &#60;sys/statfs.h&#62;
+#include &#60;sys/fstyp.h&#62;], AC_DEFINE(FSTYPE_USG_STATFS) fstype=SVR3)
+fi
+if test $fstype = no; then
+AC_TRY_CPP([#include &#60;sys/statfs.h&#62;
+#include &#60;sys/vmount.h&#62;], AC_DEFINE(FSTYPE_AIX_STATFS) fstype=AIX)
+fi
+# (more cases omitted here)
+AC_MSG_RESULT($fstype)
+</PRE>
+
+
+
+<H2><A NAME="SEC51" HREF="autoconf.html#TOC51">对语言的选择</A></H2>
+
+<P>
+既使用C又使用C++的包需要同时测试两个编译器。Autoconf生成的<CODE>configure</CODE>脚本
+在缺省情况下检查C的特征。以下的宏决定在<TT>`configure.in'</TT>的随后部分使用那个语言的编译器。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_LANG_C</B>
+<DD><A NAME="IDX412"></A>
+<A NAME="IDX413"></A>
+使用<CODE>CC</CODE>和<CODE>CPP</CODE>进行编译测试并且把<TT>`.c'</TT>作为测试程序的扩展名。
+如果已经运行过<CODE>AC_PROG_CC</CODE>，就把把shell变量<CODE>cross_compiling</CODE>的值设置成该宏计算的结果，
+否则就设置为空。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_LANG_CPLUSPLUS</B>
+<DD><A NAME="IDX414"></A>
+<A NAME="IDX415"></A>
+使用<CODE>CXX</CODE>和<CODE>CXXPP</CODE>进行编译测试并且把<TT>`.C'</TT>作为测试程序的扩展名。
+如果已经运行过<CODE>AC_PROG_CXX</CODE>，就把把shell变量<CODE>cross_compiling</CODE>的值设置成该宏计算的结果，
+否则就设置为空。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_LANG_FORTRAN77</B>
+<DD><A NAME="IDX416"></A>
+<A NAME="IDX417"></A>
+使用<CODE>F77</CODE>进行编译测试并且把<TT>`.f'</TT>作为测试程序的扩展名。
+如果已经运行过<CODE>AC_PROG_F77</CODE>，就把把shell变量<CODE>cross_compiling</CODE>的值设置成该宏计算的结果，
+否则就设置为空。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_LANG_SAVE</B>
+<DD><A NAME="IDX418"></A>
+<A NAME="IDX419"></A>
+在堆栈中记录当前的语言（由<CODE>AC_LANG_C</CODE>、<CODE>AC_LANG_CPLUSPLUS</CODE>或者<CODE>AC_LANG_FORTRAN77</CODE>
+所设定）。不改变当前使用的语言。在需要暂时地切换到其它特殊语言的宏之中使用本宏和<CODE>AC_LANG_RESTORE</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_LANG_RESTORE</B>
+<DD><A NAME="IDX420"></A>
+<A NAME="IDX421"></A>
+选择储存在栈顶的，由<CODE>AC_LANG_SAVE</CODE>设置的语言，并且把它从栈顶删除。本宏等价于运行在最后被调用的
+<CODE>AC_LANG_SAVE</CODE>之前最近的<CODE>AC_LANG_C</CODE>、<CODE>AC_LANG_CPLUSPLUS</CODE>或者
+<CODE>AC_LANG_FORTRAN77</CODE>。
+
+</P>
+<P>
+调用本宏的次数不要多于调用<CODE>AC_LANG_SAVE</CODE>的次数。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_REQUIRE_CPP</B>
+<DD><A NAME="IDX422"></A>
+<A NAME="IDX423"></A>
+确认已经找到了当前用于测试的预处理器。本宏根据当前选择的语言，以<CODE>AC_PROG_CPP</CODE>或者<CODE>AC_PROG_CXXCPP</CODE>
+为参数调用<CODE>AC_REQUIRE</CODE>（参见<A HREF="autoconf.html#SEC64">首要的宏</A>）。
+</DL>
+
+</P>
+
+
+<H1><A NAME="SEC52" HREF="autoconf.html#TOC52">测试的结果</A></H1>
+
+<P>
+一旦<CODE>configure</CODE>确定了某个特征是否存在，它将如何记录这一信息？这里有四种记录方式：
+定义一个C预处理器符号、在输出文件中设置一个变量、为将来运行<CODE>configure</CODE>而把结果储存到一个缓存文件中，
+以及打印一条消息以便让用户知道测试的结果。
+
+</P>
+
+
+
+<H2><A NAME="SEC53" HREF="autoconf.html#TOC53">定义C预处理器符号</A></H2>
+
+<P>
+对一个特征的检测的常见回应是定义一个表示测试结果的C预处理器符号。这是通过调用<CODE>AC_DEFINE</CODE>
+或者<CODE>AC_DEFINE_UNQUOTED</CODE>来完成的。
+
+</P>
+<P>
+在缺省状态下，<CODE>AC_OUTPUT</CODE>把由这些宏定义的符号放置到输出变量<CODE>DEFS</CODE>中，该变量为每个
+定义了的符号添加一个选项<SAMP>`-D<VAR>symbol</VAR>=<VAR>value</VAR>'</SAMP>。与Autoconf第1版不同，在运行时
+不定义<CODE>DEFS</CODE>变量。为了检查Autoconf宏是否已经定义了某个C预处理器符号，就检查适当的缓存变量的值，
+例子如下：
+
+</P>
+
+<PRE>
+AC_CHECK_FUNC(vprintf, AC_DEFINE(HAVE_VPRINTF))
+if test "$ac_cv_func_vprintf" != yes; then
+AC_CHECK_FUNC(_doprnt, AC_DEFINE(HAVE_DOPRNT))
+fi
+</PRE>
+
+<P>
+如果已经调用了<CODE>AC_CONFIG_HEADER</CODE>，那么就不是创建<CODE>DEFS</CODE>，而是由<CODE>AC_OUTPUT</CODE>
+创建一个头文件，这是通过在一个暂时文件中把正确的值替换到<CODE>#define</CODE>语句中来实现的。
+关于这种输出的详情，请参见<A HREF="autoconf.html#SEC15">配置头文件</A>。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_DEFINE</B> <I>(<VAR>variable</VAR> [, <VAR>value</VAR> [, <VAR>description</VAR>]])</I>
+<DD><A NAME="IDX424"></A>
+<A NAME="IDX425"></A>
+定义C预处理器变量<VAR>variable</VAR>。如果给出了<VAR>value</VAR>，就把<VAR>variable</VAR>设置成那个值（不加任何改变），
+否则的话就设置为1。<VAR>value</VAR>不应该含有新行，同时如果你没有使用<CODE>AC_CONFIG_HEADER</CODE>，它就不应该含有
+任何<SAMP>`#'</SAMP>字符，这是因为<CODE>make</CODE>将删除它们。为了使用shell变量（你需要使用该变量定义一个包含了
+<CODE>m4</CODE>引用字符<SAMP>`['</SAMP>或者<SAMP>`]'</SAMP>的值），就使用<CODE>AC_DEFINE_UNQUOTED</CODE>。只有在
+你使用<CODE>AC_CONFIG_HEADER</CODE>的时候，<VAR>description</VAR>才有用。在这种情况下，<VAR>description</VAR>被
+作为注释放置到生成的<TT>`config.h.in'</TT>的宏定义之前；不必在<TT>`acconfig.h'</TT>中提及该宏。下面的例子把
+C预处理器变量<CODE>EQUATION</CODE>的值定义成常量字符串<SAMP>`"$a &#62; $b"'</SAMP>：
+
+
+</P>
+
+<PRE>
+AC_DEFINE(EQUATION, "$a &#62; $b")
+</PRE>
+
+</DL>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_DEFINE_UNQUOTED</B> <I>(<VAR>variable</VAR> [, <VAR>value</VAR> [, <VAR>description</VAR>]])</I>
+<DD><A NAME="IDX426"></A>
+<A NAME="IDX427"></A>
+类似于<CODE>AC_DEFINE</CODE>，但还要对<VAR>variable</VAR>和<VAR>value</VAR>进行三种shell替换（每种替换只进行一次）：
+变量扩展（<SAMP>`$'</SAMP>），命令替换（<SAMP>``'</SAMP>），以及反斜线传义符（<SAMP>`\'</SAMP>）。值中的单引号和双引号
+没有特殊的意义。在<VAR>variable</VAR>或者<VAR>value</VAR>是一个shell变量的时候用本宏代替<CODE>AC_DEFINE</CODE>。例如：
+
+</P>
+
+<PRE>
+AC_DEFINE_UNQUOTED(config_machfile, "${machfile}")
+AC_DEFINE_UNQUOTED(GETGROUPS_T, $ac_cv_type_getgroups)
+AC_DEFINE_UNQUOTED(${ac_tr_hdr})
+</PRE>
+
+</DL>
+
+<P>
+由于Bourne shell在语法上的特异性，不要用分号来分隔对<CODE>AC_DEFINE</CODE>或者<CODE>AC_DEFINE_UNQUOTED</CODE>的调用和
+其它的宏调用或者shell代码；这将在最终的<CODE>configure</CODE>脚本中导致语法错误。你既可以使用空格，也可以使用
+换行。就是这样：
+
+</P>
+
+<PRE>
+AC_CHECK_HEADER(elf.h, AC_DEFINE(SVR4) LIBS="$LIBS -lelf")
+</PRE>
+
+<P>
+或者：
+
+</P>
+
+<PRE>
+AC_CHECK_HEADER(elf.h,
+  AC_DEFINE(SVR4)
+  LIBS="$LIBS -lelf")
+</PRE>
+
+<P>
+而不是：
+
+</P>
+
+<PRE>
+AC_CHECK_HEADER(elf.h, AC_DEFINE(SVR4); LIBS="$LIBS -lelf")
+</PRE>
+
+
+
+<H2><A NAME="SEC54" HREF="autoconf.html#TOC54">设置输出变量</A></H2>
+
+<P>
+记录测试结果的一种方式是设置<EM>输出变量</EM>，该变量是shell变量，它的值将被替换到<CODE>configure</CODE>输出的文件中。
+下面的两个宏创建新的输出变量。关于总是可用的输出变量的列表，参见<A HREF="autoconf.html#SEC12">预定义输出变量</A>。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_SUBST</B> <I>(<VAR>variable</VAR>)</I>
+<DD><A NAME="IDX428"></A>
+<A NAME="IDX429"></A>
+从一个shell变量创建一个输出变量。让<CODE>AC_OUTPUT</CODE>把变量<VAR>variable</VAR>替换到输出文件中（通常是一个或多个
+<TT>`Makefile'</TT>）。这意味着<CODE>AC_OUTPUT</CODE>将把输入文件中的<SAMP>`@<VAR>variable</VAR>@'</SAMP>实例替换成
+调用<CODE>AC_OUTPUT</CODE>时shell变量<VAR>variable</VAR>的值。<VAR>variable</VAR>的值不能包含新行。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_SUBST_FILE</B> <I>(<VAR>variable</VAR>)</I>
+<DD><A NAME="IDX430"></A>
+<A NAME="IDX431"></A>
+另一种从shell变量创建输出变量的方式。让<CODE>AC_OUTPUT</CODE>把由shell变量<VAR>variable</VAR>给出的文件名的文件的内容
+（不进行替换）插入到输出文件中。这意味着<CODE>AC_OUTPUT</CODE>将在输出文件中（比如<TT>`Makefile.in'</TT>）把输入文件中
+的<SAMP>`@<VAR>variable</VAR>@'</SAMP>实例替换为调用<CODE>AC_OUTPUT</CODE>时shell变量<VAR>variable</VAR>的值指明的文件
+的内容。如果没有文件可以插入，就把变量设置成<TT>`/dev/null'</TT>。
+
+</P>
+<P>
+本宏用于把包含特殊依赖性或者为特殊主机或目标机准备的其它<CODE>make</CODE>指令的<TT>`Makefile'</TT>片断插入
+<TT>`Makefile'</TT>。例如，<TT>`configure.in'</TT>可以包含：
+
+</P>
+
+<PRE>
+AC_SUBST_FILE(host_frag)dnl
+host_frag=$srcdir/conf/sun4.mh
+</PRE>
+
+<P>
+那么<TT>`Makefile.in'</TT>就应该包含：
+
+</P>
+
+<PRE>
+@host_frag@
+</PRE>
+
+</DL>
+
+
+
+<H2><A NAME="SEC55" HREF="autoconf.html#TOC55">缓存结果</A></H2>
+
+<P>
+为了避免在各种<CODE>configure</CODE>脚本中重复地对相同的特征进行检查（或者重复地运行同一个脚本），
+<CODE>configure</CODE>把它的检查的许多结果储存在<EM>缓存文件</EM>。如果在<CODE>configure</CODE>脚本运行时，它找到了
+缓存文件，它就从中读取从前运行的结果并且不再重新运行这些检查。因此，<CODE>configure</CODE>将比每次都运行所有的检查
+要快得多。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CACHE_VAL</B> <I>(<VAR>cache-id</VAR>, <VAR>commands-to-set-it</VAR>)</I>
+<DD><A NAME="IDX432"></A>
+<A NAME="IDX433"></A>
+确认由<VAR>cache-id</VAR>指定的检查的结果是可用的。如果检查的结果在读入的缓存文件中，并且<CODE>configure</CODE>
+没有用<SAMP>`--quiet'</SAMP>或者<SAMP>`--silent'</SAMP>调用，就打印一条消息以说明该结果已经被缓存了；否则，就运行
+shell命令<VAR>commands-to-set-it</VAR>。这些命令不应具有副作用，但设置变量<VAR>cache-id</VAR>除外。它们尤其不应该调用
+<CODE>AC_DEFINE</CODE>；紧随与对<CODE>AC_CACHE_VAL</CODE>的调用之后的代码应该根据缓存的值调用<CODE>AC_DEFINE</CODE>
+作这件事。此外，它们不应该打印任何消息，比如说使用<CODE>AC_MSG_CHECKING</CODE>；应该在调用<CODE>AC_CACHE_VAL</CODE>
+之前打印，以便不论测试的结果是从缓存中检索而得到的，还是通过运行shell命令而确定的，都会打印消息。如果是运行
+shell命令以确定值，该值将在<CODE>configure</CODE>创建它的输出文件之前被储存到缓存文件中。关于如何选择
+<VAR>cache-id</VAR>变量的名称，参见<A HREF="autoconf.html#SEC56">缓存变量名</A>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CACHE_CHECK</B> <I>(<VAR>message</VAR>, <VAR>cache-id</VAR>, <VAR>commands</VAR>)</I>
+<DD><A NAME="IDX434"></A>
+<A NAME="IDX435"></A>
+这是一个更详尽地处理了打印消息的<CODE>AC_CACHE_VAL</CODE>版本。本宏为这些宏的最常见的应用提供了便捷的缩写。
+它为<VAR>message</VAR>调用<CODE>AC_MSG_CHECKING</CODE>，而后以<VAR>cache-id</VAR>和<VAR>commands</VAR>为参数
+调用<CODE>AC_CACHE_VAL</CODE>，最后以<VAR>cache-id</VAR>为参数调用<CODE>AC_MSG_RESULT</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CACHE_LOAD</B>
+<DD><A NAME="IDX436"></A>
+<A NAME="IDX437"></A>
+从已经存在的缓存文件中装入值，如果找不到缓存文件，就创建一个新的缓存文件。本宏由<CODE>AC_INIT</CODE>自动调用。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CACHE_SAVE</B>
+<DD><A NAME="IDX438"></A>
+<A NAME="IDX439"></A>
+把所有缓存的值刷新到缓存文件中。本宏由<CODE>AC_OUTPUT</CODE>自动调用，但在configure.in的关键点调用
+<CODE>AC_CACHE_SAVE</CODE>是十分有用的。假如配置脚本中途失败（abort）了，这些关键点仍然可以缓存一部分结果。
+</DL>
+
+</P>
+
+
+
+<H3><A NAME="SEC56" HREF="autoconf.html#TOC56">缓存变量名</A></H3>
+
+<P>
+缓存变量的名字应该符合如下格式：
+
+</P>
+
+<PRE>
+<VAR>package-prefix</VAR>_cv_<VAR>value-type</VAR>_<VAR>specific-value</VAR>[_<VAR>additional-options</VAR>]
+</PRE>
+
+<P>
+例如，<SAMP>`ac_cv_header_stat_broken'</SAMP>或者<SAMP>`ac_cv_prog_gcc_traditional'</SAMP>。
+变量名的各个部分为：
+
+</P>
+<DL COMPACT>
+
+<DT><VAR>package-prefix</VAR>
+<DD>
+你的包或者组织的缩写；除了为了方便而使用小写字母以外，与你使用的作为本地Autoconf宏的开头的前缀一样。
+对于由发布的Autoconf宏使用的缓存值，它是<SAMP>`ac'</SAMP>。
+
+<DT><CODE>_cv_</CODE>
+<DD>
+表明本shell变量是一个缓存值。
+
+<DT><VAR>value-type</VAR>
+<DD>
+关于缓存值类别的惯例，以生成一个合理的命名系统。在Autoconf中使用的值在<A HREF="autoconf.html#SEC61">宏名</A>中列出。
+
+<DT><VAR>specific-value</VAR>
+<DD>
+指明本测试应用于缓存值类的那个成员。
+例如，那个函数（<SAMP>`alloca'</SAMP>）、程序（<SAMP>`gcc'</SAMP>）或者输出变量（<SAMP>`INSTALL'</SAMP>）。
+
+<DT><VAR>additional-options</VAR>
+<DD>
+给出应用本测试的特定成员的任何特殊行为。例如，<SAMP>`broken'</SAMP>或者<SAMP>`set'</SAMP>。
+如果没有用，名字的这个部分可能被忽略掉。
+</DL>
+
+<P>
+赋予缓存变量的值不能含有新行。通常，它们的是将是布尔（<SAMP>`yes'</SAMP>或<SAMP>`no'</SAMP>）或者文件名或者函数名；
+所以，这并不是一个重要的限制。
+
+</P>
+
+
+<H3><A NAME="SEC57" HREF="autoconf.html#TOC57">缓存文件</A></H3>
+
+<P>
+缓存文件是一个缓存了在一个系统上进行配置测试的结果，以便在配置脚本和配置的运行之间共享的shell脚本。
+它对于其他系统来说是没有用的。如果它的内容因为某些原因而变得无效了，用户可以删除或者编辑它。
+
+</P>
+<P>
+在缺省情况下，configure把<TT>`./config.cache'</TT>作为缓存文件，如果它还不存在，就创建它。
+<CODE>configure</CODE>接受选项<SAMP>`--cache-file=<VAR>file</VAR>'</SAMP>以使用不同的缓存文件；
+这就是<CODE>configure</CODE>在调用子目录中的<CODE>configure</CODE>脚本时所作的工作。
+关于使用宏<CODE>AC_CONFIG_SUBDIRS</CODE>在子目录中进行配置的信息，参见
+<A HREF="autoconf.html#SEC18">在子目录中配置其它包</A>。
+
+</P>
+<P>
+给出<SAMP>`--cache-file=/dev/null'</SAMP>会关闭缓存，这是为调试<CODE>configure</CODE>提供的。
+只有在调用<TT>`config.status'</TT>时给出选项<SAMP>`--recheck'</SAMP>，这将导致它重新运行<CODE>configure</CODE>，
+它才会注意到缓存文件。如果你预计需要一个长的调试时期，你还可以通过在<TT>`configure.in'</TT>的开头重新定义
+缓存宏而关闭对<CODE>configure</CODE>脚本的装入和储存：
+
+</P>
+
+<PRE>
+define([AC_CACHE_LOAD], )dnl
+define([AC_CACHE_SAVE], )dnl
+AC_INIT(whatever)
+ ... rest of configure.in ...
+</PRE>
+
+<P>
+试图为特定的系统类型发布缓存文件是错误的。这里存在太多的导致错误的空间，并带来太多的用于维护它们的管理开销。
+对于任何不能被自动猜测出来的特征，应使用规范系统类型和连接文件的方法（参见<A HREF="autoconf.html#SEC67">手工配置</A>）。
+
+</P>
+<P>
+在特定系统中，每当有人运行<CODE>configure</CODE>脚本时，缓存文件将逐渐积累起来；缓存文件在一开始并不存在。
+运行<CODE>configure</CODE>会把新的缓存结果与现存的缓存文件结合起来。为了让它透明地工作，只要每次都使用相同的C编译器，
+站点初始化（site initialization）脚本可以指定一个站点范围（site-wide）的缓存文件以代替缺省的缓存文件。
+（参见<A HREF="autoconf.html#SEC80">设定本地缺省值</A>）。
+
+</P>
+<P>
+如果你的配置脚本，或者configure.in中的宏调用，偶尔导致配置过程的失败，在几个关键点进行缓存可能是有用的。
+在有希望修正导致上次运行的错误的时候，这样做将减少重新运行configure脚本的时间。
+
+</P>
+
+<PRE>
+ ... AC_INIT, etc. ...
+dnl checks for programs
+AC_PROG_CC
+AC_PROG_GCC_TRADITIONAL
+ ... more program checks ...
+AC_CACHE_SAVE
+
+dnl checks for libraries
+AC_CHECK_LIB(nsl, gethostbyname)
+AC_CHECK_LIB(socket, connect)
+ ... more lib checks ...
+AC_CACHE_SAVE
+
+dnl Might abort...
+AM_PATH_GTK(1.0.2, , exit 1)
+AM_PATH_GTKMM(0.9.5, , exit 1)
+</PRE>
+
+
+
+<H2><A NAME="SEC58" HREF="autoconf.html#TOC58">打印消息</A></H2>
+
+<P>
+<CODE>configure</CODE>脚本需要为运行它们的用户提供几种信息。下列的宏为每种信息以适当的方式打印消息。
+所有宏的参数都应该由shell双引号括起来，以便shell可以对它们进行变量替换和反引号替换。你可以把消息用
+<CODE>m4</CODE>引用字符括起来以打印包含括号的消息：
+
+</P>
+
+<PRE>
+AC_MSG_RESULT([never mind, I found the BASIC compiler])
+</PRE>
+
+<P>
+这些宏都是对shell命令<CODE>echo</CODE>的封装。<CODE>configure</CODE>应该很少需要直接运行<CODE>echo</CODE>来为
+用户打印消息。使用这些宏使得修改每种消息如何打印及何时打印变得容易了；这些修改只需要对宏的定义进行就行了，
+而所有的调用都将自动地改变。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_MSG_CHECKING</B> <I>(<VAR>feature-description</VAR>)</I>
+<DD><A NAME="IDX440"></A>
+<A NAME="IDX441"></A>
+告知用户<CODE>configure</CODE>正在检查特定的特征。本宏打印一条以<SAMP>`checking '</SAMP>开头，以<SAMP>`...'</SAMP>
+结尾，而且不带新行的消息。它必须跟随一条对<CODE>AC_MSG_RESULT</CODE>的调用以打印检查的结果和新行。
+<VAR>feature-description</VAR>应该是类似于
+<SAMP>`whether the Fortran compiler accepts C++ comments'</SAMP>或者<SAMP>`for c89'</SAMP>的东西。
+
+</P>
+<P>
+如果运行<CODE>configure</CODE>给出了选项<SAMP>`--quiet'</SAMP>或者选项<SAMP>`--silent'</SAMP>，本宏什么也不打印。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_MSG_RESULT</B> <I>(<VAR>result-description</VAR>)</I>
+<DD><A NAME="IDX442"></A>
+<A NAME="IDX443"></A>
+告知用户测试的结果。<VAR>result-description</VAR>几乎总是检查的缓存变量的值，典型的值是<SAMP>`yes'</SAMP>、
+<SAMP>`no'</SAMP>或者文件名。本宏应该在<CODE>AC_MSG_CHECKING</CODE>之后调用，并且<VAR>result-description</VAR>
+应该完成由<CODE>AC_MSG_CHECKING</CODE>所打印的消息。
+
+</P>
+<P>
+如果运行<CODE>configure</CODE>给出了选项<SAMP>`--quiet'</SAMP>或者选项<SAMP>`--silent'</SAMP>，本宏什么也不打印。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_MSG_ERROR</B> <I>(<VAR>error-description</VAR>)</I>
+<DD><A NAME="IDX444"></A>
+<A NAME="IDX445"></A>
+告知用户一条使<CODE>configure</CODE>不能完成的错误。本宏在标准错误输出中打印一条错误消息并且以非零状态退出
+<CODE>configure</CODE>。<VAR>error-description</VAR>应该是类似于<SAMP>`invalid value $HOME for \$HOME'</SAMP>的东西。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_MSG_WARN</B> <I>(<VAR>problem-description</VAR>)</I>
+<DD><A NAME="IDX446"></A>
+<A NAME="IDX447"></A>
+告知<CODE>configure</CODE>的使用者可能出现的问题。本宏在标准错误输出中打印消息；<CODE>configure</CODE>继续向后运行，
+所以调用<CODE>AC_MSG_WARN</CODE>的宏应该为它们所警告的情况提供一个缺省的（备份）行为。
+<VAR>problem-description</VAR>应该是类似于<SAMP>`ln -s seems to make hard links'</SAMP>的东西。
+</DL>
+
+</P>
+<P>
+下列两个宏是<CODE>AC_MSG_CHECKING</CODE>和<CODE>AC_MSG_RESULT</CODE>的过时的替代版本。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CHECKING</B> <I>(<VAR>feature-description</VAR>)</I>
+<DD><A NAME="IDX448"></A>
+<A NAME="IDX449"></A>
+除了在<VAR>feature-description</VAR>之后打印新行，本宏与<CODE>AC_MSG_CHECKING</CODE>相同。
+它主要用于打印对一组特征测试的整体目的的描述，例如：
+
+</P>
+
+<PRE>
+AC_CHECKING(if stack overflow is detectable)
+</PRE>
+
+</DL>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_VERBOSE</B> <I>(<VAR>result-description</VAR>)</I>
+<DD><A NAME="IDX450"></A>
+<A NAME="IDX451"></A>
+除了应该在<CODE>AC_CHECKING</CODE>，而不是在<CODE>AC_MSG_CHECKING</CODE>之后调用，本宏与<CODE>AC_MSG_RESULT</CODE>相同；
+它在打印消息前首先打印一个tab。它已经过时了。
+</DL>
+
+</P>
+
+
+<H1><A NAME="SEC59" HREF="autoconf.html#TOC59">编写宏</A></H1>
+
+<P>
+当你编写了一个可以用于多个软件包的特征测试时，最好用一个新宏把它封装起来。下面是一些关于编写
+Autoconf宏的要求（instructions）和指导（guidelines）。
+
+</P>
+
+
+
+<H2><A NAME="SEC60" HREF="autoconf.html#TOC60">宏定义</A></H2>
+
+<P>
+<A NAME="IDX452"></A>
+Autoconf宏是用宏<CODE>AC_DEFUN</CODE>定义的，该宏与<CODE>m4</CODE>的内置<CODE>define</CODE>宏相似。
+除了定义一个宏，<CODE>AC_DEFUN</CODE>把某些用于限制宏调用顺序的代码添加到其中。
+（参见<A HREF="autoconf.html#SEC64">首要的宏</A>）。
+
+</P>
+<P>
+一个Autoconf宏像下面那样定义：
+
+</P>
+
+<PRE>
+AC_DEFUN(<VAR>macro-name</VAR>, [<VAR>macro-body</VAR>])
+</PRE>
+
+<P>
+这里的方括号并不表示可选的文本：它们应当原样出现在宏定义中，以避免宏扩展问题
+（参见<A HREF="autoconf.html#SEC62">引用</A>）。你可以使用<SAMP>`$1'</SAMP>、<SAMP>`$2'</SAMP>等等来访问
+传递给宏的任何参数。
+
+</P>
+<P>
+为使用<CODE>m4</CODE>注释，使用<CODE>m4</CODE>内置的<CODE>dnl</CODE>；
+它使<CODE>m4</CODE>放弃本行中其后的所有文本。因为在调用<CODE>AC_INIT</CODE>之前，所有的输出都被取消，
+所以在<TT>`acsite.m4'</TT>和<TT>`aclocal.m4'</TT>中的宏定义之间不需要它。
+
+</P>
+<P>
+关于编写<CODE>m4</CODE>宏的更完整的信息，参见<CITE>GNU m4</CITE>中的`如何定义新宏'。
+
+</P>
+
+
+<H2><A NAME="SEC61" HREF="autoconf.html#TOC61">宏名</A></H2>
+
+<P>
+所有Autoconf宏都以<SAMP>`AC_'</SAMP>起头以防止偶然地与其它文本发生冲突。所有它们用于内部目的的shell变量
+几乎全部是由小写字母组成的，并且以<SAMP>`ac_'</SAMP>开头的名字。为了确保你的宏不会与现在的或者将来的Autoconf宏冲突，
+你应该给你自己的宏名和任何它们因为某些原因而需要使用的shell变量添加前缀。它可能是你名字的开头字符，或者
+你的组织或软件包名称的缩写。
+
+</P>
+<P>
+大部分Autoconf宏的名字服从一个表明特征检查的种类命名惯例。宏名由几个单词组成，由下划线分隔，可以是最常见的，
+也可以是最特殊的。它们的缓存变量名服从相同的惯例。（关于它们的详细信息，
+参见<A HREF="autoconf.html#SEC56">缓存变量名</A>）。
+
+</P>
+<P>
+<SAMP>`AC_'</SAMP>之后的第一个单词通常给出被测试特征的类别。下面是Autoconf为特殊测试宏使用的类别，
+它们是你很可能要编写的宏。它们的全小写形式还用于缓存变量。在可能的地方使用它们；如果不能，就发明一个你自己的类别。
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>C</CODE>
+<DD>
+C语言内置特征。
+<DT><CODE>DECL</CODE>
+<DD>
+在头文件中对C变量的声明。
+<DT><CODE>FUNC</CODE>
+<DD>
+库中的函数。
+<DT><CODE>GROUP</CODE>
+<DD>
+文件的UNIX组拥有者（group owner）。
+<DT><CODE>HEADER</CODE>
+<DD>
+头文件。
+<DT><CODE>LIB</CODE>
+<DD>
+C库。
+<DT><CODE>PATH</CODE>
+<DD>
+包括程序在内的，到文件的全路径名。
+<DT><CODE>PROG</CODE>
+<DD>
+程序的基本名（base name）。
+<DT><CODE>STRUCT</CODE>
+<DD>
+头文件中对C结构的定义。
+<DT><CODE>SYS</CODE>
+<DD>
+操作系统特征。
+<DT><CODE>TYPE</CODE>
+<DD>
+C内置或者声明类型。
+<DT><CODE>VAR</CODE>
+<DD>
+库中的C变量。
+</DL>
+
+<P>
+在类别之后就是特定的被测试特征的名称。宏名中所有的其它单词指明了特征的特殊方面。
+例如，<CODE>AC_FUNC_UTIME_NULL</CODE>检查用<CODE>NULL</CODE>指针调用<CODE>utime</CODE>函数时该函数的行为。
+
+</P>
+<P>
+一个作为另一个宏的内部子程序的宏的名字应该以使用它的宏的名字开头，而后是说明内部宏作了什么的一个或多个单词。
+例如，<CODE>AC_PATH_X</CODE>有内部宏<CODE>AC_PATH_X_XMKMF</CODE>和<CODE>AC_PATH_X_DIRECT</CODE>。
+
+</P>
+
+
+<H2><A NAME="SEC62" HREF="autoconf.html#TOC62">引用</A></H2>
+
+<P>
+由其他的宏调用的宏将被<CODE>m4</CODE>进行几次求值；每次求值都可能需要一层引号以防止对宏或者<CODE>m4</CODE>
+内置宏的不必要扩展，例如说<SAMP>`define'</SAMP>和<SAMP>`$1'</SAMP>。引号还需要出现在含有逗号的宏参数中，
+这是因为逗号把参数与参数分隔开来。还有，把所有含有新行和调用其它宏的宏参数引起来是一个好主意。
+
+</P>
+<P>
+Autoconf把<CODE>m4</CODE>的引用字符从缺省的<SAMP>``'</SAMP>和<SAMP>`''</SAMP>改为<SAMP>`['</SAMP>和<SAMP>`]'</SAMP>，
+这是因为许多宏使用<SAMP>``'</SAMP>和<SAMP>`''</SAMP>，这不方便。然而，在少数情况下，宏需要使用方括号（通常在C程序文本
+或者常规表达式中）。在这些情况下，它们使用<CODE>m4</CODE>内置命令<CODE>changequote</CODE>暂时地把引用字符改为
+<SAMP>`&#60;&#60;'</SAMP>和<SAMP>`&#62;&#62;'</SAMP>。
+（有时，如果它们不需要引用任何东西，它们就通过把引用字符设置成空字符串以完全关闭引用。）下面是一个例子：
+
+</P>
+
+<PRE>
+AC_TRY_LINK(
+changequote(&#60;&#60;, &#62;&#62;)dnl
+&#60;&#60;#include &#60;time.h&#62;
+#ifndef tzname /* For SGI.  */
+extern char *tzname[]; /* RS6000 and others reject char **tzname.  */
+#endif&#62;&#62;,
+changequote([, ])dnl
+[atoi(*tzname);], ac_cv_var_tzname=yes, ac_cv_var_tzname=no)
+</PRE>
+
+<P>
+当你用新编写的宏创建<CODE>configure</CODE>脚本时，仔细地验证它以检查你是否需要在你的宏之中添加更多的引号。
+如果一个或多个单词在<CODE>m4</CODE>的输出中消失了，你就需要更多的引号。当你不能确定的时候，就使用引号。
+
+</P>
+<P>
+但是，还有放置了过多层的引号的可能。如果这发生了，<CODE>configure</CODE>脚本的结果将包含未扩展的宏。
+程序<CODE>autoconf</CODE>通过执行<SAMP>`grep AC_ configure'</SAMP>来检查这个问题。
+
+</P>
+
+
+<H2><A NAME="SEC63" HREF="autoconf.html#TOC63">宏之间的依赖性</A></H2>
+
+<P>
+为了正确地工作，有些Autoconf宏要求在调用它们之前调用其它的宏。Autoconf提供了一种方式以确保在需要时，
+某个宏已经被调用过了，以及一种在宏可能导致不正确的操作时给出警告的方式。
+
+</P>
+
+
+
+<H3><A NAME="SEC64" HREF="autoconf.html#TOC64">首要的宏</A></H3>
+
+<P>
+你编写的宏可能需要使用从前有其它宏计算出来的结果。例如，<CODE>AC_DECL_YYTEXT</CODE>要检验<CODE>flex</CODE>或
+<CODE>lex</CODE>的输出，所以它要求首先调用<CODE>AC_PROG_LEX</CODE>以设置shell变量<CODE>LEX</CODE>。
+
+</P>
+<P>
+比强制宏的用户跟踪宏以前的依赖性更好的是，你可以使用宏<CODE>AC_REQUIRE</CODE>以自动地完成这一任务。
+<CODE>AC_REQUIRE</CODE>可以确保只在需要的时候调用宏，并且只被调用一次。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_REQUIRE</B> <I>(<VAR>macro-name</VAR>)</I>
+<DD><A NAME="IDX453"></A>
+<A NAME="IDX454"></A>
+如果还没有调用<CODE>m4</CODE>宏<VAR>macro-name</VAR>，就调用它（不带任何参数）。确保<VAR>macro-name</VAR>
+用方括号引起来了。<VAR>macro-name</VAR>必须已经用<CODE>AC_DEFUN</CODE>定义了，或者包含一个对<CODE>AC_PROVIDE</CODE>
+的调用以指明它已经被调用了。
+
+</DL>
+
+</P>
+<P>
+一个替代<CODE>AC_DEFUN</CODE>的方法是使用<CODE>define</CODE>并且调用<CODE>AC_PROVIDE</CODE>。
+因为这个技术并不防止出现嵌套的消息，它已经是过时的了。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_PROVIDE</B> <I>(<VAR>this-macro-name</VAR>)</I>
+<DD><A NAME="IDX455"></A>
+<A NAME="IDX456"></A>
+记录<VAR>this-macro-name</VAR>已经被调用了的事实。<VAR>this-macro-name</VAR>应该是调用<CODE>AC_PROVIDE</CODE>的宏的名字。
+一个获取它的简单方式是从<CODE>m4</CODE>内置变量<CODE>$0</CODE>中获得，就像：
+
+</P>
+
+<PRE>
+AC_PROVIDE([$0])
+</PRE>
+
+</DL>
+
+
+
+<H3><A NAME="SEC65" HREF="autoconf.html#TOC65">建议的顺序</A></H3>
+
+<P>
+有些宏在都被调用的时候，一个宏就需要在另一个宏之前运行，但是它们并不要求调用另一个宏。例如，应该在任何运行C编译器的宏
+之前调用修改了C编译器行为的宏。在文档中给出了许多这样的依赖性。
+
+</P>
+<P>
+当<TT>`configure.in'</TT>文件中的宏违背了这类依赖性，Autoconf就提供宏<CODE>AC_BEFORE</CODE>以警告用户。
+警告出现在从<TT>`configure.in'</TT>创建<CODE>configure</CODE>的时候，而不是在运行<CODE>configure</CODE>的时候。
+例如，<CODE>AC_PROG_CPP</CODE>检查C编译器是否可以在给出<SAMP>`-E'</SAMP>的情况下运行C预处理器。因而应该在任何
+改变将要使用的C编译器的宏之后调用它 。所以<CODE>AC_PROG_CC</CODE>包含：
+
+</P>
+
+<PRE>
+AC_BEFORE([$0], [AC_PROG_CPP])dnl
+</PRE>
+
+<P>
+如果在调用<CODE>AC_PROG_CC</CODE>时，已经调用了<CODE>AC_PROG_CPP</CODE>，它就警告用户。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_BEFORE</B> <I>(<VAR>this-macro-name</VAR>, <VAR>called-macro-name</VAR>)</I>
+<DD><A NAME="IDX457"></A>
+<A NAME="IDX458"></A>
+如果已经调用了<VAR>called-macro-name</VAR>，就让<CODE>m4</CODE>在标准错误输出上打印一条警告消息。
+<VAR>this-macro-name</VAR>应该是调用<CODE>AC_BEFORE</CODE>的宏的名字。<VAR>macro-name</VAR>必须已经用
+<CODE>AC_DEFUN</CODE>定义了，或者包含一个对<CODE>AC_PROVIDE</CODE>的调用以指明它已经被调用了。
+</DL>
+
+</P>
+
+
+<H3><A NAME="SEC66" HREF="autoconf.html#TOC66">过时的宏</A></H3>
+
+<P>
+配置和移植技术已经演化了好些年了。对于特定的问题，通常已经提出了更好的解决办法，或者同类的方法（ad-hoc approaches）
+已经被系统化了。结果就是有些宏现在已经被认为是<EM>过时</EM>了；它们仍然能工作，但不再被认为是最佳选择。
+Autoconf提供了宏<CODE>AC_OBSOLETE</CODE>，当用户使用过时的宏时，就在生成<CODE>configure</CODE>脚本的时候
+对用户提出警告，以鼓励他们跟上潮流。一个调用实例是：
+
+</P>
+
+<PRE>
+AC_OBSOLETE([$0], [; use AC_CHECK_HEADERS(unistd.h) instead])dnl
+</PRE>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_OBSOLETE</B> <I>(<VAR>this-macro-name</VAR> [, <VAR>suggestion</VAR>])</I>
+<DD><A NAME="IDX459"></A>
+<A NAME="IDX460"></A>
+让<CODE>m4</CODE>在标准错误输出上打印一条消息以警告<VAR>this-macro-name</VAR>是过时的，并且给出调用
+过时的宏的文件名和行号。<VAR>this-macro-name</VAR>应该是调用<CODE>AC_OBSOLETE</CODE>的宏的名字。
+如果给出了<VAR>suggestion</VAR>，就在警告消息的末尾打印它；例如，它可以建议用某个宏来代替
+<VAR>this-macro-name</VAR>。
+</DL>
+
+</P>
+
+
+<H1><A NAME="SEC67" HREF="autoconf.html#TOC67">手工配置</A></H1>
+
+<P>
+有几种特征不能通过运行测试程序而自动猜测出来。例如，目标文件格式的细节，或者需要传递给编译器或连接器的特殊选项。
+你可以使用同类手段（ad-hoc means）来检查这类特征，比如说让<CODE>configure</CODE>检查<CODE>uname</CODE>程序的
+输出，或者寻找仅仅在特定系统中出现的库。然而，Autoconf为处理不可猜测的特征提供了统一的手段。
+
+</P>
+
+
+
+<H2><A NAME="SEC68" HREF="autoconf.html#TOC68">指定系统的类型</A></H2>
+
+<P>
+类似与其它GNU <CODE>configure</CODE>脚本，Autoconf生成的<CODE>configure</CODE>脚本可以根据系统类型的规范名
+(canonical name)做出决定，该规范系统名的形式为：
+
+</P>
+
+<PRE>
+<VAR>cpu</VAR>-<VAR>company</VAR>-<VAR>system</VAR>
+</PRE>
+
+<P>
+<CODE>configure</CODE>通常可以猜测出它正在运行的系统类型的规范名。为此，它运行一个称为<CODE>config.guess</CODE>
+的脚本，该脚本使用<CODE>uname</CODE>或者预定义的C预处理器符号来推断系统类型的规范名。
+
+</P>
+<P>
+另外，用户可以通过给<CODE>configure</CODE>传递命令行参数而指定系统类型。在交叉编译时必须这样作。
+在大多数交叉编译的复杂情况下，要涉及到三种系统类型。用于指定它们的选项是：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>--build=<VAR>build-type</VAR></CODE>
+<DD>
+对包进行配置和编译的系统类型（很少用到）；
+
+<DT><CODE>--host=<VAR>host-type</VAR></CODE>
+<DD>
+包将运行的系统类型；
+
+<DT><CODE>--target=<VAR>target-type</VAR></CODE>
+<DD>
+包中任何编译器工具将生成的代码的系统类型。
+</DL>
+
+<P>
+如果用户给<CODE>configure</CODE>一个非选项参数，如果用户没有显式地用选项指明，它就作为缺省情况表示主机类型、
+目标类型和创建系统类型。如果给出了主机类型而没有给出目标类型和创建类型，目标类型和创建类型就被设置为主机类型。
+如果你正在交叉编译，你仍然必须在<CODE>configure</CODE>的命令行中给出你使用的交叉工具（cross-tools）的名称，
+特别是C编译器。例如，
+
+</P>
+
+<PRE>
+CC=m68k-coff-gcc configure --target=m68k-coff
+</PRE>
+
+<P>
+<CODE>configure</CODE>能够识别许多系统类型的短别名；例如，可以在命令行中给出<SAMP>`decstation'</SAMP>而不是
+<SAMP>`mips-dec-ultrix4.2'</SAMP>。<CODE>configure</CODE>运行一个被称为<CODE>config.sub</CODE>的脚本以使
+系统类型别名规范化。
+
+</P>
+
+
+<H2><A NAME="SEC69" HREF="autoconf.html#TOC69">获取规范的系统类型</A></H2>
+
+<P>
+下列的宏使得<CODE>configure</CODE>脚本可以获得系统类型。它们运行shell脚本<CODE>config.guess</CODE>以确定
+用户在命令行中没有给出的、它们需要的关于主机、目标和创建类型的所有值。它们运行<CODE>config.sub</CODE>对
+用户给出的任何别名进行规范化。如果你使用这些宏，你必须把这两个shell脚本与你的源代码一同发布。关于
+<CODE>AC_CONFIG_AUX_DIR</CODE>的信息，你可以通过该宏设置<CODE>configure</CODE>查找这些脚本的目录，请参见
+<A HREF="autoconf.html#SEC10">创建输出文件</A>。如果你没有使用这些宏中的任意一个，<CODE>configure</CODE>
+就忽略任何传递给它的<SAMP>`--host'</SAMP>、<SAMP>`--target'</SAMP>和<SAMP>`--build'</SAMP>选项。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CANONICAL_SYSTEM</B>
+<DD><A NAME="IDX461"></A>
+<A NAME="IDX462"></A>
+检测系统类型并把输出变量设置成规范的系统类型。关于该宏设置变量的细节，参见<A HREF="autoconf.html#SEC70">系统类型变量</A>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_CANONICAL_HOST</B>
+<DD><A NAME="IDX463"></A>
+<A NAME="IDX464"></A>
+只执行<CODE>AC_CANONICAL_SYSTEM</CODE>中关于主机类型功能的子集。
+对于不是编译工具链（compiler toolchain）一部分的程序，这就是所需要的全部功能。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_VALIDATE_CACHED_SYSTEM_TUPLE</B> <I>(<VAR>cmd</VAR>)</I>
+<DD><A NAME="IDX465"></A>
+<A NAME="IDX466"></A>
+如果缓存文件与当前主机、目标和创建系统类型不一致，就执行<VAR>cmd</VAR>或者打印一个缺省的错误消息。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC70" HREF="autoconf.html#TOC70">系统类型变量</A></H2>
+
+<P>
+在调用了<CODE>AC_CANONICAL_SYSTEM</CODE>之后，下列输出变量包含了系统类型信息。在调用了<CODE>AC_CANONICAL_HOST</CODE>
+之后，只设置了下列<CODE>host</CODE>变量。
+
+</P>
+<DL COMPACT>
+
+<DT><CODE><CODE>build</CODE>, <CODE>host</CODE>, <CODE>target</CODE></CODE>
+<DD>
+<A NAME="IDX467"></A>
+ <A NAME="IDX468"></A>
+ <A NAME="IDX469"></A>
+ 
+规范系统名称；
+
+<DT><CODE><CODE>build_alias</CODE>, <CODE>host_alias</CODE>, <CODE>target_alias</CODE></CODE>
+<DD>
+<A NAME="IDX470"></A>
+<A NAME="IDX471"></A>
+<A NAME="IDX472"></A>
+如果使用了<CODE>config.guess</CODE>，就是用户指定的名称或者规范名称；
+
+<DT><CODE><CODE>build_cpu</CODE>, <CODE>build_vendor</CODE>, <CODE>build_os</CODE></CODE>
+<DD>
+<DT><CODE><CODE>host_cpu</CODE>, <CODE>host_vendor</CODE>, <CODE>host_os</CODE></CODE>
+<DD>
+<DT><CODE><CODE>target_cpu</CODE>, <CODE>target_vendor</CODE>, <CODE>target_os</CODE></CODE>
+<DD>
+<A NAME="IDX473"></A>
+<A NAME="IDX474"></A>
+<A NAME="IDX475"></A>
+<A NAME="IDX476"></A>
+<A NAME="IDX477"></A>
+<A NAME="IDX478"></A>
+<A NAME="IDX479"></A>
+<A NAME="IDX480"></A>
+<A NAME="IDX481"></A>
+为方便而提供的规范名称的独立部分。
+</DL>
+
+
+
+<H2><A NAME="SEC71" HREF="autoconf.html#TOC71">使用系统类型</A></H2>
+
+<P>
+你将如何使用规范的系统类型？通常，你在<TT>`configure.in'</TT>中的一个或多个<CODE>case</CODE>语句中使用它来
+选择系统特定的C文件。而后把那些使用基于系统名的文件名的文件连接到诸如<TT>`host.h'</TT>或<TT>`target.c'</TT>的
+普通的文件上。<CODE>case</CODE>语句模型允许使用shell通配符对多种情况进行编组，就像下面的片断：
+
+</P>
+
+<PRE>
+case "$target" in
+i386-*-mach* | i386-*-gnu*) obj_format=aout emulation=mach bfd_gas=yes ;;
+i960-*-bout) obj_format=bout ;;
+esac
+</PRE>
+
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_LINK_FILES</B> <I>(<VAR>source</VAR>..., <VAR>dest</VAR>...)</I>
+<DD><A NAME="IDX482"></A>
+<A NAME="IDX483"></A>
+使得<CODE>AC_OUTPUT</CODE>把每个存在文件的<VAR>source</VAR>连接到对应连接名<VAR>dest</VAR>。
+如果可能，创建一个符号连接，否则就创建硬连接。<VAR>dest</VAR>和<VAR>source</VAR>应该是相对于顶层源代码目录或者
+创建目录的相对路径。可以多次调用本宏。
+
+</P>
+<P>
+例如，下列调用：
+
+</P>
+
+<PRE>
+AC_LINK_FILES(config/${machine}.h config/${obj_format}.h, host.h object.h)
+</PRE>
+
+<P>
+在当前目录中创建<TT>`host.h'</TT>，它是一个到<TT>`<VAR>srcdir</VAR>/config/${machine}.h'</TT>的连接，
+并且创建<TT>`object.h'</TT>，它是一个到<TT>`<VAR>srcdir</VAR>/config/${obj_format}.h'</TT>的连接。
+</DL>
+
+</P>
+<P>
+你还可以使用主机系统类型以寻找交叉编译工具。关于完成该任务的宏<CODE>AC_CHECK_TOOL</CODE>的信息，
+参见<A HREF="autoconf.html#SEC24">对普通程序和文件的检查</A>。
+
+</P>
+
+
+<H1><A NAME="SEC72" HREF="autoconf.html#TOC72">站点配置</A></H1>
+
+<P>
+<CODE>configure</CODE>脚本支持几种本地配置决策方式。它们是用户指明外部软件的位置，包括或除去可选的特征，
+以修改过的名称安装的程序，以及为<CODE>configure</CODE>选项设置缺省值的手段。
+
+</P>
+
+
+
+<H2><A NAME="SEC73" HREF="autoconf.html#TOC73">与外部软件一起工作</A></H2>
+
+<P>
+有些软件包需要，或者可选地使用其它已经安装的软件包。用户可以把命令行选项传递给<CODE>configure</CODE>
+以指明使用那个外部软件。选项采用下列形式之一：
+
+</P>
+
+<PRE>
+--with-<VAR>package</VAR>[=<VAR>arg</VAR>]
+--without-<VAR>package</VAR>
+</PRE>
+
+<P>
+例如，<SAMP>`--with-gnu-ld'</SAMP>的意思是使用GNU连接器而不是任何其它连接器。<SAMP>`--with-x'</SAMP>的意思是
+使用X Window系统。
+
+</P>
+<P>
+用户可以给出包名加<SAMP>`='</SAMP>加参数的命令行参数。<SAMP>`no'</SAMP>是关于包的缺省参数；它表示<EM>不</EM>使用
+包。既不是<SAMP>`yes'</SAMP>又不是<SAMP>`no'</SAMP>的参数将包含其它包的名字或者版本号，以便更精确地指定本程序可以
+与之协同工作的包。如果没有给出参数，<SAMP>`--without-<VAR>package</VAR>'</SAMP>的缺省参数为<SAMP>`yes'</SAMP>。
+<SAMP>`--without-<VAR>package</VAR>'</SAMP>等价于<SAMP>`--with-<VAR>package</VAR>=no'</SAMP>。
+
+</P>
+<P>
+<CODE>configure</CODE>脚本并不对它们不支持的<SAMP>`--with-<VAR>package</VAR>'</SAMP>选项发出警告。
+本特征允许顶层目录中的<CODE>configure</CODE>脚本配置一个包含多个包的源代码树。
+在包支持不同的选项的时候，不会因为给出了只有一部分包支持的选项而导致不必要的错误消息。
+一个不幸的副作用是选项的拼写错误就不能被检查出来了。迄今为止还没有处理该问题的更好办法。
+
+</P>
+<P>
+对于每个可能使用的外部软件包，<TT>`configure.in'</TT>都应该调用<CODE>AC_ARG_WITH</CODE>以检测
+<CODE>configure</CODE>的用户是否要求使用它。确定在缺省状态下，是使用还是不使用每个包，以及那个参数是合法的，
+是你的任务。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_ARG_WITH</B> <I>(<VAR>package</VAR>, <VAR>help-string</VAR> [, <VAR>action-if-given</VAR> [, <VAR>action-if-not-given</VAR>]])</I>
+<DD><A NAME="IDX484"></A>
+<A NAME="IDX485"></A>
+如果用户以选项<SAMP>`--with-<VAR>package</VAR>'</SAMP>或者<SAMP>`--without-<VAR>package</VAR>'</SAMP>调用
+<CODE>configure</CODE>，就运行shell命令<VAR>action-if-given</VAR>。如果两个选项都没有给出，就运行shell命令
+<VAR>action-if-not-given</VAR>。名字<VAR>package</VAR>给出了本程序应该与之协同工作的其它软件包。它应该仅仅由
+字母、数字和破折号（dashes）组成。
+
+</P>
+<P>
+shell命令<VAR>action-if-given</VAR>可以通过shell变量<CODE>withval</CODE>得到选项的参数，该变量的值实际上就是把
+shell变量<CODE>with_<VAR>package</VAR></CODE>的值中的所有<SAMP>`-'</SAMP>字符替换为<SAMP>`_'</SAMP>而得的。
+如果你愿意，可以使用变量<CODE>with_<VAR>package</VAR></CODE>。
+
+</P>
+<P>
+参数<VAR>help-string</VAR>是对选项的描述，它看起来应该像：
+
+<PRE>
+  --with-readline         support fancy command line editing
+</PRE>
+
+<P>
+如果需要给出更多的细节，<VAR>help-string</VAR>可能多于一行。只要确保<SAMP>`configure --help'</SAMP>中的列的排列
+就可以了。不要在求助字符串中使用tab。你将需要用<SAMP>`['</SAMP>和<SAMP>`]'</SAMP>包围它以生成前导空格。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_WITH</B> <I>(<VAR>package</VAR>, <VAR>action-if-given</VAR> [, <VAR>action-if-not-given</VAR>])</I>
+<DD><A NAME="IDX486"></A>
+<A NAME="IDX487"></A>
+这是不支持求助字符串的<CODE>AC_ARG_WITH</CODE>的过时版本。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC74" HREF="autoconf.html#TOC74">选择包选项</A></H2>
+
+<P>
+如果软件包含有可选的编译时（compile-time）特征，用户就可以在调用<CODE>configure</CODE>时使用命令行选项来指明
+是否编译它们。选项采用如下形式之一：
+
+</P>
+
+<PRE>
+--enable-<VAR>feature</VAR>[=<VAR>arg</VAR>]
+--disable-<VAR>feature</VAR>
+</PRE>
+
+<P>
+这些选项允许用户选择可选的选项进行创建和安装。<SAMP>`--enable-<VAR>feature</VAR>'</SAMP>选项永远不要使特征的行为
+变得不同或者导致一个特征代替另一个特征。它们只应该导致程序的一部分被创建而另一部分不创建。
+
+</P>
+<P>
+用户可以通过在特征名之后添加<SAMP>`='</SAMP>和参数来给出参数。给出参数<SAMP>`no'</SAMP>表示
+<EM>不能</EM>使用该特征。一个带有参数的特征看起来就像<SAMP>`--enable-debug=stabs'</SAMP>。如果没有给出参数，
+它的缺省值就是<SAMP>`yes'</SAMP>。<SAMP>`--disable-<VAR>feature</VAR>'</SAMP>等价于
+<SAMP>`--enable-<VAR>feature</VAR>=no'</SAMP>。
+
+</P>
+<P>
+<CODE>configure</CODE>脚本并不对它们所不支持的<SAMP>`--enable-<VAR>feature</VAR>'</SAMP>选项发出警告。
+本特征允许顶层目录中的<CODE>configure</CODE>脚本配置一个包含多个包的源代码树。
+在包支持不同的选项的时候，不会因为给出了只有一部分包支持的选项而导致不必要的错误消息。
+一个不幸的副作用是选项的拼写错误就不能被检查出来了。迄今为止还没有处理该问题的更好办法。
+
+</P>
+<P>
+对于每个可选的特征，<TT>`configure.in'</TT>都应该调用<CODE>AC_ARG_ENABLE</CODE>以检测<CODE>configure</CODE>
+的用户是否要求把该特征包含进来。确定在缺省情况下，每个特征是否被包含进来，以及那些选项是合法的，是你的任务。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_ARG_ENABLE</B> <I>(<VAR>feature</VAR>, <VAR>help-string</VAR> [, <VAR>action-if-given</VAR> [, <VAR>action-if-not-given</VAR>]])</I>
+<DD><A NAME="IDX488"></A>
+<A NAME="IDX489"></A>
+如果用户以选项<SAMP>`--enable-<VAR>feature</VAR>'</SAMP>或者<SAMP>`--disable-<VAR>feature</VAR>'</SAMP>调用
+<CODE>configure</CODE>，就运行shell命令<VAR>action-if-given</VAR>。如果两个选项都没有给出，就运行shell命令
+<VAR>action-if-not-given</VAR>。名称<VAR>feature</VAR>表示可选的用户级功能。它应该仅仅由字母、数字和破折号
+（dashes）组成。
+
+</P>
+<P>
+shell命令可以通过访问shell变量<CODE>enableval</CODE>来得到选项的参数，该变量的值实际上就是把shell变量
+<CODE>enable_<VAR>feature</VAR></CODE>的值中所有的<SAMP>`-'</SAMP>字符替换成<SAMP>`_'</SAMP>而得到的。
+如果你愿意，可以使用变量<CODE>enable_<VAR>feature</VAR></CODE>。<VAR>help-string</VAR>参数类似于
+<CODE>AC_ARG_WITH</CODE>中相应的参数（参见<A HREF="autoconf.html#SEC73">与外部软件一起工作</A>）。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_ENABLE</B> <I>(<VAR>feature</VAR>, <VAR>action-if-given</VAR> [, <VAR>action-if-not-given</VAR>])</I>
+<DD><A NAME="IDX490"></A>
+<A NAME="IDX491"></A>
+这是不支持求助字符串的<CODE>AC_ARG_ENABLE</CODE>的过时版本。
+</DL>
+
+</P>
+
+
+<H2><A NAME="SEC75" HREF="autoconf.html#TOC75">配置站点细节</A></H2>
+
+<P>
+有些软件包需要复杂的与站点相关（site-specific）的信息。例如用于某种服务、公司名称和email联系地址的主名（host names）。
+因为有些配置脚本是通过Metaconfig方式交互地询问这些信息生成的，人们有时对于按非交互方式，
+由Autoconf生成配置脚本如何获取这些信息感到困惑。
+
+</P>
+<P>
+这些站点配置信息应该被储存在一个<EM>仅仅由用户</EM>，而不是程序，编辑的文件中。文件的位置既可以基于
+<CODE>prefix</CODE>变量，也可以是一个标准的位置，比如说用户的home目录。它甚至可能通过一个环境变量给出。
+程序应该在运行时，而不是在编译时，检查那个文件。运行时配置对于用户来说更为方便，并且使得配置过程比
+在配置时获取这些信息要简单。关于存放数据文件的地点的详细信息，参见<CITE>GNU编码标准</CITE>中的
+`为安装目录而提供的变量'。
+
+</P>
+
+
+<H2><A NAME="SEC76" HREF="autoconf.html#TOC76">在安装的时候改变程序的名称</A></H2>
+
+<P>
+Autoconf支持在安装程序的时候修改程序的名称。为了使用这些变换，<TT>`configure.in'</TT>必须调用宏
+<CODE>AC_ARG_PROGRAM</CODE>。
+
+</P>
+<P>
+<DL>
+<DT><U>宏：</U> <B>AC_ARG_PROGRAM</B>
+<DD><A NAME="IDX492"></A>
+<A NAME="IDX493"></A>
+<A NAME="IDX494"></A>
+把对被安装的程序的名称进行替换的<CODE>sed</CODE>命令序列存入输出变量<CODE>program_transform_name</CODE>中。
+
+</P>
+<P>
+如果把下列任意选项传递给了<CODE>configure</CODE>，程序名就据此进行变换。
+否则，如果已经调用了<CODE>AC_CANONICAL_SYSTEM</CODE>并且<SAMP>`--target'</SAMP>的值给出了与主机类型
+（用<SAMP>`--host'</SAMP>给出的，或者是在<CODE>config.sub</CODE>中设置的缺省值）不同的类型，就把末尾附加了
+破折号的目标类型作为前缀。否则，就不进行程序名变换。
+</DL>
+
+</P>
+
+
+
+<H3><A NAME="SEC77" HREF="autoconf.html#TOC77">转换选项</A></H3>
+
+<P>
+你可以把下列命令行选项传递给<CODE>configure</CODE>以指定名称的转换：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>--program-prefix=<VAR>prefix</VAR></CODE>
+<DD>
+为名称添加前缀<VAR>prefix</VAR>；
+
+<DT><CODE>--program-suffix=<VAR>suffix</VAR></CODE>
+<DD>
+为名称添加后缀<VAR>suffix</VAR>；
+
+<DT><CODE>--program-transform-name=<VAR>expression</VAR></CODE>
+<DD>
+对名字作<CODE>sed</CODE>替换<VAR>expression</VAR>。
+</DL>
+
+
+
+<H3><A NAME="SEC78" HREF="autoconf.html#TOC78">转换的例子</A></H3>
+
+<P>
+这些变换对于作为交叉编译开发环境的一部分的程序是有用的。例如，用<SAMP>`--target=i960-vxworks'</SAMP>选项配置的
+运行在Sun 4上的交叉汇编器通常以<TT>`i960-vxworks-as'</TT>为名称进行安装，而不是以<TT>`as'</TT>为名安装，该名称
+将于原来的Sun 4汇编器混淆。
+
+</P>
+<P>
+如果你不希望安装在你的系统上的GNU程序遮蔽具有相同名称的其它程序，你可以强行要求程序名以<TT>`g'</TT>开头。
+例如，如果你使用<SAMP>`--program-prefix=g'</SAMP>来配置GNU <CODE>diff</CODE>，那么在你运行<SAMP>`make install'</SAMP>
+的时候，它就安装到<TT>`/usr/local/bin/gdiff'</TT>。
+
+</P>
+<P>
+作为更复杂的例子，你可以使用
+
+<PRE>
+--program-transform-name='s/^/g/; s/^gg/g/; s/^gless/less/'
+</PRE>
+
+<P>
+在源代码树中的大部分程序的名字之前附加<SAMP>`g'</SAMP>，已经含有一个<SAMP>`g'</SAMP>的程序，诸如<CODE>gdb</CODE>，
+和不是GNU程序的程序，比如说<CODE>less</CODE>和<CODE>lesskey</CODE>，除外。（它假定你有一个包含了设置成使用
+这些特征的程序的源代码树。）
+
+</P>
+<P>
+同时安装某些程序的多个版本的一种方法是为其中一个程序的名称或为所有程序的名称附加版本号。例如，如果你还希望把
+Autoconf版本1保留一段时间，你可以使用<SAMP>`--program-suffix=2'</SAMP>来配置Autoconf第2版，并且以名称
+<TT>`/usr/local/bin/autoconf2'</TT>、<TT>`/usr/local/bin/autoheader2'</TT>等等来安装程序。
+
+</P>
+
+
+<H3><A NAME="SEC79" HREF="autoconf.html#TOC79">转换的规则</A></H3>
+
+<P>
+下面是如何在<TT>`Makefile.in'</TT>中使用变量<CODE>program_transform_name</CODE>：
+
+</P>
+
+<PRE>
+transform=@program_transform_name@
+install: all
+        $(INSTALL_PROGRAM) myprog $(bindir)/`echo myprog|sed '$(transform)'`
+
+uninstall:
+        rm -f $(bindir)/`echo myprog|sed '$(transform)'`
+</PRE>
+
+<P>
+如果你要安装多个程序，你可以通过一个循环来完成：
+
+</P>
+
+<PRE>
+PROGRAMS=cp ls rm
+install:
+        for p in $(PROGRAMS); do \
+          $(INSTALL_PROGRAM) $$p $(bindir)/`echo $$p|sed '$(transform)'`; \
+        done
+
+uninstall:
+        for p in $(PROGRAMS); do \
+          rm -f $(bindir)/`echo $$p|sed '$(transform)'`; \
+        done
+</PRE>
+
+<P>
+是否在文档文件中进行变换（Texinfo或者<CODE>man</CODE>）是个麻烦的问题；由于名称变换的几个原因，好像不存在完美的答案。
+文档对于特定的结构来说并不特殊，并且Texinfo文件与系统文档并不冲突。但它们可能与同一文件的早期版本冲突，而且
+<CODE>man</CODE>手册有时与系统文档冲突。作为一个折衷，可能最好是对<CODE>man</CODE>手册进行名称替换而不对Texinfo手册
+进行替换。
+
+</P>
+
+
+<H2><A NAME="SEC80" HREF="autoconf.html#TOC80">设定站点缺省值</A></H2>
+
+<P>
+Autoconf生成的<CODE>configure</CODE>脚本允许你的站点（site）为某些配置值提供缺省值。你可以通过创建
+站点范围（site-wide）或者系统范围（system-wide）的初始化文件来达到这个目的。
+
+</P>
+<P>
+<A NAME="IDX495"></A>
+如果设置了环境变量<CODE>CONFIG_SITE</CODE>，<CODE>configure</CODE>就把它的值作为读入的shell脚本的名称。
+否则如果<TT>`<VAR>prefix</VAR>/share/config.site'</TT>存在，它就读入该脚本，
+否则如果<TT>`<VAR>prefix</VAR>/etc/config.site'</TT>存在，它就读入该脚本。因此，如果出现冲突，
+在机器特定文件中的设置将覆盖那些与机器独立的文件中的设置。
+
+</P>
+<P>
+站点文件（site files）可以是任意shell脚本，但只能包含某种适于包含在其中的代码。因为<CODE>configure</CODE>在它读入所有
+站点文件之后读取任何缓存文件，站点文件可以定义一个缺省的缓存文件以便在本系统中运行的所有Autoconf生成的
+<CODE>configure</CODE>之间共享。如果你在站点文件中设置了缺省缓存文件，那么再在那个站点文件中设置输出变量
+<CODE>CC</CODE>就是个好主意，这是因为缓存文件仅仅对特定的编译器来说是合法的，但许多系统还有好几个可用的编译器。
+
+</P>
+<P>
+你可以在站点文件中检验或者覆盖由命令行选项设置的值；与选项对应的shell变量的名称与选项的名字的唯一区别是选项名中所有
+的破折号应变换成的下划线。选项<SAMP>`--without-'</SAMP>和<SAMP>`--disable-'</SAMP>是个例外，出现它们就如同出现对应的
+<SAMP>`--with-'</SAMP>或者<SAMP>`--enable-'</SAMP>并且把值设置为<SAMP>`no'</SAMP>。因此，
+<SAMP>`--cache-file=localcache'</SAMP>把变量<CODE>cache_file</CODE>的值设置为<SAMP>`localcache'</SAMP>；
+<SAMP>`--enable-warnings=no'</SAMP>或者<SAMP>`--disable-warnings'</SAMP>把变量<CODE>enable_warnings</CODE>
+的值设置为<SAMP>`no'</SAMP>；<SAMP>`--prefix=/usr'</SAMP>把变量<CODE>prefix</CODE>设置为<SAMP>`/usr'</SAMP>；等等。
+
+</P>
+<P>
+如果你需要为其它输出变量设置与缺省值不同的值（你通常不得不在命令行中重复地进行设置），比如说<CODE>CFLAGS</CODE>，
+站点文件就是进行这种设置的好地方。如果你为<VAR>prefix</VAR>或者<VAR>exec_prefix</VAR>设置了非缺省值
+（你放置站点文件的地方），如果你用环境变量<CODE>CONFIG_SITE</CODE>给出了站点文件，你就可以在站点文件中设置
+这些非缺省值。
+
+</P>
+<P>
+你可以在站点文件中设置一些缓存值。如果你正在进行交叉编译，这样做就是有用的，以避免对需要运行测试程序的特征
+进行检查。你可以为<TT>`<VAR>prefix</VAR>/etc/config.site'</TT>中的系统正确地设置这些值来“预备缓存（prime cache）”。
+为了找到你要设置的缓存变量名，可以在受到影响的<CODE>configure</CODE>脚本中寻找带有<SAMP>`_cv_'</SAMP>的shell变量，
+也可以在Autoconf <CODE>m4</CODE>源代码中寻找这些宏。
+
+</P>
+<P>
+缓存文件将十分谨慎而不至于覆盖任何在站点文件中设置的变量。类似地，你不应该在站点文件中覆盖命令行选项。
+你的代码应该在修改诸如<CODE>prefix</CODE>和<CODE>cache_file</CODE>的变量之前，检查它们的缺省值（就是在
+靠近<CODE>configure</CODE>开头的地方设置的值）。
+
+</P>
+<P>
+下面是一个例子文件<TT>`/usr/share/local/gnu/share/config.site'</TT>。
+（如果没有把<CODE>CONFIG_SITE</CODE>设置成其它文件，）命令<SAMP>`configure --prefix=/usr/share/local/gnu'</SAMP>
+将读入该文件。
+
+</P>
+
+<PRE>
+# config.site for configure
+#
+# Change some defaults.
+test "$prefix" = NONE &#38;&#38; prefix=/usr/share/local/gnu
+test "$exec_prefix" = NONE &#38;&#38; exec_prefix=/usr/local/gnu
+test "$sharedstatedir" = '${prefix}/com' &#38;&#38; sharedstatedir=/var
+test "$localstatedir" = '${prefix}/var' &#38;&#38; localstatedir=/var
+#
+# Give Autoconf 2.x generated configure scripts a shared default
+# cache file for feature test results, architecture-specific.
+if test "$cache_file" = ./config.cache; then
+  cache_file="$prefix/var/config.cache"
+  # A cache file is only valid for one C compiler.
+  CC=gcc
+fi
+</PRE>
+
+
+
+<H1><A NAME="SEC81" HREF="autoconf.html#TOC81">运行<CODE>configure</CODE>脚本</A></H1>
+
+<P>
+下面是关于如何配置使用<CODE>configure</CODE>脚本的软件包的说明，适用于包中的<TT>`INSTALL'</TT>文件。
+你可能要使用的普通文本的<TT>`INSTALL'</TT>与Autoconf一同发行。
+
+</P>
+
+
+
+<H1><A NAME="SEC82" HREF="autoconf.html#TOC82">重新创建一个配置</A></H1>
+
+<P>
+<CODE>configure</CODE>脚本创建一个名为<TT>`config.status'</TT>的文件，用它描述在包最后一次进行配置时
+给出的配置选项。该文件是一个shell脚本文件，如果运行它，将重新创建相同的配置。
+
+</P>
+<P>
+你可以用<SAMP>`--recheck'</SAMP>选项调用<TT>`config.status'</TT>以更新它自身。如果你修改了<CODE>configure</CODE>，
+该选项是有用的，这是因为某些测试的结果可能会与上一次运行的结果不同。选项<SAMP>`--recheck'</SAMP>以与从前使用的参数
+相同的参数，再加上<SAMP>`--no-create'</SAMP>选项以防止<CODE>configure</CODE>运行<TT>`config.status'</TT>并创建
+<TT>`Makefile'</TT>和其它文件，再加上<SAMP>`--no-recursion'</SAMP>选项以防止<CODE>configure</CODE>在子目录中运行
+其它的<CODE>configure</CODE>，来重新运行<CODE>configure</CODE>。（这样做是让其它的<TT>`Makefile'</TT>规则可以在
+<TT>`config.status'</TT>改变时运行它；关于一个例子，参见<A HREF="autoconf.html#SEC14">自动地重新创建</A>）。
+
+</P>
+<P>
+<TT>`config.status'</TT>还接受选项<SAMP>`--help'</SAMP>，它打印<TT>`config.status'</TT>接受的选项的概述。
+还接受选项<SAMP>`--version'</SAMP>，它打印用于创建生成<TT>`config.status'</TT>的<CODE>configure</CODE>脚本的
+Autoconf的版本号。
+
+</P>
+<P>
+<TT>`config.status'</TT>检查几个能够改变它的行为的可选的环境变量：
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>CONFIG_SHELL</B>
+<DD><A NAME="IDX496"></A>
+<A NAME="IDX497"></A>
+用于运行带有<SAMP>`--recheck'</SAMP>选项的<CODE>configure</CODE>的脚本。它必须是Bourne兼容的。
+缺省shell是<TT>`/bin/sh'</TT>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>CONFIG_STATUS</B>
+<DD><A NAME="IDX498"></A>
+<A NAME="IDX499"></A>
+为shell脚本提供的，用于记录配置的文件名。缺省的文件名是<TT>`./config.status'</TT>。该变量在一个包使用了另一个
+包的一部分，并且由于两个包是分开维护的而不能把<CODE>configure</CODE>合成一个的时候有用。
+</DL>
+
+</P>
+<P>
+以下的变量为分开发布的包提供了一种共享由<CODE>configure</CODE>计算的结果的方式。如果某些包需要它们中某个包，
+可能是一个通用库，所需要的特征的超集那么这样做就是有用的。这些变量允许一个<TT>`config.status'</TT>文件创建
+由它的<TT>`configure.in'</TT>所指明的文件之外的文件，因此它就可以被用于不同的包。
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>CONFIG_FILES</B>
+<DD><A NAME="IDX500"></A>
+<A NAME="IDX501"></A>
+用于执行<SAMP>`@<VAR>variable</VAR>@'</SAMP>替换的文件。缺省的文件在<TT>`configure.in'</TT>中作为参数提供给
+<CODE>AC_OUTPUT</CODE>。
+</DL>
+
+</P>
+<P>
+<DL>
+<DT><U>变量：</U> <B>CONFIG_HEADERS</B>
+<DD><A NAME="IDX502"></A>
+<A NAME="IDX503"></A>
+用于替换C <CODE>#define</CODE>语句的文件。缺省的文件作为参数提供给<CODE>AC_CONFIG_HEADER</CODE>；
+如果没有调用那个宏，<TT>`config.status'</TT>就忽略本变量。
+</DL>
+
+</P>
+<P>
+这些变量还允许你编写只重新生成一部分文件的<TT>`Makefile'</TT>规则。例如，在上面给出的依赖性之中
+（参见<A HREF="autoconf.html#SEC14">自动地重新创建</A>），在<TT>`configure.in'</TT>发生改变时，
+<TT>`config.status'</TT>将运行两次。如果你对此感到厌烦，你可以使得每次运行都仅仅重新生成关于
+那条规则的文件。
+
+</P>
+
+<PRE>
+config.h: stamp-h
+stamp-h: config.h.in config.status
+        CONFIG_FILES= CONFIG_HEADERS=config.h ./config.status
+        echo &#62; stamp-h
+
+Makefile: Makefile.in config.status
+        CONFIG_FILES=Makefile CONFIG_HEADERS= ./config.status
+</PRE>
+
+<P>
+（如果<TT>`configure.in'</TT>并不调用<CODE>AC_CONFIG_HEADER</CODE>，就不必在<CODE>make</CODE>规则中设置
+<CODE>CONFIG_HEADERS</CODE>。）
+
+</P>
+
+
+<H1><A NAME="SEC83" HREF="autoconf.html#TOC83">关于Autoconf的问题</A></H1>
+
+<P>
+有时我们会遇到几个关于Autoconf的问题。下面是被提及的一些问题。
+
+</P>
+
+
+
+<H2><A NAME="SEC84" HREF="autoconf.html#TOC84">发布<CODE>configure</CODE>脚本</A></H2>
+
+
+<PRE>
+对发行由Autoconf生成的<CODE>configure</CODE>有什么限制？它们是如何影响我那些使用它们的程序的？
+</PRE>
+
+<P>
+关于由Autoconf生成的配置脚本是如何发行和如何被使用的，并没有限制。在Autoconf第1版中，它们是服从GNU通用公共许可证的。
+我们仍然鼓励软件的作者按照诸如GPL的条款发行他们的作品，但Autoconf并不要求这样做。
+
+</P>
+<P>
+关于可能由<CODE>configure</CODE>使用的其它文件，<TT>`config.h.in'</TT>服从你为你的<TT>`configure.in'</TT>而使用的
+任何版权规定，这是因为它是从那个文件和公有文件<TT>`acconfig.h'</TT>中派生出来的。当<TT>`config.sub'</TT>和
+<TT>`config.guess'</TT>被用于由Autoconf生成的、允许你按照与你的软件包其它部分相同的条款发布的<CODE>configure</CODE>
+脚本中时，它们就是GPL的一个例外。<TT>`install-sh'</TT>是来自于X Consortium并且是没有版权的。
+
+</P>
+
+
+<H2><A NAME="SEC85" HREF="autoconf.html#TOC85">为什么需要使用GNU <CODE>m4</CODE>?</A></H2>
+
+
+<PRE>
+为什么Autoconf需要使用GNU <CODE>m4</CODE>？
+</PRE>
+
+<P>
+许多<CODE>m4</CODE>的实现含有编码性（hard-coded）的，对宏的大小和数量的限制，Autoconf超过了这些限制。
+它们还缺少一些内置宏，没有它们，诸如Autoconf之类的复杂应用程序将难以应付，它们包括：
+
+</P>
+
+<PRE>
+builtin
+indir
+patsubst
+__file__
+__line__
+</PRE>
+
+<P>
+因为只有软件维护者需要使用Autoconf，并且因为GNU <CODE>m4</CODE>易于配置和安装，需要安装GNU <CODE>m4</CODE>
+好像是合理的。许多GNU和其它自由软件的维护者，因为他们更喜爱GNU工具，都已经安装了大部分GNU工具。
+
+</P>
+
+
+<H2><A NAME="SEC86" HREF="autoconf.html#TOC86">我如何解开死结?</A></H2>
+
+
+<PRE>
+如果Autoconf需要GNU <CODE>m4</CODE>并且GNU <CODE>m4</CODE>还有一个Autoconf <CODE>configure</CODE>脚本，
+我如何解开这个死结？它好像是一个类似于鸡和蛋的问题！
+</PRE>
+
+<P>
+这实际上是一种误解。虽然GNU <CODE>m4</CODE>带有一个由Autoconf生成的<CODE>configure</CODE>脚本，但在运行脚本
+及安装GNU <CODE>m4</CODE>的时候并不需要安装Autoconf。只有在你需要修改<CODE>m4</CODE>的<CODE>configure</CODE>
+脚本的时候，这只是少数几个人（主要是它的维护者）必须去作的事，才需要Autoconf。
+
+</P>
+
+
+<H2><A NAME="SEC87" HREF="autoconf.html#TOC87">为什么不使用Imake?</A></H2>
+
+
+<PRE>
+为什么不用Imake来代替<CODE>configure</CODE>脚本？
+</PRE>
+
+<P>
+有些人已经提出了这个问题，所以在改编之后，我把给他们的解释写在这里。
+
+</P>
+<P>
+下面是对Richard Pixley的问题的回答：
+
+</P>
+<P>
+由Autoconf生成的脚本经常地在它以前从未设置过的机器上工作。这就是说，它善于推断新系统的配置。而Imake不能做到。
+
+</P>
+<P>
+Imake使用含有主机特定数据的通用数据库。对X11来说，这种方法具有意义是因为发布版本是由一个控制整个
+数据库的总管机关管理的一组工具组成的。
+
+</P>
+<P>
+GNU工具并不按这种方式发行。每个GNU工具都有一个维护者；这些维护者散布在世界各地。使用统一的数据库将使维护变成噩梦。
+Autoconf可能成为这类数据库，但实际上它没有。不是列举主机的依赖性，它列举的是程序的需求。
+
+</P>
+<P>
+如果你把GNU套件看作一组本地工具，那么问题就很相似了。但GNU开发工具可以作为交叉工具（cross tools）而在几乎
+所有主机+目标机的组合中进行配置。所有的这些配置都可以同时（concurrency）安装。它们甚至可以被配置成可以在不同主机上共享
+与主机独立的信息的形式。Imake不能处理这些问题。
+
+</P>
+<P>
+Imake模板是标准的一种形式。GNU编码标准在没有强加相同的限制的情况下，解决了相同的问题。
+
+</P>
+<P>
+下面是一些由Per Bothner撰写的进一步的解释：
+
+</P>
+<P>
+Imake的一个长处是它易于通过使用<CODE>cpp</CODE>的<SAMP>`#include'</SAMP>和宏机制生成大的Makefile。
+然而，<CODE>cpp</CODE>是不可编程的：它含有有限的条件工具，而不含有循环。而且<CODE>cpp</CODE>不能检查它的环境。
+
+</P>
+<P>
+所有这些问题可以通过使用<CODE>sh</CODE>而不是<CODE>cpp</CODE>来解决。shell是完全可编程的、含有宏替换、可以执行
+（或者编制）其它的shell脚本，并且可以检查它的环境。
+
+</P>
+<P>
+Paul Eggert更详细地阐述：
+
+</P>
+<P>
+使用Autoconf，安装者不必假定Imake自身已经被安装并且正常地工作了。这对于习惯使用Imake的人们来说，看起来不是
+突出的长处。但在许多主机上，并没有安装Imake或者缺省的安装不能很好地工作，为此，要求安装Imake就阻碍了在这些主机
+上使用由Imake配置的软件包。例如，Imake模板和配置文件可能不能适当地安装在一个主机上，或者Imake创建过程可能
+会错误地假定所有的源代码文件都在一个大目录树中，或者Imake配置可能使用某个编译器而包或者安装器需要使用另一个编译器，
+或者包需要的Imake的版本号与系统支持的版本号不匹配。这些问题在Autoconf中很少出现，这是因为包附带属于它自己的
+独立配置处理器。
+
+</P>
+<P>
+还有，Imake通常会在<CODE>make</CODE>和安装者的C预处理器之间遇到难以预期的影响。这里的基本问题是，C预处理器
+是为处理C程序而不是<TT>`Makefile'</TT>而设计的。这对Autoconf来说问题小得多，它使用通用目的预处理器<CODE>m4</CODE>，
+并且包的作者（而不是安装者）以标准的方式进行预处理。
+
+</P>
+<P>
+最后，Mark Eichin解释道：
+
+</P>
+<P>
+Imake还不是完全可扩展的。为了把新特征添加到Imake中，你需要提供你自己的项目模板，并且复制已经存在的特征的主要部分。
+这意味着对于复杂的项目来说，使用由买主提供的（vendor-provided）Imake模板不能提供任何平衡作用--这是因为它们不包括
+你自己的项目的任何东西（除非它是一个X11程序）。
+
+</P>
+<P>
+但是，另一方面：
+
+</P>
+<P>
+一个Imake胜过<CODE>configure</CODE>的长处是：
+<TT>`Imakefile'</TT>总是趋向于比<TT>`Makefile.in'</TT>简短（同样地，冗余较少）。
+但是，这儿有一个修正的方法--至少对于Kerberos V5树来说，我们已经在整个树中进行了修改以调用通用的
+<TT>`post.in'</TT>和<TT>`pre.in'</TT> <TT>`Makefile'</TT>片断。
+这意味着大部分通用的东西，即使它们通常是在<CODE>configure</CODE>中设置的，也不必复制。
+
+</P>
+
+
+<H1><A NAME="SEC88" HREF="autoconf.html#TOC88">从版本1中升级</A></H1>
+
+<P>
+Autoconf第2版基本上与第1版是向后兼容的。但是，它给出了作某些事的更好方法，并且不再支持版本1中一些丑陋的东西。
+因此，根据你的<TT>`configure.in'</TT>文件的复杂性，你可能必须作一些手工的工作以升级到版本2。本章指出了一些在
+升级的时候需要注意的问题。还有，可能你的<CODE>configure</CODE>脚本可以从版本2中的新特征中获得一些好处；
+在Autoconf发布包中的<TT>`NEWS'</TT>文件概括了改变的部分。
+
+</P>
+<P>
+首先，确认你安装了1.1版或者更高版本的GNU <CODE>m4</CODE>，最好是1.3版或者更高版本。在1.1版之前的版本含有bug
+以至于它不能与Autoconf版本2一同工作。版本1.3及其后的版本比早期的版本更快一些，这是因为1.3版的GNU <CODE>m4</CODE>
+对转换（diversions）进行了更有效的实现并且能够在可以快速读回的文件中冻结（freeze）它的内部状态。
+
+</P>
+
+
+
+<H2><A NAME="SEC89" HREF="autoconf.html#TOC89">改变了的文件名</A></H2>
+
+<P>
+如果你随Autoconf一起安装了<TT>`aclocal.m4'</TT>（相对于特定软件包的源代码目录中的<TT>`aclocal.m4'</TT>），
+你必须把它重命名为<TT>`acsite.m4'</TT>。
+参见<A HREF="autoconf.html#SEC6">用<CODE>autoconf</CODE>创建<CODE>configure</CODE></A>。
+
+</P>
+<P>
+如果你与你的软件包一同发布<TT>`install.sh'</TT>，就把它重命名为<TT>`install-sh'</TT>以便<CODE>make</CODE>的内置
+规则不会无意地从该文件创建一个称为<TT>`install'</TT>的文件。<CODE>AC_PROG_INSTALL</CODE>将寻找这两个名字的脚本，
+但最好使用新名字。
+
+</P>
+<P>
+如果你使用<TT>`config.h.top'</TT>或者<TT>`config.h.bot'</TT>，你仍然可以使用它们，但如果你把它们混合到
+<TT>`acconfig.h'</TT>之中，将减少你的麻烦。
+参见<A HREF="autoconf.html#SEC17">用<CODE>autoheader</CODE>创建<TT>`config.h.in'</TT></A>。
+
+</P>
+
+
+<H2><A NAME="SEC90" HREF="autoconf.html#TOC90">改变了的Makefile</A></H2>
+
+<P>
+在你的<TT>`Makefile.in'</TT>文件中添加<SAMP>`@CFLAGS@'</SAMP>、<SAMP>`@CPPFLAGS@'</SAMP>和<SAMP>`@LDFLAGS@'</SAMP>，
+以便它们可以在<CODE>configure</CODE>运行的时候利用环境中的这些变量的值。这样做不是必须的，但对用户来说比较方便。
+
+</P>
+<P>
+对于<CODE>AC_OUTPUT</CODE>的每个非<TT>`Makefile'</TT>的输入文件，你还应该添加一条含有
+<SAMP>`@configure_input@'</SAMP>的注释，
+以便输出文件将会包含一条注释以说明它们是由<CODE>configure</CODE>生成的。
+自动地为每种人们在<CODE>AC_OUTPUT</CODE>中输出的文件选择正确的注释语法需要做太多的工作。
+
+</P>
+<P>
+把<TT>`config.log'</TT>和<TT>`config.cache'</TT>添加到你要在<CODE>distclean</CODE>目标中删除的文件的列表中。
+
+</P>
+<P>
+如果你的<TT>`Makefile.in'</TT>如下：
+
+</P>
+
+<PRE>
+prefix = /usr/local
+exec_prefix = ${prefix}
+</PRE>
+
+<P>
+你必须把它修改成：
+
+</P>
+
+<PRE>
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+</PRE>
+
+<P>
+不使用<SAMP>`@'</SAMP>字符的老式的对这些变量的替换行为已经被删除了。
+
+</P>
+
+
+<H2><A NAME="SEC91" HREF="autoconf.html#TOC91">改变了的宏</A></H2>
+
+<P>
+在Autoconf第2版中，重新命名了许多宏。你仍然可以使用旧名字，但新名字更清晰，并且易于找到相关文档。
+关于为旧宏名提供新宏名的列表，参见<A HREF="autoconf.html#SEC101">陈旧的宏名</A>。
+用<CODE>autoupdate</CODE>程序转换你的<TT>`configure.in'</TT>以使用新的宏名。
+参见<A HREF="autoconf.html#SEC92">用<CODE>autoupdate</CODE>更新<CODE>configure</CODE></A>。
+
+</P>
+<P>
+有些宏已经被能够更好地完成工作的类似宏所代替，但在调用上并不兼容。
+如果你在运行<CODE>autoconf</CODE>时受到了关于调用过时宏的警告，你可以安全地忽略它们，但如果你按照打印的建议
+替换过时的宏，你的<CODE>configure</CODE>脚本通常可以工作的更好。特别地，报告测试结果的机制已经改变了。
+如果你使用了<CODE>echo</CODE>或者<CODE>AC_VERBOSE</CODE>（可能是通过<CODE>AC_COMPILE_CHECK</CODE>），
+如果你改用<CODE>AC_MSG_CHECKING</CODE>和<CODE>AC_MSG_RESULT</CODE>，你的<CODE>configure</CODE>脚本的输出将
+更加美观。参见<A HREF="autoconf.html#SEC58">打印消息</A>。这些宏能够更好地与缓存变量协同工作。
+参见<A HREF="autoconf.html#SEC55">缓存结果</A>。
+
+</P>
+
+
+<H2><A NAME="SEC92" HREF="autoconf.html#TOC92">用<CODE>autoupdate</CODE>更新<CODE>configure</CODE></A></H2>
+
+<P>
+程序<CODE>autoupdate</CODE>把使用Autoconf旧宏名的<TT>`configure.in'</TT>文件更新为使用当前宏名的文件。
+在Autoconf第2版中，大部分宏被重命名以使用一个更统一、更具有描述性的命名机制。关于对新的命名机制的描述，
+参见<A HREF="autoconf.html#SEC61">宏名</A>。虽然旧宏名仍然可以工作（关于旧宏名和对应的新宏名的列表，
+参见<A HREF="autoconf.html#SEC101">陈旧的宏名</A>），如果你更新它们以使用新的宏名，你可以使你的
+<TT>`configure.in'</TT>文件更加可读并且易于使用当前的Autoconf文档。
+
+</P>
+<P>
+<A NAME="IDX504"></A>
+如果没有给出参数，<CODE>autoupdate</CODE>就更新<TT>`configure.in'</TT>，并且通过添加后缀<TT>`~'</TT>
+（或者在设置了环境变量<CODE>SIMPLE_BACKUP_SUFFIX</CODE>的时候，使用该环境变量的值）以备份原始版本。
+如果你带参数调用<CODE>autoupdate</CODE>，它就读入那个文件而不是读入<TT>`configure.in'</TT>，并且把
+更新的文件输出到标准输出。
+
+</P>
+<P>
+<CODE>autoupdate</CODE>接受下列选项：
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>--help</CODE>
+<DD>
+<DT><CODE>-h</CODE>
+<DD>
+打印命令行选项的概述并且退出。
+
+<DT><CODE>--macrodir=<VAR>dir</VAR></CODE>
+<DD>
+<DT><CODE>-m <VAR>dir</VAR></CODE>
+<DD>
+<A NAME="IDX505"></A>
+在目录<VAR>dir</VAR>中，而不是在缺省安装目录中寻找Autoconf宏文件。
+你还可以把环境变量<CODE>AC_MACRODIR</CODE>设置成一个目录；本选项覆盖该环境变量。
+
+<DT><CODE>--version</CODE>
+<DD>
+打印<CODE>autoupdate</CODE>的版本号并且退出。
+</DL>
+
+
+
+<H2><A NAME="SEC93" HREF="autoconf.html#TOC93">改变了的结果</A></H2>
+
+<P>
+如果你通过检验shell变量<CODE>DEFS</CODE>来检验以前测试的结果，你需要把这些检验替换为对那些测试的缓存变量的检查。
+在<CODE>configure</CODE>运行的时候，<CODE>DEFS</CODE>不再存在；它仅仅在生成输出文件的时候才被创建。这种与第1版
+的不同是因为正确地对变量实行引用（quoting）实在太麻烦而且在每次调用<CODE>AC_DEFINE</CODE>都要实行引用是低效的。
+参见<A HREF="autoconf.html#SEC56">缓存变量名</A>。
+
+</P>
+<P>
+例如，下面是为Autoconf第1版编写的<TT>`configure.in'</TT>的片断：
+
+</P>
+
+<PRE>
+AC_HAVE_FUNCS(syslog)
+case "$DEFS" in
+*-DHAVE_SYSLOG*) ;;
+*) # syslog is not in the default libraries.  See if it's in some other.
+  saved_LIBS="$LIBS"
+  for lib in bsd socket inet; do
+    AC_CHECKING(for syslog in -l$lib)
+    LIBS="$saved_LIBS -l$lib"
+    AC_HAVE_FUNCS(syslog)
+    case "$DEFS" in
+    *-DHAVE_SYSLOG*) break ;;
+    *) ;;
+    esac
+    LIBS="$saved_LIBS"
+  done ;;
+esac
+</PRE>
+
+<P>
+这里是为版本2编写的方式：
+
+</P>
+
+<PRE>
+AC_CHECK_FUNCS(syslog)
+if test $ac_cv_func_syslog = no; then
+  # syslog is not in the default libraries.  See if it's in some other.
+  for lib in bsd socket inet; do
+    AC_CHECK_LIB($lib, syslog, [AC_DEFINE(HAVE_SYSLOG)
+      LIBS="$LIBS $lib"; break])
+  done
+fi
+</PRE>
+
+<P>
+如果你通过在引号的后边添加反斜线以处理<CODE>AC_DEFINE_UNQUOTED</CODE>中的bug，你需要删除它们。
+它现在以可以预期的方式工作，并且不需要特别地处理引号（处理反斜线）。
+参见<A HREF="autoconf.html#SEC54">设定输出变量</A>。
+
+</P>
+<P>
+所有由Autoconf宏设置的布尔shell变量现在用<SAMP>`yes'</SAMP>来表示真值。虽然为了向后兼容，有些宏使用空字符串
+表示假，大部分宏使用<SAMP>`no'</SAMP>来表示假。如果你依赖于shell变量用诸如1或者<SAMP>`t'</SAMP>来表示真，
+你就需要改变你的测试。
+
+</P>
+
+
+<H2><A NAME="SEC94" HREF="autoconf.html#TOC94">改变了的宏的编写</A></H2>
+
+<P>
+在定义你自己的宏时，你现在应该使用<CODE>AC_DEFUN</CODE>而不是<CODE>define</CODE>。
+<CODE>AC_DEFUN</CODE>自动调用<CODE>AC_PROVIDE</CODE>并且确保通过<CODE>AC_REQUIRE</CODE>调用该宏
+不会被其他宏所打断，从而防止在屏幕上出现嵌套的<SAMP>`checking...'</SAMP>消息。继续按照老办法行事没有实际上的伤害，
+但它缺乏便利和吸引力。参见<A HREF="autoconf.html#SEC60">宏定义</A>。
+
+</P>
+<P>
+你可能把与Autoconf一同发行的宏作为如何解决问题的指南。看看它们的新版本将是一个好主意，因为风格已经有些改进并且
+它们利用了一些新的特征。
+
+</P>
+<P>
+如果你利用未公开的（undocumented）Autoconf内部元素（宏、变量、变换（diversions））作了微妙的工作，就要检查
+你是否需要修改些什么以适应已经发生的变化。可能你甚至能够用版本2中公开（officially）支持的技术来代替你的拼装（kludging）。
+但也可能不能。
+
+</P>
+<P>
+为了加快你自行编写的特征测试，为它们添加缓存。看看你所有的测试是否足够一般化，从而具有足够的用途以把它们
+封装到你可以共享的宏中去。
+
+</P>
+
+
+<H1><A NAME="SEC95" HREF="autoconf.html#TOC95">Autoconf的历史</A></H1>
+
+<P>
+你可能会困惑，最初为什么要编写Autoconf？它是如何演变到今天的形式的？（为什么它看起来就像大猩猩的吐沫？）
+如果你不困惑，那么本章就不包含对你有用的信息，你也可能会跳过它。如果你<EM>困惑</EM>，那就让它明白些...
+
+</P>
+
+
+
+<H2><A NAME="SEC96" HREF="autoconf.html#TOC96">起源（Genesis）</A></H2>
+
+<P>
+在1991年六月，我为自由软件基金会维护了许多GNU工具。由于它们被移植到更多的平台并且增加了更多的程序，
+用户必须在<TT>`Makefile'</TT>中选择的<SAMP>`-D'</SAMP>选项的数目（大约20个）变得难以承受。尤其是我--
+我不得不在许多不同的系统上对每个新的发布版本进行测试。所以我编写了一个简单的shell脚本为fileutils包猜测一些
+正确的设置，并且把它作为fileutils 2.0的一部分进行发布。这个<CODE>configure</CODE>能够胜任工作，因此，
+我在下个月中，手工对其进行了修改以用于其他几个GNU工具包，从而创建了相似的<CODE>configure</CODE>脚本。
+Brian Berliner也修改了我的脚本以用与它的CVS修订控制系统。
+
+</P>
+<P>
+那个夏天以后，我得知Richard Stallman和Richard Pixley正在开发用于GNU编译器工具的类似脚本；所以我对我的
+<CODE>configure</CODE>进行了修改以支持它们的进化的界面：把名为<TT>`Makefile.in'</TT>的文件当作模板；
+添加<SAMP>`+srcdir'</SAMP>，作为许多选项的第一个选项；并创建<TT>`config.status'</TT>文件。
+
+</P>
+
+
+<H2><A NAME="SEC97" HREF="autoconf.html#TOC97">出发（Exodus）</A></H2>
+
+<P>
+由于我从用户那里获得了反馈，我组合了许多改进，使用Emacs进行搜索和替换、剪切（cut）和粘贴（paste），在
+每个脚本中进行类似的修改。随着我修改更多的GNU工具包以使用<CODE>configure</CODE>脚本，完全用手工更新它们
+就不可能了。Rich Murphey，GNU图形工具的维护者，在给我发送的邮件中说<CODE>configure</CODE>脚本很好，并
+问我是否有一个可以生成它们的工具可以发给他。没有，我想，但我将会有！所以我开始考虑如何生成它们。这样，
+从手工编写<CODE>configure</CODE>脚本的苦力向功能强大而易于使用的Autoconf前进的旅程开始了。
+
+</P>
+<P>
+Cygnus <CODE>configure</CODE>，它大约也在那个时候被开发，是表驱动的；这意味着用少量的大体上不可猜测
+的特征来处理离散数量的系统类型（例如目标文件格式的细节）。Brian Fox为Bash开发的自动配置系统采用了类似
+的方法。为了统一用法，我好像必须绝望地试图为每个操作系统的变种的特征维护一个及时更新的数据库。
+更容易和更可靠的办法是不检查大多数特征--特别是在那些人们已经在本地深入地研究或者安装了买主提供的补丁
+的杂合的系统。
+
+</P>
+<P>
+我考虑到使用与Cygnus <CODE>configure</CODE>相似的结构，就是提供一个单独的<CODE>configure</CODE>脚本，
+在运行时读入<TT>`configure.in'</TT>的片断。但是我不想让每个包都发布所有的特征测试，所以我选择了使用
+预处理器从每个<TT>`configure.in'</TT>中创建不同的<CODE>configure</CODE>。这个方法还提供了更多的控制和便利。
+
+</P>
+<P>
+我简要地察看了被Larry Wall、Harlan Stenn和Raphael Manfredi采用的Metaconfig包，但我为了几个原因而不采用它。
+这种方式生成的<CODE>Configure</CODE>脚本是交互式的，我认为太不方便了；我不喜欢它测试某些特征的方式
+（例如库函数）；我不知道它是否还有人维护，并且我所见到的<CODE>Configure</CODE>脚本在许多现代系统
+（例如System V R4和NeXT）中都不能工作；设置在支持某个特征或者不支持该特征时所进行的动作也不是很方便；
+我发现它难于学习；并且对于我的需要，它太大、太复杂了（我没有意识到Autoconf最终将变得多么大）。
+
+</P>
+<P>
+我考虑过使用Perl来生成我的风格的<CODE>configure</CODE>脚本，但显然<CODE>m4</CODE>更加适合于简单的
+文本替换工作：由于输出是隐含的，它的工作比较少。还有，每个人都已经拥有它了。（一开始，我并不依赖于
+GNU对<CODE>m4</CODE>的扩展。）我在Maryland大学的一些朋友最近用一些程序，包括<CODE>tvtwm</CODE>，
+制作了<CODE>m4</CODE>的前端，并且我也有兴趣试试一种新语言。
+
+</P>
+
+
+<H2><A NAME="SEC98" HREF="autoconf.html#TOC98">上路（Leviticus）</A></H2>
+
+<P>
+因为我的<CODE>configure</CODE>在没有与用户进行交互的条件下自动地确定了系统的能力，我决定把生成它们
+的程序称作Autoconfig。但附加了版本号之后，这个名字对于老式的UNIX文件系统来说就太长了，所以我把它缩短
+成Autoconf。
+
+</P>
+<P>
+在1991年秋天，我召集了一群期望获得移植性的家伙（alpha测试者）以给我提供反馈从而使我可以压缩（encapsulate）
+我用<CODE>m4</CODE>宏写的脚本并且继续添加特征、改进检查中采用的技术。测试者中的杰出人物有Pinard，他提出了
+创建一个<TT>`autoconf'</TT>来运行<CODE>m4</CODE>并且检查找不到的宏调用的想法；还有Richard Pixley，他建议通过
+运行编译器而不是在文件系统中寻找引入文件和符号，以获得更精确的结果；还有Kerl Berry，他使得Autoconf可以配置
+Tex并且把宏索引添加到文档中；还有Ian Taylor，他增加了对创建C头文件的支持以代替在<TT>`Makefile'</TT>中添加
+<SAMP>`-D'</SAMP>选项的方法，以便他可以把Autoconf用于他的UUCP包。alpha测试者愉快地、一次又一次地随着
+Autoconf不同发布版本中的Autoconf名称和宏调用惯例的改变而调整他们的文件。他们都贡献了许多特定的检查、绝妙的
+想法，以及对bug的修正。
+
+</P>
+
+
+<H2><A NAME="SEC99" HREF="autoconf.html#TOC99">发展（Numbers）</A></H2>
+
+<P>
+在1992年七月，在alpha测试之后一个月，我发布了Autoconf 1.0，并且修改了许多GNU包以使用它。我对它带来的正面
+作用感到很吃惊。很多人，包括那些编写并不属于GNU工程的软件（例如TCL、FSP和Kerberos V5）的人们，开始使用它，
+以至于我无法跟踪他们了。随着很多使用<CODE>configure</CODE>脚本的人报告他们所遇到的问题，Autoconf继续快速地得到改进，
+
+</P>
+<P>
+Autoconf成为考验<CODE>m4</CODE>实现的酷刑般的测试。由于Autoconf定义的宏的长度，UNIX <CODE>m4</CODE>开始
+失败（dump core），同时也发现了GNU <CODE>m4</CODE>中的一些bug。最终，我们意识到我们需要使用一些只有
+GNU <CODE>m4</CODE>才提供的特征。特别的，4.3BSD <CODE>m4</CODE>含有一组增强了的内置宏；System V版本更好
+一些，但仍然不能提供我们所需要的所有东西。
+
+</P>
+<P>
+随着Autoconf得到人们越来越多的重视，对Autoconf进行了更多的开发（并且有了我不能预见的用途）。Karl Berry添加了
+对X11的检查。david zuhn贡献了对C++的支持。Pinard使Autoconf能够诊断非法的参数。Jim Blandy勇敢地用它配置
+了GNU Emacs，并且为某些未来的改进打下了基础。Roland McGrath用它配置了GNU C库，编写了<CODE>autoheader</CODE>
+脚本以自动创建C头文件模板，并且为<CODE>configure</CODE>添加了一个<SAMP>`--verbose'</SAMP>选项。
+Noah Friedman添加了<SAMP>`--macrodir'</SAMP>选项和环境变量<CODE>AC_MACRODIR</CODE>。（他还提出了术语
+<EM>autoconfiscate</EM>，用来表示“调整软件包以使用Autoconf”。）Roland和Noah改进了<CODE>AC_DEFINE</CODE>
+中的引用保护并且修正了许多bug，特别是在1993年二月到六月间我们对处理移植性问题感到厌倦的时候。
+
+</P>
+
+
+<H2><A NAME="SEC100" HREF="autoconf.html#TOC100">现状（Deuteronomy）</A></H2>
+
+<P>
+在积累了一个关于希望添加的主要特征的长长的列表，并且在几年之中各式各样的人们提供的补丁残留了古怪的效果之后。
+在1994年四月，处理对Cygnus的支持时，我开始对Autoconf进行一次主要的修订。我添加了大部分Cygnus <CODE>configure</CODE>
+有，而Autoconf缺少的特征，主要是在david zuhn和Ken Raeburn的帮助下改编Cygnus <CODE>configure</CODE>的
+相关部分。这些特征包括对使用<TT>`config.sub'</TT>、<TT>`config.guess'</TT>、<SAMP>`--host'</SAMP>和
+<SAMP>`--target'</SAMP>的支持；创建对文件的连接；以及在子目录中运行<CODE>configure</CODE>脚本。
+添加这些特征使得Ken可以放弃GNU <CODE>as</CODE>，Rob Savoye可以放弃DejaGNU，而改用Autoconf。
+
+</P>
+<P>
+作为对其他人的要求的回应，我添加了更多的特征。许多人要求<CODE>configure</CODE>脚本能够
+在不同的运行中共享检查的结果，这是因为它们实在太慢了（尤其是像Cygnus那样在配置一个大的源代码树的时候）。
+Mike Haertel建议增加与位置有关的初始化脚本。发布必须在MS-DOS中解包（unpack）的软件的人们要求
+提供一种覆盖那些诸如<TT>`config.h.in'</TT>那样的、含有两个点的文件名中的<TT>`.in'</TT>扩展名的方法。
+Jim Avera通过<CODE>AC_DEFINE</CODE>和<CODE>AC_SUBST</CODE>中的引用扩展了对程序的检测；他的洞察力带来
+了重要的改进。Richard Stallman要求把编译器的输出送到<TT>`config.log'</TT>中，而不是送到<TT>`/dev/null'</TT>中，
+以帮助人们调试Emacs <CODE>configure</CODE>脚本。
+
+</P>
+<P>
+由于我对程序质量的不满，我进行了一些其他的修改。我减少了用于显示检查结果的消息的二义性，总是打印结果。
+我识别宏的名字并且消除编码风格的不一致性。我添加了一些我所开发的附加工具以助于修改源代码包以使用Autoconf。
+在Pinard的帮助下，我创建了不会在彼此的消息中导致冲突的宏。（这个特征暴露了他草率地修正的、GNU <CODE>m4</CODE>
+中的一些性能瓶颈！）我重新组织了人们需要解决的问题的文档。并且我开始了一组测试（testsuite），这是因为
+经验已经表明：在我们修改Autoconf的时候，它有明显的回归倾向。
+
+</P>
+<P>
+一些alpha测试者再次给出了难以估量的反馈，特别是
+Pinard、Jim Meyering、Karl Berry、Rob Savoye、Ken Raeburn和Mark Eichin。
+
+</P>
+<P>
+最后，2.0版本准备好了。而且我们也很高兴。（我们又有闲暇时间了。我想。哇，很好。）
+
+</P>
+
+
+<H1><A NAME="SEC101" HREF="autoconf.html#TOC101">陈旧的宏名</A></H1>
+
+<P>
+在Autoconf的第2版，大部分宏被重新命名以使用更加统一和具有描述性的命名方案。下面是被重新命名了的宏的原来名字，
+随后给出了这些宏现在的名字。虽然为了保持向后兼容，旧名字仍然能够被<CODE>autoconf</CODE>程序所接受，旧名字都
+被看作过时的。关于新的命名方案，参见<A HREF="autoconf.html#SEC61">宏名</A>。
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>AC_ALLOCA</CODE>
+<DD>
+<A NAME="IDX506"></A>
+<CODE>AC_FUNC_ALLOCA</CODE>
+<DT><CODE>AC_ARG_ARRAY</CODE>
+<DD>
+<A NAME="IDX507"></A>
+因为用途有限而被删除了。
+<DT><CODE>AC_CHAR_UNSIGNED</CODE>
+<DD>
+<A NAME="IDX508"></A>
+<CODE>AC_C_CHAR_UNSIGNED</CODE>
+<DT><CODE>AC_CONST</CODE>
+<DD>
+<A NAME="IDX509"></A>
+<CODE>AC_C_CONST</CODE>
+<DT><CODE>AC_CROSS_CHECK</CODE>
+<DD>
+<A NAME="IDX510"></A>
+<CODE>AC_C_CROSS</CODE>
+<DT><CODE>AC_ERROR</CODE>
+<DD>
+<A NAME="IDX511"></A>
+<CODE>AC_MSG_ERROR</CODE>
+<DT><CODE>AC_FIND_X</CODE>
+<DD>
+<A NAME="IDX512"></A>
+<CODE>AC_PATH_X</CODE>
+<DT><CODE>AC_FIND_XTRA</CODE>
+<DD>
+<A NAME="IDX513"></A>
+<CODE>AC_PATH_XTRA</CODE>
+<DT><CODE>AC_FUNC_CHECK</CODE>
+<DD>
+<A NAME="IDX514"></A>
+<CODE>AC_CHECK_FUNC</CODE>
+<DT><CODE>AC_GCC_TRADITIONAL</CODE>
+<DD>
+<A NAME="IDX515"></A>
+<CODE>AC_PROG_GCC_TRADITIONAL</CODE>
+<DT><CODE>AC_GETGROUPS_T</CODE>
+<DD>
+<A NAME="IDX516"></A>
+<CODE>AC_TYPE_GETGROUPS</CODE>
+<DT><CODE>AC_GETLOADAVG</CODE>
+<DD>
+<A NAME="IDX517"></A>
+<CODE>AC_FUNC_GETLOADAVG</CODE>
+<DT><CODE>AC_HAVE_FUNCS</CODE>
+<DD>
+<A NAME="IDX518"></A>
+<CODE>AC_CHECK_FUNCS</CODE>
+<DT><CODE>AC_HAVE_HEADERS</CODE>
+<DD>
+<A NAME="IDX519"></A>
+<CODE>AC_CHECK_HEADERS</CODE>
+<DT><CODE>AC_HAVE_POUNDBANG</CODE>
+<DD>
+<A NAME="IDX520"></A>
+<CODE>AC_SYS_INTERPRETER</CODE> (不同的调用惯例)
+<DT><CODE>AC_HEADER_CHECK</CODE>
+<DD>
+<A NAME="IDX521"></A>
+<CODE>AC_CHECK_HEADER</CODE>
+<DT><CODE>AC_HEADER_EGREP</CODE>
+<DD>
+<A NAME="IDX522"></A>
+<CODE>AC_EGREP_HEADER</CODE>
+<DT><CODE>AC_INLINE</CODE>
+<DD>
+<A NAME="IDX523"></A>
+<CODE>AC_C_INLINE</CODE>
+<DT><CODE>AC_LN_S</CODE>
+<DD>
+<A NAME="IDX524"></A>
+<CODE>AC_PROG_LN_S</CODE>
+<DT><CODE>AC_LONG_DOUBLE</CODE>
+<DD>
+<A NAME="IDX525"></A>
+<CODE>AC_C_LONG_DOUBLE</CODE>
+<DT><CODE>AC_LONG_FILE_NAMES</CODE>
+<DD>
+<A NAME="IDX526"></A>
+<CODE>AC_SYS_LONG_FILE_NAMES</CODE>
+<DT><CODE>AC_MAJOR_HEADER</CODE>
+<DD>
+<A NAME="IDX527"></A>
+<CODE>AC_HEADER_MAJOR</CODE>
+<DT><CODE>AC_MINUS_C_MINUS_O</CODE>
+<DD>
+<A NAME="IDX528"></A>
+<CODE>AC_PROG_CC_C_O</CODE>
+<DT><CODE>AC_MMAP</CODE>
+<DD>
+<A NAME="IDX529"></A>
+<CODE>AC_FUNC_MMAP</CODE>
+<DT><CODE>AC_MODE_T</CODE>
+<DD>
+<A NAME="IDX530"></A>
+<CODE>AC_TYPE_MODE_T</CODE>
+<DT><CODE>AC_OFF_T</CODE>
+<DD>
+<A NAME="IDX531"></A>
+<CODE>AC_TYPE_OFF_T</CODE>
+<DT><CODE>AC_PID_T</CODE>
+<DD>
+<A NAME="IDX532"></A>
+<CODE>AC_TYPE_PID_T</CODE>
+<DT><CODE>AC_PREFIX</CODE>
+<DD>
+<A NAME="IDX533"></A>
+<CODE>AC_PREFIX_PROGRAM</CODE>
+<DT><CODE>AC_PROGRAMS_CHECK</CODE>
+<DD>
+<A NAME="IDX534"></A>
+<CODE>AC_CHECK_PROGS</CODE>
+<DT><CODE>AC_PROGRAMS_PATH</CODE>
+<DD>
+<A NAME="IDX535"></A>
+<CODE>AC_PATH_PROGS</CODE>
+<DT><CODE>AC_PROGRAM_CHECK</CODE>
+<DD>
+<A NAME="IDX536"></A>
+<CODE>AC_CHECK_PROG</CODE>
+<DT><CODE>AC_PROGRAM_EGREP</CODE>
+<DD>
+<A NAME="IDX537"></A>
+<CODE>AC_EGREP_CPP</CODE>
+<DT><CODE>AC_PROGRAM_PATH</CODE>
+<DD>
+<A NAME="IDX538"></A>
+<CODE>AC_PATH_PROG</CODE>
+<DT><CODE>AC_REMOTE_TAPE</CODE>
+<DD>
+<A NAME="IDX539"></A>
+因为用途有限而被删除了。
+<DT><CODE>AC_RESTARTABLE_SYSCALLS</CODE>
+<DD>
+<A NAME="IDX540"></A>
+<CODE>AC_SYS_RESTARTABLE_SYSCALLS</CODE>
+<DT><CODE>AC_RETSIGTYPE</CODE>
+<DD>
+<A NAME="IDX541"></A>
+<CODE>AC_TYPE_SIGNAL</CODE>
+<DT><CODE>AC_RSH</CODE>
+<DD>
+<A NAME="IDX542"></A>
+因为用途有限而被删除了。
+<DT><CODE>AC_SETVBUF_REVERSED</CODE>
+<DD>
+<A NAME="IDX543"></A>
+<CODE>AC_FUNC_SETVBUF_REVERSED</CODE>
+<DT><CODE>AC_SET_MAKE</CODE>
+<DD>
+<A NAME="IDX544"></A>
+<CODE>AC_PROG_MAKE_SET</CODE>
+<DT><CODE>AC_SIZEOF_TYPE</CODE>
+<DD>
+<A NAME="IDX545"></A>
+<CODE>AC_CHECK_SIZEOF</CODE>
+<DT><CODE>AC_SIZE_T</CODE>
+<DD>
+<A NAME="IDX546"></A>
+<CODE>AC_TYPE_SIZE_T</CODE>
+<DT><CODE>AC_STAT_MACROS_BROKEN</CODE>
+<DD>
+<A NAME="IDX547"></A>
+<CODE>AC_HEADER_STAT</CODE>
+<DT><CODE>AC_STDC_HEADERS</CODE>
+<DD>
+<A NAME="IDX548"></A>
+<CODE>AC_HEADER_STDC</CODE>
+<DT><CODE>AC_STRCOLL</CODE>
+<DD>
+<A NAME="IDX549"></A>
+<CODE>AC_FUNC_STRCOLL</CODE>
+<DT><CODE>AC_ST_BLKSIZE</CODE>
+<DD>
+<A NAME="IDX550"></A>
+<CODE>AC_STRUCT_ST_BLKSIZE</CODE>
+<DT><CODE>AC_ST_BLOCKS</CODE>
+<DD>
+<A NAME="IDX551"></A>
+<CODE>AC_STRUCT_ST_BLOCKS</CODE>
+<DT><CODE>AC_ST_RDEV</CODE>
+<DD>
+<A NAME="IDX552"></A>
+<CODE>AC_STRUCT_ST_RDEV</CODE>
+<DT><CODE>AC_SYS_SIGLIST_DECLARED</CODE>
+<DD>
+<A NAME="IDX553"></A>
+<CODE>AC_DECL_SYS_SIGLIST</CODE>
+<DT><CODE>AC_TEST_CPP</CODE>
+<DD>
+<A NAME="IDX554"></A>
+<CODE>AC_TRY_CPP</CODE>
+<DT><CODE>AC_TEST_PROGRAM</CODE>
+<DD>
+<A NAME="IDX555"></A>
+<CODE>AC_TRY_RUN</CODE>
+<DT><CODE>AC_TIMEZONE</CODE>
+<DD>
+<A NAME="IDX556"></A>
+<CODE>AC_STRUCT_TIMEZONE</CODE>
+<DT><CODE>AC_TIME_WITH_SYS_TIME</CODE>
+<DD>
+<A NAME="IDX557"></A>
+<CODE>AC_HEADER_TIME</CODE>
+<DT><CODE>AC_UID_T</CODE>
+<DD>
+<A NAME="IDX558"></A>
+<CODE>AC_TYPE_UID_T</CODE>
+<DT><CODE>AC_UTIME_NULL</CODE>
+<DD>
+<A NAME="IDX559"></A>
+<CODE>AC_FUNC_UTIME_NULL</CODE>
+<DT><CODE>AC_VFORK</CODE>
+<DD>
+<A NAME="IDX560"></A>
+<CODE>AC_FUNC_VFORK</CODE>
+<DT><CODE>AC_VPRINTF</CODE>
+<DD>
+<A NAME="IDX561"></A>
+<CODE>AC_FUNC_VPRINTF</CODE>
+<DT><CODE>AC_WAIT3</CODE>
+<DD>
+<A NAME="IDX562"></A>
+<CODE>AC_FUNC_WAIT3</CODE>
+<DT><CODE>AC_WARN</CODE>
+<DD>
+<A NAME="IDX563"></A>
+<CODE>AC_MSG_WARN</CODE>
+<DT><CODE>AC_WORDS_BIGENDIAN</CODE>
+<DD>
+<A NAME="IDX564"></A>
+<CODE>AC_C_BIGENDIAN</CODE>
+<DT><CODE>AC_YYTEXT_POINTER</CODE>
+<DD>
+<A NAME="IDX565"></A>
+<CODE>AC_DECL_YYTEXT</CODE>
+</DL>
+
+
+
+<H1><A NAME="SEC102" HREF="autoconf.html#TOC102">环境变量索引</A></H1>
+
+<P>
+这是一个按照字母顺序排序的，由Autoconf检查的环境变量的列表。
+
+</P>
+<P>
+Jump to:
+<A HREF="#evindex_a">a</A>
+-
+<A HREF="#evindex_c">c</A>
+-
+<A HREF="#evindex_s">s</A>
+<P>
+<H2><A NAME="evindex_a">a</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX1">AC_MACRODIR</A>, <A HREF="autoconf.html#IDX2">AC_MACRODIR</A>, <A HREF="autoconf.html#IDX3">AC_MACRODIR</A>, <A HREF="autoconf.html#IDX4">AC_MACRODIR</A>, <A HREF="autoconf.html#IDX66">AC_MACRODIR</A>, <A HREF="autoconf.html#IDX505">AC_MACRODIR</A>
+</DIR>
+<H2><A NAME="evindex_c">c</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX501">CONFIG_FILES</A>
+<LI><A HREF="autoconf.html#IDX503">CONFIG_HEADERS</A>
+<LI><A HREF="autoconf.html#IDX497">CONFIG_SHELL</A>
+<LI><A HREF="autoconf.html#IDX495">CONFIG_SITE</A>
+<LI><A HREF="autoconf.html#IDX499">CONFIG_STATUS</A>
+</DIR>
+<H2><A NAME="evindex_s">s</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX504">SIMPLE_BACKUP_SUFFIX</A>
+</DIR>
+
+</P>
+
+
+<H1><A NAME="SEC103" HREF="autoconf.html#TOC103">输出变量索引</A></H1>
+
+<P>
+这是一个按照字母顺序排序的，Autoconf将在它所创建的文件（通常是一个或更多<TT>`Makefile'</TT>）
+中进行替换的变量的列表。关于这些是如何实现的，请参见<A HREF="autoconf.html#SEC54">设定输出变量</A>。
+
+</P>
+<P>
+Jump to:
+<A HREF="#ovindex_a">a</A>
+-
+<A HREF="#ovindex_b">b</A>
+-
+<A HREF="#ovindex_c">c</A>
+-
+<A HREF="#ovindex_d">d</A>
+-
+<A HREF="#ovindex_e">e</A>
+-
+<A HREF="#ovindex_f">f</A>
+-
+<A HREF="#ovindex_h">h</A>
+-
+<A HREF="#ovindex_i">i</A>
+-
+<A HREF="#ovindex_k">k</A>
+-
+<A HREF="#ovindex_l">l</A>
+-
+<A HREF="#ovindex_m">m</A>
+-
+<A HREF="#ovindex_n">n</A>
+-
+<A HREF="#ovindex_o">o</A>
+-
+<A HREF="#ovindex_p">p</A>
+-
+<A HREF="#ovindex_r">r</A>
+-
+<A HREF="#ovindex_s">s</A>
+-
+<A HREF="#ovindex_t">t</A>
+-
+<A HREF="#ovindex_x">x</A>
+-
+<A HREF="#ovindex_y">y</A>
+<P>
+<H2><A NAME="ovindex_a">a</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX156">ALLOCA</A>
+<LI><A HREF="autoconf.html#IDX83">AWK</A>
+</DIR>
+<H2><A NAME="ovindex_b">b</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX16">bindir</A>
+<LI><A HREF="autoconf.html#IDX467">build</A>
+<LI><A HREF="autoconf.html#IDX470">build_alias</A>
+<LI><A HREF="autoconf.html#IDX473">build_cpu</A>
+<LI><A HREF="autoconf.html#IDX479">build_os</A>
+<LI><A HREF="autoconf.html#IDX476">build_vendor</A>
+</DIR>
+<H2><A NAME="ovindex_c">c</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX86">CC</A>, <A HREF="autoconf.html#IDX110">CC</A>, <A HREF="autoconf.html#IDX380">CC</A>
+<LI><A HREF="autoconf.html#IDX50">CFLAGS</A>, <A HREF="autoconf.html#IDX87">CFLAGS</A>
+<LI><A HREF="autoconf.html#IDX18">configure_input</A>
+<LI><A HREF="autoconf.html#IDX93">CPP</A>
+<LI><A HREF="autoconf.html#IDX52">CPPFLAGS</A>
+<LI><A HREF="autoconf.html#IDX96">CXX</A>
+<LI><A HREF="autoconf.html#IDX100">CXXCPP</A>
+<LI><A HREF="autoconf.html#IDX54">CXXFLAGS</A>, <A HREF="autoconf.html#IDX97">CXXFLAGS</A>
+</DIR>
+<H2><A NAME="ovindex_d">d</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX20">datadir</A>
+<LI><A HREF="autoconf.html#IDX58">DEFS</A>
+</DIR>
+<H2><A NAME="ovindex_e">e</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX22">exec_prefix</A>
+<LI><A HREF="autoconf.html#IDX348">EXEEXT</A>
+</DIR>
+<H2><A NAME="ovindex_f">f</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX103">F77</A>
+<LI><A HREF="autoconf.html#IDX56">FFLAGS</A>, <A HREF="autoconf.html#IDX104">FFLAGS</A>
+<LI><A HREF="autoconf.html#IDX343">FLIBS</A>
+</DIR>
+<H2><A NAME="ovindex_h">h</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX468">host</A>
+<LI><A HREF="autoconf.html#IDX471">host_alias</A>
+<LI><A HREF="autoconf.html#IDX474">host_cpu</A>
+<LI><A HREF="autoconf.html#IDX480">host_os</A>
+<LI><A HREF="autoconf.html#IDX477">host_vendor</A>
+</DIR>
+<H2><A NAME="ovindex_i">i</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX24">includedir</A>
+<LI><A HREF="autoconf.html#IDX26">infodir</A>
+<LI><A HREF="autoconf.html#IDX113">INSTALL</A>
+<LI><A HREF="autoconf.html#IDX115">INSTALL_DATA</A>
+<LI><A HREF="autoconf.html#IDX114">INSTALL_PROGRAM</A>
+<LI><A HREF="autoconf.html#IDX116">INSTALL_SCRIPT</A>
+</DIR>
+<H2><A NAME="ovindex_k">k</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX175">KMEM_GROUP</A>
+</DIR>
+<H2><A NAME="ovindex_l">l</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX60">LDFLAGS</A>
+<LI><A HREF="autoconf.html#IDX119">LEX</A>
+<LI><A HREF="autoconf.html#IDX80">LEX_OUTPUT_ROOT</A>
+<LI><A HREF="autoconf.html#IDX120">LEXLIB</A>
+<LI><A HREF="autoconf.html#IDX28">libdir</A>
+<LI><A HREF="autoconf.html#IDX30">libexecdir</A>
+<LI><A HREF="autoconf.html#IDX162">LIBOBJS</A>, <A HREF="autoconf.html#IDX173">LIBOBJS</A>, <A HREF="autoconf.html#IDX184">LIBOBJS</A>, <A HREF="autoconf.html#IDX226">LIBOBJS</A>, <A HREF="autoconf.html#IDX280">LIBOBJS</A>
+<LI><A HREF="autoconf.html#IDX62">LIBS</A>, <A HREF="autoconf.html#IDX388">LIBS</A>, <A HREF="autoconf.html#IDX391">LIBS</A>
+<LI><A HREF="autoconf.html#IDX123">LN_S</A>
+<LI><A HREF="autoconf.html#IDX32">localstatedir</A>
+</DIR>
+<H2><A NAME="ovindex_m">m</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX34">mandir</A>
+</DIR>
+<H2><A NAME="ovindex_n">n</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX174">NEED_SETGID</A>
+</DIR>
+<H2><A NAME="ovindex_o">o</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX351">OBJEXT</A>
+<LI><A HREF="autoconf.html#IDX36">oldincludedir</A>
+</DIR>
+<H2><A NAME="ovindex_p">p</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX38">prefix</A>
+<LI><A HREF="autoconf.html#IDX494">program_transform_name</A>
+</DIR>
+<H2><A NAME="ovindex_r">r</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX126">RANLIB</A>
+</DIR>
+<H2><A NAME="ovindex_s">s</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX40">sbindir</A>
+<LI><A HREF="autoconf.html#IDX14">SET_MAKE</A>
+<LI><A HREF="autoconf.html#IDX42">sharedstatedir</A>
+<LI><A HREF="autoconf.html#IDX44">srcdir</A>
+<LI><A HREF="autoconf.html#IDX69">subdirs</A>
+<LI><A HREF="autoconf.html#IDX46">sysconfdir</A>
+</DIR>
+<H2><A NAME="ovindex_t">t</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX469">target</A>
+<LI><A HREF="autoconf.html#IDX472">target_alias</A>
+<LI><A HREF="autoconf.html#IDX475">target_cpu</A>
+<LI><A HREF="autoconf.html#IDX481">target_os</A>
+<LI><A HREF="autoconf.html#IDX478">target_vendor</A>
+<LI><A HREF="autoconf.html#IDX48">top_srcdir</A>
+</DIR>
+<H2><A NAME="ovindex_x">x</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX358">X_CFLAGS</A>
+<LI><A HREF="autoconf.html#IDX360">X_EXTRA_LIBS</A>
+<LI><A HREF="autoconf.html#IDX359">X_LIBS</A>
+<LI><A HREF="autoconf.html#IDX361">X_PRE_LIBS</A>
+</DIR>
+<H2><A NAME="ovindex_y">y</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX129">YACC</A>
+</DIR>
+
+</P>
+
+
+<H1><A NAME="SEC104" HREF="autoconf.html#TOC104">预处理器符号索引</A></H1>
+
+<P>
+这是一个按照字母顺序排序的，由Autoconf宏定义的C预处理符号的列表。为了与Autoconf协同工作，C源代码应该
+在<CODE>#if</CODE>指令中使用这些名字。
+
+</P>
+<P>
+Jump to:
+<A HREF="#cvindex__">_</A>
+-
+<A HREF="#cvindex_c">c</A>
+-
+<A HREF="#cvindex_d">d</A>
+-
+<A HREF="#cvindex_f">f</A>
+-
+<A HREF="#cvindex_g">g</A>
+-
+<A HREF="#cvindex_h">h</A>
+-
+<A HREF="#cvindex_i">i</A>
+-
+<A HREF="#cvindex_l">l</A>
+-
+<A HREF="#cvindex_m">m</A>
+-
+<A HREF="#cvindex_n">n</A>
+-
+<A HREF="#cvindex_o">o</A>
+-
+<A HREF="#cvindex_p">p</A>
+-
+<A HREF="#cvindex_r">r</A>
+-
+<A HREF="#cvindex_s">s</A>
+-
+<A HREF="#cvindex_t">t</A>
+-
+<A HREF="#cvindex_u">u</A>
+-
+<A HREF="#cvindex_v">v</A>
+-
+<A HREF="#cvindex_w">w</A>
+-
+<A HREF="#cvindex_y">y</A>
+<P>
+<H2><A NAME="cvindex__">_</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX326">__CHAR_UNSIGNED__</A>
+<LI><A HREF="autoconf.html#IDX372">_ALL_SOURCE</A>
+<LI><A HREF="autoconf.html#IDX383">_MINIX</A>
+<LI><A HREF="autoconf.html#IDX385">_POSIX_1_SOURCE</A>
+<LI><A HREF="autoconf.html#IDX379">_POSIX_SOURCE</A>, <A HREF="autoconf.html#IDX384">_POSIX_SOURCE</A>
+<LI><A HREF="autoconf.html#IDX259">_POSIX_VERSION</A>
+</DIR>
+<H2><A NAME="cvindex_c">c</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX154">C_ALLOCA</A>
+<LI><A HREF="autoconf.html#IDX159">CLOSEDIR_VOID</A>
+<LI><A HREF="autoconf.html#IDX320">const</A>
+</DIR>
+<H2><A NAME="cvindex_d">d</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX166">DGUX</A>
+<LI><A HREF="autoconf.html#IDX232">DIRENT</A>
+</DIR>
+<H2><A NAME="cvindex_f">f</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX107">F77_NO_MINUS_C_MINUS_O</A>
+</DIR>
+<H2><A NAME="cvindex_g">g</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX293">GETGROUPS_T</A>
+<LI><A HREF="autoconf.html#IDX171">GETLODAVG_PRIVILEGED</A>
+<LI><A HREF="autoconf.html#IDX181">GETPGRP_VOID</A>
+<LI><A HREF="autoconf.html#IDX312">gid_t</A>
+</DIR>
+<H2><A NAME="cvindex_h">h</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX155">HAVE_ALLOCA_H</A>
+<LI><A HREF="autoconf.html#IDX65">HAVE_CONFIG_H</A>
+<LI><A HREF="autoconf.html#IDX239">HAVE_DIRENT_H</A>
+<LI><A HREF="autoconf.html#IDX215">HAVE_DOPRNT</A>
+<LI><A HREF="autoconf.html#IDX223">HAVE_<VAR>function</VAR></A>
+<LI><A HREF="autoconf.html#IDX178">HAVE_GETMNTENT</A>
+<LI><A HREF="autoconf.html#IDX267">HAVE_<VAR>header</VAR></A>
+<LI><A HREF="autoconf.html#IDX329">HAVE_LONG_DOUBLE</A>
+<LI><A HREF="autoconf.html#IDX366">HAVE_LONG_FILE_NAMES</A>
+<LI><A HREF="autoconf.html#IDX187">HAVE_MMAP</A>
+<LI><A HREF="autoconf.html#IDX240">HAVE_NDIR_H</A>
+<LI><A HREF="autoconf.html#IDX369">HAVE_RESTARTABLE_SYSCALLS</A>
+<LI><A HREF="autoconf.html#IDX276">HAVE_ST_BLKSIZE</A>
+<LI><A HREF="autoconf.html#IDX279">HAVE_ST_BLOCKS</A>
+<LI><A HREF="autoconf.html#IDX283">HAVE_ST_RDEV</A>
+<LI><A HREF="autoconf.html#IDX201">HAVE_STRCOLL</A>
+<LI><A HREF="autoconf.html#IDX204">HAVE_STRFTIME</A>
+<LI><A HREF="autoconf.html#IDX332">HAVE_STRINGIZE</A>
+<LI><A HREF="autoconf.html#IDX241">HAVE_SYS_DIR_H</A>
+<LI><A HREF="autoconf.html#IDX242">HAVE_SYS_NDIR_H</A>
+<LI><A HREF="autoconf.html#IDX252">HAVE_SYS_WAIT_H</A>
+<LI><A HREF="autoconf.html#IDX289">HAVE_TM_ZONE</A>
+<LI><A HREF="autoconf.html#IDX290">HAVE_TZNAME</A>
+<LI><A HREF="autoconf.html#IDX258">HAVE_UNISTD_H</A>
+<LI><A HREF="autoconf.html#IDX207">HAVE_UTIME_NULL</A>
+<LI><A HREF="autoconf.html#IDX210">HAVE_VFORK_H</A>
+<LI><A HREF="autoconf.html#IDX214">HAVE_VPRINTF</A>
+<LI><A HREF="autoconf.html#IDX218">HAVE_WAIT3</A>
+</DIR>
+<H2><A NAME="cvindex_i">i</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX323">inline</A>
+<LI><A HREF="autoconf.html#IDX337">INT_16_BITS</A>
+</DIR>
+<H2><A NAME="cvindex_l">l</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX340">LONG_64_BITS</A>
+</DIR>
+<H2><A NAME="cvindex_m">m</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX245">MAJOR_IN_MKDEV</A>
+<LI><A HREF="autoconf.html#IDX246">MAJOR_IN_SYSMACROS</A>
+<LI><A HREF="autoconf.html#IDX296">mode_t</A>
+</DIR>
+<H2><A NAME="cvindex_n">n</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX235">NDIR</A>
+<LI><A HREF="autoconf.html#IDX255">NEED_MEMORY_H</A>
+<LI><A HREF="autoconf.html#IDX172">NEED_SETGID</A>
+<LI><A HREF="autoconf.html#IDX170">NLIST_NAME_UNION</A>
+<LI><A HREF="autoconf.html#IDX169">NLIST_STRUCT</A>
+<LI><A HREF="autoconf.html#IDX90">NO_MINUS_C_MINUS_O</A>
+</DIR>
+<H2><A NAME="cvindex_o">o</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX299">off_t</A>
+</DIR>
+<H2><A NAME="cvindex_p">p</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX302">pid_t</A>
+</DIR>
+<H2><A NAME="cvindex_r">r</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX305">RETSIGTYPE</A>
+</DIR>
+<H2><A NAME="cvindex_s">s</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX190">SELECT_TYPE_ARG1</A>
+<LI><A HREF="autoconf.html#IDX191">SELECT_TYPE_ARG234</A>
+<LI><A HREF="autoconf.html#IDX192">SELECT_TYPE_ARG5</A>
+<LI><A HREF="autoconf.html#IDX195">SETPGRP_VOID</A>
+<LI><A HREF="autoconf.html#IDX198">SETVBUF_REVERSED</A>
+<LI><A HREF="autoconf.html#IDX308">size_t</A>
+<LI><A HREF="autoconf.html#IDX249">STDC_HEADERS</A>
+<LI><A HREF="autoconf.html#IDX165">SVR4</A>
+<LI><A HREF="autoconf.html#IDX229">SYS_SIGLIST_DECLARED</A>
+<LI><A HREF="autoconf.html#IDX233">SYSDIR</A>
+<LI><A HREF="autoconf.html#IDX234">SYSNDIR</A>
+</DIR>
+<H2><A NAME="cvindex_t">t</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX273">TIME_WITH_SYS_TIME</A>
+<LI><A HREF="autoconf.html#IDX286">TM_IN_SYS_TIME</A>
+</DIR>
+<H2><A NAME="cvindex_u">u</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX311">uid_t</A>
+<LI><A HREF="autoconf.html#IDX167">UMAX</A>
+<LI><A HREF="autoconf.html#IDX168">UMAX4_3</A>
+<LI><A HREF="autoconf.html#IDX262">USG</A>
+</DIR>
+<H2><A NAME="cvindex_v">v</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX211">vfork</A>
+<LI><A HREF="autoconf.html#IDX236">VOID_CLOSEDIR</A>
+</DIR>
+<H2><A NAME="cvindex_w">w</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX317">WORDS_BIGENDIAN</A>
+</DIR>
+<H2><A NAME="cvindex_y">y</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX79">YYTEXT_POINTER</A>
+</DIR>
+
+</P>
+
+
+<H1><A NAME="SEC105" HREF="autoconf.html#TOC105">宏索引</A></H1>
+
+<P>
+这是按字母排序的Autoconf宏列表。为了使列表易于使用，宏以没有前缀<SAMP>`AC_'</SAMP>的形式列出。
+
+</P>
+<P>
+Jump to:
+<A HREF="#maindex_a">a</A>
+-
+<A HREF="#maindex_b">b</A>
+-
+<A HREF="#maindex_c">c</A>
+-
+<A HREF="#maindex_d">d</A>
+-
+<A HREF="#maindex_e">e</A>
+-
+<A HREF="#maindex_f">f</A>
+-
+<A HREF="#maindex_g">g</A>
+-
+<A HREF="#maindex_h">h</A>
+-
+<A HREF="#maindex_i">i</A>
+-
+<A HREF="#maindex_l">l</A>
+-
+<A HREF="#maindex_m">m</A>
+-
+<A HREF="#maindex_o">o</A>
+-
+<A HREF="#maindex_p">p</A>
+-
+<A HREF="#maindex_r">r</A>
+-
+<A HREF="#maindex_s">s</A>
+-
+<A HREF="#maindex_t">t</A>
+-
+<A HREF="#maindex_u">u</A>
+-
+<A HREF="#maindex_v">v</A>
+-
+<A HREF="#maindex_w">w</A>
+-
+<A HREF="#maindex_x">x</A>
+-
+<A HREF="#maindex_y">y</A>
+<P>
+<H2><A NAME="maindex_a">a</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX371">AIX</A>
+<LI><A HREF="autoconf.html#IDX506">ALLOCA</A>
+<LI><A HREF="autoconf.html#IDX507">ARG_ARRAY</A>
+<LI><A HREF="autoconf.html#IDX489">ARG_ENABLE</A>
+<LI><A HREF="autoconf.html#IDX493">ARG_PROGRAM</A>
+<LI><A HREF="autoconf.html#IDX485">ARG_WITH</A>
+</DIR>
+<H2><A NAME="maindex_b">b</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX458">BEFORE</A>
+</DIR>
+<H2><A NAME="maindex_c">c</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX316">C_BIGENDIAN</A>
+<LI><A HREF="autoconf.html#IDX325">C_CHAR_UNSIGNED</A>
+<LI><A HREF="autoconf.html#IDX319">C_CONST</A>
+<LI><A HREF="autoconf.html#IDX411">C_CROSS</A>
+<LI><A HREF="autoconf.html#IDX322">C_INLINE</A>
+<LI><A HREF="autoconf.html#IDX328">C_LONG_DOUBLE</A>
+<LI><A HREF="autoconf.html#IDX331">C_STRINGIZE</A>
+<LI><A HREF="autoconf.html#IDX435">CACHE_CHECK</A>
+<LI><A HREF="autoconf.html#IDX437">CACHE_LOAD</A>
+<LI><A HREF="autoconf.html#IDX439">CACHE_SAVE</A>
+<LI><A HREF="autoconf.html#IDX433">CACHE_VAL</A>
+<LI><A HREF="autoconf.html#IDX464">CANONICAL_HOST</A>
+<LI><A HREF="autoconf.html#IDX462">CANONICAL_SYSTEM</A>
+<LI><A HREF="autoconf.html#IDX508">CHAR_UNSIGNED</A>
+<LI><A HREF="autoconf.html#IDX131">CHECK_FILE</A>
+<LI><A HREF="autoconf.html#IDX133">CHECK_FILES</A>
+<LI><A HREF="autoconf.html#IDX220">CHECK_FUNC</A>
+<LI><A HREF="autoconf.html#IDX222">CHECK_FUNCS</A>
+<LI><A HREF="autoconf.html#IDX264">CHECK_HEADER</A>
+<LI><A HREF="autoconf.html#IDX266">CHECK_HEADERS</A>
+<LI><A HREF="autoconf.html#IDX145">CHECK_LIB</A>
+<LI><A HREF="autoconf.html#IDX135">CHECK_PROG</A>
+<LI><A HREF="autoconf.html#IDX137">CHECK_PROGS</A>
+<LI><A HREF="autoconf.html#IDX334">CHECK_SIZEOF</A>
+<LI><A HREF="autoconf.html#IDX139">CHECK_TOOL</A>
+<LI><A HREF="autoconf.html#IDX314">CHECK_TYPE</A>
+<LI><A HREF="autoconf.html#IDX449">CHECKING</A>
+<LI><A HREF="autoconf.html#IDX407">COMPILE_CHECK</A>
+<LI><A HREF="autoconf.html#IDX8">CONFIG_AUX_DIR</A>
+<LI><A HREF="autoconf.html#IDX64">CONFIG_HEADER</A>
+<LI><A HREF="autoconf.html#IDX68">CONFIG_SUBDIRS</A>
+<LI><A HREF="autoconf.html#IDX509">CONST</A>
+<LI><A HREF="autoconf.html#IDX510">CROSS_CHECK</A>
+<LI><A HREF="autoconf.html#IDX345">CYGWIN</A>
+</DIR>
+<H2><A NAME="maindex_d">d</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX228">DECL_SYS_SIGLIST</A>
+<LI><A HREF="autoconf.html#IDX78">DECL_YYTEXT</A>
+<LI><A HREF="autoconf.html#IDX425">DEFINE</A>
+<LI><A HREF="autoconf.html#IDX427">DEFINE_UNQUOTED</A>
+<LI><A HREF="autoconf.html#IDX452">DEFUN</A>
+<LI><A HREF="autoconf.html#IDX231">DIR_HEADER</A>
+<LI><A HREF="autoconf.html#IDX374">DYNIX_SEQ</A>
+</DIR>
+<H2><A NAME="maindex_e">e</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX397">EGREP_CPP</A>
+<LI><A HREF="autoconf.html#IDX395">EGREP_HEADER</A>
+<LI><A HREF="autoconf.html#IDX491">ENABLE</A>
+<LI><A HREF="autoconf.html#IDX511">ERROR</A>
+<LI><A HREF="autoconf.html#IDX347">EXEEXT</A>
+</DIR>
+<H2><A NAME="maindex_f">f</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX342">F77_LIBRARY_LDFLAGS</A>
+<LI><A HREF="autoconf.html#IDX512">FIND_X</A>
+<LI><A HREF="autoconf.html#IDX513">FIND_XTRA</A>
+<LI><A HREF="autoconf.html#IDX153">FUNC_ALLOCA</A>
+<LI><A HREF="autoconf.html#IDX514">FUNC_CHECK</A>
+<LI><A HREF="autoconf.html#IDX158">FUNC_CLOSEDIR_VOID</A>
+<LI><A HREF="autoconf.html#IDX161">FUNC_FNMATCH</A>
+<LI><A HREF="autoconf.html#IDX164">FUNC_GETLOADAVG</A>
+<LI><A HREF="autoconf.html#IDX177">FUNC_GETMNTENT</A>
+<LI><A HREF="autoconf.html#IDX180">FUNC_GETPGRP</A>
+<LI><A HREF="autoconf.html#IDX183">FUNC_MEMCMP</A>
+<LI><A HREF="autoconf.html#IDX186">FUNC_MMAP</A>
+<LI><A HREF="autoconf.html#IDX189">FUNC_SELECT_ARGTYPES</A>
+<LI><A HREF="autoconf.html#IDX194">FUNC_SETPGRP</A>
+<LI><A HREF="autoconf.html#IDX197">FUNC_SETVBUF_REVERSED</A>
+<LI><A HREF="autoconf.html#IDX200">FUNC_STRCOLL</A>
+<LI><A HREF="autoconf.html#IDX203">FUNC_STRFTIME</A>
+<LI><A HREF="autoconf.html#IDX206">FUNC_UTIME_NULL</A>
+<LI><A HREF="autoconf.html#IDX209">FUNC_VFORK</A>
+<LI><A HREF="autoconf.html#IDX213">FUNC_VPRINTF</A>
+<LI><A HREF="autoconf.html#IDX217">FUNC_WAIT3</A>
+</DIR>
+<H2><A NAME="maindex_g">g</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX515">GCC_TRADITIONAL</A>
+<LI><A HREF="autoconf.html#IDX516">GETGROUPS_T</A>
+<LI><A HREF="autoconf.html#IDX517">GETLOADAVG</A>
+</DIR>
+<H2><A NAME="maindex_h">h</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX518">HAVE_FUNCS</A>
+<LI><A HREF="autoconf.html#IDX519">HAVE_HEADERS</A>
+<LI><A HREF="autoconf.html#IDX147">HAVE_LIBRARY</A>
+<LI><A HREF="autoconf.html#IDX520">HAVE_POUNDBANG</A>
+<LI><A HREF="autoconf.html#IDX521">HEADER_CHECK</A>
+<LI><A HREF="autoconf.html#IDX238">HEADER_DIRENT</A>
+<LI><A HREF="autoconf.html#IDX522">HEADER_EGREP</A>
+<LI><A HREF="autoconf.html#IDX244">HEADER_MAJOR</A>
+<LI><A HREF="autoconf.html#IDX269">HEADER_STAT</A>
+<LI><A HREF="autoconf.html#IDX248">HEADER_STDC</A>
+<LI><A HREF="autoconf.html#IDX251">HEADER_SYS_WAIT</A>
+<LI><A HREF="autoconf.html#IDX272">HEADER_TIME</A>
+</DIR>
+<H2><A NAME="maindex_i">i</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX6">INIT</A>
+<LI><A HREF="autoconf.html#IDX523">INLINE</A>
+<LI><A HREF="autoconf.html#IDX336">INT_16_BITS</A>
+<LI><A HREF="autoconf.html#IDX376">IRIX_SUN</A>
+<LI><A HREF="autoconf.html#IDX378">ISC_POSIX</A>
+</DIR>
+<H2><A NAME="maindex_l">l</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX413">LANG_C</A>
+<LI><A HREF="autoconf.html#IDX415">LANG_CPLUSPLUS</A>
+<LI><A HREF="autoconf.html#IDX417">LANG_FORTRAN77</A>
+<LI><A HREF="autoconf.html#IDX421">LANG_RESTORE</A>
+<LI><A HREF="autoconf.html#IDX419">LANG_SAVE</A>
+<LI><A HREF="autoconf.html#IDX483">LINK_FILES</A>
+<LI><A HREF="autoconf.html#IDX524">LN_S</A>
+<LI><A HREF="autoconf.html#IDX339">LONG_64_BITS</A>
+<LI><A HREF="autoconf.html#IDX525">LONG_DOUBLE</A>
+<LI><A HREF="autoconf.html#IDX526">LONG_FILE_NAMES</A>
+</DIR>
+<H2><A NAME="maindex_m">m</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX527">MAJOR_HEADER</A>
+<LI><A HREF="autoconf.html#IDX254">MEMORY_H</A>
+<LI><A HREF="autoconf.html#IDX353">MINGW32</A>
+<LI><A HREF="autoconf.html#IDX382">MINIX</A>
+<LI><A HREF="autoconf.html#IDX528">MINUS_C_MINUS_O</A>
+<LI><A HREF="autoconf.html#IDX529">MMAP</A>
+<LI><A HREF="autoconf.html#IDX530">MODE_T</A>
+<LI><A HREF="autoconf.html#IDX441">MSG_CHECKING</A>
+<LI><A HREF="autoconf.html#IDX445">MSG_ERROR</A>
+<LI><A HREF="autoconf.html#IDX443">MSG_RESULT</A>
+<LI><A HREF="autoconf.html#IDX447">MSG_WARN</A>
+</DIR>
+<H2><A NAME="maindex_o">o</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX350">OBJEXT</A>
+<LI><A HREF="autoconf.html#IDX460">OBSOLETE</A>
+<LI><A HREF="autoconf.html#IDX531">OFF_T</A>
+<LI><A HREF="autoconf.html#IDX10">OUTPUT</A>
+</DIR>
+<H2><A NAME="maindex_p">p</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX141">PATH_PROG</A>
+<LI><A HREF="autoconf.html#IDX143">PATH_PROGS</A>
+<LI><A HREF="autoconf.html#IDX355">PATH_X</A>
+<LI><A HREF="autoconf.html#IDX357">PATH_XTRA</A>
+<LI><A HREF="autoconf.html#IDX532">PID_T</A>
+<LI><A HREF="autoconf.html#IDX533">PREFIX</A>
+<LI><A HREF="autoconf.html#IDX72">PREFIX_PROGRAM</A>
+<LI><A HREF="autoconf.html#IDX74">PREREQ</A>
+<LI><A HREF="autoconf.html#IDX82">PROG_AWK</A>
+<LI><A HREF="autoconf.html#IDX85">PROG_CC</A>
+<LI><A HREF="autoconf.html#IDX89">PROG_CC_C_O</A>
+<LI><A HREF="autoconf.html#IDX92">PROG_CPP</A>
+<LI><A HREF="autoconf.html#IDX95">PROG_CXX</A>
+<LI><A HREF="autoconf.html#IDX99">PROG_CXXCPP</A>
+<LI><A HREF="autoconf.html#IDX106">PROG_F77_C_O</A>
+<LI><A HREF="autoconf.html#IDX102">PROG_FORTRAN</A>
+<LI><A HREF="autoconf.html#IDX109">PROG_GCC_TRADITIONAL</A>
+<LI><A HREF="autoconf.html#IDX112">PROG_INSTALL</A>
+<LI><A HREF="autoconf.html#IDX118">PROG_LEX</A>
+<LI><A HREF="autoconf.html#IDX122">PROG_LN_S</A>
+<LI><A HREF="autoconf.html#IDX13">PROG_MAKE_SET</A>
+<LI><A HREF="autoconf.html#IDX125">PROG_RANLIB</A>
+<LI><A HREF="autoconf.html#IDX128">PROG_YACC</A>
+<LI><A HREF="autoconf.html#IDX536">PROGRAM_CHECK</A>
+<LI><A HREF="autoconf.html#IDX537">PROGRAM_EGREP</A>
+<LI><A HREF="autoconf.html#IDX538">PROGRAM_PATH</A>
+<LI><A HREF="autoconf.html#IDX534">PROGRAMS_CHECK</A>
+<LI><A HREF="autoconf.html#IDX535">PROGRAMS_PATH</A>
+<LI><A HREF="autoconf.html#IDX456">PROVIDE</A>
+</DIR>
+<H2><A NAME="maindex_r">r</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX539">REMOTE_TAPE</A>
+<LI><A HREF="autoconf.html#IDX225">REPLACE_FUNCS</A>
+<LI><A HREF="autoconf.html#IDX454">REQUIRE</A>
+<LI><A HREF="autoconf.html#IDX423">REQUIRE_CPP</A>
+<LI><A HREF="autoconf.html#IDX540">RESTARTABLE_SYSCALLS</A>
+<LI><A HREF="autoconf.html#IDX541">RETSIGTYPE</A>
+<LI><A HREF="autoconf.html#IDX76">REVISION</A>
+<LI><A HREF="autoconf.html#IDX542">RSH</A>
+</DIR>
+<H2><A NAME="maindex_s">s</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX387">SCO_INTL</A>
+<LI><A HREF="autoconf.html#IDX149">SEARCH_LIBS</A>, <A HREF="autoconf.html#IDX151">SEARCH_LIBS</A>
+<LI><A HREF="autoconf.html#IDX544">SET_MAKE</A>
+<LI><A HREF="autoconf.html#IDX543">SETVBUF_REVERSED</A>
+<LI><A HREF="autoconf.html#IDX546">SIZE_T</A>
+<LI><A HREF="autoconf.html#IDX545">SIZEOF_TYPE</A>
+<LI><A HREF="autoconf.html#IDX550">ST_BLKSIZE</A>
+<LI><A HREF="autoconf.html#IDX551">ST_BLOCKS</A>
+<LI><A HREF="autoconf.html#IDX552">ST_RDEV</A>
+<LI><A HREF="autoconf.html#IDX270">STAT_MACROS_BROKEN</A>, <A HREF="autoconf.html#IDX547">STAT_MACROS_BROKEN</A>
+<LI><A HREF="autoconf.html#IDX548">STDC_HEADERS</A>
+<LI><A HREF="autoconf.html#IDX549">STRCOLL</A>
+<LI><A HREF="autoconf.html#IDX275">STRUCT_ST_BLKSIZE</A>
+<LI><A HREF="autoconf.html#IDX278">STRUCT_ST_BLOCKS</A>
+<LI><A HREF="autoconf.html#IDX282">STRUCT_ST_RDEV</A>
+<LI><A HREF="autoconf.html#IDX288">STRUCT_TIMEZONE</A>
+<LI><A HREF="autoconf.html#IDX285">STRUCT_TM</A>
+<LI><A HREF="autoconf.html#IDX429">SUBST</A>
+<LI><A HREF="autoconf.html#IDX431">SUBST_FILE</A>
+<LI><A HREF="autoconf.html#IDX363">SYS_INTERPRETER</A>
+<LI><A HREF="autoconf.html#IDX365">SYS_LONG_FILE_NAMES</A>
+<LI><A HREF="autoconf.html#IDX368">SYS_RESTARTABLE_SYSCALLS</A>
+<LI><A HREF="autoconf.html#IDX553">SYS_SIGLIST_DECLARED</A>
+</DIR>
+<H2><A NAME="maindex_t">t</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX554">TEST_CPP</A>
+<LI><A HREF="autoconf.html#IDX555">TEST_PROGRAM</A>
+<LI><A HREF="autoconf.html#IDX557">TIME_WITH_SYS_TIME</A>
+<LI><A HREF="autoconf.html#IDX556">TIMEZONE</A>
+<LI><A HREF="autoconf.html#IDX399">TRY_COMPILE</A>
+<LI><A HREF="autoconf.html#IDX393">TRY_CPP</A>
+<LI><A HREF="autoconf.html#IDX401">TRY_LINK</A>
+<LI><A HREF="autoconf.html#IDX403">TRY_LINK_FUNC</A>, <A HREF="autoconf.html#IDX405">TRY_LINK_FUNC</A>
+<LI><A HREF="autoconf.html#IDX409">TRY_RUN</A>
+<LI><A HREF="autoconf.html#IDX292">TYPE_GETGROUPS</A>
+<LI><A HREF="autoconf.html#IDX295">TYPE_MODE_T</A>
+<LI><A HREF="autoconf.html#IDX298">TYPE_OFF_T</A>
+<LI><A HREF="autoconf.html#IDX301">TYPE_PID_T</A>
+<LI><A HREF="autoconf.html#IDX304">TYPE_SIGNAL</A>
+<LI><A HREF="autoconf.html#IDX307">TYPE_SIZE_T</A>
+<LI><A HREF="autoconf.html#IDX310">TYPE_UID_T</A>
+</DIR>
+<H2><A NAME="maindex_u">u</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX558">UID_T</A>
+<LI><A HREF="autoconf.html#IDX257">UNISTD_H</A>
+<LI><A HREF="autoconf.html#IDX261">USG</A>
+<LI><A HREF="autoconf.html#IDX559">UTIME_NULL</A>
+</DIR>
+<H2><A NAME="maindex_v">v</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX466">VALIDATE_CACHED_SYSTEM_TUPLE</A>
+<LI><A HREF="autoconf.html#IDX451">VERBOSE</A>
+<LI><A HREF="autoconf.html#IDX560">VFORK</A>
+<LI><A HREF="autoconf.html#IDX561">VPRINTF</A>
+</DIR>
+<H2><A NAME="maindex_w">w</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX562">WAIT3</A>
+<LI><A HREF="autoconf.html#IDX563">WARN</A>
+<LI><A HREF="autoconf.html#IDX487">WITH</A>
+<LI><A HREF="autoconf.html#IDX564">WORDS_BIGENDIAN</A>
+</DIR>
+<H2><A NAME="maindex_x">x</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX390">XENIX_DIR</A>
+</DIR>
+<H2><A NAME="maindex_y">y</A></H2>
+<DIR>
+<LI><A HREF="autoconf.html#IDX565">YYTEXT_POINTER</A>
+</DIR>
+
+</P>
+<P><HR><P>
+This document was generated on 20 June 1999 using the
+<A HREF="http://wwwinfo.cern.ch/dis/texi2html/">texi2html</A>
+translator version 1.52.</P>
+</BODY>
+</HTML>

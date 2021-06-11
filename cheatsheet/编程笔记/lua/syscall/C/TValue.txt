@@ -1,0 +1,93 @@
+TValue结构对应于lua中的所有数据类型, 是一个{值, 类型} 结构, 这就lua中动态类型的实现, 它把值和类型绑在一起, 用tt记录value的类型, value是一个联合结构, 由Value定义, 可以看到这个联合有四个域, 先说明简单的
+    p -- 可以存一个指针, 实际上是lua中的light userdata结构
+    n -- 所有的数值存在这里, 不过是int , 还是float
+    b -- Boolean值存在这里, 注意, lua_pushinteger不是存在这里, 而是存在n中, b只存布尔
+    gc -- 其他诸如table, thread, closure, string需要内存管理垃圾回收的类型都存在这里
+    gc是一个指针, 它可以指向的类型由联合体GCObject定义, 从图中可以看出, 有string, userdata, closure, table, proto, upvalue, thread
+
+从下面的图可以的得出如下结论:
+    1. lua中, number, boolean, nil, light userdata四种类型的值是直接存在栈上元素里的, 和垃圾回收无关.
+    2. lua中, string, table, closure, userdata, thread存在栈上元素里的只是指针, 他们都会在生命周期结束后被垃圾回收.
+
+其中注册表包含在global_State中，环境变量 closure和global_State都有，upvalue只在closure中包含。
+
+
+static TValue *index2adr (lua_State *L, int idx) { 
+.................... 
+  else switch (idx) {  /* pseudo-indices */ 
+///注册表读取 
+    case LUA_REGISTRYINDEX: return registry(L); 
+///环境变量的存取 
+    case LUA_ENVIRONINDEX: { 
+///先得到当前函数 
+      Closure *func = curr_func(L); 
+///将当前函数的env设置为整个state的env。这样整个模块都可以共享。 
+      sethvalue(L, &L->env, func->c.env); 
+      return &L->env; 
+    } 
+///用来取global_State。 
+    case LUA_GLOBALSINDEX: return gt(L); 
+ 
+///取upvalue 
+    default: { 
+///取得当前函数 
+      Closure *func = curr_func(L); 
+///转换索引 
+      idx = LUA_GLOBALSINDEX - idx; 
+///从upvalue数组中取得对应的值。 
+      return (idx <= func->c.nupvalues) 
+                ? &func->c.upvalue[idx-1] 
+                : cast(TValue *, luaO_nilobject); 
+    } 
+  } 
+} 
+
+LUALIB_API void luaL_unref (lua_State *L, int t, int ref) {
+  if (ref >= 0) {
+///取出注册表的table
+    t = abs_index(L, t);
+///得到t[FREELIST_REF];
+    lua_rawgeti(L, t, FREELIST_REF);
+///这里可以看到如果再次unref的话t[ref]就保存就的是上上一次的key的值。
+    lua_rawseti(L, t, ref);  /* t[ref] = t[FREELIST_REF] */
+ 
+///将ref压入栈
+    lua_pushinteger(L, ref);
+///设置t[FREELIST_REF］为ref。
+    lua_rawseti(L, t, FREELIST_REF);  /* t[FREELIST_REF] = ref */
+  }
+}
+
+LUALIB_API int luaL_ref (lua_State *L, int t) { 
+  int ref; 
+///取得索引 
+  t = abs_index(L, t); 
+  if (lua_isnil(L, -1)) { 
+    lua_pop(L, 1);  /* remove from stack */ 
+///如果为nil，则直接返回LUA_REFNIL. 
+    return LUA_REFNIL;   
+  } 
+///得到t[FREELIST_REF]. 
+  lua_rawgeti(L, t, FREELIST_REF); 
+///设置ref = t[FREELIST_REF]  
+  ref = (int)lua_tointeger(L, -1);  
+///弹出t[FREELIST_REF]  
+  lua_pop(L, 1);  /* remove it from stack */ 
+ 
+///如果ref不等于0,则说明有已经被unref掉得key。 
+  if (ref != 0) {  /* any free element? */ 
+///得到t[ref]，这里t[ref]保存就是上上一次被unref掉得那个key。 
+    lua_rawgeti(L, t, ref);  /* remove it from list */ 
+///设置t[FREELIST_REF] = t[ref],这样当下次再进来，我们依然可以通过freelist来直接返回key。 
+    lua_rawseti(L, t, FREELIST_REF);  
+  } 
+  else {  /* no free elements */ 
+///这里是通过注册表的大小来得到对应的key 
+    ref = (int)lua_objlen(L, t); 
+    ref++;  /* create new reference */ 
+  } 
+ 
+//设置t[ref]=value; 
+  lua_rawseti(L, t, ref); 
+  return ref; 
+} 

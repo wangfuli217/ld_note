@@ -1,0 +1,64 @@
+
+Qt中定时器支持两种方式：
+1.QObject中的startTimer()、timeEvent()、killTimer()
+其中QTimerEvent::timerId()代表定时器的ID
+2.QTimer：
+//创建定时器
+QTimer *testTimer = new QTimer(this);
+//将定时器超时信号与槽(功能函数)联系起来
+connect( testTimer, SIGNAL(timeout()), this, SLOT(testFunction()) );
+//开始运行定时器，定时时间间隔为1000ms
+testTimer->start(1000);
+...
+//停止运行定时器
+if ( testTimer->isActive() )
+    testTimer->stop();
+
+QTimer还支持只触发一次的定时器：
+QTimer::singleShot(1000, this, &MainWindow::timeout);
+
+
+http://www.kuqin.com/qtdocument/qtimer.html#details
+1. QTimer类提供了定时器信号和单触发定时器。
+2. 它在内部使用定时器事件来提供更通用的定时器。QTimer很容易使用：创建一个QTimer，
+使用start()来开始并且把它的timeout()连接到适当的槽。当这段时间过去了，它将会发射timeout()信号。
+
+注意当QTimer的父对象被销毁时，它也会被自动销毁。
+实例：
+    QTimer *timer = new QTimer( myObject );
+    connect( timer, SIGNAL(timeout()), myObject, SLOT(timerDone()) );
+    timer->start( 2000, TRUE ); // 2秒单触发定时器
+
+
+你也可以使用静态的 singleShot()函数来创建单触发定时器。
+作为一个特殊情况，一旦窗口系统事件队列中的所有事件都已经被处理完，一个定时为0的QTimer就会到时间了。
+这也可以用来当提供迅速的用户界面时来做比较繁重的工作。
+        QTimer *t = new QTimer( myObject );
+        connect( t, SIGNAL(timeout()), SLOT(processOneThing()) );
+        t->start( 0, FALSE );
+    
+    myObject->processOneThing()将会被重复调用并且应该很快返回(通常在处理一个数据项之后)，
+这样Qt可以把事件传送给窗口部件并且一旦它完成这个工作就停止这个定时器。这是在图形用户界面
+应用程序中实现繁重的工作的一个典型方法，现在多线程可以在越来越多的平台上使用，并且我们
+希望无效事件最终被线程替代。
+
+    注意QTimer的精确度依赖于底下的操作系统和硬件。绝大多数平台支持20毫秒的精确度，
+一些平台可以提供更高的。如果Qt不能传送定时器触发所要求的数量，它将会默默地抛弃一些。
+
+    另一个使用QTimer的方法是为你的对象调用QObject::startTimer()和在你的类中(当然必须继承QObject)
+重新实现QObject::timerEvent()事件处理器。缺点是timerEvent()不支持像单触发定时器或信号那样的高级水平。
+
+    一些操作系统限制可能用到的定时器的数量，Qt会尽力在限制范围内工作。
+
+2. 实例
+#include <qapplication.h>
+#include <qtimer.h>
+
+int main( int argc, char **argv )
+{
+    QApplication a( argc, argv );
+    QTimer::singleShot( 10*60*1000, &a, SLOT(quit()) );
+        ... // 创建并且显示你的窗口部件
+    return a.exec();
+}
+这个示例程序会自动在10分钟之后终止（也就是600000毫秒）。 

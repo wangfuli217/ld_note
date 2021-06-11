@@ -1,0 +1,264 @@
+1. 字符串是图形界面的基石，虽然控件和图标看起来直观，但还是必定要使用字符串来显示信息的。
+2. 源代码文件里的字符编码通常有 ANSI 多字节编码和 Unicode 系列编码，字符编码影响程序运行时的文字显示， 如果处理不好就容易乱码。
+3. 从跨平台运行的角度，我们推荐 UTF-8 编码的源文件，这也是 Qt5 官方规定的源文件格式。
+4. QString 类对象可以通过 data 函数返回它实际的数据存储块指针
+
+================================================================================= 编码
+ANSI：多字节编码方式(American National Standards Institute，美国国家标准学会)
+      英文和符号就使用单字节的 ASCII（0x00~0x7f）
+      汉字之类的本地化字符编码:0x80~0xFF 范围内的多个字节来表示
+
+大陆: GB2312 GBK                   汉字是双字节编码
+      GB18030-2000  GB18030-2005   汉字是双字节编码部分和四字节编码部分
+港台: Big5                         繁体汉字
+
+Unicode: 编码方式:  UCS-2(Universal Character Set 2)  UCS-4(Universal Character Set 4) 
+         实现方式:  UTF-8 UTF-16(UTF-16LE UTF-16BE) UTF-32(UTF-32LE UTF-32BE)
+         
+Windows 系统里最常用的文本字符编码格式是 ANSI(简体是 GBK，繁体是 Big5)和 Unicode(UTF-16LE)格式，
+
+================================================================================= C++与编码
+在 C++ 中，以前通常使用 char 表示单字节的字符，使用 wchar_t 表示宽字符，对国际码提供一定程度的支持。
+char * 字符串有专门的封装类 std::string 来处理，标准输入输出流是 std::cin 和 std::cout 。
+对于 wchar_t * 字符串，其封装类是 std::wstring，标准输入输出流是 wcin 和 wcout。
+虽然规定了宽字符，但是没有明确一个宽字符是占用几个字节，Windows 系统里的宽字符是两个字节，就是 UTF-16；
+而 Unix/Linux 系统里为了更全面的国际码支持，其宽字符是四个字节，即 UTF-32 编码。
+
+在新标准 C++11 中，对国际码的支持做了明确的规定：
+    char * 对应 UTF-8 编码字符串（代码表示如 u8"多种文字"），封装类为 std::string；
+    新增 char16_t * 对应 UTF-16 编码字符串（代码表示如 u"多种文字"），封装类为 std::u16string ；
+    新增 char32_t * 对应 UTF-32 编码字符串（代码表示如 U"多种文字"），封装类为 std::u32string 。
+#### Windows ####
+g++ GBK.cpp -o GBK        正常输出
+g++ UTF-8.cpp -o UTF-8    不正常输出
+g++ UTF-16.cpp -o UTF-16  编译错误
+#### Linux/unix ####
+g++ GBK.cpp -o GBK        不正常输出
+g++ UTF-8.cpp -o UTF-8    正常输出
+g++ UTF-16.cpp -o UTF-16  编译错误
+================================================================================= MFC与编码
+MFC 一般用自家的 TCHAR 和 CString 类支持国际化，当没有定义 _UNICODE 宏时，TCHAR = char，
+当定义了 _UNICODE宏 时，TCHAR = wchar_t，CString 内部也是类似的。
+
+================================================================================= Qt与编码
+Qt 则用 QChar 和 QString 类(内部恒定为 UTF-16)，一般的图形开发库都用自家的字符串类库。
+Windows 系统里一般的记事本、编辑器、VC++ 开发环境等都是默认用 GBK 汉字编码，
+Linux 和 Qt 都是默认用 UTF-8 国际文字编码，
+所以文本显示乱码一般都是这个原因，从编辑器里选择正确的编码就可以正常显示本地语言文字了。
+
+Qt 输出显示字符串和文本的编码格式强关联；Windows _pCodec = QTextCodec::codecForName("GB2312");  文件使用GBK编码
+                                         Linux   _pCodec = QTextCodec::codecForName("UTF-8");   文件使用UTF-8编码
+Qt5 默认都是将源文件里的字符串当作 UTF-8 编码处理 # 当前XP安装的Qt仍然使用GBK 编码处理。
+                                         QString strText = QString::fromLocal8Bit("1234打印汉字"); fromLocal8Bit当前不存在
+Qt5 默认的源文件编码格式，字符串也应该用 tr 函数封装，方便做国际化翻译    # UTF-8 编码格式文件使用codecForName("UTF-8");
+
+UTF-8  str.toLocal8Bit().data()
+       str.toStdString().data()
+       str.toUtf8().data()
+       str
+ANSI   都是乱码
+       
+https://qtguide.ustclug.org/
+1 字符编码方式
+    本节对操作系统里的字符编码进行简单介绍，这对于程序的跨平台开发、汉字乱码问题解决等都是很重要的知识.
+1.1 ANSI多字节编码
+------------------
+对于中文 DOS 系统和早期的中文 Windows 系统，大陆制定了国标码 GB2312，台港澳地区则使用了大五码 Big5。
+微软针对这些本地化字符编码采用的就是用 ANSI多字节编码方式，系统里的英文和符号就使用单字节的 ASCII，
+而对于汉字之类的本地化字符编码，就采用 0x80~0xFF 范围内的多个字节来表示，这样既能兼容 ASCII ，又能正常使用本地化语言文字。
+ANSI : American National Standards Institute，美国国家标准学会
+ASCII: American Standard Code for Information Interchange，美国标准信息交换代码
+
+1.2 大陆的国标码发展了好几代，归结如下：
+------------------------------------
+    GB2312：1980年发布，收录了7445个字符，包括6763个汉字和682个其它符号。汉字是双字节编码。
+    GBK：1995年发布，收录了21886个符号，包括21003个汉字和883个其它符号。汉字是双字节编码。简体中文 Windows 目前默认采用这种本地化编码。
+    GB18030-2000：2000年发布，收录了27533个汉字，汉字分为双字节编码部分和四字节编码部分。
+    GB18030-2005：2005年发布，收录了70244个汉字，汉字也分为双字节编码部分和四字节编码部分。
+## 新的国标码标准通常是兼容旧的编码方式的，所以一般对简体中文的文本选择 GBK 或 GB18030 编码都是可以正常显示的。
+微软针对各种本地化语言的页面有自己的编号方式，
+  GBK 对应的代码页编号是 936，
+  GB18030 对应的代码页编号是 54936，
+  Big5 对应的代码页编号是 950。
+
+关于汉字编码可以参考：
+http://www.fmddlmyy.cn/text24.html
+关于代码页编号可以参考：
+http://zh.wikipedia.org/wiki/%E4%BB%A3%E7%A0%81%E9%A1%B5
+
+2. Unicode系列编码
+------------------
+    ANSI 多字节编码解决了各种语言文字的本地化使用问题，也有它自己的缺陷：各地制定的编码标准只对自己的语言文字有效，
+而不同语言文字的编码都是冲突的，因为大家都用 0x80~0xFF 范围字节表示自己的语言文字，而不考虑别的语言文字如何编码，
+冲突在所难免。比如简体中文(GBK)的文本放到繁体中文(Big5)的操作系统里，就被默认解析成繁体字编码，两种编码是冲突的，
+就会显示混乱的繁体字，反过来也一样。
+    因此国际组织制定了 Unicode 编码，也叫万国码、国际码等，这种字符编码是对全球语言统一分配编码区间，各种语言字符互相不冲突，
+都可以兼容使用。Unicode 编码从最初的 1.0 ，慢慢发展到今年发布的 8.0，包含的语言文字越来越多。
+
+    Unicode 编码系统，可分为编码方式和实现方式两个层次。
+    对于国际组织发布的 Unicode 编码标准，对应的就是编码方式，最常用的是 UCS-2(Universal Character Set 2)，采用两字节编码一个字符。
+当然国际语言文字太多，两字节不够用了，就有四字节编码方式 UCS-4。
+    这个仅仅是标准，而不是实现，在编码实现的过程中，有些考虑兼容旧的单字节 ASCII 编码，有些不考虑兼容性；
+    有些考虑双字节中哪个字节放在前面，哪个字节放在后面的问题，即 BOM(Byte Order Mark，字节顺序标记)的作用。
+因此诞生了多种国际码的实现方式，统称为 Unicode 转换格式(Unicode Transformation Format，UTF)
+
+    UTF-8：灵活的变长编码，对于 ASCII 使用一个字节编码，其他本地化语言文字用多个字节编码，
+最长可以到 6 个字节编码一个字符。对于汉字，通常是 3 个字节表示一个汉字。这是 Unix/Linux 系统默认的字符编码。
+    UTF-16：兼容 UCS-2，一般都是两字节表示一个字符，对于超出两字节的国际码字符，使用一对两字节来表示。
+在存储时，按两个字节的排布顺 序，可以分为 UTF-16LE(Little Endian，小端字节序)和UTF-16BE(Big Endian，大端字节序)，
+微软所说的 Unicode 默认就是 UTF-16LE。
+    UTF-32：同 UCS-4，因为用四个字节表示一个字符，所以不需要考虑扩展了。这种编码方式简单，但也特别浪费空间，
+所以应用很少。在存储时也分为 UTF-32BE 和 UTF-32LE，因为用得少，所以不用太关心这种编码格式。
+
+BOM : Byte Order Mark，字节顺序标记
+UTF: Unicode 转换格式(Unicode Transformation Format，UTF)
+UTF-16LE : Little Endian，小端字节序
+UTF-16BE : Big Endian，大端字节序
+UTF-32BE 和 UTF-32LE
+
+关于 Unicode 编码格式参考：
+http://baike.baidu.com/view/40801.htm
+关于 UTF 和 BOM 参考：
+http://www.unicode.org/faq/utf_bom.html
+
+3. C++使用的字符串
+------------------
+    在 C++ 中，以前通常使用 char 表示单字节的字符，使用 wchar_t 表示宽字符，对国际码提供一定程度的支持。
+    char * 字符串有专门的封装类 std::string 来处理，标准输入输出流是 std::cin 和 std::cout 。
+    对于 wchar_t * 字符串，其封装类是 std::wstring，标准输入输出流是 wcin 和 wcout。
+    
+    虽然规定了宽字符，但是没有明确一个宽字符是占用几个字节，Windows 系统里的宽字符是两个字节，就是 UTF-16；
+    而 Unix/Linux 系统里为了更全面的国际码支持，其宽字符是四个字节，即 UTF-32 编码。
+这为程序的跨平台带来一定的混乱，除了 Windows 程序开发常用 wchar_t* 字符串表示 UTF-16 ，其他情况下 wchar_t* 都用得比较少。
+
+    MFC 一般用自家的 TCHAR 和 CString 类支持国际化，当没有定义 _UNICODE 宏时，TCHAR = char，
+当定义了 _UNICODE宏 时，TCHAR = wchar_t，CString 内部也是类似的。
+    Qt 则用 QChar 和 QString 类(内部恒定为 UTF-16)，一般的图形开发库都用自家的字符串类库。
+
+在新标准 C++11 中，对国际码的支持做了明确的规定：
+    char * 对应 UTF-8 编码字符串(代码表示如 u8"多种文字")，封装类为 std::string；
+    新增 char16_t * 对应 UTF-16 编码字符串(代码表示如 u"多种文字")，封装类为 std::u16string ；
+    新增 char32_t * 对应 UTF-32 编码字符串(代码表示如 U"多种文字")，封装类为 std::u32string 。
+
+char char* std::string std::cin std::cout
+wchar_t wchar_t* std::wstring std::wcin std::wcout 虽然规定了宽字符，但是没有明确一个宽字符是占用几个字节
+char * std::string
+char16_t * std::u16string
+char32_t * std::u32string
+    
+4. 源文件字符编码测试
+4.1 在 Windows 系统里最常用的文本字符编码格式是 ANSI (简体是 GBK，繁体是 Big5) 和 Unicode (UTF-16LE)格式
+4.2 Linux 系统里统统都是 UTF-8
+
+ANSI：本地化语言文字编码，简体操作系统是 GBK，繁体操作系统就是 Big5，Windows 命令行默认用的字符编码是和这个一样的。
+Unicode：Windows 所说的国际码一般都指这个 UTF-16LE，文件开头带有 BOM 标记(2字节)。
+Unicode big endian：即 UTF-16BE，这个很少用到，文件开头也带 BOM 标记(2字节)。
+UTF-8：这是 Unix/Linux 系统里通用的国际码存储交换格式，记事本保存的文件开头会有 UTF-8 签名(3字节，类似 BOM)。
+
+4.1 Windows系统
+g++ GBK.cpp -o GBK        程序是正常编译和显示
+g++ UTF-8.cpp -o UTF-8    程序正常编译，显示不正常
+g++ UTF-16.cpp -o UTF-16  程序编译不正常，无法显示
+
+cl UTF-16.cpp /EHsc       显示也很正常
+
+4.2 Linux系统
+g++ GBK.cpp -o GBK        程序正常编译，显示不正常
+g++ UTF-8.cpp -o UTF-8    程序是正常编译和显示
+g++ UTF-16.cpp -o UTF-16  程序编译不正常，无法显示
+
+g++ 编译器不会对源文件里的字符串做转码。
+在 Windows 系统里源文件是 GBK ，其命令行编码也是 GBK，所以 GBK 编码的程序正常显示汉字
+在 Linux 系统里源文件是 UTF-8，其命令行编码也是 UTF-8，所以 UTF-8 编码的程序正常显示汉字
+cl  编译器会根据不同的源文件编码格式进行转码，
+文件中 char * 字符串一律转成本地化的 ANSI 多字节编码， wchar_t*字符串一律转成 Unicode(UTF-16LE)。
+
+Windows 系统里一般的记事本、编辑器、VC++ 开发环境等都是默认用 GBK 汉字编码，
+Linux 和 Qt 都是默认用 UTF-8 国际文字编码，所以文本显示乱码一般都是这个原因
+
+https://qtguide.ustclug.org/
+
+1. 通过一个图形界面示例，将其文本显示控件的汉字乱码纠正
+第一种是不修改源代码文件编码格式，通过 QString::fromLocal8Bit 函数在程序运行时转码；
+第二种是直接将源代码文件整体转换成 UTF-8 编码，就不需要修改具体的代码行了，第二种是最为推荐的方式。
+https://lug.ustc.edu.cn/sites/qtguide/QtProjects/ch03/qtmess/qtmess.7z
+
+对于简体中文，选择 GBK 打头的条目或 GB18030 打头的都可以.
+windows-936 和其他 CP936(CodePage)、MS936(Microsoft)是一个意思，
+
+
+Qt5 默认都是将源文件里的字符串当作 UTF-8 编码处理，GBK 多字节编码的汉字就会乱码。对于纠正乱码
+1.1 QString strText = QString::fromLocal8Bit("1234打印汉字");
+1.2 
+
+1.3 运行时QString与多种编码格式转换
+转入函数       转出函数        描述
+fromLocal8Bit  toLocal8Bit     与操作系统及本地化语言相关，Linux 一般是 UTF-8 字符串，Windows 一般是 ANSI 多字节编码字符串。
+fromUtf8       toUtf8          与 UTF-8 编码的字符串相互转换。
+fromUtf16      utf16 和unicode 与 UTF-16(UCS2)编码的字符串互相转换，utf16 函数与 unicode 函数功能一样， 注意没有 to 前缀，因为 QString 运行时的内码就是 UTF-16，字符的双字节采用主机字节序。
+fromUcs4       toUcs4          与 UTF-32(UCS4)编码的字符串互相转换，一个字符用四个字节编码，占空间多，应用较少。
+fromStdString  toStdString     与 std::string 对象互相转换，因为 C++11 规定标准字符串 std::string 使用 UTF-8 编码，这对函数功能与上面 **Utf8 转码函数相同。
+fromStdWString toStdWString    与 std::wstring 对象相互转换，在 Linux 系统里宽字符是四字节的 UTF-32，在 Windows 系统里宽字符是两字节的 UTF-16。因为不同平台有歧义，不建议使用。
+fromCFString   toNSString      仅存在于苹果 Mac OS X 和 iOS 系统。
+fromNSString   toCFString      仅存在于苹果 Mac OS X 和 iOS 系统。
+
+QString::fromAscii ( const char * str, int size = -1 );  
+QString::fromLatin1 ( const char * str, int size = -1 );  
+QString::fromLocal8Bit ( const char * str, int size = -1 );  
+QString::fromRawData ( const QChar * unicode, int size );  
+QString::fromStdString ( const std::string & str );  
+QString::fromStdWString ( const std::wstring & str );  
+QString::fromUcs4 ( const uint * unicode, int size = -1 );  
+QString::fromUtf8 ( const char * str, int size = -1 );  
+QString::fromUtf16 ( const ushort * unicode, int size = -1 );  
+QString::fromWCharArray ( const wchar_t * string, int size = -1 );  
+  
+//qstring ->std::string  
+QString::toStdString () ;  
+QString::toStdWString ();
+
+1.3.1 cout
+//Locale charset
+cout<<str.toLocal8Bit().data()<<endl;      1234打印汉字
+
+//UTF-8
+cout<<str.toUtf8().data()<<endl;           1234鎵撳嵃姹夊瓧
+cout<<str.toStdString()<<endl;             1234鎵撳嵃姹夊瓧
+
+//UTF-16, Windows Unicode, UCS2
+cout<<str.unicode()<<endl;                 015F3980
+cout<<str.utf16()<<endl;                   015F3980
+cout<<str.data()<<endl;                    015F3980
+
+//UTF-32, UCS4
+cout<<str.toUcs4().data()<<endl;           016309C8
+
+//wchar_t: Windows = UTF-16; Linux/Unix = UTF-32
+wcout<<str.toStdWString();                 1234 
+
+cout<<endl<<endl;
+
+1.3.2 qDebug
+//Locale charset
+qDebug()<<str.toLocal8Bit().data();        1234???????
+
+//UTF-8
+qDebug()<<str.toUtf8().data();             1234打印汉字
+qDebug()<<str.toStdString().data();        1234打印汉字
+
+//UTF-16, Windows Unicode, UCS2
+qDebug()<<str.unicode();                   0x15f3980
+qDebug()<<str.utf16();                     0x15f3980
+qDebug()<<str.data();                      0x15f3980
+
+//UTF-32, UCS4
+qDebug()<<str.toUcs4().data();             0x1630ad8
+
+//wchar_t: Windows = UTF-16; Linux/Unix = UTF-32
+qDebug()<<str.toStdWString().data();       0x1630ac8
+
+//QString object
+qDebug()<<str;                             "1234打印汉字"
+
+    qDebug 可以正确显示 Utf8 、StdString 编码的字符串，当然还能智能打印 QString 对象的内容，
+会用双引号包起来。一般直接使用 qDebug()<<对象名;

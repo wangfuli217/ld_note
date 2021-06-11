@@ -1,0 +1,118 @@
+--[[   序列化 (Serialization)将对象的状态信息转换为可以存储或传输的形式的过程。
+       在序列化期间，对象将其当前状态写入到临时或持久性存储区。
+       以后，可以通过从存储区中读取或反序列化对象的状态，重新创建该对象。
+       
+string.dump (function [,strip]) 
+       返回一个字符串，该字符串包含一个函数的二进制描述，之后可以用load加载这个函数的拷贝。
+       如果strip参数为true，那么函数拷贝为减少空间将不会包含任何调试信息。
+       函数只保存upvalues的数目。当重新加载时，所有的upvalue设置为nil。
+
+       带上值的函数只保存上值的数目。当(再次)加载时，这些上值被更新为 nil 的实例。
+       (你可以使用调试库按你需要的方式来序列化上值，并重载到函数中)
+--]]
+-- 实例1：
+-- 首先新建一个文件将文件命名为dumptest.lua然后辨析额如下代码:
+--自定义一个函数
+function custom_func(num1, num2)
+    local ret = num1 + num2;
+    print("\nnum1 = "..num1)
+    print("num2 = "..num2)
+    print("num1 + num2 = "..ret)
+end
+
+-- 将函数序列化
+local func_content = string.dump(custom_func)
+print("\nfunc_content = "..func_content)
+
+-- 将转化后的字符串写入文件
+local outfile = io.open("dumptest.txt", "w")
+local outnum = outfile:write(func_content)
+outfile:close()
+
+-- 从文件总读取内容
+local infile = io.open("dumptest.txt", "r")
+local incontent = infile:read("*a")
+infile:close()
+print("\ninput content is "..incontent)
+
+-- 加载函数
+local myfunc = loadstring(incontent)
+
+-- 执行函数
+myfunc(1, 1)
+
+myfunc(3, 6)
+
+-- 输出这个幸福的七月七
+myfunc("7" ,".7")
+
+print("\nthis is a happy day!")
+print(os.date())
+
+-- load(string.dump(func))
+f=function (x) return x*x end
+strf=string.dump(f)
+y=load(strf)
+y(12)
+
+-- 实例2：
+function _serialize_table(t, seen)
+	assert(not seen[t], "Recursion detected.")
+	seen[t] = true
+
+	local data  = ""
+	local idata = ""
+	local ilen  = 0
+
+	for k, v in pairs(t) do -- 字典表
+		if type(k) ~= "number" or k < 1 or math.floor(k) ~= k or ( k - #t ) > 3 then
+			k = serialize_data(k, seen)
+			v = serialize_data(v, seen)
+			data = data .. ( #data > 0 and ", " or "" ) ..
+				'[' .. k .. '] = ' .. v
+		elseif k > ilen then
+			ilen = k
+		end
+	end
+
+	for i = 1, ilen do  -- 序列表
+		local v = serialize_data(t[i], seen)
+		idata = idata .. ( #idata > 0 and ", " or "" ) .. v
+	end
+
+	return idata .. ( #data > 0 and #idata > 0 and ", " or "" ) .. data
+end
+
+-- with loadstring().
+-- 返回变量的代码源义: 即可以将返回值作为标准赋值部分
+function serialize_data(val, seen)
+	seen = seen or setmetatable({}, {__mode="k"})
+
+	if val == nil then
+		return "nil"
+	elseif type(val) == "number" then
+		return val
+	elseif type(val) == "string" then
+		return "%q" % val
+	elseif type(val) == "boolean" then
+		return val and "true" or "false"
+	elseif type(val) == "function" then
+		return "loadstring(%q)" % get_bytecode(val) -- 接受一个字符串并将其转化为可安全被Lua编译器读入的格式
+	elseif type(val) == "table" then
+		return "{ " .. _serialize_table(val, seen) .. " }"
+	else
+		return '"[unhandled data type:' .. type(val) .. ']"'
+	end
+end
+
+function get_bytecode(val)
+	local code
+
+	if type(val) == "function" then
+		code = string.dump(val) -- 返回指定函数的二进制代码
+	else
+		code = string.dump( loadstring( "return " .. serialize_data(val) ) )
+	end
+
+	return code -- and strip_bytecode(code)
+end

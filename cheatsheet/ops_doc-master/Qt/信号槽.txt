@@ -1,0 +1,93 @@
+1. 信号槽
+    所谓信号槽，实际就是观察者模式。当某个事件发生之后，比如，按钮检测到自己被点击了一下，它就会发出一个信号(signal)。
+这种发出是没有目的的，类似广播。如果有对象对这个信号感兴趣，它就会使用连接(connect)函数，
+意思是，用自己的一个函数(成为槽(slot))来处理这个信号。也就是说，当信号发出时，被连接的槽函数会自动被回调。
+
+// !!! Qt 5
+#include <QApplication>
+#include <QPushButton>
+
+int main(int argc, char *argv[])
+{
+   QApplication app(argc, argv);
+
+   QPushButton button("Quit");
+   QObject::connect(&button, &QPushButton::clicked, &QApplication::quit);
+   button.show();
+
+   return app.exec();
+}
+
+
+
+QMetaObject::Connection connect(const QObject *, const char *,const QObject *, const char *,Qt::ConnectionType);
+QMetaObject::Connection connect(const QObject *, const QMetaMethod &,const QObject *, const QMetaMethod &,Qt::ConnectionType);
+QMetaObject::Connection connect(const QObject *, const char *,const char *,Qt::ConnectionType) const;
+QMetaObject::Connection connect(const QObject *, PointerToMemberFunction,const QObject *, PointerToMemberFunction,Qt::ConnectionType)
+QMetaObject::Connection connect(const QObject *, PointerToMemberFunction,Functor);
+这五个重载的返回值都是QMetaObject::Connection
+
+connect(sender, signal, receiver, slot);
+这是我们最常用的形式。connect() 一般会使用前面四个参数，
+第一个是发出信号的对象，
+第二个是发送对象发出的信号，
+第三个是接收信号的对象，
+第四个是接收对象在接收到信号之后所需要调用的函数。
+也就是说，当 sender 发出了 signal 信号之后，会自动调用 receiver 的 slot 函数。
+
+这是最常用的形式，我们可以套用这个形式去分析上面给出的五个重载。
+    第一个，sender 类型是const QObject * ，
+signal 的类型是const char * ，
+receiver 类型是const QObject * ，
+slot 类型是const char * 。
+这个函数将 signal 和 slot 作为字符串处理。
+
+    第二个，sender 和 receiver 同样是const QObject * ，
+但是 signal 和 slot 都是const QMetaMethod & 。
+我们可以将每个函数看做是QMetaMethod 的子类。因此，这种写法可以使用QMetaMethod 进行类型比对。
+
+    第三个，sender 同样是const QObject * ，
+signal 和 slot 同样是const char * ，但是却缺少了 receiver。这个函数其实是将 this 指针作为 receiver。
+
+    第四个，sender 和 receiver 也都存在，都是const QObject * ，
+但是 signal 和 slot 类型则是PointerToMemberFunction 。看这个名字就应该知道，这是指向成员函数的指针。
+
+    第五个，前面两个参数没有什么不同，
+最后一个参数是Functor 类型。这个类型可以接受 static 函数、全局函数以及 Lambda 表达式。
+
+    信号槽要求信号和槽的参数一致，所谓一致，是参数类型一致。如果不一致，允许的情况是，
+槽函数的参数可以比信号的少，即便如此，槽函数存在的那些参数的顺序也必须和信号的前面几个一致起来。
+
+Qt 4 的信号槽同 Qt 5 类似。在 Qt 4 的 QObject 中，有三个不同的connect() 重载：
+
+bool connect(const QObject *, const char *,
+            const QObject *, const char *,
+            Qt::ConnectionType);
+
+bool connect(const QObject *, const QMetaMethod &,
+            const QObject *, const QMetaMethod &,
+            Qt::ConnectionType);
+
+bool connect(const QObject *, const char *,
+            const char *,
+            Qt::ConnectionType) const
+            
+            
+// !!! Qt 4
+#include <QApplication>
+#include <QPushButton>
+
+int main(int argc, char *argv[])
+{
+   QApplication app(argc, argv);
+
+   QPushButton button("Quit");
+   QObject::connect(&button, SIGNAL(clicked()),
+                    &app,    SLOT(quit()));
+   button.show();
+
+   return app.exec();
+}
+我们使用了SIGNAL 和SLOT 这两个宏，将两个函数名转换成了字符串。
+注意，即使quit() 是QApplication 的 static 函数，也必须传入一个对象指针。
+另外，注意到connect() 函数的 signal 和 slot 都是接受字符串，因此，不能将全局函数或者 Lambda 表达式传入connect()

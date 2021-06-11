@@ -1,0 +1,230 @@
+http://lua-users.org/wiki/FiltersSourcesAndSinks
+基本看到了协程部分；function source.cat(...)
+
+render 交付；给与(帮忙等)；表示(敬意等)；演出
+
+Filters    过滤
+sources    来源
+sinks      水池
+pump       泵,打气筒
+design     设计
+motivation 动机
+examples   实例
+Functional 功能
+
+processes  加工
+consecutive  连续的
+chunk      块
+
+Quoted-Printable 引用-可打印的
+chained   连接
+composite 组合
+frustrate 挫败感
+constitute 构成
+concatenating 把一系列事情联系起来
+boundaries 分界线
+irrelevant 不相干
+arbitrarily 任意地,武断地,反复无常地,肆意地
+indistinguishable 难区分的，不能分辨的,不易察觉的,无特征的
+effect 影响
+components （机器、设备等的）构成要素，零件，成分,成分（ component的名词复数 ）,
+component filter 组成的,合成的,构成的,成分的
+flows 流；数据流
+potentially 潜在地,可能地,   
+passive 被动的
+shortcomings 短处
+evolution 演变
+contrived 认为的
+consolidated 加固
+concrete 具体的
+trivial 琐碎的，无价值的,平常的，平凡的,不重要的,
+implementation 成就,贯彻
+convention 会议,全体与会者,国际公约,惯例，习俗，规矩
+canonic 依教规的，轮唱的
+normalize 使正常化,使标准化
+inherent 固有的 内在的
+ambiguity 含糊的 不明确的
+candidates 报考者（ candidate的名词复数 ）,申请求职者,攻读学位者,最后命运或结局如何已显然可见者
+issue 发行,发布,流出
+obscure 朦胧的,晦涩的，不清楚的,隐蔽的,不著名的，无名的
+auxiliary 辅助的,备用的，补充的,附加的,副的
+ease  轻松，舒适,容易,安逸,不拘束，自在
+primitive  原始的,发展水平低的,落后的
+noted  注意，记下
+lexical  词汇的,具词典性质的，词典的
+                                                                [         chain          ]
+sources and sinks can be chained with filters:  source data -> filter -> filter -> filter -> target sinks
+Filters组成了数据过滤或处理链Chain，
+sources和sinks组成了构成Chain的两端。
+source产生数据；sinks获得数据。
+
+normalize factory标准化工厂
+context filter之间需要保存一些上下文信息
+motivate促动，激发，诱导,刺激,激发……的积极性
+generic 类的，属性的,一般的
+
+
+a low-level filter,               -- 低层次过滤器
+a factory of high-level filters   -- 高层次过滤器工厂
+
+
+------------------ A concrete example ------------------
+input = source.chain(source.file(io.stdin), normalize("\r\n"))
+output = sink.file(io.stdout)
+pump(input, output)
+    
+    
+------------------ The Lua part of the implementation  ------------------
+function filter.cycle(low, ctx, extra)
+  return function(chunk)
+    local ret
+    ret, ctx = low(ctx, chunk, extra)
+    return ret
+  end
+end
+
+function normalize(marker)
+  return cycle(eol, 0, marker)
+end
+
+------------------ The C part of the implementation ------------------
+#define candidate(c) (c == CR || c == LF)
+static int process(int c, int last, const char *marker, luaL_Buffer *buffer) {
+    if (candidate(c)) {
+        if (candidate(last)) {
+            if (c == last) luaL_addstring(buffer, marker);
+            return 0;
+        } else {
+            luaL_addstring(buffer, marker);
+            return c;
+        }
+    } else {
+        luaL_putchar(buffer, c);
+        return 0;
+    }
+}
+
+static int eol(lua_State *L) {
+    int ctx = luaL_checkint(L, 1);
+    size_t isize = 0;
+    const char *input = luaL_optlstring(L, 2, NULL, &isize);
+    const char *last = input + isize;
+    const char *marker = luaL_optstring(L, 3, CRLF);
+    luaL_Buffer buffer;
+    luaL_buffinit(L, &buffer);
+    if (!input) {
+       lua_pushnil(L);
+       lua_pushnumber(L, 0);
+       return 2;
+    }
+    while (input < last)
+        ctx = process(*input++, ctx, marker, &buffer);
+    luaL_pushresult(&buffer);
+    lua_pushnumber(L, ctx);
+    return 2;
+}
+
+------------------ Chaining ------------------
+local function chain2(f1, f2)
+  return function(chunk)
+    local ret = f2(f1(chunk))
+    if chunk then return ret
+    else return ret .. f2() end
+  end
+end
+
+function filter.chain(...)
+  local f = arg[1]
+  for i = 2, table.getn(arg) do
+    f = chain2(f, arg[i])
+  end
+  return f
+end
+
+local chain = filter.chain(normalize("\r\n"), encode("quoted-printable"))
+while 1 do
+  local chunk = io.read(2048)
+  io.write(chain(chunk))
+  if not chunk then break end
+end
+
+------------------ source ------------------
+function source.empty(err)
+  return function()
+    return nil, err
+  end
+end
+
+function source.file(handle, io_err)
+  if handle then 
+     return function()
+       local chunk = handle:read(2048)
+       if not chunk then handle:close() end
+       return chunk
+     end
+  else return source.empty(io_err or "unable to open file") end
+end
+
+local process = normalize("\r\n")
+for chunk in source.file(io.stdin) do
+  io.write(process(chunk))
+end
+io.write(process(nil))
+
+function source.file(handle, io_err)
+  if handle then 
+    return function()
+      if not handle then return nil end
+      local chunk = handle:read(2048)
+      if not chunk then 
+        handle:close() 
+        handle = nil
+      end
+      return chunk
+    end
+  else
+    return source.empty(io_err or "unable to open file")
+  end
+end
+
+
+function source.simplify(src)
+  return function()
+    local chunk, err_or_new = src()
+    src = err_or_new or src
+    if not chunk then return nil, err_or_new
+    else return chunk end
+  end
+end
+
+
+function source.file(handle, io_err)
+  if handle then 
+    return source.simplify(function()
+      local chunk = handle:read(2048)
+      if not chunk then 
+        handle:close()
+        return "", source.empty() 
+      end
+      return chunk
+    end)
+  else
+    return source.empty(io_err or "unable to open file")
+  end
+end
+
+
+function source.cat(...)
+  local co = coroutine.create(function()
+    local i = 1
+    while i <= table.getn(arg) do
+      local chunk, err = arg[i]()
+      if chunk then coroutine.yield(chunk)
+      elseif err then return nil, err 
+      else i = i + 1 end 
+    end
+  end)
+  return function()
+    return shift(coroutine.resume(co))
+  end
+end

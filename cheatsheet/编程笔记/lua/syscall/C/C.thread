@@ -1,0 +1,41 @@
+--[[ 不支持真正的多线程
+第一个，是ANSI C不支持，所以Lua中就没有合适的方法来实现这个机制；
+第二个原因，最重要的是作者认为Lua中支持真正的多线程不是个好主意。
+
+Lua的线程(也叫协同程序)是协作的，
+因此避免了由不可预期的线程切换所带来的问题，且Lua的State是不共享内存的，
+因此在为并发性提供了一个良好基础。
+--]]
+
+--[[ 多协程
+从C API角度来看，认为一个线程就是一个栈是挺有用的。而从实现过程角度来看，线程确实是一个栈。
+关键点：参数类型lua_State ,这个参数不仅代表一个lua state，也同时包括在这个state中的thread。
+
+可以在一个state中通过调用lua_newthread 来创建另外的thread：
+lua_State *lua_newthread(lua_State *L);
+
+
+--]]
+
+--[[ API
+lua_State *lua_tothread (lua_State *L, int index);
+把给定索引处的值转换为一个 Lua 线程 （表示为 lua_State*）。 这个值必须是一个线程； 否则函数返回 NULL。
+
+LUA_TTHREAD
+int lua_type (lua_State *L, int index);
+返回给定有效索引处值的类型， 当索引无效（或无法访问）时则返回 LUA_TNONE。
+
+lua_State *lua_newthread (lua_State *L);
+创建一条新线程，并将其压栈， 并返回维护这个线程的 lua_State 指针。 这个函数返回的新线程共享原线程的全局环境， 但是它有独立的运行栈。
+没有显式的函数可以用来关闭或销毁掉一个线程。 线程跟其它 Lua 对象一样是垃圾收集的条目之一。
+
+int lua_pushthread (lua_State *L);
+把 L 表示的线程压栈。 如果这个线程是当前状态机的主线程的话，返回 1 。
+
+int lua_resume (lua_State *L, lua_State *from, int nargs);
+在给定线程中启动或延续一条协程 。
+要启动一个协程的话， 你需要把主函数以及它需要的参数压入线程栈； 然后调用 lua_resume ， 把 nargs 设为参数的个数。 这次调用会在协程挂起时或是结束运行后返回。 当函数返回时，堆栈中会有传给 lua_yield 的所有值， 或是主函数的所有返回值。 当协程让出， lua_resume 返回 LUA_YIELD ， 若协程结束运行且没有任何错误时，返回 0 。 如果有错则返回错误代码（参见 lua_pcall ）。
+在发生错误的情况下， 堆栈没有展开， 因此你可以使用调试 API 来处理它。 错误消息放在栈顶在。
+要延续一个协程， 你需要清除上次 lua_yield 遗留下的所有结果， 你把需要传给 yield 作结果的值压栈， 然后调用 lua_resume 。
+参数 from 表示协程从哪个协程中来延续 L 的。 如果不存在这样一个协程，这个参数可以是 NULL 。
+--]]

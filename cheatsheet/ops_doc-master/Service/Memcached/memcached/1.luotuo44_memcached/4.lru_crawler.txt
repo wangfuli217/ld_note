@@ -1,0 +1,49 @@
+LRU爬虫：
+前面说到，memcached是懒惰删除过期失效item的。
+所以即使用户在客户端使用了flush_all命令使得全部item都过期失效了，但这些item还是占据者哈希表和LRU队列并没有归还给slab分配器。
+===============================================================================================================
+LRU爬虫线程：
+有没有办法强制清除这些过期失效的item，不再占据哈希表和LRU队列的空间并归还给slabs呢？当然是有的。
+memcached提供了LRU爬虫可以实现这个功能。 
+要使用LRU爬虫就必须在客户端使用lru_crawler命令。memcached服务器根据具体的命令参数进行处理。
+memcached是用一个专门的线程负责清除这些过期失效item的，本文将称这个线程为LRU爬虫线程。
+===============================================================================================================
+LRU爬虫线程：
+默认情况下memcached是不启动这个线程的，但可以在启动memcached的时候添加参数-o lru_crawler启动这个线程。
+也可以通过客户端命令启动。即使启动了这个LRU爬虫线程，该线程还是不会工作。
+需要另外发送命令，指明要对哪个LRU队列进行清除处理。现在看一下lru_crawler有哪些参数。
+===============================================================================================================
+LRU爬虫命令：
+lru_crawler  <enable|disable>  
+启动或者停止一个LRU爬虫线程。任何时刻，最多只有一个LRU爬虫线程。该命令对settings.lru_crawler进行赋值为true或者false
+
+lru_crawler crawl <classid,classid,classid|all>  
+可以使用2,3,6这样的列表指明要对哪个LRU队列进行清除处理。也可以使用all对所有的LRU队列进行处理
+
+lru_crawler sleep <microseconds>
+LRU爬虫线程在清除item的时候会占用锁，会妨碍worker线程的正常业务。所以LRU爬虫在处理的时候需要时不时休眠一下。
+默认休眠时间为100微秒。该命令对settings.lru_crawler_sleep进行赋值
+
+lru_crawler tocrawl <32u>
+一个LRU队列可能会有很多过期失效的item。如果一直检查和清除下去，势必会妨碍worker线程的正常业务。
+这个参数用来指明最多只检查每一条LRU队列的多少个item。默认值为0，所以如果不指定那么就不会工作。
+该命令对settings.lru_crawler_tocrawl进行赋值
+
+===============================================================================================================
+如果要启动LRU爬虫主动删除过期的item，需要这样做：
+首先使用lru_crawler enable命令启动一个LRU爬虫线程。
+然后使用lru_crawler tocrawl num命令确定每一个LRU队列最多检查num-1个item。
+最后使用命令lru_crawler crawl <classid,classid,classid|all> 指定要处理的LRU队列。
+lru_crawler sleep可以不设置，如果要设置那么可以在lru_crawler crawl命令之前设置即可。
+
+服务端:
+memcached -l 127.0.0.1 -p 8888 -vv -u root -o lru_crawler enable, lru_crawler_sleep 200, lru_crawler_tocrawl 1000
+
+客户端:
+telnet 127.0.0.1 8888
+lru_crawler crawl 1
+OK
+lru_crawler tocrawl 123
+OK
+lru_crawler sleep 100
+OK

@@ -1,0 +1,293 @@
+#!/usr/bin/env bash-utils
+#
+# This script is a module for Bash-Utils
+#
+# --------
+#
+# bash-utils - A *bash* library for better scripting
+# <http://github.com/e-picas/bash-utils>
+# Copyright (c) 2015 Pierre Cassat & contributors
+#
+# This program is free software: you can freely use it, redistribute it
+# and/or modify it according to your needs, for yourself or a commercial use,
+# under the terms of the Apache License version 2.0 (the "License") as
+# published by the Apache Software Foundation.
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# The sources of this program are hosted on a public repository.
+# You can modify it, to ameliorate a feature or correct an error,
+# inform about a bug and follow updates at <http://github.com/e-picas/bash-utils>.
+#
+# You should have received a copy of the License along with this program ;
+# please see the LICENSE file that was distributed with this source code.
+# If not, see <http://www.apache.org/licenses/LICENSE-2.0>.
+#
+
+#### COLORIZED CONTENTS #############################################################################
+
+if [ -z "${TEXTCOLORS:-}" ]; then
+    # terminal colors table
+    declare -xa TEXTCOLORS=(default black red green yellow blue magenta cyan grey white lightred lightgreen lightyellow lightblue lightmagenta lightcyan lightgrey)
+    declare -xa TEXTCOLORS_CODES_FOREGROUND=(39 30 31 32 33 34 35 36 90 97 91 92 93 94 95 96 37)
+    declare -xa TEXTCOLORS_CODES_BACKGROUND=(49 40 41 42 43 44 45 46 100 107 101 102 103 104 105 106 47)
+    set_env_array TEXTCOLORS TEXTCOLORS[@]
+    set_env_array TEXTCOLORS_CODES_FOREGROUND TEXTCOLORS_CODES_FOREGROUND[@]
+    set_env_array TEXTCOLORS_CODES_BACKGROUND TEXTCOLORS_CODES_BACKGROUND[@]
+
+    # terminal text options table
+    declare -xa TEXTOPTIONS=(normal bold small underline blink reverse hidden)
+    declare -xa TEXTOPTIONS_CODES=(0 1 2 4 5 7 8)
+    set_env_array TEXTOPTIONS TEXTOPTIONS[@]
+    set_env_array TEXTOPTIONS_CODES TEXTOPTIONS_CODES[@]
+fi
+
+# you can define here a string about module's usage (short synopsis), description, name and version
+CMD_NAME='Colored-Output'
+CMD_VERSION='0.0.1'
+CMD_USAGE="colored-output <string>"
+CMD_DESCRIPTION="colorize a string with tags like '<bold>string</bold>'"
+CMD_HELP="tags constuction:
+     ... <bold>my text</bold> ...      : with 'tag' in TEXTOPTIONS
+     ... <red>my text</red> ...        : with 'tag' in TEXTCOLORS
+     ... <red_bg>my text</red_bg> ...  : with 'tag' in TEXTCOLORS, constructed as 'TAG_bg'
+
+available styles:
+    TEXTOPTIONS
+        ${TEXTOPTIONS[@]}
+    TEXTCOLORS
+        ${TEXTCOLORS[@]}
+
+Tags can be imbricated like '<red_bg>my text with <bold>bold</bold> in red background</red_bg>'.
+
+Usage in a script:
+    use colored-output
+    parse_color_tags '<bold>string</bold>'
+";
+
+## !! REQUIRED !! ## stop here on pre-loading
+if ${PRELOAD:-false}; then return 0; fi
+
+#######################
+## module's logic, library ...
+
+# echoes the terminal tag code for color: "\ 033[CODEm"
+# param '<code>' must be one of the library colors or text-options codes
+# usage: `get_text_format_tag <code>`
+get_text_format_tag()
+{
+    if [ -n "$1" ]; then
+        case "$CMD_OS" in
+            Linux|FreeBSD|OpenBSD|SunOS)
+                echo "\033[${1}m";;
+            *)
+                echo "\x1B[${1}m";;
+        esac
+        return 0
+    fi
+    return 1
+}
+
+# param '<name>' must be in `TEXTCOLORS`
+# usage: `get_color_code <name> [background=false]`
+get_color_code()
+{
+    if [ -n "$1" ]; then
+        if in_array "$1" "${TEXTCOLORS[@]}"; then
+            if [ $# -gt 1 ]
+                then echo "${TEXTCOLORS_CODES_BACKGROUND[$(array_search "$1" "${TEXTCOLORS[@]}")]}";
+                else echo "${TEXTCOLORS_CODES_FOREGROUND[$(array_search "$1" "${TEXTCOLORS[@]}")]}";
+            fi
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# param '<name>' must be in `TEXTCOLORS`
+# usage: `get_color_tag <name> [background=false]`
+get_color_tag()
+{
+    if [ -n "$1" ]; then
+        if in_array "$1" "${TEXTCOLORS[@]}"; then
+            if [ $# -gt 1 ]
+                then get_text_format_tag "${TEXTCOLORS_CODES_BACKGROUND[$(array_search "$1" "${TEXTCOLORS[@]}")]}";
+                else get_text_format_tag "${TEXTCOLORS_CODES_FOREGROUND[$(array_search "$1" "${TEXTCOLORS[@]}")]}";
+            fi
+            return 0;
+        fi
+    fi
+    return 1
+}
+
+# param '<name>' must be in `TEXTOPTIONS`
+# usage: `get_text_option_code <name>`
+get_text_option_code()
+{
+    if [ -n "$1" ]; then
+        if in_array "$1" "${TEXTOPTIONS[@]}"
+        then
+            echo "${TEXTOPTIONS_CODES[$(array_search "$1" "${TEXTOPTIONS[@]}")]}";
+            return 0;
+        fi
+    fi
+    return 1
+}
+
+# param '<name>' must be in `TEXTOPTIONS`
+# usage: `get_text_option_tag <name>`
+get_text_option_tag()
+{
+    if [ -n "$1" ]; then
+        if in_array "$1" "${TEXTOPTIONS[@]}"
+        then
+            get_text_format_tag "${TEXTOPTIONS_CODES[$(array_search "$1" "${TEXTOPTIONS[@]}")]}";
+            return 0;
+        fi
+    fi
+    return 1
+}
+
+#### get_text_option_tag_close ( name )
+##@param name must be in TEXTOPTIONS
+get_text_option_tag_close()
+{
+    if [ -n "$1" ]; then
+        if in_array "$1" "${TEXTOPTIONS[@]}"
+        then
+            get_text_format_tag "2${TEXTOPTIONS_CODES[$(array_search "$1" "${TEXTOPTIONS[@]}")]}";
+            return 0;
+        fi
+    fi
+    return 1
+}
+
+# echoes a colorized string ; all arguments are optional except '<string>'
+# param '<text_option>' must be in `TEXTOPTIONS`
+# param '<foreground>' must be in `TEXTCOLORS`
+# param '<background>' must be in `TEXTCOLORS`
+# usage: `colorize <string> [text_option=null] [foreground=null] [background=null]`
+colorize()
+{
+    [ $# -eq 0 ] && return 0;
+    local textopt fgopt bgopt
+    [ $# -gt 1 ] && textopt=$(get_text_option_code "$2");
+    [ $# -gt 2 ] && fgopt=$(get_color_code "$3");
+    [ $# -gt 3 ] && bgopt=$(get_color_code "$4" true);
+    local add=''
+    if [ ! -z "$textopt" ]; then add+="$textopt"; fi
+    if [ ! -z "$fgopt" ]; then
+        if [ -n "$add" ]; then add+=";${fgopt}"; else add+="$fgopt"; fi
+    fi
+    if [ ! -z "$bgopt" ]; then
+        if [ -n "$add" ]; then add+=";${bgopt}"; else add+="$bgopt"; fi
+    fi
+    opentag="$(get_text_format_tag "$add")"
+    closetag="$(get_text_format_tag "$(get_text_option_code normal)")"
+    if [ ! -n "$add" ]
+        then echo "$1"
+        else echo "${opentag}${1}${closetag}"
+    fi
+    return 0
+}
+
+# parse in-text tags like:
+#     ... <bold>my text</bold> ...      // "tag" in TEXTOPTIONS
+#     ... <red>my text</red> ...        // "tag" in TEXTCOLORS
+#     ... <red_bg>my text</red_bg> ...  // "tag" in TEXTCOLORS, constructed as "TAG_bg"
+# usage: `parse_color_tags <"string with <bold>tags</bold>">`
+parse_color_tags()
+{
+    if [ $# -eq 0 ]; then return 0; fi
+    transformed=''
+    while read -r line; do
+        declare -a doneopts=()
+        transformedline="$line"
+        for opt in $(echo "$line" | grep -o '<.[^/>]*>' | sed "s|^.*<\(.[^>]*\)>.*\$|\1|g"); do
+            opt="${opt/\//}"
+            if in_array "$opt" "${doneopts[@]-}"; then continue; fi
+            doneopts+=("$opt")
+            if in_array "$opt" "${TEXTOPTIONS[@]}"; then
+                code="$(get_text_option_code "$opt")"
+                tag="$(get_text_option_tag "$opt")"
+                if in_array "$CMD_OS" "${LINUX_OS[@]}"
+                    then normaltag="$(get_text_option_tag_close "$opt")"
+                    else normaltag="$(get_text_option_tag normal)"
+                fi
+            elif in_array "$opt" "${TEXTCOLORS[@]}"; then
+                code="$(get_color_code "$opt")"
+                tag="$(get_color_tag "$opt")"
+                normaltag="$(get_color_tag default)"
+            elif in_array "${opt/_bg/}" "${TEXTCOLORS[@]}"; then
+                code="$(get_color_code "${opt/_bg/}" true)"
+                tag="$(get_color_tag "${opt/_bg/}" true)"
+                normaltag="$(get_color_tag default true)"
+            else
+                continue
+            fi
+            if in_array "$CMD_OS" "${LINUX_OS[@]}"; then
+                 tag="$(printf '\%s' "$tag")"
+                 normaltag="$(printf '\%s' "$normaltag")"
+            fi
+            if [ ! -z "$tag" ]; then
+                strsubstituted=$(echo "$transformedline" | sed "s|<${opt}>|${tag}|g;s|</${opt}>|${normaltag}|g" 2> /dev/null);
+                if [ ! -z "$strsubstituted" ]; then transformedline="$strsubstituted"; fi
+            fi
+        done
+        if [ -n "$transformed" ]; then transformed+="\n"; fi
+        transformed+="$transformedline"
+    done <<< "$1"
+    echo -e "$transformed"
+    return 0
+}
+
+# usage: `strip_colors <string>`
+strip_colors()
+{
+    if [ $# -eq 0 ]; then return 0; fi
+    transformed=''
+    while read -r line; do
+        case "$CMD_OS" in
+            Linux|FreeBSD|OpenBSD|SunOS)
+                stripped_line=$(echo "${line}" | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g");;
+            *)
+                stripped_line=$(echo "${line}" | sed 's|\x1B\[[0-9;]*[a-zA-Z]||g');;
+        esac
+        if [ -n "${transformed}" ]; then transformed+="\n"; fi
+        transformed+="${stripped_line}"
+    done <<< "$1"
+    echo -e "${transformed}"
+    return 0
+}
+
+#######################
+## treat direct params ...
+
+# called params should be treated directly for direct calls
+if [ $# -gt 0 ] || [ -n "$CMD_MODULE" ]; then
+    [ $# -eq 0 ] && usage_info && exit 1;
+    rearrange_options "$@"
+    [ -n "$CMD_REQ" ] && eval set -- "$CMD_REQ";
+    common_options "$@"
+    $DEBUG && debug;
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -- ) shift; break;;
+            * )  ! is_known_option "$1" && error "unknown option '$1'";;
+        esac
+        shift
+    done
+    [ -z "${LINUX_OS:-}" ]      && declare -a LINUX_OS=($(get_env_array_LINUX_OS))
+    [ -z "${TEXTOPTIONS:-}" ]   && declare -a TEXTOPTIONS=($(get_env_array_TEXTOPTIONS))
+    [ -z "${TEXTCOLORS:-}" ]    && declare -a TEXTCOLORS=($(get_env_array_TEXTCOLORS))
+    parse_color_tags "$@"
+    exit $?
+fi
+
+[ "$(basename "$0")" = "$(basename "${BASH_SOURCE[0]}")" ] && exit 0 || return 0;
+# vim: autoindent tabstop=4 shiftwidth=4 expandtab softtabstop=4 filetype=sh

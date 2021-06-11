@@ -1,0 +1,358 @@
+Nginx配置主要分成四部分：main、server、upstream 和 location，每部分包含若干个指令。
+main(全局设置)
+
+    该部分设置的指令将影响其它所有部分的设置；
+
+server(主机设置)
+
+    该部分的指令主要用于指定虚拟主机域名、IP和端口；
+
+upstream(上游服务器设置)
+
+    该部分的指令用于设置一系列的后端服务器，设置反向代理及后端服务器的负载均衡；
+
+location(URL匹配特定位置后的设置)
+
+    该部分用于匹配网页位置（比如，根目录“/”,“/images”,等等）。
+
+Nginx本身是模块化设计。全局的配置区段负责全局的各个方面，对于不同的协议可以单独划分成一个部分。我们可以通过在这些单独的协议配置中（http或mail）指定server来定义每一个请求应该被如何处理，以便请求被路由到特定的IP地址或端口上。在http区段中，使用location来匹配URI请求，这些location又可以嵌套使用或者按照一定顺序使用，以确保请求被路由到正确的文件系统区域或者其他地方。
+
+他们之间的关系式： server继承main，location继承server；upstream既不会继承指令也不会被继承。它有自己的特殊指令，不需要在其他地方的应用。
+基本配置格式
+
+Nginx的配置文件由若干部分组成。但每一部分都是通过下列的方法定义。
+
+<section> {
+  <directive><parameters>
+}
+
+Tips:
+
+    每一个指令行都由分号结束（;），这标志着一行结束。
+    大括号（{}）实际上表示一个新上下文（context），常称为『节，部分（section）』
+
+Nginx的全局配置
+
+全局配置顾名思义就是对整个server都有效的参数。全局配置部分可能包含配置指令（如，user、worker_processes），也包括『节、部分（section）（如，events）』。这部分配置一般放在 nginx.conf 文件的顶部。
+
+示例：
+
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx.pid;
+
+events {
+    use epoll   #使用网络IO模型，epoll模型比select模型效率高很多
+    worker_connections 1024;    #每个worker能够处理的最大连接数，最大值取决于ulimit -n的值
+}
+
+主要配置指令及含义
+配置指令 	说明
+user 	配置worker进程运行的用户和用户组，第一个参数为user，第二个为group（如果忽略了group，那么group与user同名）
+worker_processes 	指定worker进程启动的数量。这些进程用于处理客户的连接。通常该值会设置成CPU处理器核心数相同的数量。默认值是”auto”，也是按照这样去设置数量
+error_log 	设置错误日志文件位置。如果在其他的区段中没有设置其他的error_log,那么这个日志文件将会记录所有的错误。该指令的第二个参数指定了被记录的错误信息级别（debug[注，debug级别的错误只有在nginx编译的时候配置了 –with-debug选项才可以使用]、info、notice、warn、error、crit、alert、emsg）
+pid 	设置记录主进程ID的文件地址。通常设置该值来方便我们对nginx的管理
+use 	该指令指示我们使用什么样的连接方式。该指令需要写在 events 区段里面。
+worker_connections 	配置一个工作进程能够接受并发连接的最大数。这个连接包括，客户连接和向上游服务器的连接，但也不仅限于此。通常该配置同use一样写在events里面
+include指令
+
+在Nginx配置文件中可以使用include指令将其他位置存放的配置文件加载进来，来方便配置管理和增强配置文件的可读性。
+
+Tips：
+使用include文件，要确保被包含的文件自身符合nginx配置语法。
+
+include /etc/nginx/default.d/*.conf;
+
+路径中出现通配符表示可以匹配多个文件。
+nginx配置文件的语法错误可以通过nginx的 -t 选项来进行测试。
+
+/path/to/nginx -t -c <path-to-nginx.conf>
+
+注： 该命令只能检查语法错误，具体到某个功能性的测试还需要我们自己有针对性的去测。
+Http的server部分
+
+通常我们提到的server部分，具体指的是Http的server部分。所以，其在Http配置的context是可用的。该部分用于处理http连接，因此该模块下提供了相当数量的指令。
+客户端指令
+
+    用于处理客户端连接本身的各个方面，以及不同类型的客户端
+
+指令 	说明
+chunked_transfer_encoding 	在发给客户端的响应中允许禁用http/1.1标准的块传输编码
+client_body_buffer_size 	为了阻止临时文件写到磁盘，可以通过该指令为客户端请求体设置缓存大小，默认的缓存大小为两个内存页面
+client_body_in_file_only 	用于调试或者是进一步处理客户端请求体。该指令能够将客户端请求体强制写入到磁盘文件
+client_body_in_single_buffer 	为了减少拷贝的操作，使用该指令强制Nginx将整个客户端请求体保存到单个缓存中
+client_body_temp_path 	定义一个命令路径用于保存客户端请求体
+clent_body_timeout 	指定客户端成功读取的两个操作之间的时间间隔
+client_header_buffer_size 	为客户端请求头指定一个缓存大小，当请求头大于1kB时会用到这个设置。
+client_header_timeout 	读取整个客户端头的超时时间
+client_max_body_size 	定义允许最大的客户端请求头，如果大于该值，那么客户端将会是413（request entity too large）错误
+keepalive_disable 	对某些类型的客户端禁用keep-alive请求功能。
+keepalive_requests 	定义在一个keep-alive关闭之前可以接收多少个请求
+keepalive_timeout 	指定keep-alive连接持续多久。第二个参数用于在响应头中这只”Keep-Alive”头
+large_client_header_buffers 	定义最大数量和最大客户端请求头的大小
+msie_padding 	为了填充响应的大小至512字节，对于MSIE客户端，大于400的状态码会被添加注释以便满足512字节，通过启用该命令可以阻止这种行为
+msie_refresh 	对于MSIE客户端，可启用发送一个refresh头
+文件I/O指令
+
+    用于控制Nginx如何投递静态文件。
+
+指令 	说明
+aio 	启用异步文件I/O。FreeBSD系统下，该值可能被用于sendfile预加载数据。Linux下需要directio指令，自动禁用sendfile
+directio 	用于启用操作系统特定的标识或者功能提供大于给定参数的文件。Linux下使用aio时需要使用该指令。
+directio_alignment 	设置directio算法。默认值是512，通常已经足够，但是在Linux的XFS下推荐增加至4K
+open_file_cache 	配置一个缓存用于存放打开的文件描述符、目录查询和文件查询错误
+open_file_cache_errors 	按照open_file_cache，启用文件查询错误缓存
+open_file_cache_min_uses 	open_file_cache缓存的文件描述符保留在缓存中，使用该指令配置最少使用文件描述符的次数
+open_file_cache_valid 	指定对open_file_cache缓存有效性检查的时间间隔
+postpone_output 	指定Nginx发送给客户端最小的数值，如果可能的话，没有数据会发送，直到达到此值
+read_ahead 	如果可能的话，内核将预读文件到设定的参数大小
+sendfile 	使用sendfile（2）直接复制数据从一个到另一个文件描述符
+sendfile_max_chunk 	设置在一个sendfile(2)拷贝中最大数据的大小，这是为了阻止worker”贪婪”
+Hash指令
+
+    控制Nginx 分配给某些变量多大的静态文件
+
+指令 	说明
+server_names_hash_bucket_size 	指定用于保存server_name哈希表大小的”桶”
+server_names_hash_max_size 	指定的server_name哈希表的最大值的大小
+types_hash_bucket_size 	指定用于存放哈希表的”桶”的大小
+types_hash_max_size 	指定哈希类型表的最大值的大小
+variables_hash_bucket_size 	指定用于存放保留变量”桶”的大小
+variables_hash_max_size 	指定存放保留变量最大哈希值的大小
+Socket指令
+
+    描述Nginx如何设置创建TCP套接字的变量选项
+
+指令 	说明
+lingering_close 	指定如何保持客户端的连接，以便用于更多数据的传输
+lingering_time 	在使用lingering_close指令的连接中，使用该指令指定客户端连接为了处理更多的数据需要保持打开连接的时间
+lingering_timeout 	结合lingering_close，该指令显示Nginx在关闭客户端连接之前，为获得更多数据会等待多久
+reset_timeout_connection 	使用这个指令之后，超时的连接会被立即关闭，释放相关的内存。默认的状态是处于FIN_WAIT1，这种状态将会一直保持连接
+send_lowat 	如果非零，Nginx将会在客户端套接字尝试减少发送操作
+send_timeout 	在两次成功的客户端接收响应的写操作之间设置一个超时时间
+tcp_nodelay 	启用或禁用TCP_NODELAY选项，用于keep-alive连接
+tcp_nopush 	仅依赖于sendfile的使用。它能够使Nginx在一个数据包中尝试发送响应头，以及在数据包中发送一个完整的文件
+server部分
+
+示例：
+
+http {
+    ...
+    server {
+        listen       80 default_server;
+        server_name  _;
+        root         /usr/share/nginx/html;
+
+        # Load configuration files for the default server block.
+        include /etc/nginx/default.d/*.conf;
+
+        location / {
+        }
+
+        error_page 404 /404.html;
+            location = /40x.html {
+        }
+
+        error_page 500 502 503 504 /50x.html;
+            location = /50x.html {
+        }
+    }
+    ...
+}
+
+一个虚拟服务器由listen和server_name指令组合定义。
+
+listen
+
+    指令定义一个IP地址/端口组合或者UNIX套接字路径。示例
+
+        listen address[:port];
+        listen port;
+        listen unix:path;
+
+示例：
+
+listen     127.0.0.1:80;
+listen     localhost:80;
+listen     127.0.0.1:8080;
+listen     localhost:8080;
+listen     192.168.3.105:80;
+listen     192.168.3.105:8080;
+listen     80;
+listen     *:80;
+listen     8080;
+listen     *:8080;
+listen     12.34.56.77:80;
+listen     12.34.56.78:80;
+listen     12.34.56.79:80;
+
+另外，listen还有其他的一些可选参数。常用到的有
+default_server，表示定义这样的一个组合：（address:port）默认的请求被绑定于此
+ssl，表明该端口仅接受Https的连接
+
+server_name
+
+    用来指定域名。
+
+示例：
+
+server_name   nginx.cn;
+server_name   nginx.cn www.nginx.cn;
+server_name   *.nginx.cn;
+server_name   .nginx.cn;
+server_name   nginx.*;
+server_name   nginx.cng bucknell.net brackley.org;
+server_name   localhost litchfield bleddington;
+server_name   "";
+
+除了普通字符串外，Nginx也接受通配符作为Server_name的参数。
+
+    使用通配符替代部分子域名： *.example.com
+    代替顶级域部分： www.example.*
+    匹配子域和域本身： .example.com 能匹配 *.example.com 和example.com
+
+另外，在域名前加上（~），正则表达式也可应用于 server_name.
+
+server_name ~^www\.example\.com$
+server_name ~^www(\d+).example\.(com)$
+
+对于后一种方式是利用捕获，可以在以后的引用中进一步配置（用$1,$2等）指令中使用。
+location部分
+
+location指令可以用在虚拟服务器server部分，并且意味着提供来自客户端的URI或者内部的重定向访问。
+
+location定义：
+
+location [modifier] uri {...}
+
+或者是命名location
+
+location @name {...}
+
+    命名location仅对内部访问重定向，在进入一个location之前他会保留被请求的URI部分。且命名location只能存在与server级别的定义。
+
+示例
+
+location / { }
+location /images/ { }
+location /blog/ { }
+location /planet/ { }
+location /planet/blog/ { }
+
+location ~ IndexPage.php$ { }
+location ~ ^/BlogPlanet(/|/index.php)$ { }
+
+location ~* .(pl|cgi|perl|prl)$ { }
+location ~* .(md|mdwn|txt|mkdn)$ { }
+
+location ^~ /images/IndexPage/ { }
+location ^~ /blog/BlogPlanet/ { }
+
+location = / { }
+
+当一个请求进入时，URI将会被检测匹配一个最佳的location。
+
+    没有正则表达式的location被认为是最佳的匹配，独立于含有正则表达式的location。
+    在配置文件中按照查找顺序进行正则匹配，在查到第一个正则表达式匹配时结束查找，将请求交由这个location处理。
+    Tips：
+    这里匹配的解码URI，如在URL中的”%20”,将会匹配location中的””(空格)。
+
+location常见的修饰符
+修饰符 	说明
+= 	使用精确匹配并且终止搜索
+~ 	区分大小写的正则表达式匹配
+~* 	不去分大小写的正则表达式匹配
+^~ 	如果该location是最佳的匹配，那么对于匹配这个location的字符串不在进行正则表达式检测。
+
+仅用于location中的指令
+指令 	说明
+alias 	定义location的其他名字，在文件系统中能够找到。
+internal 	指定一个仅用于内部请求的location（其他指定定义的重定向，rewrite请求，error请求等）
+limit_except 	限定一个location可以执行的Http操作（如，GET或HEAD）
+
+命名location的使用（一般与try_files配合使用）
+示例：
+
+location / {
+  try_files $uri $uri/ $mongrel;
+}
+
+location @mongrel {
+  proxy_pass http://appserver;
+}
+
+上面一段配置表示，如果给定的URI作为一个文件没有被找到，那么处理将会通过代理被传递到appserver
+
+location的嵌套使用：
+
+root /var/www
+
+location / {
+  location ^~ /css {
+    location ~* /css.*\.css$ {
+      ...
+    }
+    ...
+  }
+  ...
+}
+
+实践表明正则表达式location被嵌套在基于字符串的location是最佳的配置方式
+完整的配置文件示例
+
+# For more information on configuration, see:
+#   * Official English Documentation: http://nginx.org/en/docs/
+#   * Official Russian Documentation: http://nginx.org/ru/docs/
+
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile            on;
+    tcp_nopush          on;
+    tcp_nodelay         on;
+    keepalive_timeout   65;
+    types_hash_max_size 2048;
+
+    include             /etc/nginx/mime.types;
+    default_type        application/octet-stream;
+
+    # Load modular configuration files from the /etc/nginx/conf.d directory.
+    # See http://nginx.org/en/docs/ngx_core_module.html#include
+    # for more information.
+    include /etc/nginx/conf.d/*.conf;
+
+    server {
+        listen       80 default_server;
+        listen       [::]:80 default_server;
+        server_name  _;
+        root         /usr/share/nginx/html;
+
+        # Load configuration files for the default server block.
+        include /etc/nginx/default.d/*.conf;
+
+        location / {
+        }
+
+        error_page 404 /404.html;
+            location = /40x.html {
+        }
+
+        error_page 500 502 503 504 /50x.html;
+            location = /50x.html {
+        }
+    }
+}

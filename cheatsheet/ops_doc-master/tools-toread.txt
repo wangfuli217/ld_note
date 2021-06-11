@@ -1,0 +1,832 @@
+-----------------update 2016.8.13-----------------
+apt-get install ext3grep testdisk aview cowsay parted smartmontools bridge-utils libpam0g-dev wmctrl jpegoptim libx264-dev libjsoncpp-dev enscript ghostscript p7zip-rar 
+
+-----------------update 2016.8.11-----------------
+add:git-gui git-doc gitk 
+[USAGE]  # ALT + F2 输入 git gui 即可打开git图形客户端.
+
+-----------------update 2016.7.1------------------
+add:boxes
+[USAGE] #增加代码ASCII注释
+boxes option 
+pipe | boxes options 
+echo "text"|boxes -d xx # -d 选项用来设置要使用的图案的名字 
+boxes -l   # -l 选项列出所有图案,它显示了在配置文件中的所有框线设计图.
+
+VI,VIM中插入日期:
+    vi处理命令状态 Shift+!! 键入 date 即可插入时间 
+    或者
+    :r!date 
+eg. 有如下文本
+  #!/bin/bash 
+  Purpose:Backup mysql database to remote server. 
+  Author:Vivek Gite 
+  Last updated on :Tue Jun,12 2016 
+  ##将光标移到第二行,也就是以"Purpose:..." 开头的行,输入 3!!boxes 
+  #!/bin/bash 
+  /**************************************/
+  /*Purpose:Backup mysql database to remote server. */
+  /*Author:Vivek Gite */
+  /*Last updated on :Tue Jun,12 2016 */
+  /*************************************/ 
+eg. echo "This is a test" | boxes 
+eg. echo -e "\n\t Vivek Gite\n\tVivek@nixcraft.com\n\twww.cyberciti.biz" | boxes -d dog 
+
+add:scp 
+[USAGE]  #文件拷贝
+eg. scp xx hy@xx.xx.xx.xx:/home/xx     #将一个xx 的文件从本机拷贝到(xx.xx.xx.xx)远程主机中.
+eg. scp hy@xx.xx.xx.xx:/home/xx /home/xx    #从远程主机中取得文件. 
+scp 可选参数：
+  -B       #批量模式（避免访问密码或口令）.
+  -C       #启用压缩,通过指明-C参数来开启压缩模式.
+  -c       #加密方式，选择在传输过程中用来加密的加密方式 这个选项会被直接传递到ssh(1).
+  -F       #ssh配置,给ssh 指定一个用来替代默认的配置文件,这个选项会被直接传递到ssh(1).
+  -l       #限速,限制命令使用的带宽,默认单位是kbit/s.
+  -P       #端口,指定需要的连接的远程主机的端口
+  -p       #保留文件原来的修改时间,访问时间以及权限模式
+  -q       #静默模式,不显示来自ssh(1)命令的进度信息,警告和诊断信息.
+  -r       #递归拷贝整个目录,注意scp命令在树形遍历的时候同样会跟随符号链接,复制所有连接文件.
+  -v       #详细模式.
+
+eg. scp -v xx hy@xx.xx.xx.xx:/home/xx  #详细模式
+eg. scp -r xx/ hy@xx.xx.xx.xx:/home/   #当需要拷贝一个目录或者文件夹的时候,可以使用-r选项，递归拷贝整个目录. 
+eg. scp -rq xx/ hy@xx.xx.xx.xx:/home/  # -q 参数不显示进度信息 
+eg. scp -P 21 xx hy@xx.xx.xx.xx:/home  # -P 指定远程主机的连接端口
+eg. scp -l 512 xx hy@xx.xx.xx.xx:/home #将速度限制为512kbit/s 
+eg. scp -C xx hy@xx.xx.xx.xx:/home     #开启压缩
+eg. scp -c blowfish xx hy@xx.xx.xx.xx:/home  #加密数据的加密方式
+
+add:crontab   
+[USAGE]    #定时任务
+定时任务(cron job)被用于那些需要被周期性执行的命令.利用它,你可以配置某些命令或者脚本,让他们在某个设定的时间内周期性的运行.cron是Linux或者unix系统中最为使用的工具之一. cron服务（守护进程）在系统后台运行,并且会持续地检查/etc/crontab文件和/etc/cron.*/目录.同样也会检查/var/spool/cron 目录.
+
+crontab 命令,用来安装,卸载或者列出定时任务列表的命令.cron配置文件则用于驱动Vixie Cron的cron(8)守护进程.每个用户都可以拥有自己的crontab文件,虽然这些文件都位于/var/spool/cron/crontabs 目录中.但并不能直接编辑他们,需要通过crontab命令来编辑或配置你自己的定时任务.
+
+定时配置文件的类型:
+    系统级别crontab,需要root或者类似权限的系统系统服务和重要任务使用.第六个字段为用户名,用来指定此命令以那个用户身份来执行,如此一来,系统的crontab就能够以任意的用户身份来执行操作.
+    用户级别crontab,用户使用crontab命令来安装属于他们自己的定时任务,第六个字段为需要运行的命令,所有的命令都会以创建该crontab人物的用户的身份运行.
+
+    编辑crontab文件,需要在linux或unix的shell提示符后键入以下命令:
+        >crontab -e 
+    crontab语法:
+        1 2 3 4 5 /path/to/command arg1 arg2
+        或者 
+        1 2 3 4 5 /root/xxx.sh 
+        
+        其中：
+        第一个字段：分钟(0-59)
+        第二个字段：小时(0-23)
+        第三个字段：日期(0-31)
+        第四个字段：月份（0-12 【12代表December】）
+        第五个字段：一周当中的某天(0-7 [7或0代表星期天])
+        /path/to/command ：计划执行的脚本或命令名称 
+
+        便于记忆的格式：
+        * * * * * 要执行的命令
+        ----------------------
+        | | | | |
+        | | | | ------- 周当中的某一天 (0-7) 周日为0或7
+        | | | --------- 月份(1-12)
+        | | ----------- 一个月当中的某天(1-31)
+        | ------------- 小时（0-23）
+        --------------- 分钟 （0-59）
+
+    eg. */5 * * * * /root/xxx.sh   #每隔5分钟运行一次xxx.sh脚本
+    eg. 0 1 * * * /root/xxx.sh    #每天的凌晨1点运行xxx.sh脚本
+    eg. 15 3 1 * * /root/xxx.sh    #每月的第一个凌晨3:15 运行xxx.sh 脚本 
+
+    如何使用操作符:
+        操作符允许你为一个字段指定多个值,这里有三个操作符可以使用，
+        *星号（*）    #此操作符为字段指定所有可用的值.例如在小时字段中，一个 * 等同于每个小时；在月份字段中 一个 * 则等同于每月 
+        *逗号 (,)     #这个操作符指定一个包含多个值的列表.例如：1，5，10，15，20，25 
+        *横杠 (-)     #此操作符号指定一个值的范围，例如 5-15 等同于使用逗号操作符键入的5,6,7,8,...,13,14,15 
+        *分割符 (/)   #此操作符指定了一个步进值. 例如：0-23/ 可以用于小时字段来指定某个命令每小时执行一次,步进值也可以跟在 * 操作符后边.如果你希望命令行每2小时执行一次，则可以用*/2. 
+
+   如何禁用邮件输出:
+       默认情况下，某个命令或者脚本的输出内容(如果有的话)会发送到你的本地邮箱账户中.若想停止接收crontab发送的邮件,需要添加 >/dev/null 2>&1 这段内容到执行的命令的后面.
+       eg. 0 3 * * * /root/xxx.sh >/dev/null 2>&1
+       如果想将输出内容发送到特定的邮件账户中,比如说huhuoyun@sina.com 这个邮箱，则你需要像下面这样定义一个MAILTO 变量.
+       eg. MAILTO="huhuoyun@sina.com"
+       0 3 * * * /root/xxx.sh >/dev/null 2>&1 
+
+    列出所有的定时任务:
+        eg. crontab -l
+        eg. crontab -u username -l 
+        删除所有定时任务,
+        eg. crontab -r #删除当前定时任务
+        eg. crontab -r -u username   #删除某用户名下的定时任务,此命令需要以root用户身份执行
+
+    使用特殊字符来节省时间:
+        特殊字符        含义
+        @reboot        在每次启动时运行一次
+        @yearly        每年运行一次,等同与“0 0 1 1 *”
+        @annually      同 @yearly 
+        @monthly       每月运行一次,等同于"0 0 1 * *"
+        @weekly        每周运行一次,等同于"0 0 * * 0"
+        @daily         每天运行一次,等同于"0 0 * * *"
+        @midnight      同@daily 
+        @hourly        每小时运行一次,等同于"0 * * * *"
+    eg. @hourly /path/to/ntpdate 
+
+    备份定时任务:
+        crontab -l > /path/to/file 
+        crontab -u user -l > /path/to/file 
+-----------------update 2016.6.3------------------
+[USAGE] #需要循环执行执行某个查看命令
+    eg.watch du -h /home/hy/Documents 
+[USAGE]   #强大的数学处理软件
+add:gnuplot
+add:maxima 
+
+[INFO] #几个有趣的小程序. 
+    rev  #一行接一行地颠倒所输入的字符串
+    
+    add:asciiview 
+    install:aview imagemagick 
+    usage:asciiview xxx.png -driver curses 
+    
+    add:sl   #你会看到一辆火车从屏幕右边开往左边.
+    usage:sl 
+    
+    add:aafire #终端放一把火
+    install:libaa-bin
+    usage:aafire 
+
+    add:cmatrix #<黑客帝国>矩阵风格动画. 
+    install:cmatrix 
+    usage:cmatrix 
+
+    add:oneko     #桌面上会出现一只庿星人，跟着你的鼠标跑，你不动了他就睡觉.
+    usage:oneko   #CTRL+C 结束.
+
+    usage:factor num    #分解因数
+
+add:genisoimage
+usage:
+    1.genisoimage -r -J -o xxx.iso directory
+    2.genisoimage -R -U -J -o xxx.iso directory 
+
+[INFO]
+--------------
+查看系统版本信息:lsb_release -a
+改ip无需重启的办法:sudo ifdown ethx && sudo ifup ethx 
+
+[INFO] cheese gnome摄像头工具
+[INFO] typespeed vim打字软件
+
+dpkg
+--------------
+确定软件包是否安装:dpkg -i xx 
+搜索软件包:apt-cache search xx
+安装软件包:apt-get install xx
+在线更新:apt-get upgrade 
+使用光盘更新:apt-get dist-upgrade
+卸载软件包:apt-get purge xx 
+
+[WIFI]
+apt-get install wireless-tools 
+apt-get install firmware-xx
+apt-get install firmware-linux firmware-linux-free firmware-linux-nonfree
+
+[UPDATE]
+add:expect
+add:cifs-utils
+
+[USAGE]
+cifs-utils
+--------------
+eg.sudo mount -t cifs //192.168.10.88/android /home/xx 
+
+[USAGE]
+vi 
+--------------
+dos与unix不同平台之间的格式匹配
+vi命令模式下:
+    >:set fileformat=unix 
+    or 
+    >:set ff=dos 
+[INFO]
+linux 串口测试程序-minicom
+>apt-get install minicom 
+minicom cannot open /dev/modem 解决办法
+>ln -sv /dev/ttyS0 /dev/modem
+
+[INFO]
+linux 打字练习终端
+1.gtypist 
+2.typespeed 
+
+[USAGE]
+>dd if=/xx/xx.iso of=/dev/xxx #将xx.iso 刻录到存储介质.
+
+[INFO]
+linux 终端录像工具
+1.usage:
+  >avconv -f x11grab -r 25 -s 1280*1024 -i :0.0 -vcodec libx264 -threads 4 xxx.mkv
+  >avconv -f x11grab -r 25 -s cif -i :0.0 xxx.mpg
+2.列出音源
+  >arecord -l
+  eg.avconv -f alsa -i hw:1 -f x11grab -r 25 -s 1920x1080 -i :0.0 -vcodec libx264 -threads 4 xxx.mkv  #录制屏幕并且记录音频. 
+
+[INFO]
+locate 筛选搜索到的内容
+usage:
+  >updatedb -U /xx/xx -o xxx.db 
+  >locate -d xxx.db search 
+或者 
+  >locate search |grep "/xxx/xx"
+
+[INFO]
+gdb 调试进入源代码方法:
+(gdb)>directory /path
+--------------------------------------------------
+gdb 调试带有参数的程序
+  >gdb [options] --args prog [arguments]
+--------------------------------------------------
+gdb 符号表      如果现在有同一个工程构建出的Debug版和Release版可执行文件projectD和projectR，如下的命令可以帮助你把Debug版中的符号表加到Release版中，实现对Release版的调试。
+  eg.>objcopy --only-keep-debug projectD xxx.dbg #生成符号表
+  eg.>gdb -q --symbol=projectsymbol.dbg -exec=projectR #加载符号表
+  这下在gdb中就可以看到源代码了.
+
+[INFO]
+linux 进行光驱刻录
+  >apt-get install growisofs
+usage:
+  >growisofs -dvd-compat -speed=32 -Z /dev/dvd*=/xxx.iso 
+
+[INFO]
+使用 astyle 批量格式源代码
+eg.>astyle --style=ansi --indent=tab --mode=c $(find . -path ./.metadata -prune -type f -o -name *.c)
+eg.>astyle --style=linux --indent=tab --mode=c $(find . -path ./.metadata -prune -type f -o -name *.c)
+eg.>indent -linux $(find . -path ./.metadata -prune -type f -o -name *.c) 
+
+[INFO]
+find 排除搜索内容
+eg.>find . -path ./.metadata -prune -type f -o -name *.c 
+
+[INFO]
+检查光驱详细:
+    1.找出与DVD刻录机相关的设备名称最简单的方法是使用dmesg命令行工具，它打印出内核的消息缓冲区。在dmesg的输出中，寻找一个安装好的DVD刻录机.
+        >dmesg |egrep -i --color 'dvd|cd/rw|writer'
+    2.第二个获得你DVD刻录机的信息是使用lsscsi命令，它只是列出了所有可用的SCSI设备。在基于Debian Linux上安装 lsscsi  
+        >sudo apt-get install lsscsi
+        >lsscsi 
+    3.第三种获取有关你DVD刻录机的信息是参考/proc/sys/dev/cdrom/info.
+    注意：注意：本例中，输出会告诉你DVD刻录机（/dev/sr0）与x24的CD刻录速度（即24x153.6 Kbps）兼容，且相当于x3的DVD写入速度（即3x1385 KBps的）兼容。这里的写入速度是最大可能的速度，而实际的写入速度当然取决于使用的介质（例如：DVD-RW、DVD + RW、DVD-RAM等）
+    4.来检查DVD刻录机的写入速度的是一个名为dvd+rw-mediainfo的工具，这是dvd+rw工具包（DVD+-RW/R媒体工具链）的一部分.
+        >sudo apt-get install dvd+rw-tools 
+        >sudo dvd+rw-mediainfo /dev/sr0 
+    注意:dvd+rw-mediainfo工具会探测插入的媒体（本例中是“DVD-R”），以找出对媒体的实际写入速度.
+
+[UPDATE]
+add:gnuplot,maxima  #强大的数学处理软件. 
+
+[INFO]
+GNOME排版软件 scribus,输入中文时请使用中文字符(RPxxx)
+-------------------config-------------------------
+nginx-1.2.1:
+    listen:81
+    root:/var/www/nginx-1.2.1/ -> /home/vsftpd/web/nginx-1.2.1/
+apache-2.2.22:
+    listen:80
+    root:/var/www/apache-2.2.22/ -> /home/vsftpd/web/apache-2.2.22/
+lighttpd-1.4.31:
+    listen:82
+    root:/var/www/lighttpd-1.4.31/ -> /home/vsftpd/web/lighttpd-1.4.31/
+-----------------update 2015.8.18 ----------------
+add :git server 
+add :ltsp
+
+-----------------opencv---------------------
+opencv 对图片的处理很强大（eg.解析验证码）
+-----------------sass-----------------------
+监听一个文件：eg. sass --watch style.scss:style.css
+监听一个目录：eg. sass --watch app/sass:public/style 
+编译风格：
+    nested:    嵌套缩进的css代码，默认值
+    expanded:  没有缩进的，扩展的css代码
+    compact:   简洁格式的css代码
+    compressed:压缩后的css代码
+    eg. sass --style compressed style.sass:style.css
+----------------seafile---------------------
+以为seafile的部署安装好了依赖软件
+----------------codeviz---------------------
+/usr/local/codeviz/bin/gcc or g++
+----------------
+eg./usr/local/codeviz/bin/gcc xxx.c 
+  genfull 
+  gengraph --ouput-type "png/gif/html/ps" -f main 
+---------------cflow------------------------
+查看C语言调用依赖
+-----------------
+eg.cflow -Tln xxx.c
+---------------indent-----------------------
+代码格式工具
+----------------
+eg.indent -gnu xxx.c -o xxx.c 
+----------------gprof-----------------------
+效率分析工具
+----------------
+eg.gcc xxx.c -o xxx -pg
+eg.make CFLAGS=-pg LDFLAGS=-pg 
+eg.gprof -b xxx gmon.out
+----------------
+-b 不再输出统计图表中每个字段的详细描述
+-p 只输出函数的调用图 
+-q 指数除函数的时间消耗列表 
+-E name 不再输出函数name及其子函数的调用图
+-e name 不再输出函数name及其子函数的调用图 
+-F name 输出函数及其子函数的调用图
+-f name 输出函数name及其子函数的调用图
+-z 显示使用次数为零的例程
+----------------调试工具--------------------
+GNU Debugger:gdb
+Perl Debugger:perl -d
+Bash Debugger:bashdb
+Python Debugger:pydb
+GNU Make Debugger:remake
+--------------代码静态检查工具--------------
+splint             http://www.splint.org
+flawfinder         http://www.dwheeler.com/flawfinder
+--------软件构建系统（build system）--------
+cmake        http://www.cmake.org
+scons        http://www.scons.org
+-------------代码版本控制工具---------------
+subversion   http://www.subversion.tigris.org
+------------------测试框架------------------
+cppunit      http://sourceforge.net/projects/cppunit
+-------------------python-------------------
+python-twill
+pylint
+-----------编译器/识别器生成工具------------
+bison        http://www.gnu.org/software/bison
+antlr        http://antlr.org
+----------------代码格式化------------------
+astyle(Artistic style)  http://astyle.sourceforge.net
+indent       http://www.gnu.org/software/indent 
+------------------在线文档------------------
+doxygen      http://www.stack.nl/~dimitri/doxygen 
+-----------------离线文档-------------------
+docbook      http://www.docbook.org 
+----------------ttyrec----------------------
+终端录制工具,以及播放
+----------------dstat-----------------------
+能显示iostat，mstat，ifstat等信息
+----------------htop&iotop------------------
+进程，内存，以及io监视
+----------------slurm-----------------------
+可视化网络流量
+----------------screen---------------------- 
+保持你的终端绘画
+----------------mtr-------------------------
+traceroute 2.0
+----------------multitail-------------------
+在分隔的窗口中查看你的日志
+----------------socat & netpipes------------
+socket 输入，输出更容易
+----------------iftop & iptraf--------------
+查看网络流量
+----------------siege & tsung --------------
+web 载入测试工具
+----------------duplicity & rsyncrypto------
+加密备份工具
+----------------ledger----------------------
+终端的账单管理工具
+----------------ack-------------------------
+类似grep，比grep更好
+----------------Locate----------------------
+locate 在使用前必须构建数据库：
+  updatedb
+然后：eg. locate signal.h
+---------------使用windows共享打印机-----------------
+查看windows网络下的共享打印机： smbclient -L host(ip)
+eg. smbclient -L 192.168.1.167 
+     SharedDocs             Disk 
+     lp1(打印机共享名称)    Pinter HP LaserJet M1005
+登录 http://localhost:631 添加打印机
+  name 部分可以随便填写
+  device选择:windows printer via samba.
+  device uri:smb://username:passwd@host/printer 
+  eg. smb://hy:123456@192.168.1.167/lp1 
+---------------js-beautify-------------
+javascript格式化工具：eg. js-beautify foo.js
+---------------pptpd---------------
+eth0桥接路由：查看eth0的IP地址！
+编辑/etc/pptpd.conf添加：localip 192.168.2.140
+                         remoteip 192.168.0.2-254
+编辑/etc/ppp/options.pptp添加：
+            requires-mschap-v2
+            require-mppe-128 
+            name pptpd 
+            ms-dns 210.77.192.88
+            ms-dns 202.106.0.20 
+编辑/etc/ppp/chap-secrets添加账户：
+        "test" pptpd "123456" *
+---------------lsof----------------
+lsof常用参数列表：
+lsof filename 显示打开指定文件的所有进程
+lsof -a 表示两个参数都必须满足时才显示结果
+lsof -c string 显示command列中包含指定字符的进程所有打开的文件
+lsof -u username  显示所属user进程打开的文件
+lsof -g gid  显示归属gid的进程情况
+lsof +d /dir/  显示目录下被进程打开的文件
+lsof +D /dri/ 同上，但是会搜索目录下的所有目录，时间相对较长
+lsof -d fd 显示指定文件描述符的进程
+lsof -n 不将ip转换为hostname，缺省是不加上-n参数 
+lsof -i 用以显示符合条件的进程情况
+    lsof -i[46][protocal][@hostname|hostaddr][service|port] 
+        46 --》ipv4 or ipv6
+        protocol -->TCP or UDP 
+        hostname -->internet host name 
+        hostaddr -->ipv4地址
+        service -->/etc/service中的service name
+        port -->端口号
+---------------netstat-------------
+netstat一些常用选项：
+    netstat -a 显示所有链接和监听端口。包括已建立的链接（established）,也包括监听链接请求(listening).
+    netstat -s 显示按协议统计信息。默认显示ip，ipv6,icmp,icmpv6,udp,udpv6
+    netstat -e 显示关于以太网的统计数据。
+    netstat -r 显示关于路由表的信息
+    netstat -n 一数字形式显示地址和端口号
+    netstat -b 显示包含于创建每个链接或监听端口的可执行组件
+    netstat -o 显示每个链接相关的所属进程ID 
+    netstat -p proto 显示proto指定协议的链接。proto 可以是下列协议：tcp,udp,tcpv6,udpv6.
+    eg.netstat -ano
+----------------xnbd----------------
+1.创建磁盘映像文件
+    dd if=/dev/zero of=diskname bs=1024*1024*1024 count=3
+2.启动xnbd-server,监听 1234端口 使用diskname映像
+    xnbd-server port file [size] [kKmM] [-l authorize_file] [-r] [-m] [-c] [-a timeout_sec]
+        port xnbd-server监听端口  
+        file 绑定的映像文件
+        size 在客户端所见的块设备大小 单位可以使（k,K,m,M）
+        -r|--read-only 只读模式，客户端无法在块设备上进行写操作
+        -m|--multi-file 多个文件，可以将多个映像文件作为一个块设备提供给客户端
+        -c|copy-on-write 所有客户端的写操作会被另存为一个文件，链接断开后，这个文件会被删除，可以保证映像文件内容不会被修改
+        -l|--authorize_file file 一个允许访问此xnbd的主机列表文件
+        -a|--idle-time 服务器断开与客户端链接前的最大空闲时间
+
+3.客户端配置方法
+    modprobe xnbd
+    lsmod | grep xnbd
+ 查看xnbd设备是否建立
+    ls /dev/nbd* -hl
+ 将/dev/nbd0设备与主机链接
+    xnbd-client 192.168.1.1 123 /dev/nbd0 
+    nbd-client 用法：
+        xnbd-client [bs=blocksize] host port nbd_device [-swap]
+            bs 用于设置块大小，默认是1024,可以是512,1024,2048,4096
+            host 服务器的主机名或ip
+            port 服务器的监听端口
+            nbd_device 映射到本地的那个nbd设备
+            -swap 指定nbd设备将用作swap空间
+        xnbd-client -d nbd_device 用于断开链接
+ 使用前，需要格式化这个块设备
+    mkfs.ext3 /dev/nbd0 
+ 挂载这个块设备
+    mount /dev/nbd0 /home/hy/Desktop/
+ 格式化（vfat,ext2）
+ 查看信息：df -h
+----------------tcpdump-------------
+tcpdump参数：tcpdump [-i 网卡] -nnAX '表达式'
+    -i interface 监听网卡
+    -nn 表示以ip和port的方式显示来源主机和目的主机，而不是用主机名和服务
+    -A 数据包将会以16进制和ascii的方式显示
+    表示式 表达式有很多种，常见的有：host主机，port端口，src host发包主机，dst host收包主机。多个条件可以用and，or组合。取反可以使用！ 可以查看man 7 pcap-filter
+    eg. 监听网卡 eth0 tcpdump -i eth0
+        监听指定协议的数据 tcpdump -i eth0 -nn 'icmp'
+        监听指定主机 tcpdump -i eth0 -nn 'host 192.168.1.1'
+                     tcpdump -i eth0 -nn 'src host 192.168.1.1'
+                     tcpdump -i eth0 -nn 'dst host 192.168.1.1'
+        监听指定端口 tcpdump -i eth0 -nnA 'port 80'
+        监听指定主机和端口 tcpdump -i eth0 -nnA 'port 80 and src host 192.168.1.1'
+        监听除某个端口外的其他端口 tcpdump -i eth0 -nnA '!port 22'
+------------------nmap---------------
+nmap是linux下的网络扫描和嗅探工具。可以帮助网管人员深入探测udp或者tcp端口，直至主机所使用的操作系统。基本功能有三个，1.探测一组主机是否在线；2.扫描主机端口，3.嗅探所提供的网络服务，还可以推断主机所用的操作系统。
+eg. 简单端口扫描： nmap -vv -sT(sS,sF,sU,sA)192.168.1.1 -D 127.0.0.1 (-D 伪造的地址)
+    OS检测： nmap -vv -sS -O 192.168.1.1
+    RPC鉴别： nmap -sS -sR 192.168.1.1 Linux上的portmap就是一个简单rpc服务，监听端口为111
+------------------xprobe2--------------
+xprobe是一款主动操作系统指纹识别工具，和其他操作系统指纹识别不同，它依靠与一个签名库的模糊匹配，以及合理的推测来共同确定远程操作的类型
+eg. 简单内网探测 xprobe2 192.168.1.1
+    探测外网（目标主机开启web服务）xprobe2 -p tcp:80:open/tcp:25:open
+---------------nbtscan-----------------
+这是用于扫描windows网络上netbios名字信息的程序。该程序对给出范围内的每个地址发送netbios状态查询，并且易读的表格列出收到的信息，对于每个响应的主机，nbtscan列出他们的ip地址，netbios计算机名，登录用户名和mac地址。
+eg. nbtscan 192.168.1.0/24
+----------------ipcalc----------------------
+ -n     Don't display ANSI color codes
+ -b     Suppress the bitwise output
+ -c     Just print bit-count-mask of given address 
+ -h     Display results as HTML 
+ -v     Print Version
+
+-b, --broadcast Display calculated broadcast address (显示指定ip和子网掩码的广播地址)
+-h, --hostname show hostname determined via dns(显示指定ip的主机名)
+-m, --netmask dispaly default netmask for ip(class a b or c) (显示指定ip子网掩码 --特指默认)
+-n  --network dispaly network address (显示指定ip的网络地址)
+-p  --prefix dispaly network prefix (显示网络前缀)
+-s  --silent don't ever dispaly error messages (不显示错误信息)
+
+eg. ipcalc -b 192.168.1.1 255.255.255.0
+    ipcalc -n 192.168.1.1 255.255.255.0
+    ipcalc -h 192.168.1.1
+    ipcalc -m 192.168.1.1
+    ipcalc -pnbm 192.168.1.1 255.255.255.0
+-----------------查看内存使用情况------------------
+free:total 总计物理内存大小
+     used 已使用多大
+     free 可用有多少
+     shared 多个进程共享的内存总额
+     buffers/cached 磁盘缓存大小
+-----------------邮件系统--------------------------
+配置mutt:
+    a)在配置文件/etc/Muttrc或是~/.muttrc中添加：
+    set sendmail="/usr/bin/msmtp"
+    set use_from=yes
+    set realname="hy"
+    set from=you_mail_id@163.com
+
+    b)在配置文件～/.msmtprc添加：
+    account default
+    host smtp.163.com
+    auth plain
+    user you_mail_id 
+    from you_mail_id@163.com 
+    password you_mail_password 
+    需要修改 .msmtprc 文件的权限，否则会报错。
+    chmod 600 .msmtprc
+
+    用以下命令检验smtp服务器是否支持认证的tls加密：
+    msmtp --host=smtp.163.com -serverinfo
+    到此配置完毕，现在可以通过mutt收发邮件了
+----------------LAMP(Linux Apache Mysql PHP)-----------------
+由来:P(Python,Perl)HP
+安装:aptitude update && aptitude upgrade
+    aptitude install mysql-server mysql-client
+apache2:
+    aptitude install apache2 apache2-doc
+    启用模块: a2enmod name 
+                eg.a2enmod userdir
+    禁用模块: a2dismod name
+                eg.a2dismod userdir 
+    编辑/etc/apache2/mods-enabled/userdir.conf 修改'<Directory xx/xx/xx>'
+    创建目录:mkdir xx/xx/xx
+    更改用户组:chgrp www-data xx/xx/xx
+    重启服务:service apache2 restart
+"P"的安装：
+    aptitude install php5 php5-mysql libapache2-mod-php5
+Perl:
+    aptitude install perl libapache2-mod-perl2
+Python:
+    aptitude install python libapache2-mod-python
+配置: /etc/apache2/apache2.conf
+测试： test.php
+    <?php phpinfo();?>
+使用phpmyadmin简单配置apache
+    aptitude install phpmyadmin
+    在/etc/apache2/apache2.conf 末尾加入: "Include /etc/phpmyadmin/apache.conf
+重启Apache:
+    /etc/init.d/apache2 restart
+启用mysql:
+    将: extension=mysql.so 注释去掉即可 （注意：如果使用了conf.d 就不需要修改。）
+mysql: /etc/mysql/my.cnf
+---------------lighttpd--------------------
+重启: /etc/init.d/lighttpd start/restart/stop 
+配置文件: /etc/lighttpd/lighttpd.conf 
+端口: 82
+-----------------apache2------------------
+重启: /etc/init.d/apache2 start/restart/stop 
+配置文件:/etc/apache2/apache2.conf 
+端口配置文件: /etc/apache2/ports.conf 
+端口:80
+----------------vpn服务器---------------------
+重启: /etc/init.d/pptpd start/restart/stop 
+主配置文件:/etc/pptpd.conf
+帐号文件：/etc/ppp/chap-secrets
+eg. #client(用户名) server(固定:pptpd) secret(密码) IP addresses(IP 地址可以使用 '*' 匹配)
+---------------nginx服务器-------------------
+重启: /etc/init.d/nginx start/restart/stop 或者 service nginx start/restart/stop
+端口:81
+配置文件: /etc/nginx/nginx.conf 
+反向代理:
+正向代理:
+------------------cscope-----------------------
+进入源码目录执行：cscope -Rbq
+编辑.vimrc 添加：set cscopequickfix=s-,g-,d-,c-,t-,e-,f-,i-
+进入vi
+执行：
+eg. :cs add cscope.out
+查找内容：
+eg :cs find opt name
+opt:
+    0/s   --查找这个name符号 eg. :cs find 0 name
+    1/g   --查找这个定义     eg. :cs find 1 name 
+    2/d   --查找被这个函数调用的函数  eg. :cs find 2 name
+    3/c   --查找调用这个函数的函数    eg. :cs find 3 name
+    4/t   --查找这个字符串            eg. :cs find 4 name
+    6/e   --查找这个egrep匹配模式字符串  eg. :cs find 6 ^sname
+    7/f   --查找这个文件                 eg. :cs find 7 name[.h/.c]
+    8/i   --查找#include这个文件的文件   eg. :cs find 8 name[.h]
+打开查询结果:   :cw/copen 关闭：  :cclose
+---------------git---------------------------
+eg. git clone git://github.com/lxc/lxc
+--------------安装了emacs-----------------------
+解决输入发问题：apt-get install ibus-el
+配置：(require 'ibus)
+     (add-hook 'after-init-hook 'ibus-mode-on)
+将字设置为大写：M-u
+可以将选定字符设置为大写（选字Ctrl+Shift）
+将字全部设置为小写：M-l
+将一个区域设置为小写：C-x C-l
+查找匹配字：C-x C-u
+执行shell命令：M-! command
+生成：TAGS文件：shift+alt+1 etags *.c
+选字Ctrl+Shift 取消选字：Esc Esc Esc
+-------------------------------
+------------------服务启动/停止------------------
+例如：service vsftpd start
+     service vsftpd stop
+---------------mysql--------------------------
+登录mysql：mysql -uroot -p  password:123456
+或者：cat /etc/mysql/debian.cnf //查看用户和密码
+mysql -udebian-sys-maint -p
+use mysql
+UPDATE user SET PASSWORD=PASSWORD('123456') where USER='root';
+FLUSH PRIVILEGES;
+添加远程访问：
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '123456' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+修改:/etc/mysql/my.cnf 添加：bind-address=ip
+eg.mysql -h ip -uroot -p
+passwd:123456
+-----------------------------------------------
+---------------------vsftpd+db5.1--------------
+编辑：/etc/vsftpd/vsftpd.txt
+执行：db_load -T -t hash -f /etc/vsftpd/vsftpd.txt /etc/vsftpd/vsftpd.db
+
+------------------mysql+vsftpd-----------------
+创建数据库:vsftpd
+create database vsftpd;
+use vsftpd;
+create table users (id INT AUTO_INCREMENT NOT NULL,username VARCHAR(30) BINARY UNIQUE NOT NULL,password VARCHAR(256) BINARY NOT NULL,PRIMARY KEY(id));
+create table log (message VARCHAR(255),username VARCHAR(30),pid int(11),host VARCHAR(128),rhost VARCHAR(128),logtime timestamp);
+GRANT SELECT,UPDATE,INSERT,DELETE,DROP ON vsftpd.* TO 'vsftpd'@'localhost' IDENTIFIED BY '123456';
+GRANT SELECT,UPDATE,INSERT,DELETE,DROP ON vsftpd.* TO 'vsftpd'@'localhost.localdomain' IDENTIFIED BY '123456';
+flush privileges
+插入用户：insert into users(`username`,`password`) values ('shared',PASSWORD('123456'));
+        insert into users(`username`,`password`) values ('sys',PASSWORD('123456'));
+	insert into users(`username`,`password`) values ('cxx',PASSWORD('123456'));
+	insert into users(`username`,`password`) values ('web',PASSWORD('123456'));
+创建/etc/pam.d/vsftpd.mysql
+内容：
+auth required pam_mysql.so user=vsftpd passwd=123456 host=localhost db=vsftpd table=users usercolumn=username passwdcolumn=password crypt=2 sqllog=1 logtable=log logmsgcolumn=message logusercolumn=username logpidcolumn=pid loghostcolumn=host logrhostcolumn=rhost logtimecolumn=logtime
+account required pam_mysql.so user=vsftpd passwd=123456 host=localhost db=vsftpd table=users usercolumn=username passwdcolumn=password crypt=2 sqllog=1 logtable=log logmsgcolumn=message logusercolumn=username logpidcolumn=pid loghostcolumn=host logrhostcolumn=rhost logtimecolumn=logtime
+插入完成后创建目录：
+cd /home/vsftpd/
+mkdir /home/vsftpd/'username'
+chown vsftpd:nogroup /home/vsftpd/'username'
+解决500 OOPS:vsftpd: refusing to run with writable root inside chroot()问题：
+chmod a-w 'username'
+关于每个用户的独立配置文件：
+/etc/vsftpd/'username'
+拥有所有系统目录的浏览权限：
+/etc/vsftpd/vsftpd.list 添加‘username’
+-----------------------------------------------
+/etc/pam.d/vsftpd文件的各字段的解释为：
+#     user     登录mysql的用户名（我们追加的专用用户）
+#     passwd   登录mysql的密码
+#     host     MySQL服务器名
+#     db       数据库名
+#     table    表名
+#     usercolumn  用户名字段
+#     passwdcolumn    密码字段
+#     crypt   加密方式
+#         0:plain,即明文
+#         1:crypt加密
+#         2:用MySQL的PASSWD()函数加密
+#         3:MD5加密（我们用的这个）
+#         4:SHA1加密
+#     sqllog          是否输出日志，1输出，0不输出
+#     logtable        保存日志的表名
+#     logmsgcolumn    日志主信息（比如AUTHENTICATION SUCCESS，QUERYING SUCCESS这样的）
+#     logusercolumn   用户名字段
+#     logpidcolumn    pid信息（即用户连接ftp后的进程ID）
+#     loghostcolumn   host名信息保存字段（我们的ftp服务器）
+#     logrhostcolumn  远程host名保存字段（请求连接的客户端）
+#     logtimecolumn   登录时间保存字段
+-----UNIX 程序问题分析常用命令-------------
+ulimit -- 设置和查看用户的使用的资源限制情况
+nm -- 显示目标文件的符号表信息
+ldd –显示动态库的依赖信息
+pstack（Solaris， Linux）， procstack（AIX）-- 打印十六进制地址和符号名称
+pmap(Solaris, Linux), procmap(AIX) –打印地址空间映射
+pldd(Solaris), procldd(AIX) —列出进程加载的库
+pfiles(Solaris), procfiles(AIX)-- 报告有关的所有文件描述符
+prstat(Solaris), ps -e -o user,pid,ppid,tid,time,%cpu,cmd --sort=%cpu(Linux)-- 检查每个线程的处理器
+ps –报告进程的状态
+iostat –报告中央处理单元（中央处理器）统计和输入 / 输出设备和分区统计
+pwdx（Linux，Solaris）　 pid 显示当前工作目录
+top（Linux，Solaris，HP），topas（AIX）
+                        -- 使用 top 命令，然后按 1 键可显示 CPU 的个数以及每个 CPU 的负载情况
+-------------------------
+file 检测文件格式
+ldd 打印文件所需的动态链接信息
+strings 查看签入二进制文件中字符串
+sum 打印文件的校验和与程序块计数
+size 打印可执行文件中的各个段
+readelf 分析elf格式的可执行文件
+strip 取出调试信息和符号
+strace 打印可执行文件中的系统调用
+addr2line 把程序地址转换为文件名和行号
+ar 建立，修改，提取归档文件
+c++filt 连接器使用它来过滤C++和Java符号
+ld 连接器 
+objcopy 吧一种目标文件中的内容复制到另一种类型的目标文件中
+objdump 显示一个或者更多目标文件信息
+ranlib 产生归档文件索引
+gcov 保险测试工具
+-------------------------
+性能检测：
+time,gprof
+------------------------
+检测类存泄漏
+----------------valgrind(图形工具 valkyrie) 的使用----------------
+valgrind --leak-check=full exec-programe
+
+-----------更新文件系统--从光盘------------------
+apt-get -f upgrade
+
+-----------virtualbox挂在文件-------------------
+mount -t vboxsf F_DRIVE /home/hy/iso
+
+-------------------ctags----------------------------
+eg.ctags -R --c++-kinds=+p --fields=+iaS --extra=+q --language-force=c++
+必须选项:  --c++-kinds=+p  --fields=+iaS --extra=+q
+−−fields=[+|−]flags
+    a   Access (or export) of class members   类成员的访问属性
+    f   File-restricted scoping [enabled]
+    i  Inheritance information   继承信息
+    k  Kind of tag as a single letter [enabled]
+    K  Kind of tag as full name
+    l   Language of source file containing tag
+    m  Implementation information
+    n  Line number of tag definition
+    s  Scope of tag definition [enabled]
+    S  Signature of routine (e.g. prototype or parameter list)    函数原型
+    z  Include the "kind:" key in kind field
+    t  Type and name of a variable or typedef as "typeref:" field [enabled]
+选项c++-kinds 用于指定C++语言的 tags记录类型,  --c-kinds用于指定c语言的，  通用格式是  --{language}-kinds
+--list-kinds=c++ 可以查看选项：
+    c  classes
+    d  macro definitions 
+    e  enumerators (values inside an enumeration)
+    f  function definitions
+    g  enumeration names
+    l  local variables [off]
+    m  class, struct, and union members
+    n  namespaces
+    p  function prototypes [off]
+    s  structure names
+    t  typedefs
+    u  union names
+    v  variable definitions
+    x  external and forward variable declarations [off]
+  extra 选项用于增加额外的条目
+  f表示为每个文件增加一个条目
+  q为每个类增加一个条目
+VI 使用汇总
+Bundle 插件管理程序
+ 编辑.vimrc 在bundle 哪行添加对应插件就可以
+ 更新插件：:BundleUpdate
+ 删除插件：:BundleClean
+ 安装插件：:BundleInstall
+VI快捷键
+ 滚屏命令
+ ----------
+   CTRL+u
+   CTRL+d
+ 分页命令
+ ----------
+   CTRL+f
+   CTRL+b
+ 状态命令
+ ----------
+   CTRL+g 
+ ----------
+ CTRL+c 复制
+ CTRL+v 粘贴
+ CTRL+a 全选
+ CTRL+j 每次下一行，并到每行的行尾
+ CTRL+w 切换窗口
+ CTRL+z 暂停使用vi，但是可以通过bg查看，fg恢复vi。注意：终端不能关闭。
+ F2  去除空行
+ F3  打开NERDTree
+ CTRL+F3 选中NERDTree中的文件夹按下快捷键展开树状目录
+ F5  编译运行
+ F8  调式
+ F6  格式化代码
+ F9  打开Tlist
+ F11 全屏
+ F12 跳到行首
+
+ 

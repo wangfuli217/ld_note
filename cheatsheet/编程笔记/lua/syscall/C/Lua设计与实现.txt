@@ -1,0 +1,182 @@
+https://github.com/lichuang/Lua-Source-Internal
+https://github.com/chenanbao/chenanbao.github.io/blob/6202968d7466fc26a123378f0643d42e87b13cc8/_posts/2008-07-28-Lua%E8%99%9A%E6%8B%9F%E6%A0%88%E5%8E%9F%E7%90%86.md
+http://simohayha.iteye.com/blog/517748
+http://airtrack.me/posts/2012/08/12/Lua%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89/
+
+https://github.com/feicong/lua_re # luac byte的反编译
+
+    其中的LUA_TLIGHTUSERDATA和LUA_TUSERDATA一样,对应的都是void*指针,区别在于,
+LUA_TLIGHTUSERDATA的分配释放是由Lua外部的使用者来完成,而LUA_TUSERDATA则是通过Lua内部来完成的,
+换言之,前者不需要Lua去关心它的生存期,由使用者自己去关注,后者则反之.
+
+    任何需要gc的Lua数据类型,必然以CommonHeader做为该结构体定义的最开始部分.如果熟悉C++类实现原理的人,可
+以将CommonHeader这个成员理解为一个基类的所有成员,而其他需要gc的数据类型均从这个基类中继承下来,所以它
+们的结构体定义开始部分都是这个成员。
+    GCObject这个union,将所有需要gc的数据类型全部囊括其中,这样在定位和查找不同类型的数据时就来的方便多了,
+而如果只想要它们的GC部分,可以通过GCheader gch,如:
+    #define gcvalue(o)  check_exp(iscollectable(o), (o)->value.gc)
+    仅表示了需要gc的数据类型还不够,还有几种数据类型是不需要gc的,Lua中将GCObject和它们一起放在了union Value中:
+    typedef union { 
+      GCObject *gc; 
+      void *p; 
+      lua_Number n; 
+      int b; 
+    } Value;
+
+    struct       union           union                 struct         struct
+TValuefields    Value           GCObject              GCheader       CommonHeader
+Value value     GCObject *gc    GCheader gch          CommonHeader   GCObject *next
+int   tt        void *p         union TString ts                     lu_byte  tt
+                lua_Number n    union Udata   u                      lu_byte  marked
+                int b           union Closure cl
+                                struct Table  h
+                                struct Proto  p
+                                struct Upval  uv
+                                struct lua_State th
+
+TString,Udata,Proto,UpVal,ClosureHeader(CClosure,LClosure,Closure),Table,lua_State
+
+  在double/void */long三种类型中,尺寸最大的是double. C语言中,struct/union这样的复合数据类型,是按照这个类型中最大对齐量
+的数据来进行对齐的,所以这里就是按照double类型的对齐量来进行对齐,一般而言是8字节. 而在结构体tsv中,其最大的对齐单位
+肯定不会比double大,所以整个TString union是按照double的对齐量来进行对齐的.
+#define LUAI_USER_ALIGNMENT_T	union { double u; void *s; long l; }
+
+一个字符串TString,首先根据hash算法算出hash值,这就是stringtable中hash的索引值,如果这里已经有元素,则使用链表串接起来.
+同时,TString中的字段reserved,表示这个字符串是不是保留字符串,比如Lua的关键字,在最开始赋值的时候是这么处理的:
+void luaX_init (lua_State *L) 
+一方面可以迅速定位到是哪个关键字,另方面如果这个reserved字段不为0,则表示该字符串是不可自动回收的,在GC过程中会略过这个字符串的处理:
+
+算法
+1. 查找算法
+    先来看看查找算法,如果将其他的细枝末节去掉,在Lua表中查找一个数据的伪代码如下:
+    
+如果输入的Key是一个正整数,并且它的值 > 0 && <= 数组大小
+    尝试在数组部分查找
+否则尝试在Hash部分进行查找:
+    计算出该Key的Hash值,根据此Hash值访问node数组得到Hash桶所在位置
+    遍历该Hash桶下的所有链表元素,直到找到该Key为止
+
+2. 新增元素
+    涉及到重新分配表中数组和Hash部分的流程.需要说明的是,这部分的API,包括
+luaH_set/luaH_setnum/luaH_setstr三个函数,它们的实际行为,并不在其函数内部对key所
+由外部的使用者来进行实际的替换操作,最典型的例子就是settable这个OpCode了对应的数据
+进行添加或者修改,而是返回根据该key查找到的TValue指针
+void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) 
+
+    首先根据前面提到的查找流程来查找该key对应的数据是否已经存在,如果已经存在了就直接
+返回TValue指针,由外部调用程序具体进行修改操作.否则,就调用newkey函数新分配一个该key对应的数据:
+static TValue *newkey (lua_State *L, Table *t, const TValue *key)
+
+整个过程的伪代码列举如下:
+  首先分配一个位图nums,将其中的所有位置0,这个位图的意义在于:nums数组中第i个元素存放的是key在2^(i-1), 2^i之间的元素数量
+  遍历lua Table中的数组部分,计算在数组部分中的元素数量,更新对应的nums数组元素数量.(numusearray函数)
+  遍历lua Table中的Hash部分,因为其中也可能存放了正整数,也根据这里的正整数数量更新对应的nums数组元素数量.(numusehash函数)
+  此时nums数组已经有了当前这个Table中所有正整数的分配统计,逐个遍历nums数组,获得其范围区间内所包含的整数数量大于50%的最大index,做为rehash之后的数组大小,超过这个范围的正整数,就分配到Hash部分了.(computesizes函数)
+  根据上面计算得到的调整后的数组和Hash桶大小对Lua表进行调整(resize函数)
+  
+  
+Lua指令执行过程
+    存放分析Lua代码之后生成相关的opcode,是存放在Proto结构体中,一个Lua文件有一个总
+的Proto结构体,如果它内部还有定义函数,那么每个函数也有一个对应的Proto结构体.这里仅
+列列举出与指令执行相关的几个成员:
+    TValue *k:存放常量的数组.
+    Instruction *code:存放指令的数组.
+    struct Proto **p:该Proto内定义的函数相关的Proto数据.
+    Proto结构体是分析完一个Lua文件之后的产物,所以需要在分析阶段需要有中间使用到的
+临时数据用来保存它,向它里面写入数据,待分析完毕之后,这个在分析过程中临时使用的数据
+就不再使用了,这个结构体就是FuncState,这里也仅是列举出它里面与指令相关的成员:
+    Proto *f:绑定的Proto结构体.
+    int pc:当前的pc索引,类似于CPU执行指令时的计数器,在这里这个变量用于保存当前已经向Proto的code数组写入了多少数据.
+    int freereg:当前的可用寄存器索引.
+有了以上的准备,来看看何时向Proto中写入指令.Lua代码中对不同的指令格式提供了几个函数,luaK_codeABx/luaK_codeABC等,这
+几个函数最终都会调用函数luaK_code:
+797 static int luaK_code (FuncState *fs, Instruction i, int line) {
+798   Proto *f = fs->f;
+803   f->code[fs->pc] = i;
+808   return fs->pc++;
+809 }
+    如前如前面分析的那样,luaK_code中将指令写入Proto结构体的code数组中,返回code数组中
+下一个可写的位置,这个用FuncState的pc成员保存.
+接下来看看Lua虚拟机真正执行每一条指令的函数luaV_execute:
+
+luaV_execute:
+(lvm.c)
+343 #define RA(i)   (base+GETARG_A(i))
+344 /* to be used after possible stack reallocation */
+345 #define RB(i)   check_exp(getBMode(GET_OPCODE(i)) == OpArgR, base+GETARG_B(i))
+346 #define RC(i)   check_exp(getCMode(GET_OPCODE(i)) == OpArgR, base+GETARG_C(i))
+347 #define RKB(i)  check_exp(getBMode(GET_OPCODE(i)) == OpArgK, \
+348     ISK(GETARG_B(i)) ? k+INDEXK(GETARG_B(i)) : base+GETARG_B(i))
+349 #define RKC(i)  check_exp(getCMode(GET_OPCODE(i)) == OpArgK, \
+350     ISK(GETARG_C(i)) ? k+INDEXK(GETARG_C(i)) : base+GETARG_C(i))
+351 #define KBx(i)  check_exp(getBMode(GET_OPCODE(i)) == OpArgK, k+GETARG_Bx(i))
+  
+    函数栈空间,也就是函数的执行环境是在函数开始执行之前创建好的,而在解析指令时并
+不知道将来指令执行时所在的具体位置,当时只能知道的相对于函数栈的相对位置.因此Lua
+指令中存放的地址都是相对于函数栈的偏移量,而执行时的函数栈环境,存放在base/top成员中.
+    虽然指令中存放的是相对偏移量,但是也需要保存一个值,知道当前函数栈中有多少值被
+分配出去了,存放这个数据的变量,就是FuncState结构体的freereg.
+  
+  
+虚拟机
+  "虚拟机"就是使用代码实现的用于模拟计算机运行的程序. 
+每一门脚本语言都会有自己定义的opcode(operation code,中文一般翻译为”操作码”),可以
+理解为这门程序自己定义的”汇编语言”.一般的编译型语言,比如C等,经过编译器编译之后生成
+的都是与当前硬件环境相匹配的汇编代码;而脚本型的语言,经过前端的处理之后,生成的就是
+opcode,再将该opcode放在这门语言的虚拟机中逐个执行. 可见,虚拟机是个中间层,它处于
+脚本语言前端和硬件之间的一个程序(有些虚拟机是作为单独的程序独立存在,而Lua由于是
+一门嵌入式的语言是附着在宿主环境中的).
+
+可见,一个虚拟机,其核心问题有两个:
+    如何分析源代码文件生成Opcode,然后又如何执行Opcode指令.
+    另一个问题是保存整个执行环境是如何做的.
+这一节,先讲解Lua虚拟机如何解决第一个核心问题的大体流程,第二个问题留待下一节讲解.
+
+Lua虚拟机工作流程
+    Lua的API中提供了luaL_dofile函数,它实际上是个宏,内部首先调用luaL_loadfile函数,
+加载Lua代码进行语法,词法分析,生成Lua虚拟机可执行的代码,再调用lua_pcall函数,执行
+其中的代码:
+#define luaL_dofile(L, fn) \
+	(luaL_loadfile(L, fn) || lua_pcall(L, 0, LUA_MULTRET, 0))
+    前半部分调用luaL_loadfile函数对Lua代码进行词法和语法分析,后半部分调用lua_pcall
+将第一步中分析的结果(也就是opcode)到虚拟机中执行.
+
+    首先来看luaL_loadfile函数,暂时不深入其中研究它如何分析一个Lua代码文件,先看它
+最后输出了什么.它最终会调用f_parser函数,这是对一个Lua代码进行分析的入口函数:
+/* 在载入lua文件，进行解析文件时 */
+static void f_parser (lua_State *L, void *ud) {
+  int i;
+  Proto *tf;
+  Closure *cl;
+  struct SParser *p = cast(struct SParser *, ud);
+  int c = luaZ_lookahead(p->z);
+  luaC_checkGC(L);
+  tf = ((c == LUA_SIGNATURE[0]) ? luaU_undump : luaY_parser)(L, p->z,
+                                                             &p->buff, p->name);
+  cl = luaF_newLclosure(L, tf->nups, hvalue(gt(L)));
+  cl->l.p = tf;
+  for (i = 0; i < tf->nups; i++)  /* initialize eventual upvalues */
+    cl->l.upvals[i] = luaF_newupval(L);
+  setclvalue(L, L->top, cl);
+  incr_top(L);
+}
+
+    在完成词法分析之后,返回了Proto类型的指针tf,然后将其绑定在新创建的Closure指针上,
+初始化UpValue,最后压入Lua栈中.
+    不难想像,Lua词法分析之后产生的opcode等相关数据都在这个Proto类型的结构体中.
+
+函数f_parser中,对Lua代码文件的分析返回了Proto指针
+    函数luaD_precall中,将Lua_state的savepc指针指向第1步中的Proto结构体的code指针
+    函数luaV_execute中,pc指针指向第2步中的savepc指针,紧跟着就是一个大的循环体,依次取出其中的opcode进行执行.
+    执行完毕之后,调用luaD_poscall函数恢复到上一个函数的环境.
+
+因此,Lua虚拟机指令执行的两大入口函数,分别是:
+
+    词法/语法分析阶段的LuaY_parser,Lua为了提高效率,一次遍历脚本文件不仅完成了词法分析,还完成了语法分析,生成的opcode存放在Proto结构体的code数组中,这些将在后面的章节中进行分析.
+    LuaV_execute是虚拟机执行指令阶段的入口函数,它取出第一步生成的Proto结构体中的指令执行.
+语法词法分析阶段            执行指令
+    luaY_parser -> Proto -> luaV_execute
+    可见,Proto是分析阶段的产物,在执行阶段将使用分析阶段生成的Proto来执行虚拟机指令,
+在分析阶段会有许多的数据结构参与其中,可它们都是临时的用于分析阶段的,或者说最终
+是用来辅助生成Proto结构体的.
+    

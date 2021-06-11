@@ -1,0 +1,218 @@
+被QBuffer、QFile、QSocket和QSocketDevice继承。
+
+https://zhuanlan.zhihu.com/p/50675356
+QIODevice
+随机设备  QFileDevice       QFile            QTemporaryFile
+                            QSaveFile
+          QBuffer           
+顺序设备  QProcess          
+          QAbstractSocket   QTcpSocket       QSctpSocket
+                                             QSslSocket
+                            QUdpSocket 
+随机设备: 它们具有大小和当前位置，支持在数据流中向前向后搜索。典型的随机设备就是文件
+顺序设备: 顺序设备没有位置概念，也不支持搜索，只能在数据可用时一次性读取所有数据。
+          典型的顺序设备是Socket，以及在Unix操作系统上的特殊文件，如/dev/zero和fifo管道。
+1. 调用isSequential()函数可以确定设备类型。
+2. 调用size()函数时，如果是随机设备则返回当前设备的大小，如果是顺序设备则返回bytesAvailable()。
+
+3 打开/关闭设备
+    在访问设备前，都必须调用open()函数来打开设备。调用close()函数来关闭设备。关闭设备时会发出aboutToClose()信号，
+同时设备的打开模式被置为NotOpen，错误信息也会被重置。
+4. 打开模式
+设备打开时需要指定打开的模式，
+Constant                Value                   Description
+QIODevice::NotOpen      0x0000                  设备没有被打开
+QIODevice::ReadOnly     0x0001                  以只读模式打开
+QIODevice::WriteOnly    0x0002                  以只写模式打开，注意该模式会截断文件.
+QIODevice::ReadWrite    ReadOnly | WriteOnly    以读写模式打开.
+QIODevice::Append       0x0004                  以追加模式打开，数据将会写入设备末尾
+QIODevice::Truncate     0x0008                  以覆盖模式打开，数据将会从设备开头写入覆盖已有内容
+QIODevice::Text         0x0010                  以文本模式打开
+QIODevice::Unbuffered   0x0020                  禁用缓冲区
+QIODevice::NewOnly      0x0040                  以新文件模式打开
+QIODevice::ExistingOnl  0x0080                  文件存在模式
+
+注意：
+4.1. WriteOnly模式：对于文件设备(如QFile)，该模式意味着Truncate，除非与ReadOnly，Append或NewOnly结合使用。
+4.2. Text模式：以该模式打开时，如果是读取则终止符被转换为'\n'，如果是写入则终止符转换为本地编码，如Windows的'\r\n'。
+4.3. NewOnly模式：Qt 5.11后新加的模式，该模式仅针对QFile类，其他类使用该模式会导致未定义的行为。仅当文件不存在时才会创建并打开该文件。
+     如果打开的文件已存在，则调用该模式打开文件时会失败。
+4.4. ExistingOnly模式：Qt 5.11后新加的模式，该模式仅针对QFile类，其他类使用该模式会导致未定义的行为。使用时必须在ReadOnly，
+     WriteOnly或ReadWrite旁边指定此标志。
+5. 其他函数 [opemMode() setOpenMode() setTextModelEnabled() isTextmodeEnabled()]
+    调用openMode()函数可以获取当前设备的打开模式。如果在设备打开的情况下改变设备模式，可以调用setOpenMode()函数来更改。
+    调用setTextModelEnabled()函数可以设置设备模式为Text，这对于自定义处理终止符非常有帮助。调用isTextmodeEnabled()函数
+可以确定设备模式是否有Text。
+
+6. 读取设备 [isReadable() readyReady() 然后调用bytesAvailable() read() readAll()、readLine()、getChar()、ungetChar()] 
+    读取数据前必须先判断是否有数据可读，有两种方法来确定是否可以读取数据：
+6.1.调用isReadable()函数；2.接收到readyRead()信号。通常采用后者，当有新数据可被读取时会发出该信号。
+    然后调用bytesAvailable()函数来确定可读取数据的大小，通常与顺序设备一起使用，来确定缓冲区中分配的字节数。
+6.2. 调用read()函数来读取数据，无法读取时返回-1。
+6.3. 便捷函数有readAll()、readLine()、getChar()、ungetChar()。
+7.写入设备 [isWritable() bytesToWrite() bytesWritten() write() ]
+调用isWritable()函数可以判断设备是否设置打开模式中包含了WriteOnly标志，这是一个便捷函数。
+    写入数据时，一般会先写入缓冲区，然后再从缓冲区写入设备。调用bytesToWrite()函数返回即将写入设备的数据大小，
+而对于无缓冲的设备则返回0。每次写入设备数据时都会发出bytesWritten()信号。
+写入数据到设备中，调用write()函数，例如：
+QIODevice::write(data, qstrlen(data));
+便捷函数有putChar()函数。
+8. 阻塞函数
+对于异步设备来说，write()、read()函数是立即返回的，QIODevice类提供了阻塞函数：waitForReadyRead()和waitForBytesWritten()。
+
+
+http://www.kuqin.com/qtdocument/qfile.html
+1. QIODevice类是输入/输出设备的基类。
+   [QIODevice QFile QBuffer QSocket]
+2. 一个输入/输出设备代表了一个可从中读取字节和/和向它写字节的一种媒介。QIODevice类是一个所有这样的设备的抽象超类，
+   像QFile、QBuffer和QSocket这些类继承了QIODevice类并且适当地实现了像write()这样地虚函数。
+   [QTextStream QDataStream]
+3. 尽管应用程序有时直接使用QIODevice，但通常最好是通过提供了对任何一个QIODevice子类的流操作的QTextStream和QDataStream。
+   QTextStream提供了基于文本的流的功能(比如对于人们是可读的ASCII文件)，而QDataStream则可以以完全不依赖平台的方式处理二进制数据。 
+
+    [open() close() readBlock() writeBlock() readLine() flush()]
+QIODevice中的公有成员可以粗略地分为两类：操作函数和状态访问函数。最主要的操作函数有：
+    open() 打开一个用来读和/或写的设备，依赖于open()所使用的参数。
+    close() 关闭设备并且整理好。
+    readBlock() 从一个设备中读取一块数据。
+    writeBlock() 向一个设备中写入一块数据。
+    readLine() reads a line (of text, usually) from the device.
+    flush() 确保所有的缓存数据都已经写入到真正的设备中。
+    [getch() ungetch() putch() size() at() atEnd() reset()]
+这里是其它的一些不太常用的操作函数：
+    getch() 从输入/输出设备中读取一个单一的字节/字符。返回所读取的字节/字符，或者是如果到了输入/输出设备的终点，返回-1。
+    ungetch() 如果可能的话，忘记上一次对getch()的调用。
+    putch() 向输入/输出设备写入字符ch。返回ch，或者如果发生错误，返回-1。
+    size() 如果有这个设备的话，返回它的大小。
+    at() 如果这个设备存在一个当前读/写指针，就返回这个指针的位置，否则就移动这个指针。
+    at(Offset pos) 虚函数设置输入/输出位置到pos。如果位置设置成功，返回真，比如pos是在范围之内，否则返回假。
+    atEnd() 如果输入/输出设备位置在输入的末尾位置时，虚函数返回真，否则返回假。
+    reset() 如果对于这个设备是可能的话，就移动读/写指针到这个设备的开始位置。
+    isCombinedAccess() 如果这个输入/输出设备是一个组合存取(既可以随机存取也可以顺序存取)的设备，返回真，否则返回假。
+    mode () 这些标记是IO_ReadOnly、IO_WriteOnly、IO_ReadWrite、IO_Append、IO_Truncate和IO_Translate。
+    
+    [setState() isDirectAccess()、isSequentialAccess()和isCombinedAccess() isBuffered() isSynchronous() isAsynchronous()]
+    [isTranslated() IO_Translate isReadable()、isWritable()和isReadWrite()]
+    [open() isOpen()]
+状态访问就是所有的"读取"函数。QIODevice子类调用setState()来更新状态，并且简单的访问函数告诉用户这个设备的状态。
+这里就是设置和与它们相配合的访问函数：
+1. 访问类型。 一些设备是被随机存取的(它可以在任何地方直接读/写)，而其它的设备是顺序存取的。
+              QIODevice提供了访问函数(isDirectAccess()、isSequentialAccess()和isCombinedAccess())
+              来告诉用户一个给定的输入/输出设备所支持的。
+2. 缓存。 一些设备是以直接的模式被访问，而其它设备则使用缓存模式。缓存可以提供更高的效率，尤其是一些小的读/写操作。
+          isBuffered()告诉用户给定的设备是否被缓存。(这通常可以通过应用程序调用open()来设置。)
+3. 同步性。 同步设备立即工作(比如文件)。当你从一个文件中读时，文件立刻传递它的数据。其它类型的设备，
+            比如一个连接到HTTP服务器的套接字，也许在你命令它读取的几秒后才传递数据。isSynchronous()和
+            isAsynchronous()会告诉用户如何操作这个设备的。
+4. 回车/换行翻译。 简单地说，应用程序通常喜欢看到只有一种单一的回车/换行风格，并且QIODevice子类可以提供这个。
+                  如果这个对象把回车/换行翻译成仅仅是换行，isTranslated()返回真。(这通常可以通过应用程序调用open()来设置)
+                  如果QFile是以IO_Translate模式标记打开的，它就是被翻译的。
+5. 权限。 一些文件不能被写。比如，isReadable()、isWritable()和isReadWrite()告诉应用程序一个给定设备是否可读和可写。
+        (这通常可以通过应用程序调用open()来设置。)
+6. 最后，如果设备是打开的话，比如在调用open()之后，isOpen()返回真。
+
+bool  open(int mode) 
+  IO_Raw 指定直接的（非缓存的）文件访问。
+  IO_ReadOnly 以只读模式打开文件。
+  IO_WriteOnly 以只写模式打开文件。
+  IO_ReadWrite 以读/写模式打开文件。
+  IO_Append 设置文件索引到文件的末尾。
+  IO_Truncate 截短文件。
+
+Q_LONG readBlock ( char * data, Q_ULONG maxlen ) 
+Q_LONG readLine ( char * data, Q_ULONG maxlen )
+Q_LONG writeBlock ( const char * data, Q_ULONG len ) 
+Q_LONG writeBlock ( const QByteArray & data ) 
+
+int status () const 返回这个输入/输出设备的状态。
+这个输入/输出设备状态返回一个错误码。如果open()返回失败或者readBlock()或writeBlock()返回-1，这个函数就可以被调用来发现操作为什么不成功的原因。
+状态码是：
+    IO_Ok - 操作成功。
+    IO_ReadError - 不能从设备中读取。
+    IO_WriteError - 不能向设备写入。
+    IO_FatalError - 发生了致命的不可恢复的错误。
+    IO_OpenError - 不能打开设备。
+    IO_ConnectError - 不能连接设备。
+    IO_AbortError - 操作出乎意料地失败了。
+    IO_TimeOutError - 操作超时。
+    IO_UnspecifiedError - 关闭时发生了未指定的错误。
+
+所有函数
+    构造/析构
+        QIODevice()
+        QIODevice(QObject *parent)
+        virtual ~QIODevice()
+    设备信息
+        virtual bool isSequential() const
+        virtual qint64 size() const
+    打开/关闭
+    打开
+        bool isOpen() const
+        virtual bool open(QIODevice::OpenMode mode)
+        enum OpenModeFlag { NotOpen, ReadOnly, WriteOnly, ReadWrite, ..., ExistingOnly }
+        QIODevice::OpenMode openMode() const
+        [Protected]void setOpenMode(QIODevice::OpenMode openMode)
+        文本模式
+            bool isTextModeEnabled() const
+            void setTextModeEnabled(bool enabled)
+         关闭
+        virtual void close()
+        [Signal]void aboutToClose()
+    读写数据
+    位置
+        virtual bool atEnd() const
+        qint64 peek(char *data, qint64 maxSize)
+        QByteArray peek(qint64 maxSize)
+        virtual qint64 pos() const
+        virtual bool reset()
+        virtual bool seek(qint64 pos)
+        qint64 skip(qint64 maxSize)读取
+        判断是否有可读取数据
+            bool isReadable() const
+            [Signal]void readyRead()
+            virtual qint64 bytesAvailable() const
+        读取
+            qint64 read(char *data, qint64 maxSize)
+            QByteArray read(qint64 maxSize)
+            [Protected]virtual qint64 readData(char *data, qint64 maxSize) = 0
+            便捷函数
+            QByteArray readAll()
+            virtual bool canReadLine() const
+            qint64 readLine(char *data, qint64 maxSize)
+            QByteArray readLine(qint64 maxSize = 0)
+            [Protected]virtual qint64 readLineData(char *data, qint64 maxSize)
+            bool getChar(char *c)
+            void ungetChar(char c)
+        写入
+            bool isWritable() const
+            virtual qint64 bytesToWrite() 
+            const[Signal]void bytesWritten(qint64 bytes)
+            qint64 write(const char *data, qint64 maxSize)
+            qint64 write(const char *data)
+            qint64 write(const QByteArray &byteArray)
+            [Protected]virtual qint64 writeData(const char *data, qint64 maxSize) = 0
+            bool putChar(char c)
+         阻塞
+            virtual bool waitForReadyRead(int msecs)virtual 
+            bool waitForBytesWritten(int msecs)
+         事务
+            void startTransaction()
+            void commitTransaction()
+            bool isTransactionStarted() 
+            constvoid rollbackTransaction()
+         通道
+    读取通道
+        int readChannelCount() const
+        int currentReadChannel() const
+        void setCurrentReadChannel(int channel)
+        [Signal]void channelReadyRead(int channel)
+        [Signal]void readChannelFinished()
+    写入通道
+        int writeChannelCount() const
+        int currentWriteChannel() const
+        void setCurrentWriteChannel(int channel)
+        [Signal]void channelBytesWritten(int channel, qint64 bytes)
+    错误
+        QString errorString() const
+        [Protected]void setErrorString(const QString &str)
+    

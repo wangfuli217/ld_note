@@ -1,0 +1,54 @@
+--[[
+原型：io.lines ([filename])
+解释：以读模式打开指定的文件名并返回一个迭代函数。 
+      当迭代函数检测到文件结束，它不返回值(让循环结束)并自动关闭文件。
+      
+      1. 当是文件名字的时候，io.lines将会以读取模式打开该文件并且在达到该文件末尾的时候关闭该文件；
+      2. 当不带参数调用该函数的时候，io.lines会从当前的输入文件中读取内容。
+      
+      这个迭代函数每一次被调用都会返回文件中新的一行的内容。
+      直到文件中所有的内容都被读完，常用的代码形式为for line in io.lines(filename) do body end，
+      当迭代函数检测到文件末尾时，1. 返回nil来结束循环 2.自动关闭文件，
+      这个函数还有另一种表现形式，那就是file:lines()，
+      
+      调用io.lines()(不传文件名)等价于io.input():lines("*l")；即，它将按行迭代标准输入文件。在此情况下，循环结束后它不会关闭文件。
+      在出错的情况下，函数抛出错误而不是返回错误码。
+      
+注意： 当是文件句柄的时候，以该句柄进行文件读取，但是不会在读取之后关闭该文件。 -- 不支持
+注意： io.lines([filename]) 使用默认的"*l"作为可选参数，其他的测试不生效
+E: file is already closed
+E: system call error:%s
+--]]
+
+io.stdout:write(string.rep('-', 30), 'io.lines("io.lines") one more iterator', string.rep('-', 30),'\n')
+local contentfunc = io.lines("io.lines") -- io.lines(filename)
+print("contentfunc is :")
+print(contentfunc)
+
+print("\nfirst file content is :")  -- 先手动调用一次
+local content = contentfunc()
+print(content.."\n")
+
+local content = contentfunc()       -- 再手动调用一次
+print(content.."\n")
+
+for cnt in contentfunc do           -- 迭代调用
+    print(cnt)
+end
+
+io.stdout:write(string.rep('-', 30), 'for cnt in io.lines("io.lines") do', string.rep('-', 30),'\n')
+print("\nsecond file content is :") -- 直接全部迭代调用
+for cnt in io.lines("io.lines") do      -- io.line(filename)
+    print(cnt)
+end
+
+io.stdout:write(string.rep('-', 30), 'io.open("io.lines"):lines()', string.rep('-', 30),'\n')
+-- io.open("io.lines"):lines() 需要手动关闭文件描述符
+print("\nthird file content is :") 
+local myfile = io.open("io.lines");     -- myfile:lines()
+for cnt in myfile:lines() do
+    print(cnt)
+end
+
+print("io.type(myfile) = ", io.type(myfile))
+myfile:close()

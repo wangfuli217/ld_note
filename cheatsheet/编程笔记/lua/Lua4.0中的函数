@@ -1,0 +1,401 @@
+    把Lua4.0里面的函数总结出来，目的是为了和5.1中的函数进行区分，
+由于工作中经常使用到4.0中的函数，所以列出来也便于查询和学习
+
+标准库
+_ALERT
+_ERRORMESSAGE
+call
+collectgarbage
+功能：是垃圾收集器的通用接口，用于操作垃圾收集器
+copytagmethods
+
+dofile (filename)
+功能：打开并且执行一个lua块,当忽略参数filename时，将执行标准输入设备(stdin)的内容。返回所有块的返回值。当发生错误时，dofile将错误反射给调用者
+注：dofile不能在保护模式下运行
+
+dostring
+功能：执行一个字符串形式的lua块
+
+error (message [, level])
+功能：终止正在执行的函数，并返回message的内容作为错误信息(error函数永远都不会返回)
+通常情况下，error会附加一些错误位置的信息到message头部.
+Level参数指示获得错误的位置,
+Level=1[默认]：为调用error位置(文件+行号)
+Level=2：指出哪个调用error的函数的函数
+Level=0:不添加错误位置信息
+
+foreachi(table, function(i, v))
+功能：会期望一个从 1（数字 1）开始的连续整数范围，遍历table中的key和value逐对进行function(i, v)操作，与lua5.1中的用法相同
+
+foreach
+功能：与foreachi不同的是，foreach会对整个表进行迭代，与lua5.1中的用法相同
+
+
+gcinfo
+getflobal
+gettagmethod
+globals
+newtag
+next
+
+
+print (...)
+功能：简单的以tostring方式格式化输出参数的内容
+
+
+rawget
+rawset
+rawgettable
+rawsettable
+setglobal
+settag
+settagmethod
+tag
+
+tonumber (e [, base])
+功能：尝试将参数e转换为数字，当不能转换时返回nil
+base(2~36)指出参数e当前使用的进制，默认为10进制，如tonumber(11,2)=3
+
+tostirng(e)
+功能：将参数e转换为字符串，此函数将会触发元表的__tostring事件
+
+type(v)
+功能：返回参数的类型名("nil"，"number", "string", "boolean", "table", "function", "thread", "userdata")
+
+assert(v [, message])
+功能：相当于C的断言，
+参数：
+v：当表达式v为nil或false将触发错误,
+message：发生错误时返回的信息，默认为"assertion failed!"
+
+getn(table)
+功能：返回table中元素的个数，用法与lua5.1中的table.getn相同
+
+sort(table, function)
+功能：给定的table进行升序排序，用法与lua5.1中的table.sort相同
+
+tinsert(table, [pos,] value)
+功能：向table中插入一个元素，用法与lua5.1中的table.insert相同
+
+tremove(table[, pos])
+功能：删除table中的某一元素，用法与lua5.1中的table.remove相同
+
+--------------------------------------------------------
+
+输入输出库 io库
+
+colck
+功能：返回一个程序使用CPU时间的一个近似值，同lua5.1中使用方法
+
+date
+功能：功能：返回一个按format格式化日期、时间的字串或表，同lua5.1中使用方法
+
+execute
+功能：相当于C的system函数,返回系统状态码，同lua5.1中使用方法
+
+exit
+功能：相当于C的exit函数,终止主程序,code为返回值，同lua5.1中使用方法
+
+getenv
+功能：返回当前进程的环境变量varname的值,若变量没有定义时返回nil，同lua5.1中使用方法
+
+remove
+功能：删除文件或一个空目录,若函数调用失败则返加nil加错误信息，同lua5.1中使用方法
+
+rename
+功能：更改一个文件或目录名,若函数调用失败则返加nil加错误信息，同lua5.1中使用方法
+
+setlocale
+功能：设置程序的当前设置,函数返回最新的值，失败则返回nil，同lua5.1中使用方法
+
+tmpname
+功能：返回一个临时文件名，同lua5.1中使用方法
+
+debug
+
+ 功能：进入交互式的调试模式，解释我们的输入，输入cont回车就退出
+
+appendto
+
+
+openfile(file, mod)
+功能：打开一个文件，返回一个文件句柄。有两个参数，文件名和打开模式
+参数：file文件名
+参数：mode有下列几种形态字符串:
+r 打开只读文件，该文件必须存在。
+r+ 打开可读写的文件，该文件必须存在。
+rb+ 读写打开一个二进制文件，只允许读写数据。
+rt+ 读写打开一个文本文件，允许读和写。
+w 打开只写文件，若文件存在则文件长度清为0，即该文件内容会消失。若文件不存在则建立该文件。
+w+ 打开可读写文件，若文件存在则文件长度清为零，即该文件内容会消失。若文件不存在则建立该文件。
+a 以附加的方式打开只写文件。若文件不存在，则会建立该文件，如果文件存在，写入的数据会被加到文件尾，即文件原先的内容会被保留。
+a+ 以附加方式打开可读写的文件。若文件不存在，则会建立该文件，如果文件存在，写入的数据会被加到文件尾后，即文件原先的内容会被保留。
+wb 只写打开或新建一个二进制文件；只允许写数据。
+wb+ 读写打开或建立一个二进制文件，允许读和写。
+wt+ 读写打开或着建立一个文本文件；允许读写。
+at+ 读写打开一个文本文件，允许读或在文本末追加数据。
+ab+ 读写打开一个二进制文件，允许读或在文件末追加数据。
+
+例如：
+local f = openfile("abc.txt", "rb")
+
+
+closefile(f)
+功能：关闭打开文件的句柄
+
+read(f, readtype)
+功能：从一个打开的文件中读取数据。
+参数：f是打开的文件句柄
+参数：readtype表示要读取的方式
+"*a"表示读取整个文件内容
+"*l"表示读一行
+"*n"表示读一个数字
+"*w"表示读一个单词
+
+例如：
+local f = openfile("d:\\test\\test\\test.cpp", "rb");
+assert(f)
+local data = read(f, "*l");
+print(data)
+
+输出：this is the first line!
+
+ 
+
+readfrom
+
+seek(file, seekmod, pos)
+功能：移动文件指针
+参数：f是打开的文件句柄
+参数：移动模式
+set是设置指针移动的位置，第三个参数是具体要移动的位置
+cur是从指针当前位置移动，第三个参数是具体要移动的位置，可以为负，表示前移
+end是移动到文件结果，无第三个参数
+
+例如：
+local f = openfile("d:\\test\\test\\test.cpp", "rb");
+seek(f, "set", 10);
+seek(f, "cur", 8);
+seek(f, "end");
+local data = read(f, "*l");
+print(data);
+closefile(f);
+
+
+write(file, data)
+功能：向一个文件中写入数据
+参数：文件句柄
+参数：要写入文件的数据
+
+例如：
+local f = openfile("d:\\readme.txt", "wb");
+assert(f)
+write(f, "abcde")
+closefile(f)
+
+ 
+
+writeto
+
+flush(f)
+功能: 清除文件缓冲区，文件以写方式打开时将缓冲区内容写入文件
+
+--------------------------------------------------------
+
+数学库 math库
+
+abs
+功能：取绝对值
+
+sin
+功能：正弦函数
+
+cos
+功能：余弦函数
+
+tan
+功能：正切函数
+
+asin
+功能：反正弦函数
+
+acos
+功能：余弦函数
+
+atan
+功能：反正切函数
+
+atan2
+功能：x / y的反正切值
+
+ceil
+功能：不小于x的最大整数
+
+floor
+功能：不大于x的最大整数
+
+mod
+功能：取模运算
+
+frexp
+功能：把双精度数val分解为数字部分（尾数）和以2为底的指数n，即val=x*2n
+
+ldexp
+功能：计算value * 2的n次方
+
+sqrt
+功能：开平方函数
+
+min
+功能：取得参数中最小值
+
+max
+功能：取得参数中最大值
+
+log
+功能：计算一个数字的自然对数
+
+log10
+功能：计算以10为基数的对数
+
+exp
+功能：计算以e为底x次方值
+
+deg
+功能：弧度转角度
+
+rad
+功能：角度转弧度
+
+random
+功能：获取随机数
+
+randomseed
+功能：设置随机数种子
+
+============================================================
+
+字符串库 string库
+
+
+strlen(str)
+
+功能：获得字符串的长度
+
+strlen("abcdefghijklmn")
+
+输出：14
+
+---------------------------------------
+
+strsub(str, nStart, nEnd)
+
+功能：截取字符串
+
+strsub("abcdefghijklmn", 4, 7)
+
+输出：defg
+
+---------------------------------------
+
+strlower(str)
+
+功能：字符串转小写
+
+strlower("AbCdEFg")
+
+输出：abcdefg
+
+---------------------------------------
+
+strupper（str）
+
+功能：字符串转大写
+
+strupper("AbCdEFg")
+
+输出：ABCDEFG
+
+----------------------------------------
+
+strchar(byte1, byte2, ..)
+
+功能：数字转字符串
+
+strchar(97, 98, 99)
+
+输出：abc
+
+----------------------------------------
+
+strrep(str, nCount)
+
+功能：返回一个指定数目拼接在一起的字符串
+
+strrep("hello", 5)
+
+输出：hellohellohellohellohello
+
+---------------------------------------
+
+ascii(str)
+
+功能：字符串转数字
+注意：若传入多个字符组成的字符串，只返回第一个字符的ascii码
+
+ascii("a")
+ascii("abc")
+
+输出：97
+---------------------------------------
+
+strbyte(str)
+
+功能：字符串转数字
+注意：若传入多个字符组成的字符串，只返回第一个字符的ascii码
+
+strbyte("a")
+strbyte("abc")
+
+输出：97
+------------------------------------------
+
+format(str, "格式化字符串")
+
+功能：返回一个指定格式的格式化字符串
+
+format("%s is %s ,has %s apples!", "Henry", "farmer", 19)
+
+输出：Henry is farmer ,has 19 apples!
+
+-----------------------------------------------------------
+
+strfind(str, substr[, nStart])
+
+功能：查找一个字符串在另一个字符串中的位置，参数3可以指定开始查找的位置
+
+strfind("aaa  hello, mike! hello", "hello", 8)
+
+输出：19  23
+
+------------------------------------------------------------
+gsub(str, perttem, repl[, n])
+
+功能：在str查找等于或类似perttem格式的字符串，用repl替换，参数4可选，为替换的次数
+注意：该函数支持字符串匹配操作，返回的第2个值表示替换了多少次
+
+gsub("hello, world", "%w+", "xxx")
+
+输出：
+
+xxx, xxx 2
+
+--------------------------------------------------------
+
+调试库 debug库
+
+getlocal
+getinfo
+setcallhook
+setlinehook
+setlocal

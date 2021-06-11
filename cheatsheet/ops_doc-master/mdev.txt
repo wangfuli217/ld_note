@@ -1,0 +1,109 @@
+MDEV 入门(转)
+Busybox-1.7.0/docs/mdev.txt
+-------------
+MDEV Primer
+MDEV 入门
+-------------
+For those of us who know how to use mdev, a primer might seem lame. For
+这份文档对于那些知道如何使用 mdev 的人看来可能有些肤浅。
+everyone else, mdev is a weird black box that they hear is awesome, but can't
+但对于其他人，mdev 可能是一个神秘的黑匣子，以至让人敬畏。
+seem to get their head around how it works. Thus, a primer.
+而这份文档又不足以让他们知道mdev 是如何工作的。 因此，这是一份入门文档。
+-----------
+Basic Use
+基本使用方法
+-----------
+Mdev has two primary uses: initial population and dynamic updates. Both
+mdev 有两个主要的应用：初始化对象和动态更新。
+require sysfs support in the kernel and have it mounted at /sys. For dynamic
+两个应用都需要内核 sysfs 的支持，且必须挂载到 /sys 。为了实现动态更新，
+updates, you also need to have hotplugging enabled in your kernel.
+你还必须在内核配置时增加热插拔支持（hotplugging）。
+Here's a typical code snippet from the init script:
+以下是系统初始化脚本中一个典型的使用mdev 的代码片段：
+    [1] mount -t sysfs sysfs /sys
+    [2] echo /bin/mdev > /proc/sys/kernel/hotplug
+    [3] mdev -s
+
+Of course, a more "full" setup would entail executing this before the previous
+当然，一个对mdev 更完整的安装还必须在以上代码片段前执行下面的命令：
+code snippet:
+    [4] mount -t tmpfs mdev /dev
+    [5] mkdir /dev/pts
+    [6] mount -t devpts devpts /dev/pts
+
+The simple explanation here is that [1] you need to have /sys mounted before
+简单说明一下上面的代码：[1]你必须在执行mdev 前挂载 /sys 。
+executing mdev. Then you [2] instruct the kernel to execute /bin/mdev whenever
+随后你 [2] 命令内核在增删设备时执行 /bin/mdev ，
+a device is added or removed so that the device node can be created or
+使设备节点文件会被创建和删除。
+destroyed. Then you [3] seed /dev with all the device nodes that were created
+最后你 [3] 设置mdev，让它在系统启动时创建所有的设备节点。
+while the system was booting.
+For the "full" setup, you want to [4] make sure /dev is a tmpfs filesystem
+而对mdev 更完整的安装，你必须[4]确保 /dev 是 tmpfs 文件系统
+(assuming you're running out of flash). Then you want to [5] create the
+(假设文件系统在 flash 外运行)。 而且你必须 [5] 创建
+
+-------------
+MDEV Config (/etc/mdev.conf)
+MDEV 配置 (/etc/mdev.conf)
+-------------
+Mdev has an optional config file for controlling ownership/permissions of
+device nodes if your system needs something more than the default root/root
+660 permissions.
+如果你的系统需要一些比默认的 root/root 660 更多的权限，
+你可以使用 mdev 的可选配置文件，以控制设备节点的 所有者 和 权限。
+The file has the format:
+这个文件的格式如下：
+    <device regex> <uid>:<gid> <octal permissions>
+For example:
+例如：
+    hd[a-z][0-9]* 0:3 660
+The config file parsing stops at the first matching line. If no line is
+这个配置文件在第一个匹配行处停止解析。 如果没有匹配行，
+matched, then the default of 0:0 660 is used. To set your own default, simply
+那么就使用默认的 0:0 660 。 你也可以通过在最后创建如下的全匹配
+create your own total match like so:
+行，来设置你自己的默认设置：
+    .* 1:1 777
+If you also enable support for executing your own commands, then the file has
+如果你想 mdev 在找到匹配行时可以执行自定义的命令，那么文件格式如下：
+the format:
+    <device regex> <uid>:<gid> <octal permissions> [<@|$|*> <command>]
+The special characters have the meaning:
+特殊字符的意义如下：
+   @ Run after creating the device.
+    @ 在创建设备节点后运行命令。
+    $ Run before removing the device.
+    $ 在删除设备节点前运行命令。
+    * Run both after creating and before removing the device.
+    * 在创建设备节点后和删除设备节点前都运行命令。
+The command is executed via the system() function (which means you're giving a
+这些命令是通过系统函数（system()）执行的（也就是说你在对shell 下命令）
+command to the shell), so make sure you have a shell installed at /bin/sh.
+，所以请确保你已在 /bin/sh 安装了shell。
+For your convenience, the shell env var $MDEV is set to the device name. So if
+为了方便，shell 的环境变量 $MDEV 会被设置成设备名。 例如
+the device 'hdc' was matched, MDEV would be set to "hdc".
+mdev 解析到设备 'hdc' 匹配，MDEV 将会被设置为 "hdc"。
+
+----------
+FIRMWARE
+固件
+----------
+Some kernel device drivers need to request firmware at runtime in order to
+有些设备驱动程序在运行时，为了正确的初始化设备，需要上传固件。
+properly initialize a device. Place all such firmware files into the
+请将所有的固件文件放入
+/lib/firmware/ directory. At runtime, the kernel will invoke mdev with the
+/lib/firmware/ 目录。 在运行时，内核将会按固件文件名调用 mdev ，
+filename of the firmware which mdev will load out of /lib/firmware/ and into
+之后 mdev 会通过 sysfs 接口将固件从 /lib/firmware/
+the kernel via the sysfs interface. The exact filename is hardcoded in the
+装载到内核。 确定的文件名被固化在内核中，
+kernel, so look there if you need to want to know what to name the file in
+如有必要，你必须知道如何在用户空间命名这个文件。
+userspace.

@@ -1,0 +1,58 @@
+QT中共提供四个与套按字相关的类，分别是：
+    QServerSocket：TCP-based server  
+    QSocket:   Buffered TCP connection  
+    QSocketDevice:  Platform-independent low-level socket API  
+    QSocketNotifier: Support for socket callbacks
+    
+
+QSocketNotifier
+QSocketNotifier 用来监听系统文件操作，将操作转换为Qt事件进入系统的消息循环队列。并调用预先设置的事件接受函数，处理事件
+一共存在3类事件：read,write,exception.	 
+QSocketNotifier::Read	0	There is data to be read.
+QSocketNotifier::Write	1	Data can be written.
+QSocketNotifier::Exception	2	An exception has occurred. We recommend against using this.
+每个QSocketNotifie对象只能监听一个事件，如果要同时监听两个以上事件必须创建两个以上的监听对象。
+下面将说明如何使用 QSocketNotifier 来监听串口数据:
+在使用 open 方法打开串口并设置好属性后,可以使用 Qt 的类 QSocketNotifier 来监听串口是否有数
+据可读,它是事件驱动的, 配合 Qt 的 signal/slot 机制,当有数据可读时,QSocketNotifier 就会发射
+ativated 信号,你只需要创建一个 slot 连接到该信号即可,代码如下所示:
+m_fd = openSerialPort();
+if (m_fd < 0)
+
+{
+      QMessageBox::warning(this, tr("Error"), tr("Fail to open serial port!"));
+     return ;
+}
+m_notifier = new QSocketNotifier(m_fd, QSocketNotifier::Read, this);
+connect (m_notifier, SIGNAL(activated(int)), this, SLOT(remoteDataIncoming()));
+
+
+在上述代码中,我们首先使用上面封装的 openSerialPort 函数打开串口并配置串口属性,接着我们
+用 m_fd 和 QSocketNotifier::Read 作为参数构造了一个 QSocketNotifier 的实例,
+QSocketNotifier::Read 参数表示我们需要关心串口的可读状态,最后将 QSocketNotifier 实例的
+activated 信号连接到 remoteDataIncoming slot,当有数据可读时,remoteDataIncoming slot 会被调
+用。
+下面是 remoteDataIncoming slot 的代码,它的代码比较简单,只是调用 read 函数读取串口数据,
+然后将数据显示到界面上:
+void TMainForm::remoteDataIncoming()
+{
+	char c;
+	if (read(m_fd, &c, sizeof c) != 1) {
+		QMessageBox::warning(this, tr("Error"), tr("Receive error!"));
+		return;
+	}
+	m_receiveEdit->insert(QString(QChar(c)));
+}
+
+详见Book/107.QSocketNotifier类介绍.pdf
+
+提示异常：
+QSocketNotifier: socket notifiers cannot be disabled from another thread
+引发原因是Qt的socket管理类在不同线程操作，线程管理类是属于主线程的，所以在线程管理类中释放socket管理类
+解决如下：
+1.在run里释放
+2.使用deleteLater
+3.直接用栈对象
+
+提示：QSocketNotifier: Invalid socket 11 and type 'Read', disabling...
+管理类中的socket已经释放了，还在用socket读或写

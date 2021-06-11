@@ -1,0 +1,63 @@
+一：代码流程
+在Libev中，启动一个IO监视器，等待该监视器上的事件触发，然后调用该监视器的回调函数。整个的流程是这样的：
+  首先调用ev_default_loop初始化struct  ev_loop结构；
+  然后调用ev_io_init初始化监视器中的属性，该宏主要就是调用ev_init和ev_io_set；
+  然后调用ev_io_start启动该监视器，该函数主要是将监视器添加到loop->anfds结构中，将监视的描述符添加到((loop)->fdchanges)中；
+
+调用ev_run开始等待事件的触发，该函数中：
+  首先会调用fd_reify函数，该函数根据((loop)->fdchanges)中记录的描述符，将该描述符上的事件添加到backend所使用的数据结构中，比如select中的fd_set中；
+  然后调用time_update更新当前的时间，如果日历时间被人为调整的话，则相应的调整超时事件和周期事件；
+  调用backend_poll开始等待事件的发生，如果事件在规定时间内触发的话，则会调用fd_event将触发的监视器记录到loop->pendings中；
+  backend的监听函数（select，poll，epoll_wait）返回之后，首先再次调用time_update更新当前的时间，然后调用ev_invoke_pending，依次处理loop->pendings中的监视器，调用该监视器的回调函数。
+
+ev_default_loop(){
+调用ev_time初始化ev_rt_now，得到当前的日历时间，也就是自19700101000000以来的秒数，该值通过CLOCK_REALTIME或者gettimeofday得到；
+调用get_clock初始化mn_now，该变量要么是CLOCK_MONOTONIC（系统启动时间），要么就是ev_time的值（日历时间）；
+之后调用ev_recommended_backends得到当前系统支持的backend类型，比如select,poll, epoll等。
+接下来就是根据系统支持的backend，按照一定的优先顺序，去初始化backend：
+接下来，初始化loop中的ev_prepare监视器pending_w，以及ev_io监视器pipe_w
+loop_init返回后，backend已经初始化完成，接着，初始化并启动信号监视器ev_signal childev。
+}
+
+ev_io_start(){
+首先对监视器ev做检查：
+ev->active ==0： 监视器现在的状态应是未启动的；
+fd>=0;
+(!(w->events& ~(EV__IOFDSET | EV_READ | EV_WRITE)))： IO监视器只能监控EV__IOFDSET，EV_READ，EV_WRITE中的事件，其他事件一律不能关心。
+
+调用ev_start矫正ev的优先级；置ev->active=1表明状态为启动状态；++(loop->activecnt)
+根据情况调整((loop)->anfds)数组的大小，然后将监视器ev加入到(loop->anfds)[fd].head的链表中。
+}
+
+ANFD(){
+    每一个描述符对应着一个ANFD结构，描述符的值就是((loop)->anfds)的下标。每个描述符上可以有若干监视器，
+同一个描述符上的监视器以链表的形式组织，这里ANFD结构中的head就是链表头指针。
+ ((loop)->anfds)数组是动态变化的，初始为空。(loop)->anfdmax就是该数组的当前大小。
+}
+
+fd_change(){
+fd_change(loop, fd, w->events & EV__IOFDSET |EV_ANFD_REIFY):
+
+    查看(loop->anfds)[fd].reify的原值，如果原值为0，表明该描述符是第一次加入监控，将其记录到((loop)->fdchanges)数组中，
+该数组记录了当前监控中的描述符，((loop)->fdchangemax)记录该数组当前实际大小，((loop)->fdchangecnt)记录该数组当前使用大小。
+将w->events & EV__IOFDSET | EV_ANFD_REIFY添加到(loop->anfds)[fd].reify中。
+最后，将w->events中的EV__IOFDSET掩码消除：
+}
+
+fd_reify(){
+    轮训数组((loop)->fdchanges)，从0到((loop)->fdchangecnt-1)之间的所有元素，每个元素代表了一个描述符，
+根据取得的描述符值fd，找到相应的ANFD结构anfd。
+    记录原anfd->events和anfd->reify的值，
+    调用backend_modify函数开始对fd及其上的所有事件开始监控。以backend为select例，就是根据anfd->events中的事件，
+将fd添加到相应的fd_set中去。
+    最后，置((loop)->fdchangecnt)为0。
+}
+
+fd_event(){
+    在backend_poll函数中，如果有些监视器的事件触发了，就会调用fd_event函数，将触发的描述符fd和事件event记录到pending数组中。
+    已经触发而还没有处理的事件状态称为PENDING状态。在fd_event函数中，根据fd找到相应的ANFD结构。
+    fd_event_nocheck的代码如下，根据fd找到相应的ANFD结构，轮训其中的监视器链表，如果某监视器上的事件触发了，则调用ev_feed_event函数处理
+}
+(loop->pendingcnt)是一个一维整型数组，(loop->pendingcnt)[i]表示当前处于PENDING状态的优先级为i的监视器的个数。
+
+(loop->pendings )是个二维数组，每个元素类型为ANPENDING，

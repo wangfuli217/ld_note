@@ -1,0 +1,101 @@
+################### /etc/sysconfig/network-scripts/ifcfg-eth0 #######################
+## /usr/share/doc/initscripts-9.03.31/sysconfig.txt
+## for more  
+
+DEVICE=eth0 #表示网卡物理设备的名称
+TYPE=Ethernet #表示网络类型
+UUID=e6173fa1-b060-4e7f-b6a5-d79fc6081f51 表示网卡的UUID
+ONBOOT=yes #表示启动系统时是否激活该网卡，yes激活，no不激活
+NM_CONTROLLED=yes
+BOOTPROTO=none  #表示网卡配置静态还是动态IP地址
+          none：表示无需启动协议
+          bootp: 表示使用bootp协议
+          dhcp：表示使用DHCP动态获取地址
+          static：表示手工设置静态IP地址
+          
+HWADDR=C0:3F:D5:30:4E:5E 表示网卡的MAC地址
+IPADDR=192.168.0.2 #表示网卡的IP地址
+NETMASK=255.255.255.0 #表示子网掩码
+BROADCAST=192.168.0.255 #表示网络广播地址
+NETWORK=192.168.0.0 #表示网络地址
+PREFIX=24
+GATEWAY=192.168.0.1 #表示该网络网关地址
+DNS1=202.96.209.5 #表示DNS服务器的IP地址
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=yes
+IPV6INIT=no
+NAME="System eth0"
+
+################### /etc/resolv.conf #######################
+## man resolv.conf
+
+nameserver 202.96.209.5
+search sh.com
+
+nameserver:表示解析域名时使用该IP地址指定的主机为域名服务器，其中域名服务器是按照文件中出现的顺序查询的。
+search：表示DNS搜索路径，即解析不完整名称时默认的附加域名后缀，这样可以在解析域名时用简短的主机名而不是完全合格域名
+
+nameserver   #定义DNS服务器的IP地址
+domain       #定义本地域名
+search       #定义域名的搜索列表
+sortlist     #对返回的域名进行排序
+
+详细说明：
+nameserver　表明DNS服务器的IP地址。可以有很多行的nameserver，每一个带一个IP地址。在查询时就按nameserver在本文件中的顺序进行，
+            且只有当第一个nameserver没有反应时才查询下面的nameserver。
+domain　    声明主机的域名。很多程序用到它，如邮件系统；当为没有域名的主机进行DNS查询时，也要用到。
+            如果没有域名，主机名将被使用，删除所有在第一个点( .)前面的内容。
+search　　　它的多个参数指明域名查询顺序。当要查询没有域名的主机，主机将在由search声明的域中分别查找。
+            domain和search不能共存；如果同时存在，后面出现的将会被使用。
+sortlist　　允许将得到域名结果进行特定的排序。它的参数为网络/掩码对，允许任意的排列顺序。
+
+ndots:n
+timeout:n
+attempts:n
+ rotate sets
+ 
+ 　　
+/etc/resolv.conf的一个示例：
+domain centoscn.com
+search  www.centocn.com www.wgjlb.com
+nameserver 202.96.128.86
+nameserver 202.96.128.166
+
+最主要是nameserver关键字，如果没指定nameserver就找不到DNS服务器，其它关键字是可选的。Red Hat中没有提供缺省的/etc/resolv.conf文件，
+它的内容是根据在安装时给出的选项动态创建的。
+################### /etc/host.conf #######################
+## man host.conf
+如何解析主机名
+order bind,host
+multi on 
+nospoof on
+order bind,host：指定主机名查询顺序，这里规定先使用DNS服务器来解析域名，然后再查询/etc/hosts
+                 order " 指定主机名查询顺序，其参数为用逗号隔开的查找方法，支持的查找方法为bind、 hosts 和nis ，
+                 分别代表DNS 、/etc/hosts 和NIS，
+multi on:表示在/etc/hosts文件中指定的主机是否可以有多个地址，拥有多个IP地址的主机一般称为多穴主机
+nospoof on:表示不允许对该服务器进行IP地址欺骗。IP地址欺骗是一种攻击系统安全的手段，通过把IP地址伪装成别的计算机，
+           来取得其他计算机的信任。resolv+通过域名解析得到IP地址以后，会再由IP获取域名，如果两个域名不相等则认为被欺骗。
+trim： 表明当通过DNS 进行地址到主机名的转换时，域名将从主机名中被裁剪掉，trim 可以被多个域包含多次，对/etc/hosts 
+       和NIS 查询方法不起作用，注意在/etc/hosts 和NIS 表中主机名是被适当地(有或没有全域名)列出的。
+spoofalert:  当nospoof 指令为on 时，alert 控制欺骗的企图是否用syslog 工具进行记录，值为on 表示使用，缺省值为off。
+spoof:(off, nowarn, warn) off:网络欺骗地址被禁止使用，在syslog中没有打印信息；
+                          warn：尽力阻止网络地址欺骗，在syslog中打印error信息；
+                          nowarn：尽力阻止网络地址欺骗，在syslog中没有打印信息；
+reorder：对解析得到的IP地址进行重新排序，将本地IP地址放在最前方。
+
+################### /etc/sysconfig/network #######################    
+## /usr/share/doc/initscripts-9.03.31/sysconfig.txt
+## for more        
+              
+用来指定服务器上的网络配置信息，比如主机名、网关IP地址等；
+NETWORKING=yes      #是否配置网络
+HOSTNAME=rhel       #计算机主机名
+GATEWAY=192.168.0.1 #网关IP地址
+
+################### /etc/network #######################   
+定义了网络名和网络地址之间的映射关系
+default 0.0.0.0
+loopback 127.0.0.0
+link-local 169.254.0.0
+sh 129.168.0.0
+

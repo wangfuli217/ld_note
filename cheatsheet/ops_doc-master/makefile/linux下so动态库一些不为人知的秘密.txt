@@ -1,0 +1,189 @@
+http://www.cnblogs.com/lidabo/category/613176.html # 回头看看
+政治正确是一件用来让讲真话的人闭嘴的武器。 —— 阿亚安·希尔西·阿里
+ed2k://|file|[The.Dictator's.Handbook].(Bruce.Bueno.de.Mesquita,Alastair.Smith).%E6%96%87%E5%AD%97%E7%89%88[%E5%AD%A6%E4%B9%A0%E5%BA%93www.90xz.com][www.90xz.com].epub|635316|a0c2941e08f1b5175494a40002d4f290|h=w7vtzrihqrpwqeoaczhnsklys3mwwn52|/
+
+
+1. 隐性链接
+   基本上每一个linux 程序都至少会有一个动态库，查看某个程序使用了那些动态库，使用ldd命令查看 
+    # ldd /bin/ls
+    linux-vdso.so.1 => (0x00007fff597ff000)
+    libselinux.so.1 => /lib64/libselinux.so.1 (0x00000036c2e00000)
+    librt.so.1 => /lib64/librt.so.1 (0x00000036c2200000)
+    libcap.so.2 => /lib64/libcap.so.2 (0x00000036c4a00000)
+    libacl.so.1 => /lib64/libacl.so.1 (0x00000036d0600000)
+    libc.so.6 => /lib64/libc.so.6 (0x00000036c1200000)
+    libdl.so.2 => /lib64/libdl.so.2 (0x00000036c1600000)
+    /lib64/ld-linux-x86-64.so.2 (0x00000036c0e00000)
+    libpthread.so.0 => /lib64/libpthread.so.0 (0x00000036c1a00000)
+    libattr.so.1 => /lib64/libattr.so.1 (0x00000036cf600000)
+
+   这么多so，是的。使用ldd显示的so，并不是所有so都是需要使用的，下面举个例子
+   main.cpp
+
+    #include <stdio.h>
+    #include <iostream>
+    #include <string>
+    using namespace std;
+    int main ()
+    {
+       cout << "test" << endl;
+       return 0;
+    }
+
+   使用缺省参数编译结果
+
+    # g++ -o demo main.cpp
+    # ldd demo
+        linux-vdso.so.1 => (0x00007fffcd1ff000)
+            libstdc++.so.6 => /usr/lib64/libstdc++.so.6 (0x00007f4d02f69000)
+            libm.so.6 => /lib64/libm.so.6 (0x00000036c1e00000)
+            libgcc_s.so.1 => /lib64/libgcc_s.so.1 (0x00000036c7e00000)
+            libc.so.6 => /lib64/libc.so.6 (0x00000036c1200000)
+            /lib64/ld-linux-x86-64.so.2 (0x00000036c0e00000)
+
+   如果我链接一些so，但是程序并不用到这些so，又是什么情况呢，下面我加入链接压缩库，数学库，线程库
+
+    # g++ -o demo -lz -lm -lrt main.cpp
+    # ldd demo
+            linux-vdso.so.1 => (0x00007fff0f7fc000)
+            libz.so.1 => /lib64/libz.so.1 (0x00000036c2600000)
+            librt.so.1 => /lib64/librt.so.1 (0x00000036c2200000)
+            libstdc++.so.6 => /usr/lib64/libstdc++.so.6 (0x00007ff6ab70d000)
+            libm.so.6 => /lib64/libm.so.6 (0x00000036c1e00000)
+            libgcc_s.so.1 => /lib64/libgcc_s.so.1 (0x00000036c7e00000)
+            libc.so.6 => /lib64/libc.so.6 (0x00000036c1200000)
+            libpthread.so.0 => /lib64/libpthread.so.0 (0x00000036c1a00000)
+            /lib64/ld-linux-x86-64.so.2 (0x00000036c0e00000)
+
+  看看，虽然没有用到，但是一样有链接进来，那看看程序启动时候有没有去加载它们呢
+
+    # strace ./demo
+        execve("./demo", ["./demo"], [/* 30 vars */]) = 0
+        ... = 0
+        open("/lib64/libz.so.1", O_RDONLY) = 3
+        ...
+        close(3) = 0
+        open("/lib64/librt.so.1", O_RDONLY) = 3
+        ...
+        close(3) = 0
+        open("/usr/lib64/libstdc++.so.6", O_RDONLY) = 3
+        ...
+        close(3) = 0
+        open("/lib64/libm.so.6", O_RDONLY) = 3
+        ...
+        close(3) = 0
+        open("/lib64/libgcc_s.so.1", O_RDONLY) = 3
+        ...
+        close(3) = 0
+        open("/lib64/libc.so.6", O_RDONLY) = 3
+        ...
+        close(3) = 0
+        open("/lib64/libpthread.so.0", O_RDONLY) = 3
+        ...
+        close(3) = 0
+        ...
+
+  看，有加载，所以必定会影响进程启动速度，所以我们最后不要把无用的so编译进来，这里会有什么影响呢？
+   大家知不知道linux从程序（program或对象）变成进程（process或进程），要经过哪些步骤呢，这里如果详细的说，估计要另开一篇文章。简单的说分三步：
+    1、fork进程，在内核创建进程相关内核项，加载进程可执行文件；
+    2、查找依赖的so，一一加载映射虚拟地址
+    3、初始化程序变量。
+  可以看到，第二步中dll依赖越多，进程启动越慢，并且发布程序的时候，这些链接但没有使用的so，同样要一起跟着发布，否则进程启动时候，会失败，找不到对应的so。所以我们不能像上面那样，把一些毫无意义的so链接进来，浪费资源。但是开发人员写makefile 一般有没有那么细心，图省事方便，那么有什么好的办法呢。继续看下去，下面会给你解决方法。
+  先使用 ldd -u demo 查看不需要链接的so，看下面，一面了然，无用的so全部暴露出来了吧
+
+    # ldd -u demo
+    Unused direct dependencies:
+            /lib64/libz.so.1
+            /lib64/librt.so.1
+            /lib64/libm.so.6
+            /lib64/libgcc_s.so.1
+
+  使用 -Wl,--as-needed 编译选项
+
+    # g++ -Wl,--as-needed -o demo -lz -lm -lrt main.cpp
+    # ldd demo
+            linux-vdso.so.1 => (0x00007fffebfff000)
+            libstdc++.so.6 => /usr/lib64/libstdc++.so.6 (0x00007ff665c05000)
+            libc.so.6 => /lib64/libc.so.6 (0x00000036c1200000)
+            libm.so.6 => /lib64/libm.so.6 (0x00000036c1e00000)
+            /lib64/ld-linux-x86-64.so.2 (0x00000036c0e00000)
+            libgcc_s.so.1 => /lib64/libgcc_s.so.1 (0x00000036c7e00000)
+    # ldd -u demo
+    Unused direct dependencies:
+    
+2. 显示链接
+    搜索路径分两种，一种是链接时候的搜索路径，一种是运行时期的搜索路径。
+    像前面提到的 -L/tmp/是属于链接时期的搜索路径，即给ld程序提供的编译链接时候寻找动态库路径；
+    而LD_LIBRARY_PATH则既属于链接期搜索路径，又属于运行时期的搜索路径。
+    
+    -rpath链接选项，它是指定运行时候都使用的搜索路径。
+    
+
+   显示加载这么多优点，那么为什么实际生产中很少码农使用它呢, 主要原因还是起使用不是很方便，需要开发人员多写不少代码。
+   所以不被大多数码农使用，还有一个重要原因应该是能提前发现错误，在部署的时候就能发现缺少哪些so，而不是等到实际上限
+   运行的时候才发现缺东少西。
+   
+   写一个最简单的so， tmp.cpp
+    int test()
+    {
+        return 20;
+    }
+  [stevenrao]$ g++ -fPIC -c tmp.cpp
+  [stevenrao]$ g++ -shared -o libtmp.so tmp.o
+  [stevenrao]$ mv libtmp.so /tmp/
+  [stevenrao]$ g++ -o demo -L/tmp -ltmp main.cpp
+  [stevenrao]$ ./demo
+
+   ./demo: error while loading shared libraries: libtmp.so: cannot open shared object file: No such file or directory
+  [stevenrao]$ ldd demo
+  linux-vdso.so.1 =>  (0x00007fff7fdc1000)
+        libtmp.so => not found
+   这个错误是最常见的错误了。运行程序的时候找不到依赖的so。一般人使用方法是修改LD_LIBRARY_PATH这个环境变量
+   export LD_LIBRARY_PATH=/tmp
+  [stevenrao]$ ./demo
+  test
+   这样就OK了, 不过这样export 只对当前shell有效，当另开一个shell时候，又要重新设置。可以把export LD_LIBRARY_PATH=/tmp 
+   语句写到 ~/.bashrc中，这样就对当前用户有效了，写到/etc/bashrc中就对所有用户有效了。
+   前面链接时候使用 -L/tmp/ -ltmp 是一种设置相对路径方法，还有一种绝对路径链接方法。
+   g++ -o demo  /tmp/libtmp.so main.cpp
+   [stevenrao]$ ./demo
+  test
+    [stevenrao]$ ldd demo
+        linux-vdso.so.1 =>  (0x00007fff083ff000)
+        /tmp/libtmp.so (0x00007f53ed30f000) 
+   绝对路径虽然申请设置环境变量步骤，但是缺陷也是致命的，这个so必须放在绝对路径下，不能放到其他地方，这样给部署带来很大麻烦。所以应该禁止使用绝对路径链接so。
+    1.   [stevenrao] $ g++ -o demo -L /tmp/ -ltmp main.cpp
+    2.   [stevenrao] $ ./demo
+    3.   ./demo: error while loading shared libraries: libtmp.so: cannot open shared object file: No such file or directory
+    4.   [stevenrao] $ g++ -o demo -Wl,-rpath /tmp/ -L/tmp/ -ltmp main.cpp
+    5.   [stevenrao] $ ./demo
+    6.   test
+    7.   [stevenrao] $ readelf -d demo
+
+LD_RUN_PATH环境变量, 它也是把路径编译进可执行文件内，不同的是它只设置RPATH。
+ [stevenrao] $ g++ -o demo -L /tmp/  -ltmp main.cpp
+ [stevenrao] $ readelf -d demo
+ Dynamic section at offset 0xb98 contains 25 entries:
+  Tag        Type                         Name/Value
+ 0x0000000000000001 (NEEDED)             Shared library: [libtmp.so]
+ ....
+ 0x000000000000000f (RPATH)              Library rpath: [/tmp/]
+ 
+  另外还可以通过配置/etc/ld.so.conf，在其中加入一行
+  /tmp/
+  这个配置项也是只对运行期有效，并且是全局用户都生效，需要root权限修改，修改完后需要使用命令ldconfig 将 /etc/ld.so.conf 加载到ld.so.cache中，避免重启系统就可以立即生效。
+  除了前面介绍的那些搜索路径外，还有缺省搜索路径/usr/lib/ /lib/ 目录，可以通过-z nodefaultlib编译选项禁止搜索缺省路径。
+  [stevenrao] $ g++ -o demo -z nodefaultlib  -L/tmp -ltmp main.cpp
+  [stevenrao] $  ./demo
+   ./demo: error while loading shared libraries: libstdc++.so.6: cannot open shared object file
+ 
+  这么多搜索路径，他们有个先后顺序如下
+  1、RUMPATH 优先级最高
+  2、RPATH   其次
+  3、LD_LIBRARY_PATH
+  4、/etc/ld.so.cache
+  5、/usr/lib/ /lib/
+ 
+  查看一个程序搜索其各个动态库另一个简单的办法是使用 LD_DEBUG这个环境变量；
+  [stevenrao] $ export LD_DEBUG=libs
+  

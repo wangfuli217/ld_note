@@ -1,0 +1,151 @@
+这三个函数的作用都是给文件加锁，那它们有什么区别呢？首先flock和fcntl是系统调用，而lockf是库函数。
+lockf实际上是fcntl的封装，所以lockf和fcntl的底层实现是一样的，对文件加锁的效果也是一样的。后面分析
+不同点时大多数情况是将fcntl和lockf放在一起的。下面首先看每个函数的使用，从使用的方式和效果来看各个函数的区别。
+
+1. flock
+    函数原型
+int flock(int fd, int operation);
+其中fd是系统调用open返回的文件描述符，operation的选项有：
+    LOCK_SH ：共享锁
+    LOCK_EX ：排他锁或者独占锁
+    LOCK_UN : 解锁
+    LOCK_NB：非阻塞(与以上三种操作一起使用)
+
+1. 首先要知道flock函数只能对整个文件上锁，而不能对文件的某一部分上锁，这是于fcntl/lockf的第一个重要区别，后者可以对文件的某个区域上锁。
+2. 其次，flock只能产生劝告性锁。我们知道，linux存在强制锁(mandatory lock)和劝告锁(advisory lock)。
+       所谓强制锁，比较好理解，就是你家大门上的那把锁，最要命的是只有一把钥匙，只有一个进程可以操作。
+       所谓劝告锁，本质是一种协议，你访问文件前，先检查锁，这时候锁才其作用，如果你不那么kind，不管三七二十一，就要读写，
+       那么劝告锁没有任何的作用。而遵守协议，读写前先检查锁的那些进程，叫做合作进程。
+3. 再次，flock和fcntl/lockf的区别主要在fork和dup。
+
+(1) flock创建的锁是和文件打开表项(struct file)相关联的，而不是fd。这就意味着复制文件fd(通过fork或者dup)后，那么通过这两个fd都可以
+    操作这把锁(例如通过一个fd加锁，通过另一个fd可以释放锁)，也就是说子进程继承父进程的锁。但是上锁过程中关闭其中一个fd，锁并不会释放
+   (因为file结构并没有释放)，只有关闭所有复制出的fd，锁才会释放。测试程序入程序一。
+
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/file.h>
+int main (int argc, char ** argv){
+    int ret;
+    int fd1 = open("./tmp.txt",O_RDWR);
+    int fd2 = dup(fd1);
+    printf("fd1: %d, fd2: %d\n", fd1, fd2);
+    ret = flock(fd1,LOCK_EX);
+    printf("get lock1, ret: %d\n", ret);
+    ret = flock(fd2,LOCK_EX);
+    printf("get lock2, ret: %d\n", ret);
+    return 0;
+}
+
+运行结果如图，对fd1上锁，并不影响程序通过fd2上锁。对于父子进程，参考程序二。
+
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/file.h>
+int main (int argc, char ** argv){
+    int ret;
+    int pid;
+    int fd = open("./tmp.txt",O_RDWR);
+    if ((pid = fork()) == 0){
+        ret = flock(fd,LOCK_EX);
+        printf("chile get lock, fd: %d, ret: %d\n",fd, ret);
+        sleep(10);
+        printf("chile exit\n");
+        exit(0);
+    }
+    ret = flock(fd,LOCK_EX);
+    printf("parent get lock, fd: %d, ret: %d\n", fd, ret);
+    printf("parent exit\n");
+    return 0;
+}
+运行结果如图，子进程持有锁，并不影响父进程通过相同的fd获取锁，反之亦然。
+
+(2)使用open两次打开同一个文件，得到的两个fd是独立的(因为底层对应两个file对象)，通过其中一个加锁，通过另一个无法解锁，
+并且在前一个解锁前也无法上锁。测试程序如程序三：
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/file.h>
+int main (int argc, char ** argv)
+{
+    int ret;
+    int fd1 = open("./tmp.txt",O_RDWR);
+    int fd2 = open("./tmp.txt",O_RDWR);
+    printf("fd1: %d, fd2: %d\n", fd1, fd2);
+    ret = flock(fd1,LOCK_EX);
+    printf("get lock1, ret: %d\n", ret);
+    ret = flock(fd2,LOCK_EX);
+    printf("get lock2, ret: %d\n", ret);
+    return 0;
+}
+结果如图，通过fd1获取锁后，无法再通过fd2获取锁。
+(3) 使用exec后，文件锁的状态不变。
+(4) flock不能再NFS文件系统上使用，如果要在NFS使用文件锁，请使用fcntl。
+(5) flock锁可递归，即通过dup或者或者fork产生的两个fd，都可以加锁而不会产生死锁。
+
+
+
+lockf与fcntl
+    函数原型
+#include
+int lockf(int fd, int cmd, off_t len);
+fd为通过open返回的打开文件描述符。
+cmd的取值为：
+F_LOCK：给文件互斥加锁，若文件以被加锁，则会一直阻塞到锁被释放。
+F_TLOCK：同F_LOCK，但若文件已被加锁，不会阻塞，而回返回错误。
+F_ULOCK：解锁。
+F_TEST：测试文件是否被上锁，若文件没被上锁则返回0，否则返回-1。
+len：为从文件当前位置的起始要锁住的长度。
+通过函数参数的功能，可以看出lockf只支持排他锁，不支持共享锁。
+
+#include 
+#include 
+int fcntl(int fd, int cmd, ... /* arg */ );
+struct flock {
+... 
+short l_type;/* Type of lock: F_RDLCK, F_WRLCK, F_UNLCK */
+short l_whence; /* How to interpret l_start: SEEK_SET, SEEK_CUR, SEEK_END */ 
+off_t l_start;   /* Starting offset for lock */ 
+off_t l_len;     /* Number of bytes to lock */ 
+pid_t l_pid; /* PID of process blocking our lock (F_GETLK only) */ 
+...        
+   };
+
+文件记录加锁相关的cmd 分三种：
+
+F_SETLK：申请锁(读锁F_RDLCK，写锁F_WRLCK)或者释放所(F_UNLCK)，但是如果kernel无法将锁授予本进程(被其他进程抢了先，占了锁)，不傻等，返回error。
+F_SETLKW：和F_SETLK几乎一样，唯一的区别，这厮是个死心眼的主儿，申请不到，就傻等。
+F_GETLK：这个接口是获取锁的相关信息： 这个接口会修改我们传入的struct flock。
+通过函数参数功能可以看出fcntl是功能最强大的，它既支持共享锁又支持排他锁，即可以锁住整个文件，又能只锁文件的某一部分。
+
+下面看fcntl/lockf的特性：
+(1) 上锁可递归，如果一个进程对一个文件区间已经有一把锁，后来进程又企图在同一区间再加一把锁，则新锁将替换老锁。
+(2) 加读锁(共享锁)文件必须是读打开的，加写锁(排他锁)文件必须是写打开。
+(3) 进程不能使用F_GETLK命令来测试它自己是否再文件的某一部分持有一把锁。F_GETLK命令定义说明，返回信息指示是否现存的锁阻止调用进程设置它自己的锁。因为，F_SETLK和F_SETLKW命令总是替换进程的现有锁，所以调用进程绝不会阻塞再自己持有的锁上，于是F_GETLK命令绝不会报告调用进程自己持有的锁。
+(4) 进程终止时，他所建立的所有文件锁都会被释放，对flock也是一样的。
+(5) 任何时候关闭一个描述符时，则该进程通过这一描述符可以引用的文件上的任何一把锁都被释放(这些锁都是该进程设置的)，这一点与flock不同。如：
+
+fd1 = open(pathname, …);
+lockf(fd1, F_LOCK, 0);
+fd2 = dup(fd1);
+close(fd2);
+
+则在close(fd2)后，再fd1上设置的锁会被释放，如果将dup换为open，以打开另一描述符上的同一文件，则效果也一样。
+
+fd1 = open(pathname, …);
+lockf(fd1, F_LOCK, 0);
+fd2 = open(pathname, …);
+close(fd2);
+
+(6) 由fork产生的子进程不继承父进程所设置的锁，这点与flock也不同。
+(7) 在执行exec后，新程序可以继承原程序的锁，这点和flock是相同的。(如果对fd设置了close-on-exec，则exec前会关闭fd，相应文件的锁也会被释放)。
+(8) 支持强制性锁：对一个特定文件打开其设置组ID位(S_ISGID)，并关闭其组执行位(S_IXGRP)，则对该文件开启了强制性锁机制。再Linux中如果要使用强制性锁，则要在文件系统mount时，使用_omand打开该机制。
+
+两种锁的关系
+
+那么flock和lockf/fcntl所上的锁有什么关系呢？答案时互不影响。测试程序如下：
+
+
+

@@ -1,0 +1,194 @@
+字符设备驱动程序和块设备驱动程序占用不同的空间，因此可以将同一个主设备号同时分配给字符设备驱动程序和块设备驱动程序。
+字符设备驱动程序包括：
+1、初始化例程init，负责初始化设备并且将驱动程序和内和其他部分通过注册函数实现无缝连接。
+    申请分配主设备号
+    为特定设备相关的数据结构分配内存
+    将入口函数open,read等与字符驱动程序的cdev抽象相关联
+    将主设备号与驱动程序的cdev相关联
+    在/dev/和/sys/下创建节点，/dev管理从2.2版本内核中的静态设备节点，演变为2.4版本中的动态命名，最后又成为2.4版本的用户空间守护进程udevd
+    初始化硬件。
+
+2、入口函数或方法集，如open、read、ioctl、llseek和write，这些函数直接对应响应的IO系统调用，由用户应用程序通过对应的/dev节点调用。
+    open[cmos_open] close[cmos_release]
+    read[cmos_read] write[cmos_write]
+    readv writev aio_read aio_write
+    lseek[cmos_llseek]
+    ioctl[cmos_ioctl]
+    poll和fasync 前者是同步的，后者是异步的。 poll[cmos_poll] poll_wait poll_table data_is_available() wake_up_interruptible(&mouse_wait)
+    fasync inputdevice_fasync[inputdevice_interrupt]
+    
+    parport_register_driver(&led_driver);
+    
+3、中断例程、底半部例程、定时器处理例程、内核辅助线程以及其他的组成部分。它们大部分对用户应用程序是透明的。
+从字符流上包括如下关键的数据结构：
+与特定设备相关的数据结构，此结构保存着驱动程序使用的信息。
+struct cdev针对字符驱动程序的内核抽象，这个结构通过嵌入在前面讨论的特定设备结构中。
+struct file_operations,包括所有设备驱动程序入口函数的地址
+struct file包括关联/dev节点的信息。
+
+make -C /path/to/kerneltree/ m+$PWD modules
+
+##################  系统CMOS ################## 
+
+##################  并行端口LED板 ################## 
+字符驱动程序ppdev(dirvers/char/ppdev.c)输出/dev/parportX
+
+led_class=create_class(THIS_MODULE,"pardevice");                             /sys/class/pardevice
+c_d = class_device_create(led_class, NULL, dev_number, NULL, DEVICE_NAME);   /sys/class/pardevice/led
+kobc.parent = &c_d->kobj;                                                    /sys/class/pardevice/led/*
+strlcpy(kobj.name, "control", KOBJ_NAME_LEN);                                /sys/class/pardevice/led/control/*/
+kobj.ktype = &ktype_led;                                                     /sys/class/pardevice/led/control/*/
+kobject_register(&kobj);                                                     
+
+
+kobject_unregister(&kobj)
+class_device_destory(led_class, dev_name)
+class_destroy(led_class)
+
+##################  RTC子系统 ################## 
+documentation/rtc.txt 中的RTC API是一些标准的ioctl，hwclock等应用程序遵循这些接口对/dev/rtc进行操作。这些API也定义了sysfs(/sys/class/rtc)
+和procfs(/proc/dirver/rtc)中的属性。RTC API保证用户空间的工具独立于底层平台和RTC芯片。底层的RTC驱动程序由总线决定。嵌入式设备通过RTC芯片和IC总线相连
+有IIC客户驱动程序来驱动。
+
+内有有一个专门的RTC子系统，提供了顶层的字符驱动程序，并给出了用于顶层和底层RTC驱动程序进行绑定的核心基础结构，和基础结构的主要组成部分是
+rtc_class_ops结构和注册函数rtc_device_[register|unregister].分散在不同的总线有关的目录下的底层RTC驱动程序通过此子系统统一在driver/rtc/下。
+
+RTC子系统是系统可以拥有不只一个RTC。它通过提供多个/dev/rtcN和/sys/class/rtc/rtcN接口实现此功能，其中N是RTC在系统上的序号。
+为了使能RTC子系统，在内核配置过程中需要选中CONFIG_RTC_CLASS配置选项。
+
+PC系统上，通过使用Legacy RTC驱动程序drivers/char/rtc.c，可以将RTC子系统旁路，在PC兼容的系统上，此驱动程序为RTC提供顶层和底层驱动，并为用户应用程序提供
+/dev/rtc和/proc/driver/rtc。为了使能此驱动，在内核配置过程中需要选中CONFIG_RTC选项。
+
+##################  date hwclock ############################
+1. 系统时间 date
+直接调用 date，得到的是本地时间。如果想得到UTC时间的话，使用 date -u。
+
+[12-01 19:07> ~]$ date
+2009年 12月 07日 星期一 14:22:20 CST
+[12-01 19:07> ~]$ date -u
+2009年 12月 07日 星期一 06:22:22 UTC
+2. 硬件时间 /sbin/hwclock
+直接调用 /sbin/hwclock 显示的时间就是 BIOS 中的时间吗？未必！这要看 /etc/sysconfig/clock 中是否启用了UTC，如果启用了UTC（UTC=true），显示的其实是经过时区换算的时间而不是BIOS中真正的时间，如果加上 --localtime 选项，则得到的总是 BIOS 中实际的时间.
+
+[12-01 19:07> ~]# hwclock
+2009年12月07日 星期一 14时28分43秒 -0.611463 seconds
+[12-01 19:07> ~]# hwclock --utc
+2009年12月07日 星期一 14时28分46秒 -0.594189 seconds
+[12-01 19:07> ~]# hwclock --localtime
+2009年12月07日 星期一 06时28分50秒 -0.063875 seconds
+3. /etc/localtime
+这个文件用来设置系统的时区，将 /usr/share/zoneinfo/ 中相应文件拷贝到/etc下并重命名为 localtime 即可修改时区设置，而且这种修改对 date 命令是及时生效的。不论是 date 还是 hwclock 都会用到这个文件，会根据这个文件的时区设置来进行UTC和本地之间之间的换算。
+4. /etc/sysconfig/clock
+这个文件只对 hwclock 有效，而且似乎是只在系统启动和关闭的时候才有用，比如修改了其中的 UTC=true 到 UTC=false 的前后，执行 hwclock (--utc, 或 --localtime) 都没有变化，要重启系统后才生效。注：如果设置 UTC=false 并重启系统后,执行一些命令结果如下：
+
+date 2009年 12月 07日 星期一 19:26:29 CST
+date -u 2009年 12月 07日 星期一 11:26:29 UTC
+hwclock 2009年12月07日 星期一 19时26分30秒 -0.442668 seconds
+hwclock --utc 2009年12月08日 星期二 03时26分31秒 -0.999091 seconds
+hwclock --localtime 2009年12月07日 星期一 19时26分32秒 -0.999217 seconds
+
+可见，如果不使用UTC，BIOS时间（红色部分）就是系统本地时间，而且注意这时执行 hwclock --utc 得到的结果没有任何意义，因为这里我们已经禁用了UTC，而且也明显不符合"本地时间=UTC+时区"的关系。
+
+########################  伪字符驱动程序  ############################
+/dev/urandom : 可以获得近乎随机的随机数。urandom会输出连续的、不会停止的伪随机流。
+/dev/random  :randmon的随机性要高于urandom.伪随机数。 random未使用公式去产生近乎随机的随机数，而是收集环境噪声（中断间隔、键盘敲击等）维持一个混乱池
+以产生随机流。
+
+/dev/port查看系统的IO端口
+
+########################  混杂驱动程序  ############################
+混杂驱动程序是那些简单的字符驱动程序，它们拥有一些相同的特性。内核将这些共同性抽象为一个API中(具体见drivers/char/misc.c)，这简化了这些驱动程序初始化的方式
+所有的混杂驱动设备都被分配一个主设备号10，但每个设备可选择一个单独的此设备号。
+rw-rw----    1 root     root      10,  54 Sep 21  2000 log_events
+crw-rw----    1 root     root      10,  55 Sep 21  2000 log_main
+crw-rw----    1 root     root      10,  53 Sep 21  2000 log_radio
+crw-rw----    1 root     root      10,  52 Sep 21  2000 log_system
+crw-rw----    1 root     root      10,  57 Sep 21  2000 alarm
+crw-rw----    1 root     root      10,  61 Sep 21  2000 android_adb
+crw-rw----    1 root     root      10,  62 Sep 21  2000 ashmem
+crw-rw----    1 root     root      10,  56 Sep 21  2000 binder
+一个字符驱动程序需要驱动多个设备，那么，混杂驱动程序可能不适用了。
+
+1: alloc_chrdev_region及相关函数分配主/次设备号
+2: device_create创建/dev和/sys节点
+3: cdev_init和cdev_add将自身注册为字符驱动程序。
+每一个混杂驱动程序自动出现在/sys/class/misc文件中，而不必驱动程序编写者再编写了。
+
+########################  看门狗  ############################
+Linux看门狗驱动程序使用混杂驱动程序来实现，位于drivers/char/watchdog目录。
+documentation/watchdog/watch-api.txt
+/dev/watchdog 设备节点的混杂此设备号为130。
+
+WD_SERVICE_REGISTER:写入特定的序列至此寄存器以喂狗。
+WD_CONTROL_REGISTER：写入看门狗超时时间至此寄存器。
+
+当应用程序打卡/dev/watchdog时，看门狗开始计数。关闭设备节点将停止看门狗，除非在内核配置期间设置了CONFIG_WATCHDOG_NOWAYOUT选项。
+当系统仍在运行时，看门狗监控程序有可能被某个信号终止，此选项可以帮助你消除此可能。
+
+WDIOC_KEEPALIVE
+WDIOC_SETTIMEOUT
+WDIOC_GETTIMEOUT
+
+对于那些不支持硬件看门狗模块的平台，内核实现了一个软件看门狗softdog。softdog驱动程序见/drivers/char/watchdog/softdog.c由于不对具体
+硬件进行操作，所以它是一个伪混杂驱动程序，softdog驱动程序必须完成两件硬件看门狗驱动程序不必做的任务。其中的第二个任务通过硬件完成
+实现超时机制
+如果系统无响应，启动软复位。
+软件锁定检测kernel/softlockup.c
+grep misc_register ## 呵呵
+
+
+
+/* inb/outb:读/写字节端口(8位宽)。有些体系将port参数定义为unsigned long；而有些平台则将它定义为unsigned short。inb的返回类型也是依赖体系的 */
+unsigned inb(unsigned port);
+void outb(unsigned char byte, unsigned port);
+
+/* inw/outw:读/写字端口(16位宽） */
+unsigned inw(unsigned port);
+void outw(unsigned short word, unsigned port);
+
+/* inl/outl:读/写32位端口。longword也是依赖体系的，有的体系为unsigned long；而有的为unsigned int */
+unsigned inl(unsigned port);
+void outl(unsigned longword, unsigned port);
+
+cdev             include/linux/cdev.h          字符设备的内核抽象
+file_operations  include/linux/fs.h            字符设备驱动程序操作集
+dev_t            include/linux/types.h         主/次设备号
+poll_table       include/linux/poll.h          处于轮询等待数据状态的驱动程序所拥有的等待队列表
+pardevice        include/linux/parport.h       并行端口设备的内核抽象
+rtc_class_ops    include/linux/rtc.h           顶层和底层RTC驱动程序的交互接口
+miscdevice       include/linux/miscdevice.h    代表一个混杂设备
+
+
+alloc_chrdev_region        fs/char_dev.c   申请动态分配主设备号
+unregister_chrdev_region   fs/char_dev.c   执行与alloc_chrdev_region相反的操作 
+cdev_init                  fs/char_dev.c   将字符设备驱动程序操作集与相关的cdev绑定
+cdev_add                   fs/char_dev.c   将设备号与cdev绑定
+cdev_del                   fs/char_dev.c   移除一个cdev
+container_of               include/linux/kernel.h       根据结构体的成员得到包含它的结构体的地址
+copy_from_user             arch/x86/lib/usercopy_32.c   从用户空间向内核空间复制数据
+copy_to_user               arch/x86/lib/usercopy_32.c   从内核空间向用户空间复制数据
+likely                     include/linux/compiler.h     告知GCC相关条件为真/假的可能性
+unlikely                   include/linux/compiler.h     告知GCC相关条件为真/假的可能性
+request_region             include/linux/ioport.h|kernel/resource.c 获得一片IO区域
+release_region             include/linux/ioport.h|kernel/resource.c 释放一片IO区域
+in [b|w|sn|sl}             include/asm-your-arch/io.h 与IO区域进行数据交互的函数系列
+out[b|w|sn|sl}             include/asm-your-arch/io.h 与IO区域进行数据交互的函数系列
+poll_wait                  include/linux/poll.h       在内核的poll_table中增加一个等待队列 
+fasync_helper              fs/fcntl.c                 确保在驱动程序调用kill_fasync的情况下，SIGIO信号会被发送给拥有者应用程序 
+kill_fasync                fs/fcntl.c                 派送SIGIO信号给拥有者应用程序
+parport_register_device    drivers/parport/share.c    注册parport并行端口设备 
+parport_unregister_device  drivers/parport/share.c    注销并口设备
+parport_register_driver    drivers/parport/share.c    注册parport并行端口驱动程序
+parport_unregister_driver  drivers/parport/share.c    注销并口驱动程序
+parport_clainm_or_block    drivers/parport/share.c    占有并行端口
+parport_write_data         include/linux/parport.h    向并行端口写数据
+parport_read_data          include/linux/parport.h    从并行端口读数据
+parport_release            drivers/parport/share.c    释放并行端口
+kobject_register           lib/kobject.c              注册kobject并在sysfs中创建相关文件 
+kobject_unregister         lib/kobject.c               执行与kobject_register相反是动作
+rtc_device_register        drivers/rtc/class.c         注册/注销RTC子系统的底层驱动程序
+rtc_device_unregister      drivers/rtc/class.c         
+misc_register              drivers/char/misc.c         注册混杂驱动程序
+misc_deregister            drivers/char/misc.c         注销混杂驱动程序
+
+

@@ -1,0 +1,49 @@
+--[[
+  pairs(t)
+  解释：这个函数返回三个值，他们分别是一个迭代函数next、一个表t和nil，使用构造式for i,v in pairs(t) do body end
+        将会遍历表t中所有的元素对，要注意一下next函数的在遍历期间修改table的警告信息。
+  1. pairs(tab) next,t,nil 中next不是全局的next函数
+--]]
+
+--  定义一个table
+local tab = {
+    35,
+    [3] = 45,
+    [8] = 101;
+    x = 100;
+    y = 230;
+}
+
+-- 打印查看table
+print("\nthe table is", tab)
+
+-- 查看函数pairs的返回值
+print("\nthe return value of pairs is", pairs(tab)) --  function: 0x2070080     table: 0x20774f0        nil
+print("next function", next)                        --  function: 0x2070600
+
+-- 正常使用pairs函数
+print("\nuse pairs resault:")
+for k,v in pairs(tab) do
+    print(k,v)
+end
+
+-- 先取得函数pairs返回值
+local func, new_tab, key = pairs(tab)
+
+print("\nchange key use pairs resault:", func, new_tab, key) -- function: 0x2070080     table: 0x20774f0        nil
+-- 改变key的值来调用遍历函数
+for i,v in func, new_tab, "x" do
+    print(i,v)
+end
+
+local change_tab = {
+    "c",
+    "lua"
+}
+
+print("\nchange new_tab use pairs resault:")
+-- 改变new_tab的值来调用遍历函数
+for i,v in func, change_tab, nil do
+    print(i,v)
+end
+

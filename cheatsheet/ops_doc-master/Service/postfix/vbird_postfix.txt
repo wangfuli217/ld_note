@@ -1,0 +1,287 @@
+sendmail 将所有的功能都统合在 /usr/sbin/sendmail 
+
+http://cn.linux.vbird.org/linux_server/0380mail_2.php
+
+1. Postfix 的开发: 改良了 sendmail 之后的邮件服务器软件
+    Postfix 在外部配置文件案的支持度，与 sendmail 几乎没有两样，同样的支持 aliases 这个档案，
+同样的支持 ~/.forward 这个档案，也同样的支持 SASL 的 SMTP 邮件认证功能
+
+----  2. 所需要的软件与软件结构 ---- 
+---- /etc/postfix/main.cf  (man 5 postconf) man 5 smtpd 分类更详细
+主要的 postfix 配置文件, 几乎所有的设定参数都是在这个档案内规范的！ 
+
+/etc/postfix/master.cf
+主要规定了 postfix 每个程序的运作参数，也是很重要的一个配置文件。不过这个档案预设已经很 OK 了，通常不需要更改他。
+
+/etc/postfix/access (利用 postmap 处理) # canonical_maps (default: empty)
+    可以设定开放 Relay 或拒绝联机的来源或目标地址等信息的外部配置文件，不过这个档案要生效还需要在 
+/etc/postfix/main.cf 启动这个档案的用途才行。且设定完毕后需要以 postmap 来处理成为数据库档案呢！
+
+/etc/aliases (利用 postalias 或 newaliases 均可)
+    做为邮件别名的用途，也可以作为邮件群组的设定！
+
+---- /usr/sbin/postconf (查阅 postfix 的设定数据)
+    列出目前你的 postfix 的详细设定数据，包括系统默认值也会被列出来, 
+如果你在 main.cf 里面曾经修改过某些预设参数的话，想要仅列出非默认值的设定数据， 则可以使用 postconf -n
+
+postconf [-dhnv] [-c config_dir] [parameter ...]     # -h仅仅显示只
+postconf [-aAmlv] [-c config_dir]                    # SASL认证方式
+postconf [-ev] [-c config_dir] [parameter=value ...] # 编辑
+postconf [-#v] [-c config_dir] [parameter ...]       # template_file
+postconf [-btv] [-c config_dir] [template_file]      # v表示debug
+
+执行postconf -l       获得postfix支持的lock方法，fcntl flock dotlock
+执行 postconf         查看当前的有效配置，如postconf inet_interfaces
+执行 postconf -n      查看非默认配置
+执行 postconf -d      查看默认配置
+执行postconf -e       修改自定义设置，如postconf -e “inet_interfaces = all”
+#postconf -n > main2.cf
+postconf -m           查询出 postfix 支持哪些类型的查询表
+
+---- /usr/sbin/postfix (主要的 daemon 指令)
+-c config_dir                  # 指定配置文件路径
+-D (with postfix start only)   # start时，用于debuger
+-v                             # debugging目的
+[root@www ~]# postfix check   <==检查 postfix 相关的档案、权限等是否正确！
+[root@www ~]# postfix start   <==开始 postfix 的执行
+[root@www ~]# postfix stop    <==关闭 postfix
+[root@www ~]# postfix flush   <==强制将目前正在邮件队列的邮件寄出！
+[root@www ~]# postfix reload  <==重新读入配置文件，也就是 /etc/postfix/main.cf
+postfix abort | status | 
+$config_directory/post-install set-permissions        # set-permissions [name=value ...]        修改main.cf或者master.cf的配置
+$config_directory/post-install upgrade-configuration  # upgrade-configuration [name=value ...]  修改main.cf或者master.cf的配置
+要注意的是，每次更动过 main.cf 后，务必重新启动 postfix，可简单的使用(postfix reload)即可
+
+$config_directory/main.cf, Postfix configuration parameters
+$config_directory/master.cf, Postfix daemon processes
+$daemon_directory/postfix-files, file/directory permissions
+$daemon_directory/postfix-script, administrative commands
+$daemon_directory/post-install, post-installation configuration
+
+---- /usr/sbin/postalias ----
+    设定别名数据库的指令，因为 MTA 读取数据库格式的档案效能较佳，所以我们都会将 ASCII 格式的档案重建为数据库。 
+在 postfix 当中，这个指令主要在转换 /etc/aliases 成为 /etc/aliases.db！用法为：
+[root@www ~]# postalias hash:/etc/aliases
+# hash 为一种数据库的格式，然后那个 /etc/aliases.db 就会自动被更新啰！
+
+---- /usr/sbin/postcat ---- 
+主要用在检查放在 queue (队列) 当中的信件内容。
+    由于队列当中的信件内容是给 MTA 看的， 所以格式并不是一般我们人类看的懂的文字数据。
+所以这个时候你得要用 postcat 才可以看出该信件的内容。 在 /var/spool/postfix 内有相当多的目录，
+假设内有一个文件名为 /deferred/abcfile ， 那你可以利用底下的方式来查询该档案的内容喔：
+[root@www ~]# postcat /var/spool/postfix/deferred/abcfile
+
+---- /usr/sbin/postmap ---- 
+这个指令的用法与 postalias 类似，不过他主要在转换 access 这个档案的数据库啦！用法为：
+[root@www ~]# postmap hash:/etc/postfix/access
+
+----  /usr/sbin/postqueue ---- 
+类似 mailq 的输出结果，例如你可以输入(postqueue -p)看看就知道了！
+
+----  一个邮件服务器的设定案例 ----
+邮件服务器的主要名称为： www.centos.vbird
+邮件服务器尚有别名为 linux.centos.vbird 及 ftp.centos.vbird 也可以收发信件；
+此邮件服务器已有 MX 设定，直接指向自己 (www.centos.vbird)
+这个 www.centos.vbird 有个 A 的标志指向 192.168.100.254。
+
+3. 让 Postfix 可监听 Internet 来收发信件
+main.cf
+    ( # )符号是批注的意思；
+    所有设定值以类似(变量)的设定方法来处理，例如 myhostname = www.centos.vbird，请注意等号的两边要给予空格符喔， 且第一个字符不可以是空白，亦即(my..)要由行首写起；
+    可以使用( $ )来延伸使用变量设定，例如 myorigin = $myhostname，会等于 myorigin = www.centos.vbird；
+    如果该变量支持两个以上的数据，则使用空格符来分隔，不过建议使用逗号加空格符(, )来处理。 例如： mydestination = $myhostname, $mydomain, linux.centos.vbird，意指 mydestination 支持三个数据内容之意。
+    可使用多行来表示同一个设定值，只要在第一行最后有逗号，且第二行开头为空格符， 即可将数据延伸到第二行继续书写 (所以刚刚第二点才说，开头不能留白！)；
+    若重复设定某一项目，则以较晚出现的设定值为准！
+
+3.1 myhostname：设定主机名，需使用 FQDN  # hostname --fqdn; 如果myhostname是agent109.cloud.com，则默认mydomain是cloud.com
+myhostname = www.centos.vbird
+3.2 myorigin ：发信时所显示的(发信源主机)项目 # 默认为$myhostname
+邮件头上面的 mail from 的那个地址 ， 也就是代表本 MTA 传出去的信件将以此设定值为准
+# myorigin = $mydomain (send mail as "user@$mydomain")
+# myorigin = $myhostname (send mail as "user@$myhostname")
+myorigin = $myhostname
+3.3 inet_interfaces ：设定 postfix 的监听接口 (极重要)
+inet_interfaces = all
+3.4 inet_protocols ：设定 postfix 的监听 IP 协议
+inet_protocols = ipv4
+3.5 mydestination ：设定(能够收信的主机名) (极重要) # 哪些邮件地址允许在本地发送邮件。
+# 这是一组被信任的允许通过服务器发送或传递邮件的IP地址 用户试图通过发送从此处未列出的IP地址的原始服务器的邮件将被拒绝
+mydestination = $myhostname, localhost, linux.centos.vbird, ftp.centos.vbird
+3.6 mynetworks_style ：设定(信任网域)的一项指标
+设定值在规定(与主机在同一个网域的可信任客户端)，mynetworks 会取代这个设定值
+3.7 mynetworks ：规定信任的客户端 (极重要)
+开放本机与内部网域的 IP 时，mynetworks = 127.0.0.0/8, 192.168.100.0/24
+你想要以 /etc/postfix/access 这个档案来控制 relay 的用户时，mynetworks = 127.0.0.0/8, 192.168.100.0/24, hash:/etc/postfix/access
+# mynetworks_style = subnet  (default: authorize subnetworks)
+mynetworks_style = host    (safe: authorize local machine only)
+mynetworks = 127.0.0.0/8 168.100.189.2/32 (authorize local machine) 
+请注意:
+    如果你没有设定 mynetworks 的话，一定要将 mynetworks_style 设定为 host, 不然你的 IP 所在的子域的 IP 会被自动的认为是合法的.
+    
+3.8 relay_domains ：规范可以帮忙 relay 的下一部 MTA 主机地址
+相对于 mynetworks 是针对(信任的客户端)而设定的，这个 relay_domains 则可以视为(针对下游 MTA 服务器)而设定的。
+    举例来说，如果你这部主机是 www.niki.centos.vbird 的 MX 主机时， 那你就得要在 relay_domains 
+设定针对整个 niki.centos.vbird 这个领域的目标信件进行转递才行。 在预设的情况下，这个设定值是 $mydestination 而已
+3.9 alias_maps ：设定邮件别名
+就是设定邮件别名的设定项目，只要指定到正确的档案去即可
+1.10 Maildir
+home_mailbox = Maildir/
+home_mailbox = /home/username/Maildir/*
+
+    home_mailbox = Maildir/ //设置邮件存储位置和格式，postfix支持2种最常见的邮箱存储方式
+(当指定的存储位置最后一个字符为“/”时，自动使用Maildir存储方式)
+    Mailbox //将同一用户的所有邮件内容存储在同一个文件中，例如 “/var/spool/mail/username”，
+这种方式比较古老，在邮件数量较多时查询和管理的效率较低
+    Maildir //使用目录结构来存储用户的邮件内容，每一个用户对应有一个文件夹，每一封邮件作为
+一个独立的文件保存，例如/home/username/Maildir/*，这种方式存取速度和效率更好，而且对于邮件内容管理也更方便
+
+[root@www ~]# vim /etc/postfix/main.cf
+myhostname = www.centos.vbird          <==约在第  77 行
+myorigin = $myhostname                 <==约在第  99 行
+inet_interfaces = all                  <==约在第 114 行，117 行要批注掉
+inet_protocols = ipv4                  <==约在第 120 行
+mydestination = $myhostname, localhost.$mydomain, localhost,
+  linux.centos.vbird, ftp.centos.vbird <==约在第 165,166 行
+mynetworks = 127.0.0.0/8, 192.168.100.0/24, hash:/etc/postfix/access <==约在269行
+relay_domains = $mydestination         <==约在第 299 行
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases     <==约在第 389, 400 行
+# 其他的设定值就先保留默认值即可啊！
+
+[root@www ~]# postmap hash:/etc/postfix/access
+[root@www ~]# postalias hash:/etc/aliases
+因为 main.cf 当中我们有额外加入两个外部配置文件 (mynetworks 及 alias_maps) ，所以才会额外进行 postmap 及 postalias。
+然后准备来启动！
+
+收信方面：必需符合底下需求：
+    发信端必需符合 $inet_interfaces 的设定；
+    信件标头之收件者主机名必需符合 $mydestination 的设定， 或者收件主机名需要符合 $virtual_maps (与虚拟主机有关) 的设定；
+
+转递方面 (Relay)：必需符合底下需求：
+    发信端必需符合 $inet_interfaces 的设定；
+    发信端来源必需为 $mynetworks 的设定；发信端来源或信件标头之收件者主机名符合 $relay_domains 之设定内容。
+
+---- 4. 设定邮件主机权限与过滤机制 /etc/postfix/access ---- 
+    基本上，指定了 Postfix 的 mynetworks 的信任来源就能够让使用者 relay 了，不过如果你依照鸟哥上述的方式 
+来设定你的 mynetworks 的话，那么我们还可以利用 access 这个档案来额外管理我们的信件过滤呢！基本的 access 语法为：
+规范的范围或规则               Postfix 的动作 (范例如下)
+IP/部分IP/主机名/Email等       OK/REJECT
+假设你想要让 120.114.141.60 还有 .edu.tw 可以使用这部 MTA 来转递信件，且不许 av.com 以及 192.168.2.0/24 这个网域的使用时，可以这样做：
+
+[root@www ~]# vim /etc/postfix/access
+120.114.141.60      OK
+.edu.tw             OK
+av.com              REJECT
+192.168.2.          REJECT
+# OK 表示可接受，而 REJECT 则表示拒绝。
+
+[root@www ~]# postmap hash:/etc/postfix/access
+[root@www ~]# ls -l /etc/postfix/access*
+-rw-r--r--. 1 root root 19648 2011-08-09 14:05 /etc/postfix/access
+-rw-r--r--. 1 root root 12288 2011-08-09 14:08 /etc/postfix/access.db
+# 你会发现有个 access.db 的档案才会同步更新！这才是 postfix 实际读取的！
+
+----  5. 设定邮件别名： /etc/aliases, ~/.forward ---- 
+named, apache, mysql, 这些系统账号的信息都是丢给 root.
+MTA 怎么知道这些信件要传给 root ？这就得要 aliases 这个邮件别名配置文件来处理啦！
+
+邮件别名配置文件： /etc/aliases
+在你的 /etc/aliases 档案内，你会发现类似底下的字样：
+[root@www ~]# vim /etc/aliases
+mailer-daemon:  postmaster
+postmaster:     root
+bin:            root
+daemon:         root
+....(底下省略)....
+
+vim /etc/aliases
+dermintsai:     dmtsai
+# 左边是你额外所设定的，右边则是实际接收这封信的账号！
+[root@www ~]# postalias hash:/etc/aliases
+[root@www ~]# ll /etc/aliases*
+-rw-r--r--. 1 root root  1535 2011-08-09 14:10 /etc/aliases
+-rw-r--r--. 1 root root 12288 2011-08-09 14:10 /etc/aliases.db
+从此之后不论是 dmtsai@www.centos.vbird 还是 dermintsai@www.centos.vbird 都会将信件丢到 /var/spool/mail/dmtsai
+
+----  5.1 /etc/aliases 实际应用一：让一般账号可接收 root 的信 ---- 
+[root@www ~]# vim /etc/aliases
+root:		root,dmtsai  <==鸟哥建议这种写法！
+# 信件会传给 root 与 dmtsai 这两个账号！
+root:		dmtsai       <==如果 dmtsai 不再是管理员怎办？
+# 从此 root 收不到信了，都由 dmtsai 来接受！
+[root@www ~]# postalias hash:/etc/aliases
+
+---- 5.2 /etc/aliases 实际应用二：发送群组寄信功能 ---- 
+[root@www ~]# vim /etc/aliases
+student2011:	std001,std002,std003,std004...
+[root@www ~]# postalias hash:/etc/aliases
+如此一来只要寄信到这部主机的 student2011 这个不存在的账号时，该封信就会被分别存到各个账号里头去
+
+[root@www ~]# vim /etc/aliases
+dermintasi:	dmtsai,dmtsai@mail.niki.centos.vbird
+[root@www ~]# postalias hash:/etc/aliases
+
+6. 个人化的邮件转递： ~/.forward
+----  7. 察看信件队列信息： postqueue, mailq ---- 
+[root@www ~]# /etc/init.d/postfix stop
+[root@www ~]# echo "test" | mail -s "testing queue" root
+[root@www ~]# postqueue -p
+postqueue: warning: Mail system is down -- accessing queue directly
+-Queue ID- --Size-- ----Arrival Time---- -Sender/Recipient-------
+5CFBB21DB       284 Tue Aug  9 06:21:58  root
+                                         root
+-- 0 Kbytes in 1 Request.
+# 第一行就说明了无法寄出的原因为 Mail system is down 啦！
+# 然后才出现无法寄出的信件信息！包括来源与目标喔！
+输出的信息主要为：
+    Queue ID：表示此封邮件队列的代表号 (ID)，这个号码是给 MTA 看的，我们看不懂不要紧；
+    Size ：这封信有多大容量 (bytes) 的意思；
+    Arrival Time：这封信什么时候进入队列的，并且可能会说明无法立即传送出去的原因；
+    Sender/Recipient：送信与收信者的电子邮件啰！
+
+[root@www ~]# cd /var/spool/postfix/maildrop
+[root@www maildrop]# postcat 5CFBB21DB  <==这个档名就是 Queue ID
+*** ENVELOPE RECORDS 5CFBB21DB ***     <==说明队列的编号啊
+message_arrival_time: Tue Aug  9 14:21:58 2011
+named_attribute: rewrite_context=local <==分析 named (DNS) 的特性来自本机
+sender_fullname: root                  <==发信者的大名与 email
+sender: root
+recipient: root                        <==就是收件者啰！
+*** MESSAGE CONTENTS 5CFBB21DB ***     <==底下则是信件的实际内容啊！
+Date: Tue, 09 Aug 2011 14:21:58 +0800
+To: root
+Subject: testing queue
+User-Agent: Heirloom mailx 12.4 7/29/08
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
+test
+*** HEADER EXTRACTED 5CFBB21DB ***
+*** MESSAGE FILE END 5CFBB21DB ***
+
+---- 8. 防火墙设置 ---- 
+因为整个 MTA 主要是透过 SMTP (port 25) 进行信件传送的任务，因此，针对 postfix 来说，只要放行 port 25 即可呦！ 修改一下 iptables.rule 吧！
+[root@www ~]# vim /usr/local/virus/iptables/iptables.rule
+# 找到底下这一行，并且将它批注拿掉！
+iptables -A INPUT -p TCP -i $EXTIF --dport  25  --sport 1024:65534 -j ACCEPT
+[root@www ~]# /usr/local/virus/iptables/iptables.rule
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

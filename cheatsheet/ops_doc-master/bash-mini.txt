@@ -1,0 +1,851 @@
+*shell_expression*
+
+Shell 总结
+
+1. for:                      *shell_for*
+    基本语法:
+        for ...              ~
+        do                   ~
+            do something     ~
+        done                 ~
+    1.1 {}数字段形式
+        {}详细: a. {start..end}
+                b. {start..end..step}
+        => for i in {1..10} ~
+    1.2 seq形式             *shell_seq*
+        seq详细: a. seq {start}
+                 b. seq {start end}
+                 c. seq {start step end}
+        => for i in `seq 100` ~
+    1.3详细列表形式
+        => for File in 1 2 3 4 5          ~
+    1.4命令返回形式
+        => for shname in `find . -type f -name "*.sh"`  ~
+        => for shname in `ls *.sh`   ~
+    1.5 (())形式
+        => for((i=1;i<100;i++))  ~
+    example: >
+    for p in $proj_dir; do
+        eval wait \$${p}_job
+        eval ${p}_return=$?
+    done
+
+2. while:                    *shell_while*
+    基本语法:
+        while ...            ~
+        do                   ~
+            do something     ~
+        done                 ~
+    NOTE: ... 为bool表达式，见下面介绍
+
+3. break continue           *shell_break_contunue*
+
+4. if:                      *shell_if*
+    基本语法:
+        if ...                ~
+        then                  ~
+            do something      ~
+        elif ...              ~
+        then                  ~
+            do something      ~
+        else                  ~
+            do something      ~
+        fi                    ~
+    NOTE: ... 为bool表达式，见下面介绍
+    example: >
+    if (($return)); then
+        echo "${p}: Fail!"
+        exit 1
+    fi
+
+5. bool表达式             *shell_bool_expression*
+    5.1 [ exp ] 测试指令
+        eg: while [ $min -eq $max ]  ~
+        NOTE: [、]和exp之间必须有空格
+    5.2 ((exp)) 算数表达式
+        eg: while(($i<100))  ~
+    5.3 执行命令返回
+        5.3.1  *$(exp)*
+            eg: if $(ls /abc)  ~
+        5.3.2  *`exp`*
+            eg: if `find /abc`  ~
+        5.3.3  *only-command*
+            eg: if ping www.baidu.com   ~
+    5.4 同时使用不同形式
+        可以使用 && 和 || 连接：
+        if ((9 % 8 == 0)) || [ '1' == '1' ] ~
+        if ((9 % 8 == 0)) && [ '1' == '1' ] ~
+
+6. [ ... ] [[ ... ]] 测试指令:
+    条件测试。注意这里的两边空格很重要。要确保方括号的空格。
+    [ -a FILE ]          如果 FILE 存在则为真。
+    [ -b FILE ]          如果 FILE 存在且是一个块特殊文件则为真。
+    [ -c FILE ]          如果 FILE 存在且是一个字特殊文件则为真。
+    [ -d FILE ]          如果 FILE 存在且是一个目录则为真。
+    [ -e FILE ]          如果 FILE 存在则为真。
+    [ -f FILE ]          如果 FILE 存在且是一个普通文件则为真。
+    [ -g FILE ]          如果 FILE 存在且已经设置了SGID则为真。 [ -h FILE ]  如果 FILE 存在且是一个符号连接则为真。
+    [ -k FILE ]          如果 FILE 存在且已经设置了粘制位则为真。
+    [ -p FILE ]          如果 FILE 存在且是一个名字管道(F如果O)则为真。
+    [ -r FILE ]          如果 FILE 存在且是可读的则为真。
+    [ -s FILE ]          如果 FILE 存在且大小不为0则为真。
+    [ -t FD ]            如果文件描述符 FD 打开且指向一个终端则为真。
+    [ -u FILE ]          如果 FILE 存在且设置了SUID (set user ID)则为真。
+    [ -w FILE ]          如果 FILE 如果 FILE 存在且是可写的则为真。
+    [ -x FILE ]          如果 FILE 存在且是可执行的则为真。
+    [ -O FILE ]          如果 FILE 存在且属有效用户ID则为真。
+    [ -G FILE ]          如果 FILE 存在且属有效用户组则为真。
+    [ -L FILE ]          如果 FILE 存在且是一个符号连接则为真。
+    [ -N FILE ]          如果 FILE 存在 and has been mod如果ied since it was last read则为真。
+    [ -S FILE ]          如果 FILE 存在且是一个套接字则为真。
+    [ -o OPTIONNAME ]    如果 shell选项 “OPTIONNAME” 开启则为真。
+    [ -z STRING ]        “STRING” 的长度为零则为真
+    [ -z $VAR ]          变量未定义或者长度为零则为真
+    [ -n STRING ]        “STRING” 的长度为非零 non-zero则为真。
+    [ STRING ]           “STRING” 的长度为非零 non-zero则为真。
+    [ FILE1 -nt FILE2 ]  如果 FILE1 has been changed more recently than FILE2, or 如果 FILE1 exists and FILE2 does not则为真。
+    [ FILE1 -ot FILE2 ]  如果 FILE1 比 FILE2 要老, 或者 FILE2 存在且 FILE1 不存在则为真。
+    [ FILE1 -ef FILE2 ]  如果 FILE1 和 FILE2 指向相同的设备和节点号则为真。
+
+    数值比较：
+    -eq              比较两个参数是否相等（例如，if ）
+    -ne              比较两个参数是否不相等
+    -lt              参数1是否小于参数2
+    -le              参数1是否小于等于参数2
+    -gt              参数1是否大于参数2
+    -ge              参数1是否大于等于参数2
+
+    数值和字符串比较：
+    =               相等
+    ==              相等
+
+    字符串比较：
+    =               相等
+    ==              相等
+    !=              不相等
+    >               大于
+    <               小于
+    ......
+
+    仅使用于[[]]的：
+    =~              正则表达式(ERE)匹配
+
+    否定：
+    [ ! exp ]
+    [[ ! exp ]]
+
+    与或：
+    [ exp1 ] && [ exp2 ] || [ exp3 ]
+    [[ exp1 && exp2 || exp3 ]]
+
+    NOTE: [、]和'操作符'和'测试值'之间都要有空格， 例如[ "$a" = "$b" ]这里面的4个空格很重要
+
+    NOTE：字符串比较(==、!=、=~)忽略大小写方法：`shopt -s nocasematch`
+          字符串比较(==、!=、=~)敏感大小写方法：`shopt -u nocasematch`
+          默认是不忽略大小写比较
+
+    例子:
+        [ -f "somefile" ] ：判断是否是一个文件
+        [ -x "/bin/ls" ] ：判断/bin/ls是否存在并有可执行权限
+        [ -n "$var" ] ：判断$var变量是否有值
+        [ "$a" = "$b" ] ：判断$a和$b是否相等
+        [ 2 -eq 5 ]
+        [[ "a1" =~ "^[a-z][0-9]$" ]]
+
+7. 标准输出, 标准错误输出重定向到垃圾桶
+    &>/dev/null              ~
+
+8. case esac (swich case) >
+    case $num in
+        1)  echo 'You select 1'
+        ;;
+        2)  echo 'You select 2'
+        ;;
+        *)  echo 'You do not select a number between 1 to 2'
+        ;;
+    esac
+
+9. 查看某命令是否存在 >
+    # 检查cecho命令是否存在
+    command -v cecho >/dev/null
+    if [ $? == 0 ]; then
+        cecho "cecho exist"
+    else
+        echo "cecho not exist"
+    fi
+
+10. 系统预定于变量
+    $0      当前脚本的文件名
+    $n      传递给脚本或函数的参数。n 是一个数字，表示第几个参数。例如，第一个参数是$1，第二个参数是$2。
+    $#      传递给脚本或函数的参数个数。
+    $*      传递给脚本或函数的所有参数。
+    $@      传递给脚本或函数的所有参数。被双引号(" ")包含时，与 $* 稍有不同，下面将会讲到。
+    $!      在后台运行的最后的工作的PID(进程ID).
+    $?      上个命令的退出状态，或函数的返回值。
+    $$      当前Shell进程ID。对于 Shell 脚本，就是这些脚本所在的进程ID。
+    $PPID   当前shell进程的父进程ID
+    $PWD    当前工作目录
+    $SECONDS 当前脚本运行秒数
+    $IFS    内部分割符，默认值是space,tab,newline。
+
+    $* 和 $@ 的区别: ~
+    都表示传递给函数或脚本的所有参数，不被双引号(" ")包含时，都以"$1" "$2" … "$n" 的形式输出所有参数。
+    但是当它们被双引号(" ")包含时：
+    - "$*" 会将所有的参数作为一个整体，以"$1$IFS$2$IFS…$IFS$n"的形式输出所有参数； NOTE: 每两个参数之间是$IFS的第1项
+    - "$@" 会将各个参数分开，以"$1" "$2" … "$n" 的形式输出所有参数。
+
+    $IFS 内部分隔符 解析: ~
+    默认值：<space><tab><newline>
+    起作用时机：任何没有被""或''包裹的引用和循环都会使$IFS起作用
+    作用：把引用的对象里包含的所有$IFS中的分割符替换成$IFS里的第一个分隔符，连续的分割符会合并成一个，并且在循环时以该分隔符分割该对象
+    修改：IFS=$'\n'或IFS=:  #将IFS修改为回车或者冒号
+    例1: >
+    $ echo 123 456    789       # 输出 123 456 789 注意456和789之间的多个空白没了
+    $ echo "123 456    789"     # 输出 123 456    789 原样输出
+<    例2: >
+    文件abc.txt里的内容：
+        a bc     d
+        e    f
+        g h
+    执行 $ echo $(cat abc.txt) 后输出：
+        a bc d e f g h
+<    例3: >
+    flist=$(find -type f)       # find的输出是以回车符作为每个文件的分隔符的
+    OLD_IFS=$IFS                # 保存原始值
+    IFS=$'\n'                   # 改变IFS的值为回车符
+    for i in $flist; do         # NOTE: 此处不能加""包裹
+        echo $i                 # 处理每个find到的文件
+    done
+    IFS=$OLD_IFS                # 还原IFS的原始值
+
+
+11. 用户自定义变量 >
+    var=value       设置实际值到var，!!!等号两边不能出现空格!!!
+    var=`command`   命令的标准输出设置到变量var中，!!!等号两边不能出现空格!!!
+    var=$(comman)   同上
+    $var            变量引用
+    ${var}          变量引用
+    export var      将var变量输出为全局变量
+    unset var       清除自定义变量var
+    ${var:-value}   如果var为空或未定义，则返回value；否则，返回var值
+    ${var:=value}   同上，只是当var为空或未定义时，会把value赋值给var
+    ${var:+value}   如果var为空或未定义，则返回空；否则，返回value值
+    ${var:value}    如果var为空或未定义，则将value写入标准错误输出，本句失败。否则返回var值
+
+12. 定义函数 >
+    # 定义函数
+    function funname ()
+    {
+        echo $1     #处理第一个参数
+        echo $2     #处理第二个参数
+        return 0    #返回值
+    }
+
+    # 调用函数
+    funname "I'm 1st param" "I'm 2nd param"
+
+13. shift
+    在需要遍历所有脚本输入参数时非常有用。 >
+    while (($#!=0))
+    do
+        echo $1
+        shift
+    done
+<   会把脚本的所有参数全部枚举出来
+
+14. She-Bang 释伴
+    用于指定脚本解析器
+    #!/bin/sh          [sh 脚本] ~
+    #!/bin/bash        [bash 脚本] ~
+    #!/usr/bin/perl    [perl 程序] ~
+    #!/bin/awk -f      [awk 脚本] ~
+    必须写在第一行的行首
+
+15. 脚本调试选项：
+    -v （verbose 的简称） - 告诉 Shell 读取脚本时显示所有行，激活详细模式。 ~
+    -n （noexec 或 no ecxecution 简称） - 指示 Shell 读取所有命令然而不执行它们，这个选项激活语法检查模式。 ~
+    -x （xtrace 或 execution trace 简称） - 告诉 Shell 在终端显示所有执行的命令和它们的参数。 这个选项是启用 Shell 跟踪模式。 ~
+    -e  这句语句告诉bash如果任何语句的执行结果不是true则应该退出该脚本 ~
+    使用方法：
+    - 执行命令时输入 ~
+        $ bash -v some.sh
+    - 通过shell内置命令set ~
+        set -选项       启用调试模式
+        set +选项       禁用调试模式
+        set -           禁止所有调试模式
+
+16. 符号
+    ;;      在使用case选项的时候，作为每个选项的终结符。
+    .       相当于bash内建命令source
+    "       部分引用。双引号包围的内容可以允许变量扩展，也允许转义字符的存在。如果字符串内出现双引号本身，需要转义，因此不一定双引号是成对的。
+    '       单引号括住的内容，被视为单一字符串，引号内的禁止变量扩展，所有字符均作为字符本身处理（除单引号本身之外），单引号必须成对出现。
+    \       转义，放在一行指令的最末端表示紧接着的回车无效
+    `       命令替换。这个引号包围的为命令，可以执行包围的命令，并将执行的结果赋值给变量。如：a=`dirname '/tmp/x.log'`
+    ;       命令队列：`CMD1 ; CMD2`，先执行CMD1，再执行CMD2
+    &&      命令队列：`CMD1 && CMD2`，先执行CMD1，如果CMD1返回0时才执行CMD2
+    ||      命令队列：`CMD1 || CMD2`，先执行CMD1，如果CMD1返回非0时才执行CMD2
+    &       后台执行符号
+    ()      初始化数组：`array=(a b c)`
+    (())    表达式扩展：`(($a*10))` or `for((i=0;i<5;i++))` or `((a++))`
+    []      1、测试表达式，是个命令：`[ "$a" == "abc" ]`。2、索引数组用：`${array[10]}`
+    [[]]    测试表达式，比[]更加通用：`[[ "$" =~ "[a-z]" ]]`
+    {}      扩展：`echo {1..4}.txt` or `echo {1,2,3,4}.txt` 两个dou输出：1.txt 2.txt 3.txt 4.txt
+    $()     执行命令，返回命令的标准输出：`$(cmd)`
+    $(())   执行表达式，返回表达式的结果
+    ${}     变量使用
+
+17. 执行一个字符串
+    $ eval something ~
+    example: >
+    a=b
+    eval ${a}b=12
+    echo $bb           #输出:12
+    eval echo \$${a}b  #输出:12
+
+18. jobs 并行执行
+    $ command &   #创建一个job，后台执行，使用$!获取PID ~
+    $ wait [PID]  #等待某个job结束，返回值($?)为该job的exit code ~
+    $ jobs        #查看jobs ~
+    <Ctrl-Z>      #使前台正在执行的进程转到后台，并设置为suspended(暂停)状态 ~
+    $ fg %N       #使标号为N的后台进程进入前台执行 ~
+    $ bg %N       #使标号为N的后台处于suspended(暂停)状态的进程进入running(运行)状态 ~
+    $ kill %N     #使标号为N的进程终止执行 ~
+    example: >
+    proj_dir="asic fpga"
+    for p in $proj_dir; do
+        cd ${p}
+        ./script/release.sh &  #创建多个job
+        eval ${p}_job=$!       #获得这些job的PID
+        cd ..
+    done
+    for p in $proj_dir; do
+        eval wait \$${p}_job   #等待job结束
+        eval ${p}_return=$?    #获取每个job的返回值
+    done
+
+19. ``, $(), ${}, $(())
+    - $(command) ~
+        - bool上下文时：执行命令，并获得返回值，如: if $(command)
+        - 赋值上下文时：执行命令，并获得标准输出，如 out=$(command)
+    - ${var} ~
+        - $var与${var}作用相同。但是用${}会比较精确的界定变量名称的范围，如字符串内引用
+        - ${#var} 如果var是字符串，得到它的长度
+    - %((exp)) ~
+        整数运算，如$((a*b + 7))
+    - `command` ~
+        同$(), 但是尽量使用$(), 因为它太像''了
+
+20. 链表、数组
+    初始： ~
+        a=(a b c)
+    添加： ~
+        a+=(d)
+    修改： ~
+        a[1]=e
+    删除： ~
+        unset a[1]  #只是删除当前位置数据，不删除其位置
+    使用： ~
+        获取全部：  ${a[*]} (或 ${a[@]})
+        获取第N个： ${a[N]}
+        获取数量：  ${#a[*]} (或 ${#a[@]})
+    Example1: >
+        a=()
+        a+=(1)
+        a+=(2)
+        a+=(3)
+        for i in ${a[*]}; do
+            echo $i
+        done
+<    Example2 并行处理: >
+        #filename: parallel_checksums.sh
+        PIDARRAY=()
+        for file in File1.iso File2.iso; do
+            md5sum $file &
+            PIDARRAY+=("$!")
+        done
+        wait ${PIDARRAY[@]}
+
+21. echo -e 颜色样式的输出
+    使用-e可以使echo带颜色输出
+    颜色指示语法：
+    \e[X;Y;Zm ~
+    `- X    标志设置`
+    `- ;Y;Z 可选标志`
+    Example： >
+    echo -e "\e[32;49;1m [DONE] \e[0m"
+<    标志： >
+    0       重新设置属性到缺省设置
+    1       设置粗体
+    2       设置一半亮度（模拟彩色显示器的颜色）
+    4       设置下划线（模拟彩色显示器的颜色）
+    5       设置闪烁
+    7       设置反向图象
+    22      设置一般密度
+    24      关闭下划线
+    25      关闭闪烁
+    27      关闭反向图象
+    30      设置黑色前景
+    31      设置红色前景
+    32      设置绿色前景
+    33      设置棕色前景
+    34      设置蓝色前景
+    35      设置紫色前景
+    36      设置青色前景
+    37      设置白色前景
+    38      在缺省的前景颜色上设置下划线
+    39      在缺省的前景颜色上关闭下划线
+    40      设置黑色背景
+    41      设置红色背景
+    42      设置绿色背景
+    43      设置棕色背景
+    44      设置蓝色背景
+    45      设置紫色背景
+    46      设置青色背景
+    47      设置白色背景
+    49      设置缺省黑色背景
+
+22. 数字字符串互转
+    数字->字符串： ~
+    str=$(printf "0x%08x" $num)
+    字符串->数字： ~
+    num=$(($str * 2))
+
+23. 切割（拆分）文件，产生固定大小文件
+    等大小切割与合并： ~
+    $ split -b 10k file.bin         #拆分的每个大小为10k (bin文件)
+    $ split -C 10m file.txt         #拆分的每个大小为10m，并且一行不会被拆分为多行 (txt文件)
+    $ split -l 1000 file.txt        #拆分的每个行数为1000行 (txt文件)
+    $ cat xaa xab xac >merge.bin    #合并
+
+    不等大小切割 （提取指定位置） ~
+    $ dd if=file.bin of=out.bin skip=0   bs=256       iflag=skip_bytes count=1   #提取offset=0byte   ，length=256bytes
+    $ dd if=file.bin of=out.bin skip=256 bs=100000000 iflag=skip_bytes count=1   #提取offset=256bytes，length=100000000bytes (一直到结尾)
+
+    产生固定大小的文件 ~
+    $ dd if=/dev/zero of=out.bin bs=1M count=1  #产生一个1M的文件，里面全是0
+    $ truncate -s 10G out.bin
+
+24. 重定向 (Redirection)
+    操作符： ~
+    >       输出重定向，创建方式
+    >>      输出重定向，追加方式
+    <       输入重定向，读取文件
+    |       管道
+
+    预设描述符：~
+    0       stdin
+    1       stdout
+    2       stderr
+    &       描述符的标识符，防止shell会把0/1/2当成文件
+
+    使用：~
+    command >file           command的stdout重定向到file中，等同于 1>file
+    command 2>&1            command的stderr重定向到stdout中
+    command &>file          command的stderr和stdout全部重定向到file中
+    command <file           读取文件内容作为标准输入
+    command1 | command2     command1的输出做为command2的输入
+
+25. 修改系统默认shell
+   1、找到/etc/passwd，若没有，用命令: mkpasswd -l > /etc/passwd 生成。
+   2、修改你所在用户名的shell，如： >
+      user:*:197608:197121:U-LIQIANG-PC\user,S-1-5-21-706321491-2345450229-1231029572-1000:/home/user:/bin/fish
+
+26. 字符串操作
+    取长度:
+        str="abcd"
+        echo ${#str}         # 4
+    查找子串的位置:
+        str="abc"
+        expr index $str "a"  # 1
+        expr index $str "b"  # 2
+        expr index $str "x"  # 0
+        expr index $str ""   # 0
+    选取子串:
+        str="abcdef"
+        echo ${str:2}        # 从第二个位置开始提取字符串， bcdef
+        echo ${str:2:3}      # 从第二个位置开始提取3个字符, bcd
+        echo ${str:(-6):5}   # 从倒数第二个位置向左提取字符串, abcde
+        echo ${str:(-4):3}   # 从倒数第二个位置向左提取6个字符, cde
+    截取子串:
+        str="abbc,def,ghi,abcjkl"
+        echo ${str#a*c}      # 输出,def,ghi,abcjkl  一个井号(#) 表示从左边截取掉最短的匹配 (这里把abbc字串去掉）
+        echo ${str##a*c}     # 输出jkl，             两个井号(##) 表示从左边截取掉最长的匹配 (这里把abbc,def,ghi,abc字串去掉)
+        echo ${str#"a*c"}    # 输出abbc,def,ghi,abcjkl 因为str中没有"a*c"子串
+        echo ${str##"a*c"}   # 输出abbc,def,ghi,abcjkl 同理
+        echo ${str#*a*c*}    # 空
+        echo ${str##*a*c*}   # 空
+        echo ${str#d*f)      # 输出abbc,def,ghi,abcjkl,
+        echo ${str#*d*f}     # 输出,ghi,abcjkl 
+        echo ${str%a*l}      # abbc,def,ghi  一个百分号(%)表示从右边截取最短的匹配
+        echo ${str%%b*l}     # a             两个百分号表示(%%)表示从右边截取最长的匹配
+        echo ${str%a*c}      # abbc,def,ghi,abcjkl
+        可以这样记忆, 井号（#）通常用于表示一个数字，它是放在前面的；百分号（%）卸载数字的后面; 
+        或者这样记忆，在键盘布局中，井号(#)总是位于百分号（%）的左边(即前面)
+    字符串替换:
+        str="apple, tree, apple tree"
+        echo ${str/apple/APPLE}   # 替换第一次出现的apple
+        echo ${str//apple/APPLE}  # 替换所有apple
+        echo ${str/#apple/APPLE}  # 如果字符串str以apple开头，则用APPLE替换它
+        echo ${str/%apple/APPLE}  # 如果字符串str以apple结尾，则用APPLE替换它
+    比较:
+        [[ "a.txt" == a* ]]       # 逻辑真 (pattern matching)
+        [[ "a.txt" =~ .*\.txt ]]  # 逻辑真 (regex matching)
+        [[ "abc" == "abc" ]]      # 逻辑真 (string comparision)
+        [[ "11" < "2" ]]          # 逻辑真 (string comparision), 按ascii值比较
+    连接：
+        s1="hello"
+        s2="world"
+        echo ${s1}${s2}           # 当然这样写 $s1$s2 也行，但最好加上大括号
+
+27. 使用vim自动处理文件:
+    $ vim file <<-EOF
+      :%s/1/a/g     # 调用vim命令
+      :wq           # 调用vim命令
+      EOF           # 结束标志
+
+28. trap 处理信号
+    当脚本在执行时，如果按下Ctrl-C，默认情况下会终止脚本执行。trap是用来改变这种默认行为的
+    语法：
+        trap 'cmd' signal-list  当脚本收到signal-list清单内列出的信号时,trap命令执行引号中的命令.
+        trap signal-list        trap不指定任何命令,接受信号的默认操作.默认操作是结束进程的运行.
+        trap '' signal-list     trap命令指定一个空命令串,允许忽略信号.
+    signal-list：
+        HUP(1)      挂起，通常因终端掉线或用户退出而引发
+        INT(2)      中断，通常因按下Ctrl+C组合键而引发
+        QUIT(3)     退出，通常因按下Ctrl+\组合键而引发
+        ABRT(6)     中止，通常因某些严重的执行错误而引发
+        ALRM(14)    报警，通常用来处理超时
+        TERM(15)    终止，通常在系统关机时发送
+    例如： >
+        trap 'echo "interrupt"' INT
+        sleep 100       # 在此处按下<CTRL-C>会终止sleep执行，但是不会退出脚本，会继续执行，并打印"interrupt"
+        ech "resume"
+
+29. 脚本中读标准输入
+    使用read命令： read <var> >
+    -d The first character of delim is used to terminate the input line, rather than newline.
+    -r Backslash does not act as an escape character.  The backslash is considered to be part of the line. In particular, a backslash-newline pair can not be used as a line continuation.
+<    例子： >
+    $ echo "123" | pbcopy.sh
+    pbcopy.sh:
+        #!/bin/bash
+        IFS='' read -d '' -r input #read all thing
+        echo -n "$input" >/dev/clipboard
+
+30. parse command line arguments in Bash
+
+    a. Straight Bash Space Separated
+        Usage   ./myscript.sh -e conf -s /etc -l /usr/lib /etc/hosts >
+        POSITIONAL=()
+        while [[ $# -gt 0 ]]
+        do
+        key="$1"
+
+        case $key in
+            -e|--extension)
+            EXTENSION="$2"
+            shift # past argument
+            shift # past value
+            ;;
+            -s|--searchpath)
+            SEARCHPATH="$2"
+            shift # past argument
+            shift # past value
+            ;;
+            -l|--lib)
+            LIBPATH="$2"
+            shift # past argument
+            shift # past value
+            ;;
+            --default)
+            DEFAULT=YES
+            shift # past argument
+            ;;
+            *)    # unknown option
+            POSITIONAL+=("$1") # save it in an array for later
+            shift # past argument
+            ;;
+        esac
+        done
+        set -- "${POSITIONAL[@]}" # restore positional parameters
+<
+    b. Straight Bash Equals Separated
+        Usage ./myscript.sh -e=conf -s=/etc -l=/usr/lib /etc/hosts >
+        for i in "$@"
+        do
+        case $i in
+            -e=*|--extension=*)
+            EXTENSION="${i#*=}"
+            shift # past argument=value
+            ;;
+            -s=*|--searchpath=*)
+            SEARCHPATH="${i#*=}"
+            shift # past argument=value
+            ;;
+            -l=*|--lib=*)
+            LIBPATH="${i#*=}"
+            shift # past argument=value
+            ;;
+            --default)
+            DEFAULT=YES
+            shift # past argument with no value
+            ;;
+            *)
+                  # unknown option
+            ;;
+        esac
+        done
+
+31. 命令执行作为独立于后台的进程
+    $ (nohup command &) &   #这个创建的command会独立于后台运行，并把标准输出重定向到nohup.out
+
+32. AWK
+    awk处理的单位为行(record), 即对每一行调用处理操作. 
+    1、基本命令格式为：
+        Patterns and Actions
+        AWK是一种基于行的语言。
+        语言格式是：
+            patterns{actions} 即：先patterns后大括号action;
+            解释：模式成功则执行{}内的actions;
+        1、有patterns, 无actions，则默认action为 ：{print}
+        2、无patterns, 有actions，则默认patterns一定匹配该行
+        actions 可以包括各种函数和逻辑控制语言。
+        Patterns包括的内容在下面
+
+        Patterns包括：
+            BEGIN                          :所有操作的开始
+            END                            :所有操作的结束
+            BEGINFILE                      :当前文件的开始
+            ENDFILE                        :当前文件的结束
+            /regular expression/           :正在表达式
+            relational expression          :关系运算
+            pattern && pattern || pattern  :逻辑运算符
+            pattern ? pattern : pattern    ：
+            (pattern)                      ：
+            ! pattern                      ：
+            pattern1, pattern2             ：
+
+        逻辑控制：
+            if (condition) { statement } else if (condition) { statement } else { statement }
+            while (condition) statement
+            do statement while (condition)
+            for (expr1; expr2; expr3) statement
+            for (var in array) statement
+            break
+            continue
+            delete array[index]
+            delete array
+            exit [ expression ]
+            { statements }
+            switch (expression) {
+            case value|regex : statement
+            ...
+            [ default: statement ]
+            }
+
+    2、常用内嵌函数：*sub* *gsub*
+        大部分C库函数可以使用
+
+        替换第一个：sub(/regexp/, replacement [, target])
+        全局替换  ：gsub(/regexp/, replacement [, target])
+        长度      ：length([string])
+        变小写    ：tolower(string)
+        变大写    ：toupper(string)
+        查找      ：match(string, /regexp/) #如果没有找到则返回0，找到的话返回开始位置，且找到的字符串的位置记录在RSTART,RLENGTH中
+        截取      ：substr(string, start_index, length)
+
+    3、内建变量
+        $0       当前记录（这个变量中存放着整个行的内容）
+        $1~$n    当前记录的第n个字段，字段间由FS分隔
+
+        FS       输入字段分隔符 默认是空格 field separator
+        RS       输入的记录分隔符， 默认为换行符\n record separator
+
+        OFS      输出字段分隔符， 默认也是空格 
+        ORS      输出的记录分隔符，默认为换行符
+
+        NF       当前记录中的字段个数，就是有多少列。number of fields
+        NR       已经读出的记录数，就是行号，从1开始，如果有多个文件话，这个值也是不断累加中。 number of records
+        FNR      当前记录数，与NR不同的是，这个值会是各个文件自己的行号
+
+        FILENAME 当前输入文件的名字
+
+        IGNORECASE=1 忽略大小写
+
+    4、常用选项：
+        -v ：-var 设置变量值，就像在BEGIN{}中定义的一样 eg: $ awk -v FS='-' 'print $1' a.txt
+        -f ：使用awk脚本文件。eg: $ awk -f script.awk a.txt
+
+    5、在shell中单引号和双引号的区别。(都表示字符串)
+        双引号: 内部的 \what、 $x、`what 会被shell解析成为其他的值。
+        单引号: 内部的值不会被shell解析。
+        所以在使用awk时候一定要使用单引号
+
+    7、使用例子：
+
+        格式化输出
+        $ awk '{print $1, $4}' netstat.txt
+        $ awk '{printf "%-8s %-8s %-8s %-18s %-22s %-15s\n",$1,$2,$3,$4,$5,$6}' netstat.txt
+
+        使用比较运算符
+        $ awk '$6=="LISTEN" || $3>0 || NR==1' netstat.txt
+
+        使用正则表达式
+        $ awk '/LISTEN/' netstat.txt
+        $ awk '!/LISTEN/' netstat.txt
+        $ awk '$6 ~ /TIME/ || NR==1 {print NR}' netstat.txt
+        $ awk '$6 !~ /WAIT/ || NR==1 {print NR}' netstat.txt
+
+        使用BEGIN 和 END
+        $ awk 'BEGIN{FS=":"} {print $1, $2}' OFS="-" a.txt
+        $ awk '{sum+=$5} END {print sum}' netstat.txt
+
+        for的使用
+        $ awk '{for(i=1;i<=NF;i++)printf("%dx%d=%d%s", i, NR, i*NR, i==NR?"\n":"\t")}' a.txt
+        $ awk 'NR!=1{a[$6]++;} END {for (i in a) print i ", " a[i];}' netstat.txt
+
+        替换(sub & gsub)：    
+        $ du -a | awk -v IGNORECASE=1 'sub(/^[.0-9A-Z]+\s+/, ""){}; gsub(/ /, "\\ "){}; /\.((h)|(c))/' | xargs perl -i $0
+
+        使用脚本文件
+        $ awk -f cal.awk score.txt
+        $ cat cal.awk
+            #运行前
+            BEGIN {
+                math = 0
+                english = 0
+                computer = 0
+                printf "NAME    NO.   MATH  ENGLISH  COMPUTER   TOTAL\n"
+                printf "---------------------------------------------\n"
+            }
+            #运行中
+            {
+                math+=$3
+                english+=$4
+                computer+=$5
+                printf "%-6s %-6s %4d %8d %8d %8d\n", $1, $2, $3,$4,$5, $3+$4+$5
+            }
+            #运行后
+            END {
+                printf "---------------------------------------------\n"
+                printf "  TOTAL:%10d %8d %8d \n", math, english, computer
+                printf "AVERAGE:%10.2f %8.2f %8.2f\n", math/NR, english/NR, computer/NR
+            }
+
+    8. 字符串连接
+        直接写在一起即可: str = "0x"value; #value是一个变量
+
+    9. 进制转换
+        10进制 -> 16进制: nHex = sprintf("0x%X", nDec);
+        16进制 -> 10进制: nDec = strtonum("0x"nHex);
+
+    10. 位操作
+        与      : and(v1,v2)
+        或      : or (v1,v2)
+        异或    : xor(v1,v2)
+        左移    : lshift(val,count)
+        右移    : rshift(val,count)
+        按位取反: compl(val)
+
+
+33. SED >
+    $ sed -r 's/<.*>//g' html.txt               # -r 使用扩展的正则表达式
+    $ sed "s/my/Hao Chen's/g" pets.txt          # 把其中的my字符串替换成Hao Chen’s，（s表示替换命令，/my/表示匹配my，/Hao Chen’s/表示把匹配替换成Hao Chen’s，/g 表示一行上的替换所有的匹配）
+    $ sed "s/my/Hao Chen's/g" pets.txt          # g命令 是替换所有匹配到的pattern，没有g的话，表示只替换第1个
+    $ sed -i "s/my/Hao Chen's/g" pets.txt       # -i 直接修改文件内容
+    $ sed "3s/my/your/g" pets.txt               # 把第3行的my替换成your
+    $ sed "3,6s/my/your/g" pets.txt             # 把第3行到第6行的my替换成your
+    $ sed 's/s/S/1' my.txt                      # 只替换每一行的第一个s
+    $ sed 's/s/S/2' my.txt                      # 只替换每一行的第二个s
+    $ sed 's/s/S/3g' my.txt                     # 只替换第一行的第3个以后的s
+    $ sed '1,3s/my/your/g; 3,$s/This/That/g' my.txt     # 第一个模式把第一行到第三行的my替换成your，第二个则把第3行以后的This替换成了That
+    $ sed 's/my \([^,]*\),.*is \(.*\)/\1:\2/g' my.txt   # 圆括号括起来的正则表达式所匹配的字符串会可以当成变量来使用，sed中使用的是\1,\2
+    $ sed 'N;s/my/your/' pets.txt               # N命令 把下一行的内容纳入,当成缓冲区做匹配。把原文本中的偶数行纳入奇数行匹配，而s只匹配并替换一次
+    $ sed "1 i This is my monkey" my.txt        # i命令 就是insert，是用来添加行的。其中的1i表明，其要在第1行前插入一行（insert）
+    $ sed "$ a This is my monkey" my.txt        # a命令 就是append，是用来添加行的。1a表明，其要在最后一行后追加一行（append）
+    $ sed "/fish/a This is my fish" my.txt      # 匹配到/fish/后就追加一行，追加的内容是：'This is my monkey, my monkey's name is wukong'
+    $ sed "2 c This is my monkey" my.txt        # c命令 是替换匹配行。把第二行替换成: 'This is my monkey'
+    $ sed "/fish/c This is my fish" my.txt      # 匹配到/fish/的行，替换成：'This is my fish'
+    $ sed '/fish/d' my.txt                      # d命令 是删除匹配行。删除匹配到/fish/的行
+    $ sed '2d' my.txt                           # 删除第2行
+    $ sed '2,$d' my.txt                         # 删除第2到最后一行
+    $ sed '/fish/p' my.txt                      # p命令 是打印行。匹配fish并输出，可以看到fish的那一行被打了两遍。这是因为sed处理时会把处理的信息输出
+    $ sed -n '/fish/p' my.txt                   # -n 仅打印匹配到的行
+    $ sed -n '/dog/,/fish/p' my.txt             # 仅打印匹配/dog/到匹配/fish/的行
+    $ sed -n '1,/fish/p' my.txt                 # 仅打印第1行到匹配/fish/的行
+    $ sed '/dog/,+3s/^/# /g' pets.txt           # +3表示后面连续3行
+    $ sed '3,6 {/This/d}' pets.txt              # 对3行到第6行，执行命令/This/d
+    $ sed '3,6 {/This/{/fish/d}}' pets.txt      # 对3行到第6行，匹配/This/成功后，再匹配/fish/，成功后执行d命令
+    $ sed '1,${/This/d;s/^ *//g}' pets.txt      # 从第一行到最后一行，如果匹配到This，则删除之；如果前面有空格，则去除空格
+
+<    几个知识点：
+    1. Pattern Space ~
+        sed处理文本的伪代码: >
+            foreach line in file {
+                //放入把行Pattern_Space
+                Pattern_Space <= line;
+
+                // 对每个pattern space执行sed命令
+                Pattern_Space <= EXEC(sed_cmd, Pattern_Space);
+
+                // 如果没有指定 -n 则输出处理后的Pattern_Space
+                if (sed option hasn't "-n")  {
+                   print Pattern_Space
+                }
+            }
+<
+    2. Address ~
+        [address[,address]][!]{cmd}
+        address可以是一个数字，也可以是一个模式，可以通过逗号要分隔两个address 表示两个address的区间，参执行命令cmd，伪代码如下： >
+            bool bexec = false
+            foreach line in file {
+                if ( match(address1) ){
+                    bexec = true;
+                }
+
+                if ( bexec == true) {
+                    EXEC(sed_cmd);
+                }
+
+                if ( match (address2) ) {
+                    bexec = false;
+                }
+            }
+<
+     3. 命令打包 ~
+        cmd可以是多个，它们可以用分号分开，可以用大括号括起来作为嵌套命令。 例如 >
+        $ sed '3,6 {/This/{/fish/d}}' pets.txt      # 对3行到第6行，匹配/This/成功后，再匹配/fish/，成功后执行d命令
+        $ sed '1,${/This/d;s/^ *//g}' pets.txt      # 从第一行到最后一行，如果匹配到This，则删除之；如果前面有空格，则去除空格
+<
+     4. Hold Space ~
+        了解一下Hold Space的概念，先来看四个命令：
+        g： 将hold space中的内容拷贝到pattern space中，原来pattern space里的内容清除
+        G： 将hold space中的内容append到pattern space\n后
+        h： 将pattern space中的内容拷贝到hold space中，原来的hold space里的内容被清除
+        H： 将pattern space中的内容append到hold space\n后
+        x： 交换pattern space和hold space的内容
+
+        例如: >
+            $ cat t.txt
+            one
+            two
+            three
+
+            $ sed 'H;g' t.txt
+            one
+
+            one
+            two
+
+            one
+            two
+            three
+<
+34. command stdio buffering
+    当使用如下命令时，常发现tail的结果不能实时输出： >
+    $ tail -f /var/log/foo | egrep -v 'some|stuff' | sed | awk
+<    解决方法, 使用stdbuf命令：
+    $ tail -f /var/log/foo | stdbuf -o0 COMMAND
+
+
+vim:ft=help

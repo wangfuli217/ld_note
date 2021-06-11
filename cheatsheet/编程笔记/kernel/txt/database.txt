@@ -1,0 +1,114 @@
+Driver=Firebird;Dbname=localhost/3050:/opt/antiddos/common/database/database.fdb;PWD=nercis;UID=SYSDBA;
+Driver=MySQL;DSN=ddos;PWD=root;UID=root;
+
+mysql-5.1.51-2.fc14.i686
+mysql-server-5.1.51-2.fc14.i686
+libdbi-dbd-mysql-0.8.3-6.fc14.i686
+mysql-libs-5.1.51-2.fc14.i686
+mysql-connector-odbc-5.1.5r1144-7.fc13.i686 (libmyodbc for apt-get)
+unixODBC-2.2.14-12.fc14.i686            -lodbc
+unixODBC-devel-2.2.14-12.fc14.i686      sql.h sqlext.h
+iodbc                                   gui tool, iodbcadm-gtk to start
+
+firebird-classic 
+firebird-superserver    mutual exclusive
+firebird-fbclient
+firebird-devel
+flamerobin to GUI control
+
+
+/*
+ * 为了控制对数据库的并发访问，对保存连接记录以及更新
+ *  table_whiteip表的事务加锁，该锁属于3级封锁协议，可以
+ * 防止Nonrepeatable Read
+ */
+if (SQL_SUCCESS != SQLSetConnectAttr(db,
+                     SQL_ATTR_TXN_ISOLATION,
+                     (void *)SQL_TXN_REPEATABLE_READ, 0)) {
+    TRACE
+        ("Failed to change the ConnectAtt isolation...<load_ipcredit>\n");
+    return FAILED;
+}
+
+
+primary key can be string float
+
+Duplicate entry 'admin' for key 'PRIMARY'   insert 'admin' for 2 times
+Duplicate entry '127' for key 'PRIMARY'     it's smallint, 127 is the biggest
+
+
+cat xxx.isql | isql -v dbname       
+    apply all sql in xxx.sql to dbname
+
+isql:
+    table name case sensitive
+    field name case insensitive
+
+firebird:
+    /usr/lib/firebird/bin-superserver/gsec
+    /etc/init.d/firebird start
+    login:  gsec -user SYSDBA -password masterkey (default)
+    GSEC> modify SYSDBA -pw newpasswd
+    chown firebird.firebird *.fdb *.gdb
+    gpasswd -a hask firebird
+    flamerobin GUI tool
+
+
+odbc:
+    odbcinst.ini
+    [MySQL]
+    Description	= ODBC for MySQL
+    Driver		= /usr/lib/libmyodbc5.so
+    Setup		= /usr/lib/libodbcmyS.so
+    Driver64	= /usr/lib64/libmyodbc5.so
+    Setup64		= /usr/lib64/libodbcmyS.so
+    FileUsage	= 1
+
+    odbc.ini
+    [TryDB]
+    Description = Just a Try
+    Driver = MySQL
+    SERVER = localhost
+    USER = root
+    PASSWORD = root
+    PORT = 3306
+    DATABASE = TryDB
+
+    isql TryDB (3 the same!!)
+
+
+mysql:
+    /etc/init.d/mysql start
+        To start mysqld at boot time you have to copy
+        support-files/mysql.server to the right place for your system
+        PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !
+        To do so, start the server, then issue the following commands:
+        /usr/bin/mysqladmin -u root password (it's just the word, not your password) 'new-password'
+        /usr/bin/mysqladmin -u root -h localhost.localdomain password 'new-password'
+        Alternatively you can run:
+        /usr/bin/"mysql_secure_installation"
+        which will also give you the option of removing the test
+        databases and anonymous user created by default.  This is
+        strongly recommended for production servers.
+        See the manual for more instructions.
+        You can start the MySQL daemon with:
+        cd /usr ; /usr/bin/mysqld_safe &
+        You can test the MySQL daemon with mysql-test-run.pl
+        cd /usr/mysql-test ; perl mysql-test-run.pl
+        Please report any problems with the /usr/bin/mysqlbug script!
+
+    mysql_secure_installation
+    gpasswd -a root mysql
+    gpasswd -a hask mysql
+    mysql -uroot -proot
+
+    mysql> show databases; use xxx;
+    mysql> update mysql.user set password = 'new-password' where user = 'root' (change password)
+
+    mysql -uroot -proot databasename < a.sql
+
+    /etc/my.cnf
+
+    BLOB (binary large object)，二进制大对象，是一个可以存储二进制文件的容器。在计算机中，BLOB常常是数据库中用来存储二进制文件的字段类型。BLOB是一
+    个大文件，典型的BLOB是一张图片或一个声音文件，由于它们的尺寸，必须使用特殊的方式来处理（例如：上传、下载或者存放到一个数据库）。根据Eric Raymond的
+    说法，处理BLOB的主要思想就是让文件处理器（如数据库管理器）不去理会文件是什么，而是关心如何去处理它

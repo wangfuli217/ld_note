@@ -1,0 +1,1 @@
+cmd_/root/rtu/otdr/crosstool/ldd/LDD3/scullc/scullc.o := ld -m elf_x86_64   -r -o /root/rtu/otdr/crosstool/ldd/LDD3/scullc/scullc.o /root/rtu/otdr/crosstool/ldd/LDD3/scullc/main.o ; scripts/mod/modpost /root/rtu/otdr/crosstool/ldd/LDD3/scullc/scullc.o

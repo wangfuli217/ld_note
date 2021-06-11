@@ -1,0 +1,182 @@
+Question (ID-366980): What are the differences between Perl, Python, AWK and 
+sed? just want to know what are the main differences among them? and the power 
+of each language (where it's better to use it). 
+
+Edit: it's not "vs." like topic, just information. 
+Answers (Total-6): #0 In order of appearance, the languages are sed , awk , 
+perl , python .
+
+The sed program is a stream editor, and is designed to apply the actions from a 
+script to each line (or, more generally, to specified ranges of lines) of the 
+input file or files. Its language is based on ed , the Unix editor, and 
+although it has conditionals and so on, it is hard to work with for complex 
+tasks. You can work minor miracles with it - but at a cost to the hair on your 
+head. However, it is probably the fastest of the programs when attempting tasks 
+within its remit. (It has the least powerful regular expressions of the 
+programs discussed - adequate for many purposes, but certainly not PCRE - 
+Perl-Compatible Regular Expressions) 
+
+The awk program (name from the initials of its authors - Aho, Weinberger and 
+Kernighan) is a tool originally for formatting reports. It can be used as a 
+souped up sed ; in its more recent versions, it is computationally complete. It 
+uses an interesting idea - the program is based on 'patterns matched' and 
+'actions taken when the pattern matches'. The patterns are fairly powerful 
+(Extended Regular Expressions). The language for the actions is similar to C. 
+One of the key features of awk is that it splits the input lines into fields 
+automatically. 
+
+Perl was written in part as an awk-killer and sed-killer. Two of the programs 
+provided with it are a2p and s2p for converting awk scripts and sed scripts 
+into Perl. Perl is one of the earliest of the next generation of scripting 
+languages (Tcl/Tk can probably claim primacy). It has powerful integrated 
+regular expression handling with a vastly more powerful language. It provides 
+access to almost all system calls, and has the extensibility of the CPAN 
+modules. (Neither awk nor sed is extensible.) One of Perl's mottos is "TMTOWTDI 
+- There's more than one way to do it" (pronounced "tim-toady"). Perl has 
+'objects', but it is more of an add-on than a fundamental part of the language. 
+
+Python was written last, and probably in part as a reaction to Perl. It has 
+some interesting syntactic ideas (indenting to indicate levels - no braces or 
+equivalents). It is more fundamentally object-oriented than Perl; it is just as 
+extensible as Perl. 
+
+OK - when to use each? 
+
+sed - when you need to do simple text transforms on files. 
+awk - when you only need simple formatting and summarization or transformation 
+of data. 
+perl - for almost any task, but especially when the task needs complex regular 
+expressions. 
+python - for the same tasks that you could use Perl for. 
+
+
+I'm not aware of anything that Perl can do that Python can't, nor vice versa. 
+The choice between the two would depend on other factors. I learned Perl before 
+there was a Python, so I tend to use it. Python has less accreted syntax and is 
+generally somewhat simpler to learn. Perl 6, when it becomes available, will be 
+a fascinating development. 
+
+(Note that the 'overviews' of Perl and Python, in particular, are woefully 
+incomplete; whole books could be written on the topic.) 
+#1 First, there are two unrelated things in the list "Perl, Python awk and 
+sed". 
+
+Thing 1 - simplistic text manipulation tools. 
+
+
+sed. It has a fixed, relatively simple scope of work defined by the idea of 
+reading and examining each line of a file. sed is not designed to be 
+particularly readable. It is designed to be very small and very efficient on 
+very tiny unix servers. 
+awk. It has a slightly less fixed, less simple scope of work. However, the main 
+loop of an awk program is defined by the implicit reading of lines of a source 
+file. 
+
+
+These are not "complete" programming languages. While you can -- with some work 
+-- write fairly sophisticated programs in awk, it rapidly gets complicated and 
+difficult to read. 
+
+Thing 2 - general-purposes programming languages. These have a rich variety of 
+statement types, numerous built-in data structures, and no wired-in assumptions 
+or shortcuts to speak of. 
+
+
+Perl. 
+Python. 
+
+
+When to use them. 
+
+
+sed. Never. It really doesn't have any value in the modern era of computers 
+with more than 32K of memory. Perl or Python do the same things more clearly. 
+awk. Never. Like sed, it reflects an earlier era of computing. Rather than 
+maintain this language (in addition to all the other required for a successful 
+system), it's more pleasant to simply do everything in one pleasant language. 
+Perl. Any programming problem of any kind. If you like free-thinking syntax, 
+where there are many, many ways to do the same thing, perl is fun. 
+Python. Any programming problem of any kind. If you like fairly limited syntax, 
+where there are fewer choices, less subtlety, and (perhaps) more clarity. 
+Python's object-oriented nature makes it more suitable for large, complex 
+problems. 
+
+
+Background -- I'm not bashing sed and awk out of ignorance. I learned awk over 
+20 years ago. Did many things with it; used to teach it as a core unix skill. I 
+learned Perl about 15 years ago. Did many sophisticated things with it. I've 
+left both behind because I can do the same things in Python -- and it is 
+simpler and more clear. 
+
+There are two serious problems with sed and awk, neither of which are their 
+age. 
+
+
+The incompleteness of their implementation. Everything sed and awk do can be 
+done in Python or Perl, often more simply and sometimes faster, too. A shell 
+pipeline has some performance advantages because of its multi-processing. 
+Python offers a subprocess module to allow me to recover those advantages. 
+The need to learn yet another language. By doing things in Python (or Perl) 
+your implementation depends on fewer languages, with a resulting increase in 
+clarity. 
+
+#2 I wouldn't call sed a fully-fledged programming language, it is a stream 
+editor with language constructs aimed at editing text files programmatically. 
+
+Awk is a little more of a general purpose language but it is still best suited 
+for text processing. 
+
+Perl and Python are fully fledged, general purpose programming languages. Perl 
+has its roots in text processing and has a number of awk-like constructs (there 
+is even an awk-to-perl script floating around on the net). There are many 
+differences between Perl and Python, your best bet is probably to read the 
+summaries of both languages on something like Wikipedia to get a good grasp on 
+what they are. 
+#3 After mastering a few dozen languages, you get tired of people like S. Lott. 
+
+Sed is the best tool for extremely simple command-line pipelines. In the hands 
+of a sed master, it's suitable for one-offs of arbitrary complexity, but it 
+should not be used in production code except in very simple substitution 
+pipelines. Stuff like 's/this/that/.' 
+
+Gawk (the GNU awk) is by far the best choice for complex data reformatting when 
+there is only a single input source and a single output (or, multiple outputs 
+sequentially written). Since a great deal of real-world work conforms to this 
+description, and a good programmer can learn gawk in two hours, it is the best 
+choice. On this planet, simpler and faster is better! 
+
+Perl or Python are far better than any version of awk or sed when you have very 
+complex input/output scenarios. The more complex the problem is, the better off 
+you are using python, from a maintenance and readability standpoint. Note, 
+however, that a good programmer can write readable code in any language, and a 
+bad programmer can write unmaintainable crap in any useful language, so the 
+choice of perl or python can safely be left to the preferences of the 
+programmer if said programmer is skilled and clever. 
+#4 When to use them: awk - never - brian d foy. 
+
+I think brian slightly missed the mark with this recommendation. The fact is, 
+on Linux and the other UNIX environments, awk is a useful tool to be used with 
+bash, sh, and ksh for quick text processings. The idea of scripting itself is 
+you solve your problem by gluing together this tool, that tool. Hence in admin 
+scripts, it is common to has ls, grep, |, awk, time, ps, etc. Each is a tool 
+that the scripter combines like a builder brick by brick to finish the building 
+(to solve the problem at hand). 
+
+For instance I am a team member of the team managing paintball gear supplies 
+dotcom. This e-commerce site is based on the LAMP stack. For automated 
+processing and normalizing data feeds from various suppliers into the back end 
+database, we employ and maintain a diversified mix of scripts, including bash, 
+perl, php, and even expect. Each has its strengths based on the available 
+modules and API. In the bash scripts we do quick patterns match and appropriate 
+actions on the patterns as needed using awk without the need to switch to PERL. 
+One thing I would also like to point out, which has not been emphasized in the 
+thread, is that a fair number of these scripts were purchased, or gotten from 
+the open source. If the script came as Perl, we maintain it as Perl; if the 
+script came as Php, we maintain it as Php; if it came as bash, we maintain it 
+as bash; we do not re-write it in another language just because we think it is 
+less efficient in the original language. 
+#5 In reply to ghostdog74. 
+
+This is "easy", you can do it with sed: 
+
+sed 's/^\([^ ]*\) *\(.*\)$/$$ Ge 1:\1\n\2/'

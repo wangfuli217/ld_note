@@ -1,0 +1,115 @@
+一、主界面
+1、窗口 最小化 最大化 关闭按钮、显示状态自定义
+    setWindowFlags(Qt::CustomizeWindowHint);
+    setWindowFlags(Qt::WindowCloseButtonHint); //只要关闭按钮
+    setWindowFlags(Qt::WindowFlags type)
+    Qt::FrameWindowHint:没有边框的窗口
+    Qt::WindowStaysOnTopHint:  //总在最上面的窗口
+    Qt::CustomizeWindowHint:  //自定义窗口标题栏,以下标志必须与这个标志一起使用才有效,否则窗口将有默认的标题栏
+    Qt::WindowTitleHint  //显示窗口标题栏
+    Qt::WindowSystemMenuHint  //显示系统菜单
+    Qt::WindowMinimizeButtonHint  //显示最小化按钮
+    Qt::WindowMaximizeButtonHint  //显示最大化按钮
+    Qt::WindowMinMaxButtonsHint  //显示最小化按钮和最大化按钮
+    Qt::WindowCloseButtonHint  //显示关闭按钮
+2、隐藏任务栏显示
+    setWindowFlags(Qt::Tool | Qt::X11BypassWindowManagerHint）
+3、关闭按钮实现的功能
+    hide(); //进行界面隐藏，但是显示托盘，可通过点击托盘实现界面的重新显示
+    quit(); //退出系统
+4、绘制背景图片并且实现圆角效果
+void paintEvent(QPaintEvent *)
+{
+    QPainter painter(this);
+    QBrush brush;
+    brush.setTextureImage(QImage(background_image)); //背景图片
+    painter.setBrush(brush);
+     painter.setPen(Qt::black);  //边框色
+    painter.drawRoundedRect(this->rect(), 5, 5); //圆角5像素
+}
+5、设置应用程序的字体
+    QFont font("Courier", 10, QFont::Normal, false);
+    QApplication::setFont(font);
+6、设置字体
+    QFont font = this->font();
+    font.setFamily("Courier");  //字体名称
+    font.setPixelSize(16);  //字体点大小
+    font.setPointSize(18);  //字体像素大小
+    font.setBold(true);  //是否加粗
+    font.setItalic(true);  //是否斜体
+    font.setUnderline(true);  //是否下划线
+    this->setFont(font);
+字体风格，包括类型、大小、是否加粗、是否斜体等！
+也可使用：setStyleSheet("text-align:center; font-size:18px; font-weight:bold; font-style:Courier; color:white; ");
+setAlignment(Qt::AlignCenter);  //设置对齐方式
+7、超链接
+    QLabel *pLabel = new QLabel(this);
+    pLabel->setText(QStringLiteral("超链接"));
+    pLabel->setFixedSize(200,100);
+    connect(pLabel,SIGNAL(linkActivated(QString)),this,SLOT(openUrl(QString)));
+    QDesktopServices::openUrl(QUrl(url));  //openUrl槽里面实现
+
+    pLabel->setOpenExternalLinks(true);
+    pLabel->setText("新浪");
+8、打开本地文件（夹）
+    QDesktopServices::openUrl(QUrl::fromLocalFile(local_file));
+9、显示窗口并激活/提升
+  showNormal();
+    raise();
+    activateWindow();
+10、设置滚动条值
+    pTextEdit->verticalScrollBar()->setValue(0);  //滚动到最顶层
+    pTextEdit->verticalScrollBar()->setValue(pTextEdit->verticalScrollBar()->maximum());  //滚动到最底层
+11、QToolBar添加拉伸（弹簧）
+原以为QToolBar可以通过addStretch()来实现，不想没有此接口，则可通过下来方式实现：
+    QWidget *pWidget = new QWidget(this);
+    pWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed); 
+    pToolBar->addWidget(pWidget);
+12、QProgressBar进度条设置文本、样式
+  QProgressBar *pProgressBar = new QProgressBar(this);
+    pProgressBar->setFixedSize(150, 10);
+    pProgressBar->setToolTip(QStringLiteral("离下一等级还需要1500经验"));
+    pProgressBar->setFormat("12345/50000");
+    pProgressBar->setMaximum(100);
+    pProgressBar->setValue(10);
+
+    QString strQSS = "QProgressBar {color: white;} \
+        QProgressBar:horizontal { \
+        text-align: center; \
+        border: 1px solid rgb(115, 200, 60); \
+        background: rgb(145, 210, 75, 150); \
+    } \
+    QProgressBar::chunk:horizontal { \
+        background: rgb(145, 210, 75); \
+    }";
+
+    pProgressBar->setStyleSheet(strQSS);
+
+二、全屏显示与还原
+1、遮挡任务栏
+    showFullScreen()
+    showMaximized() 这两个都可以！
+2、不遮挡任务栏
+void showMaximize()
+{
+    //若已经最大化
+    if(is_max)
+    {
+        //恢复界面位置，并设置按钮图标为最大化图标，提示“最大化”
+        this->setGeometry(location);
+        max_button->setIcon(QIcon("maxbtn"));
+        max_button->setToolTip(tr("max"));
+    } 
+    else 
+    {
+        //设定当前界面的位置，还原时使用
+        location = this->geometry();
+        //获取桌面位置，设置为最大化，并设置按钮图标为还原图标，提示“还原”
+        QDesktopWidget *desk = QApplication::desktop();
+        this->setGeometry(desk->availableGeometry());
+        max_button->setIcon(QIcon("restorbtn"));
+        max_button->setToolTip(tr("restor"));
+    }
+    is_max = !is_max;
+}
+  注：窗口既然可以最大化，当然还要进行还原，is_max为一个bool值变量，表示窗口是否最大化，初始值为false。location为桌面的位置，每次最大化开始先记录当前的位置，等待还原时候使用。

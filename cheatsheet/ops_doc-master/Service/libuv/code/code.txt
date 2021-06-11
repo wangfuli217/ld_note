@@ -1,0 +1,610 @@
+https://github.com/thlorenz/libuv-dox/blob/master/callbacks.md
+https://github.com/thlorenz/libuv-dox/blob/master/methods.md
+https://github.com/thlorenz/libuv-dox/blob/master/types.md
+
+helloword(uv_loopt_t){ uv_loop_td对象生命周期管理，及事件管理添加位置
+// TODO ... 配置libuv (advanced-event-loops.md)
+uv_loop_t *loop = malloc(sizeof(uv_loop_t));  # 分配空间
+uv_loop_init(loop);                           # 初始化对象
+// TODO ... 分配event和注册event
+uv_run(loop, UV_RUN_DEFAULT);                 # 功能调用
+// TODO ... 注销event和释放event
+uv_loop_close(loop);                          # 销毁对象
+free(loop);                                   # 释放空间
+# 这个程序会很快就退出了，因为没有可以很处理的事件
+# 可以使用uv_default_loop获取libuv提供的默认loop。如果你只需要一个loop的话，可以使用这个。
+}
+uvcat(uv_fs_open){ 回调函数说明见 libuv_API(uv_fs_cb)
+uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, int mode, uv_fs_cb cb);      # 分配空间+初始化系统句柄资源
+  # on_open(uv_fs_t *req)
+  # uv_fs_t的result域保存了uv_fs_open回调函数打开的文件描述符。如果文件被正确地打开，我们可以开始读取了。
+uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file file, void* buf, size_t length, int64_t offset, uv_fs_cb cb); # 功能调用
+  # void on_read(uv_fs_t *req)
+  # uv_fs_*系列的函数是和POSIX的函数对应的，所以当读到文件的末尾时(EOF)，result返回0。
+  # 在使用streams或者pipe的情况下，使用的是libuv自定义的UV_EOF。
+uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file file, const void* buf, size_t length, int64_t offset, uv_fs_cb cb); # 功能调用
+  # void on_write(uv_fs_t *req)
+uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb); # 释放句柄资源
+void uv_fs_req_cleanup(uv_fs_t* req);                                  # 释放空间
+
+uv_fs_t # 当fs_open开始使用前不需要初始化
+
+uv_buf_t # 在on_read使用的时候，使用uv_buf_init进行初始化
+uv_buf_init(char* base, unsigned int len);
+
+const char* uv_strerror(int err);  # req->result 错误码(函数调用返回值)，即错误码
+
+1. 注册回调可以形如listen-accept模式，在回调函数中创建新句柄及关联回调函数。
+2. 流IO对象，一般都会伴随着uv_buf_t类型的数据缓冲管理。uv_buf_t的分配和释放常常放在不同函数中。
+   read而言，在uv_fs_open的回调函数中分配空间，在uv_fs_read的回调函数中释放空间
+   write而言，在uv_fs_write的被调用处分配空间，在uv_fs_write的回函函数中释放空间
+3. uv_fs_open分配空间和系统资源，uv_fs_close系统资源，uv_fs_req_cleanup(&open_req) 用来回收在读写中分配的内存。
+4. 对于uv_run()而言，关闭所有句柄对象和超时器对象，就可以安全退出。退出条件依赖系统IO返回值和协议合法性等等
+}
+
+# libuv常使用面向对象式的继承，使用libuv时不可避免的也是用这种模式进行数据结构扩展
+typedef struct {
+    uv_write_t req;  # 请求对象
+    uv_buf_t buf;    # 请求发送的空间配置
+} write_req_t;
+# 用在 uv_write 和 uv_write2中，在调用前分配空间，在回调函数内释放空间。 
+
+# pipe是单向流，对于一个fd|HANDLE，要么只能输入，要么只能输出。
+# tee需要一个输入流，两个输出流。没uv_pipe_init()+uv_pipe_init()表示文件描述的一个端(输入或输出)。
+uvtee(uv_pipe_init){ 回调函数说明见 libuv_API(uv_alloc_cb)和libuv_API(uv_read_cb)
+int uv_pipe_init(uv_loop_t*, uv_pipe_t* handle, int ipc);    # 分配空间+配置属性，将handle关联到loop管理对象。
+int uv_pipe_open(uv_pipe_t*, uv_file file);                  # 关联一个已存在的文件描述符fd(linux)或HANDLE(win)
+
+int fd = uv_fs_open(loop, &file_req, argv[1], O_CREAT | O_RDWR, 0644, NULL); # 此时同步调用，只提供可移植性支持。返回值为fd或HANDLE
+# uv_fs_open同步调用时，返回值为与文件关联的文件描述符
+# uv_fs_open异步调用时，回调函数req->result值为与文件关联的文件描述符。
+# uv_fs_open函数回调函数的参数req->result与uv_fs_t实例中result字段相同，都是已打开文件描述符，
+# uv_pipe_open函数关联一个已打开的文件描述符。
+
+int uv_read_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb);  # 功能调用
+  #                alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
+    typedef void (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
+  #          void read_stdin(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
+# 当调用uv_read_start()后，我们开始监听stdin，当需要新的缓冲区来存储数据时，调用alloc_buffer，
+# 在函数read_stdin()中可以定义缓冲区中的数据处理操作。
+    当回调函数read_stdin()的nread参数小于0时，表示错误发生了。其中一种可能的错误是EOF(读到文件的尾部)，
+这时我们可以使用函数uv_close()关闭流了。除此之外，当nread大于0时，nread代表我们可以向输出流中写入的字节数目。
+  typedef void (*uv_read_cb)(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf); 
+# read_cb读取数据空间分配及空间大小由alloc_cb实现，在alloc_cb中分配的缓冲区在read_cb中释放。
+int uv_write(uv_write_t* req, uv_stream_t* handle, const uv_buf_t bufs[], unsigned int nbufs, uv_write_cb cb); # 功能调用
+  #      void on_file_write(uv_write_t *req, int status)
+  #    void on_stdout_write(uv_write_t *req, int status)
+typedef void (*uv_write_cb)(uv_write_t* req, int status);
+# 在req-rep模式下，uv_write函数写入数据空间分配及空间大小在read_cb中实现，在write_cb回调函数中释放。
+# uv_write_t是uv_write函数和回调函数之间的临时实例，该实例常常与写入数据空间同时分配，与写入数据空间同时释放。
+# uv_write函数的uv_write_t *req，会回传给回调函数，使用libuv常把uv_buf_t实例追加到uv_write_t实例后面，进行同步内存管理。
+write_data()开辟了一块地址空间存储从缓冲区读取出来的数据。这块缓存不会被释放，直到与uv_write()绑定的回调函数执行。
+
+uv_close((uv_handle_t *)&file_pipe, NULL); # 释放空间+配置属性
+
+uv_buf_t # 在read_stdin使用的时候，使用uv_buf_init进行初始化
+uv_buf_init(char* base, unsigned int len);
+req->buf = uv_buf_init((char*) malloc(size), size);
+
+# 对uvtee而言，功能的实现依赖多个文件描述的管理，同时多个文件描述符之间存在依赖关系。
+}
+
+uvtee_all_async(尽可能异步执行){
+uv_fs_open(loop, &file_open_req, filename, O_CREAT | O_RDWR, 0644, open_cb);  # 此时异步调用，在open_cb中实现管道开始
+即 uv_read_start((uv_stream_t*)&stdin_pipe, alloc_cb, read_cb);
+   #                alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
+     typedef void (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
+   #          void read_stdin(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
+   typedef void (*uv_read_cb)(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf);
+
+uv_close((uv_handle_t*)&stdin_pipe, close_cb); 
+                               void close_cb(uv_handle_t *handle) 
+                               
+typedef struct {
+  uv_pipe_t pipe;
+  char *name;
+} pipe_t;
+pipe_t stdin_pipe  = { .name = "stdin" };
+# 从uv_pipe_t到自定义结构体pipe_t,依赖于C语言内存对齐原理
+}
+uvtee_reuse_buf(重复使用读缓冲区){{
+将alloc_buffer函数实现，以及reusebuf和resusesize
+}
+helloworld(分配释放自管理){
+uv_loop_t *loop = malloc(sizeof(uv_loop_t));
+uv_loop_init(loop);
+
+printf("Now quitting.\n");
+uv_run(loop, UV_RUN_DEFAULT);
+
+uv_loop_close(loop);
+free(loop);
+}
+
+idle_basic(uv_idle_t){ uv_idle_start 无限次无条件回调执行任务，结束条件ev_idle_stop
+uv_idle_t idler;
+
+int uv_idle_init(uv_loop_t*, uv_idle_t* idle);      # 将idle关联到loop
+int uv_idle_start(uv_idle_t* idle, uv_idle_cb cb);  # 功能调用
+int uv_idle_stop(uv_idle_t* idle);                  # 功能调用
+# uv_idle_start调用一次即可，如果需要停止idle任务，则在cb函数中直接调用uv_idle_stop或者直接注册uv_idle_stop函数
+# 回调函数在每一个循环中都会被调用。
+    1. uv_run调用会造成阻塞。
+    2. 当达到事先规定好的计数后，空转监视器会退出。
+    3. uv_run已经找不到活着的事件监视器时，uv_run()退出。
+}
+
+idle_compute(uv_idle_t){ uv_idle_start->cb(){...uv_idle_stop}一次无条件回调执行任务
+uv_idle_t idler;
+
+int uv_idle_init(uv_loop_t*, uv_idle_t* idle);       # 将idle关联到loop
+int uv_idle_start(uv_idle_t* idle, uv_idle_cb cb);   # 功能调用
+int uv_idle_stop(uv_idle_t* idle);                   # 功能调用
+
+static char buffer[1024];
+uv_buf_init(char* base, unsigned int len);
+
+uv_fs_t stdin_watcher;
+int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file file, void* buf, size_t length, int64_t offset, uv_fs_cb cb);
+const char* uv_strerror(int err);
+# uv_idle_start->uv_idle_stop一次无条件回调执行任务
+# 可以在回调函数中执行一次       无条件回调执行任务
+
+    将空转监视器和我们真正关心的事件排在一起。crunch_away会被循环地调用，直到输入字符并回车。
+然后程序会被中断很短的时间，用来处理数据读取，然后在接着调用空转的回调函数。
+}
+
+interfaces(){ 接口封装
+struct uv_interface_address_s { # 封装在返回结构体中的内容
+  char* name;
+  char phys_addr[6];
+  int is_internal;
+  union {
+    struct sockaddr_in address4;
+    struct sockaddr_in6 address6;
+  } address;
+  union {
+    struct sockaddr_in netmask4;
+    struct sockaddr_in6 netmask6;
+  } netmask;
+};
+
+uv_interface_address_t *info;
+uv_interface_addresses(&info, &count);     # 获取接口地址
+//TODO ...
+uv_free_interface_addresses(info, count)   # 释放已获得接口地址
+
+uv_ip4_name(&interface.address.address4, buf, sizeof(buf));  # inet_ntop函数
+uv_ip6_name(&interface.address.address6, buf, sizeof(buf));  # inet_ntop函数
+}
+
+proc_streams(){ process + stdio -> uv_spawn
+uv_process_t child_req;
+struct uv_process_s { 
+  uv_exit_cb exit_cb; 
+  int pid; 
+  // UV_PROCESS_PRIVATE_FIELDS (include/uv-unix.h) 
+  void* queue[2]; 
+  int status; 
+};
+
+uv_exepath(path, &size);  # 获得当前可执行文件路径
+uv_process_options_t options;
+uv_stdio_container_t child_stdio[3];
+    options.stdio_count = 3;                          # int stdio_count;
+    uv_stdio_container_t child_stdio[3];
+    child_stdio[0].flags = UV_IGNORE;
+    child_stdio[1].flags = UV_IGNORE;
+    child_stdio[2].flags = UV_INHERIT_FD;
+    child_stdio[2].data.fd = 2;
+    options.stdio = child_stdio;                       # uv_stdio_container_t* stdio;
+
+    options.exit_cb = on_exit; # 子进程结束时的回调函数  uv_exit_cb exit_cb;
+    options.file = args[0];    # 可执行文件              const char* file;
+    options.args = args;       # 可执行命令参数          char** args;
+
+# 初始化handle，同时启动options设定的进程。0 创建成功， 非0创建失败。
+int uv_spawn(uv_loop_t* loop, uv_process_t* handle, const uv_process_options_t* options); # 关键点不在此函数的功能，在参数传递和回调函数
+int uv_exepath(char buffer, size_t size);
+
+    一个正常的新产生的进程都有自己的一套文件描述符映射表，例如0，1，2分别对应stdin，stdout和stderr。
+有时候父进程想要将自己的文件描述符映射表分享给子进程。
+    例如，你的程序启动了一个子命令，并且把所有的错误信息输出到log文件中，但是不能使用stdout。因此，
+你想要使得你的子进程和父进程一样，拥有stderr。
+    在这种情形下，libuv提供了继承文件描述符的功能。
+    
+    proc-streams在运行的时候，只向子进程分享stderr。使用uv_process_options_t的stdio域设置子进程的文件描述符。
+首先设置stdio_count，定义文件描述符的个数。uv_process_options_t.stdio是一个uv_stdio_container_t数组。
+    上边的flag值可取多种。比如，如果你不打算使用，可以设置为UV_IGNORE。如果与stdio中对应的前三个文件描述符
+被标记为UV_IGNORE，那么它们会被重定向到/dev/null。
+    因为我们想要传递一个已经存在的文件描述符，所以使用UV_INHERIT_FD。因此，fd被设为stderr。
+    UV_IGNORE           /dev/null
+    UV_INHERIT_FD       stderr        proc-streams
+    UV_INHERIT_STREAM   data.stream
+    
+    UV_CREATE_PIPE
+    UV_READABLE_PIPE
+    UV_WRITABLE_PIPE
+    
+    [multi-echo-server]
+    UV_CREATE_PIPE | UV_READABLE_PIPE; 
+}
+
+progress(uv_async_t){ 主线程和线程池之间异步通信机制
+uv_async_t async;
+uv_async_init(loop, &async, print_progress); # 初始化uv_async_t, 使async和loop，print_message关联起来
+                       void print_progress(uv_async_t *handle) 
+uv_async_send(&async); # 异步发送一个信号，触发print_progress函数被回调。
+uv_close((uv_handle_t*) &async, NULL);
+
+uv_work_t req;
+uv_queue_work(loop, &req, fake_download, after); # 初始化uv_work_t, 使req和loop,fake_download，after关联起来
+void fake_download(uv_work_t *req # 在线程中发送当前线程执行状态
+
+    应该注意: 因为消息的发送是异步的,当uv_async_send在另外一个线程中被调用后，回调函数可能会立即被调用, 
+也可能在稍后的某个时刻被调用。libuv也有可能多次调用uv_async_send，但只调用了一次回调函数。唯一可以保证的是: 
+线程在调用uv_async_send之后回调函数可至少被调用一次。 如果你没有调用的uv_async_send, 那么回调函数也不会被调用。 
+如果你调用了两次(以上)的uv_async_send, 而 libuv 暂时还没有机会运行回调函数, 则libuv可能会在多次调用uv_async_send
+后只调用一次回调函数，你的回调函数绝对不会在一次事件中被调用两次(或多次)。
+    互斥量和读写锁不能在信号处理函数中正确工作，但是uv_async_send可以。
+}
+
+# repeatedly 
+onchange(uv_fs_event_t){ ./onchange/onchange echo /root
+uv_fs_event_t *fs_event_req = malloc(sizeof(uv_fs_event_t));    # 分配空间
+uv_fs_event_init(loop, fs_event_req);                           # 初始化fs_event_req，使fs_event_req和loop关联起来
+
+uv_fs_event_start(fs_event_req, run_command, argv[argc], UV_FS_EVENT_RECURSIVE); # 关联fs_event_req，并将fs_event_req投掷到等待队列
+int uv_fs_event_start(uv_fs_event_t* handle, uv_fs_event_cb cb, const char* filename, unsigned int flags);
+# UV_FS_EVENT_RECURSIVE 当前有效标识符
+函数uv_fs_event_start()的第三个参数是要监视的文件或文件夹。最后一个参数，flags，可以是：
+  UV_FS_EVENT_WATCH_ENTRY = 1,
+  UV_FS_EVENT_STAT = 2,
+  UV_FS_EVENT_RECURSIVE = 4
+UV_FS_EVENT_WATCH_ENTRY和UV_FS_EVENT_STAT不做任何事情(至少目前是这样)，
+UV_FS_EVENT_RECURSIVE可以在支持的系统平台上递归地监视子文件夹。
+  
+typedef void (*uv_fs_event_cb)(uv_fs_event_t* handle, const char* filename, int events, int status);
+events: UV_RENAME | UV_CHANGE
+filename: 指定文件
+status: 状态
+
+在回调函数run_command()中，接收的参数如下：
+1.uv_fs_event_t *handle-句柄。里面的path保存了发生改变的文件的地址。
+2.const char *filename-如果目录被监视，它代表发生改变的文件名。只在Linux和Windows上不为null，在其他平台上可能为null。
+3.int flags -UV_RENAME名字改变，UV_CHANGE内容改变之一，或者他们两者的按位或的结果(|)。
+4.int status－当前为0。
+}
+
+tcp_echo_server(uv_tcp_t){
+1. server
+uv_tcp_t server
+# uv_tcp_init建立tcp句柄。
+uv_tcp_init(loop, &server); # 初始化uv_tcp_t，使server和loop关联起来
+uv_ip4_addr("0.0.0.0", DEFAULT_PORT, &addr);
+# uv_tcp_bind绑定。
+uv_tcp_bind(&server, (const struct sockaddr*)&addr, 0); # server绑定ip地址
+# uv_listen建立监听，当有新的连接到来时，激活调用回调函数。
+int r = uv_listen((uv_stream_t*) &server, DEFAULT_BACKLOG, on_new_connection); # server监听回调 -- 0成功，非0失败
+
+2. client
+uv_tcp_t *client = (uv_tcp_t*) malloc(sizeof(uv_tcp_t)); # 分配空间
+uv_tcp_init(loop, client);                               # 初始化uv_tcp_t，使client和loop关联起来
+# uv_accept接收链接。
+# 使用stream操作来和客户端通信。
+uv_accept(server, (uv_stream_t*) client) == 0            # 服务器端获得client  -- 0成功，非0失败
+uv_read_start((uv_stream_t*) client, alloc_buffer, echo_read); # 读回调函数在调用uv_read_stop或者文件结尾之前一直读取。
+                alloc_buffer|      |echo_read                  | ...
+每次读都会经过: 分配空间，  |读数据|处理读数据，释放已分配空间。转化成写回调函数的过程。
+每次写都会经过：分配write_req_t空间和额外数据空间，由额外数据空间保存相应数据内容。执行写回调函数，释放write_req_t和额外数据空间。
+                |... echo_read                                                     |               | write_cb 
+3. read_callback # 读前由alloc_buffer分配空间，写前由echo_read回调函数分配空间。读前分配空间是注册回调函数；写前分配空间是函数调用。
+write_req_t *req = (write_req_t*) malloc(sizeof(write_req_t));
+req->buf = uv_buf_init(buf->base, nread);
+uv_write((uv_write_t*) req, client, &req->buf, 1, echo_write);
+
+uv_close((uv_handle_t*) client, NULL);
+const char* uv_err_name(int err);
+
+1.uv_tcp_init建立tcp句柄。 
+2.uv_tcp_bind绑定。 
+3.uv_listen建立监听，当有新的连接到来时，激活调用回调函数。 
+4.uv_accept接收链接。 
+5.使用stream操作来和客户端通信。
+你可以调用uv_ip4_addr()函数来将ip地址和端口号转换为sockaddr_in结构，要想完成逆转换的话可以调用uv_ip4_name()。
+记得在socket不需要后，调用uv_close。如果你不需要接受连接，你甚至可以在uv_listen的回调函数中调用uv_close。
+}
+
+udp_dhcp(uv_udp_t){ udp编程思路和tcp很不相同
+1. 组织接收对象； 句柄分配，初始化，地址绑定，回调函数绑定(读回调)
+uv_udp_init(loop, &recv_socket);      # 初始化recv_socket，使recv_socket和loop关联起来
+struct sockaddr_in recv_addr;
+uv_ip4_addr("0.0.0.0", 68, &recv_addr);
+uv_udp_bind(&recv_socket, (const struct sockaddr *)&recv_addr, UV_UDP_REUSEADDR); # recv_socket绑定到指定地址
+uv_udp_recv_start(&recv_socket, alloc_buffer, on_read); # 使recv_socket和alloc_buffer, on_read关联起来
+
+2. 组织发送对象，句柄分配，初始化，地址绑定，回调函数绑定(写回调)
+uv_udp_init(loop, &send_socket);     # 初始化send_socket，使recv_socket和loop关联起来
+struct sockaddr_in broadcast_addr;
+uv_ip4_addr("0.0.0.0", 0, &broadcast_addr);
+uv_udp_bind(&send_socket, (const struct sockaddr *)&broadcast_addr, 0); # send_socket绑定到指定地址
+uv_udp_set_broadcast(&send_socket, 1);
+
+3. 组织发送数据
+uv_udp_send_t send_req;
+uv_buf_t discover_msg = make_discover_msg();     # 构建发送缓冲区
+
+4. 进行发送处理
+struct sockaddr_in send_addr;
+uv_ip4_addr("255.255.255.255", 67, &send_addr); 
+uv_udp_send(&send_req, &send_socket, &discover_msg, 1, (const struct sockaddr *)&send_addr, on_send); # 发送数据
+
+    ip地址为0.0.0.0，用来绑定所有的接口。255.255.255.255是一个广播地址，这也意味着数据报将往所有的子网接口中发送。
+端口号为0代表着由操作系统随机分配一个端口。
+    我们设置了一个用于接收socket绑定了全部网卡，端口号为68作为DHCP客户端，然后开始从中读取数据。它会接收所有来自
+DHCP服务器的返回数据。我们设置了UV_UDP_REUSEADDR标记，用来和其他共享端口的 DHCP客户端和平共处。接着，我们设置了
+一个类似的发送socket，然后使用uv_udp_send向DHCP服务器（在67端口）发送广播。
+    设置广播发送是非常必要的，否则你会接收到EACCES错误。和此前一样，如果在读写中出错，返回码<0。
+    因为UDP不会建立连接，因此回调函数会接收到关于发送者的额外的信息。
+    当没有可读数据后，nread等于0。
+      如果addr是null，它代表了没有可读数据（回调函数不会做任何处理）。
+      如果addr不为null，则说明了从addr中接收到一个空的数据报。
+      如果flag为UV_UDP_PARTIAL，则代表了内存分配的空间不够存放接收到的数据了，在这种情形下，操作系统会丢弃存不下的数据。
+
+用户数据报协议(User Datagram Protocol)提供无连接的，不可靠的网络通信。
+    libuv提供了一个uv_udp_t句柄（接收端），和一个uv_udp_send_t句柄（发送端），还有相关的函数。也就是说，
+实际的读写api与正常的流读取类似。
+}
+
+dns(从到tcpserver){
+1. 构建返回提示
+struct addrinfo hints;  
+hints.ai_family = PF_INET;  
+hints.ai_socktype = SOCK_STREAM;
+hints.ai_protocol = IPPROTO_TCP; 
+hints.ai_flags = 0;
+
+2. 调用异步回调，并注册回调函数
+uv_getaddrinfo_t resolver; 
+int r = uv_getaddrinfo(loop, &resolver, on_resolved, "irc.freenode.net", "6667", &hints);
+
+3. 组织连接回调和初始化tcp (on_resolved)
+uv_connect_t *connect_req = (uv_connect_t*) malloc(sizeof(uv_connect_t));                        
+uv_tcp_t *socket = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));                                         
+uv_tcp_init(loop, socket);                                                                       
+                                                                                                 
+uv_tcp_connect(connect_req, socket, (const struct sockaddr*) res->ai_addr, on_connect);  
+
+4. 在on_connect接收数据   (on_connect)
+uv_read_start((uv_stream_t*) req->handle, alloc_buffer, on_read);
+
+5. 在on_read中处理接收到数据 (on_read) 和连接关闭
+    如果uv_getaddrinfo返回非零值，说明设置错误了，因此也不会激发回调函数。在函数返回后，所有的参数将会被回收和释放。
+主机地址，请求服务器地址，还有hints的结构都可以在这里找到详细的说明。
+    如果想使用同步请求，可以将回调函数设置为NULL。
+    在回调函数on_resolved中，你可以从struct addrinfo(s)链表中获取返回的IP，最后需要调用uv_freeaddrinfo回收掉链表。
+
+}
+thread_create(){
+                线程id   , 回调函数, 参数
+uv_thread_create(&hare_id, hare, &tracklen);   # 创建线程，
+uv_thread_join(&hare_id);                      # 连接线程
+
+unsigned long uv_thread_self(void);            # 线程自身id
+}
+
+locks(uv_barrier_t){ 用于多线程同步
+int uv_barrier_init(uv_barrier_t* barrier, unsigned int count); # 初始化barrier,阀值等于count，
+void uv_barrier_wait(uv_barrier_t* barrier); # wait每调用一次，count减1，当count等于0时，继续后续执行
+void uv_barrier_destroy(uv_barrier_t* barrier); # 通常在创建线程的主线程中调用。
+# 多个uv_barrier_wait的执行顺序是不确定的，最后使用pthread_join连接一下。
+}
+locks(uv_rwlock_t){ 锁即加解，不能计数
+int uv_rwlock_init(uv_rwlock_t* rwlock);    # 初始化
+
+void uv_rwlock_rdlock(uv_rwlock_t* rwlock);    # 读加锁
+void uv_rwlock_rdunlock(uv_rwlock_t* rwlock);  # 读解锁
+void uv_rwlock_wrlock(uv_rwlock_t* rwlock);    # 写加锁
+void uv_rwlock_wrunlock(uv_rwlock_t* rwlock);  # 写解锁
+
+void uv_rwlock_destroy(uv_rwlock_t* rwlock);  # 释放
+}
+
+queue_work(uv_work_t){ 线程池传递参数
+uv_work_t req[FIB_UNTIL];
+req[i].data = (void *) &data[i];
+uv_queue_work(loop, &req[i], fib, after_fib); # 初始化uv_work_t, 使req和loop,fib, after_fib关联起来
+void fib(uv_work_t *req) # 在线程中发送当前线程执行状态
+}
+
+queue_cancel(uv_signal_t){ 
+uv_signal_t sig;                                # 分配空间
+uv_signal_init(loop, &sig);                     # 初始化，使sig与loop关联
+uv_signal_start(&sig, signal_handler, SIGINT);  # 是sig与signal_handler ，SIGINT关联，并开始监听
+uv_signal_stop(req)                             # 结束信号处理
+
+uv_queue_work(loop, &fib_reqs[i], fib, after_fib); # 被uv_cancel((uv_req_t*) &fib_reqs[i]);结束的任务不再执行after_fib
+
+    当向进程发送SIGUSR1，你会发现signal_handler函数被激发了4次，每次都对应一个uv_signal_t。然后signal_handler
+调用uv_signal_stop终止了每一个uv_signal_t，最终程序退出。对每个handler函数来说，任务的分配很重要。一个使用了多个
+event-loop的服务器程序，只要简单地给每一个进程添加信号SIGINT监视器，就可以保证程序在中断退出前，数据能够安全地保存。
+    使用uv_signal_init初始化handle（uv_signal_t），然后将它与loop关联。为了使用handle监听特定的信号，
+使用uv_signal_start()函数。每一个handle只能与一个信号关联，后续的uv_signal_start会覆盖前面的关联。
+使用uv_signal_stop终止监听。
+    uv_run(loop, UV_RUN_NOWAIT)和uv_run(loop, UV_RUN_ONCE)非常像，因为它们都只处理一个事件。但是不同在于，
+UV_RUN_ONCE会在没有任务的时候阻塞，但是UV_RUN_NOWAIT会立刻返回。我们使用NOWAIT，这样才使得一个loop
+不会因为另外一个loop没有要处理的事件而挨饿。
+}
+
+spawn(uv_spawn){
+uv_spawn(loop, &child_req, &options) # 将child_req初始化，并与loop,options关联起来，然后通过loop创建进程
+# 一个最简单的用途是，你想要开始一个进程，然后知道它什么时候终止。需要使用uv_spawn完成任务
+    由于上述的options是全局变量，因此被初始化为0。如果你在局部变量中定义options，请记得将所有没用的域设为0
+uv_process_options_t options = {0};
+    uv_process_t只是作为句柄，所有的选择项都通过uv_process_options_t设置，为了简单地开始一个进程，
+你只需要设置file和args，file是要执行的程序，args是所需的参数(和c语言中main函数的传入参数类似)。
+因为uv_spawn在内部使用了execvp，所以不需要提供绝对地址。遵从惯例，实际传入参数的数目要比需要的参数多一个，
+因为最后一个参数会被设为NULL。
+    在函数uv_spawn被调用之后，uv_process_t.pid会包含子进程的id。
+    回调函数on_exit()会在被调用的时候，传入exit状态和导致exit的信号。
+    void on_exit(uv_process_t *req, int64_t exit_status, int term_signal) # 在进程关闭后，需要回收handler。
+}
+uv_process_options_t(){
+在子进程开始执行前，你可以通过使用uv_process_options_t设置运行环境。
+设置uv_process_options_t.cwd，更改相应的目录。
+    uv_process_options_t.env的格式是以null为结尾的字符串数组，其中每一个字符串的形式都是VAR=VALUE。
+这些值用来设置进程的环境变量。如果子进程想要继承父进程的环境变量，就将uv_process_options_t.env设为null。
+通过使用下面标识的按位或的值设置uv_process_options_t.flags的值，可以定义子进程的行为：
+    UV_PROCESS_SETUID-将子进程的执行用户id（UID）设置为uv_process_options_t.uid中的值。
+    UV_PROCESS_SETGID-将子进程的执行组id(GID)设置为uv_process_options_t.gid中的值。
+        只有在unix系的操作系统中支持设置用户id和组id，在windows下设置会失败，uv_spawn会返回UV_ENOTSUP。
+    UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS-在windows上，uv_process_options_t.args参数不要用引号包裹。此标记对unix无效。
+    UV_PROCESS_DETACHED -在新会话(session)中启动子进程，这样子进程就可以在父进程退出后继续进行。请看下面的例子：
+    
+    使用标识UV_PROCESS_DETACHED可以启动守护进程(daemon)，或者是使得子进程从父进程中独立出来，这样父进程的退出就不会影响到它。
+}
+spawn(uv_unref){
+uv_unref((uv_handle_t*) &child_req);
+# 使得libuv的进程不用等待uv_spawn创建的子进程的结束，提前终止
+多个线程可以同时监听 一个相同的信号，
+# 记住一点，就是handle会始终监视着子进程，所以你的程序不会退出。uv_unref()会解除handle。
+}
+detach(){
+    使用标识UV_PROCESS_DETACHED可以启动守护进程(daemon)，或者是使得子进程从父进程中独立出来，这样父进程的退出就不会影响到它。
+    uv_unref((uv_handle_t*) &child_req);
+    记住一点，就是handle会始终监视着子进程，所以你的程序不会退出。uv_unref()会解除handle。
+}
+cgi(){
+options.stdio_count = 3;
+uv_stdio_container_t child_stdio[3];
+child_stdio[0].flags = UV_IGNORE;
+child_stdio[1].flags = UV_INHERIT_STREAM;
+child_stdio[1].data.stream = (uv_stream_t*) client;  # 将socket的输出关联到子进程的stdout上
+child_stdio[2].flags = UV_IGNORE;
+options.stdio = child_stdio;
+
+    可以把上述方法用于流的重定向。比如，把flag设为UV_INHERIT_STREAM，然后再设置父进程中的data.stream，
+这时子进程只会把这个stream当成是标准的I/O。这可以用来实现例如CGI。
+    cgi的stdout被绑定到socket上，所以无论tick脚本程序打印什么，都会发送到client端。通过使用进程，
+我们能够很好地处理读写并发操作，而且用起来也很方便。但是要记得这么做，是很浪费资源的。
+}
+
+pipe_echo_server(Arbitrary process IPC){ 
+1. 服务器端
+uv_pipe_t server;                                         # 分配空间
+uv_pipe_init(loop, &server, 0);                           # 初始化server，并使server与loop关联起来
+r = uv_pipe_bind(&server, "echo.sock")                    # 设置server绑定的标识符字符串
+uv_listen((uv_stream_t*) &server, 128, on_new_connection) # 监听等来新连接
+2. 客户端
+uv_pipe_t *client = (uv_pipe_t*) malloc(sizeof(uv_pipe_t));     # 分配空间
+uv_pipe_init(loop, client, 0);                                  # 初始化client，并使client与loop关联起来
+if (uv_accept(server, (uv_stream_t*) client) == 0)              # 从server获取client
+uv_read_start((uv_stream_t*) client, alloc_buffer, echo_read);  # 发起读请求
+
+我们把socket命名为echo.sock，意味着它将会在本地文件夹中被创造。对于stream API来说，本地socekt表现得和tcp的socket差不多。
+socat - /path/to/socket
+}
+
+multi_echo_server(Sending file descriptors over pipes){ 基于unix流通信的进程池
+int uv_write2(uv_write_t* req,
+              uv_stream_t* handle,
+              const uv_buf_t bufs[],
+              unsigned int nbufs,
+              uv_stream_t* send_handle,
+              uv_write_cb cb);
+
+SCM_RIGHTS # 进程之间描述符传递
+              
+1. 父进程
+tcp        0      0 0.0.0.0:7000                0.0.0.0:*                   LISTEN      24297/./multi-echo- 
+2. 工作进程
+tcp        0      0 192.168.10.109:7000         192.168.10.109:54947        ESTABLISHED 24301/worker        
+unix  3      [ ]         STREAM     CONNECTED     4258566 24301/worker 
+    最酷的事情是本地socket可以传递文件描述符，也就是说进程间可以交换文件描述符。这样就允许进程将它们的I/O传递给其他进程。
+它的应用场景包括，负载均衡服务器，分派工作进程等，各种可以使得cpu使用最优化的应用。libuv当前只支持通过管道传输TCP 
+sockets或者其他的pipes。
+uv_pipe_init(loop, &queue, 1 /* ipc */); 
+uv_pipe_open(&queue, 0);
+    queue是另一端连接上主进程的管道，因此，文件描述符可以传送过来。在uv_pipe_init中将ipc参数设置为1很关键，因为它标明了
+这个管道将被用来做进程间通信。因为主进程需要把文件handle赋给了工人进程作为标准输入，因此我们使用uv_pipe_open把stdin作为
+pipe(别忘了，0代表stdin)。
+
+void on_new_connection(uv_stream_t *q, ssize_t nread, const uv_buf_t *buf)
+    首先，我们调用uv_pipe_pending_count来确定从handle中可以读取出数据。如果你的程序能够处理不同类型的handle，这时
+uv_pipe_pending_type就可以用来决定当前的类型。虽然在这里使用accept看起来很怪，但实际上是讲得通的。accept最
+常见的用途是从其他的文件描述符（监听的socket）获取文件描述符（client端）。这从原理上说，和我们现在要做的是一样
+的：从queue中获取文件描述符（client）。接下来，worker可以执行标准的echo服务器的工作了。
+    child_worker结构包裹着进程，和连接主进程和各个独立进程的管道。
+    uv_write2能够在所有的情形上做了一个很好的抽象，我们只需要将client作为一个参数即可完成传输。
+现在，我们的多进程echo服务器已经可以运转起来啦。
+}
+uvstop(uv_idle_t 和 uv_prepare_t){ idle先执行，pre后执行，当时uv_stop()是异步通知，不是同步通知
+if (counter >= 5) {                   
+        uv_stop(uv_default_loop());   
+        printf("uv_stop() called\n"); 
+}       
+Idle callback
+Prep callback
+Idle callback
+Prep callback
+Idle callback
+Prep callback
+Idle callback
+Prep callback
+Idle callback
+uv_stop() called
+Prep callback
+uv_stop()
+  uv_stop() 用来终止event loop。loop会停止的最早时间点是在下次循环的时候，或者稍晚些的时候。
+  uv_stop() 意味着在本次循环中已经准备被处理的事件，依然会被处理，uv_stop不会起到作用。
+  当uv_stop被调用，在当前的循环中，loop不会被IO操作阻塞。即 select|poll|epoll_wait函数不再被阻塞于IO事件、超时事件等。直接NOWAIT模式
+  # 在已经得到结果，或是发生错误的时候，uv_stop()可以用来关闭一个loop，而且不需要保证handler停止的顺序。
+}
+ref_timer(uv_unref){ 用于特定资源的释放 # 例如gc或者进程退出
+int uv_timer_start(uv_timer_t* handle,  # 句柄
+                   uv_timer_cb cb,      # 回调函数
+                   uint64_t timeout,    # 超时
+                   uint64_t repeat);    # 重设
+}
+
+curl(uvwget){
+    [int main(int argc, char **argv)]
+    socket回调函数handle_socket会在socket状态改变的时候被触发，因此我们不得不开始轮询它。
+    start_timeout是libcurl用来告知我们下一次的超时间隔的，之后我们就应该不管当前IO状态，
+驱动libcurl向前。这些也就是libcurl能处理错误或驱动下载进度向前的原因。
+    [void add_download(const char *url, int num)]
+    start_timeout会被libcurl立即调用。它会启动一个libuv的定时器，使用CURL_SOCKET_TIMEOUT驱动
+curl_multi_socket_action，当其超时时，调用它。curl_multi_socket_action会驱动libcurl，也会在
+socket状态改变的时候被调用。但在我们深入讲解它之前，我们需要轮询监听socket，等待handle_socket被调用。
+    [Setting up polling]
+    start_timeout(CURLM *multi, long timeout_ms, void *userp)
+    handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp)
+    我们关心的是socket的文件描述符s，还有action。对应每一个socket，我们都创造了uv_poll_t，
+并用curl_multi_assign把它们关联起来。每当回调函数被调用时，socketp都会指向它。
+    在下载完成或失败后，libcurl需要移除poll。所以我们停止并回收了poll的handle。
+    我们使用UV_READABLE或UV_WRITABLE开始轮询，基于libcurl想要监视的事件。当socket已经准备好读或写后，
+libuv会调用轮询的回调函数。在相同的handle上调用多次uv_poll_start是被允许的，这么做可以更新事件的参数。
+curl_perform是整个程序的关键。
+    [void check_multi_info(void)]
+}
+plugin(uv_lib_t){ 动态库
+uv_lib_t *lib = (uv_lib_t*) malloc(sizeof(uv_lib_t));
+uv_dlopen(argv[argc], lib)
+init_plugin_function init_plugin;
+uv_dlsym(lib, "initialize", (void **) &init_plugin
+
+
+}
+
+tty(uv_tty_t){
+uv_tty_init(loop, &tty, 1, 0); 
+int uv_tty_init(uv_loop_t*, uv_tty_t*, uv_file fd, int readable); # readable
+# 通过给定fd创建一个新的TTY stream。file descriptor = 
+0 = stdin  1 = stdout  2 = stderr
+0 = stdin  1 = stdout  2 = stderr
+
+uv_tty_set_mode(&tty, UV_TTY_MODE_NORMAL);   # 0 for normal, 1 for raw.
+uv_tty_reset_mode();
+int uv_tty_reset_mode(void);
+int uv_tty_get_winsize(uv_tty_t*, int* width, int* height);
+}

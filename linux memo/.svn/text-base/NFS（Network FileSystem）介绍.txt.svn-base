@@ -1,0 +1,139 @@
+NFS（Network FileSystem）介绍
+NFS 安装
+
+    查看是否已安装：
+        CentOS：rpm -qa | grep nfs-*
+        Ubuntu：dpkg -l | grep nfs-*
+
+    安装：
+        CentOS 5：sudo yum install -y nfs-utils portmap
+        CentOS 6：sudo yum install -y nfs-utils rpcbind
+        Ubuntu：sudo apt-get install -y nfs-common nfs-kernel-server
+
+NFS 服务器配置文件常用参数
+
+    配置文件介绍（记得先备份）：sudo vim /etc/exports
+        默认配置文件里面是没啥内容的，我们需要自己加上配置内容，一行表示共享一个目录。为了方便使用，共享的目录最好将权限设置为 777（chmod 777 folderName）。
+        假设在配置文件里面加上：/opt/mytest 192.168.0.0/55(rw,sync,all_squash,anonuid=501,anongid=501,no_subtree_check)
+        该配置解释：
+            /opt/mytest 表示我们要共享的目录
+            192.168.0.0/55 表示内网中这个网段区间的IP是可以进行访问的，如果要任意网段都可以访问，可以用 * 号表示
+            (rw,sync,all_squash,anonuid=501,anongid=501,no_subtree_check) 表示权限
+                rw：是可读写（ro是只读）
+                sync：同步模式，表示内存中的数据时时刻刻写入磁盘（async：非同步模式，内存中数据定期存入磁盘）
+                all_squash：表示不管使用NFS的用户是谁，其身份都会被限定为一个指定的普通用户身份。（no_root_squash：其他客户端主机的root用户对该目录有至高权限控制。root_squash：表示其他客户端主机的root用户对该目录有普通用户权限控制）
+                anonuid/anongid：要和root_squash或all_squash选项一同使用，表示指定使用NFS的用户被限定后的uid和gid，前提是本图片服务器的/etc/passwd中存在这一的uid和gid
+                no_subtree_check：不检查父目录的权限
+
+    启动服务：
+        /etc/init.d/rpcbind restart
+        /etc/init.d/nfs-kernel-server restart
+
+NFS 客户端访问
+
+    客户端要访问服务端的共享目录需要对其共享的目录进行挂载，在挂载之前先检查下：showmount -e 192.168.1.25（这个 IP 是 NFS 的服务器端 IP）
+        如果显示：/opt/mytest 相关信息表示成功了。
+    现在开始对其进行挂载：mount -t nfs 192.168.1.25:/opt/mytest/ /mytest/
+        在客户端机器上输入命令：df -h 可以看到多了一个 mytest 分区。然后我们可以再创建一个软链接，把软链接放在 war 包的目录下，这样上传的图片都会跑到另外一台服务器上了。软链接相关内容请自行搜索。
+
+NFS 资料
+
+    http://wiki.jikexueyuan.com/project/linux/nfs.html
+    http://www.jb51.net/os/RedHat/77993.html
+    http://www.cnblogs.com/Charles-Zhang-Blog/archive/2013/02/05/2892879.html
+    http://www.linuxidc.com/Linux/2013-08/89154.htm
+    http://www.centoscn.com/image-text/config/2015/0111/4475.html
+    
+###########################/etc/nfsmount.conf ###########################
+/etc/nfsmount.conf
+Defaultvers=4 定义默认用于启动协商与服务器的协议版本，协议版本可以使2、3或4
+Nfsvers=4 服务器支持的版本。如果指定的版本不被服务器支持，则挂在将失败
+Defaultproto=tcp 定义默认用于启动协商与服务器的网络协议，网络协议可以是tcp、udp或rdma
+Proto=tcp 设置服务器支持指定的网络协议。如果指定的网络协议不被服务器支持，则挂载将失败
+Retrans=2 产生超时前要求隐退的次数
+Retry=2 重试挂载的分钟数
+Acl=False 是否支持访问控制列表
+Background=False 是否支持后台挂载
+Lock=True 启用文件锁
+Rsize=8k 最大读取尺寸，单位为字节
+Wsize=8k 最大写入尺寸，单位为字节
+Bsize=8k 服务器的最大块大小，单位为字节
+Timeo=600客户端等待来自服务器的响应之前重传请求的时间量
+actimeo=30 设置所有的属性时间为相同时间，单位为秒
+mountport=4001 服务器挂载端口
+mountvers=3 服务器挂载版本
+mounthost=hostname 服务器挂在主机
+Port=2049 NFS服务器的端口号
+
+########################### /etc/exports ###########################
+/etc/exports 文件控制着NFS服务器要导出的共享目录以及访问控制
+共享目录  客户端 (导出选项)
+共享目录：绝对路径
+客户端：一台计算机、一个网段、一个域
+一台计算机       192.168.0.5    linux.sh.com
+一个网段         192.168.1.1/24 192.168.0.0/255.255.255.0 192.168.0.*
+一个域           *.sh.com
+全部设备          *
+
+rw                共享目录具有读取和写入的权限
+ro                共享目录具有只读的权限
+root_squash       root用户的所有请求映射成如anonymous用户一样的权限
+no_root_squash    关闭root_squash
+all_squash        映射所有的UID和GID为匿名用户
+no_all_squash     保留共享文件的UID和GID
+anonuid           指定NFS服务器/etc/passwd文件中的匿名用户的UID
+anongid           指定NFS服务器/etc/passwd文件中的匿名用户的GID
+sysc              所有数据在请求时写入共享，在请求所做的改变被写入磁盘之前就不会处理其他请求
+async             NFS在写入数据前可以响应请求，写入和读取可以同时进行，由NFS保证其一致性
+secure            NFS通过1024以下的安全TCP/IP端口发送
+insecure          NFS通过1024以上的端口发送
+wdelay            如果多个用户要写入NFS，则归组写入
+no_wdelay         如果多个用户要写入NFS，则立即写入
+subtree_check     如果共享/usr/bin之类的子目录时，强制NFS检查父目录的权限
+no_subtree_check  和subtree_check相对
+hide              在NFS共享目录中不共享其子目录
+nohide            在NFS共享目录中共享其子目录
+mp                如果它已经成功挂载，那么使得它只导出一个目录
+fsid              NFS需要能够识别每个它导出的文件系统，通常情况下，它会为文件系统使用一个UUID或者该设备保持文件的设备号
+
+/it      *(ro,all_squash,anonuid=65534,anongid=65534)
+/it      *(ro,root_squash)
+    
+########################### bin ###########################    
+exportfs [选项] [目录] :导出NFS服务器上的共享目录、显示共享目录，或不导出共享目录。
+showmount :可以显示NFS服务器的挂载信息
+nfstat 可以显示有关NFS客户端和服务器活动的统计信息
+rpcinfo -p | grep 622*
+nfsiostat 显示NFS客户端每次挂载的统计信息
+
+
+
+
+########################### /var/lib/nfs/etab ###########################  
+/home/iaas *(rw,async,no_root_squash)
+/home/share *(rw,async,no_root_squash)
+/home/back *(rw,async,no_root_squash)
+
+/home/back      *(rw,async,wdelay,hide,nocrossmnt,secure,no_root_squash,no_all_squash,no_subtree_check,secure_locks,acl,anonuid=65534,anongid=65534)
+/home/share     *(rw,async,wdelay,hide,nocrossmnt,secure,no_root_squash,no_all_squash,no_subtree_check,secure_locks,acl,anonuid=65534,anongid=65534)
+/home/iaas      *(rw,async,wdelay,hide,nocrossmnt,secure,no_root_squash,no_all_squash,no_subtree_check,secure_locks,acl,anonuid=65534,anongid=65534)
+
+
+########################### autofs ########################### 
+Autofs需要从/etc/auto.master文件中读取配置信息。该文件中可以同时指定多个挂接点，由Autofs来挂接文件系统。
+文件中的每个挂接点单独用一行来定义，每一行可包括3个部分，分别用于指定挂接点位置，挂接时需使用的配置文件
+及所挂接文件系统在空闲多长时间后自动被卸载。例如在文件中包括了如下一行：
+/auto /etc/auto.misc --timeout 60
+
+其中第一部分指定一个安装点为/auto，第二部分指定该挂接点的配置文件为/etc/auto.misc，第三部分指定所挂接的
+文件系统在空闲60秒后自动被卸载。
+
+文件/etc/auto.misc的示例如下：
+cd -fstype=iSO9660，ro :/dev/cdrom
+fd -fstype=msdos :/dev/fd0
+文件每一行都说明某一个文件系统如何被挂接。其中第一行指定将/dev/cdrom挂接在/auto/cd中，第二行指定将/dev/fd0挂接在/auto/fd中。
+每一行的第二个值-fstype是一个可选项，用来表明所挂接的文件系统的类型和挂接选项，在mount命令中能使用的挂接选项同样适用于-fstype。
+修改了配置文件后，可通过执行命令“/etc/init.d/autofs restart”，使新的配置生效。
+
+
+

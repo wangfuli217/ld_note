@@ -1,0 +1,127 @@
+环境
+-------------------
+[root@base ~]# cat /etc/RedHat-release 
+CentOS Linux release 7.2.1511 (Core)
+
+安装
+-------------------
+下载服务器软件：
+SMTP服务器postfix
+POP/IMAP服务器dovecot
+DNS服务器dnsmasq
+[root@base ~]# yum -y install dovecot postfix dnsmasq
+版本信息
+[root@base ~]# rpm -qi dovecot
+Name        : dovecot
+Epoch       : 1
+Version     : 2.2.10
+Release     : 5.el7
+[root@base ~]# rpm -qi dnsmasq
+Name        : dnsmasq
+Version     : 2.66
+Release     : 14.el7_2.1
+
+[root@base ~]# rpm -qi postfix
+Name        : postfix
+Epoch       : 2
+Version     : 2.10.1
+Release     : 6.el7
+
+配置hostname
+-------------------
+[root@base ~]# vim /etc/hostname
+这里更改为
+mail.nidey.com
+重启生效
+[root@base ~]# reboot
+
+配置dnsmasq
+-------------------
+在hosts文件中增加 本地IP<==>域名 映射
+[root@mail ~]# vim /etc/hosts
+填入如下内容
+192.168.118.101 mail.nidey.com
+试验用，dnsmasq不用做其他配置，默认使用/etc/hosts作地址解析（相当于在局域网内共享了这个文件）。
+[root@mail ~]# systemctl start dnsmasq
+[root@mail ~]# systemctl enable dnsmasq
+
+配置postfix
+-------------------
+[root@mail ~]# vim /etc/postfix/main.cf
+取消注释并设置myhostname、mydomain、myorigin、inet_interfaces、inet_protocols、mydestination，
+内容如下
+myhostname = mail.nidey.com
+mydomain = nidey.com
+myorigin = $mydomain
+inet_interfaces = all
+inet_protocols = ipv4
+mydestination = $myhostname, $mydomain
+启动服务器
+[root@mail ~]# systemctl start postfix
+[root@mail ~]# systemctl enable postfix
+
+配置dovecot
+-------------------
+[root@mail ~]# vim /etc/dovecot/dovecot.conf
+取消注释并设置listen（只启用IPv4邮件服务）
+设置登录信任网络（可使用明文验证密码）
+listen = *
+login_trusted_networks = 0.0.0.0/0
+设置邮件文件位置
+[root@mail ~]# vim /etc/dovecot/conf.d/10-mail.conf
+取消注释，并设置
+mail_location = mbox:~/mail:INBOX=/var/mail/%u
+
+建立邮件账户
+-------------------
+这里使用本地系统账户，建立账户ted、密码ted
+[root@mail ~]# useradd ted
+[root@mail ~]# echo ted | passwd --stdin ted
+Changing password for user ted.
+passwd: all authentication tokens updated successfully.
+建立ted账户的邮件文件夹
+[root@mail ted]# su ted
+[ted@mail ~]$ cd ~
+[ted@mail ~]$ mkdir -p mail/.imap/INBOX
+[ted@mail ~]$ su root
+Password: 
+[root@mail ted]# 
+启动服务
+[root@mail ~]# systemctl start dovecot
+[root@mail ~]# systemctl enable dovecot 
+
+
+使用
+-------------------
+邮件服务器IP -->192.168.118.101
+XP 客户端IP  -->192.168.118.10
+
+Foxmail
+1. 新建账户
+接收服务器类型：    POP3
+邮件账户：          ted@nidey.com
+密码：              ***
+POP服务器           mail.nidey.com    SSL端口 110
+SMTP服务器          mail.nidey.com    SSL端口 25
+
+1. 写邮件给自己
+2. POP协议收邮件
+3. IMAP协议登录
+接收服务器类型：    IMAP
+邮件账户：          ted
+密码：              ***
+POP服务器           mail.nidey.com    SSL端口 143
+SMTP服务器          mail.nidey.com    SSL端口 25
+4. IMAP协议收邮件
+
+附录
+1.设置
+Email地址；wangfl@xianleidi.com
+密码       ******
+显示名称   xianleidi(wangfl)
+发信名称   wangfl@xianleidi.com
+2. 服务器
+邮箱类型   IMAP
+账号       wangfl@xianleidi.com
+收件服务器 mail.xianleidi.com   SSL 端口 (ok) 993
+发件服务器 mail.xianleidi.com   SSL 端口 (no) 25

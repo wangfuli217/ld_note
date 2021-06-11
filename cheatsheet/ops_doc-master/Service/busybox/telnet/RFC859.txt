@@ -1,0 +1,70 @@
+组织：中国互动出版网（http://www.china-pub.com/）
+RFC文档中文翻译计划（http://www.china-pub.com/compters/emook/aboutemook.htm）
+E-mail：ouyang@china-pub.com
+译者：顾国飞（ggfei    ggfei@263.net）
+译文发布时间：2001-4-2
+版权：本中文翻译文档版权归中国互动出版网所有。可以用于非商业用途自由转载，但必须保留本文档的翻译及版权信息。
+
+Network Working Group                                          J. Postel
+Request for Comments: 859                                    J. Reynolds
+                                                                    ISI
+Obsoletes: RFC 651 (NIC 31154)                                  May 1983
+ 
+                          
+
+RFC 859  TELNET的STATUS选项
+(RFC 859  TELNET STATUS OPTION)
+本RFC规范了一个ARPA Internet community上的标准。在ARPA Internet上的所有主机应当采用和实现这个标准。
+目录
+1. 命令和代码	2
+2. 命令意义	2
+3. 默认值	2
+4. 选项产生的原因	2
+5. 具体内容	2
+
+
+
+
+1. 命令和代码
+STATUS 5
+2. 命令意义
+此选项不同方便的数据流上使用。 
+* IAC DON'T STATUS
+发送者拒绝进行就现在的状态选项提供进一步的信息。 
+* IAC WON'T STATUS
+发送者拒绝进行就现在的状态选项提供进一步的信息。 
+* IAC SB STATUS SEND IAC SE
+发送者要求接收者返回它的当前选项状态。 
+* IAC SB STATUS IS ... IAC SE
+发送者说明自己的选项状态。 
+3. 默认值
+DON'T STATUS和WON'T STATUS是默认值。
+4. 选项产生的原因
+此选项使用户/进程可以远程查看telnet选项。
+5. 具体内容
+WILL和DO仅用于获得对未来协商的许可。而实际的状态信息则由下面的子命令进行传送。
+一旦两主机交换了WILL和DO，WILL STATUS的发送者就可以传送状态信息或对DO进行响应。最差时会传送两次状态信息。只有DO的传送者可以发出请求，只有WILL的发出者可以传送状态信息。
+IS有子命令WILL，DO和SB，它们用于telent选项实际协商过程中，其中SB中以SE结尾，而不是IAC SE。传送SE时，象平常的数据字节一样，传送两次（SE SE）。如果选项未说明，则认为它们处于默认状态。
+下面是使用选项的例子：
+Host1: IAC DO STATUS
+Host2: IAC WILL STATUS (此时HOST2可以发送状态信息了，最差时就发两次就行了)
+Host1 (perhaps): IAC SB STATUS SEND IAC SE
+Host2 （下面的信息分为多行是为了阅读方便）
+IAC SB STATUS IS 
+WILL ECHO 
+DO SUPPRESS-GO-AHEAD 
+WILL STATUS 
+DO STATUS 
+IAC SE
+
+对Host2理解的解释：回送（ECHO BACK）从TELNET连接中收到的数据字符是合理的；它不会送Go-Ahead信号，它将发送和请求Status信息.
+
+RFC859  TELNET STATUS OPTION                               RFC859  TELNET的STATUS选项
+
+1
+
+
+2
+ＲＦＣ文档中文翻译计划
+
+

@@ -1,0 +1,28 @@
+编译 shellinabox
+    通过编译 openssh-server-pam 为交叉编译环境安装 libpam 依赖
+    ./scripts/feeds install openssh-server-pam
+    make package/feeds/packages/openssh/compile V=s
+
+安装依赖并下载源码
+    apt-get install git libssl-dev libpam0g-dev zlib1g-dev dh-autoreconf
+    git clone https://github.com/shellinabox/shellinabox
+    cd shellinabox
+
+配置
+    autoreconf -iv
+    ./configure --disable-utmp 
+
+编译
+    make CC=arm-openwrt-linux-muslgnueabi-gcc LD=arm-openwrt-linux-muslgnueabi-ld
+
+拷贝生成的 shellinaboxd，在路由上执行
+/usr/bin/shellinaboxd -t -s /:LOGIN --localhost-only --background=/var/run/shellinabox.pid
+这样就在 127.0.0.1:4200 端口做了 http shell 的监听
+
+可以通过下边的 crontab 脚本管理服务
+#!/bin/bash
+# */1 * * * * /root/bin/shellinabox >> /var/log/shellinabox.log 2>&1
+if [ $(/usr/bin/ps -ef|grep shellinaboxd|grep -v grep|wc -l) -eq 0 ];then
+    /usr/bin/shellinaboxd -t -s /:LOGIN --localhost-only --background=/var/run/shellinabox.pid
+    echo $(date) -- shellinaboxd started
+fi

@@ -1,0 +1,418 @@
+segment-architecture    rw(ds/es/fs/gs) exe(cs) stack(ss)
+section-compiler/linker .data .text .bss .rodata ...
+
+GDB: 	display /i (16进制) $pc (current instruction)
+
+Windows的系统调用与Linux系统调用的差别：
+   在Windows的内核中，可以使用系统调用，因此，在进入Windows内核态的时候，需要知道是从用户态进入还是从内核态进入
+   在Linux内核中，是不能使用系统调用的
+Windows中，使用了两种系统调用的方法：
+1. int + iret组合
+2. sysenter + sysexit
+
+除基址BX , BP和变址SI , DI这四个寄存器可间接寻址外(即加上中括号[ ]),其它寄存器一律不准间接寻址
+
+立即寻址  	MOV  AX ,  常数
+直接寻址   	MOV  AX , [常数] ;加上中括号  或  MOV AX , 变量名或标号
+寄存器寻址 	MOV  AX , 通用寄存器
+寄存器间接寻址 	MOV  AX , [(BX,BP,SI,DI)中的一个]    ;以下四行均需加上中括号
+寄存器相对寻址 	MOV  AX , [(BX,BP,SI,DI)中的一个 + 偏移量]
+基址变址寻址 	MOV  AX , [基址寄存器 + 变址寄存器]
+相对基址变址 	MOV  AX , [基址寄存器 + 变址寄存器 + 偏移量]
+
+MOV指令为双操作数指令,两个操作数中必须有一个是寄存器. digit -> addr WRONG!!
+
+1.目的数可以是通用寄存器, 存储单元和段寄存器(但不允许用CS段寄存器).
+2.立即数不能直接送段寄存器
+3.不允许在两个存储单元直接传送数据
+4.不允许在两个段寄存器间直接传送信息
+
+入栈时高位字节先入栈，低位字节后入栈.
+
+执行POP  SS指令后,堆栈区在存储区的位置要改变.
+执行POP  SP指令后,栈顶的位置要改变.
+
+in/out:只限于使用累加器AX或AL与外部设备的端口传送信息
+IN    AL , PORT         //直接的字节输入,PORT是外设端口编号(即端口地址),只能取 00H ~ 0FFH共256个端口地址.
+IN    AX , PORT         //直接的字输入,AX存储连续两个端口地址PORT+1,PORT
+IN    AL , DX           //间接的字节输入,端口地址范围可通过DX设置为0000H ~ 0FFFFH共65536个端口地址
+IN    AX , DX           //间接的字输入
+
+运算影响：	(spozac)
+
+neg opr		opr = 1 - opr, 对某数按位去返后+1
+0 = 3 + (-3) = 3 + 13
+0011	 3
+1101	-3/13(补码相同)		3 补码-> -3/13, -3 补码-> 3
+
+cmp %opr2 %opr1		opr1 - opr2
+
+adc - sbb
+
+4位二进制数表示一位十进制数,这种代码称为BCD (Binary Coded Decimal)
+
+1. std/cld
+2. movs / stos es:di / lods ds:si
+
+TEST指令常用于在不改变原有的操作数的情况下,检测某一位或某几位的条件是否满足.只要令用来测试的操作数对应检测位为1,其余位为0,相与后判断零标志"ZF"值的真假.
+
+所有的移位指令都影响标志位(spozc), af无定义	shift to "cf"
+
+hlt	等待一次外部中断到来
+
+Linux接管了BIOS调用和端口输入输出，为了避免用户对硬件的直接访问，并防止用户之间的互相干扰。
+所以想对硬件硬件进行访问就需要用到System Call，实际上是许多C的函数，可以在汇编程序中调用，调用方法与DOS下的汇编完全相同 ，而且用ASM汇编时不用链接额外的库函数
+
+DOS下无进程概念
+
+常见的进程间通讯机制有 信号、管道、共享内存、信号量和套接字等
+
+file nasm:
+ELF 32-bit LSB executable i386 (386 and up) Version 1	ELF
+Linux/i386 demand-paged executable (QMAGIC)		aout
+
+以优化指令来减小大小是比较困难的
+
+使用main()接口，就还会有许多额外的代码。 
+linker还会为我们加一个到OS的接口。事实上就是调用main().
+linker默认使用的实际入口是标号_start.gcc联接时，它会自动包括一个_start的例程，设置argc和argv, ....,最后调用main()
+
+the first '1:' is L1C_B1, the 44th '3:' is L3C-B44
+
+local symbol, remains in scope for the entire file, or until they're redefined by another occurence of the same local symbol
+
+.=0x4	==	.org 0x4
+.=.+4	==	.space 4	== .skip 4
+
+.align 对齐，填充
+.align 2,    0xaa55
+
+.ascii "as, ab"	==	as      ab
+.asciz "as, ab" ==	as\0    ab\0
+
+.comm symbol [, length, align]
+a symbol in the obj file, will be merged with a defined or common symbol of the same name in another obj file
+.lcomm symbol [, length, align]
+only be used in .bss, local symbol, not visible to LD
+
+.eject 	force a page break at this point
+.end 	all ends
+.func
+.endfunc
+
+.equ symbol expr == 
+.set symbol expr
+
+.equ	sys_call,	0x80
+symbol "sys_call" can't be changed during the program
+
+.equiv ==
+.ifdef	SYM
+.err
+.endif
+.equ	SYM,VAL
+
+.extern		just 4 compatibility, but ignored, as treated all undefined symbols as .extern
+
+.hidden 
+.internal
+.protected
+
+.word == .hword == .short
+
+IA32 flags (32 bits, 17 used):
+	status flags: spozac
+	ctrl   flags: df
+	sys    flags: ac(cr0-am)
+
+MMX -> Single Instruction/Multiple Data execution mode
+
+ld regard "_start" as entry point defaultly, so use "ld -e" to declare another 
+ld: warning: cannot find entry symbol _start; defaulting to 0000000008048054
+
+GCC	main
+LD	_start
+
+as use the last one in a instruction by convention to fill in the missing suffix
+mov %al, %bx == movw %al, %bx
+
+absolute jmp/call are prefixed by '*'
+.code16
+	addr32 jmpl *(%ebx)
+
+xchg:	when 1 is a memory location, the processor's "LOCK" signal will automatically asserted. it's time-consulting
+
+cmpxchg	src, dst (80486)
+dst == eax/ax/al ? src -> dst : dst -> eax/ax/al
+
+cmpxchg8b    dst (Pentium)
+dst == (edx:eax) ? (ecx:ebx -> dst) : (dst -> edx:eax)
+
+pusha	di si bp bx dx cx ax
+
+difficult to see what happend in the software interrupt(int 0x80), as the debugging info isn't compiled into the section:
+gcc -g
+as -gstabs
+
+   	signed		unsigned
+%al	-128~127	0~255
+no explicit declaration of "signed/unsigned" in asm, if
+
+mov	$0x7f,	%bl	IF, ID			IF, ID always set
+add	$10,	%bl	IF, ID, SF, OF 		OF:  signed, so SF set simultaneously
+add	$7f,	%bl	IF, ID, CF		CF:unsigned
+mov	$0x8f,	$bl	IF, ID
+
+ZF	no affected by loop (%ecx)
+CF	no affected by inc/dec
+SF	affected
+SF	when (0 - 1)
+
+print to screen:
+1. write to video mem;
+2. call BIOS;
+3. update framebuffer
+
+NEVER assume what the contents of registers might be, for example, 
+NEVER assume that DS/SS/ES etc will be initialised to 0 because not all bios do this.
+
+The BIOS loads the MBR into memory at 0x0000:0x7C00 and executes it,
+now typically (ie: not standard) that sector moves its code down to 0x0000:0x0600 area and continues to execute itself from there.
+
+ld -oformat binary	(flat binary, exe from the 1st byte)
+
+Reserve interrupts 0-31 for CPU-generated exceptions.
+Reserve interrupts 32-47 for hardware interrupts (program the 8259 chips appropriately)
+Reserve interrupt 48 for the syscall interrupt. This is the only interrupt with a ring 3 gate descriptor.
+There are no IDT entries for interrupts 49 and above.
+
+Before trying to turn on the A20 gate, check if it's already on
+verify that A20 is on after you enable it.
+
+LGDT and LIDT require LINEAR addresses
+Normal segment-based address translation does not apply to the GDT address in the 'pseudo-descriptor' loaded by the LGDT instruction (same for IDT and LIDT). You must perform the equivalent address translation yourself:
+                            ; now in real mode
+	xor ebx,ebx
+	mov bx,ds
+        shl ebx,4           ; DS * 16
+
+        lea eax,[gdt + ebx] ; "fixup"
+        mov [gdt_ptr + 2],eax
+
+        lgdt [gdt_ptr]
+		...
+	gdt:
+            ; ...your GDT here...
+	gdt_end:
+	gdt_ptr:
+		dw gdt_end - gdt - 1
+                dd gdt      ; this must be LINEAR GDT address
+
+Maskable interrupts can be enabled (turned on) at the CPU using the STI instruction, or disabled (turned off) using CLI. 
+(Both NMI and the IRQs can also be masked with hardware outside the CPU)
+
+Either the bootloader or the kernel startup code must zero the BSS.
+
+If an exception switches the processor from Ring 3 (user privilege) to Ring 0 (kernel privilege), the Ring 0 stack pointer will automatically be loaded from the TSS. However, the reverse is not true: before using IRET to return from Ring 0 to Ring 3, you must save the Ring 0 stack pointer in the TSS:
+
+Many BIOSes will load and execute sector zero, regardless of the value of these bytes.
+MBRs, however, will check for the presence of these bytes.
+
+CPU register DL is set to the boot drive number: 0 for floppy drive A, or 80h for hard drive C.
+
+DS. Some BIOSes set this register to 0, some set it to 40h. 
+It should be set to (7C00h - BOOT_ORG) / 16. BOOT_ORG is the ORG value of your boot code, usually 7C00h.
+SS and SP (the stack). The initial values in these registers depend on the BIOS
+CS and IP (re-initialize these with a far JMP). Most BIOSes enter the boot code at address 0000:7C00h, 
+   but some (like the Compaq Presario 4328) jump to 07C0:0000h. 
+   Because short and conditional jumps are IP-relative, there is no need to reload CS and IP if your boot code does not use far or absolute JMPs. 
+   DS must still contain the correct value, however
+
+near/short/comditional		relative JMP
+far/absolute			absolute JMP
+
+Linux supports up to 6 arguments for system calls. 
+They are passed in %ebx, %ecx, %edx, %esi, %edi (and %ebp used temporarily, see _syscall6() in asm-i386/unistd.h)
+
+bootloader is flat binary, be executed at the 1st byte, 16bit
+
+cmd shell -> graph shell -> GUI -> user
+
+switch processor modes, IVT will not be avilable. so no interrupts--neither software nor hardware will be avilable, Not even the BIOS
+only 1 struct in pmode for interrupts is IDT
+
+BIOS must at the end of the 1st megabyte(0xfffff)
+BIOS addr == 0xfffff - sizeof(BIOS-bochs-latest in some dir)
+
+Triple Fault: bochs quits or restarts
+
+For objects greater than 16 bytes, aligning the object on an 8-byte or 16-byte address boundary is probably sufficient.
+For less than 16 bytes, aligning the object at an address that is the next power of two greater than the object's size is usually fine.
+
+IA32 2's Complement
+
+Professinal Assembly Programming -- P 199:
+don't use HEX if u want a negative num, use digit instead => -34
+if will confuse GDB, so may be a big problem in debugging
+
+ld can link limited *.o, so can 1st make all of *.o into a *.a, then link the *.a
+
+CPU can just deal with 256 different INT totally
+in CPU's view, only point to be known is -- INT(do not care soft or hard..)
+
+ICW	queue
+OCW	whatever
+
+INTER的CPU为操作系统提供了虚拟页操作的基础，是用中断实现
+
+pushl	%ebp
+movl	%esp, %ebp	==	enter
+movl	%ebp, %esp
+popl	%ebp		==	leave
+
+elf	45 bytes
+memory address space at least 2 pages
+
+inline asm		asm can only use global vars
+extension inline	global/local vars
+(although use normal can achieve what extension one does, thus we can only use local vars !!!)
+
+load	GDT/IDT		length(2) + base addr(4)
+load 	LDT/TSS		selector(2)
+
+A20 is in 8042 keyboard controler
+
+4 types of call/jmp:
+call/jmp 	selector(16), offset(48)
+	1.	selector -> normal    desc (direct)
+	2.	selector -> call gate desc
+	3.	selector -> tss	      desc
+	4.	selector -> task gate desc
+
+Linux has no TASK-GATE
+
+iret	ip cs eflags (sp ss), if Privilege changed, affect sp&ss, so they will be the last 2
+
+IDT:	task/int/trap
+only task can set "NT"	!!!	int->IDT->task->GDT->sel->TSS
+NT always bind with Link in TSS, so task switch while TSS switch
+from kernel 2.4, Linux only use 1 TSS, that's the reason why Linux do not use task-gate
+(task-gate NT Link)
+call/jmp/int + task-gate == task switch
+
+int-gate would auto "cli" - exe - "sti"
+but we need int-reenter, so during the procedure, we "sti" then "cli"
+
+TSS是80x86使用的一个特殊段类型。尽管LINUX不使用硬件上下文来完成切换，但它强制为系统中每个不同的CPU创建一个TSS，因为：
+1  80x86的CPU从用户态切换到内核态时，它就从TSS中获内核态堆栈的地址；
+2  当用户态试图用过in或out指令访问一个I/O端口时，CPU需要访问存放在TSS中的I/O许可权位图以检查该进程是否具有访问端口的权力
+
+int:
+	 eip cs ef esp ss	outer hardware-int 	privilege transition(TSS)
+err_code eip cs ef		inner exception		no transition
+
+virtual memory: segmentation/paging
+
+0x1000		4k
+0x10000		64k
+0x100000	1m
+0x1000000	16m
+0x10000000	256m
+
+.align 3	== align 2^3 = 8
+but in as, 
+.align 8
+.align 3	alignment not a power of 2
+
+typedef struct page
+{
+    u32 present    : 1;   // Page present in memory
+    u32 rw         : 1;   // Read-only if clear, readwrite if set
+    u32 user       : 1;   // Supervisor level only if clear
+    u32 accessed   : 1;   // Has the page been accessed since last refresh?
+    u32 dirty      : 1;   // Has the page been written to since last refresh?
+    u32 unused     : 7;   // Amalgamation of unused and reserved bits
+} page_t;
+
+非PAE结果4GB内存最多识别到3GB
+主要是硬件的问题，3G-4G的物理内存被PCI设备占了。64位的主板支持PCI hole memory remapping，可以把这部分内存重新影射到高位的物理地址空间
+
+1.X86架构是单一地址空间架构，不管是BIOS、内存模组、还是板载设备都在同一个地址空间里分配地址；
+2.板载设备所需的访问地址是从4GB地址处开始向低地址空间方向分配的，一般占500多兆，到不了1GB，实际上我没见过超过600M的，最多5xx。
+3.通过某种技术可以把被板载设备占用了地址的空闲内存存储空间映射到高于4GB的地址空间去。
+
+解决4GB内存限制的唯一办法就是扩展地址空间
+
+1、由于iA32架构要求BIOS(ROM)芯片的地址， PCI、PCI-E存储器地址、APCI中断路由地址等必须占用从4GB开始以下的256M-1GB空间。这段MMIO地址区不能分配给内存条。4GB的内存条有256MB-1GB的容量不能编址而浪费。
+2、使用4GB或者以上的内存条，必须使用地址(编址)空间64GB的芯片组主板。 
+3、内存重映射就是把被MMIO占用的地址移到内存条容量以上的地址空间。
+4、BIOS应具有支持“内存重映射”功能，设置项里有 Memory Remap Feature 选项，并设置为Enable。
+5、必须安装寻址空间大于4GB的操作系统。比如Windows 2000高级服务器版，以及64位操作系统。
+6、所有地址空间为4GB的芯片组(Intel945和nForce550之前的)，和32位操作系统均不能利用“内存重映射”技术解决4GB内存问题。
+
+计算机把每个串行端口都看作是个字符设备
+
+Linux 内核也并没有为每个进程都分配LDT
+
+页帧（page frame）代表一块内存地址空间，它的大小和页一样
+页  （page）代表一个特定大小的数据块， 它可以被放在内存的页帧中，也可以放在硬盘上。
+
+60h		keyboard input
+70h		CMOS RAM address
+71h		CMOS RAM data
+
+TSS的地址映射寄存器区域由位于偏移1CH处的双字字段(CR3)和位于偏移60H处的字字段(LDTR)组成
+任务切换时，处理器自动从要执行任务的TSS中取出这两个字段，分别装入到寄存器CR3和LDTR。这样就改变了虚拟地址空间到物理地址空间的映射
+
+---------------------------------------------------------------------------------------------
+从CR3中取值时，(低12位被忽略)。每当用MOV指令重置CR3的值时，会导致分页机制高速缓冲区的内容无效，用此方法，可以在启用分页机制之前，
+即把PG位置1之前，预先刷新分页机制的高速缓存。CR3寄存器即使在CR0寄存器的PG位或PE位为0时也可装入，
+如在实模式下也可设置CR3，以便进行分页机制的初始化
+
+VM -> heap
+
+addr / 0x1000 	==	idx == pte
+idx / 0x400	==	pde
+
+frame 	sequence	frame-bit-vector is just for frame(PA), not for page
+
+4G == 1M pages
+
+Page directory and page table entries are cached in the CPU, in a special cache called a translation lookaside buffer (TLB). 
+This is also known as an address translation cache (ATC). 
+Were it not for the TLB/ATC, two additional memory reads would be needed for each memory access.
+
+identity-mapped (bottom, va == pa) -- task virtual (private) -- kernel virtual (shared)
+
+The task's upper-half page directory entries are all marked "supervisor"
+
+switching address spaces should be done only by the scheduler
+
+By keeping a few pages of each task, the OS is able to run many tasks, even if the total size of these tasks far exceeds the available physical memory.
+
+storage segment desc:		data code
+system segment desc:		tss ldt
+control segment desc:		call task int trap
+
+1) 8259          ： 立即屏蔽，因即使mask，中断信号照样会进入IRR。相当于IRR记载了mask期间，是否曾经有中断发生。
+
+2) APIC edge ： 延迟屏蔽，因若屏蔽APIC中某一edge tigger的LVT以后，电压跳变将不产生任何后果。APIC不象8259一样，硬件可以记载屏蔽期间所发生的中断；所以，APIC必须以软件来记载屏蔽期间所发生的中断。故，
+                   a)  mask=====>记DISABLE，不操作硬件
+                   b)  等待中断到来，若到来，则c)；若屏蔽期间无中断到来，则f)
+                             c)  记PENDING，这里模拟了8259中IRR的功能，记录了屏蔽期间是否发生中断，以将来REPLAY。
+                   d) ack ======>操作硬件，真正屏蔽。
+                   e) 这里无论发生多少中断，全丢弃。无论8259，还是软件，都只记载屏蔽期间是否发生中断，而不记载发生多少次。
+                   f)  unmask
+                            g)  若PENDING，则REPLAY。
+
+3) APIC level ： 立即屏蔽，不必做任何记载，device会一直保持polarity，直到unmask后得到处理。
+
+若APIC edge 在屏蔽时，直接操作APIC进行屏蔽，则无法判断是否需要REPLAY。中断全部丢弃而不REPLAY，则导致设备再不产生中断。
+
+x86中断不能缓存，但SPARC平台可以queue中断
+    CMOS(本意是指互补金属氧化物半导体存储嚣，是一种大规模应用于集成电路芯片制造的原料)是微机主板上的一块可读写的RAM芯片，主要用来保存当前系统的硬件配置和操作人员对某些参数的设定。CMOSRAM芯片由系统通过一块后备电池供电，因此在关机状态后信息也不会丢失。由于CMOSRAM芯片本身只是一块存储器，只具有保存数据的功能，所以对CMOS中各项参数的设定要通过专门的程序。早期的CMOS设置程序驻留在软盘上的(比如我最早用的AST/286，现在也有个别品牌机如康柏将CMOS设置程序驻留在硬盘上)，使用很不方便。目前多数厂家将CMOS设置程序做到了BIOS芯片中，在开机时通过按下某个特定键就可进入CMOS设置程序而非常方便地对系统进行设置，因此CMOS设置又通常被叫做BIOS设置。
+　　所谓BIOS，实际上就是微机的基本输入输出系统(BasicInput-OutputSystem)，其内容集成在微机主板上的一个ROM芯片上，主要保存着有关微机系统最重要的基本输入输出程序，系统信息设置、开机上电自检程序和系统启动自举程序等。
+　　BIOS功能主要包括以下方面：
+     第三是POST上电自检程序，微机按通电源后，系统首先由POST(PowerOnSelfTest,上电自检)程序来对内部各个设备进行检查。通常完整的POST自检将包括对CPU、640K基本内存、1M以上的扩展内存、ROM、主板、CMOS存贮器、串并口、显示卡、软硬盘子系统及键盘进行测试，一旦在自检中发现问题，系统将给出提示信息或鸣笛警告。第四为BIOS系统启动自举程序，系统在完成POST自检后，ROMBIOS就首先按照系统CMOS设置中保存的启动顺序搜寻软硬盘驱动器及CD—ROM、网络服务器等有效地启动驱动器，读入操作系统引导记录，然后将系统控制权交给引导记录，并由引导记录来完成系统的顺利启动。
+    从上面的论述，大家不难看出BIOS和CMOS的区别与联系：
+　　BIOS是主板上的一块EPROM或EEPROM芯片，里面装有系统的重要信息和设置系统参数的设置程序(BIOSSetup程序)；CMOS是主板上的一块可读写的RAM芯片，里面装的是关于系统配置的具体参数，其内容可通过设置程序进行读写。CMOSRAM芯片靠后备电池供电，即使系统掉电后信息也不会丢失。BIOS与CMOS既相关又不同：BIOS中的系统设置程序是完成CMOS参数设置的手段；CMOSRAM既是BIOS设定系统参数的存放场所，又是BIOS设定系统参数的结果。

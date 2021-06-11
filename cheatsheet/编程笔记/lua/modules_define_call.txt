@@ -1,0 +1,91 @@
+## define
+package定义方式1
+    vector3d = {}  -- 包名    
+    function vector3d.function1()    
+    ......    
+    end    
+    function vector3d.function2()    
+    ......    
+        if (vector3d.function1()) then    
+        ......    
+        end    
+    end    
+    return vector3d
+
+package定义方式2
+    vector3d = {}  -- 包名    
+    local function function1()    
+    ......    
+    end    
+    
+    local function function2()    
+    ......    
+        if (function1()) then    
+        ......    
+        end    
+    end    
+    vector3d = {function1 = functoin1,     
+    function2function2 = function2    
+    }    
+    return vector3d
+    
+package定义方式3
+定义：
+    -- oldmodule.lua  
+    module("oldmodule", package.seeall)  
+    function foo()  
+      print("oldmodule.foo called")  
+    end  
+
+使用：
+    require "oldmodule"  
+    oldmodule.foo()
+
+package定义方式4
+通过return table来实现一个模块
+    --newmodule.lua  
+    local newmodule = {}  
+    function newmodule.foo()  
+      print("newmodule.foo called")  
+    end  
+    return newmodule  
+
+使用：
+    local new = require "newmodule"  
+    new.foo()
+    因为没有了全局变量和module关键字，引用的时候必须把模块指定给一个变量。
+    
+package定义方式5
+    --将模块名设置为require的参数，这样今后重命名模块时，只需重命名文件名即可。
+    local modname = ...
+    local M = {}
+    _G[modname] = M
+    
+    M.i = {r = 0, i = 1} --定义一个模块内的常量。
+    function M.new(r,i) return {r = r, i = i} end
+    function M.add(c1,c2)
+        return M.new(c1.r + c2.r,c1.i + c2.i)
+    end
+    
+    function M.sub(c1,c2)
+        return M.new(c1.r - c2.r,c1.i - c2.i)
+    end
+    --返回和模块对应的table。
+    return M
+
+
+## call
+-- 假设我们有一个板块 printFormatter
+-- 该模块有一个函数 simpleFormat(arg)
+-- 方法 1
+    require "printFormatter"
+    printFormatter.simpleFormat("test")
+    
+-- 方法 2
+    local formatter = require "printFormatter"
+    formatter.simpleFormat("test")
+    
+-- 方法 3
+    require "printFormatter"
+    local formatterFunction = printFormatter.simpleFormat
+    formatterFunction("test")

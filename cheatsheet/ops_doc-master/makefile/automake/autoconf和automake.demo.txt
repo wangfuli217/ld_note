@@ -1,0 +1,92 @@
+autoconf和automake可以方便的构建linux下项目，一个简单的automake项目实例，麻雀虽小五脏俱全，以后无外乎在这基础上扩展相应的宏完善而已。
+
+1．首先建立项目目录树
+1）创建目录树
+$ mkdir lib
+$ mkdir src
+$ mkdir include
+$ vim include/arith.h
+$ vim lib/addtest.cpp
+$ vim lib/multest.cpp
+$ vim src/arith.cpp
+2）编辑源代码文件
+
+include/arith.h：
+void addtest(int a, int b);
+void multest(int a, int b);
+
+lib/addtest.cpp：
+#include <stdio.h>
+void addtest(int a, int b)
+{ printf(“add(%d, %d)=%d\n”,a, b, a+b); }
+
+lib/multest.cpp：
+#include <stdio.h>
+void multest(int a, int b)
+{ printf(“mul(%d, %d)=%d\n”,a, b, a*b); }
+
+src/arith.cpp：
+#include <arith.h>
+int main()
+{
+    addtest (5, 6);
+    multest(5, 6);
+    return 0;
+}
+
+2． autoconf
+1）生成默认的configure.ac
+$ autoscan      此时目录下生成configure.scan
+$ mv configure.scan configure.ac
+2）编辑configure.ac
+AC_PREREQ(2.69)
+AC_INIT(arith, 1.0)   #软件版本号
+AC_CONFIG_SRCDIR(src/arith.cpp)   #检查源码文件存在
+AM_INIT_AUTOMAKE
+AC_CONFIG_MACRO_DIR(m4)   #添加该选项，否则会出现automake是缺少m4目录的警告
+
+# Checks for programs.
+AC_PROG_CXX    #自动检测C++编译器
+AC_PROG_CC    #自动检测C++编译器
+AC_PROG_LIBTOOL    #检测libtool工具
+
+AC_OUTPUT(Makefile lib/Makefile src/Makefile)
+3) 生成configure
+$ aclocal         它是一个perl脚本，根据configure.in产生aclocal.m4
+$ libtoolize –force   它会生成libtool所需要的工具，主要为生成库做准备
+$ autoconf      通过aclocal.m4产生configure
+3． automake
+1) Makefile.am项层写法，编辑./Makefile.am如下
+AUTOMAKE_OPTIONS=foreign
+SUBDIRS = lib src    #注意此处有编译先后顺序
+2) Makefile.am编译库文件的写法，编辑lib/Makefile.am如下
+DEFAULT_INCLUDES=-I../include
+lib_LTLIBRARIES = libarith.la
+libarith_la_SOURCES = addtest.cpp multest.cpp
+3) Makefile.am编译开执行程序的写法，编辑src/Makefile.am如下
+DEFAULT_INCLUDES=-I../include
+bin_PROGRAMS = arith
+arith _SOURCES = arithm.cpp
+arith _LDADD= -L../lib/.libs/ -larith
+4) 生成Makefile.in
+$ automake –add-missing
+
+为了方便修改configure.in和Makefile.am重新automake可以编写脚本autogen.sh。以后直接运行该脚本就完成automake过程
+#!/bin/sh
+echo "1.aclocal"
+aclocal
+echo "2.libtoolize --force"
+libtoolize --force
+echo "3.autoconf"
+autoconf
+echo "4.automake --add-missing"
+automake --add-missing
+
+4． 编译运行（以arm为示例）
+$ ./configure –host=arm-linux        此时机器上需要有arm-linux-gcc系统的编译工具
+$ make
+$ make install
+make install后可能不能直接运行arith程序，原因是libtool默认的lib库文件安装目录是/usr/local/lib不在ld加载目录中，解决办法是在/etc/ld.so.conf文件中增加/usr/local/lib一行，运行ldconfig重新配置。
+
+参考;
+http://blog.csdn.net/fd315063004/article/details/7785504

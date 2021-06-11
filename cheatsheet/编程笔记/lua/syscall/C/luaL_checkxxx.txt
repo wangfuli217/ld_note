@@ -1,0 +1,38 @@
+#if 0
+    辅助库 提供了一些便捷函数，方便在 C 中为Lua编程。基础API提供了C和Lua交互用的主要函数， 
+而辅助库则为一些常见的任务提供了高阶函数。
+    所有辅助库中的函数和类型都定义在头文件 lauxlib.h 中， 它们均带有前缀 luaL_。
+    辅助库中的所有函数都基于基础 API 实现。 故而它们并没有提供任何基础 API 实现不了的功能。
+虽然如此，使用辅助库可以让你的代码更为健壮。
+    一些辅助库函数会在内部使用一些额外的栈空间。 当辅助库使用的栈空间少于五个时， 
+它们不去检查栈大小；而是简单的假设栈够用。
+
+    如果检查无法通过， luaL_check* 这些函数一定会抛出错误。
+#endif
+
+#if 0
+void luaL_checkany (lua_State *L, int arg);
+检查函数在 arg 位置是否有任何类型(包括 nil)的参数。
+
+lua_Integer luaL_checkinteger (lua_State *L, int arg);
+检查函数的第 arg 个参数是否是一个 整数（或是可以被转换为一个整数） 并以 lua_Integer 类型返回这个整数值。
+
+const char *luaL_checklstring (lua_State *L, int arg, size_t *l);
+检查函数的第 arg 个参数是否是一个 字符串，并返回该字符串； 如果 l 不为 NULL ， 将字符串的长度填入 *l。
+这个函数使用 lua_tolstring 来获取结果。 所以该函数有可能引发的转换都同样有效。
+
+lua_Number luaL_checknumber (lua_State *L, int arg);
+检查函数的第 arg 个参数是否是一个 数字，并返回这个数字。
+
+int luaL_checkoption (lua_State *L,
+                      int arg,
+                      const char *def,
+                      const char *const lst[]);
+检查函数的第 arg 个参数是否是一个 字符串，并在数组 lst （比如是零结尾的字符串数组） 中查找这个字符串。 返回匹配到的字符串在数组中的索引号。 如果参数不是字符串，或是字符串在数组中匹配不到，都将抛出错误。
+如果 def 不为 NULL， 函数就把 def 当作默认值。 默认值在参数 arg 不存在，或该参数是 nil 时生效。
+这个函数通常用于将字符串映射为 C 枚举量。 （在 Lua 库中做这个转换可以让其使用字符串，而不是数字来做一些选项。）
+
+    const char *luaL_checkstring (lua_State *L, int arg);
+检查函数的第 arg 个参数是否是一个 字符串并返回这个字符串。
+这个函数使用 lua_tolstring 来获取结果。 所以该函数有可能引发的转换都同样有效。
+#endif

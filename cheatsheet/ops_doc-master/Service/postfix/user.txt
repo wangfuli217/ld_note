@@ -1,0 +1,19 @@
+    创建电子邮件系统的登录账户。Postfix与vsftpd服务程序一样，都可以调用本地系统的
+账户和密码，因此在本地系统创建常规账户即可。最后重启配置妥当的postfix服务程序，
+并将其添加到开机启动项中。大功告成！
+[root@linuxprobe ~]# useradd boss
+[root@linuxprobe ~]# echo "linuxprobe" | passwd --stdin boss
+Changing password for user boss. passwd: all authentication tokens updated successfully.
+[root@linuxprobe ~]# systemctl restart postfix
+[root@linuxprobe ~]# systemctl enable postfix
+ln -s '/usr/lib/systemd/system/postfix.service' '/etc/systemd/system/multi-user.target.wants/postfix.service'
+
+
+
+[root@linuxprobe ~]# su - boss
+Last login: Sat Aug 15 16:15:58 CST 2017 on pts/1
+[boss@mail ~]$ mkdir -p mail/.imap/INBOX
+[boss@mail ~]$ exit
+[root@linuxprobe ~]# systemctl restart dovecot 
+[root@linuxprobe ~]# systemctl enable dovecot 
+ln -s '/usr/lib/systemd/system/dovecot.service' '/etc/systemd/system/multi-user.target.wants/dovecot.service'

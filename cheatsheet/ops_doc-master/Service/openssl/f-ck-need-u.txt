@@ -1,0 +1,1284 @@
+http://www.cnblogs.com/f-ck-need-u/p/6089523.html
+
+SSL：Secure Socket Layer，安全套接字层，它位于TCP层与Application层之间。提供对Application数据的加密保护（密文），
+完整性保护（不被篡改）等安全服务，它缺省工作在TCP 443 端口，一般对HTTP加密，即俗称的HTTPS。
+TLS：Transport Layer Secure，更关注的是提供安全的传输服务，它很灵活，如果可能，它可以工作在TCP，
+也可以UDP （DTLS），也可以工作在数据链路层，比如802.1x EAP-TLS。
+
+man MD5_Update
+man SHA1_Update
+
+-------- 加密 认证 -------- 
+1. 加密 是将数据资料加密，使得非法用户即使取得加密过的资料，也无法获取正确的资料内容，所以数据加密可以保护数据，防止监听攻击。
+其重点在于数据的安全性。
+2. 认证 是用来判断某人身份的真实性，确认身份后，系统才可以依不同的身份给予不同的权限。
+其重点在于用户的真实性。
+
+-------- 公钥私钥 --------
+公钥私钥的原则：
+1.一个公钥对应一个私钥。
+2.密钥对中，让大家都知道的是公钥，不告诉大家，只有自己知道的，是私钥。
+3.如果用其中一个密钥加密数据，则只有对应的那个密钥才可以解密。
+4.如果用其中一个密钥可以进行解密数据，则该数据必然是对应的那个密钥进行的加密。
+公钥：大家公用的，可以通过电子邮件发布，通过网站让别人下载，公钥其用来加密和验章。
+私钥：就是自己的私有的，必须非常小心保存，最好加上 密码，私钥是用来解密和签章。
+1. 秘钥的2个作用: 1 加解密
+以收发加密邮件为例:我用你的公钥给这个邮件加密，这样就保证这个邮件的数据安全,你收到邮件后，用你的私钥解密，就能看到内容。
+2. 秘钥的2个作用: 2 认证
+以收发加密邮件为例:我用我的私钥给这个邮件加密，发送到你手里后，你用我的公钥解密,这样就保证了这个邮件是我发送的(私钥只有我有).
+
+-------- 数字签名 --------
+数字签名：是指可以添加到文件的电子安全标记。使用它可以验证文件的发送者以及帮助验证文件自被数字签名后是否发生更改。
+如果文件没有有效的数字签名，则无法确保该文件确实来自它所声称的源，或者无法确保它在发布后未被篡改(可能被病毒篡改),
+较为安全的做法是，不要打开该文件。
+
+数字签名：将报文按双方约定的HASH算法计算得到一个固定位数的报文摘要。在数学上保证：只要改动报文中任何一位，
+重新计算出的报文摘要值就会与原先的值不相符。这样就保证了报文的不可更改性。将该报文摘要值用发送者的私人密钥加密，
+然后连同原报文一起发送给接收者，而产生的报文即称数字签名.
+
+数字签名的获取和使用:
+1.对要发送的内容使用hash函数生内容的摘要(digest)
+2.使用自己的私钥对摘要加密,就获得了自己的数字签名.
+3.将数字签名放到要发送的内容里面,一同发送.
+4.对方收到内容后,先用发送者的公钥对内容里的数字签名解密,得到内容的摘要,是否解密成功就能证明发送人的身份.
+5.然后对内容使用hash函数生成内容的摘要.
+6.如果两个摘要一致,就证明内容没被修改过.
+
+-------- 数字证书 --------
+数字证书 的作用是防止公钥被篡改,也可以添加到文件.
+
+数字证书：数字证书就是互联网通讯中标志通讯各方身份信息的一系列数据，提供了一种在Internet上验证您身份的方式，
+其作用类似于司机的驾驶执照或日常生活中的身份证。它是由一个由权威机构-----CA机构，又称为证书授权（Certificate Authority）
+中心发行的，人们可以在网上用它来识别对方的身份。
+
+数字证书是一个经证书授权中心数字签名的包含公开密钥拥有者信息以及公开密钥的文件。
+最简单的证书包含一个公开密钥、名称以及证书授权中心的数字签名。
+
+数字证书的获取和使用:
+1.把发送者的个人信息,发送者的公钥,数字证书的相关信息(比如:有效日期) 使用CA(证书中心)的私钥加密,
+  再加上CA中心对该数字证书里面的信息的数字签名,得到的就是发送者的数字证书.(以上步骤是在CA的服务器上运算的) //???
+2.将数字签名和数字证书都放到要发送的内容里面,一同发送.
+3.对方接收到内容后,先用CA的公钥解开数字证书,就可以拿到发送者真实的公钥了，然后就能证明发送者的身份和接收内容是否被修改过了。
+   以IE浏览器为例，单击 工具/Internet 选项/内容/证书 就能看到"受信任的根证书颁发机构"列表,浏览器会根据这张表,
+   查看解开数字证书的(CA的)公钥是否在列表之内。
+
+-------- CA中心 --------
+CA：Certificate Authority，证书授权中心。是一个单位，来管理发放数字证书的。由它发放的证书就叫 CA 证书，
+以区别于个人使用工具随意生成的数字证书，查看 CA 证书，里面有两项重要内容，一个是颂发给谁，另一个是由谁颂发的。
+
+CA也叫 认证中心，它是专门提供网络身份认证服务，负责签发和管理数字证书，具有权威性和公正性的第三方信任机构，
+它的作用就像我们现实生活中颁发证件的公司，如护照办理机构。
+目前国内的CA认证中心主要分为区域性CA认证中心和行业性CA认证中心。
+
+--------根证书 --------
+根证书，是CA认证中心给自己颁发的证书,是信任链的起始点。安装根证书意味着对这个CA认证中心的信任。从技术上讲，
+数字证书包含四部分，用户的信息，用户的公钥，数字证书的信息,还有CA中心对该数字证书里面的信息的数字签名，
+要验证一份数字证书的真伪（即验证CA中心对该数字证书信息的数字签名是否有效），需要用CA中心的公钥验证，
+而CA中心的公钥存在于对这份数字证书进行签名的数字证书1内，故需要下载数字证书1，使用数字证书1对数字证书验证
+又需先验证数字证书1本身的真伪，故又要用签发数字证书1的数字证书2来验证，这样一来就构成一条数字证书验证链，
+这条数字证书验证链在哪里终结呢？答案就是根证书，根证书是一份特殊的数字证书，它的签发者是它本身，
+下载根证书就表明您对该根证书以下所签发的数字证书都表示信任，数字证书的验证追溯至根证书即为结束。
+所以说用户在使用数字证书之前必须先下载根证书。
+
+
+SSL/TLS协议的基本思路是采用公钥加密法，也就是说，客户端先向服务器端索要公钥，然后用公钥加密信息，服务器收到密文后，
+用自己的私钥解密。
+
+单向认证：只需要验证SSL服务器身份，不需要验证SSL客户端身份。
+双向认证：要求服务器和客户端双方都有证书，客户端需要校验服务端，服务端也需要校验客户端。
+
+SSL双向认证和SSL单向认证的区别
+    双向认证 SSL 协议要求服务器和用户双方都有证书。单向认证 SSL 协议不需要客户拥有CA证书，具体的过程相对于上面的步骤，
+只需将服务器端验证客户证书的过程去掉，以及在协商对称密码方案，对称通话密钥时，服务器发送给客户的是没有加过密的
+(这并不影响 SSL 过程的安全性)密码方案。这样，双方具体的通讯内容，就是加过密的数据，如果有第三方攻击，获得的只是加密的数据，
+第三方要获得有用的信息，就需要对加密的数据进行解密，这时候的安全就依赖于密码方案的安全。而幸运的是，目前所用的密码方案，
+只要通讯密钥长度足够的长，就足够的安全。这也是我们强调要求使用128位加密通讯的原因。
+    一般Web应用都是采用SSL单向认证的，原因很简单，用户数目广泛，且无需在通讯层对用户身份进行验证，一般都在应用逻辑层来
+保证用户的合法登入。但如果是企业应用对接，情况就不一样，可能会要求对客户端(相对而言)做身份验证。这时就需要做SSL双向认证。
+
+区别
+    HTTPS 需要到 CA 申请证书，HTTP 不需要
+    HTTPS 密文传输，HTTP 明文传输
+    连接方式不同，HTTPS 默认使用 443 端口，HTTP 使用 80 端口
+    HTTPS = HTTP + 加密 + 认证 + 完整性保护，比 HTTP 安全
+
+secert(){ https://www.cnblogs.com/f-ck-need-u/p/6089523.html # 加密、签名和SSL握手机制细节
+对称加密   ：加密解密使用同一密钥，加解密速度快。随着人数增多，密钥数量急增n(n-1)/2。
+非对称加密 ：使用公私钥配对加解密，速度慢。公钥是从私钥中提取出来的，一般拿对方公钥加密来保证数据安全性，
+             拿自己的私钥加密来证明数据来源的身份。
+单向加密     ：不算是加密，也常称为散列运算，用于生成独一无二的校验码(或称为指纹、特征码)来保证数据的完整性和一致性，
+              如MD5、SHA。具有雪崩效应，任何一点数据的改变，生成的校验码值变化非常大。
+互联网数据安全可靠的条件：
+1.数据来源可信，即数据发送者身份可信。               # 私钥加密MD5或者SHA1值，用公钥验证私钥正确
+2.数据具备完整性，即数据未被修改过。                 # MD5和SHA1确保数据未被修改
+3.数据安全性，即数据不会被泄漏，他人截获后无法解密。 # 对称加密实现数据安全性
+
+对称加密 + 非对称加密            -> 安全性
+单向加密(信息摘要)               -> 完整性、一致性
+私钥加密后的摘要信息 == 数字签名 -> 可靠性
+# 获得数据后使用公钥不能解密的就证明数据不是配对私钥加密的
+
+公钥和一些个人信息(如申请者国家，姓名，单位等) + 数字签名(摘要信息->私钥加密) + CA自己信息和证书的信息 == 数字证书
+
+# baidu
+PKI(Public Key Infrastructure)指的是公钥基础设施。 PKI从技术上解决了网络通信安全的种种障碍。
+CA (Certificate Authority )指的是认证中心。 CA 从运营、管理、规范、法律、人员等多个角度来解决了网络信任问题。
+由此，人们统称为“ PKI/CA ”。从总体构架来看， PKI/CA 主要由最终用户、认证中心和注册机构来组成。
+
+工作原理
+PKI/CA 的工作原理就是通过发放和维护数字证书来建立一套信任网络，
+在同一信任网络中的用户通过申请到的数字证书来完成身份认证和安全处理。
+
+数字证书 # 数字证书能够确认公钥A是可信的。即可以确认对端服务器是可信的。即公钥可验证对端身份(私钥生成的数据签名)和 加密 对称密钥(保护密钥)。
+数字证书就像日常生活中的身份证、驾驶证，在您需要表明身份的时候，必须出示证件来明确身份。
+您在参与电子商务的时候就依靠这种方式来表明您的真实身份。
+
+认证中心
+一个认证中心是以它为信任源，由她维护一定范围的信任体系，在该信任体系中的所有用户、服务器，
+都被发放一张数字证书来证明其身份已经被鉴定过，并为其发放一张数字证书，每次在进行交易的时候，
+通过互相检查对方的数字证书即可判别是否是本信任域中的可信体。
+
+注册机构
+注册中心负责审核证书申请者的真实身份，在审核通过后，负责将用户信息通过网络上传到认证中心，由认证中心负责最后的制证处理。
+证书的吊销、更新也需要由注册机构来提交给认证中心做处理。总的来说，认证中心是面向各注册中心的，而注册中心是面向最终用户的，
+注册机构是用户与认证中心的中间渠道。
+}
+secert(){ https://www.cnblogs.com/f-ck-need-u/p/6089523.html # 加密、签名和SSL握手机制细节
+# 对称加解密 + 非对称加解密
+公钥A   加密   [data]  ->(对称加密)-> [data]      ->--------------------> [data]
+私钥A   过程   [data]  ->(对称加密)-> [data]      ->--------------------> [data]
+                                      [对称密钥]  ->(公钥B加密对称密钥)-> [加密的对称密钥]
+---------------------------------------------------------------------------------------------------
+公钥B   解密   [data]            ->-------------------->[data]      ->(使用对称密钥解密) -> [data] 
+私钥B   过程   [data]            ->-------------------->[data]      ->(使用对称密钥解密) -> [data] 
+               [加密的对称密钥]  ->(公钥B解密对称密钥)->[对称密钥]
+[安全性]
+# 使用上述方法加密保证了数据的安全性，但是还未保证数据的完整性、一致性以及数据来源的可靠性。
+}
+
+secert(){ https://www.cnblogs.com/f-ck-need-u/p/6089523.html # 加密、签名和SSL握手机制细节
+# 数字签名和确认数据的全过程
+公钥A   数字签名  [data] ->(hash算法提取摘要)-> [data]      ->----------->[data]    
+私钥A   过程      [data] ->(hash算法提取摘要)-> [data]      ->----------->[data]    
+                                                [摘要信息]  ->(私钥加密)->[数字签名]
+--------------------------------------------------------------------------------------------------- 
+公钥B   确认数据  [data]      ->--------------------> [data] ->(hash算法提取摘要)-> [data] ------|
+私钥B   来源过程  [data]      ->--------------------> [data] ->(hash算法提取摘要)-> [data]      \|/
+                  [数字签名]  ->(公钥A解密数字证书)->[摘要信息1]--> (如果摘要1和摘要2相等)<--[摘要信息2]
+                                                                              \|/
+                                                                            数据合法
+[完整性和一致性]
+对于数据的完整性和一致性，使用单向加密算法，通过hash函数计算出数据独一无二的校验码，这个校验码称为"信息摘要(Message Digest)"。
+[可靠性]
+    对于数据来源可靠性，使用自己的私钥加密即可验证身份，因为获得数据后使用公钥不能解密的就证明数据不是配对私钥加密的。
+但是私钥加密速度慢，所以只用私钥加密摘要信息，加密后的摘要信息称为“数字签名(Signature)”
+# 因此只要使用数字签名就能保证数据来源的可靠性、数据的完整性和一致性。
+}
+secert(){ https://www.cnblogs.com/f-ck-need-u/p/6089523.html # 加密、签名和SSL握手机制细节
+# 方案1 只要数字签名
+# 方案2 先对数据加密，再对加密后的整体进行数字签名
+# 方案3 先对数据进行数字签名，再对签名后的整体进行加密 # 互联网上基本使用
+# 方案3 描述
+公钥A   传输     [data] ->(hash算法提取摘要)-> [data]      ->----------->[data]     ->(对称密钥加密)->[data]    -->-------------------->[data]    
+私钥A   全过程   [data] ->(hash算法提取摘要)-> [data]      ->----------->[data]     ->(对称密钥加密)->[data]    -->-------------------->[data]    
+                                               [摘要信息]  ->(私钥A加密)->[数字签名]->(对称密钥加密)->[数字签名]-->-------------------->[数字签名]
+---------------                                                                           |---------->[对称密钥]-->(公钥B加密对称密钥)->[加密的对称密钥]
+
+公钥B   解密确认 >[data]           ->------------>[data]     ->(对称密钥解密)->[data]    ->------------>[data]     >(hash算法提取摘要)-> [data] ------|
+私钥B   全过程   >[data]           ->------------>[data]     ->(对称密钥解密)->[data]    ->------------>[data]     >(hash算法提取摘要)-> [data]      \|/
+                 >[数字签名]       ->------------>[数字签名] ->(对称密钥解密)->[数字签名]->(公钥A解密)->[摘要信息1] --> (如果摘要1和摘要2相等)<--[摘要信息2]
+                 >[加密的对称密钥] ->(私钥B解密)->[对称密钥]                                                                       \|/
+                                                                                                                                 数据合法
+但是这时还有一个漏洞，问题出在数字签名过程中私钥加密以及后面公钥解密的不安全性。 
+即 公钥A真的来源于A？ -> CA 数字证书认证中心，常称为证书颁发机构
+}
+
+ca(){
+申请者提交自己的公钥和一些个人信息(如申请者国家，姓名，单位等)给CA，CA对申请者的这些信息单向加密生成摘要信息，
+然后使用自己的私钥加密整个摘要信息，这样就得到了CA对申请者的数字签名，在数字签名上再加上CA自己的一些信息
+(如CA的机构名称，CA层次路径等)以及该证书的信息(如证书有效期限)，就得到了所谓的数字证书。
+[公钥A       ] -> [公钥A       ]                | [公钥A       ]     [hash指纹]                         |
+[私钥A       ] -> [私钥A       ]   ---> CA --- >|                 +                                     |
+[张三个人信息] -> [张三个人信息]                | [张三个人信息]     [私钥X   ]                         |
+               -> [数字签名]                    | [机构信息，证书信息，有效期，证书路径，吊销列表地址]  |
+                                                                        证书                             
+# 实际上信任CA的其中一个作用就是获取CA公钥，使用该公钥解密数字证书就可以验证申请者的信息以及申请者公钥的可靠性
+申请者的公钥只被CA的私钥加密，解密该私钥后只是需要验证可靠性
+根CA是通过自签署数字证书的方式标榜自己的可信性和合法性，第一级子CA由根CA颁发合法数字证书，第二级直至所有的子CA都由上一级子CA颁发数字证书。
+    信任CA后，每次接收到需要解密的数字证书时，还要去该颁发机构指定网站的证书吊销列表（CRL）中查询该证书是否被吊销，
+对于吊销后的证书应该不予以信任，这是信任CA的第二个作用。
+    也有公司使用自签的证书，例如某些银行、12306有时候就要求下载证书并安装。使用自签证书的好处当然是省钱、方便啦。
+
+1. 申请者提交自己的"公钥和一些个人信息"(如申请者国家，姓名，单位等)给CA.
+2. CA对申请者的"公钥和一些个人信息"单向加密生成"摘要信息"，然后使用自己的私钥加密整个摘要信息，这样就得到了CA对申请者的"数字签名"，
+3. 在"数字签名"上再加上CA自己的"一些信息"(如CA的机构名称，CA层次路径等)以及该证书的信息(如证书有效期限)，就得到了所谓的"数字证书"。
+4. 如果某用户信任了该CA，就获取了该CA的公钥(实际上信任CA的其中一个作用就是获取CA公钥)，使用该公钥解密数字证书就可以验证申请者的
+   信息以及申请者公钥的可靠性.(申请者的公钥只被CA的私钥加密，解密该私钥后只是需要验证可靠性)
+[如何保证CA是可信并且合法的呢？]
+    根CA是通过自签署数字证书的方式标榜自己的可信性和合法性，第一级子CA由根CA颁发合法数字证书，第二级直至所有的子CA都由上一级
+子CA颁发数字证书。对于多级子CA只需要信任根CA即可，因为获取了根CA的公钥，可以解密第一级子CA的证书并获取验证第一级子CA的公钥，
+层层递进，最终获取到为申请者颁发数字证书的机构并获取它的公钥。
+
+# 在密码学和计算机安全领域中，根证书是未被签名的公钥证书或自签名的证书。
+
+根CA和子CA组成了PKI
+    信任CA后，每次接收到需要解密的数字证书时，还要去该颁发机构指定网站的证书吊销列表(CRL)中查询该证书是否被吊销，对于吊销后
+的证书应该不予以信任，这是信任CA的第二个作用。导致证书被吊销的可能性不少，例如申请者的私钥被黑客获取，申请者申请吊销等。
+    也有公司使用自签的证书，例如某些银行、12306有时候就要求下载证书并安装。使用自签证书的好处当然是省钱、方便啦。
+    
+}
+
+公钥基础设施
+ca(){
+    PKI的两种实现方式TLS和SSL使用的证书格式都是x509，TLSv1和SSLv3基本等价，只不过SSL实现在OSI 4层模型中的应用层和传输层的中间，
+TLS实现在传输层。
+    还有PKI的另一种实现方式GPG，它的证书使用的不是x509格式。
+数字证书中包含的信息有：申请者的公钥，证书有效期，证书合法拥有人，证书如何被使用，CA的信息，CA对申请者信息的数字签名。
+}
+ssl(){ https://www.cnblogs.com/f-ck-need-u/p/6089523.html  # SSL握手机制
+公钥A   传输     [data] ->(hash算法提取摘要)-> [data]    ---------------------->[data]    ->(对称密钥加密)->[data]    -->-------------------->[data]    
+私钥A   全过程   [data] ->(hash算法提取摘要)-> [data]    ---------------------->[data]    ->(对称密钥加密)->[data]    -->-------------------->[data]    
+                                               [摘要信息]->(私钥A加密摘要信息)->[数字签名]->(对称密钥加密)->[数字签名]-->-------------------->[数字签名]
+                                                                                                |---------->[对称密钥]-->(公钥B加密对称密钥)->[加密的对称密钥]
+
+公钥B   解密确认 >[data]           ->------------>[data]     ->(对称密钥解密)->[data]    ->------------>[data]     >(hash算法提取摘要)-> [data] ------|
+私钥B   全过程   >[data]           ->------------>[data]     ->(对称密钥解密)->[data]    ->------------>[data]     >(hash算法提取摘要)-> [data]      \|/    
+                 >[数字签名]       ->------------>[数字签名] ->(对称密钥解密)->[数字签名]->(公钥A解密)->[摘要信息1] --> (如果摘要1和摘要2相等)<--[摘要信息2]
+                 >[加密的对称密钥] ->(私钥B解密)->[对称密钥]                                                                       \|/                      
+                                                                                                                                 数据合法                   
+
+上图中每一段数据都签名加密，有了数字证书后实际上已经验证了身份，不需要每一段数据都签名，这能提升效率。
+在上图中的漏洞是无法确认获取的公钥A是否可信，有了数字证书后已经能够确认公钥A是可信的。
+但问题是公钥A本来目的是用来解密数字签名的，有了数字证书后不需要数字签名了，那公钥A不是多余的吗，如果多余，那把公钥A交给CA是不是也是多余的呢？
+
+不多余，因为SSL的握手机制和数字签名机制完全不同。以下是单向验证机制，只验证服务端。
+
+第一步：Visitor给出协议版本号、一个客户端随机数（Client random），以及客户端支持的加密方法。
+第二步：Server确认双方使用的加密方法，以及一个服务器生成的随机数（Server random）。
+第三步：Server发送数字证书给Visitor。
+第四步：Visitor确认数字证书有效（查看证书状态且查询证书吊销列表），并使用信任的CA的公钥解密数字证书获得Server的公钥，然后生成一个新的46字节随机数（称为预备主密钥Pre-master secret），并使用Server的公钥加密预备主密钥发给Server。
+第五步：Server使用自己的私钥，解密Visitor发来的预备主密钥。
+第六步：Visitor和Server双方都具有了(客户端随机数+服务端随机数+预备主密钥)，它们两者都根据约定的加密方法，使用这三个随机数生成对称密钥——主密钥（也称为对话密钥session key），用来加密接下来的整个对话过程。
+第七步：在双方验证完session key的有效性之后，SSL握手机制就算结束了。之后所有的数据只需要使用“对话密钥”加密即可，不再需要多余的加密机制。
+
+需要说明的是，session key不是真正的对称加密密钥，而是由session key进行hash算法得到一段hash值，
+从这个hash值中推断出对称加密过程中所需的key(即对称加密所需的明文密码部分)、
+salt(在RFC文档中称为MAC secret)和IV向量。以后客户端每次传输数据，都需要用key + salt +IV向量来完成对称加密，
+而服务端只需一个key和协商好的加密算法即可解密。同理服务端向客户端传输数据时也是一样的。
+
+注意：
+1.在SSL握手机制中，需要三个随机数（客户端随机数+服务端随机数+预备主密钥）；
+2.至始至终客户端和服务端只有一次非对称加密动作——客户端使用证书中获得的服务端公钥加密预备主密钥。
+3.上述SSL握手机制的前提单向验证，无需验证客户端，如果需要验证客户端则可能需要客户端的证书或客户端提供签名等。
+
+    Server和Visitor通信，Server把数字证书发给Visitor，最关键的一点是Visitor要保证证书的有效性，
+通过查看证书状态并去CA的吊销列表查看Server的证书是否被吊销。只有Server的证书可用了，才保证了第一环节的安全性。
+}
+
+1. openssl list-standard-commands(标准命令)
+1) asn1parse: asn1parse用于解释用ANS.1语法书写的语句(ASN一般用于定义语法的构成) 
+2) ca: ca用于CA的管理
+3) req: X.509证书签发请求(CSR)管理
+4) genrsa: 生成RSA参数
+5) rsa: RSA数据管理
+6) x509:本指令是一个功能很丰富的证书处理工具。可以用来显示证书的内容，转换其格式，给CSR签名等X.509证书的管理工作
+7) crl: crl是用于管理CRL列表
+8) crl2pkcs7: 用于CRL和PKCS#7之间的转换
+9) pkcs12: PKCS#12数据的管理
+10) pkcs7: PCKS#7数据的管理
+2. openssl list-message-digest-commands(消息摘要命令)
+1) dgst: dgst用于计算消息摘要
+2) sha1: 用于进行RSA处理
+3. openssl list-cipher-commands (Cipher命令的列表)
+openssl(){
+openssl command command-options args
+伪命令(pseudo-command)，每个伪命令都有各自的功能，大部分command都可以直接man command查看命令的用法和功能
+openssl --help
+# 支持的标准命令，即伪命令
+Standard commands
+# 指定"dgst"命令时即单向加密支持的算法，实际上支持更多的算法，具体见dgst命令
+Message Digest commands (see the 'dgst' command for more details)
+# 指定对称加密"enc"时支持的对称加密算法
+Cipher commands (see the 'enc' command for more details)
+
+以下是各伪命令的选项"-passin"和"-passout"可能使用到的密码传递格式，“-passin”指的是传递解密时的密码，
+"-passout"指的是传递加密输出文件时的密码。如果不给定密码格式，将提示从终端输入。
+格式一：pass:password   ：password表示传递的明文密码
+格式二：env:var               ：从环境变量var获取密码值
+格式三：file:filename        ：filename文件中的第一行为要传递的密码。
+        若filename同时传递给"-passin"和"-passout"选项，则filename的第一行为"-passin"的值，第二行为"-passout"的值
+格式四：stdin                   ：从标准输入中获取要传递的密码
+例如，要加密某个密钥文件，使得每次使用该密钥文件都需要输入密码，则使用"-passout"指定加密密码，
+      当使用被加密的密钥文件时需要解密，使用"-passin"传递解密密码。
+}
+genrsa(){ openssl -> genrsa -h # 得到如下帮助
+genrsa用于生成RSA私钥，不会生成公钥，因为公钥提取自私钥，如果需要查看公钥或生成公钥，可以使用openssl rsa命令。
+使用man genrsa查询其用法。
+openssl genrsa [-out filename] [-passout arg] [-des] [-des3] [-idea] [numbits]
+选项说明：
+-out filename     ：将生成的私钥保存至filename文件，若未指定输出文件，则为标准输出。
+-numbits            ：指定要生成的私钥的长度，默认为1024。该项必须为命令行的最后一项参数。
+-des|-des3|-idea：指定加密私钥文件用的算法，这样每次使用私钥文件都将输入密码，太麻烦所以很少使用。
+-passout args    ：加密私钥文件时，传递密码的格式，如果要加密私钥文件时单未指定该项，则提示输入密码。
+传递密码的args的格式见openssl密码格式。
+
+openssl genrsa 512                                             # 生成512位的rsa私钥，输出到屏幕。
+openssl genrsa -out genrsa.txt 512                             # 生成512位的rsa私钥，输出到指定的文件genrsa.txt。
+openssl genrsa -out genrsa.txt -des3 -passout pass:123456 512  # 加密私钥文件，加密的密码为123456。
+其实一般情况下能用到的选项也就"-out"和"numbits"                # 
+}
+rsa(){  openssl -> rsa -h # 得到如下帮助  pkey -h
+1. 私钥->公钥
+2. 加密私钥->公钥
+3. 加密私钥->私钥
+4. 加密公钥->公钥
+5. 验证私有完整性
+6. 私钥PEM转DER
+openssl rsa和openssl pkey分别是RSA密钥的处理工具和通用非对称密钥处理工具，它们用法基本一致，所以只举例说明openssl rsa。
+它们的用法很简单，基本上就是输入和输出私钥或公钥的作用。
+openssl rsa [-in filename] [-passin arg] [-passout arg] [-out filename] [-des|-des3|-idea] [-text] [-noout] [-pubin] [-pubout] [-check]
+openssl pkey [-passin arg] [-passout arg] [-in filename] [-out filename] [-cipher] [-text] [-noout] [-pubin] [-pubout]
+ 
+[openssl rsa选项说明：]
+-in filename ：指定密钥输入文件。默认读取的是私钥，若指定"-pubin"选项将表示读取公钥。将从该文件读取密钥，不指定时将从stdin读取。
+-out filename：指定密钥输出文件。默认输出私钥，若指定"-pubin"或"-pubout"选项都将输出公钥。不指定将输出到stdout。
+-pubin：指定该选项时，将显式表明从"-in filename"的filename中读取公钥，所以filename必须为公钥文件。
+      ：不指定该选项时，默认是从filename中读取私钥。公钥文件可以通过文件中的公钥标识符
+      ："-----BEGIN PUBLIC KEY-----"和"-----END PUBLIC KEY-----"来辨别。
+-pubout：指定该选项时，将显示表明从"-in filename"的filename中提取公钥并输出，所以filename文件必须是私钥文件。
+       ：不指定该选项时，默认输出私钥。当设置了"-pubin"时，默认也设置了"-pubout"。
+       ：私钥文件可以通过文件中的私钥标识符"-----BEGIN PRIVATE KEY-----"和"-----END PRIVATE KEY-----"来辨别。
+-noout ：控制不输出任何密钥信息。
+-text  ：转换输入和输出的密钥文件格式为纯文本格式。
+-check ：检查RSA密钥是否完整未被修改过，只能检测私钥，因为公钥来源于私钥。因此选项-"in filename"的filename文件只能是私钥文件。
+-des|-des3|-idea：加密输出文件，使得每次读取输出文件时都需要提供密码。
+-passin arg ：传递解密密钥文件的密码。密码格式见openssl密码格式。
+-passout arg：指定加密输出文件的密码。
+
+【openssl pkey选项说明：】
+-cipher：等价于openssl rsa的"-des|-des3|-idea"，例如"-cipher des3"。
+
+(1).创建一个rsa私钥文件genrsa.pri，然后从中提取rsa公钥到rsa.pub文件中。
+openssl genrsa -out genrsa.pri
+openssl rsa -in genrsa.pri -pubout -out rsa.pub
+(2).创建一个加密的rsa私钥文件genrsaK.pri，然后从此文件输出公钥至文件rsaK.pub。
+openssl genrsa -out genrsaK.pri -des3 -passout pass:123456
+openssl rsa -in genrsaK.pri -pubout -out rsaK.pub
+或
+openssl rsa -in genrsaK.pri -pubout -out rsaK.pub -passin pass:123456
+(3).移除私钥文件或公钥文件的密码。只需直接输出到新文件即可。以已加密的私钥文件genrsaK.pri为例。
+openssl rsa -in genrsaK.pri -out genrsaNK.pri
+(4).check检测私钥文件的一致性，查看私钥文件被修改过。
+一般来说，openssl rsa的常用选项就只有"-in filename"、"-out filename"、"-pubout"。
+}
+
+speed(){ https://www.cnblogs.com/f-ck-need-u/p/6089821.html  # openssl speed和openssl rand
+测试加密算法的性能 # openssl speed
+支持的算法有：
+openssl speed [md2] [mdc2] [md5] [hmac] [sha1] [rmd160] [idea-cbc] [rc2-cbc] [rc5-cbc] 
+              [bf-cbc] [des-cbc] [des-ede3] [rc4] [rsa512] [rsa1024] [rsa2048] [rsa4096] 
+              [dsa512] [dsa1024] [dsa2048] [idea] [rc2] [des] [rsa] [blowfish]
+              
+openssl speed dsa512 rsa512 rsa2048 # dsa512、rsa512和rsa2048加密速度如何
+dsa算法只支持签名不支持加密，而rsa支持加密也支持签名。
+rsa512的签名速度为每秒10760.4，而dsa512的速度为10208.9，速度相差不大。
+}
+
+rand(){ https://www.cnblogs.com/f-ck-need-u/p/6089821.html  # openssl speed和openssl rand
+输出长度不同 num
+输出格式不同 -base64 -hex 和 可以包含不可打印字符
+openssl rand   # 生成伪随机数
+openssl rand [-out file] [-rand file(s)] [-base64] [-hex] num
+选项说明：
+-out：指定随机数输出文件，否则输出到标准输出。
+-rand file：指定随机数种子文件。种子文件中的字符越随机，openssl rand生成随机数的速度越快，随机度越高。
+-base64：指定生成的随机数的编码格式为base64。
+-hex：指定生成的随机数的编码格式为hex。
+num：指定随机数的长度。
+
+openssl rand -base64 30
+openssl rand -hex 30
+openssl rand 30
+}
+https://www.cnblogs.com/f-ck-need-u/p/6089869.html # openssl passwd
+enc_passwd(){  盐相同，密码相同，则加密结果相同; -crypt -1 和 -apr1分别表示加密的密码原则
+伪命令用于生成加密的密码 # man sslpasswd
+使用openssl passwd支持3种加密算法方式：不指定算法时，默认使用-crypt。
+选项说明：
+-crypt：UNIX标准加密算法，此为默认算法。如果加盐(-salt)算密码，只取盐的前2位，2位后面的所有字符都忽略。
+-1(数字)：基于MD5的算法代号。更多的算法代号见"http://www.cnblogs.com/f-ck-need-u/p/7011460.html#blog222"。
+-apr1(数字)：apache中使用的备选md5算法代号，不能和"-1"选项一起使用，因为apr1本身就默认了md5。htpasswd工具生成的身份验证密码就是此方法。
+-salt：加密时加点盐，可以增加算法的复杂度。但加了盐会有副作用：盐相同，密码相同，加密的结果将一样。
+-in file：从文件中读取要计算的密码列表
+-stdin：从标准输入中获取要输入的密码
+-quiet：生成密码过程中不输出任何信息
+
+在命令行中直接输入要加密的密码password或者使用-salt时，将不需要交互确认，否则会交互确认密码。
+openssl passwd 123456 ; openssl passwd 123456 
+# 使用默认的-crypt加密的密码是随机的。但是加入盐后，如果密码一样，盐一样，那么加密结果一样。
+openssl passwd -salt 'xxx' 123456 ; openssl passwd -salt 'xxx' 123456
+# -crypt加密算法只取盐的前两位
+openssl passwd -salt 'xyx' 123456;openssl passwd -salt 'xxx' 123456
+openssl passwd -salt 'xyz' 123456 ; openssl passwd -salt 'xyy' 123456
+
+
+测试下MD5格式的加密算法
+openssl passwd -1 123456 ; openssl passwd -1 123456 
+结果比-crypt的算法更长了，且不加盐时，密码生成是随机的
+openssl passwd -1 -salt 'abcdefg' 123456 ; openssl passwd -1 -salt 'abcdefg' 123456
+加了盐虽然复杂度增加了，但是也受到了"盐相同，密码相同，则加密结果相同"的限制。另外，盐的长度也不再限于2位了
+
+
+再为apache或nginx生成访问网页时身份验证的密码，即basic authentication验证方式的密码。
+openssl passwd -apr1  123456 ; openssl passwd -apr1 123456
+openssl passwd -apr1 -salt 'abcdefg' 123456 ;  openssl passwd -apr1 -salt 'abcdefg' 123456
+加了盐就受到"盐相同，密码相同则加密结果相同"的限制。
+}
+
+Digest
+Message Digest Algorithm MD5 (中文名为消息摘要算法第五版)为计算机安全领域广泛使用的
+一种散列函数，用以提供消息的完整性保护。该算法的文件号为RFC 1321
+特点
+1 长度固定 16字符二进制格式  32字符十六进制数
+2 计算成本低
+4 计算基本不可逆
+3 伪造困难 改动一个字节,计算出的值都有很大区别
+
+digst(){ openssl dgst -h
+算法: -md4 -md5 -ripemd160 -sha -sha1 -sha224 -sha256 -sha384 -sha512 -whirlpool
+输出格式: -hex -binary 
+显示格式: -c -r -d 
+1. 生成数字签名文件 2. 使用公钥和数字签名文件，验证签名文件(私钥正确)， 3. 使用私钥和数字签名文件，验证签名文件正确(私钥正确)
+
+单向加密工具，用于生成文件的摘要信息，也可以进行数字签名，验证数字签名。
+    首先要明白的是，数字签名的过程是计算出数字摘要，然后使用私钥对数字摘要进行签名，
+而摘要是使用md5、sha512等算法计算得出的，理解了这一点，openssl dgst命令的用法就完全掌握了。
+openssl dgst [-md5|-sha1|...] [-hex | -binary] [-out filename] [-sign filename] [-passin arg] [-verify filename] [-prverify filename] [-signature filename] [file...]
+选项说明：
+file...：指定待签名的文件。
+-hex：以hex格式输出数字摘要。如果不以-hex显示，签名或验证签名时很可能乱码。
+-binary：以二进制格式输出数字摘要，或以二进制格式进行数字签名。这是默认格式。
+-out filename：指定输出文件，若不指定则输出到标准输出。
+-sign filename：使用filename中的私钥对file数字签名。签名时绝对不能加-hex等格式的选项，否则验证签名必失败，亲测。
+ 
+-signature filename：指定待验证的签名文件。
+-verify filename：使用filename中的公钥验证签名。
+-prverify filename：使用filename中的私钥验证签名。
+-passin arg：传递解密密码。若验证签名时实用的公钥或私钥文件是被加密过的，则需要传递密码来解密。密码的格式见"openssl 密码格式"
+支持如下几种单向加密算法，即签名时使用的hash算法。
+-md4            to use the md4 message digest algorithm
+-md5            to use the md5 message digest algorithm
+-ripemd160      to use the ripemd160 message digest algorithm
+-sha            to use the sha message digest algorithm
+-sha1           to use the sha1 message digest algorithm
+-sha224         to use the sha224 message digest algorithm
+-sha256         to use the sha256 message digest algorithm
+-sha384         to use the sha384 message digest algorithm
+-sha512         to use the sha512 message digest algorithm
+-whirlpool      to use the whirlpool message digest algorithm
+注意：openssl dgst -md5和openssl md5的作用是一样的，其他单向加密算法也一样，例如openssl dgst -sha等价于openssl sha。
+
+
+(1).随机生成一段摘要信息。
+echo 123456 | openssl md5
+(2).对/tmp/a.txt文件生成MD5和sha512摘要信息。
+openssl dgst -md5 a.txt
+openssl sha512 a.txt   
+
+(3).生成一个私钥genrsa.pri，然后使用该私钥对/tmp/a.txt文件签名。使用-hex选项，否则默认输出格式为二进制会乱码。
+openssl genrsa -out genrsa.pri
+openssl dgst -md5 -hex -sign genrsa.pri a.txt
+RSA-MD5(a.txt)= 7a6930b06dc6980d1a1fee872df5c8c9c887633c8e2f8b951d40aff4e934b206423914129f66651344859981e33c448f3a61274bded973b387065e9c7909bfcfc1d844e35af1453cc248d58170eb27e948a8de862f21a2b7ee34f512b3cc3cb44537e26c62a409e211320b87f74a8fa5ec1bcc790a7c13ffaa9df9aa8c5ddb64
+如果要验证签名，那么这个生成的签名要保存到一个文件中，且一定不能使用"-hex"选项，否则验证签名必失败。
+以下分别生成使用和不使用hex格式的签名文件以待验证签名测试。
+openssl dgst -md5 -hex -out md5_hex.sign -sign genrsa.pri a.txt               
+openssl dgst -md5 -out md5_nohex.sign -sign genrsa.pri a.txt
+
+(4).验证签名。验证签名的过程实际上是对待验证文件新生成签名，然后与已有签名文件进行比对，如果比对结果相同，则验证通过。
+所以，在验证签名时不仅要给定待验证的签名文件，也要给定相同的算法，相同的私钥或公钥文件以及待签名文件以生成新签名信息。
+首先对未使用hex格式的签名文件md5_nohex.sign进行验证。由于生成md5_nohex.sign时使用的是md5算法，所以这里必须也要指定md5算法。
+openssl dgst -md5 -prverify genrsa.pri -signature md5_nohex.sign a.txt
+Verified OK
+再对使用了hex格式的签名文件md5_hex.sign进行验证，不论在验证时是否使用了hex选项，结果都是验证失败。
+[root@xuexi tmp]# openssl dgst -md5 -prverify genrsa.pri -signature md5_hex.sign a.txt  
+Verification Failure
+[root@xuexi tmp]# openssl dgst -md5 -hex -prverify genrsa.pri -signature md5_hex.sign a.txt
+Verification Failure
+
+
+再测试使用公钥来验证数字签名。
+[root@xuexi tmp]# openssl rsa -in genrsa.pri -pubout -out rsa.pub
+[root@xuexi tmp]# openssl dgst -md5 -verify rsa.pub -signature md5_nohex.sign a.txt
+Verified OK
+}
+
+https://www.cnblogs.com/f-ck-need-u/p/6090393.html # openssl rsautl和openssl pkeyutl(文件的非对称加密)
+rsautl(){ 生成数字签名、验证数字签名、加密和解密文件。
+1. 密钥文件、签名文件、证书文件都通过-inkey选项指定，再通过各功能的选项搭配来实现对应的功能。
+
+rsautl是rsa的工具，相当于rsa、dgst的部分功能集合，可用于生成数字签名、验证数字签名、加密和解密文件。
+pkeyutl是非对称加密的通用工具，大体上和rsautl的用法差不多，所以此处只解释rsautl。
+openssl rsautl [-in file] [-out file] [-inkey file] [-pubin] [-certin] [-passin arg] [-sign] [-verify] [-encrypt] [-decrypt] [-hexdump]
+openssl pkeyutl [-in file] [-out file] [-sigfile file] [-inkey file] [-passin arg] [-pubin] [-certin] [-sign] [-verify] [-encrypt] [-decrypt] [-hexdump]
+
+共同的选项说明：
+-in file：指定输入文件
+-out file：指定输出文件
+-inkey file：指定密钥输入文件，默认是私钥文件，指定了"-pubin"则表示为公钥文件，使用"-certin"则表示为包含公钥的证书文件
+-pubin：指定"-inkey file"的file是公钥文件
+-certin：使用该选项时，表示"-inkey file"的file是包含公钥的证书文件
+-passin arg：传递解密密码。若验证签名时实用的公钥或私钥文件是被加密过的，则需要传递密码来解密。密码的格式见"openssl 密码格式"
+【功能选项：】
+-sign：签名并输出签名结果，注意，该选项需要提供RSA私钥文件
+-verify：使用验证签名文件
+-encrypt：使用公钥加密文件
+-decrypt：使用私钥解密文件
+【输出格式选项：】
+-hexdump：以hex方式输出
+
+openssl pkeyutl选项说明：
+sigfile file：待验证的签名文件
+
+    rsautl命令的用法和rsa、dgst不太一样。首先，它的前提是已经有非对称密钥，所有的命令操作都用到公钥或私钥来处理；
+再者，该命令使用-in选项来指定输入文件，而不像dgst一样可以把输入文件放在命令的结尾；
+最后，该命令使用的密钥文件、签名文件、证书文件都通过-inkey选项指定，再通过各功能的选项搭配来实现对应的功能。
+注意rsautl和pkeyutl的缺陷是默认只能对短小的文件进行操作，否则将报类似如下的错误信息。
+140341340976968:error:0406C06E:rsa routines:RSA_padding_add_PKCS1_type_1:data too large for key size:rsa_pk1.c:73:
+因为这两个工具签名和验证签名的功能和openssl dgst命令差不多，且自身又有缺陷，所以就不举例说明。此处仅给出对短小文件的非对称加密和解密示例。
+
+(1).使用公钥加密b.txt文件，注意待加密文件b.txt必须是短小文件，且不建议使用-hexdump输出，否则解密时可能超出文件的长度。
+[root@xuexi tmp]# openssl genrsa -out genrsa.pri   # 生成私钥
+[root@xuexi tmp]# openssl rsa -in genrsa.pri -pubout -out rsa.pub   # 从私钥中提取公钥
+[root@xuexi tmp]# openssl rsautl -encrypt -in b.txt -out b_crypt.txt -inkey rsa.pub -pubin
+查看非对称加密后的文件b_crypt.txt。
+[root@xuexi tmp]# cat b_crypt.txt
+H[1]=p?I,:=)Iڪ;Yx٩,vbot@xuexi tmp]#
+(2).使用私钥解密b_crypt.txt文件。
+[root@xuexi tmp]# openssl rsautl -decrypt -in b_crypt.txt -out b_decrypt.txt -inkey genrsa.pri
+
+[root@xuexi tmp]# cat b_decrypt.txt
+UUID=d505113c-daa6-4c17-8b03-b3551ced2305 swap                    swap    defaults        0 0
+}
+
+enc(){  https://www.cnblogs.com/f-ck-need-u/p/7111488.html # openssl enc(对称加密)
+1. base64 编码和解码 -a 
+2. 将密码md5的结果作为密钥des3对称加密算法密钥，对文件加密，最后进行base64。解密反之。-md md5 -a des3 
+3. 加密时自定义salt (-S)
+4. -p|-P 输出密钥相关数据，salt key就是单向加密明文密码后得到的对称密钥  iv是密码运算时使用的向量值
+5. 解密时，salt和解密算法都不要指定，openssl enc会从文件中获取 # 对称加密时使用的对称密钥和对称算法是毫无关系的。
+
+对称加密工具。了解对称加密的原理后就很简单了，原理部分见下文。
+openssl enc -ciphername [-in filename] [-out filename] [-pass arg] [-e] [-d] [-a/-base64] [-k password] [-S salt] [-salt] [-md] [-p/-P]
+选项说明：
+-ciphername：指定对称加密算法(如des3)，可独立于enc直接使用，如openssl des3或openssl enc -des3。推荐在enc后使用，这样不依赖于硬件
+-in filename ：输入文件，不指定时默认是stdin
+-out filename：输出文件，不指定时默认是stdout
+-e：对输入文件加密操作，不指定时默认就是该选项
+-d：对输入文件解密操作，只有显示指定该选项才是解密
+-pass：传递加、解密时的明文密码。若验证签名时实用的公钥或私钥文件是被加密过的，则需要传递密码来解密。密码的格式见"openssl 密码格式"
+-k     ：已被"-pass"替代，现在还保留是为了兼容老版本的openssl
+-base64：在加密后和解密前进行base64编码或解密，不指定时默认是二进制。注意，编码不是加解密的一部分，而是加解密前后对数据的格式"整理"
+-a：等价于-base64
+-salt：单向加密时使用salt复杂化单向加密的结果，此为默认选项，且使用随机salt值
+-S salt：不使用随机salt值，而是自定义salt值，但只能是16进制范围内字符的组合，即"0-9a-fA-F"的任意一个或多个组合
+-p：打印加解密时salt值、key值和IV初始化向量值（也是复杂化加密的一种方式），解密时还输出解密结果，见后文示例
+-P：和-p选项作用相同，但是打印时直接退出工具，不进行加密或解密操作
+-md：指定单向加密算法，默认md5。该算法是拿来加密key部分的，见后文分析。
+支持的单向加密算法有：
+-md4            to use the md4 message digest algorithm
+-md5            to use the md5 message digest algorithm
+-ripemd160      to use the ripemd160 message digest algorithm
+-sha            to use the sha message digest algorithm
+-sha1           to use the sha1 message digest algorithm
+-sha224         to use the sha224 message digest algorithm
+-sha256         to use the sha256 message digest algorithm
+-sha384         to use the sha384 message digest algorithm
+-sha512         to use the sha512 message digest algorithm
+-whirlpool      to use the whirlpool message digest algorithm
+支持的对称加密算法有：
+-aes-128-cbc               -aes-128-cbc-hmac-sha1     -aes-128-cfb             
+-aes-128-cfb1              -aes-128-cfb8              -aes-128-ctr             
+-aes-128-ecb               -aes-128-gcm               -aes-128-ofb             
+-aes-128-xts               -aes-192-cbc               -aes-192-cfb             
+-aes-192-cfb1              -aes-192-cfb8              -aes-192-ctr             
+-aes-192-ecb               -aes-192-gcm               -aes-192-ofb             
+-aes-256-cbc               -aes-256-cbc-hmac-sha1     -aes-256-cfb             
+-aes-256-cfb1              -aes-256-cfb8              -aes-256-ctr             
+-aes-256-ecb               -aes-256-gcm               -aes-256-ofb             
+-aes-256-xts               -aes128                    -aes192                  
+-aes256                    -bf                        -bf-cbc                  
+-bf-cfb                    -bf-ecb                    -bf-ofb                  
+-blowfish                  -camellia-128-cbc          -camellia-128-cfb        
+-camellia-128-cfb1         -camellia-128-cfb8         -camellia-128-ecb        
+-camellia-128-ofb          -camellia-192-cbc          -camellia-192-cfb        
+-camellia-192-cfb1         -camellia-192-cfb8         -camellia-192-ecb        
+-camellia-192-ofb          -camellia-256-cbc          -camellia-256-cfb        
+-camellia-256-cfb1         -camellia-256-cfb8         -camellia-256-ecb        
+-camellia-256-ofb          -camellia128               -camellia192             
+-camellia256               -cast                      -cast-cbc                
+-cast5-cbc                 -cast5-cfb                 -cast5-ecb               
+-cast5-ofb                 -des                       -des-cbc                 
+-des-cfb                   -des-cfb1                  -des-cfb8                
+-des-ecb                   -des-ede                   -des-ede-cbc             
+-des-ede-cfb               -des-ede-ofb               -des-ede3                
+-des-ede3-cbc              -des-ede3-cfb              -des-ede3-cfb1           
+-des-ede3-cfb8             -des-ede3-ofb              -des-ofb                
+-des3                      -desx                      -desx-cbc                
+-id-aes128-GCM             -id-aes128-wrap            -id-aes128-wrap-pad      
+-id-aes192-GCM             -id-aes192-wrap            -id-aes192-wrap-pad      
+-id-aes256-GCM             -id-aes256-wrap            -id-aes256-wrap-pad      
+-id-smime-alg-CMS3DESwrap  -idea                      -idea-cbc                 
+-idea-cfb                  -idea-ecb                  -idea-ofb                
+-rc2                       -rc2-40-cbc                -rc2-64-cbc              
+-rc2-cbc                   -rc2-cfb                   -rc2-ecb                 
+-rc2-ofb                   -rc4                       -rc4-40                  
+-rc4-hmac-md5              -seed                      -seed-cbc                
+-seed-cfb                  -seed-ecb                  -seed-ofb
+在给出openssl enc命令用法示例之前，先解释下对称加密和解密的原理和过程。
+    对称加解密时，它们使用的密码是完全相同的，例如"123456"，但这是密码，且是明文密码，非常不安全，所以应该对此简单密码进行复杂化。
+最直接的方法是使用单向加密计算出明文密码的hash值，单向加密后新生成的密码已经比较安全(称之为密钥比较好)，可以作为对称加密时的
+对称密钥。
+    另外，由于同一单向加密算法对相同明文密码的计算结果是完全一致的，这样解密时使用相同的单向加密算法就能计算出完全相同的密钥，
+也就是解密时的对称密钥。
+    如果想要更安全，还可以在对称加密后对加密文件进行重新编码，如使用"base64"、二进制或hex编码方式进行编码，但对应的在解密前
+就需要先解码，解码后才能解密。
+
+--------------------- 重点 ---------------------
+所以，将对称加、解密的机制简单概括如下：
+    对称加密机制：根据指定的单向加密算法，对输入的明文密码进行单向加密(默认是md5)，得到固定长度的加密密钥，即对称密钥，
+再根据指定的对称加密算法，使用对称密钥加密文件，最后重新编码加密后的文件。
+即单向加密明文密码结果作为对称密钥、使用对称密钥加密文件、对文件重新编码。
+    对称解密机制：先解码文件，再根据单向加密算法对解密时输入的明文密码计算得到对称密钥，
+依此对称密钥对称解密解码后的文件。因此，解密过程中使用的解码方式、单向加密和对称加密算法都必须一致，且输入的密码必须是正确密码。
+但需要注意的一点是，解密时可以不指定salt，因为加密时使用的salt会记录下来，解密时可以读取该salt。
+
+以加密/etc/fstab的备份文件/tmp/test.txt为例。
+(1).首先测试openssl enc的编码功能。由于未指定密码选项"-k"或"-pass"，所以仅仅只进行编码而不进行加密，因此也不会提示输入密码。
+再以base64格式进行解码。
+实际上，上述编码和解码的过程严格地说也是对称加密和解密，因为openssl enc默认会带上加密选项"-e"，只不过因为没有指定输入密码选项，
+使用的加密密码为空而已，且单向加密算法使用的也是默认值。解密时也一样。
+
+(2).测试使用des3对称加密算法加密test.txt文件。
+openssl enc -a -des3 -in test.txt -out test.1 -pass pass:123456 -md md5  # 加密后，查看加密后文件test.1
+openssl enc -a -des3 -d -in test.1 -out test.2 -pass pass:123456 -md md5 # 解密文件test.1
+
+(3).加密时带上点盐salt。其实不写时默认就已经加入了，只不过是加入随机盐值。使用-S可以指定明确要使用的盐的值。但是盐的值只能是16进制范围内字符的组合，即"0-9a-fA-F"的任意一个或多个组合。
+openssl enc -a -des3 -S 'Fabc' -in test.txt -out test.1 -pass pass:123456 -md md5    
+解密。解密时不用指定salt值，即使指定了也不会影响解密结果。      
+openssl enc -a -des3 -d -in test.1 -pass pass:123456 -md md5   
+openssl enc -a -des3 -d -S 'Fabcxdasd' -in test.1 -pass pass:123456 -md md5
+}
+
+dhparam(){ (密钥交换)
+    openssl dhparam用于生成和管理dh文件。dh(Diffie-Hellman)是著名的密钥交换协议，或称为密钥协商协议，
+它可以保证通信双方安全地交换密钥。但注意，它不是加密算法，所以不提供加密功能，仅仅只是保护密钥交换的过程。
+在openvpn中就使用了该交换协议。关于dh算法的整个过程，
+openssl dhparam命令集合了老版本的openssl dh和openssl gendh，后两者可能已经失效了，即使存在也仅表示未来另有用途。
+
+openssl dhparam [-in filename] [-out filename] [-dsaparam] [-noout] [-text] [-rand file(s)] [numbits]
+选项说明：
+-in filename：从filename文件中读取密钥交换协议参数。
+-out filename：输出密钥交换协议参数到filename文件。
+-dsaparam：指定此选项将使用dsa交换协议替代dh交换协议。虽然生成速度更快，但更不安全。
+-noout：禁止输出任何信息。
+-text：以文本格式输出dh协议。
+-rand：指定随机数种子文件。
+numbits：指定生成的长度。
+注意，dh协议文件生成速度随长度增长而急剧增长，使用随机数种子可以加快生成速度。
+
+例如：生成1024长度的交换协议文件，其消耗的时间2秒不到。
+[root@xuexi tmp]# time openssl dhparam -out dh.pem 1024 
+real    0m4.294s
+user    0m4.283s
+sys     0m0.001s
+但生成长度2048的交换协议文件用了4分多钟，可见长度增长会导致协议生成的时间急剧增长。
+[root@xuexi tmp]# time openssl dhparam -out dh.pem 2048 
+real    0m45.804s
+user    0m45.712s
+sys     0m0.007
+而使用了64位随机数种子的同样命令只需50秒钟。
+[root@xuexi tmp]# time openssl dhparam -rand rand.seed -out dh.pem 2048
+real    0m25.578s
+user    0m25.523s
+sys     0m0.008s
+    openssl命令实现的是各种算法和加密功能，它的cpu的使用率会非常高，再结合dhparam，
+可以使得openssl dhparam作为一个不错的cpu压力测试工具，并且可以长时间飙高cpu使用率。
+
+DH密钥协商过程：
+密钥交换协议(DH)的大概过程是这样的(了解即可，可网上搜索完整详细的过程)：
+(1).双方协商一个较大的质数并共享，这个质数是种子数。
+(2).双方都协商好一个加密生成器(一般是AES)。
+(3).双方各自提出另一个质数，这次双方提出的质数是互相保密的。这个质数被认为是私钥(不是非对称加密的私钥)。
+(4).双方使用自己的私钥(即各自保密的质数)、加密生成器以及种子数(即共享的质数)派生出一个公钥(由上面的私钥派生而来，不是非对称加密的公钥)。
+(5).双方交换派生出的公钥。
+(6).接收方使用自己的私钥(各自保密的质数)、种子数(共享的质数)以及接收到的对方公钥计算出共享密钥(session key)。尽管双方的session key是使用对方的公钥以及自己的私钥计算的，但因为使用的算法，能保证双方计算出的session key相同。
+(7).这个session key将用于加密后续通信。例如，ssh连接过程中，使用host key对session key进行签名，然后验证指纹来完成主机认证的过程
+
+客户端                                         服务器端
+   |    种子数                                   |
+   |    密钥生成器                               |
+ (密钥A)                                      (密钥B) 
+   |                                             |
+私钥A+种子数+密钥生成器->公钥A    公钥B <- 私钥B+种子数+密钥生成器
+   |                                             |
+  公钥B                                         公钥A
+   |                                              |
+私钥A+种子数+公钥B-> session key <-私钥B+种子数+公钥A
+
+在计算session key过程中，双方使用的公钥、私钥是相反的。但因为DH算法的原因，它能保证双方生成的session key是一致的。
+因为双方在整个过程中是完全平等的，没有任何一方能掌控协商的命脉，
+再者session key没有在网络上进行传输，使得使用session key做对称加密的数据传输是安全的。
+}
+
+1. 生成 RSA 私钥和自签名证书
+openssl req -newkey rsa:2048 -nodes -keyout rsa_private.key -x509 -days 365 -out cert.crt
+openssl req -newkey rsa:2048 -nodes -keyout rsa_private.key -x509 -days 365 -out cert.crt -subj "/C=CN/ST=GD/L=SZ/O=vihoo/OU=dev/CN=vivo.com/emailAddress=yy@vivo.com"
+
+2. 使用 已有RSA 私钥生成自签名证书
+openssl req -new -x509 -days 365 -key rsa_private.key -out cert.crt
+-new 指生成证书请求，加上-x509 表示直接输出证书，-key 指定私钥文件，
+
+req(){   生成证书请求文件、验证证书请求文件和创建根CA
+1. -new 生成证书请求文件(使用私钥|不使用私钥)
+2. -in查看证书请求文件(包括个人信息，公钥算法，公钥长度，为请求文件数字签名时使用的算法), -text [-noout] | -subject 或 -pubkey
+3. -new 指定证书请求文件中的签名算法(-md5 详见dgst -h)
+4. -verify 验证请求文件的数字签名,这样可以验证出证书请求文件是否被篡改过。
+5. -x509 自签署证书，可用于自建根CA时 -days 365
+# openssl req命令的主要功能是创建和管理证书请求文件，所以没有提供对证书文件的管理能力，暂时也就只能通过cat来查看证书文件CA1.crt了。
+# "-x509"选项和"-new"或"-newkey"配合使用时，可以不指定证书请求文件，它在自签署过程中将在内存中自动创建证书请求文件
+6. "-newkey"选项和"-new"选项类似，只不过"-newkey"选项可以直接指定私钥的算法和长度，所以它主要用在openssl req自动创建私钥时。
+
+伪命令req大致有3个功能： # 生成证书请求文件、验证证书请求文件和创建根CA。
+证书请求文件 ( 申请者需要将自己的信息及其公钥放入证书请求中 ) 
+另外，还需要将提供的数据进行数字签名(使用单向加密)，保证该证书请求文件的完整性和一致性，防止他人盗取后进行篡改
+# 在实际操作过程中，所需要提供的是私钥而非公钥，因为它会自动从私钥中提取公钥。
+
+第一步就是先创建出私钥pri_key.pem。其实私钥文件是非必需的，因为openssl req在需要它的时候会自动创建在特定的路径下
+openssl genrsa -out pri_key.pem
+(1).根据私钥pri_key.pem生成一个新的证书请求文件。其中
+"-new"表示新生成一个新的证书请求文件，
+"-key"指定私钥文件，
+"-out"指定输出文件，此处输出文件即为证书请求文件。
+openssl req -new -key pri_key.pem -out req1.csr
+# 输入点"."将表示该信息项留空
+
+在敲下回车键后，默认会进入交互模式让你提供你个人的信息，需要注意的是
+如果某些信息不想填可以选择使用默认值，也可以选择留空不填，直接回车将选择使用默认值，输入点"."将表示该信息项留空。
+如"Common Name"，它表示的是为哪个域名、子域名或哪个主机申请证书，未来证书请求被签署后将只能应用于"Common Name"所指定的地址。
+具体哪些必填项还需要看所使用的配置文件(默认的配置文件为/etc/pki/tls/openssl.cnf)中的定义
+
+(2).查看证书请求文件内容。
+cat req1.csr
+openssl req -in req1.csr 
+查看请求文件时，可以结合其他几个选项输出特定的内容。"-text"选项表示以文本格式输出证书请求文件的内容。
+openssl req -in req1.csr -text
+Certificate Request:                                            # 此为证书请求文件头
+    Data:
+        Version: 0 (0x0)
+        Subject: C=CN, ST=FJ, L=XM, CN=www.youwant.com          # 此为提供的个人信息，注意左侧标头为"Subject"，这是很重要的一项
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption                 # 使用的公钥算法
+                Public-Key: (1024 bit)                          # 公钥的长度
+                Modulus:
+                    00:c6:f1:f5:b7:ec:0b:41:93:9f:b0:e2:8d:f1:85:
+                    b3:9e:85:6f:c6:ad:5f:d0:01:44:31:3f:c2:61:3b:
+                    e2:35:e3:75:f6:c7:e1:93:a0:4d:ed:0e:ae:5b:b9:
+                    a4:0e:23:a9:70:e0:48:bc:e5:42:f8:c3:e9:0b:32:
+                    85:3a:32:be:dc:90:6e:01:92:7d:74:95:38:f7:20:
+                    7c:0a:21:0c:da:3d:b7:af:a6:9e:fb:3f:e6:b1:50:
+                    27:5f:ae:23:a8:2c:2c:c6:f0:40:12:62:74:b1:a7:
+                    33:5a:4e:bc:5a:36:eb:bd:55:9b:68:de:c0:32:d5:
+                    c1:e1:8f:e7:09:88:7c:3c:8b
+                Exponent: 65537 (0x10001)
+        Attributes:
+            a0:00
+    Signature Algorithm: sha1WithRSAEncryption                  # 为请求文件数字签名时使用的算法
+         2a:29:88:cd:28:aa:4d:0a:fc:03:35:e0:de:63:29:ce:c7:55:
+         c3:fc:e6:20:01:4e:37:4a:ad:37:69:15:1c:29:e9:ea:20:29:
+         2f:91:79:14:13:e1:f4:95:83:2d:5d:c0:cb:fe:b8:03:ca:39:
+         4a:bf:06:ab:b6:06:7f:9e:0a:0a:4b:0b:57:85:de:14:8a:f2:
+         08:da:13:4d:8e:89:44:de:07:de:f0:a1:a3:32:99:d7:ff:ca:
+         31:90:92:28:49:31:13:a9:e7:be:d7:57:b3:f0:4d:9f:c9:ad:
+         43:c2:84:27:2a:95:e3:4e:de:6a:c9:af:15:59:f9:6d:0c:6f:
+         16:98
+-----BEGIN CERTIFICATE REQUEST-----                    
+MIIBgDCB6gIBADBBMQswCQYDVQQGEwJDTjELMAkGA1UECAwCRkoxCzAJBgNVBAcM
+AlhNMRgwFgYDVQQDDA93d3cueW91d2FudC5jb20wgZ8wDQYJKoZIhvcNAQEBBQAD
+gY0AMIGJAoGBAMbx9bfsC0GTn7DijfGFs56Fb8atX9ABRDE/wmE74jXjdfbH4ZOg
+Te0Orlu5pA4jqXDgSLzlQvjD6QsyhToyvtyQbgGSfXSVOPcgfAohDNo9t6+mnvs/
+5rFQJ1+uI6gsLMbwQBJidLGnM1pOvFo2671Vm2jewDLVweGP5wmIfDyLAgMBAAGg
+ADANBgkqhkiG9w0BAQUFAAOBgQAqKYjNKKpNCvwDNeDeYynOx1XD/OYgAU43Sq03
+aRUcKenqICkvkXkUE+H0lYMtXcDL/rgDyjlKvwartgZ/ngoKSwtXhd4UivII2hNN
+jolE3gfe8KGjMpnX/8oxkJIoSTETqee+11ez8E2fya1DwoQnKpXjTt5qya8VWflt
+DG8WmA==
+-----END CERTIFICATE REQUEST-----
+
+将"-text"和"-noout"结合使用，则只输出证书请求的文件头部分。
+openssl req -in req1.csr -noout -text
+
+只输出subject部分的内容
+openssl req -in req2.csr -subject -noout
+使用"-pubkey"输出证书请求文件中的公钥内容。如果从申请证书请求时所提供的私钥中提取出公钥，这两段公钥的内容是完全一致的。
+openssl req -in req1.csr -pubkey -noout
+或
+openssl rsa -in pri_key.pem -pubout
+
+
+(3).指定证书请求文件中的签名算法。
+例如此处指定md5算法。
+[root@xuexi tmp]# openssl req -new -key pri_key.pem -out req2.csr -md5
+[root@xuexi tmp]# openssl req -in req2.csr -noout -text | grep Algo
+            Public Key Algorithm: rsaEncryption
+    Signature Algorithm: md5WithRSAEncryption
+
+4).验证请求文件的数字签名,这样可以验证出证书请求文件是否被篡改过。下面的命令中"-verify"选项表示验证证书请求文件的数字签名。
+[root@xuexi tmp]# openssl req -verify -in req2.csr
+
+(5).自签署证书，可用于自建根CA时。
+使用openssl req自签署证书时，需要使用"-x509"选项，由于是签署证书请求文件，所以可以指定"-days"指定所颁发的证书有效期。
+openssl req -x509 -key pri_key.pem -in req1.csr -out CA1.crt -days 365
+    实际上，"-x509"选项和"-new"或"-newkey"配合使用时，可以不指定证书请求文件，
+它在自签署过程中将在内存中自动创建证书请求文件，当然，既然要创建证书请求文件，就需要人为输入申请者的信息了。
+
+openssl req -new -x509 -key pri_key.pem -out CA1.crt -days 365
+其实，使用"-x509"选项后，"-new"或"-newkey"将表示创建一个证书文件而不是一个证书请求文件。
+
+
+(6).让openssl req自动创建所需的私钥文件。
+    openssl req会在任何需要私钥的地方自动创建私钥，并保存在特定的位置，默认的保存位置为当前目录，
+文件名为privkey.pem，具体保存的位置和文件名由配置文件(默认为/etc/pki/tls/openssl.cnf)决定，
+当然，openssl req命令的"-keyout"选项可以指定私钥保存位置。
+openssl req -new -out req3.csr
+Generating a 2048 bit RSA private key          # 自动创建私钥
+Enter PEM pass phrase:                         # 要求输入加密私钥文件的密码，且要求长度为4-1024个字符
+Verifying - Enter PEM pass phrase:
+# openssl req在自动创建私钥时，将总是加密该私钥文件，并提示输入加密的密码。可以使用"-nodes"选项禁止加密私钥文件。
+openssl req -new -out req3.csr -nodes
+# 指定自动创建私钥时，私钥文件的保存位置和文件名。使用"-keyout"选项。
+openssl req -new -out req3.csr -nodes -keyout myprivkey.pem
+
+(7).使用"-newkey"选项。
+"-newkey"选项和"-new"选项类似，只不过"-newkey"选项可以直接指定私钥的算法和长度，所以它主要用在openssl req自动创建私钥时。
+    它的使用格式为"-newkey arg"，其中arg的格式为"rsa:numbits"，rsa表示创建rsa私钥，numbits表示私钥的长度，
+如果不给定长度(即"-newkey rsa")则默认从配置文件中读取长度值。其实不止支持rsa私钥，只不过现在基本都是用rsa私钥，所以默认就使用rsa。
+openssl req -newkey rsa:2048 -out req3.csr -nodes -keyout myprivkey.pem
+
+openssl req [-new] [-newkey rsa:bits] [-verify] [-x509] [-in filename] [-out filename] [-key filename] [-passin arg] [-passout arg] 
+[-keyout filename] [-pubkey] [-nodes] [-[dgst]] [-config filename] [-subj arg] [-days n] [-set_serial n] [-extensions section]
+[-reqexts section] [-utf8] [-nameopt] [-reqopt] [-subject] [-subj arg] [-text] [-noout] [-batch] [-verbose]
+ 
+选项说明：
+-new        ：创建一个证书请求文件，会交互式提醒输入一些信息，这些交互选项以及交互选项信息的长度值以及其他一些扩展属性在配置文件(默认为
+            ：openssl.cnf，还有些辅助配置文件)中指定了默认值。如果没有指定"-key"选项，则会自动生成一个RSA私钥，该私钥的生成位置
+            ：也在openssl.cnf中指定了。如果指定了-x509选项，则表示创建的是自签署证书文件，而非证书请求文件
+-newkey args：类似于"-new"选项，创建一个新的证书请求，并创建私钥。args的格式是"rsa:bits"(其他加密算法请查看man)，其中bits
+            ：是rsa密钥的长度，如果bits省略了(即-newkey rsa)，则长度根据配置文件中default_bits指令的值作为默认长度，默认该值为2048
+            ：如果指定了-x509选项，则表示创建的是自签署证书文件，而非证书请求文件
+-nodes      ：默认情况下，openssl req自动创建私钥时都要求加密并提示输入加密密码，指定该选项后则禁止对私钥文件加密
+-key filename    ：指定私钥的输入文件，创建证书请求时需要
+-keyout filename ：指定自动创建私钥时私钥的存放位置，若未指定该选项，则使用配置文件中default_keyfile指定的值，默认该值为privkey.pem
+-[dgst]          ：指定对创建请求时提供的申请者信息进行数字签名时的单向加密算法，如-md5/-sha1/-sha512等，
+                 ：若未指定则默认使用配置文件中default_md指定的值
+-verify       ：对证书请求文件进行数字签名验证
+-x509         ：指定该选项时，将生成一个自签署证书，而不是创建证书请求。一般用于测试或者为根CA创建自签名证书
+-days n       ：指定自签名证书的有效期限，默认30天，需要和"-x509"一起使用。
+              ：注意是自签名证书期限，而非请求的证书期限，因为证书的有效期是颁发者指定的，证书请求者指定有效期是没有意义的，
+              ：配置文件中的default_days指定了请求证书的有效期限，默认365天
+-set_serial n ：指定生成自签名证书时的证书序列号，该序列号将写入配置文件中serial指定的文件中，这样就不需要手动更新该序列号文件
+              ：支持数值和16进制值(0x开头)，虽然也支持负数，但不建议
+-in filename  ：指定证书请求文件filename。注意，创建证书请求文件时是不需要指定该选项的
+-out filename ：证书请求或自签署证书的输出文件，也可以是其他内容的输出文件，不指定时默认stdout
+-subj args    ：替换或自定义证书请求时需要输入的信息，并输出修改后的请求信息。args的格式为"/type0=value0/type1=value1..."，
+              ：如果value为空，则表示使用配置文件中指定的默认值，如果value值为"."，则表示该项留空。其中可识别type(man req)有：
+              ：C是Country、ST是state、L是localcity、O是Organization、OU是Organization Unit、CN是common name等
+ 
+【输出内容选项：】
+-text         ：以文本格式打印证书请求
+-noout        ：不输出部分信息
+-subject      ：输出证书请求文件中的subject(如果指定了x509，则打印证书中的subject)
+-pubkey       ：输出证书请求文件中的公钥
+
+【配置文件项和杂项：】
+-passin arg      ：传递解密密码
+-passout arg     ：指定加密输出文件时的密码
+-config filename ：指定req的配置文件，指定后将忽略所有的其他配置文件。如果不指定则默认使用/etc/pki/tls/openssl.cnf中req段落的值
+-batch           ：非交互模式，直接从配置文件(默认/etc/pki/tls/openssl.cnf)中读取证书请求所需字段信息。但若不指定"-key"时，仍会询问key
+-verbose         ：显示操作执行的详细信息
+以下则是配置文件中(默认/etc/pki/tls/openssl.cnf)关于req段落的配置格式。
+input_password ：密码输入文件，和命令行的"-passin"选项对应，密码格式以及意义见"openssl密码格式"
+output_password：密码的输出文件，与命令行的"-passout"选项对应，密码格式以及意义见"openssl密码格式"
+default_bits   ：openssl req自动生成RSA私钥时的长度，不写时默认是512，命令行的"-new"和"-newkey"可能会用到它 
+default_keyfile：默认的私钥输出文件，与命令行的"-keyout"选项对应 
+encrypt_key    ：当设置为no时，自动创建私钥时不会加密该私钥。设置为no时与命令行的"-nodes"等价。还有等价的兼容性写法：encry_rsa_key 
+default_md     ：指定创建证书请求时对申请者信息进行数字签名的单向加密算法，与命令行的"-[dgst]"对应 
+prompt         ：当指定为no时，则不提示输入证书请求的字段信息，而是直接从openssl.cnf中读取 ：请小心设置该选项，很可能请求文件创建失败就是因为该选项设置为no 
+distinguished_name：(DN)是一个扩展属性段落，用于指定证书请求时可被识别的字段名称。
+}
+
+ca(){ 自签证书
+    用于签署证书请求、生成吊销列表CRL以及维护已颁发证书列表和这些证书状态的数据库。
+因为一般人无需管理crl，所以本文只介绍openssl ca关于证书管理方面的功能。
+    证书请求文件使用CA的私钥签署之后就是证书，签署之后将证书发给申请者就是颁发证书。
+在签署时，为了保证证书的完整性和一致性，还应该对签署的证书生成数字摘要，即使用单向加密算法。
+
+    由于openssl ca命令对配置文件(默认为/etc/pki/tls/openssl.cnf)的依赖性非常强，
+所以建议结合我的另一篇文章配置文件openssl.cnf来阅读，如果不明白配置文件，下面的内容很可能不知所云。
+
+在配置文件中指定了签署证书时所需文件的结构，默认openssl.cnf中的结构要求如下：
+[ CA_default ]
+dir             = /etc/pki/CA             # 定义路径变量
+certs           = $dir/certs              # 已颁发证书的保存目录
+database        = $dir/index.txt          # 数据库索引文件
+new_certs_dir   = $dir/newcerts           # 新签署的证书保存目录
+certificate     = $dir/cacert.pem         # CA证书路径名
+serial          = $dir/serial             # 当前证书序列号
+private_key     = $dir/private/cakey.pem  # CA的私钥路径名
+    其中目录/etc/pki/CA/{certs,newcerts,private}在安装openssl后就默认存在，所以无需独立创建，
+但证书的database文件index.txt和序列文件serial必须创建好，且序列号文件中得先给定一个序号，如"01"。
+[root@xuexi tmp]# touch /etc/pki/CA/index.txt 
+[root@xuexi tmp]# echo "01" > /etc/pki/CA/serial
+    另外，要签署证书请求，需要CA自己的私钥文件以及CA自己的证书，先创建好CA的私钥，
+存放位置为配置文件中private_key所指定的值，默认为/etc/pki/CA/private/cakey.pem。
+[root@xuexi tmp]# openssl genrsa -out /etc/pki/CA/private/cakey.pem
+
+
+(1).使用openssl ca自建CA
+    要提供CA自己的证书，测试环境下CA只能自签署，使用"openssl req -x509"、"openssl x509"和"openssl ca"
+都可以自签署证书请求文件，此处仅介绍openssl ca命令自身自签署的方法。
+    先创建CA的证书请求文件，建议使用CA的私钥文件/etc/pki/CA/private/cakey.pem来创建待自签署的证书请求文件，虽非必须，
+但方便管理。创建请求文件时，其中Country Name、State or Province Name、Organization Name和Common Name默认是必须提供的。
+openssl req -new -key /etc/pki/CA/private/cakey.pem -out rootCA.csr
+
+    然后使用openssl ca命令自签署该证书请求文件。如果有两次交互式询问则表示自签署将成功，
+如果失败，则考虑数据库文件index.txt是否创建、序列号文件serial是否存在且有序号值、私钥文件cakey.pem是否路径正确、
+创建证书请求文件时是否该提供的没有提供等情况。
+[root@xuexi tmp]# openssl ca -selfsign -in rootCA.csr
+Using configuration from /etc/pki/tls/openssl.cnf    # 默认采用/etc/pki/tls/openssl.cnf作为配置文件
+Check that the request matches the signature         # 验证证书请求文件的数字签名，确保该证书请求文件是完整未修改过的
+Signature ok
+Certificate Details:                                 # 待生成证书的信息
+        Serial Number: 1 (0x1)                        # 序列号为1
+        Validity
+            Not Before: Jun 27 10:06:29 2017 GMT      # 证书有效期起始日为2017-6-17 10:06:29
+            Not After : Jun 27 10:06:29 2018 GMT      # 证书有效期终止日为2018-6-17 10:06:29
+        Subject:                                      # Subject信息，subject是非常重要的信息
+            countryName               = CN
+            stateOrProvinceName       = FJ
+            organizationName          = JM
+            organizationalUnitName    = IT
+            commonName                = www.iwant.com
+        X509v3 extensions:
+            X509v3 Basic Constraints:
+                CA:FALSE
+            Netscape Comment:
+                OpenSSL Generated Certificate
+            X509v3 Subject Key Identifier:
+                A5:0D:DD:D6:47:C6:24:74:20:F4:62:77:F6:A9:63:3E:52:D2:8A:66
+            X509v3 Authority Key Identifier:
+                keyid:A5:0D:DD:D6:47:C6:24:74:20:F4:62:77:F6:A9:63:3E:52:D2:8A:66
+ 
+Certificate is to be certified until Jun 27 10:06:29 2018 GMT (365 days)
+Sign the certificate? [y/n]:y
+ 
+ 
+1 out of 1 certificate requests certified, commit? [y/n]y
+Write out database with 1 new entries           # 向数据库文件添加一条该证书的记录
+Certificate:                                    # 该证书的信息
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 1 (0x1)
+    Signature Algorithm: sha1WithRSAEncryption
+        Issuer: C=CN, ST=FJ, O=JM, OU=IT, CN=www.iwant.com
+        Validity
+            Not Before: Jun 27 10:06:29 2017 GMT
+            Not After : Jun 27 10:06:29 2018 GMT
+        Subject: C=CN, ST=FJ, O=JM, OU=IT, CN=www.iwant.com
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (1024 bit)
+                Modulus:
+                    00:94:49:33:f4:90:a4:fc:a4:6b:65:75:4c:be:4f:
+                    d1:3f:95:bd:24:60:c8:45:f9:eb:00:31:ac:45:6b:
+                    ae:bb:63:bf:f2:a3:0c:e3:d3:50:20:33:1e:d9:e1:
+                    8a:49:42:c6:e0:67:6d:3a:cb:2f:9c:90:ab:4c:10:
+                    7a:4a:82:e1:6e:a0:6a:63:84:56:1c:a2:5f:11:60:
+                    99:e0:cd:20:68:e9:98:40:68:c2:43:7c:97:12:ee:
+                    31:8e:b1:73:7d:36:99:97:49:31:50:c1:8c:47:10:
+                    16:f9:5d:37:11:00:73:3b:01:62:9b:36:36:97:08:
+                    48:31:93:56:3f:6a:d9:a6:99
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Basic Constraints:
+                CA:FALSE
+            Netscape Comment:
+                OpenSSL Generated Certificate
+            X509v3 Subject Key Identifier:
+                A5:0D:DD:D6:47:C6:24:74:20:F4:62:77:F6:A9:63:3E:52:D2:8A:66
+            X509v3 Authority Key Identifier:
+                keyid:A5:0D:DD:D6:47:C6:24:74:20:F4:62:77:F6:A9:63:3E:52:D2:8A:66
+ 
+    Signature Algorithm: sha1WithRSAEncryption
+         1e:4e:f4:e4:c9:33:52:85:69:ae:b4:2a:37:37:44:90:9b:52:
+         b3:e9:89:1c:b2:f2:17:41:d8:05:02:63:9a:4f:64:4d:c9:ce:
+         0c:81:48:22:4f:73:8a:4c:f7:b8:bf:64:b2:77:8a:2e:43:80:
+         39:03:de:27:19:09:d2:88:39:11:8f:8b:4b:37:c0:12:68:ef:
+         79:5b:28:d4:cf:c9:b8:e1:77:24:6e:b4:5b:83:4a:46:49:a1:
+         ad:5c:b7:d8:da:49:9a:45:73:b9:8e:eb:1a:9c:2e:6c:70:d3:
+         c5:db:9c:46:02:59:42:bf:ad:bc:21:4c:d1:6b:6b:a7:87:33:
+         1a:6b
+-----BEGIN CERTIFICATE-----
+MIICiTCCAfKgAwIBAgIBATANBgkqhkiG9w0BAQUFADBMMQswCQYDVQQGEwJDTjEL
+MAkGA1UECAwCRkoxCzAJBgNVBAoMAkpNMQswCQYDVQQLDAJJVDEWMBQGA1UEAwwN
+d3d3Lml3YW50LmNvbTAeFw0xNzA2MjcxMDA2MjlaFw0xODA2MjcxMDA2MjlaMEwx
+CzAJBgNVBAYTAkNOMQswCQYDVQQIDAJGSjELMAkGA1UECgwCSk0xCzAJBgNVBAsM
+AklUMRYwFAYDVQQDDA13d3cuaXdhbnQuY29tMIGfMA0GCSqGSIb3DQEBAQUAA4GN
+ADCBiQKBgQCUSTP0kKT8pGtldUy+T9E/lb0kYMhF+esAMaxFa667Y7/yowzj01Ag
+Mx7Z4YpJQsbgZ206yy+ckKtMEHpKguFuoGpjhFYcol8RYJngzSBo6ZhAaMJDfJcS
+7jGOsXN9NpmXSTFQwYxHEBb5XTcRAHM7AWKbNjaXCEgxk1Y/atmmmQIDAQABo3sw
+eTAJBgNVHRMEAjAAMCwGCWCGSAGG+EIBDQQfFh1PcGVuU1NMIEdlbmVyYXRlZCBD
+ZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQUpQ3d1kfGJHQg9GJ39qljPlLSimYwHwYDVR0j
+BBgwFoAUpQ3d1kfGJHQg9GJ39qljPlLSimYwDQYJKoZIhvcNAQEFBQADgYEAHk70
+5MkzUoVprrQqNzdEkJtSs+mJHLLyF0HYBQJjmk9kTcnODIFIIk9zikz3uL9ksneK
+LkOAOQPeJxkJ0og5EY+LSzfAEmjveVso1M/JuOF3JG60W4NKRkmhrVy32NpJmkVz
+uY7rGpwubHDTxducRgJZQr+tvCFM0Wtrp4czGms=
+-----END CERTIFICATE-----
+Data Base Updated
+
+自签署成功后，在/etc/pki/CA目录下将生成一系列文件。
+[root@xuexi tmp]# tree -C /etc/pki/CA
+/etc/pki/CA
+├── certs
+├── crl
+├── index.txt
+├── index.txt.attr
+├── index.txt.old
+├── newcerts
+│   └── 01.pem
+├── private
+│   └── cakey.pem
+├── serial
+└── serial.old
+    其中newcerts目录下的01.pem即为刚才自签署的证书文件，因为它是CA自身的证书，所以根据配置文件中的
+"certificate=$dir/cacert.pem"项，应该将其放入/etc/pki/CA目录下，且命名为cacert.pem，只有这样以后才能签署其它证书请求。
+
+root@xuexi tmp]# cp /etc/pki/CA/newcerts/01.pem /etc/pki/CA/cacert.pem
+至此，自建CA就完成了，查看下数据库索引文件和序列号文件。
+[root@xuexi tmp]# cat /etc/pki/CA/index.txt
+V       180627100629Z           01      unknown /C=CN/ST=FJ/O=JM/OU=IT/CN=www.iwant.com
+
+[root@xuexi tmp]# cat /etc/pki/CA/serial
+02
+那么，下次签署证书请求时，序列号将是"02"。
+将上述自建CA的过程总结如下：
+[root@xuexi tmp]# touch /etc/pki/CA/index.txt 
+[root@xuexi tmp]# echo "01" > /etc/pki/CA/serial
+[root@xuexi tmp]# openssl genrsa -out /etc/pki/CA/private/cakey.pem
+[root@xuexi tmp]# openssl req -new -key /etc/pki/CA/private/cakey.pem -out rootCA.csr
+[root@xuexi tmp]# openssl ca -selfsign -in rootCA.csr
+[root@xuexi tmp]# cp /etc/pki/CA/newcerts/01.pem /etc/pki/CA/cacert.pem
+}
+
+ca(){ 为他人颁发证书。 # 配置文件( -config)+私钥文件(-key)+证书请求文件(-in youwant1.csr) = 证书文件(-out youwant1.pem)
+首先申请者创建一个证书请求文件。
+openssl req -new -key privatekey.pem -out youwant1.csr
+    其中Country Name、State or Province Name、Organization Name和Common Name必须提供，
+且前三者必须和CA的subject中的对应项完全相同。这些是由配置文件中的匹配策略决定的。
+"match"表示openssl ca要签署的证书请求文件中的项要和CA证书中的项匹配，即要相同，"supplied"表示必须要提供的项，"optional"表示可选项，所以可以留空。
+现在就可以将证书请求文件发送给CA，让CA帮忙签署。
+[root@xuexi tmp]# openssl ca -in youwant1.csr
+
+(3).openssl ca命令用法
+经过上面的示例，应该对openssl ca命令的用法大致了解了，下面是其完整的用法说明，不包括crl相关功能。
+openssl ca [-verbose] [-config filename] [-name section] [-startdate date] [-enddate date] [-days arg] [-md arg] [-policy arg] [-keyfile arg] [-key arg] [-passin arg] [-cert file]
+[-selfsign] [-in file] [-out file] [-notext] [-outdir dir] [-infiles] [-ss_cert file] [-preserveDN] [-noemailDN] [-batch] [-extensions section] [-extfile section] [-subj arg] [-utf8]
+要注意，ca命令是用于签署证书的，所以它所需要的文件除了配置文件外就是私钥文件和证书请求文件，而签名后生成的文件是证书文件，因此使用"-in"指定的对象是待签署文件，"-infiles"则是指定多个待签署文件，"-keyfile"是指定私钥文件，"-out"是指定输出的证书文件。
+【选项说明：】
+-config filename ：指定要使用的配置文件，指定后将忽略openssl.cnf中指定的关于ca的配置选项。
+-name section    ：指定使用配置文件中的那个section。指定后将忽略openssl.cnf中的default_ca段。
+-in filename     ：指定要被CA签署的单个证书请求文件。根CA为其他证书签署时使用。
+-infiles         ：该选项只能是最后一个选项，该选项所接的所有参数都被认为是要被签署的证书请求文件，即一次性签署多个请求文件时使用的选项。
+-selfsign        ：自签署。指定-ss_cert选项时该选项被忽略。
+-ss_cert filename：将被CA自签署的单个证书文件。也就是说要重新签署证书。
+-out filename    ：证书的输出文件，同时也会输出到屏幕。不指定时默认输出到stdout。
+-outdir dir_name ：证书的输出目录。指定该选项时，将自动在此目录下生成一个文件名包含16进制serial值的".pem"证书文件。
+-cert            ：CA自己的证书文件。
+-keyfile filename：指定签署证书请求时的私钥文件，即CA自己的私钥文件。
+-key passwd_value：指定私钥的加密密码。
+-passin arg      ：传递解密密码
+-verbose         ：打印操作执行时的详细信息
+-notext          ：禁止以文本格式将证书输出到"-out"指定的文件中
+-days arg        ：证书有效期限，从创建时刻开始算startdate，有效期结束点为enddate。
+-startdate       ：自定义证书的开始时间，和"-enddate"一起使用可以推算出证书有效期。
+-enddate         ：自定义证书的结束时间。
+-md alg          ：指定单向加密算法
+-policy arg      ：该选项是配置文件中的section内容，该选项指定了证书信息中的field部分是否需要强制提供还是要强制匹配，
+                 ：或者可提供可不提供。详细的见配置文件说明。
+-extensions section：指定当前创建的证书使用配置文件中的哪个section作为扩展属性。
+-batch           ：签署时使用批处理模式，即非交互模式。该模式下不会有两次询问(是否签署、是否提交)。
+-subj arg        ：替换证书请求中的subject，格式/type0=value0/type1=value1/type2=...
+配置文件关于ca的部分，其中被标记为必须项的表示配置文件中或者命令行中必须给出该选项及其值。
+new_certs_dir    ：等同于"-outdir"选项。必须项
+certificat       ：等同于"-cert"选项，CA自己的证书文件。必须项
+private_key      ：等同于"-keyfile"选项，签署证书请求文件时的私钥文件，即CA自己的私钥文件。必须项
+default_days     ：等同于"-days"选项
+default_startdate：等同于"-startdate"选项。
+default_enddate  ：等同于"-enddate"选项。
+default_md       ：等同于"-md"选项。必须项
+database         ：openssl维护的数据库文件。存放证书条目信息及状态信息。必须项
+serial           ：已颁发证书的序列号(16进制)文件。必须项且该文件中必须存在一个序列值
+unique_subject   ：如果设置为yes，database中的subject列值必须不重复。如果设置为no，允许subject重复。默认是yes，
+                 ：这是为了兼容老版本的Openssl，推荐设置为no。
+x509_extensions  ：等同于"-extensions"选项。
+policy           ：等同于"-policy"选项。必须项
+name_opt/cert_opt：证书的展示格式，虽非必须但建议设置为ca_default，若不设置将默认使用老版本的证书格式(不建议如此)。
+                 ：伪命令ca无法直接设置这两个选项，而伪命令x509的"-nameopt"和"-certopt"选项可以分别设置。
+copy_extensions  ：决定证书请求中的扩展项如何处理的。如果设置为none或不写该选项，则扩展项被忽略并且不复制到证书中去。
+                 ：如果设置为copy，则证书请求中已存在而证书中不存在的扩展项将复制到证书中。
+                 ：如果设置为copyall，则证书请求中所有的扩展项都复制到证书中，此时若证书中已存在某扩展项，则先删除再复制。
+                 ：该选项的主要作用是允许证书请求为特定的扩展项如subjectAltName提供值。
+                 ：使用该选项前请先查看man ca中的WARNINGS部分。建议一般简单使用时设置为none或不设置。
+
+}
+
+    PKI的两种实现方式TLS和SSL使用的证书格式都是x509，TLSv1和SSLv3基本等价，只不过SSL实现在OSI 4层模型中的应用层和传输层的中间，
+TLS实现在传输层。
+    还有PKI的另一种实现方式GPG，它的证书使用的不是x509格式。
+    数字证书中包含的信息有：申请者的公钥，证书有效期，证书合法拥有人，证书如何被使用，CA的信息，CA对申请者信息的数字签名。
+    
+转换证书编码格式
+openssl x509 -in cert.cer -inform DER -outform PEM -out cert.pem
+
+x509(){
+主要用于输出证书信息，也能够签署证书请求文件、自签署、转换证书格式等。
+openssl x509工具不会使用openssl配置文件中的设定，而是完全需要自行设定或者使用该伪命令的默认值，它就像是一个完整的小型的CA工具箱。
+openssl x509 [-in filename] [-out filename] [-serial] [-hash] [-subject_hash] [-issuer_hash] [-subject] [-issuer] 
+[-nameopt option] [-email] [-startdate] [-enddate] [-purpose] [-dates] [-modulus] [-pubkey] [-fingerprint] [-noout] 
+[-days arg] [-set_serial n] [-signkey filename] [-x509toreq] [-req] [-CA filename] [-CAkey filename] [-CAcreateserial] 
+[-CAserial filename] [-text] [-md2|-md5|-sha1|-mdc2] [-extfile filename] [-extensions section]
+选项非常多，所以分段解释。
+【输入输出选项：】
+-in filename  ：指定证书输入文件，若同时指定了"-req"选项，则表示输入文件为证书请求文件。
+-out filename ：指定输出文件
+-md2|-md5|-sha1|-mdc2：指定单向加密的算法。
+【信息输出选项：】
+-text：以text格式输出证书内容，即以最全格式输出，
+     ：包括public key,signature algorithms,issuer和subject names,serial number以及any trust settings.
+-certopt option：自定义要输出的项
+-noout         ：禁止输出证书请求文件中的编码部分
+-pubkey        ：输出证书中的公钥
+-modulus       ：输出证书中公钥模块部分
+-serial        ：输出证书的序列号
+-subject       ：输出证书中的subject
+-issuer        ：输出证书中的issuer，即颁发者的subject
+-subject_hash  ：输出证书中subject的hash码
+-issuer_hash   ：输出证书中issuer(即颁发者的subject)的hash码
+-hash          ：等价于"-subject_hash"，但此项是为了向后兼容才提供的选项
+-email         ：输出证书中的email地址，如果有email的话
+-startdate     ：输出证书有效期的起始日期
+-enddate       ：输出证书有效期的终止日期
+-dates         ：输出证书有效期，等价于"startdate+enddate"
+-fingerprint   ：输出指纹摘要信息
+输出证书某些信息的时候，可以配合"-noout"选项，然后再指定某些项来使用。例如：
+[root@xuexi ~]# openssl x509 -in cert.pem -noout -text
+[root@xuexi ~]# openssl x509 -in cert.pem -noout -serial
+[root@xuexi ~]# openssl x509 -in cert.pem -noout -subject
+[root@xuexi ~]# openssl x509 -in cert.pem -noout -issuer
+[root@xuexi ~]# openssl x509 -in cert.pem -noout -fingerprint
+[root@xuexi ~]# openssl x509 -in cert.pem -noout -issuer_hash
+[root@xuexi ~]# openssl x509 -in cert.pem -noout -startdate -enddate
+【签署选项：】
+*****************************************************************************************
+*  伪命令x509可以像openssl ca一样对证书或请求执行签名动作。注意，openssl x509         *
+*  不读取配置文件，所有的一切配置都由x509自行提供，所以openssl x509像是一个"mini CA"  *
+*****************************************************************************************
+-signkey filename：该选项用于提供自签署时的私钥文件，自签署的输入文件"-in file"的file可以是证书请求文件，也可以是已签署过的证书。-days arg：指定证书有效期限，默认30天。
+-x509toreq：将已签署的证书转换回证书请求文件。需要使用"-signkey"选项来传递需要的私钥。
+-req：x509工具默认以证书文件做为inputfile(-in file)，指定该选项将使得input file的file为证书请求文件。
+-set_serial n：指定证书序列号。该选项可以和"-singkey"或"-CA"选项一起使用。
+             ：如果和"-CA"一起使用，则"-CAserial"或"-CAcreateserial"选项指定的serial值将失效。
+             ：序列号可以使用数值或16进制值(0x开头)。也接受负值，但是不建议。
+-CA filename      ：指定签署时所使用的CA证书。该选项一般和"-req"选项一起使用，用于为证书请求文件签署。
+-CAkey filename   ：设置CA签署时使用的私钥文件。如果该选项没有指定，将假定CA私钥已经存在于CA自签名的证书文件中。
+-CAserial filename：设置CA使用的序列号文件。当使用"-CA"选项来签名时，它将会使用某个文件中指定的序列号来唯一标识此次签名后的证书文件。
+                  ：这个序列号文件的内容仅只有一行，这一行的值为16进制的数字。当某个序列号被使用后，该文件中的序列号将自动增加。
+                  ：默认序列号文件以CA证书文件基名加".srl"为后缀命名。如CA证书为"mycert.pem"，则默认寻找的序列号文件为"mycert.srl"
+-CAcreateserial   ：当使用该选项时，如果CA使用的序列号文件不存在将自动创建：该文件将包含序列号值"02"并且此次签名后证书文件序列号为1。
+                  ：一般如果使用了"-CA"选项而序列号文件不存在将会产生错误"找不到srl文件"。
+-extfile filename ：指定签名时包含要添加到证书中的扩展项的文件。
+【CERTIFICATE EXTENSIONS】
+-purpose：选项检查证书的扩展项并决定该证书允许用于哪些方面，即证书使用目的范围。
+basicConstraints：该扩展项用于决定证书是否可以当作CA证书。格式为basicConstraints=CA:true | false
+                ：1.如果CA的flag设置为true，那么该证书允许作为一个CA证书，即可以颁发下级证书或进行签名；
+                ：2.如果CA的flag设置为false，那么该证书就不能作为CA，不能为下级颁发证书或签名；
+                ：3.所有CA的证书中都必须设置CA的flag为true。
+                ：4.如果basicConstraints扩展项未设置，那么证书被认为可疑的CA，即"possible CA"。
+keyUsage：该扩展项用于指定证书额外的使用限制，即也是使用目的的一种表现方式。
+        ：1.如果keyUsage扩展项被指定，那么该证书将又有额外的使用限制。
+        ：2.CA证书文件中必须至少设置keyUsage=keyCertSign。
+        ：3.如果设置了keyUsage扩展项，那么不论是否使用了critical，都将被限制在指定的使用目的purpose上。
+例如，使用x509工具自建CA。由于x509无法建立证书请求文件，所以只能使用openssl req来生成请求文件，然后使用x509来自签署。自签署时，使用"-req"选项明确表示输入文件为证书请求文件，否则将默认以为是证书文件，再使用"-signkey"提供自签署时使用的私钥。
+[root@xuexi ssl]# openssl req -new -keyout key.pem -out req.csr
+
+[root@xuexi ssl]# openssl x509 -req -in req.csr -signkey key.pem -out x509.crt
+x509也可以用来签署他人的证书请求，即为他人颁发证书。注意，为他人颁发证书时，确保serial文件存在，建议使用自动创建的选项"-CAcreateserial"。
+[root@xuexi ssl]# openssl x509 -req -in req.csr -CA ca.crt -CAkey ca.key -out x509.crt -CAcreateserial
+
+}
+
+https://www.cnblogs.com/f-ck-need-u/p/6091105.html # openssl签署和自签署证书的多种实现方式
+
+pkcs8(){
+PKCS#1  RFC8017，定义了公钥私钥的编码格式(ASN.1编码)，包括基础算法及编码/填充模式、签名校验，openssl的默认标准格式
+PKCS#8  RFC5958，定义私钥信息语法标准，用于描述证书密钥对的通用格式(不限RSA)
+openssl pkcs8 -topk8 -in rsa_private.key -passout pass:111111 -out pkcs8_private.key # 私钥PKCS#1转PKCS#8
+
+}
+
+pkcs12(){
+PKCS#12 RFC7292，个人信息交换语法标准，定义了私钥和公钥证书的存储方式(支持密码)，常用PFX简称，Java Key Store的编码格式
+
+1. 合成 pkcs#12 证书(含私钥)
+** 将 pem 证书和私钥转 pkcs#12 证书 **
+openssl pkcs12 -export -in server.crt -inkey server.key -passin pass:111111 -password pass:111111 -out server.p12
+其中-export指导出pkcs#12 证书，-inkey 指定了私钥文件，-passin 为私钥(文件)密码(nodes为无加密)，-password 指定 p12文件的密码(导入导出)
+
+** 将 pem 证书和私钥/CA 证书 合成pkcs#12 证书**
+openssl pkcs12 -export -in server.crt -inkey server.key -passin pass:111111 \
+    -chain -CAfile ca.crt -password pass:111111 -out server-all.p12
+其中-chain指示同时添加证书链，-CAfile 指定了CA证书，导出的p12文件将包含多个证书。(其他选项：-name可用于指定server证书别名；-caname用于指定ca证书别名)
+
+** pcks#12 提取PEM文件(含私钥) **
+openssl pkcs12 -in server.p12 -password pass:111111 -passout pass:111111 -out out/server.pem
+其中-password 指定 p12文件的密码(导入导出)，-passout指输出私钥的加密密码(nodes为无加密)
+
+仅提取私钥
+ openssl pkcs12 -in server.p12 -password pass:111111 -passout pass:111111 -nocerts -out out/key.pem
+
+仅提取证书(所有证书)
+ openssl pkcs12 -in server.p12 -password pass:111111 -nokeys -out out/key.pem
+
+仅提取ca证书
+openssl pkcs12 -in server-all.p12 -password pass:111111 -nokeys -cacerts -out out/cacert.pem 
+
+仅提取server证书
+openssl pkcs12 -in server-all.p12 -password pass:111111 -nokeys -clcerts -out out/cert.pem
+}
+map(){  恺撒法
+密码学上有所谓“恺撒法”：是一种简单替换法，把每个字母和它在字母表中后若干个位置中的那个字母相对应。 
+比如说我们取后7个位置，那么字母的一一对应就如下表所示：
+明码字母表：ABCDEFGHIJKLMNOPQRSTUVWXYZ 
+密码字母表：HIJKLMNOPQRSTUVWXYZABCDEFG
+于是我们就可以从明文得到密文：
+明文：VENI－VIDI－VICI 
+密文：CLGP－CPKP－CPJP
+但是这种方法只能有26种可能性，比较简单。一般采取随机对应的方法来增加解码难度。
+明码字母表：ABCDEFGHIJKLMNOPQRSTUVWXYZ 
+密码字母表：YIXDROTUGLFSMKAECQVWJZNBPH
+}
+
+base64(){
+1 传输信道只支持ASCII字符，不方便传输二进制流的场合。
+2 含有非ASCII字符，容易出现编码问题的场合。
+当然除了 Base64 之外，还有其它一些编码方式可以将二进制数据编码成 ASCII 字符,比如 url编码(16进制编码)
+}
+https://www.cnblogs.com/f-ck-need-u/p/6091105.html  # openssl签署和自签署证书的多种实现方式

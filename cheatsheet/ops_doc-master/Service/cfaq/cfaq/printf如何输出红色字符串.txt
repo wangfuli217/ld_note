@@ -1,0 +1,35 @@
+# printf 如何输出红色字符串？
+
+#include<stdarg.h>
+...
+void printf_red(const char *cmd, ...)  
+{  
+    printf("\x1B[31m");  //设置输出为红色
+    va_list args;       //定义一个va_list类型的变量，用来储存单个参数  
+    va_start(args,cmd); //使args指向可变参数的第一个参数  
+    vprintf(cmd,args);  //必须用vprintf等带V的  
+    va_end(args);       //结束可变参数的获取  
+    printf("\x1B[0m")   // 回到默认设置
+}  
+
+# 规范打印
+#indef PRINT_ERROR
+#define PRINT_ERROR(...)    \
+  do{                       \
+    printf("\x1B[41;37m");  \
+    printf("[ERROR]");      \
+    printf("\x1B[0m");      \
+    printf(__VA_ARGS__);    \
+    }                       \
+  while(0)
+#endif
+  
+#ifndef PRINT_INFO
+#define PRINT_INFO(...)     \
+  do{                       \
+    printf("\1xB[42;37m");  \
+    printf("[INFO] ");      \
+    printf(__VA_ARGS__);    \
+    }                       \
+  while(0)
+#endif

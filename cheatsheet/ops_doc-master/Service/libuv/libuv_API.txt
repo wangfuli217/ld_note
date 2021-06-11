@@ -1,0 +1,2254 @@
+
+libuv(云风){ libuv暗示隐形携带数据 到 socket()绑定参数时，指定struct sockaddr和指定长度
+    libuv 用了大量 callback 机制来完成异步 IO 的问题。而这些 callback 函数通常都带有一个参数 uv_stream_t 或 uv_req_t 等。
+这个数据表示这次 callback 绑定的数据 。
+    我们知道， C 语言是没有原生 closure 支持的。若有的话，closure 应是 callback 机制最佳解决方案。而 C 语言模拟 closure 
+的方法是用一个 C Function 并携带一个 void * ud 。此 ud 即原本应该在 closure 中绑定的数据块。
+    这里，libuv 用的 uv_stream_t 大致上等同于这个 ud 。
+    问题出来了。用户在用这类异步 IO 库的时候，每次 IO 事件都需要绑定的行为需要的数据不仅仅是一个 stream 。还需要一些围绕这个
+stream 做的动作所需要的一些其它数据。
+我在阅读 test/echo-server.c 时看到这么一段：
+static void after_write(uv_write_t* req, int status) {
+  write_req_t* wr;
+
+  if (status) {
+    uv_err_t err = uv_last_error(loop);
+    fprintf(stderr, "uv_write error: %s\n", uv_strerror(err));
+    ASSERT(0);
+  }
+
+  wr = (write_req_t*) req;
+  /* Free the read/write buffer and the request */
+  free(wr->buf.base);
+  free(wr);
+}
+
+这里用了一次强制转换，把 uv_write_t 转换为 write_req_t 。为什么可以这样干，是因为 write_req_t 被定义成：
+typedef struct {
+  uv_write_t req;
+  uv_buf_t buf;
+} write_req_t;
+
+overview(源码){
+[布局]
+include：存放 .h 文件，这些文件主要用于对外暴露 c API
+    include/uv.h 文件存放平台无关的头文件，该文件需要被 include 依赖项目的源码当中。
+    include/uv/*.h 路径下的文件则是针对不同平台进行的不同相关类型的声明定义等。
+    include/uv.h 会根据不同的环境 include uv/win.h 或 uv/unix.h，uv/unix.h 再 include *nix 
+系的其他系统相关头文件。如同通常的c库一样，uv.h 不仅作为入口文件，同时还具备文档的作用，
+阅读源码自然适合从此文件开始。
+
+include/tree.h 是个例外，该文件内通过 宏实现了 伸展树 和 红黑树，而 
+同样采用宏实现的 队列 存放在 src/queue.h 文件中.
+
+src：存放 .c 文件，和一些 不对外暴露的 .h 文件
+    uv-common.h/uv-common.c 包含部分公共的内部数据结构、函数的声明和实现，会被 src 内部大部分其他文件 包含
+    timer.c 对应于 定时器 的实现
+    threadpool.c 实现了线程池，对应的线程管理实现存在于 src/[unix|win]/thread.c 文件中
+    queue.h 基于宏实现的简单的队列
+    heap-inl.h 最小二叉堆实现，未采用宏实现
+    fs-poll.c 文件系统轮询相关实现
+    idna.h/idna.c IDNA Punycode 相关实现代码
+    unix/ *nix 平台相关实现
+    win/ win 平台相关实现
+test：存放一些 单元测试 代码，这里面的很多代码可以作为参考示例
+samples：存放 示例代码，其中 samples/socks5-proxy 是一个基于 libuv 实现的 sock5 代理
+
+[命名]
+libuv 所有函数、结构体都采用了统一的前缀 uv_，名称格式为：uv_ + name，name 可以以下划线开头，表示内部成员，例如：
+    公开名称：uv_loop_t = uv_ + loop_t uv_loop_start = uv_ + loop_start
+    内部名称：uv__io_t = uv_ + _io_t uv__io_poll = uv_ + _io_poll
+
+}
+
+    这里根据 C 结构布局，req 是第一个域，所以排在最前面。
+    这样做有点晦涩，我只能说感觉不太好。因为如果约定了 uv_write 接口传递的是一个 uv_write_t 类型的数据，这就明显是利用 
+C语言特性来夹带私货了。
+    如果这是作者推荐的惯用法的话，我则这样理解：
+    libuv 其实在 API 上有个隐含约定。即回调函数的参数指向的地址偏移量为某个数值以后的数据是用户数据。这个数值为类型的尺寸。
+这类似 c++ 的继承。数据类型尺寸数值是编译时通过编译器来约定的。
+    而且，单就现在的用法，我认为更严谨的做法应该是类似 socket API ，显式的把传递的结构尺寸在函数接口表达出来(参考 socket 
+connect 的接口定义中的第三个参数 addrlen)。 这样对库的接口稳定有好处。库可以知道用户有可能扩展数据，长度信息提示了库，
+传入数据体的真实大小。
+}
+    libuv 不仅仅在多种不同I/O轮询机制之上提供了的简单抽象——I/O观察者，更通过 handles 和 streams 
+为套接字和其他实体提供了更高级别的抽象，同时也提供了跨平台I/O和线程管理能力，还包含一些其他功能。
+overview(){
+    说libuv是异步的，是因为程序可以在一头表达对某一事件的兴趣，并在另一头获取到数据(对于时间或是空间来说)。
+    -- 必然使用全局变量或堆上数据保存连接状态和接收、发送数据状态。
+    说libuv是非阻塞是因为应用程序无需在请求数据后等待，可以自由地做其他的事。
+    
+    libuv 不仅仅只提供了对于不同 I/O 轮询机制的简单抽象："句柄（handles)"和"流(streams)"也提供了对于 socket 和
+其他相关实例的高度抽象。同时 libuv 还提供了跨平台文件 I/O 接口和多线程接口等等。
+    为了能使用户介入事件循环(event loop)，libuv 为用户提供了两个抽象：句柄和请求。
+    [handle]   - handle代表了持久性对象. 相应的handle上有许多与之关联的request。
+    handle表示一个在其被激活时可以执行某些操作且持久存在的对象。例如：当一个预备句柄(prepare handle)处于激活时，
+它的回调函数会在每次事件循环中被调用；每当一个新 TCP 连接来到时，一个 TCP 服务器句柄的连接回调函数就会被调用。
+    handle是不透明的数据结构，其中对应的类型 uv_TYPE_t 中的type指定了handle的使用目的。
+    [request]  - request是短暂性对象. 通常对映着handle上的一个I/O操作。
+    请求(通常)表示一个短暂存在的操作。这些操作可以操作于句柄，例如写请求(write requests)用于向一个句柄写入数据。
+但是又如 getaddrinfo 请求则不依赖于一个句柄，它们直接在事件循环上执行。
+    [handle && request]
+    handle代表了持久性对象。在异步的操作中，相应的handle上有许多与之关联的request。request是短暂性对象(通常只维持
+在一个回调函数的时间)，通常对映着handle上的一个I/O操作。requests用来在初始函数和回调函数之间，传递上下文。
+
+    [context] handle request uv_loop_t 都有一个data字段，用以实现闭包功能。
+    在基于回调函数的编程风格中，你可能会需要在调用处和回调函数之间，传递一些上下文等特定的应用信息。
+所有的handle和request都有一个data域，可以用来存储信息并传递。这是一个c语言库中很常见的模式。
+即使是uv_loop_t也有一个相似的data域。
+
+    [event loop]
+    事件循环是 libuv 的核心部分。它为所有的 I/O 操作建立了上下文，并且执行于一个单线程中。你可以在多个不同的线程中
+运行多个事件循环。除非另有说明，不然 libuv 的事件循环(以及其他循环或句柄提供的 API)并不是线程安全的。
+    在事件驱动编程中，程序会关注每一个事件，并且对每一个事件的发生做出反应。libuv会负责将来自操作系统的事件收集起来，
+或者监视其他来源的事件。这样，用户就可以注册回调函数，回调函数会在事件发生的时候被调用。event-loop会一直保持运行状态。
+
+    [update loop time] uv__update_time(loop);
+    事件循环中的"现在时间(now)"被更新。事件循环会在一次循环迭代开始的时候缓存下当时的时间，用于减少与时间相关的系统调用次数。
+    [loop alive?]
+    如果事件循环仍是存活(alive)的，那么迭代就会开始，否则循环会立刻退出。如果一个循环内包含激活的可引用句柄，激活的请求或
+正在关闭的句柄，那么则认为该循环是存活的。
+    [run due timers] uv__run_timers(loop);
+    执行超时定时器(due timers)。所有在循环的"现在时间"之前超时的定时器都将在这个时候得到执行。
+    [call pending callbacks] uv__run_pending(loop);
+    执行等待中回调(pending callbacks)。正常情况下，所有的 I/O 回调都会在轮询 I/O 后立刻被调用。但是有些情况下，回调可能会
+被推迟至下一次循环迭代中再执行。任何上一次循环中被推迟的回调，都将在这个时候得到执行。
+    [run idle handles] uv__run_idle(loop);
+    执行闲置句柄回调(idle handle callbacks)。尽管它有个不怎么好听的名字，但只要这些闲置句柄是激活的，那么在每次循环迭代中
+它们都会执行。
+    [run prepare handles] uv__run_prepare(loop);
+    执行预备回调(prepare handle)。预备回调会在循环为 I/O 阻塞前被调用。
+    timeout = uv_backend_timeout(loop)
+    开始计算轮询超时(poll timeout)。在为 I/O 阻塞前，事件循环会计算它即将会阻塞多长时间。以下为计算该超时的规则：
+      如果循环带着 UV_RUN_NOWAIT 标识执行，那么超时将会是 0 。
+      如果循环即将停止(uv_stop() 已在之前被调用)，那么超时将会是 0 。
+      如果循环内没有激活的句柄和请求，那么超时将会是 0 。
+      如果循环内有激活的闲置句柄，那么超时将会是 0 。
+      如果有正在等待被关闭的句柄，那么超时将会是 0 。
+      如果不符合以上所有，那么该超时将会是循环内所有定时器中最早的一个超时时间，如果没有任何一个激活的定时器，那么超时将会
+是无限长(infinity)。
+    [poll for io]       uv__io_poll(loop, timeout);
+    事件循环为 I/O 阻塞。此时事件循环将会为 I/O 阻塞，持续时间为上一步中计算所得的超时时间。所有与 I/O 相关的句柄都将会监视
+一个指定的文件描述符，等待一个其上的读或写操作来激活它们的回调。
+    [run check handles] uv__run_check(loop);
+    执行检查句柄回调(check handle callbacks)。在事件循环为 I/O 阻塞结束后，检查句柄的回调将会立刻执行。检查句柄本质上是
+预备句柄的对应物(counterpart)。
+    [call close callbacks] uv__run_closing_handles(loop);
+    执行关闭回调(close callbacks)。如果一个句柄通过调用 uv_close() 被关闭，那么这将会调用关闭回调。
+    
+    [UV_RUN_NOWAIT | UV_RUN_ONCE]
+    尽管在为 I/O 阻塞后可能并没有 I/O 回调被触发，但是仍有可能这时已经有一些定时器已经超时。若事件循环是以 UV_RUN_ONCE 标识执行，
+那么在这时这些超时的定时器的回调将会在此时得到执行。
+    迭代结束。如果循环以 UV_RUN_NOWAIT 或 UV_RUN_ONCE 标识执行，迭代便会结束，并且 uv_run() 将会返回。如果循环以 UV_RUN_DEFAUL
+标识执行，那么如果若它还是存活的，它就会开始下一次迭代，否则结束。
+
+    [async]
+libuv 目前使用了一个全局的线程池，所有的循环都可以往其中加入任务。目前有三种操作会在这个线程池中执行：
+    文件系统操作
+    DNS 函数(getaddrinfo 和 getnameinfo)
+    通过 uv_queue_work() 添加的用户代码
+    
+    [uv_stop]
+    uv_stop() 用来终止event loop。loop会停止的最早时间点是在下次循环的时候，或者稍晚些的时候。
+    uv_stop() 意味着在本次循环中已经准备被处理的事件，依然会被处理，uv_stop不会起到作用。
+    当uv_stop被调用，在当前的循环中，loop不会被IO操作阻塞。即 select|poll|epoll_wait函数不再被阻塞于IO事件、超时事件等。直接NOWAIT模式
+    uv_stop 调用时间点|事件点
+    # 在已经得到结果，或是发生错误的时候，uv_stop()可以用来关闭一个loop，而且不需要保证handler停止的顺序。
+    
+    idle、prepare、check 的实现完全相同，调用时间不同.
+    类似于生命周期勾子，这几个阶段目的是允许开发者在事件循环的特定阶段执行代码，在 Node.js 用于性能信息收集。
+    源文件路径：src/unix/loop-watcher.c
+}
+error(handling){
+    初始化函数或者同步执行的函数，会在执行失败后返回代表错误的负数。但是对于异步执行的函数，
+会在执行失败的时候，给它们的回调函数传递一个状态参数。错误信息被定义为UV_E*常量
+    你可以使用uv_strerror(int)和uv_err_name(int)分别获取const char *格式的错误信息和错误名字。
+    I/O函数的回调函数(例如文件和socket等)会被传递一个nread参数。如果nread小于0，就代表出现了错误
+(当然，UV_EOF是读取到文件末端的错误，你要特殊处理)
+}
+
+buf_stream(){
+    在libuv中，最基础的I/O操作是流stream(uv_stream_t)。TCP套接字，UDP套接字，管道对于文件I/O和IPC来说，
+都可以看成是流stream(uv_stream_t)的子类。
+int uv_read_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb); 
+int uv_read_stop(uv_stream_t*); 
+int uv_write(uv_write_t* req, uv_stream_t* handle, const uv_buf_t bufs[], unsigned int nbufs, uv_write_cb cb);
+当uv_read_start()一旦被调用，libuv会保持从流中持续地读取数据，直到uv_read_stop()被调用。
+    数据的离散单元是buffer-uv_buffer_t。它包含了指向数据的开始地址的指针(uv_buf_t.base)和buffer的长度(uv_buf_t.len)这两个信息。
+uv_buf_t很轻量级，使用值传递。我们需要管理的只是实际的数据，即程序必须自己分配和回收内存。
+    最后注意，缓冲区要由我们手动回收。
+  
+  [文件IO 和 socket IO的nread返回值判断存在差异]
+int uv_read_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb); 
+  [uv_alloc_cb alloc_cb]
+  当分配函数alloc_buf()返回一个长度为0的缓冲区时，代表它分配内存失败。在这种情况下，
+  读取的回调函数会被错误UV_ENOBUFS(nread=UV_ENOBUFS)唤醒libuv同时也会继续尝试从流中读取数据，
+  所以如果你想要停止的话，必须明确地调用uv_close()
+  
+  [uv_read_cb read_cb]
+  当回调函数read_stdin()的nread参数小于0时，表示错误发生了。其中一种可能的错误是EOF(读到文件的尾部)，这时我们可以使用函数uv_close()关闭流了。
+  当nread大于0时，nread代表我们可以向输出流中写入的字节数目。
+  当nread为0时，代表已经没有可读的了，大多数的程序会自动忽略这个。
+  最后注意，缓冲区要由我们手动回收。
+  
+  UV_EAGAIN  内核态缓冲区内没数据可读
+  UV_ENOBUFS 用户态没有足够内存作为缓冲区
+    
+  uv_pipe_t。它可以将本地文件转换为流(stream)的形态
+    
+    [SIGPIPE]
+    你的程序在被其他的程序调用的过程中，有意无意地会向pipe写入数据，这样的话它会很容易被信号SIGPIPE终止掉，
+你最好在初始化程序的时候加入这句： signal(SIGPIPE, SIG_IGN)。
+}
+uv_fs_(){ uvcat uvtee
+    libuv 提供的文件操作和 socket operations 并不相同。套接字操作使用了操作系统本身提供了非阻塞操作，
+而文件操作内部使用了阻塞函数，但是 libuv 是在线程池中调用这些函数，并在应用程序需要交互时通知在事件循环中注册的监视器。
+    所有的文件操作函数都有两种形式 - 同步**(synchronous)** 和 异步**( asynchronous)**。
+    同步方式如果没有指定回调函数则会被自动调用(并阻塞)，函数的返回值是libuv error code 。但以上通常只对同步调用有意义。
+而异步方式则会在传入回调函数时被调用, 并且返回 0。
+    [uv_fs_open]
+    int uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, int mode, uv_fs_cb cb)
+    参数flags与mode和标准的 Unix flags 相同。libuv 会小心地处理 Windows 环境下的相关标志位(flags)的转换,
+所以编写跨平台程序时你不用担心不同平台上文件打开的标志位不同。
+
+    [uv_fs_close]
+    int uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
+    
+    [callback] - uv_fs_open
+    uv_fs_t的result域保存了uv_fs_open回调函数打开的文件描述符。如果文件被正确地打开，我们可以开始读取了。
+    [callback] - uv_fs_read
+    uv_fs_*系列的函数是和POSIX的函数对应的，所以当读到文件的末尾时(EOF)，result返回0。
+    在使用streams或者pipe的情况下，使用的是libuv自定义的UV_EOF。
+    
+    主要是任务和多路I/O的快速I/O
+    [uv_fs_write]
+    文件系统的写入使用 uv_fs_write()，当写入完成时会触发回调函数，
+    [uv_fs_req_cleanup]
+    函数uv_fs_req_cleanup()在文件系统操作结束后必须要被调用，用来回收在读写中分配的内存。
+    [unlink, rmdir, stat]
+    unlink, rmdir, stat 这样的标准文件操作都是支持异步的，并且使用方法和上述类似。在uv_fs_t.result中保存返回值.
+    返回的result值，<0表示出错，其他值表示成功。
+    但>=0的值在不同的函数中表示的意义不一样，
+      比如在uv_fs_read或者uv_fs_write中，它代表读取或写入的数据总量，
+      但在uv_fs_open中表示打开的文件描述符。
+    
+    # 由于文件系统和磁盘的调度策略，写入成功的数据不一定就存在磁盘上。
+    # 函数uv_fs_req_cleanup()在文件系统操作结束后必须要被调用，用来回收在读写中分配的内存。
+    
+    一般来说，一次性的，开始的或者关闭的部分，都是同步的，因为我们一般关心的主要是任务和多路I/O的快速I/O。
+所以在这些对性能微不足道的地方，都是使用同步的，这样代码还会简单一些。
+}
+
+fs_event(){
+实现这个监视器，要从uv_fs_event_init()开始：
+函数uv_fs_event_start()的第三个参数是要监视的文件或文件夹。最后一个参数，flags，可以是：
+  UV_FS_EVENT_WATCH_ENTRY = 1,
+  UV_FS_EVENT_STAT = 2,
+  UV_FS_EVENT_RECURSIVE = 4
+UV_FS_EVENT_WATCH_ENTRY和UV_FS_EVENT_STAT不做任何事情(至少目前是这样)，
+UV_FS_EVENT_RECURSIVE可以在支持的系统平台上递归地监视子文件夹
+在回调函数run_command()中，接收的参数如下：
+1.uv_fs_event_t *handle-句柄。里面的path保存了发生改变的文件的地址。
+2.const char *filename-如果目录被监视，它代表发生改变的文件名。只在Linux和Windows上不为null，在其他平台上可能为null。
+3.int flags -UV_RENAME名字改变，UV_CHANGE内容改变之一，或者他们两者的按位或的结果(|)。
+4.int status－当前为0。
+
+int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle);
+int uv_fs_event_start(uv_fs_event_t* handle, uv_fs_event_cb cb, const char* filename, unsigned int flags);
+int uv_fs_event_stop(uv_fs_event_t* handle);
+}
+thread(){
+最后要强调一句：只有一个主线程，主线程上只有一个event loop。不会有其他与主线程交互的线程了。(除非使用uv_async_send)。
+在Unix上uv_thread_t只是pthread_t的别名, 但是这只是一个具体实现，不要过度地依赖它，认为这永远是成立的。
+uv_thread_create的第二个参数指向了要执行的函数的地址。最后一个参数用来传递自定义的参数。最终，函数hare将在新的线程中执行，由操作系统调度。
+uv_thread_join不像pthread_join那样，允许线线程通过第二个参数向父线程返回值。想要传递值，必须使用线程间通信
+
+    [mutexes]
+    uv_mutex_init与uv_mutex_trylock在成功执行后，返回0，或者在错误时，返回错误码。
+    如果libuv在编译的时候开启了调试模式，uv_mutex_destroy(), uv_mutex_lock() 和 uv_mutex_unlock()会在出错的地方调用abort()中断。
+类似的，uv_mutex_trylock()也同样会在错误发生时中断，而不是返回EAGAIN和EBUSY。
+    在linux中是支持递归上锁的，但是在libuv的API中并未实现。
+    
+    [uv_once]
+    libuv提供了一个简单易用的函数uv_once()。多个线程调用这个函数，参数可以使用一个uv_once_t和一个指向特定函数的指针，
+最终只有一个线程能够执行这个特定函数，并且这个特定函数只会被调用一次：
+    在libuv的v0.11.11版本里，推出了uv_key_t结构和操作线程局部存储TLS的API，使用方法同样和pthread类似。
+    
+    一个良好设计的程序，应该能够终止一个已经开始运行的长耗时任务。
+    Such a worker could periodically check for a variable that only the main process sets to signal termination.
+    
+        应该注意: 因为消息的发送是异步的,当uv_async_send在另外一个线程中被调用后，回调函数可能会立即被调用, 
+也可能在稍后的某个时刻被调用。libuv也有可能多次调用uv_async_send，但只调用了一次回调函数。唯一可以保证的是: 
+线程在调用uv_async_send之后回调函数可至少被调用一次。 如果你没有调用的uv_async_send, 那么回调函数也不会被调用。 
+如果你调用了两次(以上)的uv_async_send, 而 libuv 暂时还没有机会运行回调函数, 则libuv可能会在多次调用uv_async_send
+后只调用一次回调函数，你的回调函数绝对不会在一次事件中被调用两次(或多次)。
+    互斥量和读写锁不能在信号处理函数中正确工作，但是uv_async_send可以。
+}
+
+timer(){
+    [timer]
+    在定时器启动后的特定时间后，定时器会调用回调函数。libuv的定时器还可以设定为，按时间间隔定时启动，而不是只启动一次。
+    可以简单地使用超时时间timeout作为参数初始化一个定时器，还有一个可选参数repeat。定时器能在任何时间被终止。
+    [uv_timer_start]
+    uv_timer_t timer_req; 
+    uv_timer_init(loop, &timer_req); 
+    uv_timer_start(&timer_req, callback, 5000, 2000);
+    上述操作会启动一个循环定时器（repeating timer），它会在调用uv_timer_start后，5秒（timeout）启动回调函数，
+    然后每隔2秒（repeat）循环启动回调函数。
+    
+    [uv_timer_stop]
+    uv_timer_stop(&timer_req);
+    来停止定时器。这个函数也可以在回调函数中安全地使用。
+    
+    [uv_timer_set_repeat]
+    uv_timer_set_repeat(uv_timer_t *timer, int64_t repeat);
+    uv_timer_set_repeat会在可能的时候发挥作用。如果上述函数是在定时器回调函数中调用的，这意味着：
+    如果定时器未设置为循环，这意味着定时器已经停止。需要先用uv_timer_start重新启动。
+    如果定时器被设置为循环，那么下一次超时的时间已经被规划好了，所以在切换到新的间隔之前，旧的间隔还会发挥一次作用。
+    
+    [uv_timer_again]
+    只适用于循环定时器，相当于停止定时器，然后把原先的timeout和repeat值都设置为之前的repeat值，启动定时器。
+    如果当该函数调用时，定时器未启动，则调用失败（错误码为UV_EINVAL）并且返回－1。
+}
+
+ref(){
+    [ref]
+    event-loop在没有了活跃的handle之后，便会终止。整套系统的工作方式是：在handle增加时，event-loop的引用计数加1，
+在handle停止时，引用计数减少1。当然，libuv也允许手动地更改引用计数，通过使用：
+void uv_ref(uv_handle_t*); 
+void uv_unref(uv_handle_t*);
+这样，就可以达到允许loop即使在有正在活动的定时器时，仍然能够退出。或者是使用自定义的uv_handle_t对象来使得loop保持工作。
+    第二个函数可以和间隔循环定时器结合使用。你会有一个每隔x秒执行一次的垃圾回收器，或者是你的网络服务器会每隔一段时间
+向其他人发送一次心跳信号，但是你不想只有在所有垃圾回收完或者出现错误时才能停止他们。如果你想要在你其他的监视器都退出后，
+终止程序。这时你就可以立即unref定时器，即便定时器这时是loop上唯一还在运行的监视器，你依旧可以停止uv_run()。
+}
+idle(){
+    [idle]
+    空转的回调函数会在每一次的event-loop循环激发一次。空转的回调函数可以用来执行一些优先级较低的活动。
+    比如，你可以向开发者发送应用程序的每日性能表现情况，以便于分析，或者是使用用户应用cpu时间来做SETI运算:)。
+    空转程序还可以用于GUI应用。比如你在使用event-loop来下载文件，如果tcp连接未中断而且当前并没有其他的事件，
+则你的event-loop会阻塞，这也就意味着你的下载进度条会停滞，用户会面对一个无响应的程序。面对这种情况，空转监视器可以保持UI可操作。
+} 
+
+worker(){
+    在使用uv_queue_work的时候，你通常需要给工作线程传递复杂的数据。解决方案是自定义struct，然后使用uv_work_t.data指向它。
+一个稍微的不同是必须让uv_work_t作为这个自定义struct的成员之一(把这叫做接力棒)。这么做就可以使得，同时回收数据和uv_wortk_t。
+    [uv_work_t接力棒]
+    struct ftp_baton {
+        uv_work_t req;
+        char *host;
+        int port;
+        char *username;
+        char *password;
+    }
+    
+    ftp_baton *baton = (ftp_baton*) malloc(sizeof(ftp_baton));
+    baton->req.data = (void*) baton;
+    baton->host = strdup("my.webhost.com");
+    baton->port = 21;
+    uv_queue_work(loop, &baton->req, ftp_session, ftp_cleanup);
+    
+    现在我们创建完了接力棒，并把它排入了队列中。
+现在就可以随性所欲地获取自己想要的数据啦。
+void ftp_session(uv_work_t *req) {
+    ftp_baton *baton = (ftp_baton*) req->data;
+
+    fprintf(stderr, "Connecting to %s\n", baton->host);
+}
+
+void ftp_cleanup(uv_work_t *req) {
+    ftp_baton *baton = (ftp_baton*) req->data;
+
+    free(baton->host);
+    // ...
+    free(baton);
+}
+我们既回收了接力棒，同时也回收了监视器。
+
+注意在这两个回调传递到 uv_queue_work 时的一个关键区别：on_work 运行在线程池中，而 on_after_work 运行在事件循环中的主线程上.
+}
+poll(){
+    通常在使用第三方库的时候，需要应对他们自己的IO，还有保持监视他们的socket和内部文件。在此情形下，不可能使用标准
+的IO流操作，但第三方库仍然能整合进event-loop中。所有这些需要的就是，第三方库就必须允许你访问它的底层文件描述符，
+并且提供可以处理有用户定义的细微任务的函数。但是一些第三库并不允许你这么做，他们只提供了一个标准的阻塞IO函数，
+此函数会完成所有的工作并返回。在event-loop的线程直接使用它们是不明智的，而是应该使用libuv的工作线程。当然，
+这也意味着失去了对第三方库的颗粒化控制。
+    libuv的uv_poll简单地监视了使用了操作系统的监控机制的文件描述符。从某方面说，
+libuv实现的所有的IO操作，的背后均有uv_poll的支持。无论操作系统何时监视到文件描述符的改变，
+libuv都会调用响应的回调函数。
+    现在我们简单地实现一个下载管理程序，它会通过libcurl来下载文件。我们不会直接控制libcurl，
+而是使用libuv的event-loop，通过非阻塞的异步的多重接口来处理下载，与此同时，libuv会监控IO的就绪状态。
+    [uvwget]
+    我们允许libcurl直接向文件写入数据。
+    start_timeout会被libcurl立即调用。它会启动一个libuv的定时器，使用CURL_SOCKET_TIMEOUT驱动curl_multi_socket_action，
+当其超时时，调用它。curl_multi_socket_action会驱动libcurl，也会在socket状态改变的时候被调用。但在我们深入讲解它之前，
+我们需要轮询监听socket，等待handle_socket被调用。
+    在下载完成或失败后，libcurl需要移除poll。所以我们停止并回收了poll的handle。
+    我们使用UV_READABLE或UV_WRITABLE开始轮询，基于libcurl想要监视的事件。当socket已经准备好读或写后，libuv会调用轮询的回调函数。
+在相同的handle上调用多次uv_poll_start是被允许的，这么做可以更新事件的参数。curl_perform是整个程序的关键。
+}
+dsym(){
+    libuv提供了一个跨平台的API来加载共享库shared libraries。这就可以用来实现你自己的插件／扩展／模块系统，
+它们可以被nodejs通过require()调用。只要你的库输出的是正确的符号，用起来还是很简单的。在载入第三方库的时候，
+要注意错误和安全检查，否则你的程序就会表现出不可预测的行为。
+    函数uv_dlopen需要传入一个共享库的路径作为参数。当它成功时返回0，出错时返回－1。使用uv_dlerror可以获取出错的消息。
+    uv_dlsym的第三个参数保存了一个指向第二个参数所保存的函数的指针。
+    init_plugin_function是一个函数的指针，它指向了我们所需要的程序插件的函数。
+}
+tty(){
+    文字终端长期支持非常标准化的控制序列。它经常被用来增强终端输出的可读性。例如grep --colour。libuv提供了跨平台的，
+uv_tty_t抽象（stream）和相关的处理ANSI escape codes 的函数。这也就是说，libuv同样在Windows上实现了对等的ANSI codes，
+并且提供了获取终端信息的函数。
+
+首先要做的是，使用读／写文件描述符来初始化uv_tty_t。如下：
+int uv_tty_init(uv_loop_t*, uv_tty_t*, uv_file fd, int readable)
+设置readable为true，意味着你打算使用uv_read_start从stream从中读取数据。
+最好还要使用uv_tty_set_mode来设置其为正常模式。也就是运行大多数的TTY格式，流控制和其他的设置。其他的模式还有这些。
+    记得当你的程序退出后，要使用uv_tty_reset_mode恢复终端的状态。这才是礼貌的做法。另外要注意礼貌的地方是关心重定向。
+如果使用者将你的命令的输出重定向到文件，控制序列不应该被重写，因为这会阻碍可读性和grep。为了保证文件描述符确实是TTY，
+可以使用uv_guess_handle函数，比较返回值是否为UV_TTY。
+
+
+}
+uv_async_t(){
+int uv_async_init(uv_loop_t* loop, uv_async_t* async, uv_async_cb async_cb)
+int uv_async_send(uv_async_t* async)
+# 初始化uv_async_t, 使async和loop，print_message关联依赖
+# uv_async_send则异步发送信号给async实例，使uv_run()时回调 async_cb回调函数。用于异步回调
+}
+
+    用户数据报协议(User Datagram Protocol)提供无连接的，不可靠的网络通信。因此，libuv不会提供一个stream实现的形式，
+而是提供了一个uv_udp_t句柄(接收端)，和一个uv_udp_send_t句柄(发送端)，还有相关的函数。
+    也就是说，实际的读写api与正常的流读取类似。
+[接收端]
+uv_udp_init(loop, &recv_socket); 
+struct sockaddr_in recv_addr; 
+uv_ip4_addr("0.0.0.0", 68, &recv_addr); 
+uv_udp_bind(&recv_socket, (const struct sockaddr *)&recv_addr, UV_UDP_REUSEADDR); 
+uv_udp_recv_start(&recv_socket, alloc_buffer, on_read);
+[发送端]
+uv_udp_init(loop, &send_socket); 
+struct sockaddr_in broadcast_addr; 
+uv_ip4_addr("0.0.0.0", 0, &broadcast_addr); 
+uv_udp_bind(&send_socket, (const struct sockaddr *)&broadcast_addr, 0); 
+uv_udp_set_broadcast(&send_socket, 1);
+  [发送数据]
+uv_udp_send_t send_req;
+uv_buf_t discover_msg = make_discover_msg();
+  [发送操作]
+struct sockaddr_in send_addr; 
+uv_ip4_addr("255.255.255.255", 67, &send_addr); 
+uv_udp_send(&send_req, &send_socket, &discover_msg, 1, (const struct sockaddr *)&send_addr, on_send);
+# 如果不绑定本地端口，能否在uv_udp_recv_start之后调用uv_udp_send函数。
+
+void on_read(uv_udp_t *req, ssize_t nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned flags) {
+当没有可读数据后，nread等于0。
+如果addr是null，它代表了没有可读数据（回调函数不会做任何处理）。
+如果不为null，则说明了从addr中接收到一个空的数据报。
+如果flag为UV_UDP_PARTIAL，则代表了内存分配的空间不够存放接收到的数据了，在这种情形下，操作系统会丢弃存不下的数据。
+
+uv_udp_t(){
+void (*uv_udp_send_cb)(uv_udp_send_t* req, int status) # uv_udp_send(),
+void (*uv_udp_recv_cb)(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
+#  uv_udp_recv_start(),
+  handle: UDP handle
+  nread: Number of bytes that have been received. 0 if there is no more data to read. 
+  buf: uv_buf_t with the received data.
+  addr: struct sockaddr* containing the address of the sender.
+  flags: One or more or’ed UV_UDP_* constants. Right now only UV_UDP_PARTIAL is used.
+  
+int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle)
+int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags)
+int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock)
+int uv_udp_bind(uv_udp_t* handle, const struct sockaddr* addr, unsigned int flags)
+int uv_udp_connect(uv_udp_t* handle, const struct sockaddr* addr)
+int uv_udp_getpeername(const uv_udp_t* handle, struct sockaddr* name, int* namelen)
+int uv_udp_getsockname(const uv_udp_t* handle, struct sockaddr* name, int* namelen)
+int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr, const char* interface_addr, uv_membership membership)
+int uv_udp_set_multicast_loop(uv_udp_t* handle, int on)
+int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl)
+int uv_udp_set_multicast_interface(uv_udp_t* handle, const char* interface_addr)
+int uv_udp_set_broadcast(uv_udp_t* handle, int on)
+int uv_udp_set_ttl(uv_udp_t* handle, int ttl)
+
+int uv_udp_send(uv_udp_send_t* req, uv_udp_t* handle, const uv_buf_t bufs[], unsigned int nbufs, const struct sockaddr* addr, uv_udp_send_cb send_cb)
+  req – UDP request handle. Need not be initialized.
+  handle – UDP handle. Should have been initialized with uv_udp_init().
+  bufs – List of buffers to send.
+  nbufs – Number of buffers in bufs.
+  addr – struct sockaddr_in or struct sockaddr_in6 with the address and port of the remote peer.
+  send_cb – Callback to invoke when the data has been sent out.
+  Returns:	0 on success, or an error code < 0 on failure.
+
+int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb, uv_udp_recv_cb recv_cb)
+  handle – UDP handle. Should have been initialized with uv_udp_init().
+  alloc_cb – Callback to invoke when temporary storage is needed.
+  recv_cb – Callback to invoke with received data.
+  Returns:	0 on success, or an error code < 0 on failure.
+
+int uv_udp_recv_stop(uv_udp_t* handle)
+}
+uv_stream_t(){
+uv_stream_t->
+  -> uv_tcp_t — TCP handle
+  -> uv_pipe_t — Pipe handle
+  -> uv_tty_t — TTY handle
+}
+
+
+uv_req_t(){
+    UV_UNKNOWN_REQ = 0,
+    UV_REQ,
+    UV_CONNECT,
+    UV_WRITE,
+    UV_SHUTDOWN,
+    UV_UDP_SEND,
+    UV_FS,
+    UV_WORK,
+    UV_GETADDRINFO,
+    UV_GETNAMEINFO,
+    UV_REQ_TYPE_MAX,
+}
+
+https://github.com/thlorenz/libuv-dox/blob/master/methods.md
+loop(){ Init、Run、Stop、Close
+uv_loop_t* uv_loop_new(void)
+void uv_loop_delete(uv_loop_t*);
+uv_loop_t* uv_default_loop(void);
+}
+loop(uv_run){
+/*
+ * This function runs the event loop. It will act differently depending on the
+ * specified mode:
+ *  - UV_RUN_DEFAULT: Runs the event loop until the reference count drops to
+ *    zero. Always returns zero.
+ *  - UV_RUN_ONCE: Poll for new events once. Note that this function blocks if
+ *    there are no pending events. Returns zero when done (no active handles
+ *    or requests left), or non-zero if more events are expected (meaning you
+ *    should run the event loop again sometime in the future).
+ *  - UV_RUN_NOWAIT: Poll for new events once but do not block if there are no
+ *    pending events.
+ */
+# uv_run调用会造成阻塞.
+int uv_run(uv_loop_t*, uv_run_mode mode);
+uv_run(loop, UV_RUN_NOWAIT)和uv_run(loop, UV_RUN_ONCE)非常像，因为它们都只处理一个事件。但是不同在于，
+UV_RUN_ONCE会在没有任务的时候阻塞，但是UV_RUN_NOWAIT会立刻返回。我们使用NOWAIT，这样才使得一个loop
+不会因为另外一个loop没有要处理的事件而挨饿。
+}
+loop(uv_loop_alive){
+/*
+ * This function checks whether the reference count, the number of active
+ * handles or requests left in the event loop, is non-zero.
+ */
+int uv_loop_alive(const uv_loop_t* loop);
+}
+loop(uv_stop){
+/*
+ * This function will stop the event loop by forcing uv_run to end
+ * as soon as possible, but not sooner than the next loop iteration.
+ * If this function was called before blocking for i/o, the loop would not
+ * block for i/o on this iteration.
+ */
+void uv_stop(uv_loop_t*); # uvstop/main.c
+uv_stop()用来终止event loop。
+loop会停止的最早时间点是在下次循环的时候，或者稍晚些的时候。
+这也就意味着在本次循环中已经准备被处理的事件，依然会被处理，uv_stop不会起到作用。
+当uv_stop被调用，在当前的循环中，loop不会被IO操作阻塞。
+
+}
+reference(uv_ref){
+/*
+ * Manually modify the event loops reference count. Useful if the user wants
+ * to have a handle or timeout that does not keep the loop alive.
+ */
+void uv_ref(uv_handle_t*);
+
+void uv_unref(uv_handle_t*);
+
+int uv_has_ref(const uv_handle_t*);
+}
+
+time(uv_update_time){
+/*
+ * Update the event loops concept of "now". Libuv caches the current time
+ * at the start of the event loop tick in order to reduce the number of
+ * time-related system calls.
+ *
+ * You would not normally need to call this function unless you have callbacks
+ * that block the event loop for longer periods of time, where "longer" is
+ * somewhat subjective but probably on the order of a millisecond or more.
+ */
+void uv_update_time(uv_loop_t*);
+}
+time(uv_now){
+/*
+ * Return the current timestamp in milliseconds. The timestamp is cached at
+ * the start of the event loop tick, see |uv_update_time()| for details and
+ * rationale.
+ *
+ * The timestamp increases monotonically from some arbitrary point in time.
+ * Don ot make assumptions about the starting point, you will only get
+ * disappointed.
+ *
+ * Use uv_hrtime() if you need sub-millisecond granularity.
+ */
+uint64_t uv_now(uv_loop_t*);
+}
+
+backend(uv_backend){
+/*
+ * Get backend file descriptor. Only kqueue, epoll and event ports are
+ * supported.
+ *
+ * This can be used in conjunction with `uv_run(loop, UV_RUN_NOWAIT)` to
+ * poll in one thread and run the event loop event callbacks in another.
+ *
+ * Useful for embedding libuvs event loop in another event loop.
+ * See test/test-embed.c for an example.
+ *
+ * Note that embedding a kqueue fd in another kqueue pollset does not work on
+ * all platforms. It is not an error to add the fd but it never generates
+ * events.
+ */
+int uv_backend_fd(const uv_loop_t*);
+}
+backend(uv_backend_timeout){
+/*
+ * Get the poll timeout. The return value is in milliseconds, or -1 for no
+ * timeout.
+ */
+int uv_backend_timeout(const uv_loop_t*);
+}
+
+handles(uv_handle_size){
+/*
+ * Returns size of various handle types, useful for FFI
+ * bindings to allocate correct memory without copying struct
+ * definitions
+ */
+size_t uv_handle_size(uv_handle_type type);
+}
+
+handles(uv_is_active){
+/*
+ * Returns non-zero if the handle is active, zero if it is inactive.
+ *
+ * What "active" means depends on the type of handle:
+ *
+ *  - A uv_async_t handle is always active and cannot be deactivated, except
+ *    by closing it with uv_close().
+ *
+ *  - A uv_pipe_t, uv_tcp_t, uv_udp_t, etc. handle - basically any handle that
+ *    deals with I/O - is active when it is doing something that involves I/O,
+ *    like reading, writing, connecting, accepting new connections, etc.
+ *
+ *  - A uv_check_t, uv_idle_t, uv_timer_t, etc. handle is active when it has
+ *    been started with a call to uv_check_start(), uv_idle_start(), etc.
+ *
+ *      Rule of thumb: if a handle of type uv_foo_t has a uv_foo_start()
+ *      function, then it is active from the moment that function is called.
+ *      Likewise, uv_foo_stop() deactivates the handle again.
+ *
+ */
+int uv_is_active(const uv_handle_t* handle);
+}
+
+handles(uv_walk){
+/*
+ * Walk the list of open handles.
+ */
+void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg);
+}
+
+handles(uv_close){
+/*
+ * Request handle to be closed. close_cb will be called asynchronously after
+ * this call. This MUST be called on each handle before memory is released.
+ *
+ * Note that handles that wrap file descriptors are closed immediately but
+ * close_cb will still be deferred to the next iteration of the event loop.
+ * It gives you a chance to free up any resources associated with the handle.
+ *
+ * In-progress requests, like uv_connect_t or uv_write_t, are cancelled and
+ * have their callbacks called asynchronously with status=UV_ECANCELED.
+ */
+void uv_close(uv_handle_t* handle, uv_close_cb close_cb);
+}
+
+requests(uv_req_size){
+/*
+ * Returns size of request types, useful for dynamic lookup with FFI
+ */
+size_t uv_req_size(uv_req_type type);
+}
+
+buffers(uv_buf_init){
+/*
+ * Constructor for uv_buf_t.
+ * Due to platform differences the user cannot rely on the ordering of the
+ * base and len members of the uv_buf_t struct. The user is responsible for
+ * freeing base after the uv_buf_t is done. Return struct passed by value.
+ */
+uv_buf_t uv_buf_init(char* base, unsigned int len);
+}
+
+streams(uv_listen){
+int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb);
+}
+
+streams(uv_accept){
+/*
+ * This call is used in conjunction with uv_listen() to accept incoming
+ * connections. Call uv_accept after receiving a uv_connection_cb to accept
+ * the connection. Before calling uv_accept use uv_*_init() must be
+ * called on the client. Non-zero return value indicates an error.
+ *
+ * When the uv_connection_cb is called it is guaranteed that uv_accept will
+ * complete successfully the first time. If you attempt to use it more than
+ * once, it may fail. It is suggested to only call uv_accept once per
+ * uv_connection_cb call.
+ */
+
+int uv_accept(uv_stream_t* server, uv_stream_t* client);
+}
+streams(uv_read_start){
+/*
+ * Read data from an incoming stream. The callback will be made several
+ * times until there is no more data to read or uv_read_stop is called.
+ * When we have reached EOF nread will be set to UV_EOF.
+ *
+ * When nread < 0, the buf parameter might not point to a valid buffer;
+ * in that case buf.len and buf.base are both set to 0.
+ *
+ * Note that nread might also be 0, which does *not* indicate an error or
+ * eof; it happens when libuv requested a buffer through the alloc callback
+ * but then decided that it did not need that buffer.
+ */
+int uv_read_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb);
+}
+streams(uv_read_stop){
+int uv_read_stop(uv_stream_t*);
+}
+streams(uv_read2_start){
+/*
+ * Extended read methods for receiving handles over a pipe. The pipe must be
+ * initialized with ipc == 1.
+ */
+int uv_read2_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read2_cb read_cb);
+}
+streams(uv_write){
+/*
+ * Write data to stream. Buffers are written in order. Example:
+ *
+ *   uv_buf_t a[] = {
+ *     { .base = "1", .len = 1 },
+ *     { .base = "2", .len = 1 }
+ *   };
+ *
+ *   uv_buf_t b[] = {
+ *     { .base = "3", .len = 1 },
+ *     { .base = "4", .len = 1 }
+ *   };
+ *
+ *   uv_write_t req1;
+ *   uv_write_t req2;
+ *
+ *   // writes "1234"
+ *   uv_write(&req1, stream, a, 2);
+ *   uv_write(&req2, stream, b, 2);
+ *
+ */
+int uv_write(uv_write_t* req,
+             uv_stream_t* handle,
+             const uv_buf_t bufs[],
+             unsigned int nbufs,
+             uv_write_cb cb);
+}
+
+streams(uv_write2){
+/*
+ * Extended write function for sending handles over a pipe. The pipe must be
+ * initialized with ipc == 1.
+ * send_handle must be a TCP socket or pipe, which is a server or a connection
+ * (listening or connected state).  Bound sockets or pipes will be assumed to
+ * be servers.
+ */
+int uv_write2(uv_write_t* req,
+              uv_stream_t* handle,
+              const uv_buf_t bufs[],
+              unsigned int nbufs,
+              uv_stream_t* send_handle,
+              uv_write_cb cb);
+}
+streams(uv_try_write){
+/*
+ * Same as `uv_write()`, but won't queue write request if it can't be completed
+ * immediately.
+ * Will return either:
+ * - positive number of bytes written
+ * - zero - if queued write is needed
+ * - negative error code
+ */
+int uv_try_write(uv_stream_t* handle,
+                 const uv_buf_t bufs[],
+                 unsigned int nbufs);
+}
+streams(uv_is_readable){
+int uv_is_readable(const uv_stream_t* handle);
+}
+streams(uv_is_writable){
+int uv_is_writable(const uv_stream_t* handle);
+}
+
+streams(uv_stream_set_blocking){
+/*
+ * Enable or disable blocking mode for a stream.
+ *
+ * When blocking mode is enabled all writes complete synchronously. The
+ * interface remains unchanged otherwise, e.g. completion or failure of the
+ * operation will still be reported through a callback which is made
+ * asychronously.
+ *
+ * Relying too much on this API is not recommended. It is likely to change
+ * significantly in the future.
+ *
+ * On windows this currently works only for uv_pipe_t instances. On unix it
+ * works for tcp, pipe and tty instances. Be aware that changing the blocking
+ * mode on unix sets or clears the O_NONBLOCK bit. If you are sharing a handle
+ * with another process, the other process is affected by the change too,
+ * which can lead to unexpected results.
+ *
+ * Also libuv currently makes no ordering guarantee when the blocking mode
+ * is changed after write requests have already been submitted. Therefore it is
+ * recommended to set the blocking mode immediately after opening or creating
+ * the stream.
+ */
+int uv_stream_set_blocking(uv_stream_t* handle, int blocking);
+
+}
+streams(uv_is_closing){
+/*
+ * Used to determine whether a stream is closing or closed.
+ *
+ * N.B. is only valid between the initialization of the handle
+ *      and the arrival of the close callback, and cannot be used
+ *      to validate the handle.
+ */
+int uv_is_closing(const uv_handle_t* handle);
+}
+[服务器端]
+1.uv_tcp_init建立tcp句柄。 
+2.uv_tcp_bind绑定。 
+3.uv_listen建立监听，当有新的连接到来时，激活调用回调函数。callback -> step: 4.5.
+4.uv_accept接收链接。 
+5.使用stream操作来和客户端通信。
+# 如果你不需要接受连接，你甚至可以在uv_listen的回调函数中调用uv_close。
+你可以调用uv_ip4_addr()函数来将ip地址和端口号转换为sockaddr_in结构，要想完成逆转换的话可以调用uv_ip4_name()。
+记得在socket不需要后，调用uv_close。如果你不需要接受连接，你甚至可以在uv_listen的回调函数中调用uv_close。
+
+[客户端]
+uv_tcp_t* socket = (uv_tcp_t*)malloc(sizeof(uv_tcp_t));
+uv_tcp_init(loop, socket);
+uv_connect_t* connect = (uv_connect_t*)malloc(sizeof(uv_connect_t));
+struct sockaddr_in dest;
+uv_ip4_addr("127.0.0.1", 80, &dest);
+uv_tcp_connect(connect, socket, dest, on_connect);
+# 当建立连接后，回调函数on_connect会被调用。回调函数会接收到一个uv_connect_t结构的数据，它的handle指向通信的socket。
+
+tcp(uv_tcp_init){
+int uv_tcp_init(uv_loop_t*, uv_tcp_t* handle);
+}
+tcp(uv_tcp_open){
+/*
+ * Opens an existing file descriptor or SOCKET as a tcp handle.
+ */
+int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock);
+}
+tcp(uv_tcp_nodelay){
+/* Enable/disable Nagles algorithm. */
+int uv_tcp_nodelay(uv_tcp_t* handle, int enable);
+}
+tcp(uv_tcp_keepalive){
+/*
+ * Enable/disable TCP keep-alive.
+ *
+ * `delay` is the initial delay in seconds, ignored when `enable` is zero.
+ */
+int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay);
+}
+tcp(uv_tcp_simultaneous_accepts){
+/*
+ * Enable/disable simultaneous asynchronous accept requests that are
+ * queued by the operating system when listening for new tcp connections.
+ * This setting is used to tune a tcp server for the desired performance.
+ * Having simultaneous accepts can significantly improve the rate of
+ * accepting connections (which is why it is enabled by default) but
+ * may lead to uneven load distribution in multi-process setups.
+ */
+int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
+}
+tcp(uv_tcp_bind){
+/*
+ * Bind the handle to an address and port.  `addr` should point to an
+ * initialized struct sockaddr_in or struct sockaddr_in6.
+ *
+ * When the port is already taken, you can expect to see an UV_EADDRINUSE
+ * error from either uv_tcp_bind(), uv_listen() or uv_tcp_connect().
+ *
+ * That is, a successful call to uv_tcp_bind() does not guarantee that
+ * the call to uv_listen() or uv_tcp_connect() will succeed as well.
+ */
+int uv_tcp_bind(uv_tcp_t* handle, const struct sockaddr* addr);
+}
+tcp(uv_tcp_getsockname){
+int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name, int* namelen);
+}
+tcp(uv_tcp_getpeername){
+int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name, int* namelen);
+}
+tcp(uv_tcp_connect){
+/*
+ * Establish an IPv4 or IPv6 TCP connection.  Provide an initialized TCP handle
+ * and an uninitialized uv_connect_t*.  `addr` should point to an initialized
+ * struct sockaddr_in or struct sockaddr_in6.
+ *
+ * The callback is made when the connection has been established or when a
+ * connection error happened.
+ */
+int uv_tcp_connect(uv_connect_t* req, uv_tcp_t* handle, const struct sockaddr* addr, uv_connect_cb cb);
+}
+
+用户数据报协议(User Datagram Protocol)提供无连接的，不可靠的网络通信。
+提供了一个uv_udp_t句柄（接收端），和一个uv_udp_send_t句柄（发送端），还有相关的函数。
+也就是说，实际的读写api与正常的流读取类似。
+udp(uv_udp_init){
+/*
+ * Initialize a new UDP handle. The actual socket is created lazily.
+ * Returns 0 on success.
+ */
+int uv_udp_init(uv_loop_t*, uv_udp_t* handle);
+}
+udp(uv_udp_open){
+/*
+ * Opens an existing file descriptor or SOCKET as a udp handle.
+ *
+ * Unix only:
+ *  The only requirement of the sock argument is that it follows the
+ *  datagram contract (works in unconnected mode, supports sendmsg()/recvmsg(),
+ *  etc.). In other words, other datagram-type sockets like raw sockets or
+ *  netlink sockets can also be passed to this function.
+ *
+ * This sets the SO_REUSEPORT socket flag on the BSDs and OS X. On other
+ * UNIX platforms, it sets the SO_REUSEADDR flag.  What that means is that
+ * multiple threads or processes can bind to the same address without error
+ * (provided they all set the flag) but only the last one to bind will receive
+ * any traffic, in effect "stealing" the port from the previous listener.
+ * This behavior is something of an anomaly and may be replaced by an explicit
+ * opt-in mechanism in future versions of libuv.
+ */
+int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock);
+}
+udp(uv_udp_bind){
+/*
+ * Bind to a IPv4 address and port.
+ *
+ * Arguments:
+ *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
+ *  addr      struct sockaddr_in or struct sockaddr_in6 with the address and
+ *            port to bind to.
+ *  flags     Unused.
+ *
+ * Returns:
+ *  0 on success, or an error code < 0 on failure.
+ *
+ * This sets the SO_REUSEPORT socket flag on the BSDs and OS X. On other
+ * UNIX platforms, it sets the SO_REUSEADDR flag.  What that means is that
+ * multiple threads or processes can bind to the same address without error
+ * (provided they all set the flag) but only the last one to bind will receive
+ * any traffic, in effect "stealing" the port from the previous listener.
+ * This behavior is something of an anomaly and may be replaced by an explicit
+ * opt-in mechanism in future versions of libuv.
+ */
+int uv_udp_bind(uv_udp_t* handle, const struct sockaddr* addr, unsigned int flags);
+# 在调用uv_udp_bind时，设置UV_UDP_IPV6ONLY标示，可以强制只使用ipv6。
+}
+udp(uv_udp_getsockname){
+int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name, int* namelen);
+}
+udp(uv_udp_set_membership){
+/*
+ * Set membership for a multicast address
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  multicast_addr      multicast address to set membership for
+ *  interface_addr      interface address
+ *  membership          Should be UV_JOIN_GROUP or UV_LEAVE_GROUP
+ *
+ * Returns:
+ *  0 on success, or an error code < 0 on failure.
+ */
+int uv_udp_set_membership(uv_udp_t* handle,
+                          const char* multicast_addr, 
+                          const char* interface_addr,
+                          uv_membership membership);
+    其中membership可以为UV_JOIN_GROUP和UV_LEAVE_GROUP。 这里有一篇很好的关于组播的文章。 
+可以使用uv_udp_set_multicast_loop修改本地的组播。同样可以使用uv_udp_set_multicast_ttl修改组播数据报的生存时间。
+(设定生存时间可以防止数据报由于环路的原因，会出现无限循环的问题)。
+}
+udp(uv_udp_set_multicast_loop){
+/*
+ * Set IP multicast loop flag. Makes multicast packets loop back to
+ * local sockets.
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  on                  1 for on, 0 for off
+ *
+ * Returns:
+ *  0 on success, or an error code < 0 on failure.
+ */
+int uv_udp_set_multicast_loop(uv_udp_t* handle, int on);
+# 可以使用uv_udp_set_multicast_loop修改本地的组播
+}
+udp(uv_udp_set_multicast_ttl){
+/*
+ * Set the multicast ttl
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  ttl                 1 through 255
+ *
+ * Returns:
+ *  0 on success, or an error code < 0 on failure.
+ */
+int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl);
+# uv_udp_set_multicast_ttl修改组播数据报的生存时间
+}
+udp(uv_udp_set_broadcast){
+/*
+ * Set broadcast on or off
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  on                  1 for on, 0 for off
+ *
+ * Returns:
+ *  0 on success, or an error code < 0 on failure.
+ */
+int uv_udp_set_broadcast(uv_udp_t* handle, int on);
+}
+udp(uv_udp_set_ttl){
+/*
+ * Set the time to live
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  ttl                 1 through 255
+ *
+ * Returns:
+ *  0 on success, or an error code < 0 on failure.
+ */
+int uv_udp_set_ttl(uv_udp_t* handle, int ttl);
+# 可以通过uv_udp_set_ttl更改生存时间。
+}
+udp(uv_udp_send){
+/*
+ * Send data. If the socket has not previously been bound with `uv_udp_bind`
+ * or `uv_udp_bind6`, it is bound to 0.0.0.0 (the "all interfaces" address)
+ * and a random port number.
+ *
+ * Arguments:
+ *  req       UDP request handle. Need not be initialized.
+ *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
+ *  bufs      List of buffers to send.
+ *  nbufs     Number of buffers in `bufs`.
+ *  addr      Address of the remote peer. See `uv_ip4_addr`.
+ *  send_cb   Callback to invoke when the data has been sent out.
+ *
+ * Returns:
+ *  0 on success, or an error code < 0 on failure.
+ */
+int uv_udp_send(uv_udp_send_t* req,
+                uv_udp_t* handle,
+                const uv_buf_t bufs[],
+                unsigned int nbufs,
+                const struct sockaddr* addr,
+                uv_udp_send_cb send_cb);
+}
+udp(uv_udp_recv_start){
+/*
+ * Receive data. If the socket has not previously been bound with `uv_udp_bind`
+ * or `uv_udp_bind6`, it is bound to 0.0.0.0 (the "all interfaces" address)
+ * and a random port number.
+ *
+ * Arguments:
+ *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
+ *  alloc_cb  Callback to invoke when temporary storage is needed.
+ *  recv_cb   Callback to invoke with received data.
+ *
+ * Returns:
+ *  0 on success, or an error code < 0 on failure.
+ */
+int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb, uv_udp_recv_cb recv_cb);
+}
+udp(uv_udp_recv_stop){
+/*
+ * Stop listening for incoming datagrams.
+ *
+ * Arguments:
+ *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
+ *
+ * Returns:
+ *  0 on success, or an error code < 0 on failure.
+ */
+int uv_udp_recv_stop(uv_udp_t* handle);
+}
+
+tty(uv_tty_init){
+/*
+ * Initialize a new TTY stream with the given file descriptor. Usually the
+ * file descriptor will be
+ *   0 = stdin
+ *   1 = stdout
+ *   2 = stderr
+ * The last argument, readable, specifies if you plan on calling
+ * uv_read_start with this stream. stdin is readable, stdout is not.
+ *
+ * TTY streams which are not readable have blocking writes.
+ */
+int uv_tty_init(uv_loop_t*, uv_tty_t*, uv_file fd, int readable);
+}
+tty(uv_tty_set_mode){
+/*
+ * Set mode. 0 for normal, 1 for raw.
+ */
+int uv_tty_set_mode(uv_tty_t*, int mode);
+}
+tty(uv_tty_reset_mode){
+/*
+ * To be called when the program exits. Resets TTY settings to default
+ * values for the next process to take over.
+ *
+ * This function is async signal-safe on UNIX platforms but can fail with error
+ * code UV_EBUSY if you call it when execution is inside uv_tty_set_mode().
+ */
+int uv_tty_reset_mode(void);
+}
+tty(uv_tty_get_winsize){
+/*
+ * Gets the current Window size. On success zero is returned.
+ */
+int uv_tty_get_winsize(uv_tty_t*, int* width, int* height);
+}
+pipe(){ uvtee
+uv_pipe_t并不是IPC机制里的 匿名管道
+(在IPC里，pipe是 匿名管道，只允许父子进程之间通信。FIFO则允许没有亲戚关系的进程间通信，显然llibuv里的uv_pipe_t不是第一种)
+uv_pipe_t背后有unix本地socket或者windows 具名管道的支持，可以实现多进程间的通信。
+# Parent-child IPC
+    父进程与子进程可以通过单工或者双工管道通信，获得管道可以通过设置uv_stdio_container_t.flags为UV_CREATE_PIPE，
+UV_READABLE_PIPE或者UV_WRITABLE_PIPE的按位或的值。上述的读／写标记是对于子进程而言的。
+# Arbitrary process IPC
+    既然本地socket具有确定的名称，而且是以文件系统上的位置来标示的(例如，unix中socket是文件的一种存在形式)，那么
+它就可以用来在不相关的进程间完成通信任务。被开源桌面环境使用的D-BUS系统也是使用了本地socket来作为事件通知的，
+例如，当消息来到，或者检测到硬件的时候，各种应用程序会被通知到。mysql服务器也运行着一个本地socket，等待客户端的访问。
+当使用本地socket的时候，客户端／服务器模型通常和之前类似。在完成初始化后，发送和接受消息的方法和之前的tcp类似，
+# Sending file descriptors over pipes
+    最酷的事情是本地socket可以传递文件描述符，也就是说进程间可以交换文件描述符。这样就允许进程将它们的I/O传递给其他进程。
+它的应用场景包括，负载均衡服务器，分派工作进程等，各种可以使得cpu使用最优化的应用。libuv当前只支持通过管道传输TCP 
+sockets或者其他的pipes。
+}
+pipe(uv_pipe_init){ 
+/*
+ * Initialize a pipe. The last argument is a boolean to indicate if
+ * this pipe will be used for handle passing between processes.
+ */
+int uv_pipe_init(uv_loop_t*, uv_pipe_t* handle, int ipc);
+# 创建一个管道；handle是已分配待初始化的对象；
+}
+pipe(uv_pipe_open){
+/*
+ * Opens an existing file descriptor or HANDLE as a pipe.
+ */
+int uv_pipe_open(uv_pipe_t*, uv_file file);
+ # 关联一个已存在的文件描述符fd(linux)或HANDLE(win) uv_file file可以使用uv_fs_open直接分配，或者使用回调函数分配
+}
+pipe(uv_pipe_bind){
+/*
+ * Bind the pipe to a file path (UNIX) or a name (Windows.)
+ *
+ * Paths on UNIX get truncated to `sizeof(sockaddr_un.sun_path)` bytes,
+ * typically between 92 and 108 bytes.
+ */
+int uv_pipe_bind(uv_pipe_t* handle, const char* name);
+}
+pipe(uv_pipe_connect){
+/*
+ * Connect to the UNIX domain socket or the named pipe.
+ *
+ * Paths on UNIX get truncated to `sizeof(sockaddr_un.sun_path)` bytes,
+ * typically between 92 and 108 bytes.
+ */
+void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle, const char* name, uv_connect_cb cb);
+}
+pipe(uv_pipe_pending_instances){
+/*
+ * This setting applies to Windows only.
+ * Set the number of pending pipe instance handles when the pipe server
+ * is waiting for connections.
+ */
+void uv_pipe_pending_instances(uv_pipe_t* handle, int count);
+}
+poll(uv_poll_init){
+/* Initialize the poll watcher using a file descriptor. */
+int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd);
+
+uv_poll_init_socket
+
+/* Initialize the poll watcher using a socket descriptor. On unix this is */
+/* identical to uv_poll_init. On windows it takes a SOCKET handle. */
+int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle, uv_os_sock_t socket);
+}
+poll(uv_poll_start){
+/*
+ * Starts polling the file descriptor. `events` is a bitmask consisting made up
+ * of UV_READABLE and UV_WRITABLE. As soon as an event is detected the callback
+ * will be called with `status` set to 0, and the detected events set en the
+ * `events` field.
+ *
+ * If an error happens while polling status, `status` < 0 and corresponds
+ * with one of the UV_E* error codes. The user should not close the socket
+ * while uv_poll is active. If the user does that anyway, the callback *may*
+ * be called reporting an error status, but this is not guaranteed.
+ *
+ * Calling uv_poll_start on an uv_poll watcher that is already active is fine.
+ * Doing so will update the events mask that is being watched for.
+ */
+int uv_poll_start(uv_poll_t* handle, int events, uv_poll_cb cb);
+}
+poll(uv_poll_stop){
+/* Stops polling the file descriptor. */
+int uv_poll_stop(uv_poll_t* handle);
+}
+
+prepare(uv_prepare_init){
+int uv_prepare_init(uv_loop_t*, uv_prepare_t* prepare);
+}
+prepare(uv_prepare_start){
+int uv_prepare_start(uv_prepare_t* prepare, uv_prepare_cb cb);
+}
+prepare(uv_prepare_stop){
+int uv_prepare_stop(uv_prepare_t* prepare);
+}
+
+idle(uv_idle_init){
+int uv_idle_init(uv_loop_t*, uv_idle_t* idle);
+}
+idle(uv_idle_start){
+int uv_idle_start(uv_idle_t* idle, uv_idle_cb cb);
+}
+idle(uv_idle_stop){
+int uv_idle_stop(uv_idle_t* idle);
+}
+
+async(uv_async_init){
+/*
+ * Initialize the uv_async_t handle. A NULL callback is allowed.
+ *
+ * Note that uv_async_init(), unlike other libuv functions, immediately
+ * starts the handle. To stop the handle again, close it with uv_close().
+ */
+int uv_async_init(uv_loop_t*, uv_async_t* async, uv_async_cb async_cb);
+}
+async(uv_async_send){
+/*
+ * This can be called from other threads to wake up a libuv thread.
+ *
+ * libuv is single threaded at the moment.
+ */
+int uv_async_send(uv_async_t* async);
+}
+
+
+timer(uv_timer_init){
+int uv_timer_init(uv_loop_t*, uv_timer_t* handle);
+}
+timer(uv_timer_start){
+/*
+ * Start the timer. `timeout` and `repeat` are in milliseconds.
+ *
+ * If timeout is zero, the callback fires on the next tick of the event loop.
+ *
+ * If repeat is non-zero, the callback fires first after timeout milliseconds
+ * and then repeatedly after repeat milliseconds.
+ */
+int uv_timer_start(uv_timer_t* handle,
+                   uv_timer_cb cb,
+                   uint64_t timeout,
+                   uint64_t repeat);
+}
+timer(uv_timer_stop){
+int uv_timer_stop(uv_timer_t* handle);
+}
+timer(uv_timer_again){
+/*
+ * Stop the timer, and if it is repeating restart it using the repeat value
+ * as the timeout. If the timer has never been started before it returns
+ * UV_EINVAL.
+ */
+int uv_timer_again(uv_timer_t* handle);
+}
+timer(uv_timer_set_repeat){
+/*
+ * Set the repeat value in milliseconds. Note that if the repeat value is set
+ * from a timer callback it does not immediately take effect. If the timer was
+ * non-repeating before, it will have been stopped. If it was repeating, then
+ * the old repeat value will have been used to schedule the next timeout.
+ */
+void uv_timer_set_repeat(uv_timer_t* handle, uint64_t repeat);
+}
+timer(uv_timer_get_repeat){
+uint64_t uv_timer_get_repeat(const uv_timer_t* handle);
+}
+
+addrinfo(uv_getaddrinfo){
+/*
+ * Asynchronous getaddrinfo(3).
+ *
+ * Either node or service may be NULL but not both.
+ *
+ * hints is a pointer to a struct addrinfo with additional address type
+ * constraints, or NULL. Consult `man -s 3 getaddrinfo` for details.
+ *
+ * Returns 0 on success or an error code < 0 on failure.
+ *
+ * If successful, your callback gets called sometime in the future with the
+ * lookup result, which is either:
+ *
+ *  a) err == 0, the res argument points to a valid struct addrinfo, or
+ *  b) err < 0, the res argument is NULL. See the UV_EAI_* constants.
+ *
+ * Call uv_freeaddrinfo() to free the addrinfo structure.
+ */
+int uv_getaddrinfo(uv_loop_t* loop,
+                    uv_getaddrinfo_t* req,
+                    uv_getaddrinfo_cb getaddrinfo_cb,
+                    const char* node,
+                    const char* service,
+                    const struct addrinfo* hints);
+    如果uv_getaddrinfo返回非零值，说明设置错误了，因此也不会激发回调函数。在函数返回后，所有的参数将会被回收和释放。
+主机地址，请求服务器地址，还有hints的结构都可以在这里找到详细的说明。如果想使用同步请求，可以将回调函数设置为NULL。
+在回调函数on_resolved中，你可以从struct addrinfo(s)链表中获取返回的IP，最后需要调用uv_freeaddrinfo回收掉链表。
+}
+addrinfo(uv_freeaddrinfo){
+/*
+ * Free the struct addrinfo. Passing NULL is allowed and is a no-op.
+ */
+void uv_freeaddrinfo(struct addrinfo* ai);
+}
+
+uv_process_options_t(){
+在子进程开始执行前，你可以通过使用uv_process_options_t设置运行环境。
+设置uv_process_options_t.cwd，更改相应的目录。
+    uv_process_options_t.env的格式是以null为结尾的字符串数组，其中每一个字符串的形式都是VAR=VALUE。
+这些值用来设置进程的环境变量。如果子进程想要继承父进程的环境变量，就将uv_process_options_t.env设为null。
+通过使用下面标识的按位或的值设置uv_process_options_t.flags的值，可以定义子进程的行为：
+    UV_PROCESS_SETUID-将子进程的执行用户id（UID）设置为uv_process_options_t.uid中的值。
+    UV_PROCESS_SETGID-将子进程的执行组id(GID)设置为uv_process_options_t.gid中的值。
+        只有在unix系的操作系统中支持设置用户id和组id，在windows下设置会失败，uv_spawn会返回UV_ENOTSUP。
+    UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS-在windows上，uv_process_options_t.args参数不要用引号包裹。此标记对unix无效。
+    UV_PROCESS_DETACHED -在新会话(session)中启动子进程，这样子进程就可以在父进程退出后继续进行。请看下面的例子：
+    
+    使用标识UV_PROCESS_DETACHED可以启动守护进程(daemon)，或者是使得子进程从父进程中独立出来，这样父进程的退出就不会影响到它。
+}
+
+process(uv_spawn){
+/*
+ * Initializes the uv_process_t and starts the process. If the process is
+ * successfully spawned, then this function will return 0. Otherwise, the
+ * negative error code corresponding to the reason it could not spawn is
+ * returned.
+ *
+ * Possible reasons for failing to spawn would include (but not be limited to)
+ * the file to execute not existing, not having permissions to use the setuid or
+ * setgid specified, or not having enough memory to allocate for the new
+ * process.
+ */
+int uv_spawn(uv_loop_t* loop,
+             uv_process_t* handle,
+             const uv_process_options_t* options);
+# 初始化handle，同时启动options设定的进程。
+# 0 创建成功， 非0创建失败。
+
+把flag设为UV_INHERIT_STREAM，然后再设置父进程中的data.stream，这时子进程只会把这个stream当成是标准的I/O。这可以用来实现，
+例如CGI。
+}
+process(uv_process_kill){
+/*
+ * Kills the process with the specified signal. The user must still
+ * call uv_close on the process.
+ */
+int uv_process_kill(uv_process_t*, int signum);
+    对于用libuv启动的进程，应该使用uv_process_kill终止，它会以uv_process_t作为第一个参数，
+而不是pid。当使用uv_process_kill后，记得使用uv_close关闭uv_process_t。
+}
+process(uv_kill){
+/* Kills the process with the specified signal. */
+int uv_kill(int pid, int signum);
+
+    libuv打包了unix标准的kill(2)系统调用，并且在windows上实现了一个类似用法的调用，
+但要注意：所有的SIGTERM，SIGINT和SIGKILL都会导致进程的中断。uv_kill函数如下所示：
+    uv_err_t uv_kill(int pid, int signum);
+    对于用libuv启动的进程，应该使用uv_process_kill终止，它会以uv_process_t作为第一个参数，
+而不是pid。当使用uv_process_kill后，记得使用uv_close关闭uv_process_t。
+
+    libuv对unix信号和一些windows下类似的机制，做了很好的打包。
+    使用uv_signal_init初始化handle（uv_signal_t ），然后将它与loop关联。为了使用handle监听特定的信号，
+使用uv_signal_start()函数。每一个handle只能与一个信号关联，后续的uv_signal_start会覆盖前面的关联。
+使用uv_signal_stop终止监听。
+}
+process(uv_setup_args){
+char** uv_setup_args(int argc, char** argv);
+}
+process(uv_get_process_title){
+int uv_get_process_title(char* buffer, size_t size);
+}
+process(uv_set_process_title){
+int uv_set_process_title(const char* title);
+}
+process(uv_resident_set_memory){
+int uv_resident_set_memory(size_t* rss);
+}
+process(uv_uptime){
+int uv_uptime(double* uptime);
+}
+
+queue_work(uv_queue_work){
+/* Queues a work request to execute asynchronously on the thread pool. */
+int uv_queue_work(uv_loop_t* loop, uv_work_t* req, uv_work_cb work_cb, uv_after_work_cb after_work_cb);
+# 初始化uv_work_t, 使req和loop,fake_download，after关联起来，并将请求投入消息队列，待线程执行
+}
+queue_work(uv_cancel){
+/* Cancel a pending request. Fails if the request is executing or has finished
+ * executing.
+ *
+ * Returns 0 on success, or an error code < 0 on failure.
+ *
+ * Only cancellation of uv_fs_t, uv_getaddrinfo_t and uv_work_t requests is
+ * currently supported.
+ *
+ * Cancelled requests have their callbacks invoked some time in the future.
+ * It is _not_ safe to free the memory associated with the request until your
+ * callback is called.
+ *
+ * Here is how cancellation is reported to your callback:
+ *
+ * - A uv_fs_t request has its req->result field set to UV_ECANCELED.
+ *
+ * - A uv_work_t or uv_getaddrinfo_t request has its callback invoked with
+ *   status == UV_ECANCELED.
+ *
+ * This function is currently only implemented on UNIX platforms. On Windows,
+ * it always returns UV_ENOSYS.
+ */
+int uv_cancel(uv_req_t* req);
+}
+
+cpu_info(uv_cpu_info){
+/*
+ * This allocates cpu_infos array, and sets count.  The array
+ * is freed using uv_free_cpu_info().
+ */
+int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count);
+}
+cpu_info(uv_cpu_info){
+void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count);
+}
+
+interface_addresses(uv_interface_addresses){
+/*
+ * This allocates addresses array, and sets count.  The array
+ * is freed using uv_free_interface_addresses().
+ */
+int uv_interface_addresses(uv_interface_address_t** addresses, int* count);
+# 可以调用uv_interface_addresses获得系统的网络接口信息。
+# is_internal可以用来表示是否是内部的IP。由于一个物理接口会有多个IP地址，所以每一次while循环的时候都会打印一次。
+}
+interface_addresses(uv_free_interface_addresses){
+void uv_free_interface_addresses(uv_interface_address_t* addresses, int count);
+}
+
+
+fs_req(file system){
+File System Methods.
+
+    The uv_fs_* functions execute a blocking system call asynchronously (in a thread pool) 
+and call the specified callback in the specified loop after completion. If the user gives 
+NULL as the callback the blocking system call will be called synchronously. req should be 
+a pointer to an uninitialized uv_fs_t object.
+
+    uv_fs_req_cleanup() must be called after completion of the uv_fs_ function to free any 
+internal memory allocations associated with the request.
+}
+
+fs_req(){
+uv_fs_req_cleanup
+
+nulls out req->path, req->new_path and req->ptr (unless it points to req->statbuf).
+
+void uv_fs_req_cleanup(uv_fs_t* req);
+
+uv_fs_close
+
+int uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb);
+
+uv_fs_open
+
+int uv_fs_open(uv_loop_t* loop,
+               uv_fs_t* req,
+               const char* path,
+               int flags,
+               int mode,
+               uv_fs_cb cb);
+
+uv_fs_t *req passed to callback
+
+req->result is error code or uv_file which is passed to uv_fs_read.
+uv_fs_read
+
+int uv_fs_read(uv_loop_t* loop,
+               uv_fs_t* req,
+               uv_file file,
+               void* buf,
+               size_t length,
+               int64_t offset,
+               uv_fs_cb cb);
+
+uv_fs_t *req passed to callback
+
+req->result is error code or ssize_t number of bytes read.
+uv_fs_unlink
+
+int uv_fs_unlink(uv_loop_t* loop,
+                 uv_fs_t* req,
+                 const char* path,
+                 uv_fs_cb cb);
+
+uv_fs_write
+
+int uv_fs_write(uv_loop_t* loop,
+                uv_fs_t* req,
+                uv_file file,
+                const void* buf,
+                size_t length,
+                int64_t offset,
+                uv_fs_cb cb);
+
+uv_fs_t *req passed to callback
+
+req->result is error code or ssize_t number of bytes written.
+uv_fs_mkdir
+
+int uv_fs_mkdir(uv_loop_t* loop,
+                uv_fs_t* req,
+                const char* path,
+                int mode,
+                uv_fs_cb cb);
+
+uv_fs_rmdir
+
+int uv_fs_rmdir(uv_loop_t* loop,
+                uv_fs_t* req,
+                const char* path,
+                uv_fs_cb cb);
+
+uv_fs_readdir
+
+int uv_fs_readdir(uv_loop_t* loop,
+                  uv_fs_t* req,
+                  const char* path,
+                  int flags,
+                  uv_fs_cb cb);
+
+uv_fs_stat
+
+int uv_fs_stat(uv_loop_t* loop,
+               uv_fs_t* req,
+               const char* path,
+               uv_fs_cb cb);
+
+uv_fs_fstat
+
+int uv_fs_fstat(uv_loop_t* loop,
+                uv_fs_t* req,
+                uv_file file,
+                uv_fs_cb cb);
+
+uv_fs_rename
+
+int uv_fs_rename(uv_loop_t* loop,
+                 uv_fs_t* req,
+                 const char* path,
+                 const char* new_path,
+                 uv_fs_cb cb);
+
+uv_fs_fsync
+
+int uv_fs_fsync(uv_loop_t* loop,
+                uv_fs_t* req,
+                uv_file file,
+                uv_fs_cb cb);
+
+uv_fs_fdatasync
+
+int uv_fs_fdatasync(uv_loop_t* loop,
+                    uv_fs_t* req,
+                    uv_file file,
+                    uv_fs_cb cb);
+
+uv_fs_ftruncate
+
+int uv_fs_ftruncate(uv_loop_t* loop,
+                    uv_fs_t* req,
+                    uv_file file,
+                    int64_t offset,
+                    uv_fs_cb cb);
+
+uv_fs_sendfile
+
+int uv_fs_sendfile(uv_loop_t* loop,
+                   uv_fs_t* req,
+                   uv_file out_fd,
+                   uv_file in_fd,
+                   int64_t in_offset,
+                   size_t length,
+                   uv_fs_cb cb);
+
+uv_fs_chmod
+
+int uv_fs_chmod(uv_loop_t* loop,
+                uv_fs_t* req,
+                const char* path,
+                int mode,
+                uv_fs_cb cb);
+
+uv_fs_utime
+
+int uv_fs_utime(uv_loop_t* loop,
+                uv_fs_t* req,
+                const char* path,
+                double atime,
+                double mtime,
+                uv_fs_cb cb);
+
+uv_fs_futime
+
+int uv_fs_futime(uv_loop_t* loop,
+                 uv_fs_t* req,
+                 uv_file file,
+                 double atime,
+                 double mtime,
+                 uv_fs_cb cb);
+
+uv_fs_lstat
+
+int uv_fs_lstat(uv_loop_t* loop,
+                uv_fs_t* req,
+                const char* path,
+                uv_fs_cb cb);
+
+uv_fs_link
+
+int uv_fs_link(uv_loop_t* loop,
+               uv_fs_t* req,
+               const char* path,
+               const char* new_path,
+               uv_fs_cb cb);
+
+uv_fs_symlink
+
+/*
+ * This flag can be used with uv_fs_symlink on Windows
+ * to specify whether path argument points to a directory.
+ */
+#define UV_FS_SYMLINK_DIR          0x0001
+
+/*
+ * This flag can be used with uv_fs_symlink on Windows
+ * to specify whether the symlink is to be created using junction points.
+ */
+#define UV_FS_SYMLINK_JUNCTION     0x0002
+
+int uv_fs_symlink(uv_loop_t* loop,
+                  uv_fs_t* req,
+                  const char* path,
+                  const char* new_path,
+                  int flags,
+                  uv_fs_cb cb);
+
+uv_fs_readlink
+
+int uv_fs_readlink(uv_loop_t* loop,
+                   uv_fs_t* req,
+                   const char* path,
+                   uv_fs_cb cb);
+
+uv_fs_fchmod
+
+int uv_fs_fchmod(uv_loop_t* loop,
+                 uv_fs_t* req,
+                 uv_file file,
+                 int mode,
+                 uv_fs_cb cb);
+
+uv_fs_chown
+
+int uv_fs_chown(uv_loop_t* loop,
+                uv_fs_t* req,
+                const char* path,
+                uv_uid_t uid,
+                uv_gid_t gid,
+                uv_fs_cb cb);
+
+uv_fs_fchown
+
+int uv_fs_fchown(uv_loop_t* loop,
+                 uv_fs_t* req,
+                 uv_file file,
+                 uv_uid_t uid,
+                 uv_gid_t gid,
+                 uv_fs_cb cb);
+
+uv_guess_handle
+
+/*
+ * Used to detect what type of stream should be used with a given file
+ * descriptor. Usually this will be used during initialization to guess the
+ * type of the stdio streams.
+ * For isatty() functionality use this function and test for UV_TTY.
+ */
+uv_handle_type uv_guess_handle(uv_file file);
+}
+
+dlsym(uv_dlopen){
+    Opens a shared library. The filename is in utf-8. Returns 0 on success and -1 on error. 
+Call uv_dlerror(uv_lib_t) to get the error message.
+int uv_dlopen(const char* filename, uv_lib_t* lib);
+}
+dlsym(uv_dlclose){
+Close the shared library.
+void uv_dlclose(uv_lib_t* lib);
+}
+dlsym(uv_dlsym){
+    Retrieves a data pointer from a dynamic library. It is legal for a symbol to map to NULL. 
+Returns 0 on success and -1 if the symbol was not found.
+int uv_dlsym(uv_lib_t* lib, const char* name, void** ptr);
+
+}
+
+dlsym(uv_dlerror){
+Returns the last uv_dlopen() or uv_dlsym() error message.
+const char* uv_dlerror(uv_lib_t* lib);
+}
+
+https://github.com/thlorenz/libuv-dox
+callback(uv_alloc_cb){
+/*
+ * Should prepare a buffer that libuv can use to read data into.
+ *
+ * `suggested_size` is a hint. Returning a buffer that is smaller is perfectly
+ * okay as long as `buf.len > 0`.
+ *
+ * If you return a buffer with `buf.len == 0`, libuv skips the read and calls
+ * your read or recv callback with nread=UV_ENOBUFS.
+ *
+ * Note that returning a zero-length buffer does not stop the handle, call
+ * uv_read_stop() or uv_udp_recv_stop() for that.
+ */
+ # 准备一个被libuv用来读取数据的缓冲区。
+ # suggested_size 建议缓冲区大小
+ # buf.len > 0 长度大于0即可，不必一定等于suggested_size
+ # buf.len = 0, 使得read_cb回调函数的nread值等于UV_ENOBUFS
+ # 函数返回0并不会停止read，只有uv_read_stop和uv_udp_recv_stop才会停止读取
+typedef void (*uv_alloc_cb)(uv_handle_t* handle,
+                            size_t suggested_size,
+                            uv_buf_t* buf);
+用在一下函数中，为数据接收函数提供空间分配方法。# 通过空间分配方法可以控制协议读取和重复利用空间。
+# suggested_size是建议分配空间大小；*buf=uv_buf_init((char*) malloc(suggested_size), suggested_size); buf为指向uv_buf_t的指针。
+int uv_read_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb);
+int uv_read2_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read2_cb read_cb);
+int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb, uv_udp_recv_cb recv_cb);
+}
+callback(uv_read_cb){
+/*
+ * `nread` is > 0 if there is data available, 0 if libuv is done reading for
+ * now, or < 0 on error.
+ *
+ * The callee is responsible for closing the stream when an error happens.
+ * Trying to read from the stream again is undefined.
+ *
+ * The callee is responsible for freeing the buffer, libuv does not reuse it.
+ * The buffer may be a null buffer (where buf->base=NULL and buf->len=0) on
+ * EOF or error.
+ */
+# nread > 0, 缓冲区中已读入数据，
+# nread = 0  reading结束
+# nread < 0 读有错误
+# 当读失败时，该回调函数有责任关闭流，
+# 读操作有责任释放uv_alloc_cb分配的空间，libuv不会重用uv_alloc_cb申请的缓冲区
+typedef void (*uv_read_cb)(uv_stream_t* stream,
+                           ssize_t nread,
+                           const uv_buf_t* buf);
+用在uv_read_start函数中，其中uv_stream_t类型可以使uv_pipe_t uv_tcp_t uv_tty_t。nread已读取数据长度，buf已读取数据内容
+# nread>0已读取数据；nread<0读取失败，(nread == UV_EOF 正常结束 nread != UV_EOF异常结束). 在接收函数中注意释放uv_alloc_cb分配的空间。
+# buf->base base就是 uv_alloc_cb函数中分配的空间，buf->len len就是uv_alloc_cb函数中分配的空间的大小； nread应该小于等于buf->len.
+int uv_read_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb);
+}
+callback(uv_read2_cb){
+/*
+ * Just like the uv_read_cb except that if the pending parameter is true
+ * then you can use uv_accept() to pull the new handle into the process.
+ * If no handle is pending then pending will be UV_UNKNOWN_HANDLE.
+ */
+typedef void (*uv_read2_cb)(uv_pipe_t* pipe,
+                                  ssize_t nread,
+                                  const uv_buf_t* buf,
+                                  uv_handle_type pending);
+int uv_read2_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read2_cb read_cb);
+}
+callback(uv_write_cb){
+typedef void (*uv_write_cb)(uv_write_t* req, int status);
+# 用于写结束
+int uv_write(uv_write_t* req, uv_stream_t* handle, const uv_buf_t bufs[], unsigned int nbufs, uv_write_cb cb);
+int uv_write2(uv_write_t* req, uv_stream_t* handle, const uv_buf_t bufs[], unsigned int nbufs, uv_stream_t* send_handle, uv_write_cb cb);
+
+}
+
+callback(uv_connect_cb){
+typedef void (*uv_connect_cb)(uv_connect_t* req, int status);
+int uv_tcp_connect(uv_connect_t* req, uv_tcp_t* handle, const struct sockaddr* addr, uv_connect_cb cb);
+void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle, const char* name, uv_connect_cb cb);
+}
+callback(uv_shutdown_cb){
+typedef void (*uv_shutdown_cb)(uv_shutdown_t* req, int status);
+}
+callback(uv_connection_cb){
+int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb);
+}
+callback(uv_close_cb){
+typedef void (*uv_close_cb)(uv_handle_t* handle);
+void uv_close(uv_handle_t* handle, uv_close_cb close_cb);
+}
+callback(uv_poll_cb){
+typedef void (*uv_poll_cb)(uv_poll_t* handle, int status, int events);
+int uv_poll_start(uv_poll_t* handle, int events, uv_poll_cb cb);
+}
+callback(uv_timer_cb){
+typedef void (*uv_timer_cb)(uv_timer_t* handle, int status);
+int uv_timer_start(uv_timer_t* handle, uv_timer_cb cb, uint64_t timeout, uint64_t repeat);
+}
+callback(uv_prepare_cb){
+typedef void (*uv_prepare_cb)(uv_prepare_t* handle,  int status);
+int uv_prepare_start(uv_prepare_t* prepare, uv_prepare_cb cb);
+}
+
+callback(uv_check_cb){
+typedef void (*uv_check_cb)(uv_check_t* handle, int status);
+}
+callback(uv_idle_cb){
+typedef void (*uv_idle_cb)(uv_idle_t* handle, int status);
+int uv_idle_start(uv_idle_t* idle, uv_idle_cb cb);
+}
+callback(walk_cb){
+typedef void (*uv_walk_cb)(uv_handle_t* handle, void* arg);
+void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg);
+}
+callback(uv_fs_cb){
+typedef void (*uv_fs_cb)(uv_fs_t* req);
+# 回调函数接口语义
+1. uv_fs_t *req; req可以static，也可以在malloc。在uv_fs_open()调用前申请，调用uv_fs_open()是对该值进行初始化和设置。
+   req在后续uv_fs_read() uv_fs_write() ... 等等函数中使用。
+2. 对于uv_fs_open调用而言，回调函数根据req->result>=0 调用成功| req->result<0 调用失败。
+3. 对于uv_fs_read调用而言，回调函数根据req->result <0 读取失败| req->result=0 读取结束 | req->result>0 读取req->result长度数据
+3. 对于uv_fs_write调用而言，回调函数根据req->result <0 写入失败| req->result>0 写入req->result长度数据
+对于uv_fs_read和uv_fs_write函数而言，uv_fs_t(结构体为文件对象) + uv_buf_t(结构体为接收发送缓冲区) # 将这两个绑定在一起即可实现读写功能。
+int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file file, const void* buf, size_t length, int64_t offset, uv_fs_cb cb);
+int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file file, void* buf, size_t length, int64_t offset, uv_fs_cb cb);
+loop:全局loop；req在uv_fs_open之间申请，由uv_fs_open初始化和设置。file=req->result。buf=uv_buf_init(...)。length=buf数组维度，offset=-1;
+
+4. 对于vs_fs_xxxx调用而言，req->result 为对应函数的结果。
+int uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb);
+int uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, int mode, uv_fs_cb cb);
+
+int uv_fs_unlink(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb);
+
+int uv_fs_rmdir(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb);
+int uv_fs_readdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, uv_fs_cb cb);
+int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb);
+int uv_fs_rename(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb);
+int uv_fs_fsync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb);
+int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb);
+int uv_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req, uv_file file, int64_t offset, uv_fs_cb cb);
+int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file out_fd, uv_file in_fd, int64_t in_offset, size_t length, uv_fs_cb cb);
+int uv_fs_chmod(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode, uv_fs_cb cb);
+int uv_fs_utime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime, double mtime, uv_fs_cb cb);
+int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file file, double atime, double mtime, uv_fs_cb cb);
+int uv_fs_link(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb);
+int uv_fs_symlink(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, int flags, uv_fs_cb cb);
+int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb);
+int uv_fs_fchmod(uv_loop_t* loop, uv_fs_t* req, uv_file file, int mode, uv_fs_cb cb);
+int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb);
+int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb);
+}
+callback(uv_work_cb uv_after_work_cb){
+typedef void (*uv_work_cb)(uv_work_t* req);
+typedef void (*uv_after_work_cb )(uv_work_t* req, int status);
+/* Queues a work request to execute asynchronously on the thread pool. */ 
+int uv_queue_work(uv_loop_t* loop, uv_work_t* req, uv_work_cb work_cb, uv_after_work_cb after_work_cb);
+}
+
+callback(uv_getaddrinfo_cb){
+typedef void (*uv_getaddrinfo_cb)(uv_getaddrinfo_t* req, int status, struct addrinfo* res);
+int uv_getaddrinfo(uv_loop_t* loop, uv_getaddrinfo_t* req, uv_getaddrinfo_cb getaddrinfo_cb, const char* node, const char* service, const struct addrinfo* hints);
+}
+callback(uv_fs_event_cb){
+/*
+* This will be called repeatedly after the uv_fs_event_t is initialized.
+* If uv_fs_event_t was initialized with a directory the filename parameter
+* will be a relative path to a file contained in the directory.
+* The events parameter is an ORed mask of enum uv_fs_event elements.
+*/
+
+typedef void (*uv_fs_event_cb)(uv_fs_event_t* handle, const char* filename,
+    int events, int status);
+
+int uv_fs_event_start(uv_fs_event_t* handle,
+                      uv_fs_event_cb cb,
+                      const char* filename,
+                      unsigned int flags);
+}
+callback(uv_fs_poll_cb){
+typedef void (*uv_fs_poll_cb)(uv_fs_poll_t* handle,
+                              int status,
+                              const uv_stat_t* prev,
+                              const uv_stat_t* curr);
+int uv_fs_poll_start(uv_fs_poll_t* handle, uv_fs_poll_cb poll_cb, const char* path, unsigned int interval);
+}
+callback(uv_signal_cb){
+typedef void (*uv_signal_cb)(uv_signal_t* handle, int signum);
+
+int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum);
+}
+
+callback(uv_udp_send_cb){
+/*
+ * Called after a uv_udp_send() or uv_udp_send6(). status 0 indicates
+ * success otherwise error.
+ */
+typedef void (*uv_udp_send_cb)(uv_udp_send_t* req, int status);
+int uv_udp_send(uv_udp_send_t* req, uv_udp_t* handle, const uv_buf_t bufs[], unsigned int nbufs, const struct sockaddr* addr, uv_udp_send_cb send_cb);
+}
+callback(uv_udp_recv_cb){
+uv_udp_recv_cb
+
+/*
+ * Callback that is invoked when a new UDP datagram is received.
+ *
+ *  handle  UDP handle.
+ *  nread   Number of bytes that have been received.
+ *          0 if there is no more data to read. You may
+ *          discard or repurpose the read buffer.
+ *          < 0 if a transmission error was detected.
+ *  buf     uv_buf_t with the received data.
+ *  addr    struct sockaddr_in or struct sockaddr_in6.
+ *          Valid for the duration of the callback only.
+ *  flags   One or more OR ed UV_UDP_* constants.
+ *          Right now only UV_UDP_PARTIAL is used.
+ */
+typedef void (*uv_udp_recv_cb)(uv_udp_t* handle,
+                               ssize_t nread,
+                               const uv_buf_t* buf,
+                               const struct sockaddr* addr,
+                               unsigned flags);
+                               
+
+/*
+ * Receive data. If the socket has not previously been bound with `uv_udp_bind`
+ * or `uv_udp_bind6`, it is bound to 0.0.0.0 (the "all interfaces" address)
+ * and a random port number.
+ *
+ * Arguments:
+ *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
+ *  alloc_cb  Callback to invoke when temporary storage is needed.
+ *  recv_cb   Callback to invoke with received data.
+ *
+ * Returns:
+ *  0 on success, or an error code < 0 on failure.
+ */
+int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb, uv_udp_recv_cb recv_cb);
+}
+
+uv_thread_create(){
+int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg);
+unsigned long uv_thread_self(void);
+int uv_thread_join(uv_thread_t *tid);
+}
+barrier(lock){ 用于多线程同步
+int uv_barrier_init(uv_barrier_t* barrier, unsigned int count); # 初始化barrier,阀值等于count，
+void uv_barrier_wait(uv_barrier_t* barrier); # wait每调用一次，count减1，当count等于0时，继续后续执行
+void uv_barrier_destroy(uv_barrier_t* barrier); # 通常在创建线程的主线程中调用。
+# 多个uv_barrier_wait的执行顺序是不确定的，最后使用pthread_join连接一下。
+}
+
+
+process(){
+uv_stdio_container_t
+uv_process_options_t.stdio = uv_stdio_container_t
+                    .exit_cb = on_exit
+                    .file = args[0]
+                    .args = args
+                    
+    libuv提供了相当多的子进程管理函数，并且是跨平台的，还允许使用stream，或者说pipe完成进程间通信。
+    在UNIX中有一个共识，就是进程只做一件事，并把它做好。因此，进程通常通过创建子进程来完成不同的任务
+一个多进程的，通过消息通信的模型，总比多线程的，共享内存的模型要容易理解得多。
+    
+}
+
+api(){
+- [loop](#loop)
+	- [`uv_loop_new`](#uv_loop_new)
+	- [`uv_loop_delete`](#uv_loop_delete)
+	- [`uv_default_loop`](#uv_default_loop)
+	- [`uv_run`](#uv_run)
+	- [`uv_loop_alive`](#uv_loop_alive)
+	- [`uv_stop`](#uv_stop)
+	- [Examples](#examples)
+	- [reference count](#reference-count)
+		- [`uv_ref`](#uv_ref)
+		- [`uv_unref`](#uv_unref)
+		- [`uv_has_ref`](#uv_has_ref)
+	- [time](#time)
+		- [`uv_update_time`](#uv_update_time)
+	- [backend - embedding loop in another loop](#backend---embedding-loop-in-another-loop)
+		- [`uv_backend`](#uv_backend)
+- [handles](#handles)
+	- [`uv_handle_size`](#uv_handle_size)
+	- [`uv_is_active`](#uv_is_active)
+	- [`uv_walk`](#uv_walk)
+	- [`uv_close`](#uv_close)
+- [requests](#requests)
+	- [`uv_req_size`](#uv_req_size)
+- [buffers](#buffers)
+	- [`uv_buf_init`](#uv_buf_init)
+- [streams](#streams)
+	- [`uv_listen`](#uv_listen)
+	- [`uv_accept`](#uv_accept)
+	- [`uv_read_start`](#uv_read_start)
+	- [`uv_read_stop`](#uv_read_stop)
+	- [`uv_read2_start`](#uv_read2_start)
+	- [`uv_write`](#uv_write)
+	- [`uv_write2`](#uv_write2)
+	- [`uv_try_write`](#uv_try_write)
+	- [`uv_is_readable`](#uv_is_readable)
+	- [`uv_is_writable`](#uv_is_writable)
+	- [`uv_stream_set_blocking`](#uv_stream_set_blocking)
+	- [`uv_is_closing`](#uv_is_closing)
+- [tcp](#tcp)
+	- [`uv_tcp_init`](#uv_tcp_init)
+	- [`uv_tcp_open`](#uv_tcp_open)
+	- [`uv_tcp_nodelay`](#uv_tcp_nodelay)
+	- [`uv_tcp_keepalive`](#uv_tcp_keepalive)
+	- [`uv_tcp_simultaneous_accepts`](#uv_tcp_simultaneous_accepts)
+	- [`uv_tcp_bind`](#uv_tcp_bind)
+	- [`uv_tcp_getsockname`](#uv_tcp_getsockname)
+	- [`uv_tcp_getpeername`](#uv_tcp_getpeername)
+	- [`uv_tcp_connect`](#uv_tcp_connect)
+- [udp](#udp)
+	- [`uv_udp_init`](#uv_udp_init)
+	- [`uv_udp_open`](#uv_udp_open)
+	- [`uv_udp_bind`](#uv_udp_bind)
+	- [`uv_udp_getsockname`](#uv_udp_getsockname)
+	- [`uv_udp_set_membership`](#uv_udp_set_membership)
+	- [`uv_udp_set_multicast_loop`](#uv_udp_set_multicast_loop)
+	- [`uv_udp_set_multicast_ttl`](#uv_udp_set_multicast_ttl)
+	- [`uv_udp_set_broadcast`](#uv_udp_set_broadcast)
+	- [`uv_udp_set_ttl`](#uv_udp_set_ttl)
+	- [`uv_udp_send`](#uv_udp_send)
+	- [`uv_udp_recv_start`](#uv_udp_recv_start)
+	- [`uv_udp_recv_stop`](#uv_udp_recv_stop)
+- [tty](#tty)
+	- [`uv_tty_init`](#uv_tty_init)
+	- [`uv_tty_set_mode`](#uv_tty_set_mode)
+	- [`uv_tty_reset_mode`](#uv_tty_reset_mode)
+	- [`uv_tty_get_winsize`](#uv_tty_get_winsize)
+- [pipe](#pipe)
+	- [`uv_pipe_init`](#uv_pipe_init)
+	- [`uv_pipe_open`](#uv_pipe_open)
+	- [`uv_pipe_bind`](#uv_pipe_bind)
+	- [`uv_pipe_connect`](#uv_pipe_connect)
+	- [`uv_pipe_pending_instances`](#uv_pipe_pending_instances)
+- [poll](#poll)
+	- [`uv_poll_init`](#uv_poll_init)
+	- [`uv_poll_init_socket`](#uv_poll_init_socket)
+	- [`uv_poll_start`](#uv_poll_start)
+	- [`uv_poll_stop`](#uv_poll_stop)
+- [prepare](#prepare)
+	- [`uv_prepare_init`](#uv_prepare_init)
+	- [`uv_prepare_start`](#uv_prepare_start)
+	- [`uv_prepare_stop`](#uv_prepare_stop)
+- [idle](#idle)
+	- [`uv_idle_init`](#uv_idle_init)
+	- [`uv_idle_start`](#uv_idle_start)
+	- [`uv_idle_stop`](#uv_idle_stop)
+- [async](#async)
+	- [`uv_async_init`](#uv_async_init)
+	- [`uv_async_send`](#uv_async_send)
+- [timer](#timer)
+	- [`uv_timer_init`](#uv_timer_init)
+	- [`uv_timer_start`](#uv_timer_start)
+	- [`uv_timer_stop`](#uv_timer_stop)
+	- [`uv_timer_again`](#uv_timer_again)
+	- [`uv_timer_set_repeat`](#uv_timer_set_repeat)
+	- [`uv_timer_get_repeat`](#uv_timer_get_repeat)
+- [addrinfo](#addrinfo)
+	- [`uv_getaddrinfo`](#uv_getaddrinfo)
+	- [`uv_freeaddrinfo`](#uv_freeaddrinfo)
+- [process](#process)
+	- [`uv_spawn`](#uv_spawn)
+	- [`uv_process_kill`](#uv_process_kill)
+	- [`uv_kill`](#uv_kill)
+	- [`uv_setup_args`](#uv_setup_args)
+	- [`uv_get_process_title`](#uv_get_process_title)
+	- [`uv_set_process_title`](#uv_set_process_title)
+	- [`uv_resident_set_memory`](#uv_resident_set_memory)
+	- [`uv_uptime`](#uv_uptime)
+- [work queue](#work-queue)
+	- [`uv_queue_work`](#uv_queue_work)
+	- [`uv_cancel`](#uv_cancel)
+- [cpu info](#cpu-info)
+	- [`uv_cpu_info`](#uv_cpu_info)
+	- [`uv_free_cpu_info`](#uv_free_cpu_info)
+- [interface addresses](#interface-addresses)
+	- [`uv_interface_addresses`](#uv_interface_addresses)
+	- [`uv_free_interface_addresses`](#uv_free_interface_addresses)
+- [file system](#file-system)
+	- [`uv_fs_req_cleanup`](#uv_fs_req_cleanup)
+	- [`uv_fs_close`](#uv_fs_close)
+	- [`uv_fs_open`](#uv_fs_open)
+		- [`uv_fs_t *req` passed to callback](#uv_fs_t-req-passed-to-callback)
+	- [`uv_fs_read`](#uv_fs_read)
+		- [`uv_fs_t *req` passed to callback](#uv_fs_t-req-passed-to-callback-1)
+	- [`uv_fs_unlink`](#uv_fs_unlink)
+	- [`uv_fs_write`](#uv_fs_write)
+		- [`uv_fs_t *req` passed to callback](#uv_fs_t-req-passed-to-callback-2)
+	- [`uv_fs_mkdir`](#uv_fs_mkdir)
+	- [`uv_fs_rmdir`](#uv_fs_rmdir)
+	- [`uv_fs_readdir`](#uv_fs_readdir)
+	- [`uv_fs_stat`](#uv_fs_stat)
+	- [`uv_fs_fstat`](#uv_fs_fstat)
+	- [`uv_fs_rename`](#uv_fs_rename)
+	- [`uv_fs_fsync`](#uv_fs_fsync)
+	- [`uv_fs_fdatasync`](#uv_fs_fdatasync)
+	- [`uv_fs_ftruncate`](#uv_fs_ftruncate)
+	- [`uv_fs_sendfile`](#uv_fs_sendfile)
+	- [`uv_fs_chmod`](#uv_fs_chmod)
+	- [`uv_fs_utime`](#uv_fs_utime)
+	- [`uv_fs_futime`](#uv_fs_futime)
+	- [`uv_fs_lstat`](#uv_fs_lstat)
+	- [`uv_fs_link`](#uv_fs_link)
+	- [`uv_fs_symlink`](#uv_fs_symlink)
+	- [`uv_fs_readlink`](#uv_fs_readlink)
+	- [`uv_fs_fchmod`](#uv_fs_fchmod)
+	- [`uv_fs_chown`](#uv_fs_chown)
+	- [`uv_fs_fchown`](#uv_fs_fchown)
+	- [`uv_guess_handle`](#uv_guess_handle)
+	- [fs poll](#fs-poll)
+		- [`uv_fs_poll_init`](#uv_fs_poll_init)
+		- [`uv_fs_poll_start`](#uv_fs_poll_start)
+		- [`uv_fs_poll_stop`](#uv_fs_poll_stop)
+	- [fs event](#fs-event)
+		- [`uv_fs_event_init`](#uv_fs_event_init)
+		- [`uv_fs_event_start`](#uv_fs_event_start)
+		- [`uv_fs_event_stop`](#uv_fs_event_stop)
+- [signal](#signal)
+	- [`uv_signal_init`](#uv_signal_init)
+	- [`uv_signal_start`](#uv_signal_start)
+	- [`uv_signal_stop`](#uv_signal_stop)
+- [load average](#load-average)
+	- [`uv_loadavg`](#uv_loadavg)
+- [errors](#errors)
+	- [`uv_strerror`](#uv_strerror)
+	- [`uv_err_name`](#uv_err_name)
+- [utilities](#utilities)
+	- [ip address conversion](#ip-address-conversion)
+		- [`uv_ip4_addr`](#uv_ip4_addr)
+		- [`uv_ip6_addr`](#uv_ip6_addr)
+		- [`uv_ip4_name`](#uv_ip4_name)
+		- [`uv_ip6_name`](#uv_ip6_name)
+	- [ntop and pton](#ntop-and-pton)
+		- [`uv_inet_ntop`](#uv_inet_ntop)
+		- [`uv_inet_pton`](#uv_inet_pton)
+	- [path](#path)
+		- [`uv_exepath`](#uv_exepath)
+		- [`uv_cwd`](#uv_cwd)
+		- [`uv_chdir`](#uv_chdir)
+	- [memory](#memory)
+		- [`uv_get_free_memory`](#uv_get_free_memory)
+		- [`uv_get_total_memory`](#uv_get_total_memory)
+	- [time](#time-1)
+		- [`uv_hrtime`](#uv_hrtime)
+	- [stdio](#stdio)
+		- [`uv_disable_stdio_inheritance`](#uv_disable_stdio_inheritance)
+	- [dynamic library access](#dynamic-library-access)
+		- [`uv_dlopen`](#uv_dlopen)
+		- [`uv_dlclose`](#uv_dlclose)
+		- [`uv_dlsym`](#uv_dlsym)
+		- [`uv_dlerror`](#uv_dlerror)
+	- [mutex](#mutex)
+		- [`uv_mutex_init`](#uv_mutex_init)
+		- [`uv_mutex_destroy`](#uv_mutex_destroy)
+		- [`uv_mutex_lock`](#uv_mutex_lock)
+		- [`uv_mutex_trylock`](#uv_mutex_trylock)
+		- [`uv_mutex_unlock`](#uv_mutex_unlock)
+	- [rwlock](#rwlock)
+		- [`uv_rwlock_init`](#uv_rwlock_init)
+		- [`uv_rwlock_destroy`](#uv_rwlock_destroy)
+		- [`uv_rwlock_rdlock`](#uv_rwlock_rdlock)
+		- [`uv_rwlock_tryrdlock`](#uv_rwlock_tryrdlock)
+		- [`uv_rwlock_rdunlock`](#uv_rwlock_rdunlock)
+		- [`uv_rwlock_wrlock`](#uv_rwlock_wrlock)
+		- [`uv_rwlock_trywrlock`](#uv_rwlock_trywrlock)
+		- [`uv_rwlock_wrunlock`](#uv_rwlock_wrunlock)
+	- [semaphores](#semaphores)
+		- [`uv_sem_init`](#uv_sem_init)
+		- [`uv_sem_destroy`](#uv_sem_destroy)
+		- [`uv_sem_post`](#uv_sem_post)
+		- [`uv_sem_wait`](#uv_sem_wait)
+		- [`uv_sem_trywait`](#uv_sem_trywait)
+	- [condition variables](#condition-variables)
+		- [`uv_cond_init`](#uv_cond_init)
+		- [`uv_cond_destroy`](#uv_cond_destroy)
+		- [`uv_cond_signal`](#uv_cond_signal)
+		- [`uv_cond_broadcast`](#uv_cond_broadcast)
+		- [`uv_cond_wait`](#uv_cond_wait)
+		- [`uv_cond_timedwait`](#uv_cond_timedwait)
+	- [barrier](#barrier)
+		- [`uv_barrier_init`](#uv_barrier_init)
+		- [`uv_barrier_destroy`](#uv_barrier_destroy)
+		- [`uv_barrier_wait`](#uv_barrier_wait)
+	- [once](#once)
+		- [`uv_once`](#uv_once)
+	- [thread local storage](#thread-local-storage)
+		- [`uv_key_create`](#uv_key_create)
+		- [`uv_key_delete`](#uv_key_delete)
+		- [`uv_key_get`](#uv_key_get)
+		- [`uv_key_set`](#uv_key_set)
+		- [`uv_thread_create`](#uv_thread_create)
+		- [`long `](#long-)
+		- [`uv_thread_join`](#uv_thread_join)
+}

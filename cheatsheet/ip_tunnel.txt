@@ -1,0 +1,137 @@
+cat - <<'EOF'
+[ip_tunnel_t_gre]
+
+EOF
+
+ip_tunnel_t_gre_ipv4(){ cat - <<'EOF'
+使用ipip、sit，只需要把modprobe后面的模块换掉，把ip tunnel 命令中mode后面的字符替换掉即可。
+                     WAN
+         +------------------------+
+         |                        |
+   192.168.122.80/24       192.168.122.90/24     
++-----+(eth0)+-----+     +-----+(eth0)+-----+ 
+|                  |     |                  |   
+|                  |     |                  |   
+|       a主机      |     |       b主机      |   
+|                  |     |                  |   
+|                  |     |                  |   
+|                  |     |                  |   
+|  192.168.1.0/24  |     |  192.168.2.0/24  |   
++-----+(eth1)+-----+     +-----+(eth1)+-----+    
+         |                        |
+---------+---------      ---------+---------
+       c主机
+
+基于gre模式
+a主机配置如下：
+#modprobe ipip  
+#modprobe ip_gre  
+#ip tunnel add tun0 mode gre remote 192.168.122.90 local 192.168.122.80 ttl 64  
+#ip link set tun0 up  
+#ip addr add 192.168.1.80 peer 192.168.2.90 dev tun0  
+#ip route add 192.168.2.0/24 dev tun0  
+#iptables -F 
+
+b主机配置如下：
+#modprobe ipip  
+#modprobe ip_gre  
+#ip tunnel add tun0 mode gre remote 192.168.122.80 local 192.168.122.90 ttl 64  
+#ip link set tun0 up  
+#ip addr add 192.168.2.90 peer 192.168.1.80 dev tun0  
+#ip route add 192.168.1.0/24 dev tun0  
+#iptables -F
+
+两边互ping发现可以ping ，即为实验成功。这里需要注意iptables项，执行iptables -F是必须的，不然两边不通。
+如果在需要开启防火墙的情况下，也可以执行如下步骤：
+iptables -I INPUT -p gre -j ACCEPT
+或
+firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -i eth0 -p gre -j ACCEPT  
+
+
+假如这边还有台主机C，C主机只有一块网卡，其IP为192.168.1.100，和a主机同在eth1网段，可以将a主机配置为一个简单的种由器，
+其可以访问b主机的IP 192.168.2.90 。只需要在a主机中做如下配置即可。
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE
+注意：该场景下，需要将C主机的网关指向a主机 。
+EOF
+}
+
+ip_tunnel_t_gre_ipv6(){ cat - <<'EOF'
+使用ipip、sit，只需要把modprobe后面的模块换掉，把ip tunnel 命令中mode后面的字符替换掉即可。
+                     WAN
+         +------------------------+
+         |                        |
+      2001::1/64              2001::2/64    
++-----+(eth0)+-----+     +-----+(eth0)+-----+ 
+|                  |     |                  |   
+|                  |     |                  |   
+|       a主机      |     |       b主机      |   
+|                  |     |                  |   
+|                  |     |                  |   
+|                  |     |                  |   
+|  192.168.1.0/24  |     |  192.168.2.0/24  |   
++-----+(eth1)+-----+     +-----+(eth1)+-----+    
+         |                        |
+---------+---------      ---------+---------
+       c主机
+
+配置如下：
+a主机配置
+#modprobe ip6_tunnel
+#ip -6 tunnel add tun0 mode ipip6 remote 2001::2 local 2001::1 ttl 64
+#ip link set tun0 up
+#ip addr add 192.168.1.1 peer 192.168.2.1 dev tun0
+#ip route add 192.168.2.0/24 dev tun0
+#iptables -F
+b主机配置
+#modprobe ip6_tunnel
+#ip -6 tunnel add tun0 mode ipip6 remote 2001::1 local 2001::2 ttl 64
+#ip link set tun0 up
+#ip addr add 192.168.2.1 peer 192.168.1.1 dev tun0
+#ip route add 192.168.1.0/24 dev tun0
+#iptables -F 
+
+EOF
+}
+
+
+ip_tunnel_t_gre_ipv4(){ cat - <<'EOF'
+serverA 公网ip 30.11.177.121  内网ip 192.168.80.150
+serverB 公网ip 30.11.177.86   内网ip 192.168.136.128
+
+                     WAN
+         +------------------------+
+         |                        |
+     30.11.177.121          30.11.177.86     
++-----+(eth0)+-----+     +-----+(eth0)+-----+ 
+|                  |     |                  |   
+|                  |     |                  |   
+|       a主机      |     |       b主机      |   
+|                  |     |                  |   
+|                  |     |                  |   
+|  192.168.1.1     |     |  192.168.1.2     |   
+|  192.168.80.150  |     |  192.168.136.128 |   
++-----+(eth1)+-----+     +-----+(eth1)+-----+    
+         |                        |
+---------+---------      ---------+---------
+       c主机
+
+serverA：
+modprobe ip_gre  # 加载gre模块
+ip tunnel add tun0 mode gre remote 30.11.177.86 local 30.11.177.121 ttl 255
+ip link set tun0 up # 启动tun0
+ip link set tun0 up mtu 1500
+ip addr add 192.168.1.1 peer 192.168.1.2 dev tun0  #为tun0添加地址和对端地址
+ip route add 192.168.136.0/24 via 192.168.1.2      #添加路由网关
+iptables -I INPUT -p gre -j ACCEPT
+
+serverB：
+modprobe ip_gre
+ip tunnel add tun0 mode gre local 30.11.177.86 remote 30.11.177.121 ttl 255
+ip link set tun0 up
+ip link set tun0 up mtu 1500
+ip addr add 192.168.1.2 peer 192.168.1.1 dev tun0
+ip route add 192.168.80.0/24 via 192.168.1.1
+iptables -I INPUT -p gre -j ACCEPT
+EOF
+}

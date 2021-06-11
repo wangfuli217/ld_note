@@ -1,0 +1,118 @@
+在软件开发过程中，为了验证代码块功能的完备及健壮性，我们常常会做一些单元测试，验证函数的
+调用符合预期，再加上gcov、lcov这样的工具，可以生成HTML格式的单元测试结果，极大地提供了可
+读性。下面以一个动态库的单元测试为例，简述gcov、lcov的用法。
+
+在"/home/demo"目录下，包括测试代码test.c和被测试代码demo.h、demo.c，如下：
+1、代码准备
+
+/ demo.h
+#ifndef DEMO_H
+#define DEMO_H
+
+void demo_foo();
+void demo_foo2(int i);
+
+#endif /* DEMO_H */
+
+// demo.c
+#include <stdio.h>
+#include "demo.h"
+
+void demo_foo()
+{
+    printf("%s\n", __func__);
+}
+
+void demo_foo2(int i)
+{
+    if (i > 0) {
+        printf("%s pos\n", __func__);
+        if (0 == i % 2) {
+            printf("%s even\n", __func__);
+        }
+        else {
+            printf("%s odd\n", __func__);
+        }
+    }
+    else if (i < 0) {
+        printf("%s neg\n", __func__);
+    }
+    else {
+        printf("%s zero\n", __func__);
+    }
+}
+
+// test.c
+#include <stdio.h>
+#include "demo.h"
+
+int main(int argc, char* argv[])
+{
+    printf("%s unit test begin\n", __func__);
+
+    demo_foo();
+    demo_foo2(2);
+    demo_foo2(1);
+    demo_foo2(0);
+    demo_foo2(-1);
+
+    printf("%s unit test end\n", __func__);
+
+    return 0;
+}
+
+2、生成可执行文件
+我们的例子测试的是一个动态库，所以先把demo.h/demo.c编译成一个动态库libdemo.so：
+gcc -shared -fPIC -o libdemo.so demo.h demo.c
+然后编译test.c并链接libdemo.so为可执行文件test：
+
+gcc -o test test.c -L. -ldemo
+这一步操作生成了libdemo.so和test两个文件.
+
+我们先来运行一下test这个可执行文件，看它能否正确执行。
+LD_LIBRARY_PATH=. ./test
+
+3. 重新编译动态库
+对一个动态库进行单体测试，为了能够生成HTML形式的测试结果，我们使用gcc编译时，
+还需要添加两个编译参数，"-fprofile-arcs"和"-ftest-coverage"，前者用来生成对应的
+".gcda"后缀的数据，后者用来生成对应的".gcno"后缀的数据，这两种数据是必须的。
+因为我们要测试的是动态库，所以需要重新编译这个动态库，而没有必要重新编译其它文件，
+gcc -fprofile-arcs -ftest-coverage -shared -fpic -o libdemo.so demo.h demo.c
+这一步重新编译了libdemo.so，并且产生了对应的demo.gcno数据：
+
+4. 运行可执行文件
+LD_LIBRARY_PATH=. ./test
+这一步生成了demo.gcda数据：
+
+5.使用gcov生成.gcov数据
+命令：gcov demo.c
+生成文件：demo.c.gcov
+
+6.使用lcov生成.info数据
+lcov -c -d . -o demo.info
+-c用来抓取覆盖率数据，-d指定覆盖率数据所在的目录，-o指定生成的目标文件，后缀为.info。
+这一步生成了demo.info，不过demo.c.gcov文件被自动清理了。
+
+7. 最后一步
+使用genhtml命令生成html。
+genhtml demo.info -o out
+-o指定html文件存放位置，这里我们把它放置在当前目录的out文件夹中：
+打开out目录下的index.html查看结果如下：
+
+# http://blog.csdn.net/kevin_ji/article/details/50885680   覆盖率测试工具gcov & lcov使用手册
+生成全量覆盖率
+lcov -b <测试代码路径> -d <gcda目录位置> -c -o result.info --rc lcov_branch_coverage=1
+参数比较多，一个个说
+-b为指定原代码路径，即生成gcno数据时编译的代码路径
+-d为gcda所在目录，可以将所有的gcda放置在一个目录中
+-c代表生成覆盖率数据，后面不用给其他参数
+-o指定生成的文件名，这里指定文件为当前目录下的result.info
+--rc lcov_branch_coverage=1表示包含分支数据
+
+Merg多份覆盖率数据
+lcov -a phase1.info -a phase2.info -o out.info
+其中phase1.info以及phase2.info为独立了的两份覆盖率数据，他们整合为一份out.info
+
+生成html格式的覆盖率报告
+genhtml -o result out.info
+其中out.info为要解析的覆盖率数据文件，生成的网页会放在result目录下

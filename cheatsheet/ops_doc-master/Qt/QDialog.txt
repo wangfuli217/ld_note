@@ -1,0 +1,195 @@
+# 非模态对话框
+    QDialog modelLessDlg;
+    modelLessDlg.setWindowTitle(pCodec->toUnicode("非模态对话框"));
+    modelLessDlg.show();
+    modelLessDlg.resize(200,100);
+# 窗口模式对话框
+QDialog* dlg = new QDialog(this);
+dlg->setAttribute(Qt::WA_DeleteOnClose);//设置对话框关闭后，自动销毁
+dlg->setWindowModality(Qt::WindowModal);
+dlg->show();
+# 应用模态对话框
+QDialog* dlg = new QDialog(this);
+dlg->setAttribute(Qt::WA_DeleteOnClose);//设置对话框关闭后，自动销毁
+dlg->setWindowModality(Qt::ApplicationModal);//或者可以使用setModel(true)
+dlg->show();
+# 自定义对话框
+CustomDialog* dlg = new CustomDialog(this);
+dlg->setAttribute(Qt::WA_DeleteOnClose);//设置对话框关闭后，自动销毁
+int ret = dlg->exec();
+
+
+QDialog (standarddialogs) 
+    QColorDialog    QColor color = QColorDialog::getColor(Qt::green, this, "Select Color", options);
+    QErrorMessage   errorMessageDialog->showMessage(
+    QFileDialog     QString directory = QFileDialog::getExistingDirectory(this,
+                    QString fileName = QFileDialog::getOpenFileName(this,
+                    QStringList files = QFileDialog::getOpenFileNames(this,
+                    QString fileName = QFileDialog::getSaveFileName(this,
+    QFontDialog     QFont font = QFontDialog::getFont(&ok, QFont(fontLabel->text()), this, "Select Font", options);
+    QInputDialog    int i = QInputDialog::getInt(this, tr("QInputDialog::getInteger()"),
+                    double d = QInputDialog::getDouble(this, tr("QInputDialog::getDouble()"),
+                    QString item = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
+                    QString text = QInputDialog::getText(this, tr("QInputDialog::getText()"),
+    QMessageBox     reply = QMessageBox::critical(this, tr("QMessageBox::critical()"),
+                    reply = QMessageBox::information(this, tr("QMessageBox::information()"), MESSAGE);
+                    reply = QMessageBox::question(this, tr("QMessageBox::question()"),
+                    QMessageBox msgBox(QMessageBox::Warning, tr("QMessageBox::warning()"),
+                    
+    QProgressDialog 显示操作过程
+    [1] 初始化
+    QProgressDialog progressDialog(this);// 显示操作过程
+    progressDialog.setCancelButtonText(tr("&Cancel"));
+    progressDialog.setRange(0, files.size());
+    progressDialog.setWindowTitle(tr("Find Files"));
+    [2] 循环 - 夹杂在操作函数中
+      progressDialog.setValue(i);
+      progressDialog.setLabelText(tr("Searching file number %1 of %2...").arg(i).arg(files.size()));
+    [3] Cancel跳出
+    progressDialog.wasCanceled()
+    
+    QTabDialog   (tabdialog)    QTabWidget和QWidget组合 
+                                QDialogButtonBox
+    QWizard      (licensewizard | trivialwizard)  QWizard和QWizardPage组合
+    
+                 (findfiles) QFileDialog::getExistingDirectory + 
+    QPageSetupDialog    为打印机提供纸张相关的选项；
+    QPrintDialog        打印机配置； 
+    QPrintPreviewDialog 打印预览；
+
+QMessageBox::about(this, tr("About Codecs"),
+            tr("The <b>Codecs</b> example demonstrates how to read and write "
+               "files using various encodings."));
+               
+    
+%% /widgets/dialogs/standarddialogs
+                    QInputDialog::getInt
+                    QInputDialog::getDouble
+                    QInputDialog::getItem
+                    QInputDialog::getText
+                    
+                    QColorDialog::ColorDialogOptions options = QFlag(colorDialogOptionsWidget->value());
+                    QColor color = QColorDialog::getColor(Qt::green, this, "Select Color", options);
+                    
+                    QColorDialog(ColorDialogOptions) + QColor + QPalette + setPalette()
+                    
+                    const QFontDialog::FontDialogOptions options = QFlag(fontDialogOptionsWidget->value());
+                    QFont font = QFontDialog::getFont(&ok, QFont(fontLabel->text()), this, "Select Font", options);
+                    
+                    QFontDialog(FontDialogOptions) + QFont + setFont()
+                    
+                    QFileDialog::Options options = QFlag(fileDialogOptionsWidget->value());
+                    options |= QFileDialog::DontResolveSymlinks | QFileDialog::ShowDirsOnly;
+                    QString directory = QFileDialog::getExistingDirectory(this, tr("QFileDialog::getExistingDirectory()"),directoryLabel->text(),options);
+
+                    const QFileDialog::Options options = QFlag(fileDialogOptionsWidget->value());
+                    QString selectedFilter;
+                    QString fileName = QFileDialog::getOpenFileName(this,
+                                                tr("QFileDialog::getOpenFileName()"),
+                                                openFileNameLabel->text(),
+                                                tr("All Files (*);;Text Files (*.txt)"),
+                                                &selectedFilter,
+                                                options);
+                    QFileDialog + QDir + QFileInfo + QFile + QTextStream(QDataStream)
+
+                    QMessageBox(QMessageBox::StandardButton)
+                               (NoButton Ok Save)
+                                QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel      questionMessage
+                                QMessageBox::Ok                                               informationMessage
+                                QMessageBox::Abort | QMessageBox::Retry | QMessageBox::Ignore criticalMessage
+                                QMessageBox::AcceptRole | QMessageBox::RejectRole             warningMessage
+                                
+                                critical(this, tr("危险"), tr("修路危险"), tr("返回"), tr("步行"), tr("无视"));
+                                information(this, tr("通知"), tr("会有个女朋友吗"), tr("不可能"), tr("真不可能"));
+                                question(this, tr("问题"),tr("喜欢身材好的还是颜值高的"), QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+                    QErrorMessage.showMessage(pCodec->toUnicode("恭喜你中了5个亿，不好意思，系统出错"));
+                    
+                    QProgressDialog progress("复制文件中...", "中断", 0, numFiles, this);
+                    progress.setWindowModality(Qt::WindowModal);
+                    
+                    QWizardPage* page1 = new QWizardPage();
+                    
+%% E:\Qt\journey of qt\lesson-5\StandardDialogs
+https://zhuanlan.zhihu.com/p/28494723
+                    
+//2.模态对话框 
+  QDialog dialog; 
+  dialog.setWindowTitle(tr("Hello, dialog!")); 
+  dialog.exec();
+//3.非模态对话框 
+  QDialog *dialog = new QDialog; 
+  //setAttribute()函数设置对话框关闭时，自动销毁对话框。 
+  dialog->setAttribute(Qt::WA_DeleteOnClose); 
+  dialog->setWindowTitle(tr("Hello, dialog!")); 
+  dialog->show();
+
+    
+    QDialog 类代表对话框。对话框一般用来实现那些只是暂时存在的用户界面。对话框是独立的窗口，
+但通常它也有父窗口，当对话框显示时，默认的位置在父窗口的中央。从外观上来看，对话框一般没有
+最大化、最小化按钮。
+    对话框有模态和非模态两种形式。
+  非模态对话框的的行为和使用方法都类似于普通的窗口。
+  模态对话框则有所不同，当模态对话框显示时，其他窗口将全部进入非激活状态，不能接受键盘和鼠标事件。
+    模态的方式又可以分为两种，
+      一种是对整个应用程序模态，这时它的出现将导致程序中的所有窗口失去响应；
+      另一种是对窗口模态，这时仅仅会导致它所在的整个窗口树失去响应。
+      
+1. 构造
+    QDialog 类的构造函数与 QWidget 类形式相同：
+QDialog (QWidget *parent = 0, Qt::WindowFlags f = 0);
+
+2. 模态性
+    用下面的成员函数可将对话框设为模态：
+void setModal(bool modal);    // 设置对话框的模态性
+    当参数 model 为 true 时，对话框设为模态，否则设为非模态。
+如果设为模态，则默认是对整个应用程序模态的。要设为对窗口模态，则需要用以下函数： 
+
+void setWindowModality(Qt::WindowModality windowModality);
+    实际上它是从 QWidget 类继承过来的一个成员函数，其中 Qt::WindowModality 是一个枚举类型，有以下取值。
+    1）Qt::NonModal：非模态。
+    2）Qt::WindowModal：窗口模态。
+    3）Qt::ApplicationModal：应用程序模态。
+
+与模态性相关的成员函数还有以下两个：
+    Qt::WindowModality windowModality() const;    // 得到窗口的模态性
+    bool isModel() const;                         // 判断窗口是否为模态的
+
+执行与结果
+    下面这个函数将以模态方式显示对话框：
+int exec();     // 这是一个槽
+    同时它也是一个槽。这个函数不管对话框的模态性如何，总是显示模态对话框。调用这个函数
+的代码将阻塞直到对话框被关闭，返回值表示对胡框的结果。
+  注意这个函数总是在其他窗口的代码中调用，一般不在对话框自己的代码中使用。 
+
+对话框的结果与下面的函数有关：
+virtual void done(int r);    // 关闭对话框并返回结果 r，这是一个槽。
+    这时一个槽，它将使对话框关闭，使对 exec 函数的调用返回。参数 r 是整数值，
+但最好使用 QDialog::DialogCode 枚举类型所定义的两个值。
+    1）QDialog::Accepted：表示确定。
+    2）QDialog::Rejected：表示取消。
+    
+对话框通常有一个确定按钮和一个取消按钮，它们能使对话框关闭并返回相应的值。为了与按钮的 clicked() 信号连接，需要用到以下的槽：
+    virtual void accept();      // 槽，等价于 done(QDialog::Accepted)
+    virtual void reject();      // 槽，等价于 done(QDialog::Rejected)
+    
+3. 打开
+    下面这个函数将以对窗口模态的方式显示对话框：
+    void open();    // 这是一个槽
+    它也是一个槽。与 exec 函数不同的是，open 函数将立刻返回而不是等待对话框关闭。
+它一般用在需要显示模态对话框但又要继续进行工作的场合，比如一个进度对话框。这时候，
+需要在工作处理过程中间歇性地调用 QApplication 对象的 processEvents 成员函数，
+否则对话框的事件将的不到处理。
+
+================================================================================
+https://zhuanlan.zhihu.com/p/28274107
+
+窗口定义
+窗口：当一个部件没有嵌入到其他部件中，则把这个部件叫作窗口或者顶层窗口，顶层窗口是没有父窗口的，
+      一般的，这些窗口都会被列在任务栏中。通常，一个窗口会包含有标题栏，窗口边框等。
+      如果一个窗口具有父类，则这个窗口被称为是次级窗口，例如设置了父类的QDialog就是次级窗口，
+      而这些窗口不会被列在任务栏中，而是在各自的父窗口之上。
+控件：当一个窗口嵌入到其它窗口中，则它本身的标题栏会隐藏，那这些窗口就叫作控件，也可以叫作非顶层窗口或子窗口。
+父窗口，子窗口：当部件1嵌入到部件2中，就把部件2称作是部件1的父窗口，而部件1是部件2的子窗口。
+
+%% E:\Qt\journey of qt\lesson-3\widget-1
+

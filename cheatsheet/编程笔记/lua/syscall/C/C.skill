@@ -1,0 +1,194 @@
+--[[ 数组操作
+    Lua中的"数组"就是以特殊方式使用的表。像lua_settable和lua_gettable这种用来操作表的通用函数
+也可用于操作数组，不过C API为使用整数索引的表的访问和更新提供了专门的函数：
+    index: 表示表在栈中的位置；
+    key  ：表示元素在表中的位置；
+
+    void lua_geti(lua_State *L, int index, int key)
+把 t[i] 的值压栈， 这里的 t 指给定的索引指代的值。 和在 Lua 里一样，这个函数可能会触发 "index" 事件的元方法 
+返回压入值的类型。
+-- lua_pushnumber(L, key);
+-- lua_gettable(L, t);
+
+    void lua_seti(lua_State *L, int index, int key)
+做一个等价于 t[n] = v 的操作， 这里 t 是给出的索引处的值， 而 v 是栈顶的那个值。
+这个函数将把这个值弹出栈。 跟在 Lua 中一样，这个函数可能触发一个 "newindex" 事件的元方法
+-- lua_pushnumber(L, key);
+-- lua_insert(L,-2); /* 把key放在之前的值下面 */
+-- lua_settable(L, t);
+
+    int lua_rawgeti (lua_State *L, int index, lua_Integer n);
+把 t[n] 的值压栈， 这里的 t 是指给定索引处的表。 这是一次直接访问；就是说，它不会触发元方法。
+返回入栈值的类型。
+
+    void lua_rawseti (lua_State *L, int index, lua_Integer i);
+等价于 t[i] = v ， 这里的 t 是指给定索引处的表， 而 v 是栈顶的值。
+这个函数会将值弹出栈。 赋值是直接的；即不会触发元方法。
+
+    void luaL_checktype (lua_State *L, int arg, int t);
+检查函数的第 arg 个参数的类型是否是 t。 参见 lua_type 查阅类型 t 的编码。
+否则它会引发一个错误。
+
+    lua_Integer luaL_len (lua_State *L, int index);
+以数字形式返回给定索引处值的"长度"； 它等价于在 Lua 中调用 '#' 的操作
+如果操作结果不是一个整数，则抛出一个错误。(这种情况只发生在触发元方法时)
+
+    void lua_len (lua_State *L, int index);
+返回给定索引的值的长度。它等价于 Lua 中的 '#' 操作符。 它有可能触发 "length" 事件对应的元方法。 结果压栈。
+--]]
+
+--[[ 字符串操作
+    当C函数接收到一个Lua字符串为参数时，必须遵循两条规则：
+在使用字符串期间不能从栈中将其弹出，而且不应该修改字符串。
+    当C函数需要创建一个返回给Lua的字符串时，要求更高。此时，是C语言代码负责缓冲区的分配/释放
+缓冲区溢出，以及其他对C与原来说比较困难的任务。因此，Lua API提供了一些函数来帮助完成这些任务。
+
+    void lua_concat (lua_State *L, int n);
+连接栈顶的 n 个值， 然后将这些值出栈，并把结果放在栈顶。 
+如果 n 为 1 ，结果就是那个值放在栈上（即，函数什么都不做）； 
+如果 n 为 0 ，结果是一个空串。 连接依照 Lua 中通常语义完成
+
+    const char *lua_pushfstring (lua_State *L, const char *fmt, ...);
+把一个格式化过的字符串压栈， 然后返回这个字符串的指针。
+
+    当只需连接几个字符串时，lua_concat和lua_pushfstring都很有用。不过如果需要连接很多字符串，
+我们可以使用由辅助库提供的缓冲机制。
+    缓冲机制的简单用法只包含两个函数：一个用于在组装字符串时提供任意大小的缓冲区 ；
+另一个用于将缓冲区中的内容转为一个Lua字符串。
+    
+--]]
+
+--[[ 在C函数中保存状态 ： registry全局注册表
+    C函数可以通过堆栈来和Lua交换数据，但有时候C函数需要在函数体的作用域之外保存某些Lua数据，
+那么我们想到全局变量或static变量，这样做的缺点是：
+   1. 为Lua设计C函数库时，导致不可重入；
+   2. 不是所有的Lua值都能很好的保存到C变量中。
+那么可不可以将值保存在Lua全局变量里面呢，可以，Lua就提供了一个独立的被称为registry的表，但是Lua代码本身不能访问它。
+
+1、registry全局注册表
+        注册表总是位于一个"伪索引"上，伪索引就像是一个栈中的索引，但它所关联的值不在栈中。
+  解释：一个普通的Lua表，使用伪索引(pseudo-index)LUA_REGISTRYINDEX访问。C代码可以访问，Lua代码不能访问。
+  用途：解决C函数保留全局Lua值的问题。通常情况下，使用注册表来存储多个模块间共享的数据。
+  注意：所有的C库共享相同的registry，所以对于key的命名需要具有全局唯一性。
+
+// 获取registry表键值"KEY"对应的值的方法：
+    lua_pushstring(L, "KEY");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+或
+    lua_getfield(L, LUA_REGISTRYINDEX, "Key")
+    
+    int ref = luaL_ref(L, LUA_REGISTRYINDEX) 会在栈中弹出一个值，然后分配一个新的整型的键
+使用这个键将从栈中弹出的值保存到注册表中，最后，返回该整形键，而这个键就被称为引用。
+    lua_rawgeti(L,LUA_REGISTRYINDEX, reg); 要将与引用ref关联的值压入栈中
+    luaL_unref(L,LUA_REGISTRYINDEX, ref)   释放值和引用
+    
+    lua_rawgeti(L,LUA_REGISTRYINDEX, reg); 向栈中压入一个nil
+    
+    LUA_RIDX_MAINTHREAD: 指向Lua状态自身，也就是其主线程
+    LUA_RIDX_GLOBALS     全局变量
+    
+void lua_pushlightuserdata (lua_State *L, void *p);
+把一个轻量用户数据压栈。
+用户数据是保留在 Lua 中的 C 值。 轻量用户数据 表示一个指针 void*。 它是一个像数字一样的值： 
+你不需要专门创建它，它也没有独立的元表，而且也不会被收集（因为从来不需要创建）。 
+只要表示的 C 地址相同，两个轻量用户数据就相等。
+--]]
+
+--[[ LUA_REGISTRYINDEX
+1. _LOADED
+luaL_register(lua_State *L, const char *libname, const luaL_Reg *l)
+    luaI_openlib (lua_State *L, const char *libname, const luaL_Reg *l, int nup)
+    luaL_findtable(L, LUA_REGISTRYINDEX, "_LOADED", 1);
+  1.1 当libname等于NULL的时候，注册luaL_Reg设置的所有函数到栈顶的表中。
+  1.2 当libname不为NULL的时候，创建一个表，设置表名为libname，设置表名为package.loaded[libname]的值
+      同时注册luaL_Reg设置的所有函数。
+    
+require()
+    ll_require (lua_State *L)
+    lua_getfield(L, LUA_REGISTRYINDEX, "_LOADED");
+
+module()
+    ll_module (lua_State *L)
+    lua_getfield(L, LUA_REGISTRYINDEX, "_LOADED");
+
+"package"
+    luaopen_package
+    luaL_findtable(L, LUA_REGISTRYINDEX, "_LOADED", 2);
+    
+--]]
+
+--[[ LUA_ENVIRONINDEX
+ TValue *index2adr (lua_State *L, int idx) 
+ LUA_API void lua_replace (lua_State *L, int idx) 
+ 
+io
+ int io_close (lua_State *L) 
+    lua_rawgeti(L, LUA_ENVIRONINDEX, IO_OUTPUT);
+ FILE *getiofile (lua_State *L, int findex)
+    lua_rawgeti(L, LUA_ENVIRONINDEX, findex);
+ int g_iofile (lua_State *L, int f, const char *mode)
+    lua_rawseti(L, LUA_ENVIRONINDEX, f);
+ int io_lines (lua_State *L)
+    lua_rawgeti(L, LUA_ENVIRONINDEX, IO_INPUT);
+ void createstdfile (lua_State *L, FILE *f, int k, const char *fname) 
+    lua_rawseti(L, LUA_ENVIRONINDEX, k);
+ int luaopen_io (lua_State *L)
+    lua_replace(L, LUA_ENVIRONINDEX);
+    luaL_register(L, LUA_IOLIBNAME, iolib);
+
+load
+ const char *findfile (lua_State *L, const char *name, const char *pname)
+    lua_getfield(L, LUA_ENVIRONINDEX, pname);
+ loader_preload (lua_State *L)
+    lua_getfield(L, LUA_ENVIRONINDEX, "preload");
+ int ll_require (lua_State *L) 
+    lua_getfield(L, LUA_ENVIRONINDEX, "loaders");
+    
+--]]
+
+
+--[[ 在C函数中保存状态 ：reference引用系统
+  解释：通过一个整数来唯一标识一个Lua数据对象，由两个函数luaL_ref和luaL_unref组成，
+        这对函数用来不需要担心名称冲突的将值保存到registry中去。
+  用途：将一个指向Lua值的reference存储到一个C结构体中，这个reference是一个int的KEY。
+  注意：栈顶值为nil的时候，不会产生reference，luaL_ref函数会返回LUA_REFNIL，而对LUA_REFNIL解引用是没有效果的。
+重要函数：
+  int luaL_ref (lua_State *L, int t);
+  创建并返回一个引用reference，并将[reference，栈顶值v]加入t对应的表中。
+  void luaL_unref (lua_State *L, int t, int ref);
+  解引用，将t对应的表中的[reference，v]键值对删除。
+
+    // 对栈顶的值v生成一个引用，即将[r， v]存到LUA_REGISTRYINDEX表中
+    int r = luaL_ref(L, LUA_REGISTRYINDEX);
+    // 将一个引用值入栈
+    lua_rawgeti(L, LUA_REGISTRYINDEX, r);
+    // 解引用，即释放reference和值
+    luaL_unref(L, LUA_REGISTRYINDEX, r);
+
+
+--]]
+
+--[[ 在C函数中保存状态 ：upvalues机制
+  解释：当创建一个C函数时可以关联一些值，这样就创建了一个C闭包，这些关联值就叫做upvalues。
+  用途：实现了与C static变量等价的概念，这种变量只能在特定的函数内可见。
+  使用：通过lua_upvalueindex(n)生成假索引来访问。
+
+    // 预声明
+    static int counter (lua_State *L);
+
+    // 创建C闭包的工厂函数
+    int newCounter (lua_State *L){
+        lua_pushnumber(L, 0);
+        lua_pushcclosure(L, &counter, 1);
+        return 1;
+    }
+
+    // C函数
+    static int counter (lua_State *L){
+        double val = lua_tonumber(L, lua_upvalueindex(1));
+        lua_pushnumber(L, ++val);   /* new value */
+        lua_pushvalue(L, -1);       /* duplicate it */
+        lua_replace(L, lua_upvalueindex(1));  /* update upvalue */
+        return 1;  /* return new value */
+    }
+--]]

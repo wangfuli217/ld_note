@@ -1,0 +1,134 @@
+http://wiki.ubuntu.com.cn/Compiling_Fortran
+
+                  1. Fortran 编程中相关文件后缀
+|---------------------------|------------------------------------
+|.a                         | 静态库 (archive)
+|---------------------------|------------------------------------
+|.f, .for, .FOR             |
+|.ftn*, .f90*, .f95*, .f03* | Fortran源代码（不需编译预处理）
+|---------------------------|------------------------------------
+|.F, .fpp, .FPP             |
+|.FTN*, .F90*, .F95*, .F03* | Fortran源代码（需要编译预处理）
+|---------------------------|------------------------------------
+|.r                         | Fortran源代码（需要RatFor编译预处理）
+|.o                         | 对象文件
+|.s                         | 汇编语言代码
+|.so                        | 动态库
+|---------------------------|------------------------------------
+其中，标 * 的后缀名是gfortran的文件后缀，g77不能识别。
+
+                  2.单个源文件生成可执行程序
+传统的 Fortran 程序(也就是以 Fortran 77 为代表的)只能用大写字符书写，而且每行前六个字符为特定用途所保留。
+第一列为字符 C 或 * 所保留，用来表征整行都是注释。
+第二列到第六列是为标号预留的。
+代码从第七列开始，到72列结束(73列及以后将被直接忽略，可作注释)。
+下面是示例程序采用的是传统的 Fortran 格式：
+C   helloworld.f
+C
+      PROGRAM HELLOWORLD
+      WRITE(*,10)
+   10 FORMAT('hello, world')
+      END PROGRAM HELLOWORLD
+     
+编译器 gfortran 并不要求所有代码都大写──程序中任何关键词都可以用小写字母。
+gfortran helloworld.f -o helloworld
+注意到：gfortran 默认会将 .f, .for, .fpp, .ftn, .F, .FOR, .FPP 和 .FTN 结尾的文件作为固定格式处理，
+将.f90, .f95, .f03, .F90, .F95 和 .F03 结尾的文件作为自由格式来处理。
+
+如果我们将上面程序文件重命名为 helloworld.f90，那么我们必须手动指定其为固定格式：
+gfortran helloworld.f90 -ffixed-form -o helloworld
+Fortran 90及以后的标准允许并鼓励用自由的格式书写 Fortran 代码。
+注释以感叹号（！）开始直到行尾。先前的程序采用自由格式重写如下，其中语句、标号都可从任一列开始：
+gfortran helloworld.f90 -o helloworld
+
+如果将程序重命名为传统后缀名，那么要通过在命令行中加入选项 -ffree-form 进行编译，
+如下：
+gfortran -ffree-form helloworld.for -o helloworld
+由于两种格式的具有很大的区别，程序书写是只能选择其中的一种格式进行书写。
+注意：遵守后缀约定是很重要的。
+
+
+                  3.多个源文件生成可执行程序
+命令 gfortran 可将多个 fortran 源码文件编译链接成为一个单一的可执行程序。下面列出了一个保存在文件 caller.f 中的简单程序的主体部分，它调用一个函数并显示出结果：
+C   caller.f
+C
+      PROGRAM CALLER
+      I = Iaverageof(10,20,83)
+      WRITE(*,10) 'Average=', I
+   10 FORMAT(A,I5)
+      END PROGRAM CALLER
+名为 Iaverage 函数定义在另一个独立的源文件中，如下：
+C   called.f
+C
+      INTEGER FUNCTION Iaverageof(i,j,k)
+      Iaverageof = (i + j + k) / 3
+      RETURN
+      END FUNCTION Iaverageof
+通过下面的语句这两个源码文件可被编译链接成一个名为 caller 的可执行程序：
+$ gfortran caller.f called.f -o caller
+同样的结果可由下面的命令序列得到──先将每一个源码文件编译成对象文件，而后将对象文件链接为可执行程序：
+$ gfortran -c caller.f -o caller.o
+$ gfortran -c called.f -o called.o
+$ gfortran caller.o called.o -o caller
+
+                  4.生成汇编代码
+选项 -S 指示编译器 gfortran 生成汇编语言代码然後结束。要得到我们本文先前的 helloworld.f 例子的汇编代码，只需输入以下命令：
+$ gfortran -S helloworld.f
+生成的汇编语言文件名为 helloworld.s。汇编语言的具体形式依赖于编译器的目标平台。
+
+                  5.编译预处理
+编译以 .F, .fpp, .FPP, .FTN, .F90, .F95 和 .F03 结尾的文件时，在它真正编译之前需要预处理。预处理器原本是为协助 C 语言工作所设计的。
+下面的例子是一个自由格式的 Fortran 程序，它通过预处理器将一个函数包含进主程序：
+! evenup.F90
+!
+#define ROUNDUP
+#include "iruefunc.h"
+!
+program evenup
+do 300 i=11,22
+    j = irue(i)
+    write(*,10) i,j
+300 continue
+ 10 format(I5,I5)
+end program evenup
+函数 irue() 的源代码保存在文件 iruefunc.h 中，根据宏 ROUNDUP 所定义的值的不同将产生不同的编译结果。该函数将任何一个奇数近似为一个偶数。
+默认情况下，它向下取近似，但是当 ROUNDUP 被定义时，该函数将向上取近似而得到一个偶数。ireu() 的函数体如下：
+integer function irue(i)
+k = i / 2
+k = k * 2
+if (i .EQ. k) then
+    irue = i
+else
+#ifdef ROUNDUP
+    irue = i + 1
+#else
+    irue = i - 1 
+#endif
+end if
+end function irue
+下面的命令将该程序编译成可执行文件：
+$ gfortran evenup.F90 -o evenup
+采用自由格式写程序以利用预处理器不是必须的。固定格式程序也可进行编译预处理，下面的程序也是有效的：
+C adder.F
+C
+#define SEVEN 7
+#define NINE 9
+C
+      program adder
+      isum = SEVEN + NINE
+      write(*,10) isum
+   10 format(I5)
+      end program adder
+下面的命令将该程序编译成可执行文件：
+$ gfortran adder.F -o adder
+
+                  5.理解gfortran是gcc的前端
+像 g++ 一样，gfortran 也只是设置过 Fortran 程序所需基本环境的 gcc 的一个前端。本文一开始的例子我们可以通过下面 gcc 的命令来编译：
+$ gcc helloworld.f -o helloworld -lgfortran -lgfortranbegin
+库文件 libgfortranbegin.a (通过命令行选项 -lgfortranbegin 被调用) 包含运行和终止一个 Fortran 程序所必须的开始和退出代码。库文件 libgfortran.a 包含 Fortran 底层的输入输出等所需要的运行函数。当运行 gfortran 时，会自动链接这两个库。这和下面的命令是等价的：
+$ gfortran helloworld.f -o helloworld
+
+gfortran编译器驱动器(初始fortran环境后调用gcc)
+默认情况下，编译器驱动器根据命令行中给定的文件的后缀决定它自己下一步的动作：一个名为 foo.c 将传递给 C 编译器，而名为 foo.f95 的文件将传递给 Fortran 95 的编译器，等等。
+理解了这一点，我们就可以知道 gcc helloworld.f 将自动调用 fortran 的编译器。只不过我们要为链接器指定必要的库。
+理解了这一点，我们可以知道 gfortran helloworld.c 可以编译一个 c 程序，gfortran helloworld.cpp -lstdc++ 编译的是一个 C++ 程序。

@@ -1,0 +1,166 @@
+time_t(){
+1. ISO C中并没有规定time_t是什么类型、范围以及精度，不过在POSIX中一般是被实现为有符号的整型。
+2. time_t的单位是秒。函数time()的返回值就是一个time_t类型，表示从1970-01-01 00:00:00 UTC (即Epoch时间)到现在有多少秒。
+3. 函数返回的是一个UTC时间，不是我们平常使用的北京时间。
+4. 可以用函数localtime把这个UTC时间转换成当地时间。
+
+struct tm {
+	int tm_sec;    /* 秒 [0-60] 有闰秒*/
+	int tm_min;    /* 分钟 [0-59] */
+	int tm_hour;   /* 小时 [0-23) */
+	int tm_mday;   /* 日 [1-31) */
+	int tm_mon;    /*月 [0-11) */
+	int tm_year;   /* 年 其值等于所在年份- 1900 */
+	int tm_wday;   /* 星期 ]0-6] 星期天为0 */
+	int tm_yday;   /* 今天是今年的第几天 [0-365]  1月1日是第0天*/
+	int tm_isdst;  /* 夏令时标志位*/
+};
+注意各个成员的范围，不要搞错了。此外，对于秒，是有闰秒的。所以范围是[0, 60]。
+
+}
+
+tm(){
+1. localtime和gmtime都是返回一个指针，所以它们都不是线程安全的。对于地，有localtime_r和gmtime_r。这个两个函数是线程安全的。
+2. 如果想把一个struct tm时间转换成time_t可以使用mktime函数
+char *asctime(const struct tm *tm);
+    char *asctime_r(const struct tm *tm, char *buf);
+     
+    char *ctime(const time_t *timep);
+    char *ctime_r(const time_t *timep, char *buf);
+     
+    struct tm *gmtime(const time_t *timep);
+    struct tm *gmtime_r(const time_t *timep, struct tm *result);
+     
+    struct tm *localtime(const time_t *timep);
+    struct tm *localtime_r(const time_t *timep, struct tm *result);
+     
+    time_t mktime(struct tm *tm);
+3. 一般来说，这些函数都是在time.h头文件中。但对于线程安全的那几个函数，有些编译器还要另外#include<pthread.h>。
+}
+
+clock_t(){
+1. 有符号整型，用来表示一个进程占用的CPU时间。
+2. 函数clock()返回就一个clock_t类型值，表示进程从启动到调用clock函数，使用了多少CPU时间。
+3. 将返回值除以CLOCKS_PER_SEC，就能得到以秒为单位的时间。
+4. clock函数声明在time.h头文件中。
+}
+
+timeval(){
+struct timeval {
+    time_t      tv_sec;     /* seconds */
+    suseconds_t tv_usec;    /* microseconds 微秒*/
+};
+成员tv_usec表示的是微秒，1秒 = 1 000毫秒 = 1 000 000微秒。
+1. 一般是在函数gettimeofday函数中使用到这个时间类型; 
+2. 也返回一个从1970-01-01 00:00:00 UTC(即Epoch时间)到现在流逝的时间，当然这个时间也就是系统时间，为UTC时间不是当地时间。
+3. 可以把struct timeval当作现在的时间，将成员tv_sec用上面的localtime转换即可。
+
+4. Linux还定义了一系列用于struct  timeval的操作函数。比如相加减，清空，比较。
+#include <sys/time.h>
+void timeradd(struct timeval *a, struct timeval *b,
+			 struct timeval *res);//res = a + b
+void timersub(struct timeval *a, struct timeval *b,
+			 struct timeval *res);//res = a - b
+void timerclear(struct timeval *tvp);
+int timerisset(struct timeval *tvp);
+int timercmp(struct timeval *a, struct timeval *b, CMP);
+
+5. gettimeofday获取的是系统的时间。因为用户是可以手动修改这个系统时间的。所以gettimeofday获取的时间可能是错误的时间。
+6. 如果程序想在两个不同的时刻分别获取系统，然后计算时间差。那么gettimeofday函数不是最佳选择。原因就是用户可以修改系统时间。
+7. 此时应该使用monotonic时间。monotonic时间是boot启动后到现在的时间，没人能修改它。
+}
+
+timespec(){
+struct timespec {
+	time_t   tv_sec;        /* seconds */
+	long     tv_nsec;       /* nanoseconds 纳秒*/
+};
+1. 提供的时间精确度是纳秒
+2. 参数clk_id表示时钟类型，Linux提供下面这些时钟类型。
+2.1 CLOCK_REALTIME: 系统范围的实时时钟。
+    系统范围是指系统的所有用户所有程序都使用。
+    实时时钟是指系统现在的时间(就像Windows右下角的那个时间)，这和gettimeofday函数获取的系统时间是相同的。
+    系统时间是可以修改的，所以可以使用clock_settime(CLOCK_REALTIME)修改系统的时间
+2.2 CLOCK_REALTIME_COARSE: 一个更快但时间粒度更大(即时间精确度没那么高)的CLOCK_REALTIME。这个函数是Linux系统特有的，
+2.3 CLOCK_MONOTONIC：只会单调递增，不能被人手动修改。
+    POSIX只是说明它是一个单调时间，并没有指定从什么时候开始算起的单调时间。
+    有些系统取了Epoch时间，而有些系统(比如Linux)就取boot启动的时间。但也并不影响它的本身意义
+2.4 CLOCK_MONOTONIC_COARSE：一个更快但时间粒度更大(即时间精确度没那么高)的CLOCK_MONOTONIC。这个函数是Linux系统特有的
+2.5 CLOCK_BOOTTIME： 同CLOCK_MONOTONIC一样，只是当系统被挂起时，一样会计时(CLOCK_MONOTONIC不会)
+2.6 CLOCK_PROCESS_CPUTIME_ID： 进程使用了多少CPU时间。该进程的所有线程所使用的CPU时间都会被统计进来
+2.7 CLOCK_THREAD_CPUTIME_ID： 线程使用了多少CPU时间
+3. clock_getres函数是用来获取对应时钟类型能够提供的时间精确度，res参数保存其精确度。
+   在设置的时候，设置的时间值也应该是这个精确度的倍数。
+   后面的休眠函数有些也会使用到上面这些时钟类型，休眠的时间也应该是精确度的倍数，否则由休眠函数截断取倍数。比如nanosleep函数。
+4. clock_gettime是用来获取对应时钟的时间。
+5. clock_settime则是用来设置对应时钟的时间。
+6. 有些时钟是不能被设置的。
+}
+
+sleep(){
+unsigned int sleep(unsigned int seconds);
+1. 这个休眠函数可能会被外界的信号所打断，所以其有一个返回值，用来指明余下的休眠时间。
+   如果没有被信号打断，而休眠了参数锁指定的时间，那么将返回0。
+2. sleep函数可能是利用信号SIGALRM实现的，所以不应该在使用sleep函数的同时使用alarm函数。
+3. sleep是用SIGALRM实现的话，那么就肯定不是线程安全的。
+}
+
+usleep(){
+int usleep(useconds_t usec);//微秒
+1. usleep休眠函数的时间粒度比较小，是微秒，足够了。并且该函数是线程安全的。
+2. 如果被信号打断了，将返回-1，并且将errno设置为EINTR。
+3. 如果指定的参数不小于1000000也将返回-1，它认为休眠时间太长了，此时errno被设置为EINVAL。
+}
+
+nanosleep(){
+int nanosleep(const struct timespec *req, struct timespec *rem);//纳秒
+1. nanosleep函数能够提供纳秒级的休眠时间。参数req指明要休眠的时间。如果成功休眠了指定的时间，将返回0。
+2. 如果休眠被一个信号给打断了，那么将返回-1，errno被赋值为EINTR。此时如果参数rem不为NULL的话，rem将被赋值成余下的休眠时间。
+3. req的tv_nsec 成员的值范围得是0到999999999。如果是其他值，该函数直接返回-1，errno被设置为EINVAL。
+4. Linux使用CLOCK_MONOTONIC时钟实现。
+}
+
+clock_nanosleep(){
+int clock_nanosleep(clockid_t clock_id, int flags,
+				   const struct timespec *request,
+				   struct timespec *remain);
+1. 数clock_id指明该函数使用哪个时钟,有CLOCK_REALTIME、 CLOCK_MONOTONIC 、CLOCK_PROCESS_CPUTIME_ID三种可选时钟。
+2. 参数flags指明用的是不是绝对时间。如果该值为0，则使用的是一个时间段(即休眠的时长)。
+   如果该参数为设置为TIMER_ABSTIME，那么就是使用绝对时间。
+3. 参数request指明休眠时间。有参数flags指明这是一个时间段还是绝对时间。
+4. 参数remain的, 当flags指明request是一个时间段，并且本函数被信号打断时，remain将得到余下的休眠时间。
+5. 如果flags指定使用绝对时间，并且request指明的时间小于或者等于当前时间，那么clock_nanosleep函数将马上返回，不会进入休眠。
+6. 当clock_nanosleep成功休眠了指定的时间，将返回0。否则返回错误值，不设置errno变量。这点和其他的休眠函数不同。
+错误值。
+FAULT： request或者remain指向一个非法地址(即野指针)
+EINTR：本函数被信号函数打断了
+EINVAL：request的tv_nsec成员的范围不是在0到999999999，即它是一个非法值。
+7. 要注意：clock_nanosleep并不支持CLOCK_THREAD_CPUTIME_ID。
+}
+
+select(){
+int select(int nfds, fd_set *readfds, fd_set *writefds,
+               fd_set *exceptfds, struct timeval *timeout);
+1. select函数的最后一个参数就是一个时间值。当然它是一个时间段，不是绝对时间。当我们需要将select用作一个休眠函数时，直接把前面四个参数设置为0即可。
+2. 如果休眠了指定的时间，该函数将返回0。如果中途被信号打断，那么将返回-1，errno被设置为EINTR。
+3. 不同于其他的休眠函数，此时并没有一个可移植的方法知道剩余的休眠时间。虽然部分的Linux会修改timeout参数，得到剩余的休眠时间。
+}
+
+poll(){
+int poll(struct pollfd *fds, nfds_t nfds, int timeout);
+1. 将前面的两个参数设为0，poll就成了一个休眠函数。参数timeout指定的休眠时间也是一个时间段，并且其时间单位是毫秒。
+2. 如果休眠了指定的时间，该函数返回0。如果中途被信号打断了，那么返回-1，errno被设置为EINTR。
+}
+
+休眠时间精确度：
+由上面列出的一些休眠函数可以知道，Linux提供了各个时间精度的休眠函数：
+sleep(秒级)、poll(毫秒级)、usleep(微秒级)、nanosleep(纳秒级)。
+
+
+
+休眠函数普遍存在的问题：
+休眠函数是有一个问题，那就是不能真正准确休眠指定的时间。主要原因有二个。
+    系统提供的时间的精确度不够。比如，系统只能提供10ms的精确度，你却想休眠15ms。此时系统只能把真正休眠时间设置为10ms或者20ms。
+一般是向上取，即取20ms
+    CPU调度问题。虽然线程的休眠时间到了，要唤醒了。但此时CPU还在忙着其他事，没有空来唤醒休眠线程。那么休眠线程真正休眠的时间
+也将是不准确的

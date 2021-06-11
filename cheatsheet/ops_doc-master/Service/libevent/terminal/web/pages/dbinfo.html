@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Terminal | Dashboard</title>
+    <!-- Tell the browser to be responsive to screen width -->
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    <!-- Bootstrap 3.3.6 -->
+    <link rel="stylesheet" href="{{ static_url('bootstrap/css/bootstrap.min.css')}}">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.5.0/css/font-awesome.min.css">
+    <!-- Ionicons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ionicons/2.0.1/css/ionicons.min.css">
+    <!-- Theme style -->
+    <link rel="stylesheet" href="{{ static_url('dist/css/AdminLTE.min.css')}}">
+    <link rel="stylesheet" href="{{ static_url('dist/css/skins/_all-skins.min.css')}}">
+    <!-- Morris chart -->
+    <link rel="stylesheet" href="{{ static_url('plugins/morris/morris.css')}}">
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+</head>
+
+<body class="hold-transition skin-black sidebar-mini">
+    <div id="alert" class="callout callout-danger" style="display:none;">
+       <h4>Error message!</h4>
+       <p>There is a problem when download video please try again!</p>
+    </div> 
+    <div class="modal fade" tabindex="-1" role="dialog" id="open_dialog" aria-labelledby="gridSystemModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="gridSystemModalLabel">Open Or Append Data To Terminal Server</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="box-body">
+                            <div class="form-group">
+                                <label for="open_path">Data Path</label>
+                                <input type="text" class="form-control" id="open_path" placeholder="Data Path">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="open_command(1);">Submit</button>
+                </div>
+            </div>
+            <!-- /.modal-content -->
+        </div>
+        <!-- /.modal-dialog -->
+    </div>
+    <!-- /.modal -->
+    <div class="modal fade" tabindex="-1" role="dialog" id="append_dialog" aria-labelledby="gridSystemModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="gridSystemModalLabel">Open Or Append Data To Terminal Server</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="box-body">
+                            <div class="form-group">
+                                <label for="append_path">Data Path</label>
+                                <input type="text" class="form-control" id="append_path" placeholder="Data Path">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="open_command(2);">Submit</button>
+                </div>
+            </div>
+            <!-- /.modal-content -->
+        </div>
+        <!-- /.modal-dialog -->
+    </div>
+    <!-- /.modal -->
+    <div class="wrapper">
+        <header class="main-header">
+            <!-- Logo -->
+            <a href="/" class="logo">
+                <!-- mini logo for sidebar mini 50x50 pixels -->
+                <span class="logo-mini"><b>Terminal</b></span>
+                <!-- logo for regular state and mobile devices -->
+                <span class="logo-lg"><b>Terminal</b>Dash</span>
+            </a>
+            <!-- Header Navbar: style can be found in header.less -->
+            <nav class="navbar navbar-static-top">
+                <!-- Sidebar toggle button-->
+                <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button">
+                    <span class="sr-only"></span>
+                </a>
+            </nav>
+        </header>
+        <!-- Left side column. contains the logo and sidebar -->
+        <aside class="main-sidebar">
+            <!-- sidebar: style can be found in sidebar.less -->
+            <section class="sidebar">
+                <!-- /.search form -->
+                <!-- sidebar menu: : style can be found in sidebar.less -->
+                <ul class="sidebar-menu">
+                    <li class="header">Terminal Panel</li>
+                    <li class="treeview">
+                        <a href="#">
+                            <i class="fa fa-table"></i> <span>Servers</span>
+                            <span class="pull-right-container">
+                              <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                            {% for element in servers %}
+                            <li><a href="/dbinfo?host={{element['host']}}&port={{element['port']}}&tag={{element['tag']}}"><i class="fa fa-circle-o"></i>{{element['tag']}}</a></li>
+                            {% end %}
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+            <!-- /.sidebar -->
+        </aside>
+        <!-- Content Wrapper. Contains page content -->
+        <div class="content-wrapper">
+            <!-- Content Header (Page header) -->
+            <section class="content-header">
+                <h1>
+                  Terminal DB Info
+                  <small>Terminal DB of Server [{{tag}}]</small>
+                </h1>
+            </section>
+            <!-- Content Header (Page header) -->
+            <!-- Main content -->
+            <section class="content">
+                <div class="row">
+                    <div class="col-xs-12">
+                        <div class="box">
+                            <div class="box-header">
+                                <h3 class="box-title"></h3>
+                                <div class="btn-group pull-right">
+                                    <button type="button" class="btn btn-info" onclick="$('#open_dialog').modal('show');">OPEN</button>
+                                    <button type="button" class="btn btn-info" onclick="$('#append_dialog').modal('show');">APPEND</button>
+                                </div>
+                            </div>
+                            <!-- /.box-header -->
+                            <div class="box-body">
+                                <table id="servertabs" class="table table-bordered table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Tag</th>
+                                            <th>Version</th>
+                                            <th>Status</th>
+                                            <th>Ref(s)</th>
+                                            <th>Query Num</th>
+                                            <th>Index Num</th>
+                                            <th>Open Time</th>
+                                            <th>Path</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for element in infos %}
+                                        <tr>
+                                            <td>{{element['dbid']}}</td>
+                                            <td>{{element['tag']}}</td>
+                                            <td>{{element['version']}}</td>
+                                            <td>{{element['status']}}</td>
+                                            <td>{{element['ref']}}</td>
+                                            <td>{{element['query_num']}}</td>
+                                            <td>{{element['idx_num']}}</td>
+                                            <td>{{element['open_time']}}</td>
+                                            <td>{{element['path']}}</td>
+                                            <td>
+                                                <button type="button" class="btn btn-block btn-danger btn-xs" onclick="close_command('{{element['tag']}}', '{{element['version']}}')">Close</button>
+                                            </td>
+                                        </tr>
+                                        {% end %}
+                                    </tbody>
+                                    <tfoot>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            <!-- /.box-body -->
+                        </div>
+                        <!-- /.box -->
+                    </div>
+                    <!-- /.col -->
+                </div>
+                <!-- /.row -->
+                <div class="row">
+                    <div id="container" style="min-width: 310px; max-width: 98%; height: 400px; margin: 0 auto"></div>
+                </div>
+                <!-- /.row -->
+            </section>
+            <!-- /.content -->
+        </div>
+        <!-- /.content-wrapper -->
+        <footer class="main-footer">
+            <div class="pull-right hidden-xs">
+                <b>Version</b> 1.0
+            </div>
+            <strong>Copyright &copy; 2017 <a href="https://github.com/desion/terminal">Terminal</a>.</strong> All rights reserved.
+        </footer>
+        <!-- /.control-sidebar -->
+        <!-- Add the sidebar's background. This div must be placed
+       immediately after the control sidebar -->
+        <div class="control-sidebar-bg"></div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <!-- ./wrapper -->
+    <!-- jQuery 2.2.3 -->
+    <!-- <script src="{{ static_url('plugins/jQuery/jquery-2.2.3.min.js')}}"></script> -->
+    <!-- jQuery UI 1.11.4 -->
+    <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.min.js"></script>
+    <!-- Resolve conflict in jQuery UI tooltip with Bootstrap tooltip -->
+    <script>
+    $.widget.bridge('uibutton', $.ui.button);
+    $(function() {
+        $('#servertabs').DataTable({
+            "paging": true,
+            "lengthChange": false,
+            "searching": false,
+            "ordering": true,
+            "info": true,
+            "autoWidth": false
+        });
+    });
+    </script>
+    <!-- Bootstrap 3.3.6 -->
+    <script src="{{ static_url('bootstrap/js/bootstrap.min.js')}}"></script>
+    <!-- Morris.js charts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js"></script>
+    <script src="{{ static_url('plugins/morris/morris.min.js')}}"></script>
+    <!-- Slimscroll -->
+    <script src="{{ static_url('plugins/slimScroll/jquery.slimscroll.min.js')}}"></script>
+    <!-- FastClick -->
+    <script src="{{ static_url('plugins/fastclick/fastclick.js')}}"></script>
+    <!-- DataTables -->
+    <script src="{{ static_url('plugins/datatables/jquery.dataTables.min.js')}}"></script>
+    <script src="{{ static_url('plugins/datatables/dataTables.bootstrap.min.js')}}"></script>
+    <!-- <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> -->
+    <!-- AdminLTE App -->
+    <script src="{{ static_url('dist/js/app.min.js')}}"></script>
+    <script src="{{ static_url('dist/js/pages/dashboard.js')}}"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script type="text/javascript">
+    function open_command(openOrappend) {
+        if(openOrappend == 1){
+            var path = $('#open_path').val();
+            if(path.length == 0){
+                alert("Data Path is Null");
+                return false;
+            }
+            var command = "open " + path;
+            $('#open_dialog').modal('hide');
+        }else{
+            var path = $('#append_path').val();
+            if(path.length == 0){
+                alert("Data Path is Null");
+                return false;
+            }
+            var command = "append " + path;
+            $('#append_dialog').modal('hide');
+        }
+        
+        $.ajax( {  
+            url:'/controler',
+            data:{  
+                host : "{{host}}",  
+                port : {{port}},
+                command: command
+            }, 
+            async: false,
+            type:'post',  
+            success:function(data) { 
+                var status = $.parseJSON(data); 
+                if(status.err_code == 0){
+                    alert("operate success!");
+                    location.reload();
+                }else{
+                    alert("operate fail!");
+                }
+             },  
+             error : function() {
+                alert("operate fail!");
+             }  
+        });
+    }
+
+    function close_command(tag, version){
+        var statu = confirm("Are you sure to close this db?");
+        if(!statu){
+            return false;
+        }
+        var command = "close " + tag + " " + version;
+        $.ajax( {  
+            url:'/controler',
+            data:{  
+                host : "{{host}}",  
+                port : {{port}},
+                command: command
+            }, 
+            async: false,
+            type:'post',  
+            success:function(data) { 
+                var status = $.parseJSON(data); 
+                if(status.err_code == 0){
+                    alert("close success!");
+                    location.reload();
+                }else{
+                    alert("close fail!");
+                }
+             },  
+             error : function() {
+                alert("close fail!");
+             }  
+        });
+    }
+
+    var last_num = 0;
+
+    function randomData() {
+        var num = 0;
+        $.ajax({
+            url: '/ajax',
+            data: {
+                host: "{{host}}",
+                port: {{port}}
+            },
+            async: false,
+            type: 'get',
+            success: function(data) {
+                num = parseInt(data);
+            },
+            error: function() {
+
+            }
+        });
+        return num;
+    }
+
+    $(document).ready(function() {
+        Highcharts.setOptions({
+            global: {
+                useUTC: false
+            }
+        });
+        last_num = randomData();
+        Highcharts.chart('container', {
+            chart: {
+                type: 'spline',
+                animation: Highcharts.svg, // don't animate in old IE
+                marginRight: 10,
+                events: {
+                    load: function() {
+                        // set up the updating of the chart each second
+                        var series = this.series[0];
+                        setInterval(function() {
+                            var cur = randomData();
+                            var num = (cur - last_num) / 3;
+                            if (num < 0) {
+                                num = 0;
+                            }
+                            console.log(cur);
+                            var x = (new Date()).getTime(), // current time
+                                y = num;
+                            last_num = cur;
+                            series.addPoint([x, y], true, true);
+                        }, 3000);
+                    }
+                }
+            },
+            title: {
+                text: 'Query/s'
+            },
+            xAxis: {
+                type: 'datetime',
+                tickPixelInterval: 150
+            },
+            yAxis: {
+                title: {
+                    text: 'Value'
+                },
+                plotLines: [{
+                    value: 0,
+                    width: 1,
+                    color: '#808080'
+                }]
+            },
+            tooltip: {
+                formatter: function() {
+                    return '<b>' + this.series.name + '</b><br/>' +
+                        Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>' +
+                        Highcharts.numberFormat(this.y, 2);
+                }
+            },
+            legend: {
+                enabled: false
+            },
+            exporting: {
+                enabled: false
+            },
+            series: [{
+                name: 'Query',
+                data: (function() {
+                    // generate an array of random data
+                    var data = [],
+                        time = (new Date()).getTime(),
+                        i;
+                    for (i = -19; i <= 0; i += 1) {
+                        data.push({
+                            x: time + i * 1000,
+                            y: 0
+                        });
+                    }
+                    return data;
+                }())
+            }]
+        });
+    });
+    </script>
+</body>
+
+</html>

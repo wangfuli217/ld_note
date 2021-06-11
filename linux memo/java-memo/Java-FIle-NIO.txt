@@ -1,0 +1,612 @@
+####################### Java 处理IO的经典方式  #######################
+
+# File(File parent, String child) 
+#           根据 parent 抽象路径名和 child 路径名字符串创建一个新 File 实例。 
+# File(String pathname) 
+#           通过将给定路径名字符串转换成抽象路径名来创建一个新 File 实例。 
+# File(String parent, String child) 
+#           根据 parent 路径名字符串和 child 路径名字符串创建一个新 File 实例。 
+# File(URI uri) 
+#           通过将给定的 file: URI 转换成一个抽象路径名来创建一个新的 File 实例。
+ 
+$$$$$  File类是以前Java处理文件IO的基础，这个抽象既能表示文件，也能表示目录。
+$$$$$  File.separator[字符串表示方式] 和 separatorChar [字符表示方式] 
+## JDK 文档说明
+## 用户界面和操作系统使用与系统相关的路径名字符串 来命名文件和目录。此类呈现分层路径名的一个抽象的、与系统无关的视图。抽象路径名 有两个组件： 
+## 
+## 一个可选的与系统有关的前缀 字符串，比如盘符，"/" 表示 UNIX 中的根目录，"\\\\" 表示 Microsoft Windows UNC 路径名，以及 
+## 零个或更多字符串名称 的序列。 
+## 除了最后一个，抽象路径名中的每个名称代表一个目录；最后一个名称既可以代表目录，也可以代表文件。空的 抽象路径名没有前缀和名称序列。
+
+// 创建一个文件对象，表示用户的家目录
+File homedir = new File(System.getProperty("user.home"));
+
+//创建一个对象，表示配置文件
+//(在家目录中应该存在这个文件)
+File f = new File(homedir, "app.conf")
+
+//检测文件是否存在，是否真是文件，以及是否可读
+if(f.exists() && f.isFile() && f.canRead())
+{
+   //创建一个文件对象，表示新配置目录
+   File configdir = new File(f, ".configdir");
+   //然后创建这个目录
+   configdir.mkdir();
+   //最后，把配置文件移到新位置。
+   f.renameTo(new File(configdir, ".config"));
+}
+
+//权限管理
+boolean canX = f.canExecute();
+boolean canR = f.canRead();
+boolean canW = f.canWrite();
+
+boolean ok;
+ok = f.setReadOnly();
+ok = f.setExecu7table(true);
+ok = f.setReadable(true);
+ok = f.setWriteable(false);
+
+//使用不同的方式表示文件名
+File absF = f.getAbsoluteFile();
+File canF = f.getCannoicalFile();
+String absName = f.getAbsolutePath();
+String canName = f.getCannonicalPath();
+String name = f.getName();
+String pNmae = f.getParent();
+URI fileURI = f.toURI(); //创建文件路径的URI形式；
+
+//文件的元数据
+boolean exists = f.exists();
+boolean isAbs = f.isAbsolute();
+boolean isDir = f.isDirectory();
+boolean isFile = f.isFile();
+boolean isHidden = f.isHidden();
+long modTime = f.laseModified();  //距Epoch时间的毫秒数
+boolean updateOK = f.setLastModified(updateTime);  //毫秒
+long fileLen = f.length();
+
+//文件管理操作
+boolean renamed = f.renameTo(destFile);
+boolean deleted = f.delete();
+
+//创建文件不会覆盖现有文件
+boolean createOk = f.createNewFile();
+
+//处理临时文件
+File tmp = File.createTempFile("my-tmp", ".tmp");
+tmp.de;eteOnExit();
+
+//处理目录
+boolean createDir = dir.mkdir();
+String fileNames = dir.list();
+File[] files = dir.listFiles();
+
+long free, total, usable;
+free = f.getFreeSpace();
+total = f.getTotalSpace();
+usable = f.getUsableSpace();
+
+File[] roots = File.listRoots();
+
+####################### 流  [字节、字符、字符串] #######################
+$$$$ 用于处理磁盘或其他源发出的连续字节流。 InputStream OutputStream
+$$$$ 多数开发者习惯以字符而不是以字节的方式思考。Reader Writer。
+$$$$ 把抽象从字节提升到字符后，开发者就更熟悉所面对的API了，而且这样也能规避很多由字符编码和Unicode等引起的问题。
+
+$$$$ FileReader和FileWriter 字符输入输出流：就是以字符的形式对文件进行读写；
+$$$$ BufferedReader和BufferedWriter字符串输入输出流：就是以字符串的形式对文件进行读写
+
+## JDK 文档说明
+## FileInputStream 从文件系统中的某个文件中获取输入字节。哪些文件可用取决于主机环境。
+## FileInputStream 用于读取诸如图像数据之类的原始字节流。要读取字符流，请考虑使用 FileReader。
+
+## 文件输出流是用于将数据写入 File 或 FileDescriptor 的输出流。文件是否可用或能否可以被创建取决于基础平台。
+## 特别是某些平台一次只允许一个 FileOutputStream（或其他文件写入对象）打开文件进行写入。在这种情况下，
+## 如果所涉及的文件已经打开，则此类中的构造方法将失败。 
+## FileOutputStream 用于写入诸如图像数据之类的原始字节的流。要写入字符流，请考虑使用 FileWriter。 
+
+
+FileInputStream FileOutputStream
+try (InputStream is = new FileInputStream("/Users/ben/Cluster.txt"))
+{
+    byte[] buf = new byte[4096];
+    int len, count = 0;
+    
+    while((len = is.read(buf)) > 0){
+        for(int i=0; i<len; i++){
+            if(buf[i] == 97) count++;
+        }
+        System.out.println("'a' s seen:"+count);
+    }catch(IOException e){
+        e.printStackTrace();
+    }
+}
+使用这种方式处理磁盘中的数据缺乏灵活性，因为多数开发者习惯用字符而不是字节的方式思考问题。
+
+FileReader BufferedReader InputStreamReader(用来接收System.in)
+FileWriter PrintWriter    BufferedWriter
+
+## FileReader用来读取字符文件的便捷类。此类的构造方法假定默认字符编码和默认字节缓冲区大小都是适当的。
+## 要自己指定这些值，可以先在 FileInputStream 上构造一个 InputStreamReader。 
+## FileReader 用于读取字符流。要读取原始字节流，请考虑使用 FileInputStream。
+
+## FileWriter 用来写入字符文件的便捷类。此类的构造方法假定默认字符编码和默认字节缓冲区大小都是可接受的。 
+## 要自己指定这些值，可以先在 FileOutputStream 上构造一个 OutputStreamWriter。
+## 文件是否可用或是否可以被创建取决于基础平台。特别是某些平台一次只允许一个 FileWriter（或其他文件写入对象）打开文件进行写入。在这种情况下，如果所涉及的文件已经打开，则此类中的构造方法将失败。 
+
+## BufferedReader 从字符输入流中读取文本，缓冲各个字符，从而提供字符、数组和行的高效读取。 
+## 可以指定缓冲区的大小，或者可使用默认的大小。大多数情况下，默认值就足够大了。 
+## 通常，Reader 所作的每个读取请求都会导致对基础字符或字节流进行相应的读取请求。因此，建议用 BufferedReader 
+## 包装所有其 read() 操作可能开销很高的 Reader（如 FileReader 和 InputStreamReader）。例如， 
+## BufferedReader in = new BufferedReader(new FileReader("foo.in"));
+## 将缓冲指定文件的输入。如果没有缓冲，则每次调用 read() 或 readLine() 都会导致从文件中读取字节，并将其转换为字符后返回，而这是极其低效的。 
+## 可以对使用 DataInputStream 进行按原文输入的程序进行本地化，方法是用合适的 BufferedReader 替换每个 DataInputStream。 
+
+## BufferedWriter将文本写入字符输出流，缓冲各个字符，从而提供单个字符、数组和字符串的高效写入。 
+## 可以指定缓冲区的大小，或者接受默认的大小。在大多数情况下，默认值就足够大了。 
+## 该类提供了 newLine() 方法，它使用平台自己的行分隔符概念，此概念由系统属性 line.separator 定义。并非所有平台都使用新行符 ('\n') 来终止各行。
+## 因此调用此方法来终止每个输出行要优于直接写入新行符。 
+## 通常 Writer 将其输出立即发送到基础字符或字节流。除非要求提示输出，否则建议用 BufferedWriter 包装所有其 write() 
+## 操作可能开销很高的 Writer（如 FileWriters 和 OutputStreamWriters）。例如， 
+##  PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("foo.out")));
+##  将缓冲 PrintWriter 对文件的输出。如果没有缓冲，则每次调用 print() 方法会导致将字符转换为字节，然后立即写入到文件，而这是极其低效的。 
+
+## PrintWriter向文本输出流打印对象的格式化表示形式。此类实现在 PrintStream 中的所有 print 方法。
+## 它不包含用于写入原始字节的方法，对于这些字节，程序应该使用未编码的字节流进行写入。 
+## 与 PrintStream 类不同，如果启用了自动刷新，则只有在调用 println、printf 或 format 的其中一个方法时才可能完成此操作，
+## 而不是每当正好输出新行字符时才完成。这些方法使用平台自有的行分隔符概念，而不是新行字符。  
+## 此类中的方法不会抛出 I/O 异常，尽管其某些构造方法可能抛出异常。客户端可能会查询调用 checkError() 是否出现错误。
+
+$$$$$ PrintStream 打印的所有字符都使用平台的默认字符编码转换为字节。在需要写入字符而不是写入字节的情况下，应该使用 PrintWriter 类。 
+
+PipedInputStream PipedReader
+$$$$$ PipedReader传送的字符输入流。
+$$$$$ 传送输入流应该连接到传送输出流；传送输入流会提供要写入传送输出流的所有数据字节。通常，数据由某个线程从 PipedInputStream 对象读取，
+$$$$$ 并由其他线程将其写入到相应的 PipedOutputStream。不建议对这两个对象尝试使用单个线程，因为这样可能会死锁该线程。传送输入流包含一个缓冲区，
+$$$$$ 可在缓冲区限定的范围内将读操作和写操作分离开。
+
+try (BufferedReader in = new BufferedReader(new FileReader(filename))){
+    String line;
+    while((line = in.readLine()) != null){
+        System.out.println(line);
+    }
+} catch {IOException e}{
+    //这里处理FileNotFoundException等异常
+    e.printStackTrace();
+}
+
+如果从终端读取一般会在System.in对象上使用InputStreamReader
+
+Pattern SHELL_META_START = Pattern.compile("^#(\\w+)\\s*(\\w+)?");
+try (BufferedReader in = new BufferedReader( new InputStreamReader(System.in))){
+    String line;
+    READ: while((line = in.readLine()) != null){
+        //检查特殊的命令
+        Matcher m = SHELL_META_START.matcher(line);
+        if(m.find()){
+            String metaName = m.group(1);
+            String arg = m.group(2);
+            doMeta(meataName, arg);
+            continue READ：
+        }
+        System.out.println(line);
+    }
+} catch {IOException e}{
+    //这里处理FileNotFoundException等异常
+    e.printStackTrace();
+}
+
+$$$$  1、public static final PrintStream out   常量  对应系统标准输出，一般是显示器
+$$$$  2、public static final PrintStream err   常量 错误信息输出
+$$$$  3、public static final InputStream in    常量 对应标准输出，一般是键盘
+
+## java.lang.Object
+##   java.io.Reader
+##       java.io.InputStreamReader
+##           java.io.FileReader
+
+          
+把文本输出到文件中
+File f = new File(System.getProperty("user.home")) + File.separator + ".bashrc";
+try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(f)))){
+    out.println("fafdsafdsafasdfasfdsa\n");
+} catch {IOException e}{
+    //这里处理FileNotFoundException等异常
+    e.printStackTrace();
+}
+
+ 
+try (ByfferedReader in = new BufferedReader(
+                            new FileReader("profile"));
+     PrintWriter out = new PrintWriter(
+                            new BufferedWriter(
+                                new FileWriter("profile.bak")))){
+     String line;
+     while((line = in.readline()) != null){
+        out.println(line);
+     }
+}
+
+####################### Java 处理IO的现代方式  #######################
+Path接口：这个接口的作用可以理解为表示文件的位置，这个位置可以有内容，也可以没有内容。
+很多处理文件和文件系统的新方法，方便且使用Files的静态方法。
+
+#########################  文件 #######################
+File inputFile = new File("input.txt");
+try (InputStream in = new FileInputStream(inputfile)){
+    Files.copy(in, Paths.get("output.txt"));
+} catch {IOException e}{
+    //这里处理FileNotFoundException等异常
+    e.printStackTrace();
+}
+
+Path source, target;
+Attributes attr;
+Charset cs = StandardCaarsets.UTF_8;
+
+// 示例 /home/ben/.profile
+// 示例 rw-rw-rw-
+Files.createFile(target, attr);
+
+//删除文件
+Files.delete(target);
+boolean deleted = Files.deleteIfExists(target);
+
+//复制/移动文件
+Files.copy(source, target);
+Files.move(source, target);
+
+//读取信息的实用方法
+long size = Files.size(target);
+
+FileTime = fTime = Files.getLasetModifiedTime(target);
+System.out.println(fTime.to(TimeUint.SECONDS));
+
+Map<String, ?> attrs = Files.isDirectory(target);
+boolean isSym = Files.isSymbolocLink(target);
+
+//处理读取写入操作方法
+List<String> = lines = Files.readAllLines(target, cs);
+byte[] b = Files.readAllBytes(targets);
+
+BufferedReader br = Files.newBufferedReader(target, cs);
+BufferedWriter bwr = Files.newBufferedWriter(target, cs);
+
+InputStream is = Files.newInputStream(target);
+OutputStream out = Files.newOutputStream(target);
+
+######################### 路径 #######################
+Path p = Paths.get("/Users/ben/cluster.txt");
+Path p2 = Paths.get(new URI("file:///Users/ben/clusters"));
+
+System.out.println(p2.equal(p));
+
+File f = p.toFile();
+System.out.println(f.isDirectory());
+Path p3 = f.toPath();
+System.out.println(p3.equals(p));
+有了ToFile和ToPath，开发者可以毫不费力地在两个API之间切换。
+Path logFile = Paths.get("/tmp/app.log");
+try (BufferedWriter writer = 
+        Files.newBufferedWriter(logFile, StandardCharsets.UTF_8, StandardOpenOption.WRITE)){
+        writer.write("hello world");
+        // ... 
+        } catch {IOException e}{
+    //这里处理FileNotFoundException等异常
+    e.printStackTrace();
+}
+
+
+1、创建一个Path对象，对应与一个新文件
+2、使用Files类创建那个新文件
+3、创建一个Writer对象，打开那个文件；
+4、把内容写入那个文件；
+5、写入完毕后自动关闭那个文件
+
+
+####################### NIO  #######################
+## JDK 说明文档
+## 字节缓冲区。 
+##     此类针对字节缓冲区定义了以下六类操作： 
+##     读写单个字节的绝对和相对 get 和 put 方法； 
+##     将此缓冲区的连续字节序列传输到数组中的相对批量 get 方法； 
+##     将字节数组或其他字节缓冲区中的连续字节序列传输到此缓冲区的相对批量 put 方法； 
+##     读写其他基本类型值，并按照特定的字节顺序在字节序列之间转换这些值的绝对和相对 get 和 put 方法； 
+##     创建视图缓冲区 的方法，这些方法允许将字节缓冲区视为包含其他基本类型值的缓冲区； 
+##     对字节缓冲区进行 compacting、duplicating 和 slicing 的方法。 
+## 字节缓冲区可以通过 allocation 方法创建，此方法为该缓冲区的内容分配空间，或通过 wrapping 方法将现有的字节数组包装到缓冲区中来创建。 
+
+## 访问二进制数据 
+## 此类定义了除 boolean 之外，读写所有其他基本类型值的方法。这些基本值可以根据缓冲区的当前字节顺序与字节序列互相进行转换，并可以通过 order 方法检索和修改。特定的字节顺序由 ByteOrder 类的实例表示。字节缓冲区的初始顺序始终是 BIG_ENDIAN。 
+## 
+## 为了访问异类二进制数据（即其他类型的值的序列），此类还针对每种类型定义了一系列绝对和相对的 get 和 put 方法。例如，对于 32 位浮点值，此类定义了以下方法： 
+## 
+##  float  getFloat()
+##  float  getFloat(int index)
+##   void  putFloat(float f)
+##   void  putFloat(int index, float f)并针对 char、short、int、long 和 double 等类型定义了相应的方法。绝对 get 和 put 方法的 index 参数是根据字节定义的，而不是根据所读写的类型定义的。 
+
+## 为了访问同类二进制数据（即相同类型的值的序列），此类还定义了可以为指定类型的缓冲区创建视图 的方法。视图缓冲区 只是其内容受该字节缓冲区支持的
+## 另一种缓冲区。字节缓冲区内容的更改在视图缓冲区中是可见的，反之亦然；这两种缓冲区的位置、限制和标记值都是独立的。例如，asFloatBuffer 方法将创建
+##  FloatBuffer 类的一个实例，该类受在其上调用该方法的字节缓冲区的支持。该类将为 char、short、int、long 和 double 等类型定义相应的视图创建方法。 
+## 与上述特定于类型的 get 和 put 方法系列相比，视图缓冲区有以下三大主要优势： 
+##      视图缓冲区不是根据字节进行索引，而是根据其特定于类型的值的大小进行索引；
+##      视图缓冲区提供了相对批量 get 和 put 方法，这些方法可在缓冲区和数组或相同类型的其他缓冲区之间传输值的连续序列； 
+##      视图缓冲区可能更高效，这是因为，当且仅当其支持的字节缓冲区为直接缓冲区时它才是直接缓冲区。 
+## 视图缓冲区的字节顺序固定为创建该视图时其字节缓冲区的字节顺序。 
+
+## 调用的链接 
+## 指定此类中的方法（它们不返回其他值），以返回这些方法被调用时所在的缓冲区。这允许对方法调用进行链接。 例如，语句序列 
+## 
+##      bb.putInt(0xCAFEBABE);
+##      bb.putShort(3);
+##      bb.putShort(45);可以由以下单个语句替换 
+##      bb.putInt(0xCAFEBABE).putShort(3).putShort(45);
+
+ByteBuffer b = ByteBuffer.allocateDirect(65536);
+ByteBuffer b2 = ByteBuffer.allocate(65536);
+
+byte[] data = {1,2,3};
+ByteBuyffer b3 = ByteBuffer.wrap(data);
+b.order(ByteOrder.BIG_ENDIAN);  ## ByteOrder.BIG_ENDIAN ByteOrder.LITTLE_ENDIAN 
+ 
+
+int capacity = b.capacity();
+int position = b.position();
+int limit = b.limit();
+int remaining = b.remaining();
+boolean more = b.hasRemaining();
+
+b.put((byte)42);
+b.putChar('x');
+b.putInt(0xcafebabe);
+b.put(data);
+b.put(b2);
+double d = d.getDouble();
+b.get(data, 0, data.length)
+b.put(0, (byte)9);
+
+## ByteBuffer字节缓冲区、CharBuffer字符缓冲区、DoubleBuffer double 缓冲区、FloatBuffer float 缓冲区、IntBuffer int缓冲区、LongBuffer long 缓冲区。
+缓冲区对象只存在于内存中，如果想影响外部世界，需要使用Channel对象。Channel接口在java.nio.channels包中定义，表示支持读写操作的
+实体连接。文件和套接字是两种常见的通道，不过我们要意识到，用于低延迟数据处理的自定义实现也属于通道。
+
+通道在创建时处于打开状态，随后可以将其关闭。一旦关闭，就无法在打开。一般来说，通道要么可读要么可写，不能既可读又可写。如想理解通道，关键是要知道：
+    从通道中读取数据时，会把字节存入缓存区。
+    把数据写入通道时，会从缓冲区中读取字节。
+    
+FileInputStream fis = getSomeStream();
+boolean fileOK = true;
+
+try (FileChannel fchan = fis.getChannel()){
+    ByteBuffer buffy = ByteBuffer.allocateDirect(16*1024*1024);
+    while(fchan.read(buffy) != -1 ||buff.position() > 0 || fileOK){
+        fileOK = computeChecksum(buffy);
+        buffy.compact();
+    }
+}catch(IOException e){
+    System.out.println("Exception in I/O");
+}
+
+FileChannel : 用于读取、写入、映射和操作文件的通道。 
+FileInputStream.getChannel(), FileOutputStream.getChannel(), RandomAccessFile.getChannel()
+
+## 文件通道在其文件中有一个当前 position，可对其进行查询和修改。该文件本身包含一个可读写的长度可变的字节序列，并且可以查询该文件的当前#size大小。
+## 写入的字节超出文件的当前大小时，则增加文件的大小；截取 该文件时，则减小文件的大小。文件可能还有某个相关联的元数据，如访问权限、内容类型和
+## 最后的修改时间；此类未定义访问元数据的方法。 
+## 
+## 除了字节通道中常见的读取、写入和关闭操作外，此类还定义了下列特定于文件的操作： 
+##      以不影响通道当前位置的方式，对文件中绝对位置的字节进行读取或写入。
+##      将文件中的某个区域直接映射到内存中；对于较大的文件，这通常比调用普通的 read 或 write 方法更为高效。 
+##      强制对基础存储设备进行文件的更新，确保在系统崩溃时不丢失数据。 
+##      以一种可被很多操作系统优化为直接向文件系统缓存发送或从中读取的高速传输方法，将字节从文件传输到某个其他通道中，反之亦然。 
+##      可以锁定某个文件区域，以阻止其他程序对其进行访问。 
+
+多个并发线程可安全地使用文件通道。可随时调用关闭方法，正如 Channel 接口中所指定的。对于涉及通道位置或者可以更改其文件大小的操作，在任意给定时间只能进行一个这样的操作；如果尝试在第一个操作仍在进行时发起第二个操作，则会导致在第一个操作完成之前阻塞第二个操作。可以并发处理其他操作，特别是那些采用显式位置的操作；但是否并发处理则取决于基础实现，因此是未指定的。 
+
+ServerSocketChannel：针对面向流的侦听套接字的可选择通道。
+
+## 服务器套接字通道不是侦听网络套接字的完整抽象。必须通过调用 socket 方法所获得的关联 ServerSocket 对象来完成对套接字选项的绑定和操作。
+## 不可能为任意的已有服务器套接字创建通道，也不可能指定与服务器套接字通道关联的服务器套接字所使用的 SocketImpl 对象。 
+## 
+## 通过调用此类的 open 方法创建服务器套接字通道。新创建的服务器套接字通道已打开，但尚未绑定。试图调用未绑定的服务器套接字通道的 accept 
+## 方法会导致抛出 NotYetBoundException。可通过调用相关服务器套接字的某个 bind 方法来绑定服务器套接字通道。 
+## 
+## 多个并发线程可安全地使用服务器套接字通道。 
+
+SocketChannel： 针对面向流的连接套接字的可选择通道。
+## 套接字通道不是连接网络套接字的完整抽象。必须通过调用 socket 方法所获得的关联 Socket 对象来完成对套接字选项的绑定、关闭和操作。不可能
+## 为任意的已有套接字创建通道，也不可能指定与套接字通道关联的套接字所使用的 SocketImpl 对象。 
+## 
+## 通过调用此类的某个 open 方法创建套接字通道。新创建的套接字通道已打开，但尚未连接。试图在未连接的通道上调用 I/O 操作将导致抛出
+## NotYetConnectedException。可通过调用套接字通道的 connect 方法连接该通道；一旦连接后，关闭套接字通道之前它会一直保持已连接状态。
+## 可通过调用套接字通道的 isConnected 方法来确定套接字通道是否已连接。 
+## 
+## 套接字通道支持非阻塞连接：可创建一个套接字通道，并且通过 connect 方法可以发起到远程套接字的连接，之后通过 finishConnect 方法完成该连接。
+## 可通过调用 isConnectionPending 方法来确定是否正在进行连接操作。 
+## 
+## 可单独地关闭 套接字通道的输入端和输出端，而无需实际关闭该通道。调用关联套接字对象的 shutdownInput 方法来关闭某个通道的输入端将导致
+## 该通道上的后续读取操作返回 -1（指示流的末尾）。调用关联套接字对象的 shutdownOutput 方法来关闭通道的输出端将导致该通道上的后续写入操作抛出
+## ClosedChannelException。 
+
+
+try (RandomAccessFile raf = new RandomAccessFile(new File("input.txt", "rw")); FileChannel fc = raf.getChannel()){
+    MappedByteBuffer mbf = fc.map(FileChannel.MapMode.READ_WRITE, 0, fc.size());
+    byte[] b = new byte[(int)fc.size()];
+    mbf.get(b, 0, b.length);
+    for(int i=0; i<fc.size(), i++){
+        b[i] = 0;
+    }
+    mbf.position(0);
+    mbf.put(b); //清空文件
+}
+
+####################### 异步I/O  #######################
+使用AsychronousFileChannel类处理文件I/O
+使用AsychronousSocketChannel类处理客户端套接字I/O
+使用AsychronousServerSocketChannel类处理能接受连入连接的异步套接字I/O
+
+和异步通道交互有两种不同的方式：使用Future接口的方式和回调的方式。
+
+Future方式
+isDone():返回布尔值，表示任务是否已经完成
+get(): 返回结果，如果已经结束，立即返回，如果还未结束，在完成前一直阻塞；
+
+try(AsychronousFileChannel channel = AsychronousFileChannel.open(Paths.get("input.txt"))){
+    ByteBuffer buffer = ByteBuffer.allocateDirect(1024*1024*100);
+    Future<Integer> result = channel.read(buffer, 0);
+    while(!result.idDone()){
+        //做些其他有用的操作
+    }
+    System.out.println("Bytes read:" + result.get());
+}
+
+基于回调的方式
+处理异步IO的回调方式基于CompletionHandler接口实现，这个接口定义了两个方法completed()和failed()，分别表示操作成功和失败时调用；
+
+byte[] data = {2, 3, 5, 7, 12, 13, 17, 23};
+ByteBuffer buffy = ByteBuffer.wrap(data);
+
+CompletionHandler<Integer, Object> h = 
+    new CompletionHandler(){
+        public void completed(Integer written, Object o){
+            System.out.println("Bytes Writes:" + written);
+        }
+        
+        public void failed(Throwable x, Object o){
+            System.out.println("Asynchronous Writes failure:" + x.getMessage());
+        }
+    }
+
+try(AsychronousFileChannel channel = AsychronousFileChannel.open(Paths.get("input.txt"), 
+    StandardOpenOption.CREATE, StandardOpenOption.WRITE)){
+    
+    channel.write(buffy, 0, numm, h);
+    Thread.sleep(1000); //必须这么做，防止退出太快。
+
+}
+
+####################### 网络  #######################
+网络： java.net javax.net javax.net.ssl
+
+URL url = new URL("http://www.jclarity.com/");
+try( InputStream in = url.openStream()){
+    Files.copy(in, Paths,get("output.txt"));
+}catch(IOException ex){
+    ex.printStackTrace();
+}
+
+try {
+    URLConnection conn = url.openConnection();
+    
+    String type = conn.getContentType();
+    String encoding = conn.getContentEncoding();
+    Date lastModified = new Date(conn.getLastModified());
+    int len = conn,getContentLength();
+    InputStream in = conn.getInputStream();
+    
+}catch(IOException ex){
+    ex.printStackTrace();
+}
+## 类 URL 代表一个统一资源定位符，它是指向互联网“资源”的指针。资源可以是简单的文件或目录，也可以是对更为复杂的对象的引用，
+## 也可以使用 URLEncoder 和 URLDecoder 类，
+
+
+
+
+## 抽象类 URLConnection 是所有类的超类，它代表应用程序和 URL 之间的通信链接。此类的实例可用于读取和写入此 URL 引用的资源。
+## 通常，创建一个到 URL 的连接需要几个步骤： 
+##
+## 通过在 URL 上调用 openConnection 方法创建连接对象。 
+## 操作设置参数和一般请求属性。 
+## 使用 connect 方法建立到远程对象的实际连接。 
+## 远程对象变为可用。远程对象的头字段和内容变为可访问。 
+## 使用以下方法修改设置参数： 
+## 
+## setAllowUserInteraction 
+## setDoInput 
+## setDoOutput 
+## setIfModifiedSince 
+## setUseCaches 
+## 使用以下方法修改一般请求属性： 
+## 
+## setRequestProperty 
+## 使用 setDefaultAllowUserInteraction 和 setDefaultUseCaches 可设置 AllowUserInteraction 和 UseCaches 参数的默认值。 
+## 
+## 上面每个 set 方法都有一个用于检索参数值或一般请求属性值的对应 get 方法。适用的具体参数和一般请求属性取决于协议。 
+## 
+## 在建立到远程对象的连接后，以下方法用于访问头字段和内容： 
+## 
+## getContent 
+## getHeaderField 
+## getInputStream 
+## getOutputStream 
+## 某些头字段需要经常访问。以下方法： 
+## 
+## getContentEncoding 
+## getContentLength 
+## getContentType 
+## getDate 
+## getExpiration 
+## getLastModifed 
+## 提供对这些字段的便捷访问。getContent 方法使用 getContentType 方法以确定远程对象类型；子类重写 getContentType 方法很容易。 
+## 
+## 一般情况下，所有的预连接参数和一般请求属性都可忽略：预连接参数和一般请求属性默认为敏感值。对于此接口的大多数客户端而言，只有两个感兴趣的方法：getInputStream 和 getContent，它们通过便捷方法镜像到 URL 类中。 
+
+String hostname = "www.example.com";
+int port = 80;
+String filename = "/index.html";
+
+try (Socket sock = new Socket(hostname, port);){
+    BufferedReader from = new BufferedReader(
+        new InputStreamReader(sock.getInputStream())
+    );
+    PrintWriter to = new PrintWriter(
+        new OutputStreamWriter(sock.getOutputStream())
+    );
+    
+    to.print("GET  "　+ filename + "HTTP/1.1\r\nHost: " + hostname + "\r\n\r\n");
+    to.flush();
+    for(String l = null; (l = from.readLine() != null); )
+        System.out.println(l);
+}
+发送时要保守；接收时要开放。
+
+private static class HttpHandler implements Runnable{
+    private final Socket sock;
+    HttpHandler(Socket client) {this.sock = client; }
+    public void run(){
+        try(BufferReader in = 
+            new BufferReader(
+                new InputStreamReader(sock.getInputStream));
+            PrintWriter out = new PrintWriter(
+            new OutputStreamWriter(sock.getOutputStream()))){
+            out.print("HTTP/1.0 200\r\nContent-Type:text/plain\r\n\r\n");
+            String line;
+            while((line = in.readLine()) != null){
+                if(line.length() == 0) break;
+                out.print(line);
+            }
+        }catch(Exception e){
+            //异常处理
+        }        
+    }
+}
+
+public static void main(String[] args){
+    try{
+        int port = Integer.parseInt(args[0]);
+        
+        ServerSocket ss = new = ServerSocket(port);
+        for(;;){
+            Socket client = ss.accept();
+            HTTPHandler handler = new HTTPHandler(client);
+            new Thread(handler).start();
+        }catch(Exception e){
+            //异常处理
+        }     
+    }
+}
+
+
+

@@ -1,0 +1,66 @@
+klogd 是一个专门截获并记录 Linux 内核消息的守护进程。
+
+klogd 是一个专门截获并记录 Linux 内核消息的守护进程。其命令行语法如下：
+klogd[ -f file ] [ -iI ] [ -n ] [ -o ] [ -p ] [ -s ] [ -k file ] [ -v ] [ -x ] [ -2 ]
+
+klogd　命令行参数说明
+-f file
+　　将日志直接记录到指定的file中，而不是转发到 syslogd 进程。
+-i
+-I
+	要求当前正在运行的 klogd 守护进程重新装载内核符号表。
+-i 	用于让守护进程重新装载内核模块符号。
+-I 	用于让守护进程重新装载静态内核符号和内核模块符号。
+-n
+	禁止自动后台运行，在 klogd 由 init 启动并直接被 init 控制的情况下必须使用此开关。
+-o
+	klogd 在读取并记录所有内核消息缓冲区中的消息之后立即退出(不作为守护进程)。
+-p
+	只要 klogd 检测到内核消息流中包含了一个 Oops 字符串，那么就重新加载内核符号表。
+-s
+	可以通过两个途径获取内核消息: /proc 文件系统和 sys_syslog 系统调用接口。虽然两者本质上完全等价，但 klogd 会优先使用 
+	/proc/kmsg 文件。这个开关则强制 klogd 使用系统调用获取内核消息。
+-k file
+	将指定的 file 作为内核符号表文件，也就是System.map文件的位置。
+-v
+	打印版本信息后退出。
+-x
+	忽略 EIP 转换信息，这样就不需要读取 System.map 文件。
+-2
+	当展开符号时打印两行，一行将地址转换为符号，一行是原始文本。这样就允许一些外部程序(比如ksymoops)在原始数据上做一些处理。
+
+------ klogd消息转发 ------
+如果 klogd 将内核消息转发给 syslogd 进程，那么它可以分拣出某些特定的消息。原始内核消息的格式如下：
+	Something said by the kernel.
+尖括号中的数字表示内核消息的优先级，这些数字的定义位于 kernel.h 文件中。当 klogd 收到内核消息之后，将会读取这个数字，并在将此消息转发给 syslogd 时按照这个数字分配适当的优先级。
+如果使用 -f 将内核消息直接记录到特定的文件中，那么这条消息将保持原样。
+
+------ klogd内核地址解析 ------
+klogd 会尝试将内核地址解析为对应的符号，如果你想得到原始的地址信息，那么可以使用"-2"开关。如果没有使用"-k"选项，那么将会依次尝试下面的路径：
+　　/boot/System.map
+　　/System.map
+　　/usr/src/linux/System.map
+因为内核模块动态加载所以地址并不固定，这时就要使用"-i"/"-I"通知 klogd 内核模块的变化。这两个开关都将导致当前正在运行的 klogd 守护进程重新加载内核符号表。应当在每一次加载或者卸载内核模块后立即运行下列命令：
+　　klogd -i
+-p 开关也可以用于更新内核符号表。它会让 klogd 在检测到保护性错误的时候重新加载内核符号表。使用这个开关需要小心，因为操作系统在出现保护性错误(protection fault)的时候已经变得不稳定了，而 klogd 必须执行系统调用才能重新装载内核符号表，所以这样做可能会导致更糟糕的结果。
+　　
+控制台日志等级
+　　内核默认的控制台日志等级是"7"(debug)，也就是等级数字小于等于6的消息(优先级更高)都会显示在控制台上。这些不同等级所代表的意思位于 kernel.h 文件内，这个包内的 syslog.h 中也有一份拷贝。可以使用 sysctl 来指定控制台日志等级，这通常是在 /etc/sysctl.conf 文件中设置的，比如下面这一行：
+　　kernel.printk = 4 4 1 7
+　　就是把内核的控制台日志等级设为了"4"。
+
+信号处理
+　　klogd 可以响应8种信号: SIGHUP, SIGINT, SIGKILL, SIGTERM, SIGTSTP, SIGUSR1, SIGUSR2, SIGCONT 。SIGINT, SIGKILL, SIGTERM, SIGHUP 信号会让进程优雅的正常退出。SIGTSTP 信号会让进程停止记录日志并进入休眠状态；SIGCONT 信号会让处于休眠状态的进程重新开始记录日志。组合使用 SIGSTOP 和 SIGCONT 可以在不退出进程的情况下切换日志消息的来源。比如需要卸载 /proc 文件系统的时候，可以使用下面的命令：
+　　# kill -TSTP pid
+　　# umount /proc
+　　# kill -CONT pid
+　　SIGUSR1 和 SIGUSR2 用于加载/重新加载内核符号表。SIGUSR1 表示重新加载内核模块的符号信息；SIGUSR2 表示同时重新加载模块和静态内核的符号信息。如果 System.map 文件位置正确，那么 SIGUSR1 信号将非常有用。特别是在内核模块改变的时候。
+　　相关文件
+　　/proc/kmsg
+　　klogd 默认首选的获取内核消息的来源
+　　/var/run/klogd.pid
+　　保存 klogd 的 PID 的文件
+　　
+/boot/System.map, /System.map, /usr/src/linux/System.map
+　　默认搜索的内核符号表位置
+

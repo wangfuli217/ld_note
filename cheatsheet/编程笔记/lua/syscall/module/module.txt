@@ -1,0 +1,61 @@
+package.cpath
+-------------------
+这个路径被 require 在 C 加载器中做搜索时用到。
+Lua 用和初始化 Lua 路径 package.path 相同的方式初始化 C 路径 package.cpath 。
+它会使用环境变量 LUA_CPATH_5_3 或 环境变量 LUA_CPATH 初始化。 要么就采用
+luaconf.h 中定义的默认路径。
+
+package.path
+-------------------
+这个路径被 require 在 Lua 加载器中做搜索时用到。
+在启动时，Lua 用环境变量 LUA_PATH_5_3 或环境变量 LUA_PATH 来初始化这个变量。
+或采用 luaconf.h 中的默认路径。 环境变量中出现的所有 ";;" 都会被替换成默认路径。
+
+package.loaded
+-------------------
+用于 require 控制哪些模块已经被加载的表。 当你请求一个 modname 模块，且
+package.loaded[modname] 不为假时， require 简单返回储存在内的值。
+这个变量仅仅是对真正那张表的引用； 改变这个值并不会改变 require 使用的表。
+
+loadlib (libname, funcname) -> ll_require ll_load ll_sym
+-------------------
+让宿主程序动态链接 C 库 libname 。
+
+当 funcname 为 "*"， 它仅仅连接该库，让库中的符号都导出给其它动态链接库使用。
+否则，它查找库中的函数 funcname ，以 C 函数的形式返回这个函数。
+因此，funcname 必须遵循原型 lua_CFunction （参见 lua_CFunction）。
+
+这是一个低阶函数。 它完全绕过了包模块系统。和 require 不同， 它不会做任何路径查询，也不会自动加扩展名。
+libname 必须是一个 C 库需要的完整的文件名，如果有必要，需要提供路径和扩展名。
+funcname 必须是 C 库需要的准确名字 （这取决于使用的 C 编译器和链接器）。
+
+package.preload
+-------------------
+保存有一些特殊模块的加载器 （参见 require）。
+这个变量仅仅是对真正那张表的引用； 改变这个值并不会改变 require 使用的表。
+
+package.searchers
+-------------------
+用于 require 控制如何加载模块的表。
+
+这张表内的每一项都是一个 查找器函数。 当查找一个模块时， require
+按次序调用这些查找器， 并传入模块名（require 的参数）作为唯一的一个参数。
+此函数可以返回另一个函数（模块的 加载器）加上另一个将传递给这个加载器的参数。
+或是返回一个描述为何没有找到这个模块的字符串 （或是返回 nil 什么也不想说）。
+
+1. loader_preload -- LUA_ENVIRONINDEX->preload(table).name (loader_preload(name))
+第一个查找器就是简单的在 package.preload 表中查找加载器。
+2. loader_Lua -- path; luaL_loadfile -> lua_load (load)
+第二个查找器用于查找 Lua 库的加载库。 它使用储存在 package.path
+中的路径来做查找工作。 
+3. loader_C  -- cpath; ll_loadfunc -> ll_require -> ll_load -> ll_sym
+第三个查找器用于查找 C 库的加载库。 它使用储存在 package.cpath
+中的路径来做查找工作。
+4. loader_Croot -- cpath; ll_loadfunc -> ll_require -> ll_load -> ll_sym
+第四个搜索器是一体化加载器。 它从 C 路径中查找指定模块的根名字。
+例如，当请求 a.b.c时，它将查找 a 这个 C 库。如果找得到，它会在里面找子模块的加载函数。
+在我们的例子中，就是找　luaopen_a_b_c。
+
+利用这个机制，可以把若干 C 子模块打包进单个库。 每个子模块都可以有原本的加载函数名。
+
+

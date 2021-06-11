@@ -1,0 +1,112 @@
+--[[
+原型：string.format (formatstring, ···)
+解释：返回第一个参数描述之后的参数的格式化版本，第一个参数必须为字符串，是对结果字符串的一种描述，
+      这个格式化的字符串和C语言的printf()一族的函数遵循相同的规则，仅有的不同体现在参数选项的修改，
+      其中参数描述符*,l,L,p和h不再支持，但是多了一个额外的选项q，这个q选项会以一种适合lua解释器安全读取的方式来格式化字符串：
+      
+      被写在双引号之间的字符串包括双引号、换行、空字符（'\0'或NULL)、反斜杠在被格式化时都能被正确的分离出来。
+--]]
+
+print("*, h, L, l, n, and p   \t  not support")
+print("A, a, E, e, f, G, and g  \t a number")
+print("c, d, i, o, u, X, and x  \t a intger")
+
+print("\nhttp://lua-users.org/wiki/StringLibraryTutorial")
+s = string.format("%s %q", "Hello", "Lua user!")   -- string and quoted string
+print('"%s %q", "Hello", "Lua user!"', s)          -- Hello "Lua user!"
+s = string.format("%c%c%c", 76,117,97)             -- char
+print('"%c%c%c", 76,117,97\t', s)                  -- Lua
+s = string.format("%e, %E", math.pi,math.pi)       -- exponent
+print('"%e, %E", math.pi,math.pi', s)              -- 3.141593e+000, 3.141593E+000
+s = string.format("%f, %g", math.pi,math.pi)       -- float and compact float
+print('"%f, %g", math.pi,math.pi', s)              -- 3.141593, 3.14159
+s = string.format("%f, %g", 3.14, 13.141593)       -- float and compact float
+print('"%f, %g", 3.14, 13.141593', s)              -- 3.141593, 3.14159
+s = string.format("%d, %i, %u", -100,-100,-100)    -- signed, signed, unsigned integer
+print('"%d, %i, %u", -100,-100,-100', s)           -- -100, -100, 4294967196
+s = string.format("%o, %x, %X", -100,-100,-100)    -- octal, hexadecimal, hexadecimal
+print('"%o, %x, %X", -100,-100,-100', s)           -- 37777777634, ffffff9c, FFFFFF9C
+
+print("\nhttps://blog.csdn.net/hello_crayon/article/details/50667927")
+print(" d ") 
+print('"%+d", 17.0\t'..string.format("%+d", 17.0))
+print('"%05d", 17.0\t'..string.format("%05d", 17.0))
+print('"%+05d", 17.0\t'..string.format("%+05d", 17.0))
+print('"%05.3d", 17.0\t'..string.format("%05.3d", 17.0))
+print('"%+05.3d", 17.0\t'..string.format("%+05.3d", 17.0))
+
+print("\n i ")
+print('"%+i", 17.0\t'..string.format("%+i", 17.0))
+print('"%05i", 17.0\t'..string.format("%05i", 17.0))
+print('"%+05i", 17.0\t'..string.format("%+05i", 17.0))
+print('"%05.3i", 17.0\t'..string.format("%05.3i", 17.0))
+print('"%+05.3i", 17.0\t'..string.format("%+05.3i", 17.0))
+
+print("\n f ")
+print('"%6.3f", 17.0\t'..string.format("%6.3f", 17.0))
+print('"%+7.3f", 17.0\t'..string.format("%+7.3f", 17.0))
+print(string.format("%%0.2f 34.2344 \t %0.2f",34.2344)) 
+print(string.format("%%0.4f 34.2 \t %0.4f",34.2)) 
+
+-- print("\n aA ")
+-- print(string.format("%%a 34.2344 \t %a",34.2344)) 
+-- print(string.format("%%a 34.2 \t %a",34.2)) 
+-- print(string.format("%%A 34.2344 \t %A",34.2344)) 
+-- print(string.format("%%A 34.2 \t %A",34.2))
+
+print("\n gG ")
+print('"%g",13.141593\t\t'..string.format("%g",13.141593))
+print('"%6.3g",13.141593\t'..string.format("%6.3g",13.141593))
+print('"%+7.3g",13.141593\t'..string.format("%+7.3g",13.141593))
+print('"%G",13.141593\t\t'..string.format("%G",13.141593))
+print('"%6.3G",13.141593\t'..string.format("%6.3G",13.141593))
+print('"%+7.3G",13.141593\t'..string.format("%+7.3G",13.141593))
+
+print("\n Xx ")
+print("0x%%08X 348 \t 0x%08X",348)
+print("0x%%08x 348 \t 0x%08x",348)
+
+print("\n s ")
+print('"%s", "monkey"\t\t'..string.format("%s", "monkey"))
+print('"%10s", "monkey"\t'..string.format("%10s", "monkey"))
+print('"%5.3s", "monkey"\t'..string.format("%5.3s", "monkey"))
+
+print("\n -1 diuxofg ")
+print('"%d", -1\t'..string.format("%d", -1))
+print('"%i", -1\t'..string.format("%i", -1))
+print('"%g", -1\t'..string.format("%g", -1))
+print('"%f", -1\t'..string.format("%f", -1))
+print('"%u", -1\t'..string.format("%u", -1))
+print('"%x", -1\t'..string.format("%x", -1))
+print('"%o", -1\t'..string.format("%o", -1))
+--[[
+1. 选项c,d,e,E,f,g,G,i,o,u,x,X只接数字作为参数，而q,s接收字符串作为参数。
+2. 除了参数选项为q之外，函数不接受字符中包含空字符（NULL)的字符串参数。
+3. 各种参数选项的含义：
+ %s    -  接受一个字符串并按照给定的参数格式化该字符串
+ %d    - 接受一个数字并将其转化为有符号的整数格式
+ %f    -  接受一个数字并将其转化为浮点数格式(小数)，默认保留6位小数，不足位用0填充
+ %0.3f  中的小数点右边的数字表示小数点后面保留多少位，小数点前面的数字表示位数不足时的填充数，通用用0填充。
+        格式化一个小数，保留2位小数
+ %x    - 接受一个数字并将其转化为小写的十六进制格式
+ %X    - 接受一个数字并将其转化为大写的十六进制格式
+ %08X   中间的第2个数字格式化成多少位，第1个数字表示不足位数时的填充数，通常用0填充。
+
+ %c - 接受一个数字,并将其转化为ASCII码表中对应的字符
+ %d, %i - 接受一个数字并将其转化为有符号的整数格式
+ %o - 接受一个数字并将其转化为八进制数格式
+ %u - 接受一个数字并将其转化为无符号整数格式
+ 
+ %e - 接受一个数字并将其转化为科学记数法格式,使用小写字母e
+ %E - 接受一个数字并将其转化为科学记数法格式,使用大写字母E
+        
+4. 使用%q可以显示几乎所有特殊字符，并且不需要特殊处理。
+--]]
+
+--[[
+(1) 符号:一个+号表示其后的数字转义符将让正数显示正号.默认情况下只有负数显示符号.
+(2) 占位符: 一个0,在后面指定了字串宽度时占位用.不填时的默认占位符是空格.
+(3) 对齐标识: 在指定了字串宽度时,默认为右对齐,增加-号可以改为左对齐.
+(4) 宽度数值
+(5) 小数位数/字串裁切:在宽度数值后增加的小数部分n,若后接f(浮点数转义符,如%6.3f)则设定该浮点数的小数只保留n位,若后接s(字符串转义符,如%5.3s)则设定该字符串只显示前n位.
+--]]

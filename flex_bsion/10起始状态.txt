@@ -1,0 +1,209 @@
+10 起始状态
+flex提供了一种机制来有条件的启动一个规则。任何规则，如果其模式有前置的"<sc>"，那
+么都只有在扫描器在起始状态(start condition)sc时才会启动。例如：
+        <STRING>[^"]* {/*eat up the string body...*/...}
+
+该规则只有在扫描器(scanner)在STRING的起始状态时才会启动。再接着看下面的规则：
+
+        <INITIAL, STRING, QUOTE>\. {/* handle a escape...*/...}
+
+只有在当前起始状态为INITIAL,STRING或QUOTE之一时才会启动。
+
+起始状态在输入文件的定义部分说明，在无缩进行中，以'%s'或者'%x'开头，后面跟着一列
+名字。前者(指'%s')声明了包含了容他性起始状态(inclusive start condition)，后者(声
+明)排他性起始状态(exclusive start condition)。一个起始状态用BEGIN动作来启动。给
+定起始状态的规则会被激活，并且有其它起始状态的规则不会激活，直到下一个BEGIN行为
+执行。如果起始状态为容他的，性则全然没有起始状态的规则也会被激活。如果(性质)为排
+他性，则只有被标识为起始状态的规则会被激活。一系列依赖于同一个exclusive性质的
+start condition的规则描述了一个扫描器，它独立于flex输入文件中的任何东西。基于此，排
+他性的起始条件使得(我们)很容易指定一个"迷你扫描器"，它可以分割输入(数据)，进而使
+得(这些数据)跟输入的其它部分在语法上保持不同(例如，注释)。
+
+如果排他性和容他性的区别还是有点模糊，这里有一个简单的例子来说明这两者之间的关系。
+下面的这些规则：
+        %s example
+        %%
+        <example>foo    do_something();
+        bar     something_else();
+
+跟这个规则想等：
+        %x example
+        %%
+        <example>foo do_something();
+        <INITIAL, example>bar something_else();
+
+如果没有<INITIAL, example>标识符，第二个例子中的bar模式就不会在起始状态的example
+中被激活(也即不会匹配)。但如果只是用<example>来标识bar，那么bar也会在example中被
+激活，但不会在INITIAL中激活，但是在第一个例子中，两者都会被激活，因为在示例一中
+，example的起始状态为容他性(%s)的。
+
+另外注意到，特殊的起始状态标识符<*>会匹配任何起始状态。所以，上面的例子也可以这
+样写：
+        %x example
+        %%
+        <example>foo do_something();
+        <*>bar  something_else();
+
+默认规则(对ECHO而言就是任何未匹配字符)在起始状态中保持激活(状态)。它跟下面(的代
+码)等价：
+
+        <*>.|\n         ECHO
+
+BEGIN(0)会返回到原始状态，在那里，规则们不希望有起始状态为激活(状态)。这个状态也
+可以被称为开始-状态INITIAL，所以BEGIN(INITIAL)跟BEGIN(0)等价。(包含起始状态的括
+号并不是必须的，但是这是良好的(代码)风格。)
+
+BEGIN行为也可以在规则部分的开头以缩进代码的形式给出。例如，下面的(代码)将导致扫
+描器在每次调用yylex()以及全局变量enter_special为true时进入SPECIAL这个起始状态：
+
+        int enter_special;
+        %x SPECIAL
+        %%
+            if (enter_special)
+                BEGIN(SPECIAL);
+        <SPECIAL>blahblahblah
+        ... more rules follow ...
+
+为说明起始状态的使用，这里有个扫描器，它对形如'123.456'的字符串提供2个不同的解释
+。默认情况下，它(指扫描器)会把字符串看作三个标识符，即整数'123'，一个点('.')以及
+整数'456'。但是如果该字符串在先前的代码行中用'expect-floats'作为前缀,那么扫描器
+会将其当作一个标识符，即一个浮点数'123.456'：
+
+        %{
+        #include <math.h>
+        %}
+        %s expect
+        %%
+        expect-float    BEGIN(expect);
+        <expect>[0-9]+@samp{.}[0-9]+ {
+                printf("found a float, = %f\n", atof(yytext));
+        }
+        <expect>\n      {
+                        /* 这是行尾，所以在识别
+                         * 更多的数字之前，我们
+                         * 需要另一个"expect-number"
+                         */
+                        BEGIN(INITIAL);
+        }
+        [0-9]+  {
+                printf("found an integer, = %d\n", atoi(yytext));
+        }
+        "."     printf("found a dot\n");
+
+下面是一个扫描器，当在统计当前输入文件的行数时，它识别(并丢弃)C注释：
+        %x comment
+        %%
+        int line_num = 1;
+        "/*"    BEGIN(comment);
+        <comment>[^*\n]*        /*匹配除'*'以外的任何内容*/
+        <comment>"*"+[^*/\n]*   /*匹配后面没有跟'/'的'*' */
+        <comment>\n             ++line_num;
+        <comment>"*"+"/"        BEGIN(INITIAL);
+
+这个扫描器在匹配更多的文本以及规则时，会遇到麻烦。一般而言，当你想写一个高速的扫
+描器时，尽可能在每个规则中多匹配一些内容，这样才是大赢家。
+注意到，开始-状态(start-condition)的名字实际上是整数值，而且它也可以(以整数来)来
+存储。所以，上面(的代码)可以扩展为一下形式：
+        %x comment foo
+        %%
+                int lint_num = 1;
+                int comment_caller;
+        "/*"    {
+                comment_caller = INITIAL;
+                BEGIN(comment);
+        }
+        ...
+        <foo>"/*"       {
+                comment_caller = foo;
+                BEGIN(comment);
+        }
+        <comment>[^*\n]*        /*匹配除'*'以外的任何内容*/
+        <comment>"*"+[^*/\n]*   /*匹配后面没有跟'/'的'*' */
+        <comment>\n             ++line_num;
+        <comment>"*"+"/"        BEGIN(INITIAL);
+
+更进一步，你可以用宏YY_START的整数值来访问(access)起始状态。例如，上面对comment_caller的赋值可以改写为：
+        comment_caller = YY_START;
+
+FLEX为YY_START提供了一个别名YYSTATE(因为YYSTATE在AT&T的lex中使用)。
+
+由于历史原因，起始状态在生成的扫描器中并没有自己的命名空间。起始状态的值在生成的
+扫描器和头文件中不金额修改。参见option-header，option-prefix。
+
+最后，下面的例子是一个使用排他性起始状态的C风格的注释字符串，包括扩展的空白串(但
+并未对过长的字符串进行检查)：
+        %x str
+        %%
+                char string_buf[MAX_STR_CONST];
+                char *string_buf_ptr;
+
+        \"      string_buf_ptr = string_buf; BEGIN(str);
+        <str>\" {/* saw closing quote - all done */
+                BEGIN(INITIAL);
+                *string_buf_ptr = '\0';
+                /* 返回字符串常量标识以及其值给解析器 */
+        }
+        <str>\n {
+                /* error - unterminated string constant */
+                /* generate error message */
+        }
+        <str>\\[0-7]{1,3} {
+                /* octal escape sequence(八进制字符) */
+                int result;
+                (void) sscanf(yytext + 1, "%o", &result);
+                if (result > 0xff){
+                        /* error, constant is out-of-bounds */
+                }
+                *string_buf_ptr++ = result;
+        }
+        <str>\\[0-9]+   {
+                /* generate error - bad escape sequence; something like
+                 * '\48' or '\0777777'
+                 */
+        }
+        <str>\\n        *string_buf_ptr++ = '\n';
+        <str>\\t        *string_buf_ptr++ = '\t';
+        <str>\\r        *string_buf_ptr++ = '\r';
+        <str>\\b        *string_buf_ptr++ = '\b';
+        <str>\\f        *string_buf_ptr++ = '\f';
+        <str>\\(.|\n) *string_buf_ptr++ = yytext[1];
+        <str>[^\\\n\"]+ {
+                char *yptr = yytext;
+                while (*yptr)
+                        *string_buf_ptr++;
+        }
+
+通常，如上例子中的一些规则，你不想用同一个起始状态写一堆规则。FLEX中有一个起始状
+态范围的标记让这一切变得简单而整洁。一个起始状态范围以'<SCs>'{作为开始，这里的SC
+s是一个或多个起始状态。在起始状态作用域内，每个规则的前面都会有一个'SCs>'前缀，
+直到遇到一个跟起始的'{'匹配的'}'(即作用域结束符)，所以，对于例子:
+
+        <ESC>{
+             "\\n"   return '\n';
+             "\\r"   return '\r';
+             "\\f"   return '\f';
+             "\\0"   return '\0';
+         }
+它等价于
+         <ESC>"\\n"  return '\n';
+         <ESC>"\\r"  return '\r';
+         <ESC>"\\f"  return '\f';
+         <ESC>"\\0"  return '\0';
+
+起始状态作用域可以(被)嵌套。
+
+下面的函数可以用来操作起始状态栈：
+——void yy_push_state(int new_state)
+        将当前的起始状态压入起始状态栈的栈顶并转到new_state，就如同你已经使用BEG
+IN(new_state)一样(回忆起始状态名字也可以是整数)。
+
+——void yy_pop_state()
+弹出起始状态栈的栈顶并通过BEGIN转入被弹的起始状态。
+
+——int yy_top_state()
+不改变栈内容(的前提下)将栈顶(元素)返回。
+
+起始状态栈是动态增长的，所以没有内建的空间限制。如果内存耗尽，程序会退出执行。
+
+若要使用起始状态栈，在扫描器中必须包含一个%option stack指令(参见Scanner Options)
+。

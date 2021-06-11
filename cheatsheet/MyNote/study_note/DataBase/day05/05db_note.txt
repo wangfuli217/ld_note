@@ -1,0 +1,352 @@
+数据库中的其它对象
+	序列 sequence
+		用来产生主键的值
+	索引 index
+		作用:加速查询
+			索引底层使用树状结构来组织数据,通过消耗大量的空间和时间来达到加速查询的目的
+		语法:
+			建立索引
+				create index 索引名 on 表名(字段名);
+			删除索引
+				drop index 索引名;
+
+		set timing on;	这个设置上,每样动作都会统计时间
+		create table test928emp as select id,first_name name,salary from s_emp;
+		对唯一性字段,系统会自动建立索引
+
+		create index test928emp_in on test928emp(name);
+
+视图 view
+	本质就是一条select语句
+	视图相对于它对应的数据  视图本身的空间可以忽略不记
+
+	语法
+		create or replace view 视图名 as select语句;
+
+		create or replace view myview as select id,first_name name,salary from s_emp;
+		grant create view to scott;授权给scott
+	
+	作用
+		可以对同一份物理数据做出不同的表现,可以简化查询
+		select * from (select id,first_name name,salary from s_emp);
+
+分页
+	oracle中的分页技术 rownum
+	id用来分页是受限制的,使用伪列rownum
+	select rownum,first_name,salary from s_emp;
+
+	一页显示11条数据,显示第一页数据
+	select rownum,first_name,salary from s_emp where(rownum<12);
+
+	一页显示11条数据,显示第二页数据
+	select rownum,first_name,salary from s_emp where rownum<23 and rownum>11;
+
+	select r,first_name,salary from	(select rownum r,first_name,salary from s_emp where rownum<23)where r>11;
+
+	按照工资排序 一页显示11条数据,显示第二页数据
+	select r,first_name,salary from(select rownum r,first_name,salary from(select first_name,salary from s_emp order by salary)where rownum<23)where r>11;
+	最内层:负责排序
+	中间层:负责编号和起别名
+	最外层:负责数据的过滤
+
+常见的访问oracle的技术
+	PLSQL(过程化SQL 存储过程) 
+	proc   使用c语言来访问oracle数据库
+	odbc/ADO	VC中访问数据库的技术
+	SQLJ/JDBC	java中访问数据库的技术
+
+PLSQL的特点
+	结构化 模块化编程
+	可移植性强
+	可维护性比较好
+	提升系统性能
+
+	不便于向异构数据库移植
+
+PLSQL扩展了SQL
+	扩展了一些类型,并且可以定义变量
+	控制语句
+	过程和函数
+	对象和方法
+	(变量 函数)
+
+PLSQL的程序结构
+	declare
+	/*申明区
+	  定义类型 或者定义变量*/
+	begin
+	/*执行区
+	  执行SQL语句或者PLSQL语句*/
+	exception
+	/*异常处理区
+	  处理sql错误的*/
+	end;
+
+第一个PLSQL程序
+	begin
+		dbms_output.put_line('hello plsql!');
+	end;
+	/
+
+	执行环境:
+		sqlplus 
+		sqlprogrammer
+		plsqldeveloper
+
+		打开服务端的输出
+		SQL>set serveroutput on;
+
+变量	定义的变量如果不赋值,则值是NULL
+	语法
+		declare
+			变量名 类型;
+		begin
+	举例
+		declare
+			var_id number;
+			var_name varchar2(30);
+		begin
+			dbms_output.put_line(var_id||':'||var_name);
+		end;
+		/
+
+	变量的赋值
+		直接赋值
+			declare
+				var_id number;
+				var_name varchar2(30);
+			begin
+				var_id:=123;
+				var_name:='abc';
+				dbms_output.put_line(var_id||':'||var_name);
+			end;
+			/
+		使用sql语句赋值
+			declare
+				var_id number;
+				var_name varchar2(30);
+			begin
+				var_id:=2;
+				select first_name into var_name from s_emp where id=var_id;
+				dbms_output.put_line(var_id||':'||var_name);
+			end;
+			/
+			
+练习:
+	定义两个变量类型分别和s_emp表中的first_name,salary一致,然后把s_emp表中id等于5的first_name,salary赋值给这两个变量,打印这两个变量的值
+
+		declare
+			var_name s_emp.first%type;
+			var_sal s_emp.salary%type;
+		begin
+			select first_name,salary into var_name,var_sal from s_emp where id=5;
+			dbms_output.put_line(var_name||var_sal);
+		end;
+		/
+
+直接使用 表名.字段名%type 来获取表中的某个字段对应的类型
+
+类似于C语言结构体的类型record
+	declae
+		type 类型名 is record(
+					字段名 类型,
+					字段名 类型,
+					字段名 类型
+				);
+		变量名 类型名;
+	begin
+
+	举例
+		把s_emp表中的id first_name salary 包装成一个记录类型,然后定义一个记录类型变量,把s_emp表中id=1的相关数据放入这个变量中,并且输出这个变量的值
+		declare
+			type var_record is record(
+					var_id  s_emp.id%type,
+					var_name s_emp.first_name%type,
+					var_salary s_emp.salary%type
+					);
+			reco	var_record;
+		begin
+			select id,first_name,salary into reco from s_emp where id=1;
+			dbms_output.put_line(reco.var_id||' '||reco.var_name||' '||reco.var_salary);
+		end;
+		/
+
+记录类型之间的赋值
+	:=
+		declare
+			type var_record is record(
+					var_id  s_emp.id%type,
+					var_name s_emp.first_name%type,
+					var_salary s_emp.salary%type
+					);
+			reco	var_record;
+			reco2   var_recore;
+		begin
+			select id,first_name,salary into reco from s_emp where id=1;
+			reco2:=reco;  //整体赋值
+			reco2.var_name:=reco.var_name; //部分赋值
+			dbms_output.put_line(reco.var_id||' '||reco.var_name||' '||reco.var_salary);
+		end;
+		/
+		
+		使用record类型把s_dept表中的字段包装然后使用这个类型定义一个变量,把id=50的变量对应的数据存入这个变量中,并输出
+		declare
+			type dept is record(
+						did  s_dept.id%type,
+						dname s_dept.name%type
+					);
+			var_dep dept;
+		begin
+			select id,name into var_dep from s_dept where id=50;
+			dbms_output.put_line(var_dep.did||var_dep.dname);
+		end;
+		/
+
+使用表名%rowtype 获得表的一行对应的类型,获得的类型就是字段名和字段顺序完全和表头相同的记录类型
+		declare 
+			var_emp s_emp%rowtype;
+		begin
+			select * into var_emp from s_emp where id=2;
+			dbms_output.put_line(var_emp.id);
+		end;
+		/
+
+类似于C语言中数组的类型 table类型
+	语法
+		declare
+			type 表类型名 is table of 元素类型 index by binary_integer;
+			变量名 表的类型名;
+		begin
+			变量名(下标);
+
+	定义一个table类型的变量,用来存放数字类型,然后把9 5 2 7 6放入这个变量中
+	declare
+		type num is table of number index by binary_integer;
+		var_num num;
+	begin
+		var_num(0):=9;
+		var_num(1):=5;
+		var_num(2):=2;
+		var_num(3):=7;
+		var_num(4):=6;
+		dbms_output.put_line(var_num(2));
+	end;
+
+下标连续时如何遍历table类型的变量
+	declare
+		type num is table of number index by binary_integer;
+		var_num num;
+		var_ind	binary_integer;
+	begin
+		var_ind:=0;
+		var_num(0):=9;
+		var_num(1):=5;
+		var_num(2):=2;
+		var_num(3):=7;
+		var_num(4):=6;
+		dbms_output.put_line(var_num(var_ind));
+		var_ind:=var_ind+1;
+		dbms_output.put_line(var_num(var_ind));
+	end;
+	/
+
+下标不连续时如何遍历table类型的变量
+	迭代思想:
+		变量名.first()第一个元素对应的下标
+		变量名.next(n)下一个元素,根据一个元素的下标获得下一个元素对应的下标
+		变量名.last() 最后一个元素对应的下标
+	declare
+		type num is table of number index by binary_integer;
+		var_num num;
+		var_ind	binary_integer;
+	begin
+		var_num(-1):=9;
+		var_num(1):=5;
+		var_num(234):=2;
+		var_num(9):=7;
+		var_num(6):=6;
+		var_ind:=var_num.first();
+		dbms_output.put_line(var_num(var_ind));
+		var_ind:=var_num.next(var_ind);
+		dbms_output.put_line(var_num(var_ind));
+	end;
+
+
+变量的作用域和可见性
+	declare
+		var_x number:=1;
+	begin
+		declare
+			var_y number:=234;
+		begin
+			这里可以访问var_x和var_y
+		end;
+		这里只能访问var_x
+
+
+分支语句
+	语法:
+		C语言                 PLSQL
+		if(a>b){				if a>b then
+		}						end if;
+
+		if(a>b){                if a>b then
+		}						else
+		else{					end if;
+		}
+
+		if(a>b){				if a>b then
+		}						elsif a>c then
+		else if(a>c){			elsif a>d then
+		}						end if;
+		else if(a>d){
+		}
+
+
+定义两个变量,并赋值,输出这两个变量的最大值
+		declare
+			num1 number:=3;
+			num2 number:=4;
+		begin
+			num1:=&num1;
+			num2:=&num2;
+			if num1>num2 then
+				dbms_output.put_line(num1);
+			else
+				dbms_output.put_line(num2);
+			end if;
+		end;
+
+定义三个变量,并赋值,输出这三个变量的最大值
+		declare
+			num1 number;
+			num2 number;
+			num3 number;
+		begin
+			num1:=&num1;
+			num2:=&num2;
+			num3:=&num3;
+			if num1<num2 then
+				num1:=num2;
+			end if;
+		    if num1<num3 then
+				num1:=num3;
+			end if;
+			dbms_output.put_line(num1);
+		end;
+
+NULL值的判断
+	declare
+		var_x number;
+		var_y number;
+	begin
+		if var_x < var_y then
+			dbms_output.put_line('var_x<var_y');
+		elsif var_x>var_y then
+			dbms_output.put_line('var_x>var_y');
+		elsif var_x=var_y then
+			dbms_output.put_line('var_x=var_y');
+		elsif var_x is null and var_y is null then
+			dbms_output.put_line('is null');
+		end if;
+	end;

@@ -1,0 +1,148 @@
+排序中NULL值作为最大值处理
+
+单行函数
+	概念:单行函数就是sql语句影响多少行,就返回多少个结果的函数.针对sql语句影响的每一行处理之后都返回相应的一个结果
+
+组函数:针对sql语句影响的一组数据综合处理,最后返回一个结果
+	
+	举例
+		upper(par1)		把字符串变大写
+			select first_name,upper(first_name) from s_emp where id=1;
+		count(par1)		统计数据的个数
+			select count(first_name) from s_emp;
+
+为了学习单行函数方便,可以使用dual测试表
+	select upper('hello world') from dual;
+
+处理字符串的单行函数
+	upper(par1)
+	lower(par1)			把字符串变小写
+	initcap(par1)		把字符串中每个单词的首字母变大写
+	length(par1)		求字符串的长度
+	concat(par1,par2)	连接两个字符串,并返回连接值
+	substr(par1,par2,par3)   截取字符串
+		par1是要处理的字符串
+		par2是从什么位置开始截取 编号从1开始 也可以是负数,-1代表最后一个字符
+		par3是截取的长度
+			例:
+				select substr('hello',1,2) from dual;
+	nvl(par1,par2)		可以处理任何类型,要求par1和par2的类型保持一致
+	replace(par1,par2,par3)	 把par1字符串中包含的par2替换成par3
+			例:
+				select replace('hell','el','a') from dual;
+	to_number(par1)		 把数字字符串转换成数字
+		select id,first_name,salary from s_emp where id=12;
+		select id,first_name,salary from s_emp where id='12';
+		select id,first_name,salary from s_emp where id=to_number('12');
+
+处理数字的函数
+	round(par1,par2)	四舍五入
+		par1是要处理的数字数据
+		par2是处理的精度
+			select round(9.58) from dual;
+			select round(9.58,-1) from dual;	对小数点前1位四舍五入
+	trunc(par1,par2)	截取函数
+		par1是要处理的数字
+		par2是处理的精度
+
+数字格式显示函数
+	to_char(par1,par2)
+		par1要处理的数字和数字字段
+		par2代表显示格式,可以省略 代表把数据变成字符串
+		格式如下
+			fm 代表格式的开始
+			9	小数点前代表0-9的任意数字,小数点后代表1-9的任意数字
+			0	小数点前代表强制显示前导0,小数点后代表0-9的任意数字
+			$	美元符号
+			,	分割符
+			.	小数点
+		select salary,to_char(salary,'fm$099,999.99') from s_emp;
+
+函数的嵌套
+	把一个函数的返回值作为另一个函数的参数
+		select first_name,substr(first_name,length(first_name)-2,3) from s_emp;
+		把s_emp表中的id first_name manager_id显示出来,如果manager_id是NULL,则显示成BOSS
+		select id,first_name,nvl(to_char(manager_id),'BOSS') from s_emp;
+
+		col first_name for a15;  //把叫first_name的这一列,一行最多显示15个字符
+
+多表查询
+	为什么?
+		需要的数据分布在多张表中
+	如何实现?
+		根据连接条件把多张表合成为一张表
+	
+		把s_emp表中的first_name和dept_id显示出来
+			slect first_name,dept_id from s_emp;
+		在上面的基础上显示部门名
+		desc s_dept;
+		select first_name,dept_id,name from s_emp,s_dept;  在连接两张表时如果不加任何条件则产生迪卡尔积
+
+		select first_name,dept_id,name from s_emp,s_dept where dept_id=s_dept.id;   两个表中出现同名字段使用表名区分
+
+	练习
+		desc s_dept			desc s_region
+		ID		部门编号	ID		地区编号
+		NAME	部门名称	NAME	地区名
+		REGION_ID	地区编号
+
+		写一个sql 把每个部门的名字和地区的名字显示出来
+		select s_dept.name,s_region.name from s_dept,s_region where region_id=s_region.id;
+
+		使用表的别名 来简化查询
+		select d.name,r.name from s_dept d,s_region r where region_id=r.id;
+
+等值连接
+	如果连接两张表的关系 使用等号做连续 则称之为等值连接
+	如果连续两张表的关系,不使用等号做连接,则称之为非等值连接
+
+非等值连接
+	desc salgrade
+
+	GRADE	工资级别
+	LOSAL	级别对应的低工资
+	HISAL	级别对应的高工资
+	把s_emp表中每个员工的first_name salary和月薪对应的工资级别显示出来
+		select first_name,salary,grade from s_emp,salgrade where salary between losal and hisal;
+
+特殊的连接		自连接
+	写一个查询,把s_emp表中的领导查询出来,显示id,first_name
+		select distinct m.id,m.first_name from s_emp m,s_emp e where e.manager_id=m.id;
+
+总结
+	表连结
+		等值连接
+			员工和部门的关系	where dept_id=s_dept.id;
+			部门和地区的关系	where region_id=s_region.id
+		非等值连接
+			员工表和工资级别表	where salary between losal and hisal;
+		自连接
+			谁是领导的问题, where e.manager_id=m.id
+
+	上面的连接都有一个共同的特点,就是符合连接的条件的数据被选中,不符合连接条件的数据被过滤掉,这种连接称之为内连接
+
+	找出哪些人是非领导
+
+外连接
+	概念:外连接的结果集等于内连接的结果集 加上匹配不上的记录(一个也不能少)
+
+	如何实现?
+	(+)  (+)字段对面的表的数据全部被匹配出来
+		 本质上是通过NULL记录进行的匹配
+
+		 找出非领导的sql
+			select distinct m.id,m.first_name from s_emp e,s_emp m where e.manager_id(+)=m.id and e.manager_id is null;
+
+
+SQL99的内外连接
+	SQL99内连接
+		from a表 join b表 on 连接条件 where 过滤条件;
+		from a表 inner join b表 on 连接条件 where 过滤条件
+		
+	SQL99外连接
+		from a表 left outer join b表 on 连接条件 where 过滤条件;  代表a表发起连接,发起连接就代表把这张表的数据全部匹配出来,本质上这些数据同样是用NULL匹配出来的
+		from a表 right outer join b表 on 连接条件 where 过滤条件;
+		from a表 full outer join b表 on 连接条件 where 过滤条件;
+
+
+		使用内连接完成查找

@@ -1,0 +1,149 @@
+QMainWindow类提供一个有菜单条、锚接窗口(例如工具条)和一个状态条的主应用程序窗口。
+
+    主窗口通常用在提供一个大的中央窗口部件(例如文本编辑或者绘制画布)以及周围菜单、工具条和一个状态条。
+QMainWindow常常被继承，因为这使得封装中央部件、菜单和工具条以及窗口状态变得更容易。
+继承使创建当用户点击菜单项或者工具条按钮时被调用的槽成为可能。你也可以使用Qt设计器来创建主窗口。
+我们将简要地回顾一下有关添加菜单项和工具条按钮，然后描述QMainWindow自己的便捷。
+
+    QMainWindow *mw = new QMainWindow;
+    QTextEdit *edit = new QTextEdit( mw, "editor" );
+    edit->setFocus();
+    mw->setCaption( "Main Window" );
+    mw->setCentralWidget( edit );
+    mw->show();
+    QMainWindow可以像上面那样显示地来被创建。中央窗口部件是通过setCentralWidget()设置地。弹出菜单可以被添加到默认工具条，
+窗口部件可以被添加到状态条，工具条和锚接窗口可以被添加到任何一个锚接区域。
+
+        ApplicationWindow * mw = new ApplicationWindow();
+        mw->setCaption( "Qt Example - Application" );
+        mw->show();
+上面代码中的ApplicationWindow是我们自己写的QMainWindow的子类，这是一个使用QMainWindow的常用方法。
+
+    在继承的时候，我们在子类的构造函数中添加菜单项和工具条。如果我们已经直接创建了一个QMainWindow实例，
+我们可以很容易地通过传递QMainWindow实例代替作为父对象的this指针来添加菜单项和工具条。
+
+    QPopupMenu * help = new QPopupMenu( this );
+    menuBar()->insertItem( "&Help", help );
+    help->insertItem( "&About", this, SLOT(about()), Key_F1 );
+    这里我们添加了有一个菜单项的新菜单。这个菜单已经被插入QMainWindow默认提供的并且可以通过menuBar()
+函数访问的菜单条。当这个菜单项被点击时，这个槽被调用。
+
+    QToolBar * fileTools = new QToolBar( this, "file operations" );
+    fileTools->setLabel( "File Operations" );
+    
+    QToolButton * fileOpen
+        = new QToolButton( openIcon, "Open File", QString::null,
+                        this, SLOT(choose()), fileTools, "open file" );
+这部分提取显示的是有一个工具条按钮的工具条的创建。QMainWindow为工具条提供了四个锚接区域。
+当一个工具条被作为QMainWindow(或者继承类)实例 的子对象被创建时，它将会被放置到一个
+锚接区域中(默认是Top锚接区域)。当这个工具条按钮被点击时，这个槽被调用。
+任何锚接窗口可以使用addDockWindow()，或者通过把QMainWindow作为父对象来创建的方法来被添加到一个锚接区域中。
+
+    e = new QTextEdit( this, "editor" );
+    e->setFocus();
+    setCentralWidget( e );
+    statusBar()->message( "Ready", 2000 );
+创建完菜单和工具条，我们创建一个大的中央窗口部件的实例，给它焦点并且把它设置为主窗口的中央窗口部件。
+在这个实例中，我们也已经通过statusBar()函数设置好了状态条，显示初始信息两秒。注意你可以添加其它的窗口部件到状态条中，
+例如标签，来显示更多的状态信息。详细情况请参考QStatusBar文档，特别是addWidget()函数。
+
+    通常我们想让一个工具条按钮和一个菜单项同步。例如，如果用户点击“加粗”工具条按钮，我们希望“加粗”菜单项被选中。
+这种同步可以通过创建操作并且把它们添加到工具条和菜单上来自动实现。
+    QAction * fileOpenAction;
+    fileOpenAction = new QAction( "Open File", QPixmap( fileopen ), "&Open",
+                                CTRL+Key_O, this, "open" );
+    connect( fileOpenAction, SIGNAL( activated() ) , this, SLOT( choose() ) );
+这里我们创建了一个有图标的操作，这个图标要用在这个操作所被添加到的菜单和工具条中。
+我们也给定这个操作一个菜单名称“&Open”和一个键盘快捷键。我们已经建立的这个连接在用户点击这个菜单项或者这个工具条按钮时将会被使用。
+    QPopupMenu * file = new QPopupMenu( this );
+    menuBar()->insertItem( "&File", file );
+    fileOpenAction->addTo( file );
+上面这部分提取显示一个弹出菜单的创建。我们把这个菜单添加到QMainWindow的菜单条中并且添加我们的操作。
+    QToolBar * fileTools = new QToolBar( this, "file operations" );
+    fileTools->setLabel( "File Operations" );
+    fileOpenAction->addTo( fileTools );
+这里我们创建一个作为QMainWindow的子对象的工具条并且把我们的操作添加到这个工具条中。
+
+
+------  现在我们来探险QMainWindow提供的功能  ------
+    主窗口将会注意锚接区域和中央窗口部件的几何形状，但是中央窗口部件的其它所有方面都留给你了。
+如果你指定QMainWindow作为父对象来创建菜单条或者状态条，QMainWindow会自动检测它们，或者你可以
+使用提供的menuBar()和statusBar()函数。
+  如果一个窗口部件也没有，menuBar()和statusBar()函数创建一个合适的窗口部件，并且更新窗口的布局来得到空间。
+  
+    QMainWindow提供了一个连接到状态条的QToolTipGroup。toolTipGroup()函数提供了对默认QToolTipGroup的访问。
+它不能设置一个不同的工具提示组。 
+
+    新的锚接窗口和工具条可以通过使用addDockWindow()来被添加到QMainWindow中。锚接窗口可以使用moveDockWindow()
+来移动并且使用removeDockWindow()来移除。QMainWindow允许默认锚接窗口(工具条)锚接在所有它的锚接区域中(上、下、左、右)。
+你可以使用setDockEnabled()为锚接窗口而使锚接区域生效/失效。当添加或者移动锚接窗口时，你可以指定它们的"边缘"(锚接区域)。
+当前可用的边缘有：Top、Left、Right、Bottom、Minimized (有效地一个"隐藏"锚接区域)和TornOff(浮动)。
+  关于这些区域的解释请参考Qt::Dock。
+
+一些函数会全局地改变QMainWindow的外观：
+    QDockWindow::setHorizontalStretchable()和QDockWindow::setVerticalStretchable()被用于指定锚接窗口和工具条是可延伸的。
+    setUsesBigPixmaps()被用于设置工具按钮是应该用小像素映射还是大像素映射(更多信息请参考QIconSet)。
+    setUsesTextLabel()被用于设置工具按钮是否应该在显示像素映射之外还显示文本标签(更多信息请参考QToolButton)。
+用户可以把锚接窗口拖入任何生效的锚接区域中。锚接窗口也可以在一个锚接区域中被拖动，例如重新排列一些工具条的顺序。
+锚接窗口也可以被拖动出任何锚接区域（取消锚接或者“浮动”）。你可以使用setDockWindowsMovable()把锚接窗口设置为生效的(默认)和失效的。
+如果用户点击浮动锚接窗口的关闭按钮，然后锚接窗口将会消失。为了重新得到锚接窗口，用户必须右键点击一个锚接区域，
+弹出一个锚接窗口菜单，然后点击我们要恢复的锚接窗口的名字。可视的锚接窗口在菜单中它们的名字之前有一个勾。
+锚接窗口菜单会根据createDockWindowMenu()的需要自动被创建。因为它可能不总是适合把一个锚接窗口显示到这个菜单中，
+setAppropriate()函数被用来告知主窗口这个锚接窗口菜单是否应该包含一个特定的锚接窗口。
+双击锚接窗口句柄(通常在锚接窗口的左侧)会使这个锚接窗口取消锚接(浮动)。双击浮动锚接窗口的标题栏将会锚接这个浮动的锚接窗口。
+
+    Minimized边缘是一个隐藏的锚接区域。如果这个锚接区域是生效的，用户可以隐藏(最小化)锚接窗口或者通过点击锚接
+窗口句柄显示(恢复)一个最小化的锚接窗口。如果用户在一个句柄上方悬浮鼠标光标，锚接窗口的标题会被作为工具提示显示
+(请参考QDockWindow::caption()或QToolBar::label())，所以如果你使Minimized锚接区域生效，最好为每一个锚接窗口指定
+一个有意义的标题或者标签。为了能够程序化地最小化一个锚接窗口，请使用一个带有Minimized边缘的moveDockWindow()。
+
+    锚接窗口默认是被透明地移动，也就是在拖动期间，一个边框矩形会在屏幕上被绘制出来呈现锚接窗口在移动时的位置。
+如果你想让锚接窗口在移动时被正常显示，请使用setOpaqueMoving()。
+
+
+    主窗口的菜单条默认是固定的(在上面)。如果你想有一个可移动的菜单条，创建一个QMenuBar作为一个在它自己可移动的
+锚接窗口中可伸展的窗口部件并且限制这个锚接窗口只在Top或Bottom锚接区域存在：
+    QToolBar *tb = new QToolBar( this );
+    addDockWindow( tb, tr( "Menubar" ), Top, FALSE );
+    QMenuBar *mb = new QMenuBar( tb );
+    mb->setFrameStyle( QFrame::NoFrame );
+    tb->setStretchableWidget( mb );
+    setDockEnabled( tb, Left, FALSE );
+    setDockEnabled( tb, Right, FALSE );
+    
+
+    有多个锚接窗口的应用程序可以选择为了以后(例如，在下个对话中)恢复当前的锚接窗口布局来把它们保存起来。
+你可以通过使用QMainWindow的流操作符来做到这点。
+为了保存所有锚接窗口的布局和位置，请这样做：
+
+  QFile f( filename );
+  if ( f.open( IO_WriteOnly ) ) {
+      QTextStream ts( &f );
+      ts << *mainWindow;
+      f.close();
+  }
+  
+
+为了恢复锚接窗口的位置和大小（通常是当这个应用程序再次开始），请这样做：
+  QFile f( filename );
+  if ( f.open( IO_ReadOnly ) ) {
+      QTextStream ts( &f );
+      ts >> *mainWindow;
+      f.close();
+  }
+  
+QSettings类可以和这些流操作符联合使用来存放这个应用程序的设置。
+QMainWindow对锚接窗口和工具条的管理很明显地是由QDockArea在后面完成的。
+对于多文档界面（MDI），使用QWorkspace作为中央窗口部件。
+把锚接窗口（例如工具条）添加到QMainWindow的锚接区域是很简单的。如果被提供的锚接区域对于你的应用程序是不够的，
+我们建议你创建一个QWidget的子类并且把你自己的锚接区域（请参考QDockArea）添加到这个子类中，因为QMainWindow只
+提供了由它提供的标准锚接区域的特定功能。
+
+
+
+
+
+
+
+
+

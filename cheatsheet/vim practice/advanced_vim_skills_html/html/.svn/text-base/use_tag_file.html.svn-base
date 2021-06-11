@@ -1,0 +1,133 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>第 6 章 使用标签(tag)文件</title><link rel="stylesheet" href="http://easwy.com/blog/uploads/css/style.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.73.2"><link rel="start" href="index.html" title="vim使用进阶"><link rel="up" href="index.html" title="vim使用进阶"><link rel="prev" href="use_sessionx.html" title="第 5 章 保存项目相关配置"><link rel="next" href="use_taglist_plugin.html" title="第 7 章 使用taglist插件"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">第 6 章 使用标签(tag)文件</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="use_sessionx.html">上一页</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="use_taglist_plugin.html">下一页</a></td></tr></table><hr></div><div class="chapter" lang="zh-CN"><div class="titlepage"><div><div><h2 class="title"><a name="use_tag_file"></a>第 6 章 使用标签(tag)文件</h2></div></div></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p>
+    本节所用命令的帮助入口：
+  </p><pre class="programlisting">
+:help 'tags'
+:help :tag
+:help :tags
+:help CTRL-]
+:help CTRL-T
+:help vimgrep
+:help cw
+:help pattern </pre><p>
+    尽管相关的文章已经很多了，但tag文件实在是太有用了，所以还是啰嗦一次。
+  </p><p>
+    Tag文件(标签文件)无疑是开发人员的利器之一，有了tag文件的协助，你可以在vim查看函数调用关系，类、结构、宏等的定义，可以在任意标签中跳转、返回......相信使用过Source Insight的人对这些功能并不陌生，而在vim中，此功能的实现依赖于tag文件。
+  </p><p>
+    对于程序来说，Tag文件中保存了诸如函数、类、结构、宏等的名字，它们所处的文件，以及如何通过Ex命令跳转到这些标签。它是一个纯文本文件，因此你可以手工的编辑它，也可以使用脚本对其进行操作。
+  </p><p>
+    通常我们使用名为ctags的程序来生成这样的tag文件。vim能直接使用ctags程序所生成的tag文件。在UNIX系统下的ctags功能比较少，所以一般我们使用Exuberant Ctags(在大多数Linux系统上，它是缺省的ctags程序)，它能够支持多达33种程序语言，足以满足我们开发的需要了。<a class="link" href="http://easwy.com/blog/archives/exuberant-ctags-chinese-manual/">这里</a>是它的中文手册。如果你的系统上未安装此程序，请到<a class="link" href="http://ctags.sourceforge.net">http://ctags.sourceforge.net</a>下载。
+  </p><p>
+    emacs则使用etags来生成tag文件，如果希望vim也能支持etags的tag文件格式，需要编译vim时加入"<span class="emphasis"><em>+emacs_tags</em></span>"选项。在<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-vim-gdb-vimgdb/">这篇文章</a>介绍了编译vim的方法。
+  </p><p>
+    Tag文件需要遵循一定的格式，由Exuberant Ctags生成的tag文件，缺省是如下格式：
+  </p><pre class="programlisting">
+{tagname} {TAB} {tagfile} {TAB} {tagaddress} {term} {field} ..  </pre><div class="itemizedlist"><ul type="disc"><li>
+      {tagname} - 标识符名字，例如函数名、类名、结构名、宏等。不能包含制表符。
+    </li><li>
+      {tagfile} - 包含 {tagname} 的文件。它不能包含制表符。
+    </li><li>
+      {tagaddress} - 可以定位到 {tagname}光标位置的 Ex 命令。通常只包含行号或搜索命令。出于安全的考虑，vim会限制其中某些命令的执行。
+    </li><li>
+      {term} - 设为 <span class="emphasis"><em>;"</em></span> ，这是为了兼容Vi编辑器，使Vi忽略后面的{field}字段。
+    </li><li>
+      {field} .. - 此字段可选，通常用于表示此{tagname}的类型是函数、类、宏或是其它。
+    </li></ul></div><p>
+    在{tagname}、{tagfile}和{tagaddress}之间，采用制表符(TAB符，即C语言中的"\t")分隔，也就是说{tagname}、{tagfile}的内容中不能包含制表符。
+  </p><p>
+    Tag文件的开头可以包含以"!_TAG_"开头的行，用来在tag文件中加入其它信息。vim能够识别两种这样的标记，经常用到的是"_TAG_FILE_SORTED"标记，例如：
+  </p><pre class="programlisting">
+!_TAG_FILE_SORTED&lt;Tab&gt;1&lt;Tab&gt;{anything} </pre><p>
+    上面这个标记说明tag文件是经过排序的，并且排序时区分了大小写，对排序的tag，vim会使用二分法来进行查找，大大加快了查找速度；如果值为0，则表示tag文件未经排序；如果值为2，则表示tag文件是忽略大小写排序的。
+  </p><p>
+    之所以在这里介绍tag文件的格式，是因为我们在后面提到的<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-lookupfile-plugin/">lookupfile</a>插件中，会自己生成tag文件。
+  </p><p>
+    虽然ctags有为数众多的选项，但通常我们所使用的非常简单。还是以vim 7.0的代码为例，我们执行：
+  </p><pre class="programlisting">
+cd ~/src/vim70
+ctags –R src </pre><p>
+    上面这条命令会在~/src/vim70/目录下生成一个名为tags的文件，这个文件中包含~/src/vim70/src/目录下所有.c、.h文件中的标签。它一个文本文件，你可以用vim打开它看一下。此文件缺省按区分字母大小写排序，所以直接可以被vim使用。
+  </p><p>
+    现在我们进入vim，执行下面的命令：
+  </p><pre class="programlisting">
+:cd ~/src/vim70	"切换当前目录为~/src/vim70
+:set tags=tags	"设置tags选项为当前目录下的tags文件 </pre><p>
+    现在，我们设置好了tags选项，接下来我们使用它：
+  </p><pre class="programlisting">
+:tag VimMain</pre><p>
+    你会看到vim打开了src/main.c文件，并把光标定位到第167行VimMain上。
+  </p><p>
+    我们知道，一般主程序的函数名为main，如果你尝试下面的命令：
+  </p><pre class="programlisting">
+:tag main
+# pri kind tag               file
+1 F   f    main              src/xxd/xxd.c
+main(argc, argv)
+2 FS  d    main              src/if_python.c
+46
+Choice number (&lt;Enter&gt; cancels): </pre><p>
+    这里并没有src/main.c文件，怎么回事呢？这是因为ctags并不是编译器，它在处理编译预处理指令受到局限，因此并没有生成src/main.c中main()函数的标签。你可以在生成tag文件时给ctags指定参数来解决这个问题。见<a class="link" href="http://easwy.com/blog/archives/exuberant-ctags-chinese-manual/">ctags手册</a>。
+  </p><p>
+    或者你可以用"<span class="command"><strong>:grep</strong></span>"或"<span class="command"><strong>:vimgrep</strong></span>"来查找main(<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-quickfix-mode/">这篇文章</a>讲解grep及vimgrep的用法)：
+  </p><pre class="programlisting">
+:cd ~/src/vim70
+:vimgrep /\&lt;main\&gt;/ src/*.c
+:cw </pre><p>
+    这时下面的<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-quickfix-mode/">quickfix</a>窗口将显示出来，在quickfix窗口中找到我们想跳转的位置(本例中是src/main.c)，按回车，就可以跳到对应的位置了。
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/02/vimgrep-300x226.jpg" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/02/vimgrep.jpg">点击查看大图</a></div></div><p>
+    如果你只记得部分的标签名，那么可以使用"<span class="command"><strong>tag</strong></span>"命令的搜索模式，你可以输入一个vim正则表达式来表示你所查找的名字，如：
+  </p><pre class="programlisting">
+:tag /\C\&lt;\k\+ain\&gt;
+# pri kind tag               file
+1 F   f    VimMain           src/main.c
+VimMain
+2 F   d    bindtextdomain    src/vim.h
+483
+3 F   d    bindtextdomain    src/vim.h
+502
+4 F   d    bindtextdomain    src/vim.h
+504
+5 F   f    main              src/xxd/xxd.c
+main(argc, argv)
+6 F   d    textdomain        src/vim.h
+488
+7 F   d    textdomain        src/vim.h
+510
+8 F   d    textdomain        src/vim.h
+512
+9 FS  d    bindtextdomain    src/gui_gtk.c
+54
+10 FS  d    bindtextdomain    src/gui_gtk_x11.c
+37
+11 FS  f    cmdsrv_main       src/main.c
+cmdsrv_main(argc, argv, serverName_arg, serverStr)
+12 FS  d    main              src/if_python.c
+46
+13 FS  d    textdomain        src/gui_gtk.c
+51
+14 FS  d    textdomain        src/gui_gtk_x11.c
+34
+Choice number (&lt;Enter&gt; cancels): </pre><p>
+    这表示我想查找一个以一个或多个keyword开始的标签，此标签以ain做为结尾，在查找时区分大小写。要读懂这个正则表达式，请"<span class="command"><strong>:help pattern</strong></span>"。
+  </p><p>
+    vim会保存一个跳转的标签栈，以允许你在跳转到一个标签后，再跳回来，可以使用"<span class="command"><strong>:tags</strong></span>"命令查找你处于标签栈的哪个位置。
+  </p><p>
+    我们经常用到的tag跳转命令见下(一般只需要知道CTRL-]和CTRL-T就可以了)：
+  </p><pre class="programlisting">
+:tag {ident}            "跳转到指定的标签
+:tags                   "显示标签栈
+CTRL-]                  "跳转到当前光标下的标签
+CTRL-T                  "跳到标签栈中较早的标签 </pre><p>
+    如果想了解更多命令，可以"<span class="command"><strong>:help 29.1</strong></span>"(强烈建议程序员完整的阅读usr_29.txt和usr_30.txt)。
+  </p><p>
+    如果想更深入了解tag命令和相关知识，可以"<span class="command"><strong>:help tagsrch</strong></span>"。
+  </p><p>
+    我之前写的一篇关于ctags和cscope的文章，参见：<a class="link" href="http://easwy.com/blog/archives/vim-cscope-ctags/">Vim + Cscope/Ctags</a>
+  </p><p>
+    <span class="bold"><strong>[参考文档]</strong></span>
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      vim手册
+    </li><li><a class="link" href="http://vimcdoc.sourceforge.net/">vim中文手册</a></li></ul></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p><span class="bold"><strong>原创文章，转载请注明：</strong></span>转载自<a class="link" href="http://easwy.com/blog/">Easwy的博客</a> [  <a class="link" href="http://easwy.com/blog/">http://easwy.com/blog/</a> ]</p><p><span class="bold"><strong>　　　　本文链接地址:</strong></span> <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-use-ctags-tag-file/">http://easwy.com/blog/archives/advanced-vim-skills-use-ctags-tag-file/</a></p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="use_sessionx.html">上一页</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="use_taglist_plugin.html">下一页</a></td></tr><tr><td width="40%" align="left" valign="top">第 5 章 保存项目相关配置 </td><td width="20%" align="center"><a accesskey="h" href="index.html">起始页</a></td><td width="40%" align="right" valign="top"> 第 7 章 使用taglist插件</td></tr></table></div></body></html>

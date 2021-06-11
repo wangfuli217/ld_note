@@ -1,0 +1,59 @@
+--[[ 
+-- 协议描述: 实现 + 注册
+    当C语言调用Lua函数时，该函数必须遵循一个简单的规则来传递参数和获取结果。同样
+当Lua调用C函数时，这个C函数也必须遵循某种规则来获取参数和返回结果。此外，当Lua调用C
+函数时，我们必须注册该函数，即必须以一种恰当的方式为Lua提供该C函数的地址。
+
+    Lua 调用C函数时，也使用了一个与C语言调用Lua函数时相同类型的栈，C函数从栈中获取
+参数，并将结果压入栈中。
+    这个栈不是一个全局结构；每个函数都有其私有的局部栈。当lua调用一个C函数时，第1个参数
+总是位于这个局部栈中索引为1的位置。即使一个C函数调用了Lua代码，而且Lua代码又再次
+调用了同1个(或其他)的C函数，这些调用每一次都只会看到本次调用自己的私有栈，其中索引
+为1的位置上就是第1个参数。
+
+    typedef int (*lua_CFunction) (lua_State *L);
+    这个函数只有一个指向Lua状态类型的指针作为参数，返回值为一个整型数，代表压入栈中
+的返回值的个数。因此，该函数在压入结果前无须清空栈。在该函数返回后，Lua会自动保存返回值
+并清空整个栈。
+
+-- 协议实现: 实现
+static int l_sin(lua_State *L){   // lua_CFunction的一种实现
+    double d = lua_tonumber(L, 1) // 获取参数   double d = luaL_checknumber(L,1)
+    lua_pushnumber(L, sin(d))     // 压入返回值
+    return 1;                     // 返回值的个数
+}
+
+luaL_checknumber: 要编写一个更专业的正弦函数，必须检查其参数的类型，而辅助库可以帮助我们完成这个任务。
+
+-- 协议实现: 注册
+    在Lua中，调用这个函数前，还必须通过lua_pushcfunction注册该函数。函数lua_pushcfunction
+会获得一个指向C函数的指针，然后在Lua中创建一个"function"类型，代表待注册的函数。一旦完成
+注册，C函数就可以像其他Lua函数一样行事了。
+
+在luaL_openlibs()调用的后面
+    lua_pushcfunction(L, l_sin) // 压入一个函数类型的值
+    lua_setglobal(L, "mysin")   // 将这个值赋给全局变量mysin
+
+--]]
+
+--[[
+    Lua通过注册过程感知到C函数。一旦一个C函数用到Lua表示和存储，Lua就会通过对其地址的直接引用来调用它。
+换句话说，一旦一个C函数完成注册，Lua调用它时就不再依赖于其函数名、包的位置和可见性规则。通常
+一个C模块中只有一个用于打开库的公共函数；其他所有的函数都是私有的，在C语言中被声明为static。
+
+static int l_dri(lua_State *L){
+// 同上
+}
+
+static const struct luaL_Reg mylib[] = {
+{"dir", l_dir},
+{NULL,NULL}
+};
+
+int luaopen_mylib(lua_State *L){
+    luaL_newlib(L,mylib);
+    return 1;
+}
+
+local mylib = require "mylib" -> luaopen_mylib
+--]]

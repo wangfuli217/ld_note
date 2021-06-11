@@ -1,0 +1,124 @@
+Grammar
+
+    0 $accept: commands $end
+
+    1 commands: /* empty */
+    2         | commands command
+
+    3 command: heat_switch
+    4        | target_set
+
+    5 heat_switch: TOKHEAT STATE
+
+    6 target_set: TOKTARGET TOKTEMPERATURE NUMBER
+
+
+Terminals, with rules where they appear
+
+$end (0) 0
+error (256)
+NUMBER (258) 6
+TOKHEAT (259) 5
+STATE (260) 5
+TOKTARGET (261) 6
+TOKTEMPERATURE (262) 6
+
+
+Nonterminals, with rules where they appear
+
+$accept (8)
+    on left: 0
+commands (9)
+    on left: 1 2, on right: 0 2
+command (10)
+    on left: 3 4, on right: 2
+heat_switch (11)
+    on left: 5, on right: 3
+target_set (12)
+    on left: 6, on right: 4
+
+
+state 0
+
+    0 $accept: . commands $end
+
+    $default  reduce using rule 1 (commands)
+
+    commands  go to state 1
+
+
+state 1
+
+    0 $accept: commands . $end
+    2 commands: commands . command
+
+    $end       shift, and go to state 2
+    TOKHEAT    shift, and go to state 3
+    TOKTARGET  shift, and go to state 4
+
+    command      go to state 5
+    heat_switch  go to state 6
+    target_set   go to state 7
+
+
+state 2
+
+    0 $accept: commands $end .
+
+    $default  accept
+
+
+state 3
+
+    5 heat_switch: TOKHEAT . STATE
+
+    STATE  shift, and go to state 8
+
+
+state 4
+
+    6 target_set: TOKTARGET . TOKTEMPERATURE NUMBER
+
+    TOKTEMPERATURE  shift, and go to state 9
+
+
+state 5
+
+    2 commands: commands command .
+
+    $default  reduce using rule 2 (commands)
+
+
+state 6
+
+    3 command: heat_switch .
+
+    $default  reduce using rule 3 (command)
+
+
+state 7
+
+    4 command: target_set .
+
+    $default  reduce using rule 4 (command)
+
+
+state 8
+
+    5 heat_switch: TOKHEAT STATE .
+
+    $default  reduce using rule 5 (heat_switch)
+
+
+state 9
+
+    6 target_set: TOKTARGET TOKTEMPERATURE . NUMBER
+
+    NUMBER  shift, and go to state 10
+
+
+state 10
+
+    6 target_set: TOKTARGET TOKTEMPERATURE NUMBER .
+
+    $default  reduce using rule 6 (target_set)

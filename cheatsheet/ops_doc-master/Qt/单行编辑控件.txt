@@ -1,0 +1,181 @@
+https://qtguide.ustclug.org/ch05-02.htm
+
+单行编辑控件
+1. 单行编辑控件 QLineEdit 和 普通文本编辑控件 QPlainTextEdit 都是针对最普通的 C++ 字符串编辑和显示，默认都是白底黑字，没有彩色字体。
+2. QLineEdit 按照名字，就是只接受单行普通文本输入，QPlainTextEdit 可以接收多行普通文本输入。
+3. 丰富文本编辑控件 QTextEdit 是升级版的编辑控件，支持 HTML 网页的丰富文本编辑，当然也可以利用它编辑普通文本。
+4. 丰富文本浏览控件 QTextBrowser 是 QTextEdit 的只读版本，并能打开网页链接。
+
+
+1. QLineEdit 类
+    编辑器一般都有对文本的复制、粘贴、剪切、撤销、重做等功能，单行编辑控件原生自带这些功能，
+右击单行编辑控件或者使用 Ctrl+C、Ctrl+V、Ctrl+X 等快捷键都可以使用这些默认功能。
+
+1.1 构造函数
+------------------------
+  QLineEdit(QWidget * parent = 0)
+  QLineEdit(const QString & contents, QWidget * parent = 0)
+  parent 是父窗口指针，第二个构造函数的 contents 是初始化显示的文本。
+  单行编辑控件最重要的属性就是 text，获取或者修改文本是单行编辑控件最重要的功能。
+
+获取文本的函数：
+    QString text() const
+设置文本的函数：
+    void setText(const QString &)
+默认情况下，单行编辑控件的文本长度限制为 32767，获取单行编辑控件的文本长度限定的函数为：
+    int maxLength() const
+如果希望修改文本长度限定，可以通过函数：
+    void setMaxLength(int)
+
+1.2 信号
+  无论是用户从图形界面编辑文本，还是程序内部用代码修改文本，都会触发如下信号：
+  void textChanged(const QString & text)
+  关联这个信号，就可以实时跟踪文本的所有变化。
+  
+  void textEdited(const QString & text)
+    这个信号只根据用户在图形界面的编辑行为触发，如果程序代码里通过函数 setText() ，
+那么只会触发之前的 textChanged() 信号，不会触发文本编辑信号 textEdited()。
+
+如果希望追踪文本的所有变化，需要关联 textChanged() 信号，
+如果只希望跟踪用户在图形界面的编辑更改，那就关联 textEdited() 信号。
+
+当用户从图形界面编辑文本的行为结束时，单行编辑控件会发出编辑完成信号：
+    void editingFinished()
+
+单行编辑控件既可以用上面 text() 函数获取全部的文本，也可以选取用户高亮选中的部分文本，通过函数：
+    QString selectedText() const
+
+1.3 echoMode
+属性 echoMode 是 EchoMode 枚举类型， 主要有四种显示模式：
+1. QLineEdit::Normal，普通模式，用户输入什么显示什么，这是默认的显示模式。
+2. QLineEdit::NoEcho，不显示任何东西，这是 Unix/Linux 常用的密码显示模式，用户敲密码时不显示任何文本，这样能隐藏密码的长度，不被人从屏幕偷窥。
+3. QLineEdit::Password，每一个密码字符都用星号显示，这是 Windows 常用的密码显示模式。
+4. QLineEdit::PasswordEchoOnEdit，当输入一个密码字符时，短暂显示该字符，然后迅速将该字符显示为星号，方便提示用户当前输入了什么字符，类 似 Android 解锁密码的输入方式。
+通过单行编辑控件的函数：
+void setEchoMode(EchoMode)
+可以设置密码显示模式，一般用 QLineEdit::Password 就可以了
+
+    Qt 自带有计算密码学 Hash 值的类 QCryptographicHash，支持多种多样的散列 Hash 算法，
+这个类有一个静态函数可以快速计算各种算法的散列值：
+    QByteArray QCryptographicHash::​hash(const QByteArray & data, Algorithm method)
+参数 data 就是输入的明文密码，method 是密码学 Hash 算法枚举，返回值就是求得的 Hash 值，
+用 QByteArray 存储返回值。Qt 支持所有主流的 Hash 算法，算法枚举很多，具体可以查 QCryptographicHash 类的文档
+
+1.4 数据验证器和伙伴快捷键
+1.4.1 单行编辑控件自带的输入模板 inputMask：
+    通过函数设置输入模板，这个输入模板字符串是 QLineEdit 自定义的，应用范围比较局限，功能也相对简单，设置函数为：
+    void setInputMask(const QString & inputMask)
+    具体的 inputMask 字符串格式可以查询 QLineEdit 的文档，我们举 MAC 地址的例子，"H" 表示所有的十六进制字符，
+包括大小写的十六进制字符，而且 "H" 占位的字符不能省略。小写的 "h" 也代表所有十六进制字符，但 "h" 占位是可以省略的字符.
+对于 MAC 地址，输入模板为 "HH:HH:HH:HH:HH:HH" 。
+
+1.4.2 整型数值和浮点数值验证器
+针对整数数值，可以用 QIntValidator 类作为验证器，该类常用构造函数为：
+    QIntValidator(int minimum, int maximum, QObject * parent = 0)
+    parent 是父对象指针，minimum 是整数下限，maximum 是整数上限，允许的数值是包含两个边界值的，
+边界之外的数值都不允许输入。
+
+QIntValidator 类还有一个用于修改上下限的函数：
+    void QIntValidator::​setRange(int bottom, int top)
+bottom 是下限数值，top 是上限数值。
+一般用 new 新建一个整数验证器之后，就可以把验证器设置给单行编辑控件：
+    void QLineEdit::​setValidator(const QValidator * v)
+
+针对浮点数校验，由 QDoubleValidator 类实现，它常用的构造函数为：
+    QDoubleValidator(double bottom, double top, int decimals, QObject * parent = 0)
+    bottom 是双精度浮点数下限，top 是上限，decimals 是指小数点后的数字位数限定（精度），parent 是父对象指针。
+
+修改 浮点数验证器上 下限和精 度的函数为：
+    virtual void setRange(double minimum, double maximum, int decimals = 0)
+minimum 是下限，maximum 是上限，decimals 是小数点后精度位数。
+新建浮点数验证器之后，也是通过 QLineEdit::​setValidator() 函数设置给单行编辑控件。
+
+
+1.4.3 正则表达式验证器
+    正则表达式是最为强大的数据验证和数据筛选武器，正则表达式作为大杀器，几乎无所不能。
+关于正则表达式的内容有专门的书籍介绍，Qt 提供 QRegExp 类支持正则表达式，正则表达式的验证器类为 QRegExpValidator。
+一般是先通过字符串构建一个正则表达式：
+QRegExp(const QString & pattern, Qt::CaseSensitivity cs = Qt::CaseSensitive, PatternSyntax syntax = RegExp)
+pattern 是正则表达式字符串，cs 指是否大小写敏感，默认是敏感的，syntax 是语法格式，用默认的 RegExp，这是类似 Perl 语言风格的正则表达式。一般可以搜索 IPv4 格式的 Perl 或其他语言的正则表达式，拿过来用即可。
+
+然后根据 QRegExp 构建一个正则表达式验证器：
+    QRegExpValidator(const QRegExp & rx, QObject * parent = 0)
+最后将 QRegExpValidator 对象通过函数 QLineEdit::​setValidator() 函数设置给单行编辑控件就行了。
+网上查找关于 IPv4 格式的正则表达式为：
+"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}"
+"(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+
+C++ 可以自动拼接字符串，因此可以按上面两行来写。
+注意其他脚本语言里面 "\" 就是反斜杠，不是转义字符，我们把这个正则表达式变成 C++ 代码中的字符串时，原本的反斜杠字符要用 "\\" 来替换。
+
+
+1.5 单词补全
+单词补全器 QCompleter 实现。
+QCompleter 常用构造函数为：
+QCompleter(QAbstractItemModel * model, QObject * parent = 0)
+QCompleter(const QStringList & list, QObject * parent = 0)
+parent 是父对象指针，第一个构造函数的 model 是指数据条目的模型，这个在后续章节才会学习。第二个构造函数是本小节使用的，根据一个字符串列表来生成单词补全器。
+单词补全器可以设置单词是否大小写敏感，默认是敏感的，区分大小写：
+void setCaseSensitivity(Qt::CaseSensitivity caseSensitivity)
+Qt::CaseSensitivity 枚举类型有两个枚举常量，Qt::CaseInsensitive 是大小写不敏感，Qt::CaseSensitive 是敏感。
+
+在用户输入单词头几个字符时，单行编辑控件可以根据单词补全器匹配相似的单词并显示出来，补全匹配的单词显示模式（CompletionMode）有三种：
+1. QCompleter::PopupCompletion，是指正常的弹出单词列表显示。
+2. QCompleter::InlineCompletion，不弹出列表，将最接近的一个单词显示到编辑框里，补全的后半截字符用选中的高亮显示。
+3. QCompleter::UnfilteredPopupCompletion，如名字一样，把单词补全器里所有可能的单词都列出来，不做匹配筛选。
+默认情况下都是第一个 QCompleter::PopupCompletion，显示匹配筛选后的简短列表。可以通过如下函数改变补全单词的显示模式：
+void setCompletionMode(CompletionMode mode)
+
+弹出的单词补全列表默认不排序的，如果希望字符串列表是有序的，可以提前调用 QStringList 排序函数：
+void QStringList::​sort(Qt::CaseSensitivity cs = Qt::CaseSensitive)
+参数 cs 指定排序时大小写是否敏感。
+
+    关于单词补全器的内容先介绍这么多，以后用到模型的时候再讲关于模型的部分。生成单词补全器之后，就可以通过如
+下函数把补全器设置给单行编辑控件：
+void QLineEdit::​setCompleter(QCompleter * c)
+如果 c 是存在的补全器，那么 c 就会设置给单行编辑控件；如果 c 是 NULL，那么将会取消单行编辑控件之前的补全器，就没有单词补全了。
+
+
+https://blog.csdn.net/liang19890820/article/details/52044639
+信号
+--------------
+    void selectionChanged()
+    只要选择改变这个信号就会被发射。
+
+    void cursorPositionChanged(int old, int new)
+    只要光标移动，这个信号就会发射。前面的位置old，新的位置是new。
+
+    void editingFinished()
+    void returnPressed()
+    void textChanged(const QString & text)
+    void textEdited(const QString & text)
+    参考：“详细描述”
+
+共有槽
+--------------
+    void clear()
+    清除输入框内容
+
+    void copy() const
+    如果echoMode()是Normal，将选中的文本复制到剪贴板。
+
+    void cut()
+    如果echoMode()是Normal，将所选文本复制到剪贴板并删除它。
+    如果当前的验证不允许删除选定的文本，cut()将复制而不删除。
+
+    void paste()
+    如果输入框不是只读的，插入剪贴板中的文本到光标所在位置，删除任何选定的文本。
+    如果最终的结果不被当前的验证器接受，将没有任何反应。
+
+    void redo()
+    重做上次操作，如果redo可用（isRedoAvailable() ）。
+
+    void selectAll()
+    选中所有文本（即：高亮），并将光标移动到末尾。当一个默认值被插入时，这非常有用，因为如果用户在点击部件之前就输入，选中的文本将被删除。
+
+    void setText(const QString &)
+    设置输入框显示的文本。
+
+    void undo()
+    撤消上次操作，如果撤消可用（ isUndoAvailable()）。取消任何当前的选中，并更新选中到当前光标位置。
+    

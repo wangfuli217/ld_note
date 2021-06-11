@@ -1,0 +1,327 @@
+https://github.com/maxiecloud/notes
+
+linux完整系统启动流程
+
+POST --> Boot device --> bootloader:MBR446bytes : grub stage1 --> grub stage1.5 --> boot partition
+--> grub stage2 --> grub.conf --> kernel : vmlinuz --> initrd initramfs --> rootfs --> init 
+--> /etc/inittab --> /etc/rc.d/rc.sysinit --> /etc/rc#.d/{K*.sh | S*.sh} --> /etc/rc.d/rc.local --> login
+
+SysV: init, CentOS 5之前
+        配置文件：/etc/inittab
+    Upstart: init,CentOS6
+        配置文件：/etc/inittab, /etc/init/*.conf
+    
+    Systemd：systemd, CentOS 7
+        配置文件：/usr/lib/systemd/system
+                  /etc/systemd/system
+
+核心文件：/boot/vmlinuz-VERSION-release
+    ramdisk：辅助的伪根系统
+    CentOS 5: /boot/initrd-VERSION-release.img
+    CentOS 6,7: /boot/initramfs-VERSION-release.img
+        这个initramfs提供的是：
+            系统启动时所需要的库和驱动文件
+
+模块文件：/lib/modules/VERSION-release
+    驱动模块文件；一般不会自动加载，除非系统需要使用，才会自动加载所需模块
+    查看是否加载某个驱动模块：
+        $ lsmod | grep MODE 
+
+'总结'
+    /boot/vmlinuz-VERSION-release：系统最基本的驱动放在内核中
+        最小的文件，最基本的
+    
+    /boot/initramfs-VERSION-release.img：和启动相关的驱动放在这个文件中
+        启动相关的
+    
+    /lib/modules/`uname -r`/：大量的驱动文件存放位置
+        所有驱动，其他驱动
+
+Linux(启动流程){
+    /boot/grub/stage1、1.5、2文件都与系统安装后的信息有点不一样
+
+    /boot/grub/grub.conf
+        vmlinuz root=/dev/sda2
+        initramfs
+
+    执行系统的第一个进程（程序）
+        /sbin/init 
+
+        然后会读它自己的配置信息：
+            5:
+                /etc/inittab
+            6,7:
+                /etc/inittab 
+                /etc/init/*.conf 
+    
+    执行第一个初始化脚本：
+        /etc/rc.d/rc.sysinit (运行/etc/fstab)
+        
+    如果模式是5：
+        运行： /etc/rc5.d/下的K和S的脚本
+        /etc/init.d/下的脚本格式：
+            #!/bin/bash
+            #chkconfig: 运行模式 启动顺序 关闭顺序
+            #description:
+    执行/etc/rc.d/rc.local 脚本
+    登陆系统login
+}
+
+
+Linux(/etc/grub/grub.conf文件的配置){
+    由anaconda程序生成（安装系统时生成）
+
+    配置文件：/boot/grub/grub.conf
+        'default=#': 设定默认启动的菜单项；落单项(title)编号从0开始
+        'timeout=#'：指定菜单项等待选项选择的时长
+        splashimage=(hd#,#)/PATH/XPM_FILE：'菜单背景图片文件路径'
+            图片大小：640x480大小
+            制作过程：
+                安装工具：yum install ImageMagick
+                $ convert  pic.jpg  –geometry  640x480  -colors  14  splash.xpm  //转换图片格式
+                $ gzip  splash.xpm  //建立图片压缩文件，生成splash.xpm.gz
+                $ cp  splash.xpm.gz  /boot/grub/splash.xpm.gz  //替换grub背景
+                $ vim /boot/grub/grub.conf
+                    splashimage=(hd0,0)/grub/splash.xpm.gz
+    
+        hiddenmenu：隐藏菜单
+        password [--md5] STRING: 启动菜单编辑认证
+        'title TITLE'：定义菜单项“标题”, 可出现多次
+        root (hd#,#)：查找stage2及kernel文件所在设备分区；为grub的根 （'boot分区在哪儿，一般是 磁盘的第一个分区，默认是第一个磁盘的第一个分区'）
+        'kernel /PATH/TO/VMLINUZ_FILE [PARAMETERS]'：启动的内核（必须写在 initrd 之前，因为先加载内核，再读驱动）
+            或者：
+                kernel (hd0,0)/vmlinuz-2.6.32-642.el6.x86_64
+    
+            '[PARAMETERS]'：
+                quiet：不显示内核报错信息
+                rhgb：显示转圈动画
+                    一般不要添加上面这两项，可以看到启动出错信息
+                'root=UUID=929e-e121412-412414-12414'   此项是必须的
+                    或者root=/dev/sda2
+        
+        'initrd /PATH/TO/INITRAMFS_FILE': 内核匹配的ramfs文件
+        
+        password [--md5|--encrypted ] STRING: 启动选定的内核或操作系统时进行认证
+            加载位置：
+            1、在任意 titile 之前加这条语句（管理整个内核启动）
+                在菜单界面：按p键进入
+                password root@123
+                    root@123是密码
+            2、在某一个titile最下面加（管理这个启动项，输入正确密码，才能启动这个操作系统）
+                password root@123
+    
+            实例：
+                $ vim /boot/grub/grub.conf
+                default 0
+                timeout 5
+                password root@123
+                title CentOS 6.8 Maxie
+                        kernel /vmlinuz-2.6.32-642.el6.x86_64 selinux=0 root=/dev/mapper/vg0-root rd_LVM_LV=vg0/root
+                        initrd /initramfs-2.6.32-642.el6.x86_64.img
+}
+
+
+Linux(grub加密){
+    生成grub口令
+        $ grub-md5-crypt
+            使用命令生成md5格式的口令，复制到 password 后即可
+                password --md5 $*@E@!*!!%! 
+                    类似上面的格式
+                    
+        $ grub-crypt（生成一个更长的口令，sha512算法生成）
+            password --encrypted ^@*@&!&!*%!
+    
+    
+    '在/boot/grub/grub.conf文件中添加'
+        password [--md5|--encrypted ] STRING: 启动选定的内核或操作系统时进行认证
+                加载位置：
+                1、在任意 titile 之前加这条语句（管理整个内核启动）
+                    在菜单界面：按p键进入
+                    
+                    password root@123
+                        root@123是密码
+                2、在某一个titile最下面加（管理这个启动项，输入正确密码，才能启动这个操作系统）
+                    password root@123
+    
+    '破解grub加密口令'
+        (1)进入救援模式
+        (2)切根
+        (3)修改/boot/grub/grub.conf文件即可
+        
+    破解root口令：
+        (1)进入救援模式
+        (2)切根
+        (3)删除/etc/shadow关于root用户的口令信息
+            直接空口令进入系统
+    
+    破解root口令：
+        启动系统时，设置其运行级别1
+    
+    进入单用户模式：
+        (1) 编辑grub菜单(选定要编辑的title，而后使用e命令)
+        (2) 在选定的kernel后附加
+            1, s, S或single都可以
+        (3) 在kernel所在行，键入“b”命令
+}
+
+
+Linux(如果grub.conf文件编写错误，如何恢复){
+    (1)进入菜单，按e键
+    (2)修改顺序即可
+        删除上面的，在下面手动添加
+
+    (3)启动系统
+    (4)再手动修改/boot/grub/grub.conf文件
+}
+Linux(如果grub.conf文件被删除，如何恢复){
+    (1)重启后，直接进入grub界面
+    (2)手写：
+        grub> kernel /vmlinuz-2.6.32-642.el6.x86_64 selinux=0 root=/dev/mapper/vg0-root
+        grub> initrd /initramfs-2.6.32-642.el6.x86_64.img
+        grub> boot  #启动
+    (3)启动后，在/boot/grub/下创建grub.conf文件
+        $ vim /boot/grub/grub.conf 
+        default=0
+        timeout=5
+        splashimage=(hd0,0)/grub/splash.xpm.gz 
+        title CentOS Maxie 2.0
+            kernel /vmlinuz.... root=/dev/mapper/vg0-root selinux=0
+            initrd /initramfs.....img 
+
+        即可修复成功
+
+}
+            妈的。。。没写title。。。
+    
+Linux(删除/boot/grub/*，如何恢复){
+    (1)进入救援模式
+    (2)切根
+    (3)$ gurb-install /dev/sda 
+    $ sync #同步磁盘
+    (4)写一个/boot/grub/grub.conf 
+
+        $ vim /boot/grub/grub.conf 
+        default=0
+        timeout=5
+        splashimage=(hd0,0)/grub/splash.xpm.gz 
+        title CentOS Maxie 2.0
+            kernel /vmlinuz.... root=/dev/mapper/vg0-root selinux=0
+            initrd /initramfs.....img 
+}
+    
+    
+Linux(删除/boot/*，如何恢复){
+    方法1：
+        （1）挂载系统光盘（第一张盘）
+        （2）VMware，ESC键，选择光盘引导
+        （3）选择救援模式
+        （4）切根，执行以下命令：
+            $ grub-install /dev/sda 
+            $ mount /dev/sr0 /mnt 
+            $ rpm -ivh --force kernel-2.6.32-642.e16.x86_64.rpm 
+            $ cd /boot/grub 
+            $ vim grub.conf 
+                default=0
+                timeout=5
+                title CentOS 6.8 (Maxie-2.6.32)
+                    root (hd0,0)
+                    kernel /vmlinuz-2.6.32-642.e16.x86_64 selinux=0 root=/dev/mapper/vg0-root LANG=en.US.UTF-8 rd_LVM_LV=vg0/root
+                    initrd /initramfs-2.6.32-642.e16.x86_64.img
+            $ exit 
+            $ reboot 即可
+        如果是'CentOS7：'
+            重建grub的命令是：
+                grub-install 是grub 0.xx的了，grub2以后貌似是用 'update-grub'
+
+    方法2：
+        (1)进入救援模式
+        (2)切根
+        (3)挂载/dev/sr0 /mnt 
+        (4)拷贝 cp /mnt/isolinux/vmlinux /boot/
+        (5)执行mkinitrd命令：
+            $ mkinitrd /boot/initramfs-`uname -r`.img  `uname -r`
+            $ sync 
+        (6)$ grub-install /dev/sda 
+        (7)编辑/boot/grub/grub.conf
+            default=0
+            timeout=5
+                titile CentOS 6.8
+                kernel /vmlinuz root=/dev/sda2 selinux=0
+                initrd /initramfs-2.6.32-642.e16.x86_64.img
+        (8)同步磁盘 
+            $ sync 
+        (9)重启 
+}
+    
+Linux(如果/sbin/init 程序被删除，如何恢复){
+    (1)在菜单界面，按a键
+        输入 init=/bin/bash  （加载第一个进程为 bash）
+    (2)启动后，直接进入到 bash界面
+    (3)因为系统现在是 ro(只读)，需要重新挂载
+        $ mount -o remount,rw /
+    (4)挂载光盘，重新安装 upstart的rpm安装包
+        或者
+        之前有备份，直接拷贝/sbin/下
+
+    !!!!!!(5)同步!!!!!!!!!!! 
+        $ sync 
+
+    (6)重启
+
+    这里出问题 估计是没有 同步的问题！！！！
+
+
+    但是可能会导致 init 这个二进制文件属性信息变化，因为有'selinux'
+        $ ll -Z /sbin/init 
+}
+    
+Linux(删除/etc/fstab文件和/boot/*，如何恢复){
+    (1)进入救援模式
+    (2)因为fstab被删除，救援模式不会自动挂载/和其他分区
+    (3)使用 $ blkid查看
+    (4)使用 fsdisk 查看 
+        $ fdisk -l 
+        如果 BOOT 选项 有 *  ，则为boot分区
+    (5)创建挂载点，并挂载
+        $ mkdir /mnt/sda{1,2,3}
+        $ mount /dev/sda1 /mnt/sda1 
+        $ mount /dev/sda2 /mnt/sda2
+            .....
+
+            根据挂载后，查看每个挂载点上的数据信息，判断分区的类型是 boot  /  还是其他
+
+    (6)找到根在哪个分区上，并创建fstab
+        $ vi /mnt/sda2/etc/fstab 			#注意：fstab中/ 和/boot的填写顺序（也就是它们的挂载顺序）
+            UUID=						 /     ext4 defaults 1 1
+            UUID=22523-2242-52362-2352 /boot ext4 defaults 1 2
+            UUID=						 swap  swap defaults 0 0
+
+            '!!!!!!注意：这里UUID后面不能跟双引号（blkid命令获取的UUID会有引号）!!!!!!'
+
+        $ sync    !!!!!同步!!!!!
+        $ exit 
+        $ reboot 
+    (7)重新进入救援模式 !!!
+        进入后：
+            $ df  查看所有分区是否都挂载成功，如果没有，检查/etc/fstab文件 ，必须要全部挂载成功！
+
+    (8)开始修复 /boot下的信息：
+        按照之前实验做即可
+
+            切根，执行以下命令：
+            $ grub-install /dev/sda 
+            $ mount /dev/sr0 /mnt 
+            $ rpm -ivh --force kernel-2.6.32-642.e16.x86_64.rpm 
+            $ cd /boot/grub 
+            $ vim grub.conf 
+                default=0
+                timeout=5
+                title CentOS 6.8 (Maxie-2.6.32)
+                    root (hd0,0)
+                    kernel /vmlinuz-2.6.32-642.e16.x86_64 selinux=0 root=/dev/mapper/vg0-root LANG=en.US.UTF-8 rd_LVM_LV=vg0/root
+                    initrd /initramfs-2.6.32-642.e16.x86_64.img
+            $ exit 
+            $ reboot 即可
+}
+
+1、安装内核文件 rpm -ivh --force kernel....

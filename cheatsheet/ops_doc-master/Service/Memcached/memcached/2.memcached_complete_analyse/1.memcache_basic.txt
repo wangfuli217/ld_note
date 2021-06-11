@@ -1,0 +1,66 @@
+memcached完全剖析–1. memcached的基础
+
+sudo yum install libevent libevent-devel
+$ wget http://www.danga.com/memcached/dist/memcached-1.2.5.tar.gz
+$ tar zxf memcached-1.2.5.tar.gz
+$ cd memcached-1.2.5
+$ ./configure
+$ make
+$ sudo make install
+默认情况下memcached安装到/usr/local/bin下。
+---------------------------------------------------------------------------------
+memcached -p 11211 -m 64m -vv -u root
+memcached -p 11211 -m 64m  -u root -d
+
+---------------------------------------------------------------------------------
+选项	说明
+-p	使用的TCP端口。默认为11211
+-m	最大内存大小。默认为64M
+-vv	用very vrebose模式启动，调试信息和错误输出到控制台
+-d	作为daemon在后台启动
+
+---------------------------------------------------------------------------------
+协议简单
+memcached的服务器客户端通信并不使用复杂的XML等格式， 而使用简单的基于文本行的协议
+
+---------------------------------------------------------------------------------
+telnet localhost 11211
+set foo 0 0 3     （保存命令）
+bar               （数据）
+STORED            （结果）
+get foo           （取得命令）
+VALUE foo 0 3     （数据）
+bar               （数据）
+
+---------------------------------------------------------------------------------
+保存数据
+向memcached保存数据的方法有
+add/ replace/ set
+
+set key flags exptime bytes [noreply] 
+value 
+
+my $add = $memcached->add( '键', '值', '期限' );
+my $replace = $memcached->replace( '键', '值', '期限' );
+my $set = $memcached->set( '键', '值', '期限' );
+
+向memcached保存数据时可以指定期限(秒)。不指定期限时，memcached按照LRU算法保存数据。
+这三个方法的区别如下：
+选项	说明
+add	仅当存储空间中不存在键相同的数据时才保存
+replace	仅当存储空间中存在键相同的数据时才保存
+set	与add和replace不å:w
+---------------------------------------------------------------------------------
+获取数据
+获取数据可以使用get和get_multi方法。
+my $val = $memcached->get('键');
+my $val = $memcached->get_multi('键1', '键2', '键3', '键4', '键5');
+一次取得多条数据时使用get_multi。get_multi可以非同步地同时取得多个键值， 其速度要比循环调用get快数十倍。
+
+---------------------------------------------------------------------------------
+删除数据
+删除数据使用delete方法，不过它有个独特的功能。
+$memcached->delete('键', '阻塞时间(秒)');//阻塞时间怀疑是perl 自己搞的memcached中没有
+---------------------------------------------------------------------------------
+
+

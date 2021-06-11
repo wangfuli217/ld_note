@@ -1,0 +1,170 @@
+--[[
+  io.read()##
+  
+  原型：io.read(...)
+  解释：读文件 file，指定的格式决定了要读什么。
+  对于每种格式，函数返回读出的字符对应的字符串或数字。
+  若不能以该格式对应读出数据则返回 nil。 
+  当调用时不传格式，它会使用默认格式读下一行。 io.read() == io.read("*l")
+
+1. 输入字符串
+  "*n"：读取一个数字，根据 Lua 的转换文法，可能返回浮点数或整数。
+        (数字可以有前置或后置的空格，以及符号)只要能构成合法的数字，这个格式总是去读尽量长的串；
+        如果读出来的前缀无法构成合法的数字(比如空串，"0x" 或 "3.4e-")，就中止函数运行，返回 nil。
+  "*a"：从当前位置读取余下的所有内容，如果在文件尾，则返回空串""。
+  "*l"：读取一行并忽略行结束标记。当在文件末尾时，返回 nil 这是默认格式。
+  "*L"：读取一行并保留行结束标记(如果有的话)，当在文件末尾时，返回 nil。
+2. 输入数值
+  number：读取一个不超过这个数量字节数的字符串。当在文件末尾时，返回 nil。
+          如果把number=0，则这个函数不会读取任何内容而返回一个空串""，在文件尾返回nil。
+          
+  格式 "l" 和 "L" 只能用于文本文件
+  
+  注意：read(0)具有特殊用途：用来测试是否达到了文件结尾，在还能读取的时候将会返回一个空的字符串否则将会返回nil。
+  注意：read("*n") 读取失败时，会影响文件当前pos位置；最后读前记录；失败后恢复。
+  注意：如果想控制输出过滤可以首先使用read函数将整个文件执行写入操作成为一个字符串，
+        然后通过string的标准库函数gsub做下一步处理，最后使用write函数进行输出。
+        read("*a") -> string.gsub -> write
+--]]
+
+local file = io.open("readtest.txt", "r")
+if nil == file then
+    print("open file readtest.txt fail")
+end
+
+local n1,n2,n3 = file:read("*n","*n","*n")  -- 一次读取多个数值
+if n1 and n2 and n3 then
+    print(string.format('math.max(%d,%d,%d)', n1,n2,n3) .. math.max(n1,n2,n3))
+else
+    print(n1,n2,n3)
+end
+n1,n2,n3 = file:read("*n","*n","*n")   -- 一次读取多个数值
+if n1 and n2 and n3 then
+    print(string.format('math.max(%d,%d,%d)', n1,n2,n3)  .. math.max(n1,n2,n3))
+else
+    print(n1,n2,n3)
+end
+
+local year = file:read("*n")           --  读取数字
+local month = file:read("*n")              -- 成功返回数值
+local day = file:read("*n")                -- 成功返回数值
+local hourstart = file:seek()
+local hour = file:read("*n")               -- 失败返回nil; pos为何向后移动了两位
+local hourend = file:seek()
+print("year = ", year)
+print("month = ", month)
+print("day = ", day)
+print("hour = ", (hour or "nil"))
+print("hourstart = " .. hourstart, "hourend = " .. hourend) -- hourstart = 9   hourend = 12
+
+local line1 = file:read("*l")          -- 按行读取;成功返回字符串
+print("\nline1 = ", line1)
+local line2 = file:read("*l")          -- 按行读取;成功返回字符串
+print("line2 = ", line2)
+
+local zerobyte = file:read(0)          -- 读取0个字节;成功返回空字符串
+print("\nzerobyte = "..zerobyte)
+
+local sixbyte = file:read(6)           -- 读取6个字节;成功返回6个字符的字符串
+print("sixbyte = "..sixbyte)
+
+local readall = file:read("*a")        -- 读取所有内容;成功返回余下所有内容
+print("\nreadall = "..readall)
+
+-- 结尾判断 --
+local readallagain = file:read("*a")   -- 文件结尾读取所有内容;失败返回空字符串
+print("readallagain = "..readallagain)
+
+local reademptyline = file:read("*l")  -- 文件结尾读取行;失败返回nil
+if reademptyline == nil then
+    print("\nread the end of file")
+end
+
+local zerobyteagain = file:read(0)     -- 文件尾读取0个字节;失败返回nil
+if zerobyteagain == nil then
+    print("read the end of file")
+end
+
+local digitagain = file:read("*n")     -- 文件尾读取0个字节;失败返回nil
+if digitagain == nil then
+    print("read the end of file")
+end
+
+file:close()
+
+-- 终端 read 测试 -- 
+print("\nfile:read numeral format test")
+print("valid numeral format 123 0x123 1.234 122e10 -1.23 +1234 nan NAN\n")
+--  3   345   0xff   0xBEBADA                             -> integer
+--  3.0     3.1416     314.16e-2     0.31416E1     34e1   -> float
+--  0x0.1E  0xA23p-4   0X1.921FB54442D18P+1               -> float
+while true do
+  local num = io.read("*n")
+  if num == nil then
+    print("input numeral format error\n")
+    break;
+  end
+  print("input number = "..tostring(num))
+end
+
+print("\nfile:read 3 number once\n")
+reset = io.read("*l") -- 清空上面输入
+print("clear buffer"..tostring(reset))
+while true do
+  local num1, num2, num3 = io.read("*n", "*n", "*n")
+  if num1 == nil then
+    print("input numeral format error\n")
+    break;
+  end
+  print("input num1 = ", num1 or "nil")
+  print("input num2 = ", num2 or "nil")
+  print("input num3 = ", num3 or "nil")
+end
+
+print("\nfile:read line format test\n")
+-- Ctrl-D表示输入结尾
+-- Enter 直接回车返回为空字符串
+-- Lua低版本不支持L格式
+while true do
+  local line = io.read("*l")
+  if line == nil then
+    print("input line format error\n")
+    break;
+  end
+  if string.len(line) == 0 then
+    print("input space string then return\n")
+    break
+  end
+  print("input line = ".. tostring(line))
+end
+
+-- Ctrl-D表示输入结尾
+-- Enter 直接表示一个回车字符
+print("\nfile:read the number of 10 characters\n")
+while true do
+  local characters = io.read(10)
+  if characters == nil then
+    print("input 10 characters format error\n")
+    break
+  end
+  print("input characters = "..tostring(characters))
+end
+
+--[[
+6.0     -3.23     15e12
+4.3     234        100001
+2016 7 21
+not number
+1. this is a string
+2. this is a test
+3. the rain outside the Great
+4. over 
+--]]
+
+--[[
+1. 使用函数要注意不同格式的读取返回nil和""的情况，注意结尾的判断条件。
+2. 图中所显示的就是程序的运行结果和读取的文件内容
+3. 由结果可以看出这个实力程序几乎包括了所有读取文件的格式。
+4. 从后几种情况可以判断出，几种不同的读取形式在文件结尾处的返回值是不同的，"*a"作用在结尾处返回空字符串"",而"*l"和"*n"和number在结尾处返回nil。
+
+--]]

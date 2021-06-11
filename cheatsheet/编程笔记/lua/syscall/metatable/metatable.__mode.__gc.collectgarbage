@@ -1,0 +1,276 @@
+print('https://blog.csdn.net/zh379835552/article/details/38420177')
+
+--[[
+允许用户参与到lua的garbage collector机制中
+  Weak Table允许回收程序依旧在使用的对象，
+  finalizer允许回收garbage collector没有完全或者说直接控制到的对象
+
+1. 弱引用：是一种不在垃圾收集器考虑范围内的对象引用。
+   Lua用语言通过弱引用表实现弱引用，弱引用表就是元素均为弱引用的表，
+   这意味着如果一个对象只被一个弱引用表持有，那么Lua语言最终会回收这个对象。
+注意：不论是哪种类型弱引用，只要有一个键或值 被回收了， 那么对应的整个键值对都会被从表中删除。
+注意：只能从weak table回收对象，而对于如numbers和booleans等变量，则不能回收。
+      字符串像数值和布尔值一样，对一个字符串类型的键来说，除非他对应的值被回收，否则是不会从弱引用表中被移除的
+      
+2. garbage collector只会回收那些确定为garbage的对象，但是它推断不出用户认为哪些变量是garbage。
+   lua中任何全局变量都不会是garbage，尽管程序没有再使用过这些变量Lua也不会自动回收。
+   全局变量在不使用的时候赋值为nil，这时系统才会自动回收内存。
+3. 有的时候仅仅是清除了相关的引用是不够的，
+   我们需要做的仅是将新的对象插入到collection中，但是一旦我们这些对象成为了collection的一部分便再也不会被collected了。
+   Lua并不知道这样的引用不能去阻止Lua对对象的回收，除非用户告诉Lua？
+   --> Weak table就是用来告知Lua某个引用不能去阻止Lua对某个对象的回收的机制 <--
+   --> 一个weak reference就是对一个garbage collector没有管理的对象的引用    <--
+4. weak table会有三种类型：key是weak而value不是；value是weak的而key不是；key和value都是weak的。
+   不管weak table是何种类型，只要key或者value被回收了那么整个table里面的内容都会被回收掉。
+--]]
+
+--[[
+__mode 赋予了table的弱特性，该方法的值类型为string类型。
+       当值为"k",表示key是weak的；
+       当值为"v",表示value是weak的；
+       当值为"kv",则表示key和value都是weak的。
+--]]
+
+a = {}
+--此时表示key为weak
+b = { __mode = "k"}
+setmetatable(a,b)
+key = {}
+a[key] = 1
+key = {}          -- 对key的第二次赋值重写了key第一次复制时的引用，
+a[key] = 2
+collectgarbage()  -- 进行内存回收时将第一次赋值的key回收了，而第二次赋值的没有.. 这里的key是一个table，是一个对象所以可以被回收。
+
+for k,v in pairs(a) do
+     print(v)     -- 2 
+end
+
+--[[
+1. 要注意的是只能从weak table回收对象，而对于如numbers和booleans等变量，则不能回收。
+2. 即假如我们以一个number作为tablekey，那么collector将不会移除这个key，
+   当然当table的value是weak的，不管key是否是weak亦不管key的类型是不是对象，
+   当value被回收了整个table里面的元素都会被移除了。
+3. 如果key是string类型这里需要特殊考虑：尽管string是可回收的，从实现角度看，其不像其余可回收的对象。
+   像table和thread都是明确的创建的，如我们写a = {},就明确的创建了一个table。
+   然而，"a" .. "b" 此时会创建一个string型变量嘛？假如此时系统中已经存在一个"ab"了怎么办？lua会继续创建一个嘛？
+   编译器会在运行程序前就创建一个string型变量嘛？从程序员角度来看，string是变量而不是对象。
+   因此，和number或boolean一样，string也不会从weak table中移除(除非value是weak的)。
+--]]
+
+--------------------------------------------------------------------------------
+-- Memoize Functions 记忆函数
+--[[
+1. 能通过记住该函数的运算结果进而提升一个函数的运行效率，效率体现在当用同一个参数调用该函数的时候，直接返回已经记住的结果。
+    --> 程序的时间和空间考虑折中
+--]]
+
+local results = {}
+setmetatable(results,{__mode = "v"})  --表示此时table中的value是weak的
+-- setmetatable(results,{__mode = "kv"})
+function mem_loadstring( s )
+     local res = results[s]           --从table中访问该参数
+     if res == nil then               --如果该table中没有该值
+          res = assert(load(s))       
+          results[s] = res            --将该值存入table中，下次访问的时候直接返回该值
+     end
+     return res
+end
+
+-- 确保某类对象的唯一性
+local results = {}
+setmetatable(results,{__mode = "v"})
+function createRGB( r,g,b )
+     local key = r .. "-" .. g .."-" b           --保持key的唯一性
+     local color = results[key]
+     if color == nil then
+          color = {red = r,green = g,blue = b}
+          results[key] = color
+     end
+     return color
+end
+--[[
+这样就保证每次以同参数创建的table都是同一个。引入了这一机制后，用户也可以直接
+比较通过两个color了，假如是同参数创建的那么就是同一个table，此时比较是相等的。
+否则就一定是不相等的。
+]]
+
+--------------------------------------------------------------------------------
+-- Object Attributes 对象属性
+-- 弱引用表的另一个重要应用是将属性和对象关联起来。在各种各样的情况下，我们都需要把
+-- 某些属性绑定到某个对象，例如函数名、表的默认值以及数组的大小等。
+--[[
+  当对象是一个表时，可以通过适当的唯一键把属性存储在这个表自身中(正如之前看到的，
+创建唯一键的一种简单和防止出错的方法是创建一个新表并把它作为键使用)。不过，如果
+对象不是一个表，那么那就不能保存它自己的属性。另外，即使是表，有时我们也不想把属性
+保存在原始的对象中。
+
+第一个方案需要为每个不同默认值的table准备内存空间(存储这些默认值)；
+第二个方案则为不同的默认值准备空间(该方案以是否默认值不同而来设计的，即假如多个table共用一个默认值，那么此时只会存储一个值)。
+因此当我们的程序有数千个table但是只需要准备少数几个默认值，那么适合使用第二套方案；
+而如果table较少，所用的默认值也少，那么就适合使用第一套方案。
+--]]
+
+-- 回顾具有默认值的表 --
+local defaults = {}                   --设置defaults的key为weak
+setmetatable(defaults,{__mode = "k"}) --在访问table元素的时候，如果没有该key则返回defaults的值，这里的参数是table，保持唯一性
+local mt = {__index = function ( t )
+     return defaults[t]
+end}
+--设置table的默认值，以table本身为defaults这个table的key
+function setDefault( t,d )
+     defaults[t] = d
+     setmetatable(t,mt)
+end
+
+local a = {}
+setDefault(a,1)      --那么我们访问一个a中不存在的元素
+print(a.x)           --1 使用其默认值。
+
+-- 第二个方案
+local metas = {}  --这里weak table设置value为weak的
+setmetatable(metas,{__mode = "v"})
+function setDefault( t,d ) --每次从访问这个weak table，看是否有这个默认值的table
+     local mt = metas[d]
+     if mt == nil then     --如果没有则创建table作为t的元表
+          mt = { __index = function (  )
+               return d
+          end}
+          metas[d] = mt    --以默认值为key保存这个元表
+     end     
+     setmetatable(t,mt)    --设置t的元表，带默认参数d  
+end
+
+--------------------------------------------------------------------------------
+-- Ephemeron Tables 瞬表： 一个具有弱引用键和强引用值的表是一瞬表
+--[[
+  一个棘手的情况是，一个具有弱引用键的表中的值又引用了对应的键。
+  例如：
+  function factory( o )
+     return function ( ... )
+          return o
+     end
+  end
+  这种工厂是实现记忆的一种很好的手段，可以避免在闭包已经存在是又创建新的闭包。
+--]]
+-- 表mem中与一个对象关联的值(常量函数)回指了它自己的键(对象本身) 虽然表中的键是弱引用
+-- 但是表中的值却不是弱引用。从一个弱用表的标准解看：记忆表中没有任何东西会被移除。
+-- 由于值不是弱引用，所以对于每一个函数来说都存在一个强引用。每一个函数都指向其对应的对象，
+-- 因此对于每一个键来说都存在强引用。因此即使有弱引用的键，这些对象也不会被回收。
+
+do
+  local mem = {}
+  setmetatable(mem,{__mode = "k"})
+  function factory( o )
+    local res = mem[o]
+    if not res then
+      res = function ( ... )
+        return o
+      end
+      mem[o] = res
+    end
+    return res
+  end
+end
+--------------------------------------------------------------------------------
+-- Finalizers 析构器： 当该对象即将被回收是该函数会被调用
+
+o = {x = "hi"}
+setmetatable(o,{__gc = function (o )
+     print(o.x)
+end})
+o = nil
+collectgarbage()          --print hi
+
+
+-- 在设置元表的时候，需要先设置其元方法，也可以说是在设置元表前先标记对象。
+o = {x = "hi"}
+mt = {}
+setmetatable(o,mt)
+mt.__gc = function (o )
+     print(o.x)
+end 
+o = nil
+collectgarbage()      --     这里不会打印任何东西,还可能引发不可预计的错误
+
+
+-- 如果非要在设置完元表再设置元方法，可以先在元表内部给__gc 这个字段赋值(可以是任何类型)再在设置完元表后定义元方法
+o = {x = "hi"}
+mt = {__gc = true}
+setmetatable(o,mt)
+mt.__gc = function (o )
+     print(o.x)
+end 
+o = nil
+collectgarbage()      --hi 这样就能正确打印出来
+
+-- lua的collector依据标记的顺序来处理一次finalize多个对象的finalizer
+mt = { __gc = function ( o )
+     print(o[1])
+end}
+list = nil
+for i=1,3 do
+     list = setmetatable({i,link = list},mt)
+end
+list = nil
+collectgarbage()     -- 3  2  1 3是最后被标记的，所以最先被打印出来。
+
+
+-- 临时复苏
+--[[
+当调用一个finalizer的时候，该函数会调用标记的对象作为自己的参数。而其实此时该对象已经被回收掉了，
+而在该finalizer的函数体内实现了"复活"，因此在该finalizer结束执行前还是可以访问到作为其参数的对象的。
+"复活"这一特性是可以传递的：
+
+A已经被回收了，但是并没有设置finalizer，而B的一个value为A，B设置了finalizer。
+当A，B都被赋值为nil强制回收之后，在B的finalizer内部B实现了"复活"，而该特性传递给了B的valueA，与之相应的A也实现了复活。
+--]]
+A = {x = "this is A"}
+B = {f = A}
+setmetatable(B,{__gc = function (o) print(o.f.x) end})
+A,B = nil
+collectgarbage() -- "this is A"
+
+-- 对象被回收其实要经历两个阶段
+--[[
+第一个阶段回收器会对有finalizer的对象进行确认还没有调用它的finalizer，
+并"复活"该对象然后执行其finalizer，一旦该finalizer被执行了lua便会标记该对象为已经finalize了。
+
+第二个阶段回收器检测到该对象已经被finalize了，就会删除该对象。
+因此为了确保程序中所有的garbage都被回收了，需要强制调用collectgarbage这个函数两次。
+--]]
+
+-- 可以实现每次当lua完成一个垃圾回收就调用一个给定的函数。这里的实现原理是，尽管finalizer只会实现一次，
+-- 但是可以在每次执行的时候重新创建一个新的对象去运行下一个finalizer
+do
+  local mt = {__gc = function ( o )
+    --  要做的工作
+    print("new cycle")
+    -- 为下一次垃圾收集创建新对象
+    setmetatable({},getmetatable(o))     --     每次执行finalizer就重新创建一个对象设置为同一个元表，同一个元方法
+  end}
+  -- 创建一个新对象
+  setmetatable({},mt)
+end
+collectgarbage()
+collectgarbage()
+collectgarbage()
+
+--[[
+ 对于拥有finalizer的对象和weak table之间的关系这里也需要讨论一番：
+ 回收器会在"复活"之前清理weak table的values，而其key则是在"复活"之后进行清理：
+--]]
+wk = setmetatable({},{__mode = "k"})
+wv = setmetatable({},{__mode = "v"})
+o = {}
+wv[1] = o;wk[o] = 10
+setmetatable(o,{__gc = function ( o )
+     print(wk[o],wv[1])
+end})
+o = nil
+collectgarbage()     --10 nil
+print(wk[o])            --nil
+--[[
+wk其key是weak的，而wv其value是weak的。设置好元表之后，执行回收可以看到，打印出了10而没有打印出wv的元素
+    因为在垃圾回收之前wv就已经被清理了，而wk在回收之后清理。这也合理的解释了
+为什么我们使用weak key的table来存储对象的属性，因为设计中可能finalizer可能也需要访问这些属性。
+--]]

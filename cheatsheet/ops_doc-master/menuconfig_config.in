@@ -1,0 +1,115 @@
+在做linux驱动时需要将自己写的驱动程式编译到内核总要修改Config.in文档，以前都是照葫芦画瓢的添加一句就能够加入自己的驱动了，比如写char型驱动的只需要修改既定的char文档夹中的Config.in，比如添加一个给2410的驱动能够在其中一行添加：dep_tristate ’S3C2410 XXX support’ CONFIG_S3C2410_GPIO_XXX $CONFIG_ARCH_S3C2410，然后修改makefile添加对应
+obj-$(CONFIG_S3C2410_GPIO_XXX) += s3c2410-XXX.o，s3c2410-XXX.o对应的s3c2410-XXX.c即为您驱动的源文档。
+但是在添加一个全新类型的驱动时，比如mmc/SD卡的驱动时，默认2.4.18内核并不支持此驱动那么就需要自己仿照建立一个mmc的文档夹将您的驱动和makefile放到此文档夹中，但是假如要编译到内核还需要有自己的Config.in文档，能够仿照别的设备的Config.in，但先得能够看懂，在网上搜索了一下发现Config.in是用一种叫做Config的语言写，语言相对比较简单有21个语句组成。以下是转帖内容：
+###################################################################################
+
+1. 介绍
+Config语言不是bash. Config语言是一种Linux内核配置语言. config.in and Config.in都是使用本语言编制而成. 尽管他看起来,通常工作时,很象一个SH语言的子集,CONFIG语言有更加严格的语法和不同的语义.
+CONFIG语言编程的基本指南:仅使用在CONFIG.IN文档中出现的编程语句.
+2. 说明
+有四个配置程式能够解释和识别Config语言：
+l         scripts/Configure        make config、make oldconfig、
+l         scripts/Menuconfig      make menuconfig
+l         scripts/tkparse          make xconfig
+l         mconfig             (in development)
+’Configure’ 是个bash脚本语言,他解释了Config.in文档;’Menuconfig’是另外一种bash脚本.
+3. 语句
+一个Config语言脚本是由一系列的语句构成的。共有21个简单的语句;一个’if’语句;菜单块和一个 ’source’语句。
+一行结尾处的’＼’ 表示续行。
+’#’用于引入一个注释, 该注释一直保持到该行的结尾. 但是,假如是多行的形如’# ... is not set’的并不是注释,他们具备语义。
+    不能用;(分号)来开始一个新行。 ’if’语句中的处能够开始一个新行。
+3.1基本的语法元素:
+    /prompt/??一个位于单引号或双引号内的字符串. 假如字位于双引号内,他无需任何$。
+    /word/??一个未加引号的字, 位于单引号或双引号内的字符串。假如字未加引号或是位于双引号内的需要$号。
+    /symbol/??一个没有引号的字. symbol必须以CONFIG_*的形式出现。
+    /dep/ ??一个相关字. 运行时/dep/ 必须等于 "y", "m", "n",或 ""。
+    /expr/??一类bash的表达式,使用以下运算符:’=’、 ’!=’、 ’-a’、 ’-o’和’!’。
+3.2 任何的语句:
+文字语句：
+        mainmenu_name          /prompt/
+        comment               /prompt/
+        text                     /prompt/
+    询问语句：
+        bool            /prompt/ /symbol/
+        hex             /prompt/ /symbol/ /word/
+        int               /prompt/ /symbol/ /word/
+        string             /prompt/ /symbol/ /word/
+        tristate             /prompt/ /symbol/
+    字义语句：
+        define_bool        /symbol/ /word/
+        define_hex        /symbol/ /word/
+        define_int          /symbol/ /word/
+        define_string        /symbol/ /word/
+        define_tristate        /symbol/ /word/
+    相关语句：
+        dep_bool        /prompt/ /symbol/ /dep/ ...
+        dep_mbool       /prompt/ /symbol/ /dep/ ...
+        dep_hex         /prompt/ /symbol/ /word/ /dep/ ...
+        dep_int           /prompt/ /symbol/ /word/ /dep/ ...
+        dep_string         /prompt/ /symbol/ /word/ /dep/ ...
+        dep_tristate         /prompt/ /symbol/ /dep/ ...
+    未配置语句：
+        unset                    /symbol/ ...
+    选项语句：
+        choice          /prompt/ /word/ /word/
+        nchoice         /prompt/ /symbol/ /prompt/ /symbol/ ...
+    If语句：
+        if [ /expr/ ] ; then /statement/
+         ... fi
+        if [ /expr/ ] ; then /statement/
+         ... else /statement/
+         ... fi
+    菜单块：
+        mainmenu_option next_comment
+        comment /prompt/ /statement/ ... endmenu
+    Source语句：
+        source /word/
+l         mainmenu_name /prompt/
+用于指定本CONFIG语言文档顶层的名字。
+例如：
+    # arch/sparc/config.in
+    mainmenu_name "Linux/SPARC Kernel Configuration"
+l         comment /prompt/
+此语句用于在用户配置过程中向用户显示提示信息,同时在输出期间也把他返回给输出文档。注意：此处的prompt,象任何的prompt相同,是个没有$符号、位于引号内的字符串。
+’comment’并不用于对一个CONFIG语言的注释。他用于用户接口显示文字,连同向输出文档中写入输出信息。
+例如:
+    # drivers/net/Config.in
+    comment ’CCP compressors for PPP are only built as modules.’
+l         text /prompt/
+向用户显示提示信息。不向输出文档中写入提示信息。仅 mconfig 在他的帮助中使用此命令。
+例如:
+    # mconfig internal help text
+    text ’Here are all the mconfig command line options.’
+l         bool /prompt/ /symbol/
+此命令用于向用户显示/prompt/提示信息,并从用户接收数据,并把该数据赋给/symbol/。合法的输入值为 "n" 和"y"。
+#########################################################################
+下面是MMC/SD卡驱动的Config.in内容，做了一个简单的注释
+#
+# MMC subsystem configuration
+# 注释项表明驱动设备的类型
+
+mainmenu_option next_comment
+comment ’MMC/SD Card support’
+#引入新的菜单，comment后是新菜单的名称，任何归属和此菜单的配置都在comment和endmenu之间
+
+
+#下面是询问语句先显示提示字符串/prompt/等待用户输入，并把输入结果赋给/symbol/
+#tristate取值范围包括y,n,m三态，bool对应的是y，n两态
+tristate ’MMC support’ CONFIG_MMC
+if [ "$CONFIG_MMC" = "y" -o "$CONFIG_MMC" = "m" ]; then
+  bool ’  MMC debugging’ CONFIG_MMC_DEBUG
+  if [ "$CONFIG_MMC_DEBUG" = "y" ]; then
+#询问语句接受int型数据
+    int ’  MMC debugging verbosity (0=quiet, 3=noisy)’ CONFIG_MMC_DEBUG_VERBOSE 0
+  fi
+  if [ "$CONFIG_MMC_S3C2410" = "y" -o "$CONFIG_ARCH_H5400" = "y" -o "$CONFIG_ARCH_H2200" = "y" ] ; then
+    tristate ’  Samsung MMC ASIC Support’ CONFIG_MMC_SAMSUNG_ASIC
+#下面是依赖语句只有/dep/中任何项都为y才显示/prompt/,同样是三态选择
+    dep_tristate ’    S3C2410 SD/MMC Support’ CONFIG_MMC_S3C2410 $CONFIG_MMC_SAMSUNG_ASIC $CONFIG_ARCH_S3C2410
+    dep_tristate ’    H5400 SD/MMC Support’ CONFIG_MMC_H5400 $CONFIG_MMC_SAMSUNG_ASIC $CONFIG_ARCH_H5400
+    dep_tristate ’  ASIC3 SD/MMC support’ CONFIG_MMC_ASIC3 $CONFIG_IPAQ_HAS_ASIC3
+  fi
+fi
+
+endmenu
+以上Config.in的显示效果为：

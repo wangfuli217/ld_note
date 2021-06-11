@@ -1,0 +1,20 @@
+Makefile
+-------------------
+src/y.tab.c src/tokens.h: src/p.y
+    $(YACC) $(YACCFLAGS) -o src/y.tab.c $<
+    -mv src/y.tab.h src/tokens.h
+
+src/tokens.h: src/y.tab.c
+
+src/lex.yy.c: src/l.l
+    $(FLEX) $(FLEXFLAGS) -o$@ $<
+    
+
+Command
+-------------------
+[root@agent109 monit-5.25.2]# make "src/y.tab.c"
+bison -y -dvt -o src/y.tab.c src/p.y
+mv src/y.tab.h src/tokens.h
+[root@agent109 monit-5.25.2]# make "src/lex.yy.c"
+/usr/bin/flex -i -osrc/lex.yy.c src/l.l
+

@@ -1,0 +1,78 @@
+0. Libevent Benchmark Protocol
+
+XXX add intro
+
+1. Message Format
+
+Messages are variable length of the basic format:
+	header:
+	  4 bytes -- message type
+	  4 bytes -- message length
+	  4 bytes -- origin id
+	  4 bytes -- destination id
+	message payload:
+	  bytes equal to the message length
+
+All header fields are in network byte order
+
+2. Messages
+
+2.1 Greeting Request
+
+This is the first message sent by the client after connecting to the server.
+Origin and destination id fields are ignored by the server. The payload
+consists of a property name/value list. A space character deliniates the
+property name from its value. The value can contain spaces. Each property
+name/value in the list is separated by a newline character.
+
+2.2 Greeting Response
+
+Sent by the server in response to a greeting request. The client's id is
+stored in teh destination id header field. The payload is empty.
+
+2.3 Peer Notice
+
+Sent by the server to let current clients know that a new client has connected.
+Origin id field of the header contains the new client's id. The message payload
+contains the client's property list in the same format as in the greeting
+request.
+
+XXX max notices property
+
+2.4 File List Request
+
+Sent by the client to request the list of files that the server offers for
+sending. Payload is empty.
+
+2.5 File List Response
+
+Sent by the server in response to the request. The payload contains a list
+of file names separated by newline characters.
+
+2.6 Send File
+
+Sent by the client to request that the server send the contents of the specified
+file. The payload contains the name of the file the client wants.
+
+2.7 File Contents
+
+Sent by server in response to a send file request. The payload contains the
+contents of the requested file.
+
+2.8 Chat
+
+Payload contains message data.
+
+XXX more detail
+
+2.9 Echo Request
+
+XXX more detail
+
+2.10 Echo Response
+
+XXX more detail
+
+3. Properties
+
+XXX fill in

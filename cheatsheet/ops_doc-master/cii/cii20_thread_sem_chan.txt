@@ -1,0 +1,49 @@
+Thread 
+    在调用thread_init之间调用任何thread函数，均为已检查的运行时错误。
+    
+extern const Except_T Thread_Failed;
+extern const Except_T Thread_Alerted;
+
+int  Thread_init (int preempt, ...); 为抢占调度(preempt=0)或抢占调度(preempt=1)初始化thread,
+并返回preempt或0(如果preempt=1但不支持抢占调度)。thread_init可以接收额外的由具体实现定义的参数，
+可变参数列表必须结束于一个NULL指针。调用thread_init多次，则造成已检查的运行时错误。
+
+T    Thread_new  (int apply(void *), void *args, int nbytes, ...); 创建、初始化并启动一个新线程，并返回其句柄。
+如果nbytes =0,新线程将执行thread_exit(appy(args)),否则，它执行thread_exit(appy(p))，其中p指向起始于args，长度为
+nbytes的内存块的一个副本。新线程启动时，自身的异常栈为空。thread_new可以接受额外的有具体实现定义参数，可变参数列表必须
+结束于一个NULL指针。如果apply=NULL，或args=NULL且bytes<=0，则为已检查的运行时错误。
+
+void Thread_exit (int code); 结束调用线程，并将code传递给任何等待调用线程结束的线程。当最后一个线程调用thread_exit时，
+程序将通过调用exit(code)结束
+
+void Thread_alert(T t); 设置t的告警-待决标志，并使t变为可运行状态。下一次t运行时，或调用一个导致可能导致阻塞的thread
+sem或chan原语是，线程将清除其报警-待决标志，并引发thread_alertd异常。如果t=NULl或t引用了一个不存在的线程，则为已检查的运行时错误。
+
+T    Thread_self (void); 返回调用线程的句柄
+int  Thread_join (T t); 挂起调用线程，直至线程t结束。在t结束时，thread_join返回t的退出代码。如果t=NULL，调用线程将等待所有其他线程结束
+然会返回0.如果t指定的线程即为调用线程自身，或有多个线程向该函数传递了NULL参数，则为已检查的运行时错误。
+
+void Thread_pause(void); 放弃处理器给另一个线程，也可能是调用线程自身
+
+Sem
+    typedef struct T { int count; void *queue} T;
+    直接读写T实例中的字段，向任何Sem函数传递未初始化的T实例，均为未检查的运行时错误。向任何Sem函数传递T
+值为NULL，或在调用thead_init之前调用任何sem函数，均为已检查的运行时错误。
+
+LOCK语句的语法如下，S和m分别表示语句和一个T实例
+LOCK(m) S END_LOCK
+m被锁定，接下来执行语句S，而后m被解锁。LOCK可能引发thread_altertd异常。
+
+void sem_init(T *s, int count) 将s->count设置为count。对同一T实例多次调用sem_init，是未检查的运行时错误。
+sem_t *sem_new(int count) 创建并返回一个T实例，其count字段初始化为count。
+void sem_wait(T *s) 调用线程进入等待状态，直至s->count>0，接下来将s->count减1.
+void sem_signal(T *s) 将s->count加1
+
+Chan
+    向任何Chan函数传递的T值为NULL，或在调用thread_init之前调用任何Chan函数，均为已检查的运行时错误。
+    
+T Chan_new(void) 创建、初始化并返回一个新的通道
+int Chan_receive(T c, void *ptr, int size) 等待一个对应Chan_send操作发出数据，然后从发送来的数据中复制不超过size字节到ptr
+中，并返回负值的字节数. ptr=NULL或size<0, 均为已检查的运行时错误。
+int Chan_send(T c, const void *ptr, int size) 等待一个对应chan_recevie操作进入接收状态，然后从ptr中复制不超过size字节给接收方，
+并返回复制的字节数。已检查的运行时错误，请参见Chan_receive.

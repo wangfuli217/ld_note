@@ -1,0 +1,94 @@
+struct stat {
+dev_t     st_dev;     /* ID of device containing file */
+ino_t     st_ino;     /* inode number */
+mode_t    st_mode;    /* protection */
+nlink_t   st_nlink;   /* number of hard links */
+uid_t     st_uid;     /* user ID of owner */
+gid_t     st_gid;     /* group ID of owner */
+dev_t     st_rdev;    /* device ID (if special file) */
+off_t     st_size;    /* total size, in bytes */
+blksize_t st_blksize; /* blocksize for file system I/O */
+blkcnt_t  st_blocks;  /* number of 512B blocks allocated */
+time_t    st_atime;   /* time of last access */
+time_t    st_mtime;   /* time of last modification */
+time_t    st_ctime;   /* time of last status change */
+};
+
+
+out(char c, long long val)
+sprintf(toybuf, "%.*sll%c", TT.patlen, TT.pattern, c);
+printf(toybuf, val);
+
+
+The valid format escape sequences for files:
+%a  Access bits (octal) |%A  Access bits (flags)|%b  Size/512
+%B  Bytes per %b (512)  |%d  Device ID (dec)    |%D  Device ID (hex)
+%f  All mode bits (hex) |%F  File type          |%g  Group ID
+%G  Group name          |%h  Hard links         |%i  Inode
+%m  Mount point         |%n  Filename           |%N  Long filename
+%o  I/O block size      |%s  Size (bytes)       |%t  Devtype major (hex)
+%T  Devtype minor (hex) |%u  User ID            |%U  User name
+%x  Access time         |%X  Access unix time   |%y  File write time
+%Y  File write unix time|%z  Dir change time    |%Z  Dir change unix time
+
+The valid format escape sequences for filesystems:
+%a  Available blocks    |%b  Total blocks       |%c  Total inodes
+%d  Free inodes         |%f  Free blocks        |%i  File system ID
+%l  Max filename length |%n  File name          |%s  Fragment size
+%S  Best transfer size  |%t  FS type (hex)      |%T  FS type (driver name)
+
+# 默认格式
+"  File: \"%n\"\n    ID: %i Namelen: %l    Type: %t\n"
+  "Block Size: %s    Fundamental block size: %S\n"
+  "Blocks: Total: %b\tFree: %f\tAvailable: %a\n"
+  "Inodes: Total: %c\tFree: %d"
+: "  File: %N\n  Size: %s\t Blocks: %b\t IO Blocks: %B\t%F\n"
+  "Device: %Dh/%dd\t Inode: %i\t Links: %h\n"
+  "Access: (%a/%A)\tUid: (%5u/%8U)\tGid: (%5g/%8G)\n"
+  "Access: %x\nModify: %y\nChange: %z";
+
+stat(){
+stat -t 简洁模式
+
+%a     Access rights in octal
+%A     Access rights in human readble form
+%b     Number of blocks allocated (see %B)
+%B     The size in bytes of each block reported by %b
+%C     SELinux security context string
+%d     Device number in decimal
+%D     Device number in he
+%f     Raw mode in hex
+%F     File type
+%g     Group ID of owner
+%G     Group name of owner
+%h     Number of hard links
+%i     Inode number
+%n     File name
+%N     Quoted file name with dereference if symbolic link
+%o     I/O block size
+%s     Total size, in bytes
+%t     Major device type in hex
+%T     Minor device type in hex
+%u     User ID of owner
+%U     User name of owner
+%x     Time of last access
+%X     Time of last access as seconds since Epoch
+%y     Time of last modification
+%Y     Time of last modification as seconds since Epoch
+%z     Time of last change
+%Z     Time of last change as seconds since Epoch
+Valid format sequences for file systems:
+%a     Free blocks available to non-superuser
+%b     Total data blocks in file system
+%c     Total file nodes in file system
+%d     Free file nodes in file system
+%f     Free blocks in file system
+%C     SELinux security context string
+%i     File System ID in hex
+%l     Maximum length of filenames
+%n     File name
+%s     Block size (for faster transfers)
+%S     Fundamental block size (for block counts)
+%t     Type in hex
+%T     Type in human readable form
+}

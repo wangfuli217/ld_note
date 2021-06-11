@@ -1,0 +1,142 @@
+https://blog.csdn.net/gatieme/article/details/25769185
+
+QWT，全称是Qt Widgets for Technical Applications，是一个基于LGPL版权协议的开源项目， 可生成各种统计图
+
+https://qwt.sourceforge.io/index.html  主页
+
+qwt有多强大，可以看看 官网 的截图：
+曲线类截图： http://qwt.sourceforge.net/curvescreenshots.html
+散点图： http://qwt.sourceforge.net/scatterscreenshots.html
+频谱及外形轮廓图: http://qwt.sourceforge.net/spectrogramscreenshots.html
+工业控件类: http://qwt.sourceforge.net/controlscreenshots.html
+
+它为具有技术专业背景的程序提供GUI组件和一组实用类，其目标是以基于2D方式的窗体部件来显示数据， 
+数据源以数值，数组或一组浮点数等方式提供， 输出方式可以是Curves（曲线），Slider（滚动条），
+Dials（圆盘），Compasses（仪表盘）等等。该工具库基于Qt开发，所以也继承了Qt的跨平台特性。
+
+QwtAbstractScale： 包含刻度尺的所有类的抽象基类；
+QwtAbstractScaleDraw：绘制刻度尺的抽象基类；
+QwtAbstractSlider：滑块部件的抽象基类；
+QwtAlphaColorMap：可以改变颜色的alpha值；
+QwtAnalogClock：时钟的模拟类；
+QwtArrayData：包含2个QwtArray<double>实例的数据类；
+QwtArrowButton：箭头按钮；
+QwtClipper：剪贴板类；
+QwtColorMap：提供数值到颜色的映射功能；
+QwtCompass：指南针部件；
+QwtCompassMagnetNeedle：指南针部件的磁针；
+QwtCompassRose：罗盘部件的抽象基类；
+QwtCompassWindArrow：风向标的指示器；
+
+sudo apt-get install libqwt5-qt4 libqwt5-qt4-dev
+
+qwt下载
+工程仓库  http://sourceforge.jp/projects/sfnet_qwt/
+源码 http://cznic.dl.sourceforge.net/project/qwt/qwt/6.1.0/qwt-6.1.0.tar.bz2
+文档 http://cznic.dl.sourceforge.net/project/qwt/qwt/6.1.0/qwt-6.1.0.pdf
+
+编译安装
+  designer目录中存放的是Qwt插件的源码，
+  doc目录中存放的是帮助文档，
+  example目录中存放的是Qwt的简单例子的源码，
+  src目录中存放的是Qwt的源码，
+  textengines目录中存放的是数学指标语言的文本驱动引擎代码，
+  此外Qwt目录还有工程文件qwt.pro，以及qwtconfig.pri配置文件。
+
+我们用不同版本的qmake就会配置出不同的qwt库,例如
+  用qmake-4.8.5-x11就编译出, x11可用的qwt, 
+  同样qmake-4.8.5-arm就编译出了arm库了，
+
+配置 qwtconfig.pri
+
+cp -rf qwt-6.1.0  qwt-6.1.0-x11 
+1. QWT_INSTALL_PREFIX
+unix {  
+    QWT_INSTALL_PREFIX    = /usr/local/qwt-$$QWT_VERSION  
+}
+安装目录，修改/usr/local为qt-4.8.5-x11的目录/opt/qt-4.8.5-x11/
+unix {  
+    QWT_INSTALL_PREFIX    = /opt/qt-4.8.5-x11/qwt-$$QWT_VERSION  
+}
+
+2. 将“#QWT_CONFIG     += QwtExamples”这行的注释取消，因为我们想编译示例程序
+
+qmake-x11
+make
+make install
+
+cp -rf qwt-6.1.0 qwt-6.1.0-x86  
+1. 如上
+qmake-x86  
+make  
+sudo make install
+
+cp -rf qwt-6.1.0 qwt-6.1.0-arm
+1. 如上
+qmake-arm  
+make  
+sudo make install
+
+
+1. 在qtCreate中使用qwt控件
+cp /opt/qt-4.8.5-x11/qwt-6.1.0/designer/plugins/desinger/*      $HOME/qtcreate-2.7.2/bin/plugins/designer/
+2. 在Designer中使用qwt控件
+cp /opt/qt-4.8.5-x11/qwt-6.1.0/designer/plugins/desinger/*      /opt/qt-4.8.5-x11/plugins/desinger/
+
+
+https://www.cnblogs.com/lvdongjie/p/3762013.html  # 
+
+qwt.dll,qwt.lib，qwtd.dll，qwtd.lib。前者对应release版本，后者对应debug版本，其他文件可以删除
+    在build-qwt-Desktop_Qt_5_1_1_MSVC201x_32bit-Release目录下的designer目录下的plugins目录下的designer目录下
+你会发现qwt_designer_plugin.dll和qwt_designer_plugin.lib
+    目录下的tools文件夹是qt creator的安装位置，里面就是QtCreator，找到QtCreator\bin\plugins\designer\文件夹下，
+把编译好的qwt_designer_plugin.dll放入。打开qtcreator，就能看的qwt控件了。
+
+集成Qt Creator
+================================================================================
+方法1：(建议使用)
+需要用到qwt的项目，打开它的pro文件
+加入如下语句：
+
+其中根据每个人的文件位置不一样，只需要改动第一个语句就可以，就是定位到qwt的安装位置的语句
+
+#qwt设置
+QWT_ROOT = d:/Qt/qtctrl/qwt-6.1.0
+include( $${QWT_ROOT}/qwtfunctions.pri )
+INCLUDEPATH += $${QWT_ROOT}/src
+DEPENDPATH  += $${QWT_ROOT}/src
+contains(QWT_CONFIG, QwtFramework) {
+    LIBS      += -F$${QWT_ROOT}/lib
+}
+else {
+    LIBS      += -L$${QWT_ROOT}/lib
+}
+qwtAddLibrary(qwt)
+contains(QWT_CONFIG, QwtOpenGL ) {
+    QT += opengl
+}
+else {
+    DEFINES += QWT_NO_OPENGL
+}
+contains(QWT_CONFIG, QwtSvg) {
+    QT += svg
+}
+else {
+    DEFINES += QWT_NO_SVG
+}
+win32 {
+    contains(QWT_CONFIG, QwtDll) {
+        DEFINES    += QT_DLL QWT_DLL
+    }
+}
+#end qwt set
+
+
+
+
+
+
+
+
+
+

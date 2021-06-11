@@ -1,0 +1,55 @@
+sigaction函数的功能是检查或修改与指定信号相关联的处理动作（可同时两种操作）。
+int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+参数说明： 
+signum : 要操作的信号 
+act ： 要设置的对信号的新处理方式 
+oldact ： 原来对信号的处理方式 
+返回值： 成功返回0，失败返回-1，并设置errno
+
+
+struct sigaction 结构体原型：
+struct sigaction 
+{
+    void     (*sa_handler)(int);  //老类型的信号处理函数指针，与 single 函数一样
+    void     (*sa_sigaction)(int, siginfo_t *, void *); //新类型的信号处理函数指针
+    sigset_t   sa_mask;  //将要被阻塞的信号集合
+    int        sa_flags;  //信号处理方式
+    void     (*sa_restorer)(void); //保留
+};
+
+sa_handler ： 老类型的信号处理函数指针，与 single 函数一样
+
+sa_sigaction 函数指针的三个参数含义为:
+int iSignNum : 传入的信号
+siginfo_t *pSignInfo : 该信号相关的一些信息,他是一个结构体
+原型如下
+siginfo_t {
+    int      si_signo;    /* 信号值，对所有信号有意义 */
+    int      si_errno;    /* errno 值，对所有信号有意义 */
+    int      si_code;     /* 信号产生的原因，对所有信号有意义 */
+    int      si_trapno;   /* Trap number that caused
+                             hardware-generated signal
+                             (unused on most architectures) */
+    pid_t    si_pid;      /* 发送信号的进程ID */
+    uid_t    si_uid;      /* 发送信号进程的真实用户ID */
+    int      si_status;   /* 对出状态，对SIGCHLD 有意义 */
+    clock_t  si_utime;    /* 用户消耗的时间，对SIGCHLD有意义 */
+    clock_t  si_stime;    /* 内核消耗的时间，对SIGCHLD有意义 */
+    sigval_t si_value;    /* 信号值，对所有实时有意义，是一个联合数据结构，可以为一个整数（由si_int标示，也可以为一个指针，由si_ptr标示） */
+    int      si_int;      /* POSIX.1b signal */
+    void    *si_ptr;      /* POSIX.1b signal */
+    int      si_overrun;  /* Timer overrun count; POSIX.1b timers */
+    int      si_timerid;  /* Timer ID; POSIX.1b timers */
+    void    *si_addr;     /* 触发fault的内存地址，对SIGILL,SIGFPE,SIGSEGV,SIGBUS 信号有意义 */
+    long     si_band;     /* 对SIGPOLL信号有意义 */
+    int      si_fd;       /* 对SIGPOLL信号有意义 */
+    short    si_addr_lsb; /* Least significant bit of address
+                             (since kernel 2.6.32) */
+}
+
+sa_mask ： 是一个包含信号集合的结构体，该结构体内的信号表示在进行信号处理时，将要被阻塞的信号。
+sa_flags  是一组掩码的合成值，指示信号处理时所应该采取的一些行为，各掩码的含义为：
+SA_RESETHAND : 处理完毕要捕捉的信号后，将自动撤消信号处理函数的注册，即必须再重新注册信号处理函数，才能继续处理接下来产生的信号。
+SA_NODEFER : 在处理信号时，如果又发生了其它的信号，则立即进入其它信号的处理，等其它信号处理完毕后，再继续处理当前的信号，即递规地处理。如果sa_flags包含了该掩码，则结构体sigaction的sa_mask将无效；
+SA_RESTART : 如果在发生信号时，程序正阻塞在某个系统调用，例如调用read()函数，则在处理完毕信号后，接着从阻塞的系统返回。该掩码符合普通的程序处理流程，所以一般来说，应该设置该掩码，否则信号处理完后，阻塞的系统调用将会返回失败；
+SA_SIGINFO : 指示结构体的信号处理函数指针是哪个有效，如果sa_flags包含该掩码，则sa_sigactiion指针有效

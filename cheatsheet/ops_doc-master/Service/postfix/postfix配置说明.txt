@@ -1,0 +1,142 @@
+/etc/postfix下 main.cf 配置文件详解
+postconf -n
+ 
+ 
+#别名数据库(postalias/newaliases 命令生成)
+alias_database = hash:/etc/postfix/aliases
+ 
+#别名表,列出local mda 所使用的别名数据库
+alias_maps = hash:/etc/postfix/aliases
+ 
+#退回的邮件重新投递的最长时间
+bounce_queue_lifetime = 1d
+ 
+#支持非标准验证规定的行为
+broken_sasl_auth_clients = yes
+ 
+#postfix命令目录
+command_directory = /usr/sbin
+ 
+#postfix配置文档目录
+config_directory = /etc/postfix
+ 
+#配置内容过滤 amavis
+content_filter = smtp-amavis:[127.0.0.1]:10024
+ 
+#postfix 的各个服务器程序目录
+daemon_directory = /usr/libexec/postfix
+#
+data_directory = /var/lib/postfix
+#
+debug_peer_level = 2
+ 
+#重复邮件
+enable_original_recipient = no
+#
+html_directory = /usr/share/doc/postfix-2.6.2-documentation/html
+#
+mail_name = Postfix – welcome mail.xmall.com
+ 
+#以此参数指定的系统账户,作为队列文件的拥有者以及postfix daemon 进程的运行身份
+mail_owner = postfix
+ 
+#单封邮件大小限制，单位字节
+mailbox_size_limit = 150242880
+ 
+#
+mailq_path = /usr/bin/mailq.postfi
+ 
+#manpage 目录
+manpage_directory = /usr/share/man
+ 
+#postfix在放弃投递而返回不可投递信息前，被延迟邮件再deferred邮件队列中的生存时间
+maximal_queue_lifetime = 1d
+ 
+#限制单封邮件的最大长度，单位字节
+message_size_limit = 150242880
+ 
+#设置”本地网域”
+mydestination = $mynetworks $myhostname
+ 
+#完整主机名称(主机名称+网域名称)
+myhostname = mail.xmall.com
+ 
+#邮件系统的网域名称
+mydomain = xmall.com
+ 
+#附加到只含人名部分的,不完整邮件地址的网域名称
+myorigin
+ 
+#列出可通过本邮件系统寄出邮件的网络地址或ip地址
+mynetworks = 127.0.0.1
+ 
+#兼容sendmail,用于重建别名数据库的newaliases程序路径
+newaliases_path = /usr/bin/newaliases.postfix
+ 
+#postfix 队列的主目录
+queue_directory = /var/spool/postfix
+ 
+#
+readme_directory = /usr/share/doc/postfix-2.6.2-documentation/readme
+#
+receive_override_options = no_address_mappings
+ 
+#样本配置文件目录
+sample_directory = /etc/postfix
+ 
+#供脚本或命令行用来寄送邮件
+sendmail_path = /usr/sbin/sendmail.postfix
+ 
+#用来提交邮件或管理队列的组标识符
+setgid_group = postdrop
+ 
+#
+show_user_unknown_table_name = no
+ 
+#smtp 问候信息
+smtpd_banner = $myhostname ESMTP $mail_name
+ 
+#当客户端引发错误时,postfix 的初始等待时间
+smtpd_error_sleep_time = 0s
+ 
+#收件人限制条件
+smtpd_recipient_restrictions = permit_mynetworks, permit_sasl_authenticated, reject_non_fqdn_hostname, reject_non_fqdn_sender,  reject_non_fqdn_recipient, reject_unauth_destination, reject_unauth_pipelining, reject_invalid_hostname, check_policy_service inet:127.0.0.1:10030
+ 
+#启动sasl 验证
+smtpd_sasl_auth_enable = yes
+ 
+#
+smtpd_sasl_local_domain = $myhostname
+ 
+#指定密码验证机制(除noanonymous) 所有可用机制
+smtpd_sasl_security_options = noanonymous
+ 
+#设定寄件地址与sasl登录身份的对应关系,只能使用本域地址避免使用其他寄件地址！
+smtpd_sender_login_maps = mysql:/etc/postfix/mysql_virtual_sender_maps.cf, mysql:/etc/postfix/mysql_virtual_alias_maps.cf
+ 
+#发件人限制条件
+smtpd_sender_restrictions = permit_mynetworks, reject_sender_login_mismatch, reject_authenticated_sender_login_mismatch, reject_unauthenticated_sender_login_mismatch
+ 
+#
+unknown_local_recipient_reject_code = 550
+ 
+#指向含有“虚拟别名地址”与“实际收件地址”对应关系的查询表
+virtual_alias_maps = mysql:/etc/postfix/mysql_virtual_alias_maps.cf
+ 
+#虚拟网域查询表
+virtual_mailbox_domains = mysql:/etc/postfix/mysql_virtual_domains_maps.cf
+ 
+#虚拟邮箱查询表
+virtual_mailbox_maps = mysql:/etc/postfix/mysql_virtual_mailbox_maps.cf
+ 
+#用于投递邮件到虚拟邮箱地址的默认传输服务(虚拟mda)
+virtual_transport = maildrop:
+ 
+五 维护 postfix 的命令
+newaliases (重建别名数据库)
+postalias /etc/postfix/aliases (创建或查询别名数据库)
+postcat (显示队列文件内容)
+postconf (修改 main.cf 配置文档 )
+postqueue (査看postfix 队列)
+postsuper (管理员管理 postfix 队列)
+postmap (创建查询表的DB数据库或查询查询表内容)

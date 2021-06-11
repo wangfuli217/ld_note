@@ -1,0 +1,116 @@
+1. 当多个用户共同使用、操作一个文件的情况下，这时，Linux通常采用的方法是给文件上锁，来避免共享的资源产生竞争的状态。
+
+2. 文件锁包括建议性锁和强制性锁。
+2.1 建议性锁要求每个上锁文件的进程都要检查是否有锁存在，并且尊重已有的锁。在一般情况下，内核和系统都不使用建议性锁。
+2.2 强制性锁是由内核执行的锁，当一个文件被上锁进行写入操作的时候，内核将阻止其它任何文件对其进行读写操作。采用强制性锁
+    对性能的影响很大，每次读写操作都必须检查是否有锁存在。
+
+在Linux中，实现文件上锁的函数有lock和fcntl，其中flock用于对文件施加建议性锁，而fcntl不仅可以施加建议性锁，还可以施加
+强制性锁，还能对文件的某一记录进行上锁，也就是记录锁。
+
+
+记录锁又分为读取锁和写入锁。
+读取锁又称共享锁，能使多个进程都在文件的同一部分建立读取锁。
+写入锁又称为排斥锁，在任何时刻只能有一个进程在文件的某个部分建立写入锁。
+
+在文件的同一部分不能同时建立读取锁和写入锁。
+（2）fcntl函数格式
+Fcntl函数语法要点：
+所需头文件：#include<sys/types.h>
+            #include<unistd.h>
+            #include<fcntl.h>
+函数原型：int fcntl(int fd,cmd,struct flock *lock)
+函数传入值：fd：文件描述符
+                     Cmd：F_DUPFD：复制文件描述符
+F_GETFD：获得fd的close-on-exec标志，若标志未设置，则文件经过exec函数之后仍保持打开状态。
+F_SETFD：设置close-on-exec标志，该标志以参数arg的FD_CLOEXEC位决定。
+F_GETFL：得到open设置的标志
+F_SETFL：改变open设置的标志
+F_GETFK：根据lock描述，决定是否上文件锁
+F_SETFK：设置lock描述的文件锁
+F_SETLKW：这是F_SETLK的阻塞版本（命令名中的W表示等待（wait））。如果存在其它锁，则调用进程睡眠；如果捕捉到信号则睡眠中断
+F_GETOWN：检索将收到SIGIO和SIGURG信号的进程号或进程组号
+F_SETOWN：设置进程号或进程组号
+                     Lock：结构为flock，设置记录锁的具体状态
+函数返回值：成功：0  -1：出错
+Lock的结构如下所示：
+Struct flock{
+Short l_type;
+Off_t l_start;
+Short l_whence;
+Off_t l_len;
+Pid_t l_pid;
+}
+
+Lock结构变量取值：
+L_type：F_RDLCK：读取锁（共享锁）
+              F_WRLCK：写入锁（排斥锁）
+              F_UNLCK：解锁
+L_stat：相对位移量（字节）
+L_whence：相对位移量的起点（同lseek的whence）：SEEK_SET：当前位置为文件开头，新位置为偏移量的大小
+                                    SEEK_CUR：当前位置为文件指针位置，新位置为当前位置加上偏移量
+                                    SEEK_END：当前位置为文件的结尾，新位置为文件的大小加上偏移量大小
+
+L_len：加锁区域长度
+
+（3）fcntl使用实例
+Lock_set函数：
+void lock_set(int fd,int type)
+{
+       struct flock lock;
+       lock.l_whence=SEEK_SET;//赋值lock结构体
+       lock.l_start=0;
+       lock.l_len=0;
+       while(1)
+       {
+             lock.l_type=type;
+/*根据不同的type值给文件上锁或解锁*/
+              if((fcntl(fd,F_SETLK,&lock))==0)
+              {
+                     if(lock.l_type==F_RDLCK)
+                            printf("read lock set by %d\n",getpid());
+                     else if(lock.l_type=F_WRLCK)
+                            printf("write lock set by %d\n",getpid());
+                     else if(lock.l_type=F_UNLCK)
+                            printf("release lock set by %d\n",getpid());
+                     return;
+              }
+/*判断文件是否可以上锁*/
+                     fcntl(fd,F_GETLK,&lock);
+/*判断文件不能上锁原因*/
+                     if(lock.l_type!=F_UNLCK)
+                     {
+/*该文件已有写入锁*/
+                            if(lock.l_type==F_RDLCK)
+                            printf("read lock already set by %d\n",lock.l_pid());
+/*该文件已有读取锁*/
+                   else if(lock.l_type=F_WRLCK)
+                            printf("write already lock set by %d\n", lock.l_pid ());
+                            getchar();
+                     }
+              }
+}
+
+/*fcntl_write.c测试文件写入锁函数部分*/
+#include<unistd.h>
+#include<sys/file.h>
+#include<sys/types.h>
+#include<sys/stat.h>
+#include<stdio.h>
+#include<stdlib.h>
+int main(void)
+{
+    int fd;
+    fd=open("hello",O_RDWR|O_CREAT,0666);
+    if(fd<0)
+    {
+        perror("open");
+        exit(1);
+    }
+    lock_set(fd,F_WRLCK);
+    getchar();
+    lock_set(fd,F_UNLCK);
+    getchar();
+    close(fd);
+    exit(0);
+}

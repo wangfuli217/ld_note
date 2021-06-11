@@ -1,0 +1,86 @@
+#!/bin/sh
+echo
+echo "###########################################################"
+echo "## THis is a init script for sd ext2 filesystem          ##"
+echo "## Author: wengpingbo@gmail.com                          ##"
+echo "## Date: 2013/08/17 16:27:34 CST                         ##"
+echo "###########################################################"
+echo
+
+PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+
+if [ ! -f "/bin/busybox" ];then
+  echo "cat not find busybox in /bin dir, exit"
+  exit 1
+fi
+
+BUSYBOX="/bin/busybox"
+
+echo "build root filesystem..."
+$BUSYBOX --install -s
+
+if [ ! -d /proc ];then
+  echo "/proc dir not exist, create it..."
+  $BUSYBOX mkdir /proc
+fi
+echo "mount proc fs..."
+$BUSYBOX mount -t proc proc /proc
+
+if [ ! -d /dev ];then
+  echo "/dev dir not exist, create it..."
+  $BUSYBOX mkdir /dev
+fi
+# echo "mount tmpfs in /dev..."
+# $BUSYBOX mount -t tmpfs dev /dev
+
+$BUSYBOX mkdir -p /dev/pts
+echo "mount devpts..."
+$BUSYBOX mount -t devpts devpts /dev/pts
+
+if [ ! -d /sys ];then
+  echo "/sys dir not exist, create it..."
+  $BUSYBOX mkdir /sys
+fi
+echo "mount sys fs..."
+$BUSYBOX mount -t sysfs sys /sys
+
+echo "/sbin/mdev" > /proc/sys/kernel/hotplug
+echo "populate the dev dir..."
+$BUSYBOX mdev -s
+
+echo "dev filesystem is ok now, log all in kernel kmsg" >> /dev/kmsg
+
+echo "you can add some third part driver in this phase..." >> /dev/kmsg
+echo "begin switch root directory to sd card" >> /dev/kmsg
+
+$BUSYBOX mkdir /newroot
+if [ ! -b "/dev/mmcblk0" ];then
+  echo "can not find /dev/mmcblk0, please make sure the sd \
+        card is attached correctly!" >> /dev/kmsg
+  echo "drop to shell" >> /dev/kmsg
+  $BUSYBOX sh
+else
+  $BUSYBOX mount /dev/mmcblk0 /newroot
+  if [ $? -eq 0 ];then
+        echo "mount root file system successfully..." >> /dev/kmsg
+  else
+        echo "failed to mount root file system, drop to shell" >> /dev/kmsg
+        $BUSYBOX sh
+  fi
+fi
+
+# the root file system is mounted, clean the world for new root file system
+echo "" > /proc/sys/kernel/hotplug
+$BUSYBOX umount -f /proc
+$BUSYBOX umount -f /sys
+$BUSYBOX umount -f /dev/pts
+# $BUSYBOX umount -f /dev
+
+echo "enter new root..." >> /dev/kmsg
+exec $BUSYBOX switch_root -c /dev/console /newroot /init
+
+if [ $? -ne 0 ];then
+  echo "enter new root file system failed, drop to shell" >> /dev/kmsg
+  $BUSYBOX mount -t proc proc /proc
+  $BUSYBOX sh
+  fi

@@ -1,0 +1,28 @@
+# This script runs last, after all network configuration
+# has completed. It sets a property to let the framework
+# know that setting up the interface is complete.
+
+case "${reason}" in
+BOUND|INFORM|REBIND|REBOOT|RENEW|TIMEOUT)
+    ifconfig eth0 "${new_ip_address}" netmask "${new_subnet_mask}"
+    route add default gw "${new_routers%% *}" dev eth0
+    
+    echo -n "${new_ip_address} " > /var/run/dhcpcd-ipconfigs 
+    echo "ok" > /var/run/dhcpcd-result
+    count=1
+    for dnsaddr in ${new_domain_name_servers}; do
+        echo -n "${dnsaddr} " >> /var/run/dhcpcd-ipconfigs
+        count=$(($count + 1))
+    done
+    ;;
+
+EXPIRE|FAIL|IPV4LL|STOP)
+    echo "failed" > /var/run/dhcpcd-result
+    rm -f /var/run/dhcpcd-ipconfigs
+    ;;
+
+RELEASE)
+    echo "released" > /var/run/dhcpcd-result
+    rm -f /var/run/dhcpcd-ipconfigs
+    ;;
+esac

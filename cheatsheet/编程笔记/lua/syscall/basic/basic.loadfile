@@ -1,0 +1,43 @@
+--[[
+  原型：loadfile([filename]) -> Lua bytecode 
+  解释：函数会从参数filename指定的文件中加载内容，并将内容封装成一个函数返回，
+        当参数filename被省略时，函数loadfile()默认从标准输入来获取内容。
+    
+    filename : compiled Lua bytecode or Lua source code
+      
+注意：loadfile从一个文件中加载代码，编译之，将编译结果作为函数返回。
+      loadfile不会引发错误，只会返回nil和错误信息，处理错误的任务交给dofile。
+注意：解释型语言也有中间形式，也需要编译，只是更有能力执行动态生成的代码而已。
+注意：loadfile比dofile更灵活：自定义处理错误；多次运行同一个文件，只需调用一次loadfile，多次使用返回结果即可。
+      loadfile函数类似于load.但是它不接受chunk和chunkname,而是接受filename.它把指定文件装载为一个函数.
+--]]
+
+-- 查一下加载之前有没有这个函数
+print("\nbefore loadfile print_func1 is", print_func1) -- nil
+
+-- 加载文件
+local func = loadfile("loadfileinput.lua")
+
+-- 查一下加载之后有没有这个函数
+print("\nafter loadfile print_func1 is", print_func1)  -- nil
+
+print("\nfunc is", func);                              -- 0x1adb0c0
+
+print("\nfunc() run result is", func())                -- 101
+
+-- 执行返回的函数以后查询fun函数是否存在
+print("\nafter func print_func1 is", print_func1)      -- function: 0x1adb510
+
+print("\nprint_func1() run result is :")
+print_func1("runnig print_func1")                      -- var1 = runnig print_func1
+
+-- 查一下局部函数是否存在
+print("\nafter func print_func2 is", print_func2)      -- nil
+
+--[[
+1. loadfile()函数的返回值是一个函数，被返回函数的内容是被加载文件的全部内容。
+2. 被加载文件中的函数或者语句仅仅会被加载编译，但是不会被执行，只有被返回的函数执行以后才会创建这些函数和执行文件中的语句。
+3. 被加载文件中的全局函数可以在返回的函数func()执行之后使用，而局部函数是不可以的。
+4. 被返回的函数func()怎么添加参数呢？我一开始也很迷惑，后来想想确实也没有什么必要，这个函数就是用来加载那个文件的，
+   而大多数人也不会把逻辑直接写在文件中而不定义函数，所以我个人感觉并不是需要传进去什么参数。
+--]]

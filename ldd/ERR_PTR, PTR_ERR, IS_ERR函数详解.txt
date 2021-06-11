@@ -1,0 +1,69 @@
+Linux有时候在操作成功时需要返回指针，而在失败时则返回错误码。遗憾的是，C语言每个函数只允许一个返回值，因此任何有关可能错误的信息都必须编码到指针中。虽然一般而言指针可以指向内存中的任意位置，而Linux支持的每个体系结构的虚拟地址空间都有从一个虚拟地址0到至少4KiB的区域，该区域没有任何有意义的信息。因此内核可以重用该地址范围来编码错误码。
+ 内核中的函数常常返回指针，问题是如果出错，也希望通过返回的指针体现出来。总体来说，如果内核返回一个指针，那么有三种情况：合法指针、NULL指针和非法指针。
+
+    合法指针：内核返回的指针一般是指向页面的边界（4K边界对齐），即ptr $0xfff == 0
+    非法指针：这样的ptr的值不可能落在(0xfffff000, 0xffffffff)之间（这个区间是内核的高地址区间），而一般内核的出错代码也是一个小负数，在-1000到0之间，转换成unsigned long类型，正好在（0xfffff000, 0xffffffff）之间。因此可以用(unsigned long)ptr > (unsigned long)-1000L来判断内核函数返回值是一个有效的指针还是一个出错码。
+    以下是具体代码：
+
+/*  
+*Kernel pointers have redundant information, so we can use a
+*scheme where we can return either an error code or a dentry  
+*pointer with the same return value.  
+*
+*This should be a per-architecture thing, to allow different  
+*error and pointer decisions.  
+*/  
+static inline void *ERR_PTR(long error)  
+{  
+return (void *) error;  
+}  
+static inline long PTR_ERR(const void *ptr)  
+{  
+return (long) ptr;  
+}  
+static inline long IS_ERR(const void *ptr)  
+{  
+return (unsigned long)ptr > (unsigned long)-1000L;  
+}  
+
+IS_ERR()使用说明
+
+ 在内核空间中，其最后一个page是专门保留的，也就是说在正常情况下是不可能用到内核空间最后一个page的指针。也就是说一个内核函数的返回值如果是一个指针，则必然有三种情况------有效指针、NULL指针和错误指针。所谓的错误指针就是指到达了最后一个page。比如在32bit系统中，最后一个page地址为0xfffff000---0xffffffff(假设页面大小为4KB)。这段地址是被保留的，如果一个指针指向这个范围中的某个地址，那就说明这个指针是错误指针。
+ 留下最高的一个page不是在浪费资源，反而是在充分利用系统资源。关于Linux内核中的错误，参见include/asm-generic/errno-base.h文件：
+
+#define EPERM 1 /* Operation not permitted */
+#define ENOENT 2 /* No such file or directory */
+#define ESRCH 3 /* No such process */
+#define EINTR 4 /* Interrupted system call */
+#define EIO 5 /* I/O error */
+#define ENXIO 6 /* No such device or address */
+#define E2BIG 7 /* Argument list too long */
+#define ENOEXEC 8 /* Exec format error */
+#define EBADF 9 /* Bad file number */
+#define ECHILD 10 /* No child processes */
+#define EAGAIN 11 /* Try again */
+#define ENOMEM 12 /* Out of memory */
+#define EACCES 13 /* Permission denied */
+#define EFAULT 14 /* Bad address */
+#define ENOTBLK 15 /* Block device required */
+#define EBUSY 16 /* Device or resource busy */
+#define EEXIST 17 /* File exists */
+#define EXDEV 18 /* Cross-device link */
+#define ENODEV 19 /* No such device */
+#define ENOTDIR 20 /* Not a directory */
+#define EISDIR 21 /* Is a directory */
+#define EINVAL 22 /* Invalid argument */
+#define ENFILE 23 /* File table overflow */
+#define EMFILE 24 /* Too many open files */
+#define ENOTTY 25 /* Not a typewriter */
+#define ETXTBSY 26 /* Text file busy */
+#define EFBIG 27 /* File too large */
+#define ENOSPC 28 /* No space left on device */
+#define ESPIPE 29 /* Illegal seek */
+#define EROFS 30 /* Read-only file system */
+#define EMLINK 31 /* Too many links */
+#define EPIPE 32 /* Broken pipe */
+#define EDOM 33 /* Math argument out of domain of func */
+#define ERANGE 34 /* Math result not representable */
+
+ 比较常见的几个是-EBUSY, -EINVAL, -ENODEV, -EPIPE, -EAGAIN, -ENOMEM。这些错误在每个体系结构中都有，另外各个体系结构也都定义了自己的一些错误代码，这些东西当然也都是宏，实际上对应的是一些数字，这个数字叫做错误号。而对于Linux内核来说，不管任何体系结构，错误号最多不会超过4095，而4095刚好是4K-1。而一个page可能是4K，也可能是8K，但至少是4KB，所以留出一个page出来就可以让我们把内核空间的指针用来记录错误了。什么意思呢?比如我们这里的IS_ERR(),它就是判断kthread_run()返回的指针是否有错,如果指针并不是指向最后一个page,那么没有问题,申请成功了,如果指针指向了最后一个page,那么说明实际上这不是一个有效的指针,这个指针里保存的实际上是一种错误代码.而通常很常用的方法就是先用IS_ERR()来判断是否是错误,然后如果是,那么就调用PTR_ERR()来返回这个错误代码.只不过咱们这里,没有调用PTR_ERR()而已,因为起决定作用的还是IS_ERR(),而PTR_ERR()只是返回错误代码,也就是提供一个信息给调用者,如果你只需要知道是否出错,而不在乎因为什么而出错,那你当然不用调用PTR_ERR()了

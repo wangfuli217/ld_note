@@ -1,0 +1,203 @@
+详见： tinytest-manual.md
+数据驱动测试
+
+## More tools for writing test functions
+# unconditional failure
+tt_abort();
+tt_abort_printf((format, ...));
+tt_abort_msg(msg);
+tt_abort_perror(op);
+
+# boolean condition
+tt_assert(condition); 
+tt_assert_msg(condition, msg);
+
+# binary comparisons "==", "<=", "<", "!=", ">", or ">=".
+tt_int_op(a, op, b) 
+tt_uint_op(a, op, b) 
+tt_ptr_op(a, op, b) 
+tt_str_op(a, op, b) 
+tt_mem_op(a, op, b, len)
+
+# except that they do not "goto end;" on failure.
+tt_fail();
+tt_fail_printf((format, ...));
+tt_fail_msg(msg);
+tt_fail_perror(op);
+
+tt_want(condition)
+tt_want_msg(condition, msg);
+
+tt_want_int_op(a, op, b)
+tt_want_uint_op(a, op, b)
+tt_want_ptr_op(a, op, b)
+tt_want_str_op(a, op, b)
+tt_want_mem_op(a, op, b, len)
+
+## Tips for correct cleanup blocks
+So here's a good pattern:
+
+{
+    char *x = NULL;
+    tt_int_op(some_func(), ==, 0);
+
+    x = malloc(100);
+    tt_assert(x);
+
+          /* more tests go here... */
+ end:
+    if (x) free(x);
+}
+
+And here's how not to do it:
+
+{
+    char *x;
+    tt_int_op(some_func(), ==, 0);
+
+    x = malloc(100);
+    tt_assert(x);
+
+  end:
+    /* Whoops! x might be uninitialized! */
+    if (x) free(x);
+}
+
+And here's another way to mess up:
+
+{
+    tt_int_op(some_func(), ==, 0);
+
+    {
+        char *x;
+        x = malloc(100);
+        tt_assert(x);
+        /* ... more tests that use x ... */
+        free(x);
+    }
+
+  end:
+    /* uh-oh! we might wind up here, unable to free x! */
+}
+
+## Running tests in a separate process
+string_tests[] as:
+
+struct testcase_t string_tests[] = {
+    { "strdup", test_strdup, TT_FORK, NULL, NULL },
+    END_OF_TESTCASES
+};
+
+## Setup and tear-down functions
+testcase_setup_t structure:
+
+struct env {
+    const char *test_string;
+    char buf[1024];
+};
+
+void *create_test_environment(const struct testcase_t *testcase)
+{
+    struct env *env = calloc(sizeof(*env), 1);
+
+    if (! env)
+        return NULL;  /* Return NULL to indicate failure */
+
+    /* In this case, we're assuming setup_data is a string, and we
+       can store it into the environment unprocessed. But really,
+       setup_data can be any void *, so long as the setup function knows
+       how to use it. */
+     env->test_string = testcase->setup_data;
+
+     /* If there were other fields of env, we would initialize them here.
+      */
+
+     return env;
+}
+
+void *cleanup_test_environment(struct testcase_t *, void *env_)
+{
+    struct env *env = env_;
+
+    /* on error, we should return 0 from this function */
+    return 1;
+}
+
+struct testcase_setup_t env_setup = {
+     setup_test_environment,
+     cleanup_test_environment
+};
+
+And now we can write tests that use these environments, as in:
+static void testcase(void *arg)
+{
+    struct env *env = arg;
+    /* test here can use fields in env */
+  done:
+    ;
+}
+
+struct testcase_t some_tests[] = {
+    { "test_name", testcase, 0, &env_setup, (void*)"a string" },
+    END_OF_TESTCASES
+};
+
+## Skipping tests
+#ifdef _WIN32
+#define SKIP_ON_WINDOWS TT_SKIP
+#else
+#define SKIP_ON_WINDOWS 0
+#endif
+
+struct testcase_t some_tests[] = {
+    { "not_on_windows", test_skipped1, SKIP_ON_WINDOWS, NULL, NULL },
+    { "not_by_default", test_skipped2, TT_OFF_BY_DEFAULT, NULL, NULL },
+    END_OF_TESTCASES
+};
+
+If you want to decide whether to skip a test at runtime, you can do so by calling tt_skip():
+
+if (wombat_init() < 0) {
+   /* Couldn't initialize the wombat subsystem. I guess we aren't
+      running this test. */
+   tt_skip();
+}
+
+## Inside test functions: reporting information
+Example use:
+if (sec_elapsed > 120)
+    TT_DECLARE("WARN",
+      ("The test took %d seconds to run!", sec_elapsed));
+      
+## Managing many tests
+in file1.c, you might say:
+
+ struct testcase_t string_tests[] = {
+    { "strdup", test_strdup, 0, NULL, NULL },
+    { "strstr", test_strstr, TT_FORK, NULL, NULL },
+    { "reverse", test_reverse, 0, NULL, NULL },
+    END_OF_TESTCASES
+ };
+
+And in file2.c you might say:
+
+ struct testcase_t portal_tests[] = {
+    { "orange", test_portal, 0, &portal_setup, (char*)"orange" },
+    { "blue", test_portal, 0, &portal_setup, (char*)"blue" },
+    { "longfall", test_longfall, TT_FORK, NULL, NULL },
+    END_OF_TESTCASES
+ };
+
+And in test_main.c you could say:
+
+ extern testcase_t string_tests[];
+ extern testcase_t portal_tests[];
+ struct testgroup_t test_groups[] = {
+     { "string/", string_tests },
+     { "portal/", portal_tests },
+     END_OF_GROUPS
+ };
+
+
+
+

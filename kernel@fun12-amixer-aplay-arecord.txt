@@ -1,0 +1,221 @@
+http://www.cnblogs.com/cslunatic/p/3227655.html
+
+========================================================================
+ALSA音频工具编译安装
+========================================================================
+
+ALSA音频工具编译安装
+1.  官网http://www.alsa-project.org下载alsa-lib和alsa-utils
+    我的版本:alsa-lib-1.0.27.2.tar.bz2 和alsa-utils-1.0.27.2.tar.bz2
+2.创建/home/m/3rd/alsa目录,并在目录下创建install目录,接着把压缩包拷到alsa目录下
+3.编译alsa-lib步骤
+  tar -xvf alsa-lib-1.0.27.2.tar.bz2  
+  cd alsa-lib-1.0.27.2 
+  CC=arm-none-linux-gnueabi-gcc ./configure --host=arm-linux  --prefix=/home/m/3rd/alsa/install/ 
+  make 
+  make install
+4.编译alsa-utils步骤
+  tar -xvf alsa-utils-1.0.27.2.tar.bz2 
+  cd alsa-utils-1.0.27.2 
+  CC=arm-none-linux-gnueabi-gcc ./configure --prefix=/home/m/3rd/alsa/install/ --host=arm-linux --with-alsa-inc-prefix=/home/m/3rd/alsa/install/include --with-alsa-prefix=/home/m/3rd/alsa/install/lib --disable-alsamixer --disable-xmlto --disable-nls 
+  make 
+5.简单说明
+  --prefix指定了alsa-lib编译后的安装目录,包含库和头文件,编译alsa-utils时候要指明它的库lib和头文件include的目录.
+  alsamixer是图形化的amixer工具,需要ncurses的支持,在secure CRT中乱码,怕麻烦用--disable-alsamixer禁用了它.
+  --disable-xmlto和--disable-nls去掉编译都不通过,没去研究为啥.
+  aplay和arecord是同一个东东改下名字就可以了
+
+if (strstr(argv[0], "arecord")) {  
+    stream = SND_PCM_STREAM_CAPTURE;  
+    file_type = FORMAT_WAVE;  
+    command = "arecord";  
+    start_delay = 1;  
+    direction = stdout;  
+} else if (strstr(argv[0], "aplay")) {  
+    stream = SND_PCM_STREAM_PLAYBACK;  
+    command = "aplay";  
+    direction = stdin;  
+} else {  
+    error(_("command should be named either arecord or aplay"));  
+    return 1;  
+}  
+
+========================================================================
+声音录制
+========================================================================
+arecord -h帮助提示信息
+arecord -l列出声卡和数字音频设备
+
+-D参数用于指定音频设备PCM
+以hwx,x开头
+根据上面l列出的设备,如果选择tvp5158来录制声音的话那么pcm设备就位hw0,0,如果是tlv320aic3x则pcm设备为hw0,1,sii9135则pcm设备为hw0,2。
+声卡号,设备号
+-r指定采样频率:5512/8000/11025/16000/22050/32000/44100/48000/64000/88200/96000/176400/192000
+-f指定采样格式上面列出了:cd/cdr/dat/S16_LE/S32_LE/...
+
+arecord -D default:CARD=mcasp0 -d 100000   -f cd -t raw mysong15.raw
+arecord -D default:CARD=mcasp0 -d 100000   -f dat -t raw mysong10.raw
+arecord -D default:CARD=mcasp0 -d 100000   -f S16_LE -r 16000 -t raw mysong10.raw
+arecord -Dhw:0,1 -r8000 -f cd /a/1.wmv
+arecord -Dhw:0,0 -r8000 -f S16_LE -c 2 /a/1.wmv 
+arecord -Dhw:0,2 -r48000 -f S32_LE -c 2 /a/1.wmv
+
+========================================================================
+声音播放
+========================================================================
+aplay帮助提示信息和aplay -l 列出声卡和数字音频设备
+-D参数用于指定音频设备PCM
+以hwx,x开头
+根据上面l列出的设备,如果选择tlv320aic3x来播放声音的话那么pcm设备就位hw0,1,如果是hdmi则pcm设备为hw0,0。
+声卡号,设备号
+-r指定采样频率:5512/8000/11025/16000/22050/32000/44100/48000/64000/88200/96000/176400/192000
+-f指定采样格式上面列出了:cd/cdr/dat/S16_LE/S32_LE/...
+
+aplay -Dhw:0,1 -r8000 -f cd /a/1.wmv 
+aplay -Dhw:0,1 -r48000 -f cd /a/1.wmv
+
+arecord -Dhw:0,2 -r48000 -f S32_LE -c 2 | aplay -Dhw:0,1 -r48000//一边采集一边播放
+
+========================================================================
+简述amixer及其用法
+alsamixer是Linux 音频架构ALSA中的Alsa工具的其中一个，用于配置音频的各个参数。
+alsamixer是基于文本下的图形界面的，可以通过键盘的上下键，左右键等，很方便地设置需要的音量，开关某个switch（开关）等等操作。
+amixer，是alsamixer的文本模式,即命令行模式，需要用amixer命令的形式去配置你的声卡的各个选项。
+对于amixer的使用，你首先需要搞懂你要设置的参数是哪些，然后才可能去了解，如何去配置对应的值，整体来说，相对alsamixer来说，是有点繁琐，下面简要介绍其具体用法：
+
+========================================================================
+1.查看amixer支持的命令
+===================================================================
+amixer -h
+
+========================================================================
+2.查看可使用的接口
+===================================================================
+再看看当前你的音频系统（不同的音频驱动对应不同的内容和操作接口）提供了那些供你使用的接口去操作
+关于驱动里面已经提供了多少接口可以去操作，可以用命令：
+amixer contents
+
+
+========================================================================
+3.如何去设置某个参数
+
+========================================================================
+总结起来就是，先要用get系列命令去看懂有哪些接口，然后再去用set系列的命令，去设置对应你所要设置的值。
+
+查看获取某个设置项的值用amixer cget  +控制参数
+根据控制参数类型设置控制参数使用amixer cset +控制参数+" "+参数
+
+想要针对某项设置，比如想要设置上面的的主音量，master volume，即controls中显示的：
+numid=5,iface=MIXER,name=’PCM Volume’
+那么，可以先看看当前的值：
+# amixer cget numid=5,iface=MIXER,name=’PCM Volume’
+numid=5,iface=MIXER,name=’PCM Volume’
+; type=INTEGER,access=rw—R–,values=2,min=0,max=27,step=0
+: values=27,27
+| dBscale-min=-40.50dB,step=1.50dB,mute=0
+显示的是最大的27，假设想要设置为25，那么就用cset去设置：
+# amixer cset numid=5,iface=MIXER,name=’PCM Volume’ 25
+numid=5,iface=MIXER,name=’PCM Volume’
+; type=INTEGER,access=rw—R–,values=2,min=0,max=27,step=0
+: values=25,25
+| dBscale-min=-40.50dB,step=1.50dB,mute=0
+
+再比如，去将’Mic Supply 的switch关闭：
+# amixer cset numid=12,iface=MIXER,name=’Mic Supply Switch’ Off
+numid=12,iface=MIXER,name=’Mic Supply Switch’
+; type=ENUMERATED,access=rw——,values=1,items=2
+; Item #0 ‘On’
+; Item #1 ‘Off’
+: values=1
+
+总结一下用法，就是：
+amixer cget    controls中所输出的某个参数
+amixer cset    controls中所输出的某个参数      具体的值(比如,0,1,On,Off等)
+
+【提示】
+同上面介绍的的cget/cset系列命令：
+controls        show all controls for given card
+contents        show contents of all controls for given card
+cset cID P      set control contents for one control
+cget cID        get control contents for one control
+
+类似的，还有另外一套sget/sset系列的命令：
+scontrols       show all mixer simple controls
+scontents       show contents of all mixer simple controls (default command)
+sset sID P      set contents for one mixer simple control
+sget sID        get contents for one mixer simple control
+也是同样做法，比如：
+通过查看当然有哪些选择可以控制：
+# amixer scontrols
+Simple mixer control ‘Master’,0
+Simple mixer control ‘Master Mode’,0
+Simple mixer control ‘Master Mux’,0
+Simple mixer control ‘Master Quality’,0
+。。。
+
+同理，amixer scontents，可以查看当前所有的值，具体就不在这列举了。
+另外，去查看或者配置用sget，比如：
+# amixer sget ‘Microphone Input’,0
+Simple mixer control ‘Microphone Input’,0
+Capabilities: pswitch pswitch-joined
+Playback channels: Mono
+Mono: Playback [off]
+
+如果想要修改对应设置，用amixer sset ，具体用法是：
+amixer sset sID(控制字符串) P(支持的某个值)
+其中sID，就是上面的Simple mixer control后面的那个字符串，比如’Master Mux’,0
+而对其设置就是，先看看其提供了哪些供你设置的值：
+# amixer sget ‘Master Mux’,0
+Simple mixer control ‘Master Mux’,0
+Capabilities: enum
+Items: ‘Sum’ ‘DAC’ ‘Line’ ‘Mic’
+Item0: ‘DAC’
+然后比如要设置成Line的，就可以这样：
+# amixer sset ‘Master Mux’,0 Line
+Simple mixer control ‘Master Mux’,0
+Capabilities: enum
+Items: ‘Sum’ ‘DAC’ ‘Line’ ‘Mic’
+Item0: ‘Line’
+
+=======================================================================
+
+amixer设置音量：
+=======================================================================
+1.设置声卡0左声道音量为200
+amixer cset numid=6,iface=MIXER,name='L ADC VOLUME' 200
+2.获取声卡0左声道音量值
+root@dvr:~# amixer cget numid=6,iface=MIXER,name='L ADC VOLUME'
+numid=6,iface=MIXER,name='L ADC VOLUME'
+  ; type=INTEGER,access=rw------,values=1,min=0,max=255,step=0
+  : values=200
+3.设置声卡0右声道音量为200
+amixer cset numid=5,iface=MIXER,name='PCM Volume' 200
+4.获取声卡0右声道音量值值
+root@dvr:~# amixer cget numid=5,iface=MIXER,name='PCM Volume'
+numid=5,iface=MIXER,name='R ADC VOLUME'
+  ; type=INTEGER,access=rw------,values=1,min=0,max=255,step=0
+  : values=200
+5.设置声卡1右声道音量为200
+amixer -c 1 cset numid=5,iface=MIXER,name='PCM Volume' 200
+6.获取声卡1右声道音量值
+root@dvr:~# amixer -c 1 cget numid=5,iface=MIXER,name='PCM Volume'
+numid=5,iface=MIXER,name='R ADC VOLUME'
+  ; type=INTEGER,access=rw------,values=1,min=0,max=255,step=0
+  : values=200
+7.设置声卡1左声道音量为200
+amixer -c 1 cset numid=6,iface=MIXER,name='L ADC VOLUME' 200
+8.获取声卡1左声道音量值
+root@dvr:~# amixer -c 1 cget numid=6,iface=MIXER,name='L ADC VOLUME'
+numid=6,iface=MIXER,name='L ADC VOLUME'
+  ; type=INTEGER,access=rw------,values=1,min=0,max=255,step=0
+  : values=200
+========================================================================
+
+
+
+
+
+
+
+
+

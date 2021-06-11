@@ -1,0 +1,830 @@
+# http://lesliezhu.com/2014/06/16/Flex%E2%80%94%E2%80%94%E8%AF%8D%E6%B3%95%E5%88%86%E6%9E%90%E7%A8%8B%E5%BA%8F(scanner)%E7%94%9F%E6%88%90%E5%B7%A5%E5%85%B7/
+https://www.cs.princeton.edu/~appel/modern/c/software/flex/flex.html#SEC1
+https://www.cs.princeton.edu/~appel/modern/c/software/bison/bison_toc.html
+
+
+http://tinf2.vub.ac.be/~dvermeir/courses/compilers/flex/flex_toc.html
+
+
+lex(){  http://blog.chinaunix.net/uid-20106293-id-142131.html
+    Lex 帮助书写控制流，控制流作为输入流中的正则表达式来导向的程序。lex适合于编辑器脚本类型的变换，
+和为解析例程(yacc|bison)做准备工作而分解输入。
+    Lex 源码是正则表达式和相应的代码片段的表格。Lex 把这个表格变换成 读取输入流 到 输出流(过滤和转换 -- sed?)、
+并把输入划分到匹配给定表达式的字符串中的一个代码片段。随着每个这种字符串被识别出来，相应的代码片段就被执行。
+表达式通过用 Lex 生成的确定有限自动机来识别。用户书写的程序片段按照对应的正则表达式在输入流中出现的次序来执行。
+    用 Lex 写成的词法分析程序接受有歧义的规定，并在每个输入点上选择最长的匹配可能。如果需要，
+在输入上进行实质的超前查看(lookahead)，但输入流会被回退(backup)到当前划分的结束处，所以用户有操纵它的普遍自由。 
+    设计 Lex 时简化了与编译器的编译系统 Yacc 的交接
+    
+    Lex 把用户的表达式和动作(在本文中叫做源码)转换成宿主通用语言；生成的程序叫做 yylex。
+yylex 程序将识别在流(在本文中叫做输入)中的表达式，并在检测到的时候执行给每个表达式的动作。
+参见图 1。
+              +-------+
+    源码  ->  |  Lex  |  -> yylex
+              +-------+
+              +-------+
+    输入  ->  | yylex |  -> 输出
+              +-------+
+[ \t]+$ ;               # 删除行尾空白
+[ \t]+ printf(" ");     # 压缩多个空白为1个空白
+
+             词法规则      文法规则
+                |              |
+                v              v
+          +---------+    +---------+
+          | Lex     |    | Yacc    |
+          +---------+    +---------+
+                |              |
+                v              v
+          +---------+    +---------+
+输入 ->   | yylex   | -> | yyparse | -> 解析后的输入
+          +---------+    +---------+
+Yacc 用户会发现 yylex 的名字就是 Yacc 期望词法分析器叫的名字，所以 Lex 采用这个名字简化了交接。
+Lex 从源码中的正则表达式生成一个确定有限自动机。为了节省空间，这个自动机是解释的而不是编译的。
+
+1. 操作符字符有
+    " \ [ ] ^ - ? . * + | ( ) $ / { } % < >
+引号操作符(")指示在一对引号之间包含的任何东西都被当作文本字符。所以
+xyz"++" 匹配字符串 xyz++    -> 引用普通字符是无害和没有必要的
+"xyz++" 同上                -> 通过引用用做文本字符的所有非字母数字字符
+xyz\+\+  同上               -> 通过前导一个 \ 来把一个操作符字符转义为一个文本字符
+
+2. 字符类
+在方括号内，忽略多数字符的意义。只有三个字符特殊: 它们是 \ - 和 ^。
+
+- 字符指示范围。         [a-z0-9<>_]
+如果需要在字符类中包含字符 - ，它应当在第一个或最后一个位置上；所以
+匹配所有数字和两个算符。 [-+0-9]
+
+^ 操作符必须出现为左方括号后的第一个字符；它只是结果的字符串关于计算机字符集的补集。 [^abc]  [^a-zA-Z]
+\ 字符提供在字符类方括号内的正常转义。
+
+[\40-\176]      任意字符(匹配在 ASCII 字符集中所有可打印字符，从八进制的 40(空白)到八进制的 176(波浪线))
+ab?c            可选的表达式
+a* a+           重复的表达式
+(ab|cd)         选择和组合   1.  操作符 | 指示选择 2. 圆括号作为组合，尽管它们在最外层不是必须的
+
+3. 上下文敏感
+操作符是 ^ 和 $
+如果一个表达式的第一个字符是 ^，这个表达式将只在一行的开始处被匹配
+如果最后的字符是 $，则这个表达式只在一行的结束处被匹配
+
+表达式
+    ab/cd
+匹配字符串 ab，但只在它跟随着 cd 的时候。所以
+    ab$
+同于
+    ab/\n
+
+4. 重复和定义
+操作符 {} 指定要么重复(如果包围了数字)要么定义展开(如果包围了一个名字)，例如
+    {digit}  查找叫做 digit 的一个预定义的字符串并把它插入到这个表达式中这一点上。
+    a{1,5}   查找 a 的 1 到 5 次出现。
+
+a。Lex 动作
+只做复制的规则可以省略。
+[ \t\n]  ;                       三个间隔字符(空白、tab 和换行)被忽略。
+[a-z]+   printf("%s", yytext);   将打印在 yytext 中的字符串。
+[a-z]+   ECHO;                   同上
+[a-zA-Z]+  {words++; chars += yyleng;} 
+
+    Lex 动作可以确定仍未被识别的规则的正确字符跨度(span)。提供了两个例程在这种情况下做辅助。
+首先，yymore()告诉我们扫描器下次会匹配一个规则，(该规则)相应的行为应该是附属到了当前yytext
+的值中，而不是取代它(译注：指当前yytext的值)。yyless(n)返回输入流中当前标识符(token)
+中除去前面n个字符的所有字符，当扫描器寻找下一个匹配时，这些字符将会被再次扫描。yytext以及
+yyleng会适当的做一些调整(比如，yyleng会和n相等)
+
+# yymore( )  # 另实例见 "8行为.txt"
+例子: 考虑一种语言，它定义字符串为在引号(")之间的一组字符，并规定在字符串中包括 " 
+必须前导上\。匹配它的正则表达式有些混乱，所以如下这么写会更好
+    \"[^"]* {  # "+任何非"字符，再次遇到引号就会匹配结束。
+    if (yytext[yyleng-1] == '\\') # 引号前一个字符串为 '\' 则 执行如下:
+      yymore(); # 
+    else
+    ... 正常用户处理
+    }
+在面对字符串如 "abc\"def" 的时候，它首先匹配前五个字符 "abc\ ；接着调用 yymore() 
+导致字符串的下一部分 "def 被续加到结束处上。注意终止这个字符串的最后的引号将被选取
+到标记为"正常处理"的那部分代码中。
+
+# yyless(n) # 另实例见 "8行为.txt"
+    函数 yyless() 可以用来在各种条件下重处理文本。考虑老版本 C 语言的区分“=-a” 的歧义的问题。
+假设想要把它处理为“=- a”但要打印一个消息。可用一个规则
+    =-[a-zA-Z] {
+    printf("Op (=-) ambiguous\n");
+    yyless(yyleng-1);
+    ... 对 =- 的动作 ...
+    }
+    它打印一个消息，把在这个操作符之后的字母返回到输入，并把操作符当作“=-”。作为另一种选择，
+想要把它处理为“= -a”。要如此只需要把减号同字母一起返回到输入:
+    =-[a-zA-Z] {
+    printf("Op (=-) ambiguous\n");
+    yyless(yyleng-2);
+    ... 对 = 的动作 ...
+    }
+将进行此种释义。注意对这两种情况的表达式可以轻易写为对第一种情况的
+    =-/[A-Za-z]
+和对第二种情况的
+    =/-[A-Za-z]
+；在规则动作中不需要回退。不需要识别整个标识符来察觉这个歧义。但是有“=-3”的可能性使
+    =-/[^ \t\n]
+是更好的规则。
+
+
+除了这些例程，Lex 还允许访问它所使用的 I/O 例程。它们是: # 另实例见 "8行为.txt"
+    input() 返回下一个输入字符；
+    output(c) 把字符 c 写到输出；和
+    unput(c) 把字符 c 压回到输入流中以被后来的 input() 读取。
+    
+    如果 yywrap 返回 1，Lex 继续在输入结束时的正常包装(wrapup)。但是，有时重新安排更多的
+来自新来源的输入是方便的。在这种情况下，用户应当提供一个重新安排新输入并返回 0 的 yywrap。
+这指示 Lex 继续处理。缺省的 yywrap 总是返回 1。 
+
+5. 歧义源规则
+Lex 可以处理有歧义的规定。当多于一个表达式可以匹配当前输入的时候，Lex 按如下来选择:
+  1. 首选最长匹配。
+  2、在匹配相同数目字符的规则中，首选最先给出的规则。
+  
+    integer 关键字动作 ...;
+    [a-z]+ 标识符动作 ...;
+按这个次序给出。
+如果输入是 integers，它被接受为标识符，因为 [a-z]+ 匹配 8 个字符而 integer 只匹配 7 个。
+如果输入是 integer，两个规则都匹配 7 个字符，选择关键字规则因为它是第一个。
+任何更短的(比如 int)将不匹配表达式 integer 所以使用标识符释义。
+
+# 最长匹配需要考虑问题
+'.*' 好象是识别在单引号中的字符串的好方式。但是它诱使程序更加超前的读取，查找最远的单引号。
+假设输入是
+    'first' quoted string here, 'second' here
+上述表达式将匹配
+    'first' quoted string here, 'second'
+这不大可能是想要的。更好的规则有如下形式
+    '[^'\n]*'
+它在上述输入上将停止在 'first' 之后。 
+
+# 记住 . 不包括换行。
+}
+
+start(){
+
+考虑下列问题: 复制输入到输出，在开始于字母 a 的每行上把字 magic 改为 first，
+              在开始于字母 b 的每行上把字 magic 改为 second ，
+              并在开始于字母 c 的每行上把字 magic 改为 third。所有其他字和所有其他行都不变。
+这些规则如此的简单以至于最容易的方式使用一个标志来做个工作:
+    int flag;
+    %%
+    ^a {flag = 'a'; ECHO;}
+    ^b {flag = 'b'; ECHO;}
+    ^c {flag = 'c'; ECHO;}
+    \n {flag = 0 ; ECHO;}
+    magic {
+        switch (flag)
+        {
+        case 'a': printf("first"); break;
+        case 'b': printf("second"); break;
+        case 'c': printf("third"); break;
+        default: ECHO; break;
+        }
+    }
+就足够了。
+
+要用开始条件处理同样的问题，必须在定义节中使用如下形式的行把每个开始条件介绍给 Lex
+    %Start 名字1 名字2 ...
+这里的条件可以按任何次序命名。字 Start 可以简写为 s 或 S。条件可以在规则的头部使用尖括号 <> 引用:
+    <名字1>表达式
+只在 Lex 处在开始条件“名字1”的时候被识别。要进入一个开始条件，执行动作语句
+    BEGIN 名字1;
+它把开始条件改为“名字1”。要恢复正常状态，
+    BEGIN 0;
+    重置 Lex 自动机解释器的初始状态。一个规则可以活跃在多个开始条件下: <名字1,名字2,名字3>
+是一个合法前缀。任何不开始于 <> 前缀操作符的规则总是活跃的。
+
+上述例子可以写为:
+    %START AA BB CC
+    %%
+    ^a {ECHO; BEGIN AA;}
+    ^b {ECHO; BEGIN BB;}
+    ^c {ECHO; BEGIN CC;}
+    \n {ECHO; BEGIN 0;}
+    magic printf("first");
+    magic printf("second");
+    magic printf("third");
+这里的逻辑完全同于处理这个问题的前种方法，但由 Lex 而不是用户代码做这种工作。
+}
+
+1. lex 程序生成的称为词法分析程序(Lexer)。这个词法分析程序的功能是读取字符流，当读取的字符与一个关键字匹配的时候就执行一个动作。
+2. lexical analyser : scanning -> regex regexp # 把输入分析成一个个有意义的词块，词法分析通常所作的就是在输入中寻在字符的模式。
+3. lex 可以读去任意的输入，判断每一部分的输入是什么，这个叫做标示化(Tokenizing)。
+
+是一个自动化工具，可以按照定义好的规则自动生成一个C函数yylex()，也成为扫描器(Scanner)
+这个C函数把文本串作为输入，按照定义好的规则分析文本串中的字符，找到符合规则的一些字符序列后，就执行在规则中定义好的动作(Action)。
+
+$ flex example.flex
+这个命令执行后将生成一个C文件，默认文件名为lex.yy.c。这个C文件主要内容就是函数yylex()的定义
+
+flex(生成扫描器的工具){
+1. 扫描器是一种识别文本中的词汇模式的程序
+   一种匹配的常规表达式可能会包含相关的动作。
+   这一动作可能还包括返回一个标记。
+   如果没有可以匹配的常规表达式，将会停止进一步的处理，Lex 将显示一个错误消息。
+2. Lex和C是强耦合的。一个.lex文件(Lex文件具有 .lex 的扩展名)通过lex公用程序来传递，并生成C的输出文件。
+   这些文件被编译为词法分析器的可执行版本。
+}
+flex(常规表达式){
+常规表达式 = 元语言的模式描述 -> {符号 = 字符和数字}
+|---------------|------------------------------------
+|字符           | 含义
+|---------------|------------------------------------
+|A-Z, 0-9, a-z  | 构成了部分模式的字符和数字
+|.              | 匹配任意字符，除了 \n。
+|-              | 用来指定范围。例如：A-Z 指从 A 到 Z 之间的所有字符
+|[ ]            | 一个字符集合。匹配括号内的 任意 字符。如果第一个字符是 ^ 那么它表示否定模式
+|*              | 匹配 0个或者多个上述的模式
+|+              | 匹配 1个或者多个上述模式
+|?              | 匹配 0个或1个上述模式
+|$              | 作为模式的最后一个字符匹配一行的结尾
+|{ }            | 指出一个模式可能出现的次数。 例如: A{1,3} 表示 A 可能出现1次或3次
+|\              | 用来转义元字符。同样用来覆盖字符在此表中定义的特殊意义，只取字符的本意。
+|^              | 否定。^ 作为正则表达式的第一个字符，它匹配行的开始，它还在方括号中用于否定。
+||              | 表达式间的逻辑或
+|"<一些符号>"   | 字符的字面含义。逐字匹配引号内的每个字符。
+|/              | 向前匹配。如果在匹配的模版中的"/"后跟有后续表达式，只匹配模版中"/"前 面的部分。如：如果输入 A01，那么在模版 A0/1 中的 A0 是匹配的
+|( )            | 将一系列常规表达式分组
+|<>             | 位于模式开头的尖括号内的一个或者一列名字，使那个模式只应用于指定的起始状态。
+| EOF           | 只用于flex中，这个特殊模式匹配文件的结尾。
+|---------------|------------------------------------
+[] : # 如果开括号之后的第一个字符是短划线或者闭括号，那么它就不能被解释为元字符。
+     # 除了以"\"开始的C转义序列被识别以外，其他的元字符在方括号中没有特殊含义。
+() :  *   +   {}   中的每一个都直接作用于它左侧的表达式，而且 |  通常同时影响左侧和右侧的内容。
+|---------------|-----------------------------
+|常规表达式     |  含义
+|---------------|-----------------------------
+|joke[rs]       | 匹配 jokes 或 joker
+|A{1,2}shis+    | 匹配 AAshis, Ashis, AAshi, Ashi
+|(A[b-e])+      | 匹配在 A 出现位置后跟随的从 b 到 e 的所有字符中的 0 个或 1个
+|---------------|-----------------------------
+
+|---------------|-------------------------------|---------------|
+|标记           | 相关表达式                    |含义           |
+|---------------|-------------------------------|---------------|
+|数字(number)   |  ([0-9])+                     |1个或多个数字  |
+|字符(chars)    |  [A-Za-z]                     |任意字符       |
+|空格(blank)    |  " "                          |一个空格       |
+|字(word)       | (chars)+                      |1个或多个 chars|
+|变量(variable) |  (字符)+(数字)*(字符)*(数字)* |               |
+|---------------|-------------------------------|---------------|
+
+|----------|-----------------|
+|chars     |[A-za-z\_\'\.\"] |
+|numbers   |([0-9])+         |
+|delim     |[" "\n\t]        |
+|whitespace|{delim}+         |
+|words     |{chars}+         |
+|----------|-----------------|
+}
+flex(Lex编程){
+1. 以 Lex 可以理解的格式指定模式相关的动作。
+2. 在这一文件上运行 Lex，生成扫描器的 C 代码。
+3. 编译和链接 C 代码，生成可执行的扫描器。
+注意: 如果扫描器是用 Yacc 开发的解析器的一部分，只需要进行第一步和第二步。
+
+一个 Lex 程序分为三个段：
+第一段是 C 和 Lex 的全局声明， 
+第二段包括模式（C 代码），
+第三段是补充的 C 函数。 例如, 第三段中一般都有 main() 函数。这些段以%%来分界
+%{
+...定义段...
+%}
+%%
+...规则段...
+%%
+...用户子例程序段...
+# 这些部分由以两个百分号组成的行分隔开。尽管某一部分可以为空，但前两部分是必须的，第三部分和前面的%%行可以忽略。
+}
+
+flex(定义段){    定义名称和起始条件
+定义段包括文字块、定义、内部表声明、起始条件和转换。
+以空白开头的行被逐字拷贝到C文件中，通常，这用于包含包围在/*和*/中的注释，一般前面有空白。
+
+定义Name的格式:
+name definition
+[name]    [definition]
+DIGIT     [0-9]
+ID        [a-z][a-z0-9]*
+
+其中，name的第一个字符必须是字母或下划线，就是C语言中的标识符定义。
+
+其中"/"和"/"之间的注释内容会直接输出，而且"%{"和"%}"之间的内容也会原封输出。
+但是，这里的"%{"、"%}"都必须是"unindented"的，即这些字符是该行的第一个字符，否则会把 =%{= 和 =%}= 也直接输出。
+}
+flex(规则段){   模式行和C代码
+规则段包含模式行和C代码，以空白开始的行或者包围在%{和%}中的内容是C代码。它们会被原封不动地拷贝到yylex()中。
+在规则部分开头出现的C代码也会出现在yylex()开头。它可以包含词法分析器中需要使用的变量的声明，以及每次调用yylex()
+所需要运行的代码。
+
+C代码行将被原样拷贝到生成的C文件中。规则部分开始的行会被放在生成的yylex()函数中临近开头的地方，它应该是一些变量的声明，
+以便于模式所关联的代码和词法分析器初始化代码的使用。在其他地方出现的C代码行必须仅仅包含注释，因为你无法预测他们出现在
+词法分析器什么位置。
+
+以其他任何字符开始的行就是模式行。模式行包含一个模式、一些空白字符串以及输入被该模式匹配时所执行的C代码，如果C代码超过一条语句
+或者跨越多行，它必须用括号括起来({}或者%{%})
+
+规则部分
+    包含模式行和C代码，以空白字符开始的或在%{和%}之间的认为是C代码，会被直接拷贝到yylex()中
+    规则部分开头出现的C代码也会出现在yylex的开头，一般是变量声明；其他部分的C代码一般是注释，因为你无法确定其在词法分析器的位置
+    模式行的C代码，若是超过一条语句，必须用括号括起
+    若输入字符无法匹配任何模式，默认匹配ECHO模式，记号的拷贝被输出
+
+# 规则区的格式
+pattern   action
+这里的pattern必须是该行的开头， =没有任何缩进的= ，否则会无法生效；同时，action必须
+和pattern同一行开始写，允许跨多行，但 =必须和action在同一行开始= 。
+在规则定义区域，也可以使用 =%{= 和 =%}= ，方法和定义区的是一样的，但含义不一样，规则区的
+代码原封不动输出，有可能引起编译错误。
+}
+flex(用户子例程序段){
+用户子例程序段的内容被lex逐字拷贝到C文件，这一部分通常包括从规则中调用的例程。
+如果重新定义input()、unput()、output()、或者yywrap()，新的版本或者支持子程序，都可以放在这里。
+
+如果你重定义了yywrap(),该例程的新版本或者相关的支撑例程会在这儿出现。
+}
+
+
+起始状态和嵌套输入文件
+  起始状态指定在特定时刻哪些模式可以用来匹配，尖括号括起的起始状态之后的模式为其指定的模式
+  %x指定独占的起始状态，当该状态被激活时，只有它的模式可以进行匹配；
+  %s声明包含的起始状态，允许未被标记的模式匹配
+  宏BEGIN用来切换到另一个起始状态
+  切换缓冲区的步骤：保存当前缓冲区，然后yy_switch_buffer切换缓冲区，设置状态INITIATE后，使用正常模式进行匹配
+    
+BEGIN(){
+宏BEGIN切换起始状态，你通常在特定模式的动作代码里调用它，如下所示
+BEGIN statename;
+词法分析器从0开始，该状态也被称为INITIAL，其他所有状态必须在定义部分通过%s或者%x行来命名。
+
+{startarg}        { BEGIN(ARGUMENT_COND); return START; } 
+%x ARGUMENT_COND DEPEND_COND SERVICE_COND URL_COND ADDRESS_COND STRING_COND EVERY_COND HTTP_HEADER_COND INCLUDE
+
+上下文相关性
+左上下文相关的实现方法： 右边依赖左边匹配 # 特殊的行首模式字符、起始状态和显式代码。
+    ^可以只在行首匹配模式
+    起始状态可以要求某个token必须出现在另一个token之前，下面的second必定出现在first之后
+    %s MYSTATE
+    %%
+    first {BEGIN MYSTATE;}
+    ... 
+    second {BEGIN 0;}
+    使用标志伪造左上下文相关性，详见P125
+右上下文相关的实现方法： 左边依赖右边匹配 # 特殊的行尾模式字符、斜线、yyless()
+    $匹配行尾模式，即下一个字符是\n
+    模式中/字符可以包含显式尾部上下文，例如abc/de，仅匹配紧跟着de的abc字符，但de不会出现在yytext中，也不会被yyleng计算
+    yyless可以推回刚读到的记号，需要标明需要保留的字符个数，例如abcde {yyless(3);}与使用/作用一致
+}
+
+定义对全部或部分正则表达式进行命名，并通过名字引用他们{NAME}
+
+ECHO(){  即: fwrite( yytext, yyleng, 1, yyout )
+宏ECHO用来写出记号到当前的输出文件yyout，他等价于
+fprintf(yyout, "%s", yytext);
+可以通过%option nodefault取消这个默认动作：
+}
+三种层次管理输入：
+    1. 设置yyin
+    2. 创建并使用YY_BUFFER_STATE数据结构处理输入
+    3. 重新定义读取输入到缓冲区的宏YY_INPUT，对于某些输入无法预先载入字符串
+    YY_BUFFER_STATE bp;
+    bp = yy_create_buffer(yyin,YY_BUF_SIZE);//YY_BUF_SIZE由flex定义，通常是16k
+    yy_switch_to_buffer(bp);
+输出：flex有默认的输出规则，使用%option nodefault禁用默认规则
+
+    你可以调用yyrestart(file)来使得词法分析器读取任意标准输入文件。同样当使用%option yywrap
+编译出来的词法分析器达到输入文件的末尾时，它会调用yywrap(). 你可以借此来转换到另一个不同的输入文件。
+    flex词法分析器可以从一个输入缓冲区中读取输入。输入缓冲器可以被关联到一个输入文件，这种情况下
+词法分析器也就是从文件读取输入，输入缓冲器也可以关联到内存中的字符串。
+类型YY_BUFFER_STATE是指向flex输入缓冲区的指针。
+输入缓冲区：
+  YY_BUFFER_STATE:词法分析器读取输入的结构，通过yy_create_buffer创建
+  yy_switch_to_buffer:切换缓冲区结构
+  yy_flush_buffer：放弃缓冲区中的内容，可以在交互式词法分析器中做错误恢复
+  yy_delete_buffer：释放缓冲区
+  字符串输入“yy_scan_bytes” “yy_scan_string” “yy_scan_buffer”
+  input():提供输入字符给词法分析器，flex为了性能跳过该函数，但可以利用它处理动作例程，例如超长注释的处理（flex通常只有15k缓冲区），详见p129
+  YY_INPUT宏读取输入到缓冲区，对于非终端非文件的输入，重定义该宏是很有必要的
+  isatty()确定输入是否来自终端
+  yylineno：可以自动更新行号，但读取多个文件时需要自己初始化行号。通过%option yylineno打开该变量
+  yywarp()在词法分析器到达文件末尾时调用，若返回1，则词法分析器返回零记号表明文件结束；若返回0，则继续分析，flex标准版yywarp总返回1。通过调整yyin指向新的文件，然后自定义yywarp可以继续分析。
+  避免和c++库冲突，在C++词法分析器中input和output更改为yyinput yyoutput
+  yyleng:匹配记号的长度，相当于strlen(yytext)
+  yyless()：如果当前匹配的字符串的末尾部分需要重新处理，那么可以调用yyless(n)将这部分子串”退回”给输入串，下次再匹配处理。注意n是不退回的字符个数，即退回的字符个数是yyleng-n
+  yymore当需下一次被匹配的字符串被添加在当前识别出的字符串后面，即不使下一次的输入替换yytext中已有的内容而是接在它的内容之后，必须在当前的动作中调用yymore()
+  YY_USER_ACTION:宏在语法分析器动作的代码前被展开
+  文字块使用%{和%}括起的C代码，包含变量及函数声明和引入的头文件；若使用%top{则会将代码拷贝到程序的头部附近
+  可重入词法分析器：也称为纯语法分析器，详见p213
+  REJECT:对于重叠的记号，可以分析每个出现的记号
+  
+内置变量
+    yyin: 输入缓冲流的文件指针，可以被替换以实现解析某个自定义的文件
+    yyleng: 当前匹配字串的长度
+    yylex: 调用词法分析器进行分析
+    yylineno: 保存当前行号
+    yyout: 输出流的指针
+    yyrestart(fp):重启解析文件fp，但会丢失已经读入缓冲区的输入
+    yytext： 当前匹配的字串
+    yyterminate: 结束词法分析器，返回YY_NULL即0，bison把它作为输入的结束
+    yywrap： 解析一个文件完毕之后，会调用yywrap:返回1表示结束，0表示继续扫描
+    YY_INPUT: 当输入缓冲区为空时，调用此接口
+
+macro(){
+%option   8bit reentrant bison-bridge # 扫描器的基本类型
+%option   warn nodefault # 小心
+%option   yylineno # flex跟踪 配置文件行位置
+%option   outfile="scanner.c" header-file="scanner.h" # 指定输出文件
+%option   reject # 
+%option   noyymore # 
+%option   nounput # 增加'no'后，unput函数不再由flex扫描器生成，需要用于自定义
+input, unput
+     yy_push_state, yy_pop_state, yy_top_state
+     yy_scan_buffer, yy_scan_bytes, yy_scan_string
+
+     yyget_extra, yyset_extra, yyget_leng, yyget_text,
+     yyget_lineno, yyset_lineno, yyget_in, yyset_in,
+     yyget_out, yyset_out, yyget_lval, yyset_lval,
+     yyget_lloc, yyset_lloc, yyget_debug, yyset_debug
+%option stack # state管理函数相关配置项
+    
+option和命令行中等价作用。
+Scanner behavior:
+  -7, --7bit              generate 7-bit scanner
+  -8, --8bit              generate 8-bit scanner
+  -B, --batch             generate batch scanner (opposite of -I)
+  -i, --case-insensitive  ignore case in patterns
+  -l, --lex-compat        maximal compatibility with original lex
+  -X, --posix-compat      maximal compatibility with POSIX lex
+  -I, --interactive       generate interactive scanner (opposite of -B)
+      --yylineno          track line count in yylineno
+Debugging:
+  -d, --debug             enable debug mode in scanner
+  -b, --backup            write backing-up information to lex.backup
+  -p, --perf-report       write performance report to stderr
+  -s, --nodefault         suppress default rule to ECHO unmatched text
+  -T, --trace             flex should run in trace mode
+  -w, --nowarn            do not generate warnings
+  -v, --verbose           write summary of scanner statistics to stdout
+Files:
+  -o, --outfile=FILE      specify output filename
+  -S, --skel=FILE         specify skeleton file
+  -t, --stdout            write scanner on stdout instead of lex.yy.c
+      --yyclass=NAME      name of C++ class
+      --header-file=FILE   create a C header file in addition to the scanner
+      --tables-file[=FILE] write tables to FILE
+      
+
+}
+REJECT(){
+REJECT:对于重叠的记号，可以分析每个出现的记号
+}
+
+
+flex(命令){
+lex <file name.lex>
+生成了 lex.yy.c 文件，它可以用 C 编译器来进行编译。它还可以用解析器来生成可执行程序
+  -c表示 C 动作，它是缺省的。
+  -t写入 lex.yy.c 程序来代替标准输出。
+  -v提供一个两行的统计汇总。
+  -n不打印 -v 的汇总。
+}
+flex(函数){
+|----------|---------------------------------------------------
+|Lex       | 变量
+|----------|---------------------------------------------------
+|yyin      | FILE* 类型。 它指向 lexer 正在解析的当前文件。
+|yyout     | FILE* 类型。 它指向记录 lexer 输出的位置。 缺省情况下，yyin 和 yyout 都指向标准输入和输出。
+|yytext    | 匹配模式的文本存储在这一变量中（char*）。
+|yyleng    | 给出匹配模式的长度。
+|yylineno  | 提供当前的行数信息。 （lexer不一定支持。）
+|----------|---------------------------------------------------
+
+|Lex           |函数
+|--------------|-----------------------------------------------
+|yylex()       |这一函数开始分析。 它由 Lex 自动生成。
+|yywrap()      |这一函数在文件（或输入）的末尾调用。 如果函数的返回值是1，就停止解析。 因此它可以用来解析多个文件。 代码可以写在第三段，这就能够解析多个文件。 方法是使用 yyin 文件指针（见上表）指向不同的文件，直到所有的文件都被解析。 最后，yywrap() 可以返回 1 来表示解析的结束。
+|yyless(int n) |这一函数可以用来送回除了前?n? 个字符外的所有读出标记。
+|yymore()      |这一函数告诉 Lexer 将下一个标记附加到当前标记后。
+|--------------|------------------------------------------------
+
+FILE *yyin, *yyout：为指向字符输入和结果输出文件的指针,默认为 stdin 和 stdout
+int yylex()：词法分析程序，它自动移动文件指针 yyin 和 yyout，直到遇到 EOF
+char *yytext：存放当前被识别的词形
+int yyleng：yytext 的长度
+int yywrap()：需要用户自行定义，一般直接 return 1;
+yymore()：将当前识别的词形保留在 yytext 中，分析器下次扫描时的词形将加追加在 yytext 中
+yyless(int n)：回退当前已匹配的词形中的 n 个字符
+yyterminate()：中断对当前文件的分析，将 yyin 指向 EOF。
+
+用户可使用的变量
+    =char *yytext=: 保存当前token的字符串，选项%array改变定义为 =char yytext[YYLMAX]=
+    =int yyleng=: 当前token的长度
+    =FILE *yyin=: flex的输入
+    =void yyrestart( FILE *new_file )=: 改变输入文件指针
+    =FILE *yyout=: flex的输出，ECHO操作
+    =YY_CURRENT_BUFFER=: 返回YY_BUFFER_STATE句柄
+    =YY_START=: 返回当前的start condition
+}
+
+1. Patterns                     the extended regular expressions used by flex
+2. How The Input Is Matched     the rules for determining what has been matched 
+3. Actions                      how to specify what to do when a pattern is matched 
+4. The Generated Scanner        details regarding the scanner that flex produces; how to control the input source 
+5. Start Conditions             introducing context into your scanners, and managing "mini-scanners"
+6. Multiple Input Buffers       how to manipulate multiple input sources; how to scan from strings instead of files
+7. End-of-file Rules            special rules for matching the end of the input
+8. Miscellaneous Macros         a summary of macros available to the actions
+9. Values Available To The User a summary of values available to the actions
+10. Interfacing With Yacc       connecting flex scanners together with yacc parsers
+11. Options                     flex command-line options, and the "%option" directive 
+12. Performance Considerations  how to make your scanner go as fast as possible 
+13. Diagnostics                 those error messages produced by flex (or scanners it generates) whose meanings might not be apparent
+14. Files                       files used by flex 
+pattern(){
+x               匹配字符’x’
+.               匹配换行符之外的任何字符
+[xyz]           匹配字符x,y,z任何一个
+[abj-oZ]        匹配字符a,b,Z和从j到o所有字符
+[^A-Z]          匹配除大写字母之外的所有字符
+[^A-Z\n]        匹配大写字母和换行符之外的所有字符
+[a-z]{-}[aeiou] 匹配小写辅音字母
+r*              匹配0个或多个r，其中r是一个正则表达式
+r+              匹配1个或多个r，其中r是一个正则表达式
+r?              匹配0个或1个r，即可选的r
+r{2,5}          匹配2个到5个r
+r{2,}           匹配2个或多个r
+r{4}            匹配4个r
+{name}          替换为name的定义，再进行匹配
+“[xyz]\”foo”    匹配字符串[xyz]\”foo，这里通过双引号表示是一个字符串
+\X:             如果X是a,b,f,n,r,t,v时候是转义字符，否则X就是代表普通字符的转义
+\0              即ASCII中的0
+\123            八进制的值123
+\x2a            十六进制的值2a
+(r)             匹配r，这里的括号是防止因为优先级导致的错误
+rs              正则表达式r后紧跟正则表达式s
+r|s             匹配r或s
+r/s             正则表达式r必须后面紧跟正则表达式s；在进行匹配的时候，当匹配r后，会继续查看是否紧跟找s，
+            如果紧跟s，则在输入中会立即回到r的位置，因此action部分是只看到r的，并没有看到s，即无法处理到s。
+            这叫上下文相关(trailing context).
+^r              以r开头的行
+r$              以s结尾的行，等同’r/\n’模式
+<s>r            r，但是只满足初始情形s（start condition）
+<*>r            满足任何初始情形的r
+# <<EOF>>         文件结束符
+
+1. 从第一行 往后 匹配。
+2. foo|bar*   -> (foo)|(ba(r*))
+3. foo|(bar)* -> 0或多个bar
+4. (foo|bar)* -> 0或多个bar或者foo
+[:alnum:] [:alpha:] [:blank:] [:cntrl:] [:digit:] [:graph:] [:lower:] [:print:] [:punct:] [:space:] [:upper:] [:xdigit:]
+isalnum
+-i 使得 [:upper:] == [:lower:] == [:alpha:] 等价
+
+#     [^A-Z]可以匹配换行，除非写成[^A-Z\n]。这和很多其他处理正则表达式的工具不同，这样的不一致主要是历史原因造成的。
+# 可以匹配换行符\n意味着像[^"]*这样的模式（pattern）可以匹配整个输入，除非在输入里有另一个引号。
+#     一条规则最多只能有一个尾部上下文（trailing context）的实例（尾部上下文指的是'/'或者'$'）。初始条件（start condition），
+# '^'和<<EOF>>只能出现在模式（pattern）的最前面。'/'和'$'不能被放在圆括号里。不在开头的取反符'^'和不在末尾的'$'将失去它们
+# 的特殊含义，按照普通字符处理。以下是一些例子：
+foo/bar$            /*错误，有两个尾部上下文*/ 
+<sc1>foo<sc2>bar    /*错误，有两个初始条件*/
+注意第一个可以写成：
+"foo/bar\n"
+又如：
+foo|(bar$)
+foo|^bar
+将会导致'$'和'^'被看作普通字符。
+如果想要的只是foo或者bar后面跟着换行符，可以用（'|'的用法将在下面介绍）：
+foo      |
+bar$     /* action goes here */
+同样的技巧可以用来匹配foo或者位于行首的bar。
+}
+Matchs(){
+1. 如果它找到多个匹配项，则它将采用匹配最多文本的匹配项
+2. 如果找到两个或更多相同长度的匹配项，则首先在flex输入文件中列出的规则被选中
+    一旦匹配被确定，对应于匹配的文本就可以在全局字符指针yytext中使用，并且其长度保存在全局整数yyleng中。
+然后执行对应于匹配模式的行为，然后扫描剩余的输入以进行另一次匹配。
+3. 如果未找到匹配项，则执行默认规则：输入中的下一个字符被视为匹配并复制到标准输出。因此，最简单的合法输入是：
+%%
+它会生成一个扫描器，将其输入（一次一个字符）复制到输出。
+4. 请注意，yytext可以用两种不同的方式定义：作为字符指针或作为字符数组。您可以通过在flex输入的第一个部分
+   中包含特殊指令'%pointer'或'%array'来控制flex使用哪个定义。
+   缺省值是'%pointer'，除非使用'-l'lex兼容性选项，在这种情况下，yytext将是一个数组。
+   现有的lex程序有时使用如下形式的声明，以便从外部访问yytext：
+   extern char yytext [];
+   这个定义在与'%pointer'一起使用时是错误的，但对'％array'是正确的。
+}
+Actions(){
+每一个模式规则，都可以有对应的一个操作，这个操作的定义可以是任何C语句。
+如果规则对应的操作是空的，则匹配规则后，直接丢弃.
+
+# 将多个空格和制表符压缩到一个空白处，并将在行尾找到的空白字符丢弃
+%% [ \t]+ putchar( ' ' ); ]
+[ \t]+$ /* ignore this token */
+
+# 如果某个规则的操作部分只有一个字符“|”，表示它的操作部分使用下一个规则的操作。
+# 每次调用yylex（）时，它都会从最后一次返回处的token开始工作，直到它到达文件末尾或执行返回。
+# 行为可以自由修改yytext，除了延长它然而这在使用'％array'时不适用,在这种情况下，yytext可以以任何方式自由修改。
+# 动作可以自由修改yyleng，除非如果动作还包括使用'yymore（）'
+
+有一些指令(directive)可以被当作行为
+  ECHO:  将yytext复制到输出
+  BEGIN: 后跟开始条件的名称将扫描仪置于相应的开始条件
+  REJECT: 指示扫描仪继续执行与输入匹配的“次优”规则。该规则的选择如上面“如何匹配输入”中所述，
+  yytext和yyleng也会被重新设置妥当。这个次优规则可能会像最初的规则一样匹配尽可能多的文本，
+  较最初的规则而言处于flex输入文件中靠后的位置，或者，这个次优规则也有可能匹配较少的文本。
+# 以下内容将统计输入中的单词，并在每次看到“frob”时调用例程special()
+    int word_count = 0;
+%%
+    frob        special(); REJECT;
+    [^ \t\n]+   ++word_count;
+如果没有REJECT,则frob是不会计入word个数的。
+# 多个REJECT是允许的，每个找到当前活动规则的下一个最佳选择。
+    %%
+    a        |
+    ab       |
+    abc      |
+    abcd     ECHO; REJECT;
+    .|\n     /* eat up any unmatched character */
+(前三条规则分享了第四条动作，因为它们使用特殊的'|'动作。)
+
+  yymore(): 使得flex在匹配下一个规则的时候，将匹配的字符追加到当前规则匹配的字符，而不是直接替换
+# 考虑到输入“mega-kludge”，以下将把“mega-kludge”写成输出
+%%
+    mega-    ECHO; yymore();
+    kludge   ECHO;
+# 输入mega-kludge，则输出mega-mega-kluge，因为匹配mega-之后，在匹配kludge的时候是追加上去的。
+    
+  yyless(n): 匹配规则之后，回写n个字符到输入流,如:
+# 在输入“foobar”时，以下内容将写出“foobarbar”：
+    %%
+    foobar    ECHO; yyless(3);
+    [a-z]+    ECHO;
+输入foobar，则输出是foobarbar，因为匹配foobar之后，回写3个字符，则下一个输入是从bar再次开始的。
+如果写成yyless(0)，则会将此规则匹配的所有文本回写，从而出现一个无限循环。除非使用BEGIN等其它控制方式进行调整。
+
+  unput(c): 回写字符c到输入流，并被下一个扫描进行匹配,如:
+    {
+    int i;
+    /* Copy yytext because unput() trashes yytext */
+    char *yycopy = strdup( yytext );
+    unput( ')' );
+    for ( i = yyleng - 1; i >= 0; --i )
+        unput( yycopy[i] );
+    unput( '(' );
+    free( yycopy );
+    }
+# 程序是这样工作的：例如yytext保存了abc，那么strdup函数复制了这个字符串并把指针交给yycopy，unput在输入流中放了一个
+# 然后倒着遍历yycopy，因为unput每次都把字符添加到输入流最前面，所以这个过程是：) -> c) -> bc) -> abc) -> (abc)，这样就得到了圆括号括起来的abc）
+    
+但如果yytext使用的是指针类型，则unput就会破坏指针的内容，如果运行unput之后还需要访问yytext的内容，则应该使用%array.
+
+input(): 读取下一个字符，如清除C语言注释:
+    %%
+    "/*"  {
+    register int c;
+    for ( ; ; )
+        {
+        while ( (c = input()) != '*' &&
+                c != EOF )
+            ;    /* eat up text of comment */
+        if ( c == '*' )
+            {
+            while ( (c = input()) == '*' )
+                ;
+            if ( c == '/' )
+                break;    /* found the end */
+            }
+        if ( c == EOF )
+            {
+            error( "EOF in comment" );
+            break;
+            }
+        }
+# 如果使用C++编译扫描程序，则使用yyinput()代替，以免和C++中的input混淆。
+
+    YY_FLUSH_BUFFER刷新扫描程序的内部缓冲区，下次扫描程序尝试匹配token时，它将首先使用YY_INPUT重新填充缓冲区
+这个动作是更通用的yy_flush_buffer()函数的一个特殊情况，在下面的“多输入缓冲”部分描述。
+    yyterminate()可以用来代替动作中的返回语句。 它终止扫描器并向扫描器的调用者返回0，表示“全部完成”。 
+默认情况下，当遇到文件结尾时，也会调用yyterminate()。 这是一个宏，可能会被重新定义。
+}
+Conditions(){
+    flex为有条件地激活规则提供了一种机制。 只有当扫描器处于名为“sc”的开始条件时，
+其模式前缀为“<sc>”的任何规则才会处于激活状态。
+#<STRING>[^"]*    { /* eat up the string body.....*/
+                   ...
+                 }
+只有当扫描仪处于“STRING”开始状态时才会激活，又比如
+<INITIAL,STRING,QUOTE>\.    { /* handle an escape ....*/
+                               .....
+                            }
+只有在当前启动条件是“INITIAL”，“STRING”或“QUOTE”时才会激活。。
+
+开始条件在输入的定义（第一个）部分中以'％s'或'％x'开头，后跟一个名称列表的不带缩进的行来声明。
+前者声明的是包含性的（inclusive）开始条件，后者是独占性的（exclusive）开始条件。
+ 开始条件使用BEGIN操作激活。 在执行下一个BEGIN操作之前，具有给定开始条件的规则将处于激活状态，
+ 而具有其他开始条件的规则将处于非激活状态。
+ 
+如果起始条件是包含的（inclusive），那么根本没有开始条件的规则也将被激活。
+如果它是独占的（exclusive），则只有符合启动条件的规则才会生效。
+根据相同独占开始条件的一组规则描述了独立于flex输入中的任何其他规则的扫描器。 
+正因为如此，排他的开始条件可以很容易地指定扫描输入中与其余部分在语法上不同的部分（例如注释）的“小型扫描仪”。
+
+如果包容性和排他性启动条件之间的区别仍然有点模糊，以下是一个简单的例子，说明两者之间的联系。 规则集:
+
+%s example
+%%
+<example>foo   do_something();
+bar            something_else();
+等价于：
+%x example
+%%
+<example>foo   do_something();
+<INITIAL,example>bar    something_else();
+%s example
+<example>foo    do_something();
+bar             something_else();
+又如:
+%x example
+%%
+<example>foo   do_something();
+<*>bar         something_else();
+
+=启动条件= 可以通过 =BEGIN= 来激活，直到下一个 =BEGIN= 之前，都会执行该启动条件的相应操作。
+
+一个去除C语言注释的例子:
+
+%x comment
+%%
+int line_num = 1;
+"/*"          BEGIN(comment);
+<comment>[^*\n]*        /* eat anything thiats not a '*' */
+<comment>"*"+[^*/\n]*   /* eat up '*'s not followed by '/'s */
+<comment>\n             ++line_num;
+<comment>"*"+"/"        BEGIN(INITIAL);
+
+=REGIN(INITIAL)= 等效于 =BEGIN(0)= ,会使得规则回到初始状态，即没有任何一个启动条件匹配。
+
+}
+flex(多重输入){
+
+}
+flex(demo){
+https://blog.csdn.net/carltraveler/article/details/68064052
+https://blog.csdn.net/fly_yr/article/details/42644501
+}
+format(){
+1. 声明和选项设置                               %{ ... ... %}   定义段(definitions)
+2. 动作和模式                                   %% ... ... %%   规则段(rules)
+3. 会被拷贝到生成的词法分析器里面的C语言代码。                  用户代码段(user code)
+
+每当程序需要一个词块的时候，它调用yylex()来读取一部分输入，然后返回响应的词块。
+当需要下一个词块的时候，会重新调用yylex().
+词法分析器以协调的方式运行，也就是说，每次返回的时候都会记住当前读取的位置。并从这个位置开始处理下一个调用。
+
+当动作代码识别一个词块的时候，yylex()将以这个词块作为返回值。
+
+词块的编号，词块的值。
+
+}
+
+instance()
+{
+    fb1-1.l: wc 命令 
+      行数，单词数，字符数。
+    flex  fb1-1.l
+    cc lex.yy.c -lfl
+    
+    fb1-3.l: 整数计算器 
+}
+
+section(定义段)
+{
+定义段包含着一些简单名字的定义(name definitions)，旨在简化扫描器的规范。定义名字的方法如下:
+name definition
+名字可以由字母或下划线开头，后跟零个或多个字母、数字、下划线、或短横线。名字的定义则从其后的第一个非空白字符(non-white-space)开始直到行尾。下面是一个例子，定义了一个名字DIGIT，其定义就是指一个数字，如下所示：
+DIGIT [0-9]
+当在后面引用这个名字时，用一对花括号({})括住该名字即可。它会被展开成一对圆括号括住的该名字的定义,即:
+{name} 展开成 (definition)
+例如：
+{DIGIT}+"."{DIGIT}*
+就等价于：
+([0-9])+"."([0-9])*
+定义段中还可以加入启动条件(start conditions)的声明。顾名思义，启动条件就如同C语言中的条件编译一样，根据指定的启动条件去激活一条规则，并用这条规则去匹配读入的字符。关于启动条件，后面还有更详细的介绍。
+}
+
+section(规则段)
+{
+规则由模式(pattern)和动作(action)两个部分组成。模式就是一个正则表达式，FLEX加入了一些自己的扩展。而动作一般就是一些C语句。模式指出了一个单词是如何构成的，当分析出一个符合该规则的单词时，就执行相应的动作。
+
+模式一定要位于一行的开头处，不能有缩进。而动作的开头一定要与模式在同一行。当动作是用一对花括号{}括起来时，可以将左花括号放在与规则相同的行，而其余部分则可以从下一行开始。
+}
+
+section(用户代码段)
+{
+所有用户代码都被原样拷贝到文件lex.yy.c中。在这里可以定义一些辅助函数或代码，供扫描器yylex()调用，或者调用扫描器（一般来说就是main()了）。这一部分是可有可无的。如果没有的话，Flex文件中第二个%%是可以省略的。
+}

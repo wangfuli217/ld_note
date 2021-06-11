@@ -1,0 +1,50 @@
+--------------------------------- 6 步 ---------------------------------
+1 autoscan命令生成一个名为configure.scan文件
+2 将configure.scan改名为configure.in
+3 修改configure.in
+For Example: # Process this file with autoconf to produce a configure script.
+
+AC_PREREQ([2.65]) 
+AC_INIT([netcmd], [1.0], [liangpu198266@163.com]) 
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AC_LIBTOOL_DLOPEN 
+AC_PROG_LIBTOOL 
+AC_PROG_RANLIB
+# Checks for programs. AC_PROG_CC AC_CONFIG_FILES([ Makefile src/Makefile ]) # Checks for libraries.
+# Checks for header files.
+# Checks for typedefs, structures, and compiler characteristics.
+# Checks for library functions.
+AC_OUTPUT
+
+4 执行以下两个命令，分别生成aclocal.m4和configure文件 生成：aclocal autoconf然后在src下创建Makefile.am
+For example: #applications and libraries bin_PROGRAMS = netcmd
+#sub source code netcmd_SOURCES = netcmd.c fileUtils.c netcmd_CFLAGS =-DDEBUG_MODE -g
+5 automake --add-missing
+6 ./configure && make
+注意：如果有libtools错误 [1]libtoolize --version [2]libtoolize --automake --copy --debug --force 
+
+
+--------------------------------- 8 步 ---------------------------------
+使用automake自动生成makefile的过程主要有八个步骤：
+
+1、建立好源文件以后到源文件所在目录
+2、autoscan命令 将configure.scan文件修改为configure.in
+          修改configure.in文件中的内容：
+               AC_INIT(FULL-PACKAGE-NAME, VERSION, BUG-REPORT-ADDRESS)修改为AC_INIT(main, 1.0, pgpxc@163.com)
+        在AC_CONFIG_HEADER([config.h])后面添加AM_INIT_AUTOMAKE(main,1.0)   
+          在最后添加AC_OUTPUT([Makefile])
+3、运行aclocal
+4、运行autoconf
+5、运行autoheader
+6、创建Makefile.am文件，内容为
+     AUTOMAKE_OPTIONS=foreign
+
+     bin_PROGRAMS=main 如果有多个用空格分开
+     main_SOURCES=main.c 定义main所需源文件，多个可执行文件分别定义
+7、运行automake --add-missing
+8、运行./configure
+9、运行make
+在第六步中需要自己写Makefile.am文件，特别是其中的main_SOURCES需要把生成main所以来的文件都包含进来。
+并且那些间接依赖的文件也需要包含进来。比如说我有三个文件：main.cpp Add.cpp Add.h  Num.h Num.cpp其中
+在main.cpp中包含了Add.h  在Add.cpp中包含了Num.h这样在完成main的依赖文件时就需要包含以上所有的问个
+文件main.cpp Add.cpp Add.h  Num.h Num.cpp才可以。

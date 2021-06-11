@@ -1,0 +1,107 @@
+Lua 文件 I/O
+        Lua 的 IO 库用于读取或操作文件。Lua IO 库提供两类文件操作，它们分别是隐式文件描述符(implict file descriptors)和
+    显式文件描述符(explicit file descriptors)。
+    
+    retval errstr errcode: 文件io系统函数返回值； errstr和errcode依赖于POSIX的errno这个值
+      正常: retval非nil,  errstr为nil, errcode为nil
+      出错：retval为nil， errstr非nil, errcode非nil
+      
+    简单的打开文件操作可以用如下的语句完成。
+    file = io.open (filename [, mode])
+    可选的打开文件的模式如下表所示。
+    模式      描述
+    "r"     只读模式，这也是对已存在的文件的默认打开模式。
+    "w"     可写模式，允许修改已经存在的文件和创建新文件。
+    "a"     追加模式，对于已存的文件允许追加新内容，但不允许修改原有内容，同时也可以创建新文件。
+    "r+"    读写模式打开已存的在文件。
+    "w+"    如果文件已存在则删除文件中数据；若文件不存在则新建文件。读写模式打开。
+    "a+"    以可读的追加模式打开已存在文件，若文件不存在则新建文件。
+  1. 当文件不存在时
+    local file = io.open("./test.txt")
+    file:close()
+    模式"r","r+",会提示错误,这两种模式不会自动创建为难。
+    模式"a","a+","w","w+"都会创建文件
+  2. 当文件存在时
+  3. 对不同模式,分别调用读写操作
+    mode为"r"   -- 写: nil Bad file descriptor 9 <文件可读,不可写>
+    mode为"r+"  --                               <文件内容保留,新内容从文件头输入可读>
+    mode为"w"   -- 读: nil No error    0         <用输入内容覆盖文件内容; 
+                                                  使用"w"模式打开文件时,会立即删除文件内容,即使不写入内容.
+                                                  用"w"模式读时,返回nil>
+    mode为"w+"                                   <用输入内容覆盖文件内容;
+                                                  使用"w+"模式打开文件时,会立即删除文件内容
+                                                  用"w+"模式读时,返回空字符串>
+    mode为"a"                                    <追加模式写入;不可读>
+    mode为"a+"                                   <追加模式写入; 可读>
+    
+    io.input | io.output : 如果调用时不传参数，它返回当前的默认输入文件。
+                           在出错的情况下，函数抛出错误而不是返回错误码。
+    -- 只读模式打开文件
+    file, errstr, errcode = io.open("test.lua", "r")
+    
+    -- 将 test.lua 设置为默认输入文件
+    old, errstr, errcode = io.input(file)
+    --打印输出文件的第一行
+    print(io.read())
+    -- 关闭打开的文件
+    io.close(file)
+    -- 重新关联到默认输入上
+    io.input(old)
+    
+    -- 以追加模式打开文件
+    file = io.open("test.lua", "a")
+    -- 将 test.lua 设置为默认的输出文件
+    
+    old, errstr, errcode = io.output(file)
+    -- 将内容追加到文件最后一行
+    io.write("-- End of the test.lua file")
+    -- 关闭打开的文件
+    io.close(file)
+    -- 重新关联到默认输入上
+    io.output(old)
+    
+    从上面的例子中，你可以看到隐式的描述述如何使用 io."x" 方法与文件系统交互。上面的例子使用 io.read() 函数时没有使用可选参数。此函数的可选参数包括：
+    1. 从文件当前位置读入一个数字，如果该位置不为数字则返回 nil。
+    2. 读入从当前文件指针位置开始的整个文件内容。
+    3. 读入当前行。
+    4. 读入指定字节数的内容。
+
+    模式  描述
+    另外一些常用的方法：
+    io.tmpfile(): 返回一个临时文件的句柄。 这个文件以更新模式打开，在程序结束时会自动删除。
+    io.type(file):检测输入参数是否为可用的文件句柄。返回 "file" 表示一个打开的句柄；"closed file"表示已关闭的句柄；nil 表示不是文件句柄。
+      local file = io.tmpfile()
+      print(io.type(file))
+      file:close()
+      print(io.type(file))
+      print(io.type({}))
+    io.flush():清空输出缓冲区。
+    io.lines(optional file name): 返回一个通用循环迭代器以遍历文件，每次调用将获得文件中的一行内容,当到文件尾时，将返回nil。若显示提供了文件句柄，则结束时自动关闭文件；使用默认文件时，结束时不会自动关闭文件。
+      for line in io.lines("test.txt") do
+        print(line)
+      end
+    file:lines(): 返回一个迭代器函数， 每次调用迭代器时，都从文件中取一行数据,和 io.lines 不同， 这个函数在循环结束后不会关闭文件。
+    io.popen (prog [, mode]): 用一个分离进程开启程序 prog， 返回的文件句柄可用于从这个程序中读取数据
+    (如果 mode 为 "r"，这是默认值) 或是向这个程序写入输入(当 mode 为 "w" 时)
+    
+    file:seek([whence [, offset]])
+      设置及获取基于文件开头处计算出的位置。 设置的位置由 offset 和 whence 字符串 whence 指定的基点决定。基点可以是：
+        "set": 基点为 0(文件开头)；
+        "cur": 基点为当前位置了；
+        "end": 基点为文件尾；
+        当 seek 成功时，返回最终从文件开头计算起的文件的位置。 当 seek 失败时，返回 nil 加上一个错误描述字符串。
+      whence 的默认值是 "cur"， offset 默认为 0 。 
+        调用 file:seek() 可以返回文件当前位置，并不改变它； 
+        调用 file:seek("set") 将位置设为文件开头(并返回 0)； 
+        调用 file:seek("end") 将位置设到文件末尾，并返回文件大小。
+      file = io.open("./test.txt", "r+")
+      print(file:seek("end"))    -- 297
+      print(file:seek("set"))    -- 0
+      print(file:seek())         -- 0
+      print(file:seek("cur", 10))-- 10
+      print(file:seek("cur"))    -- 10
+      print(file:read(1))        -- 
+      print(file:seek("cur"))    -- 11
+      file:write("123")          -- 覆盖写
+      file:close()               -- 
+    修改文件的值会影响read操作 以及以"r+"模式打开文件的write操作

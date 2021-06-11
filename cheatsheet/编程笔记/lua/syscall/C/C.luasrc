@@ -1,0 +1,175 @@
+以下模块实现了一些实用函数：
+    ldebug.c - 调试接口，包含功能有：访问调试钩子（lua_sethook、lua_gethook、lua_gethookcount）；访问运行时栈（lua_getstack、lua_getlocal、lua_setlocal）；检测字节码（luaG_checkopenop、luaG_checkcode）；抛出错误（luaG_typeerror、luaG_concaterror、luaG_aritherror、luaG_ordererror、luaG_errormsg、luaG_runerror）
+    lzio.c - 通用的输入流接口
+    lmem.c - 内存管理接口。实现了luaM_realloc / luaM_growaux_ 两个函数，其中封装了内存分配函数
+    lgc.c - 增量的垃圾回收器
+
+以下模块实现了基本的数据类型：
+    lstate.c - 全局状态。包括打开、关闭Lua状态机（lua_newstate / lua_close）和线程（luaE_newthread / luaE_freethread）。
+    lobject.c - 一些操作Lua Object的通用函数。包括一些数据类型到字符串的互转函数，原生类型的相等性测试（luaO_rawequalObj），和以2为底的对数函数（luaO_log2）
+    lstring.c - 字符串哈希表（管理了所有被Lua用到的字符串）
+    lfunc.c - 一些用于操作函数原型(Proto）和闭包（Closure）的辅助函数
+    ltable.c - Lua的table实现
+
+以下模块做语法解析和代码生成：
+    lcode.c - 代码生成器，被lparser.c用到
+    llex.c - 词法分析器，被lparser.c用到
+    lparser.c - Lua语法解析器
+    lundump.c - 加载预编译的Lua代码块。实现了luaU_undump函数，此函数加载预编译的代码块。还提供了另外一个函数lua_header（被luaU_undump内部使用），用于加载代码块中的函数头信息。
+    ldump.c - 保存预编译的Lua代码块。实现了luaU_dump函数，些函数导出Lua函数为二进制形式的字符串
+
+以下模块处理Lua字节码的执行：
+    lopcodes.c - 定义Lua虚拟机的操作码。定义了所有操作码的名字和操作模式等信息（通过列表luaP_opnames、luaP_opmodes定义的）
+    lvm.c - Lua虚拟机（luaV_execute），可执行Lua字节码。另外还暴露了一些被lapi.c用到的函数，比如：luaV_concat
+    ldo.c - 函数调用栈。处理函数调用（luaD_call、luaD_pcall），栈空间增长，协程等
+    ltm.c - 元方法。实现从对象访问元方法的一些函数
+
+以下模块实现标准库：
+    lbaselib.c - 基础函数
+    lstrlib.c - 字符串函数
+    ltablib.c - 表函数
+    lmathlib.c - 数学函数
+    loslib.c - 系统函数
+    liolib.c - 输入输出、文件读写
+    loadlib.c - 包、模块
+    ldblib.c - 调试函数
+
+以下模块定义了C API：
+
+    lapi.c - Lua API。实现了大部分Lua C API（lua_* 系列函数）
+    lauxlib.c - 定义了luaL_*系列函数
+    linit.c - 实现luaL_openlibs，这个函数中加载了所有的标准库函数
+
+以下模块实现Lua和Luac两个程序：
+
+    lua.c - Lua的独立解释器
+    print.c - 定义了“PrintFunction”函数，它可以打印出一个函数的字节码（可在Luac中使用 -l 选项）
+    luac.c - Lua编译器（可保存字节码到文件中，也可在控制台列出字节码）
+
+命名约定
+
+一个函数的前缀表明了它来自哪个模块
+    lua.c                                      解释器
+    luac.c                                     字节码编译器
+	luaA_ - lapi.c                             C语言接口
+	luaB_ - lbaselib.c                         基础库
+            ldblib.c                           调试库
+            liolib.c                           IO库
+            lmathlib                           数学库
+            loslib.c                            OS库
+            ltablib.c                          表操作库
+            lstrlib.c                          字符串操作库
+            loadlib.c                          动态扩展加载器
+            linit                              负责内嵌库的初始化
+    ldump.o                                    序列化预编译的lua字节码
+	luaC_ - lgc.c                              GC
+	luaD_ - ldo.c                              函数调用及栈管理
+	luaE_ - lstate.c                           全局状态机
+	luaF_ - lfunc.c                            提供操作函数原型及闭包的辅助函数
+	luaG_ - ldebug.c                           调试库
+	luaH_ - ltable.c                           表操作
+	luaI_ - lauxlib.c                          库编写时需要用到的辅助函数库
+	luaK_ - lcode.c                            源码生成器
+	luaL_ - llauxlib.c/h linit.c               
+	luaM_ - lmem.c                             
+	luaO_ - lobject.c                          对象管理
+	luaP_ - lopcodes.c                         字节码操作
+	luaS_ - lstring.c                          字符串操作
+	luaT_ - ltm.c                              
+	luaU_ - lundump.c                          加载预编译字节码
+	luaV_ - lvm.c                              tag方法
+	luaX_ - llex.c                             词法分析
+	luaY_ - lparser.c                          分析器
+	luaZ_ - lzio.c                             缓存流接口
+	lua_  - lapi.c/h + luaconfig.h, ldebug.c   
+	luai_ - luaconf.h                          
+	luaopen_ - luaconf.h + libraries (lbaselib.c, ldblib.c, liolib.c, lmathlib.c, loadlib.c, loslib.c, lstrlib.c, ltablib.c)
+    
+1）什么是基于栈、基于寄存器的虚拟机（VM）设计？Lua如何实现基于寄存器的设计？
+2）Lua如何解析一段代码，生成中间代码？
+3）Lua如何使用VM运行中间代码？
+4）Lua如何实现GC机制？
+5）ipairs与pairs的不同（这是前几天写代码时发现的）？
+6）Lua如何实现闭包功能？
+7）Lua如何实现协程功能？
+8）Lua与c语言交互时栈的变化？
+9）如何为Lua增加一个continue关键字？
+10）Lua代码中常用的C语言编程技巧有那些？
+11）table如何实现的？
+12）如何实现的hook机制？
+13）如何实现的debug机制？
+    
+
+程序员编码lua文件(*.lua文件)->语法词法分析生成Lua的字节码文件(*.lua.byte文件)   编译过程
+Lua虚拟机解析字节码，并执行其中的指令集 -> 输出结果                             执行过程
+
+词法语法分析：
+Lua代码块：
+If a < b then a = c end
+这句话咱们程序员能看懂。为了让计算机能够读懂这句话，那么我们要做的第一件事情就是分词：
+分词的结果大概长下面这样：
+   分词结果         类型（意义）
+    if            Type_If  (if 关键字)
+    a             Type_Var (这是一个变量)
+    <             Type_OpLess(这是一个小于号)
+    b             Type_Var(这是一个变量)
+    then          Type_Then(Then关键字)
+    a             Type_Var (这是一个变量)
+    =             Type_OpEqual(这是一个等号)
+    c             Type_Var(这是一个变量)
+    end           Type_End(End关键字)
+
+语义解析：AST(抽象语法树)
+对于Lua而言，每一个关键字都有自己特别的结构。所以Lua的关键字将成为语义解析的重点。
+对于if语句我们可以抽象成这种结构：
+
+If condition(条件表达式) then dosth(语句块) end
+所以对if语句块进行解析的伪代码如下：
+      ReadTokenWord();
+       If(tokenWord.type == Type_If) then
+          ReadCondition()   //读取条件表达式
+          ReadThen()       //读取关键字then
+          ReadCodeBlock()   //读取逻辑代码块
+          ReadEnd()        //读取关键字End
+      End
+所以为了让计算机理解，我们还是得把这个东西变成数据结构。
+
+Lua源码的实现里面，它是解析一些语句，生成临时的语法树，然后翻译成指令集的。
+并不会等所有的语句都解析完了再翻译的。语义解析和翻译成指令集是并行的一个过程。
+static void body (LexState *ls, expdesc *e, int needself, int line)
+
+至于转换的过程，对于我们这个例子，大概是这样的：
+
+   If a < b then a = c end
+先理解条件 a<b：一种基于寄存器的指令设计大概是这样的：
+
+a,b均为变量。假定我们的可用的寄存器索引值从10（0-9号寄存器都已经被占用了）开始：
+又假定我们有一个常量索引表：0号常量：字符'a',1号常量：字符串'b'。那么a<b可以被翻译为这样：
+
+LoadK 10，0 ：将_G[ConstVar[0]]载入10号寄存器： R[10] = _G["a"]
+LoadK 11，1 ：将_G[ConstVar[1]]载入11号寄存器： R[11] = _G["b"]
+LT 10,11 : 比较R[10]<R[11]是否成立，如果成立，则跳过下一条指令(++PC),否则执行下一条指令。
+LT后面跟着的一条指令必然是JMP指令。就是如果R[10]<R[11]成立，则不执行JMP，直接执行JMP
+后面的一条指令(a=c的语句块对应的指令集)，否则直接跳过下面的一个语句块(跳过a=c的赋值过程)。
+同理，继续进行a=c的翻译等等。
+
+
+Lua的指令集是定长的，每一条指令都是32位，其中大概长这样：
+
+
+Lua虚拟机是怎么执行这些指令的呢?
+大概是这样的：
+
+   While(指令不为空)
+       执行指令
+       取下一条要执行的指令
+    End
+每一条指令应该怎么执行呢???如果大家还有印象的话，咱们前文语义解析完之后转指令集是这样的：
+a < b
+LoadK 10，0 ：将_G[ConstVar[0]]载入10号寄存器： R[10] = _G[“a”]
+LoadK 11，1 ：将_G[ConstVar[1]]载入11号寄存器： R[11] = _G[“b”]
+LT 10,11 : 比较R[10]<R[11]是否成立，如果成立，则跳过下一条指令(++PC),否则执行下一条指令。
+LT后面跟着的一条指令必然是JMP指令。就是如果R[10]<R[11]成立，则不执行JMP，直接执行JMP后面的
+一条指令(a=c的语句块)，否则直接跳过下面的一个语句块(跳过a=c的赋值过程)。
+
+

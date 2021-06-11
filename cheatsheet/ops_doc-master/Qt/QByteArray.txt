@@ -1,0 +1,436 @@
+https://qtguide.ustclug.org/
+        QDataStream 
+char -> QByteArray -> QList<QByteArray 
+
+QByteArray 内部编码格式不定，    可以是 UTF-8 编码和其他如 GBK、Big5 等多字节编码的字符串
+QString    UTF-16 的双字节编码   
+
+QByteArray 的两种用法，第一种作为字符串处理类，类似 QString ，但 QByteArray 内部字符编码不确定，所以要慎用。
+                       第二种是作为纯的字节数组，里面可以包含多个 '\0' ，经常用于网络数据的接收和发送。
+
+##  QByteArray 字符串的数据来源
+①源代码里的字符串，这时 QByteArray 内码与源文件的编码有关，UTF-8 编码源文件生成的很可能就是 UTF-8 编码的字符串。
+②本地文本文件，从文件读取的字符串与该文件使用的字符编码有关，Linux 上常用 UTF-8，而 Windows 经常使用 ANSI 多字节编码，简体 Windows 系统一般是 GBK，而繁体默认是 Big5。
+③网页数据，网页本身也是文本文件，有它自己的文本编码格式，这时网页文件编码格式决定 QByteArray 字符串的编码格式。
+
+
+1. QByteArray和char
+----------------------
+    Qt 最常用的字符串类是内码固定的 QString，而针对传统类似 C 语言 char* 的字符串，Qt 提供了 QByteArray 类来处理。
+QString 的字符单元是 QChar，QByteArray 的字节单元是 char。
+    头文件 <QByteArray> 不仅自身以类的形式提供，它还针对传统 C 语言的字符串函数做了安全版本的封装，
+都加了 q 字母前缀，如 qstrlen、qstrncmp、qstrcpy，这些是全局函数，专门处理传统 C 语言的 char* 字符串，用法与 C 语言风格完全类似，
+    QByteArray 类可以处理以 '\0' 结尾的传统字符串，包括 UTF-8 编码和其他如 GBK、Big5 等多字节编码的字符串，
+在作为字符串使用时，QByteArray内部字符编码格式是不限定的，可以是任意编码的,所以程序员自己必须要事先确定程序会用到哪些编码的QByteArray。
+    因为 Qt5 源文件规定是 UTF-8 编码的，所以 QByteArray 内部使用 UTF-8 编码的字符串居多。
+    QByteArray 经常配合 QDataStream 使用，对 Qt 数据类型做串行化(Serializing)。
+
+2. QByteArray作为字符串使用
+----------------------
+    QByteArray 类作为字符串使用时，它会自动在字符串末尾添加 '\0' ，末尾的 '\0' 不计入字符串长度。
+QByteArray 字符串的内部编码是不固定的，比如前面 QString 的 toLocal8Bit 和 toUtf8 函数返回的对象全是 QByteArray 类型。
+QByteArray 字符串的数据来源可能有：
+    1. 源代码里的字符串，这时 QByteArray 内码与源文件的编码有关，UTF-8 编码源文件生成的很可能就是 UTF-8 编码的字符串。
+    2. 本地文本文件，从文件读取的字符串与该文件使用的字符编码有关，Linux 上常用 UTF-8，而 Windows 经常使用 ANSI 多字节编码，简体 Windows 系统一般是 GBK，而繁体默认是 Big5。
+    3. 网页数据，网页本身也是文本文件，有它自己的文本编码格式，这时网页文件编码格式决定 QByteArray 字符串的编码格式。
+
+void TestStr()  //内码 UTF-8
+{
+    //数值与字符串转换
+    int nDec = 800;
+    QByteArray basDec;
+    basDec.setNum(nDec);    //数值转字符串
+    qDebug()<<basDec;                        // "800" 
+    QByteArray basReal = "125.78999";
+    double dblReal = basReal.toDouble();    //字符串转数值
+    qDebug()<<fixed<<dblReal;               // 125.789990 
+
+    //运算符
+    QByteArray basABCD = "ABCD";
+    QByteArray basXYZ = "XYZ";
+    qDebug()<<(basABCD < basXYZ);   // true
+    qDebug()<<(basABCD == basXYZ);  // false
+    qDebug()<<(basABCD >= basXYZ);  // false
+    qDebug()<<(basABCD + basXYZ);   // "ABCDXYZ" 
+
+    //子串处理
+    QByteArray basHanzi = "1234打印汉字";
+    //作为字符串时 QByteArray::length() 和 qstrlen() 一致
+    qDebug()<<basHanzi.length()<<"\t"<<qstrlen( basHanzi.data() ); // 16 	 16 
+    //重复
+    QByteArray basMoreHanzi = basHanzi.repeated(2);
+    qDebug()<<basMoreHanzi.count("1234"); //统计次数                // 2
+    qDebug()<<basMoreHanzi.startsWith("1234");  //开头判断          // true
+    qDebug()<<basMoreHanzi.endsWith("汉字");     //结尾判断         // true
+    qDebug()<<basMoreHanzi.indexOf("1234");   //从左边查出现位置    // 0
+    qDebug()<<basMoreHanzi.lastIndexOf("1234"); //从右边查出现位置  // 16
+    //替换
+    basMoreHanzi.replace("1234", "一");
+    qDebug()<<basMoreHanzi;                                         // "一打印汉字一打印汉字" 
+
+    //切割字符串
+    QByteArray basComplexFile = "   /home/user/somefile.txt  \t\t ";
+    QByteArray basFileName = basComplexFile.trimmed();  //剔除两端空白  // "/home/user/somefile.txt" 
+    qDebug()<<basFileName;
+    //分隔得到新的 QByteArray 对象列表
+    QList<QByteArray> baList = basFileName.split('/');
+    //打印
+    for(int i=0; i<baList.length(); i++)
+    {
+        qDebug()<<i<<"\t"<<baList[i];
+    }
+    /*
+0 	 "" 
+1 	 "home" 
+2 	 "user" 
+3 	 "somefile.txt" 
+    */
+    //没有段落函数
+}
+
+
+3. QByteArray作为字节数组使用
+----------------------
+    在读写文件、网络数据收发过程中经常将　QByteArray 作为缓冲区存储字节数据，
+这时候 QByteArray 就是纯的字节数组，里面可以包含任意个 '\0' 字节。
+    下面以网络数据传输为例讲解，比如网络传输过程中既要传输数值类型 int、double，又要传输字符串类型 char*，
+对于普通的 C++ ，最常用的是自定义一个结构体：
+struct NetData
+{
+    int nVersion;
+    double dblValue;
+    char strName[256];
+};
+串行化得到一个字节数组 QByteArray ，可以直接用于发送。Qt 串行化数据接收就是发送的逆过程，都是通过 QDataStream 流实现。
+QByteArray TestSerialOut()
+{
+    //数据
+    int nVersion = 1;
+    double dblValue = 125.78999;
+    QString strName = QObject::tr("This an example.");
+    //字节数组保存结果
+    QByteArray baResult;
+    //串行化的流
+    QDataStream dsOut(&baResult, QIODevice::ReadWrite);  //做输出，构造函数用指针
+    //设置Qt串行化版本
+    dsOut.setVersion(QDataStream::Qt_5_0);//使用Qt 5.0 版本流
+    //串行化输出
+    dsOut<<nVersion<<dblValue<<strName;
+    //显示长度
+    qDebug()<<baResult.length()<<"\t"<<qstrlen(baResult.data());    // 48 	 0
+    //返回对象
+    return baResult;
+}
+
+baResult 数据的解析函数如下：
+void TestSerialIn(const QByteArray& baIn)
+{
+    //输入流
+    QDataStream dsIn(baIn); //只读的流，构造函数用常量引用
+    //设置Qt串行化版本
+    dsIn.setVersion(QDataStream::Qt_5_0);//使用Qt 5.0 版本流
+    //变量
+    int nVersion;
+    double dblValue;
+    QString strName;
+    //串行化输入
+    dsIn>>nVersion>>dblValue>>strName;
+    //打印
+    qDebug()<<nVersion;
+    qDebug()<<fixed<<dblValue;
+    qDebug()<<strName;
+}
+对于输入流的构造，参数是常量引用，其声明如下：
+QDataStream(const QByteArray & a)
+这个声明是针对只读的输入流。
+
+    QByteArray 有针对数据处理的一些函数，比如基 64 转换和压缩解压函数：
+fromBase64、toBase64、qCompress、qUncompress 等，这些函数可以到使用的时候再查帮助文档。
+
+4. 字符串和字符数组
+----------------------
+    因为 QByteArray 既可以用作字符串，又可以用作字符数组，它的使用方式比较多。
+而且作为字符串时，它内部的字符编码格式又是不固定的，所以 QByteArray 有诸多的不确定性
+Qt 帮助文档里面明确说了，如果要做字符串方面的处理，都应当使用 QString ，除非是嵌入式系统里面内存有限，
+不得不用 QByteArray 的情况。
+    对于本地化编码的字符串，可以用 QString::fromLocal8Bit 函数将字符串源转为 QString 对象；
+    对于 UTF-8 编码的字符串，可以用 QString::fromUtf8 函数实现转换。
+    如果要反过来转换，就 用对应的 to*** 函数。通常情况下有这些函数就够用了。
+    
+    对于文件读写和网络数据收发，这些一般都是用 QByteArray 对象作为输入输出缓冲区，并且可以利用 QDataStream 做串行化，
+将多个数据打包成 QByteArray 。通常情况下，对于纯字节数据的处理使用 QByteArray 。
+void TestCooperation()
+{
+    //源字符串
+    QString strSrc = QObject::tr("1234abcd 千秋萬載 壹統江湖");
+    //转为 UTF-8
+    qDebug()<<strSrc.toUtf8();                                       //"1234abcd 千秋萬載 壹統江湖" 
+    //明确地转为 GB18030
+    QTextCodec *codecGB = QTextCodec::codecForName("GB18030");
+    QByteArray strGB = codecGB->fromUnicode(strSrc); //转为GB18030
+    qDebug()<<strGB;                                                 // "1234abcd ????f?d ??y????" 
+    qDebug()<<codecGB->toUnicode(strGB);  //转回QString              // "1234abcd 千秋萬載 壹統江湖" 
+    //明确地转为 Big5
+    QTextCodec *codecBig5 = QTextCodec::codecForName("Big5");
+    QByteArray strBig5 = codecBig5->fromUnicode(strSrc); //转为Big5
+    qDebug()<<strBig5;                                               // "1234abcd ?d???U?? ???Φ???" 
+    qDebug()<<codecBig5->toUnicode(strBig5);    //转回QString        // "1234abcd 千秋萬載 壹統江湖"
+}
+
+================================================================================
+https://zhuanlan.zhihu.com/p/51728642
+
+指向数据的指针
+    char * data()
+    const char * data() const
+    const char * constData() const
+    QByteArray & setRawData(const char *data, uint size)
+    [static]QByteArray fromRawData(const char *data, int size)
+
+关于 data()，返回指向 QByteArray 中字符数组数据的指针，只要不重新分配空间或者销毁，该指针就保持有效。
+关于 constData()，如果只读的话该函数非常快，不会导致深层复制。不过一般该函数用于的场合是那些需要 const char* 参数的地方。
+    关于 setRawData() 和 fromRawData()，两个函数都是从原始数据中构造 QByteArray。看参数是 const char*，
+说明无论怎么构建 QByteArray，都不会对数据源进行修改，因为隐式共享的原因，只要用 QByteArray 修改一个字符，就会引发深拷贝。
+
+
+十六进制 
+    QByteArray toHex() const 
+    QByteArray toHex(char separator) const
+    [static]QByteArray fromHex(const QByteArray &hexEncoded)
+
+    
+附：所有函数
+
+初始化
+    QByteArray()
+    QByteArray(const char *data, int size = -1)
+    QByteArray(int size, char ch)
+    QByteArray(const QByteArray &other)
+    QByteArray(QByteArray &&other)
+    交换：void swap(QByteArray &other)
+数组信息
+    是否空
+        bool isEmpty() const
+        bool isNull() const
+    容量
+        获取
+            内存大小：int capacity() const
+            字符大小：int count() const == int size() const == int length() const
+        设置
+            不填充：void reserve(int size)
+            填充：void resize(int size)
+        释放不需要的空间
+            void squeeze()
+            void shrink_to_fit()
+    指向数据的指针
+        char * data()
+        const char *data() const
+        const char *constData() const
+        QByteArray &setRawData(const char *data, uint size)
+        [static]QByteArray fromRawData(const char *data, int size)
+增/删/改/查
+    增加
+        从前面
+            QByteArray &prepend(const QByteArray &ba)
+            QByteArray &prepend(int count, char ch)
+            QByteArray &prepend(const char *str)
+            QByteArray &prepend(const char *str, int len)
+            QByteArray &prepend(char ch)
+            void push_front(const QByteArray &other)
+            void push_front(const char *str)
+            void push_front(char ch)
+        从中间
+            QByteArray &insert(int i, const QByteArray &ba)
+            QByteArray &insert(int i, int count, char ch)
+            QByteArray &insert(int i, const char *str)
+            QByteArray &insert(int i, const char *str, int len)
+            QByteArray &insert(int i, char ch)
+            QByteArray &insert(int i, const QString &str)
+        从后面
+            QByteArray &append(const QByteArray &ba)
+            QByteArray &append(int count, char ch)
+            QByteArray &append(const char *str)
+            QByteArray &append(const char *str, int len)
+            QByteArray &append(char ch)
+            QByteArray &append(const QString &str)
+            void push_back(const QByteArray &other)
+            void push_back(const char *str)
+            void push_back(char ch)
+    删除
+        前后
+            删除后n个字符：void chop(int n)
+            保留前n个字符：void truncate(int pos)
+        中间：QByteArray &remove(int pos, int len)
+        删除所有字符：void clear()
+        去除空白
+            QByteArray simplified() const
+            QByteArray trimmed() const
+    修改
+        填充
+            左：QByteArray leftJustified(int width, char fill = ' ', bool truncate = false) const
+            全部：QByteArray & fill(char ch, int size = -1)
+            右：QByteArray rightJustified(int width, char fill = ' ', bool truncate = false) const
+        复制多次：QByteArray repeated(int times) const
+        替换
+            QByteArray &replace(int pos, int len, const QByteArray &after)
+            QByteArray &replace(int pos, int len, const char *after, int alen)
+            QByteArray &replace(int pos, int len, const char *after)
+            QByteArray &replace(char before, const char *after)
+            QByteArray &replace(char before, const QByteArray &after)
+            QByteArray &replace(const char *before, const char *after)
+            QByteArray &replace(const char *before, int bsize, const char *after, int asize)
+            QByteArray &replace(const QByteArray &before, const QByteArray &after)
+            QByteArray &replace(const QByteArray &before, const char *after)
+            QByteArray &replace(const char *before, const QByteArray &after)
+            QByteArray &replace(char before, char after)
+            QByteArray &replace(const QString &before, const char *after)
+            QByteArray &replace(char before, const QString &after)
+            QByteArray &replace(const QString &before, const QByteArray &after)
+    查找
+        判断数组中的内容
+            是否包含
+                开头
+                    bool startsWith(const QByteArray &ba) const
+                    bool startsWith(char ch) const
+                    bool startsWith(const char *str) const
+                中间任意位置
+                    bool contains(const QByteArray &ba) const
+                    bool contains(const char *str) const
+                    bool contains(char ch) const
+                结尾
+                    bool endsWith(const QByteArray &ba) const
+                    bool endsWith(char ch) const
+                    bool endsWith(const char *str) const
+            包含的字符所在位置
+                int indexOf(const QByteArray &ba, int from = 0) const
+                int indexOf(const char *str, int from = 0) const
+                int indexOf(char ch, int from = 0) const
+                int indexOf(const QString &str, int from = 0) const
+                int lastIndexOf(const QByteArray &ba, int from = -1) const
+                int lastIndexOf(const char *str, int from = -1) const
+                int lastIndexOf(char ch, int from = -1) const
+                int lastIndexOf(const QString &str, int from = -1) const
+            出现次数
+                int count(const QByteArray &ba) const
+                int count(const char *str) const
+                int count(char ch) const
+        提取内容
+            单个字符
+                第一个
+                    char front() const
+                    QByteRef front()
+                中间
+                    char at(int i) const
+                    char operator[](uint i) const
+                    char operator[](int i) const
+                    QByteRef operator[](int i)
+                    QByteRef operator[](uint i)
+                最后一个
+                    char back() const
+                    QByteRef back()
+            字符串
+                直接提取
+                    左：QByteArray left(int len) const
+                    中：QByteArray mid(int pos, int len = -1) const
+                    右：QByteArray right(int len) const
+                删除后提取
+                    QByteArray chopped(int len) const
+            切分：QList<QByteArray> split(char sep) const
+转换
+    大小写
+        bool isLower() const
+        bool isUpper() const
+        QByteArray toLower() const
+        QByteArray toUpper() const
+    数字
+        int 型
+            QByteArray & setNum(int n, int base = 10)
+            int toInt(bool *ok = nullptr, int base = 10) const
+        unsigned int 型
+            QByteArray & setNum(uint n, int base = 10)
+            uint toUInt(bool *ok = nullptr, int base = 10) const
+        short 型
+            QByteArray & setNum(short n, int base = 10)
+            short toShort(bool *ok = nullptr, int base = 10) const
+        unsigned short 型
+            QByteArray & setNum(ushort n, int base = 10)
+            ushort toUShort(bool *ok = nullptr, int base = 10) const
+        long long 型
+            QByteArray & setNum(qlonglong n, int base = 10)
+            qlonglong toLongLong(bool *ok = nullptr, int base = 10) const
+        unsigned long long 型
+            QByteArray & setNum(qulonglong n, int base = 10)
+            qulonglong toULongLong(bool *ok = nullptr, int base = 10) const
+        float 型
+            QByteArray & setNum(float n, char f = 'g', int prec = 6)
+            float toFloat(bool *ok = nullptr) const
+        double 型
+            QByteArray & setNum(double n, char f = 'g', int prec = 6)
+            double toDouble(bool *ok = nullptr) const
+        十六进制
+            QByteArray toHex() const
+            QByteArray toHex(char separator) const
+            [static]QByteArray fromHex(const QByteArray &hexEncoded)
+    Base64
+        QByteArray toBase64() const
+        QByteArray toBase64(QByteArray::Base64Options options) const
+        [static]QByteArray fromBase64(const QByteArray &base64)
+        [static]QByteArray fromBase64(const QByteArray &base64, QByteArray::Base64Options options)
+    CFData
+        CFDataRef toCFData() const
+        CFDataRef toRawCFData() const
+        [static]QByteArray fromCFData(CFDataRef data)
+        [static]QByteArray fromRawCFData(CFDataRef data)
+    NSData
+        NSData * toNSData() const
+        NSData * toRawNSData() const
+        [static]QByteArray fromNSData(const NSData *data)
+        [static]QByteArray fromRawNSData(const NSData *data)
+    URL
+        QByteArray toPercentEncoding(const QByteArray &exclude = QByteArray(), const QByteArray &include = QByteArray(), char percent = '%') const
+        QByteArray fromPercentEncoding(const QByteArray &input, char percent = '%')
+    StdString
+        std::string toStdString() const
+        [static]QByteArray fromStdString(const std::string &str)
+比较字符串
+    int compare(const char *c, Qt::CaseSensitivity cs = ...) const
+    int compare(const QByteArray &a, Qt::CaseSensitivity cs = ...) const
+游标
+    QByteArray::iterator begin()
+    QByteArray::const_iterator begin() const
+    QByteArray::const_iterator cbegin() const
+    QByteArray::const_iterator cend() const
+    QByteArray::const_iterator constBegin() const
+    QByteArray::const_iterator constEnd() const
+    QByteArray::const_reverse_iterator crbegin() const
+    QByteArray::const_reverse_iterator crend() const
+    QByteArray::iterator end()
+    QByteArray::const_iterator end() const
+    QByteArray::reverse_iterator rbegin()
+    QByteArray::const_reverse_iterator rbegin() const
+    QByteArray::reverse_iterator rend()
+    QByteArray::const_reverse_iterator rend() const
+非成员相关函数
+    CRC16校验和
+        quint16 qChecksum(const char *data, uint len)
+        quint16 qChecksum(const char *data, uint len, Qt::ChecksumType standard)
+    解/压缩
+        QByteArray qCompress(const uchar *data, int nbytes, int compressionLevel = -1)
+        QByteArray qCompress(const QByteArray &data, int compressionLevel = -1)
+        QByteArray qUncompress(const uchar *data, int nbytes)
+        QByteArray qUncompress(const QByteArray &data)
+    类似C函数
+        int qsnprintf(char *str, size_t n, const char *fmt, ...)
+        int qstrcmp(const char *str1, const char *str2)
+        char *qstrcpy(char *dst, const char *src)
+        char *qstrdup(const char *src)
+        int qstricmp(const char *str1, const char *str2)
+        uint qstrlen(const char *str)
+        int qstrncmp(const char *str1, const char *str2, uint len)
+        char *qstrncpy(char *dst, const char *src, uint len)
+        int qstrnicmp(const char *str1, const char *str2, uint len)
+        uint qstrnlen(const char *str, uint maxlen)
+        int qvsnprintf(char *str, size_t n, const char *fmt, va_list ap)
+宏
+    QByteArrayLiteral(ba)
+    QT_NO_CAST_FROM_BYTEARRAY

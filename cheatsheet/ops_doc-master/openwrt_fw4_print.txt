@@ -1,0 +1,336 @@
+iptables -t filter -P INPUT ACCEPT
+iptables -t filter -P OUTPUT ACCEPT
+iptables -t filter -P FORWARD ACCEPT
+iptables -t filter -N delegate_input
+iptables -t filter -N delegate_output
+iptables -t filter -N delegate_forward
+iptables -t filter -N reject
+iptables -t filter -N syn_flood
+iptables -t filter -N zone_lan_input
+iptables -t filter -N zone_lan_output
+iptables -t filter -N zone_lan_forward
+iptables -t filter -N zone_lan_src_ACCEPT
+iptables -t filter -N zone_lan_dest_ACCEPT
+iptables -t filter -N zone_wan_input
+iptables -t filter -N zone_wan_output
+iptables -t filter -N zone_wan_forward
+iptables -t filter -N zone_wan_src_REJECT
+iptables -t filter -N zone_wan_dest_ACCEPT
+iptables -t filter -N zone_wan_dest_REJECT
+iptables -t filter -D INPUT -j delegate_input
+iptables -t filter -A INPUT -j delegate_input
+iptables -t filter -D OUTPUT -j delegate_output
+iptables -t filter -A OUTPUT -j delegate_output
+iptables -t filter -D FORWARD -j delegate_forward
+iptables -t filter -A FORWARD -j delegate_forward
+iptables -t filter -A delegate_input -i lo -j ACCEPT
+iptables -t filter -A delegate_output -o lo -j ACCEPT
+iptables -t filter -A delegate_input -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -t filter -A delegate_input -m conntrack --ctstate INVALID -j DROP
+iptables -t filter -A delegate_output -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -t filter -A delegate_output -m conntrack --ctstate INVALID -j DROP
+iptables -t filter -A delegate_forward -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -t filter -A delegate_forward -m conntrack --ctstate INVALID -j DROP
+iptables -t filter -A syn_flood -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 25/sec --limit-burst 500 -j RETURN
+iptables -t filter -A syn_flood -j DROP
+iptables -t filter -A delegate_input -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j syn_flood
+iptables -t filter -A reject -p tcp -j REJECT --reject-with tcp-reset
+iptables -t filter -A reject -j REJECT --reject-with icmp-port-unreachable
+iptables -t filter -A zone_wan_input -p udp -m udp --dport 68 -m comment --comment Allow-DHCP-Renew -j ACCEPT
+iptables -t filter -A zone_wan_input -p icmp -m icmp --icmp-type 8 -m comment --comment Allow-Ping -j ACCEPT
+iptables -t filter -A zone_wan_input -p 2 -m comment --comment Allow-IGMP -j ACCEPT
+iptables -t filter -A zone_wan_forward -p esp -m comment --comment "@rule[7]" -j zone_lan_dest_ACCEPT
+iptables -t filter -A zone_wan_forward -p udp -m udp --dport 500 -m comment --comment "@rule[8]" -j zone_lan_dest_ACCEPT
+iptables -t filter -A delegate_forward -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j zone_lan_dest_ACCEPT
+iptables -t filter -A zone_lan_forward -m comment --comment "forwarding lan -> wan" -j zone_wan_dest_ACCEPT
+iptables -t filter -A zone_lan_input -j zone_lan_src_ACCEPT
+iptables -t filter -A zone_lan_forward -j zone_lan_dest_ACCEPT
+iptables -t filter -A zone_lan_output -j zone_lan_dest_ACCEPT
+iptables -t filter -D zone_lan_src_ACCEPT -i br-lan -j ACCEPT
+iptables -t filter -A zone_lan_src_ACCEPT -i br-lan -j ACCEPT
+iptables -t filter -D zone_lan_dest_ACCEPT -o br-lan -j ACCEPT
+iptables -t filter -A zone_lan_dest_ACCEPT -o br-lan -j ACCEPT
+iptables -t filter -D delegate_input -i br-lan -j zone_lan_input
+iptables -t filter -A delegate_input -i br-lan -j zone_lan_input
+iptables -t filter -D delegate_output -o br-lan -j zone_lan_output
+iptables -t filter -A delegate_output -o br-lan -j zone_lan_output
+iptables -t filter -D delegate_forward -i br-lan -j zone_lan_forward
+iptables -t filter -A delegate_forward -i br-lan -j zone_lan_forward
+iptables -t filter -A zone_wan_input -j zone_wan_src_REJECT
+iptables -t filter -A zone_wan_forward -j zone_wan_dest_REJECT
+iptables -t filter -A zone_wan_output -j zone_wan_dest_ACCEPT
+iptables -t filter -D zone_wan_dest_ACCEPT -o eth1 -j ACCEPT
+iptables -t filter -A zone_wan_dest_ACCEPT -o eth1 -j ACCEPT
+iptables -t filter -D zone_wan_src_REJECT -i eth1 -j reject
+iptables -t filter -A zone_wan_src_REJECT -i eth1 -j reject
+iptables -t filter -D zone_wan_dest_REJECT -o eth1 -j reject
+iptables -t filter -A zone_wan_dest_REJECT -o eth1 -j reject
+iptables -t filter -D delegate_input -i eth1 -j zone_wan_input
+iptables -t filter -A delegate_input -i eth1 -j zone_wan_input
+iptables -t filter -D delegate_output -o eth1 -j zone_wan_output
+iptables -t filter -A delegate_output -o eth1 -j zone_wan_output
+iptables -t filter -D delegate_forward -i eth1 -j zone_wan_forward
+iptables -t filter -A delegate_forward -i eth1 -j zone_wan_forward
+iptables -t filter -D zone_wan_dest_ACCEPT -o eth1 -j ACCEPT
+iptables -t filter -A zone_wan_dest_ACCEPT -o eth1 -j ACCEPT
+iptables -t filter -D zone_wan_src_REJECT -i eth1 -j reject
+iptables -t filter -A zone_wan_src_REJECT -i eth1 -j reject
+iptables -t filter -D zone_wan_dest_REJECT -o eth1 -j reject
+iptables -t filter -A zone_wan_dest_REJECT -o eth1 -j reject
+iptables -t filter -D delegate_input -i eth1 -j zone_wan_input
+iptables -t filter -A delegate_input -i eth1 -j zone_wan_input
+iptables -t filter -D delegate_output -o eth1 -j zone_wan_output
+iptables -t filter -A delegate_output -o eth1 -j zone_wan_output
+iptables -t filter -D delegate_forward -i eth1 -j zone_wan_forward
+iptables -t filter -A delegate_forward -i eth1 -j zone_wan_forward
+iptables -t nat -N delegate_prerouting
+iptables -t nat -N delegate_postrouting
+iptables -t nat -N zone_wan_postrouting
+iptables -t nat -D PREROUTING -j delegate_prerouting
+iptables -t nat -A PREROUTING -j delegate_prerouting
+iptables -t nat -D POSTROUTING -j delegate_postrouting
+iptables -t nat -A POSTROUTING -j delegate_postrouting
+iptables -t nat -A zone_wan_postrouting -j MASQUERADE
+iptables -t nat -D delegate_postrouting -o eth1 -j zone_wan_postrouting
+iptables -t nat -A delegate_postrouting -o eth1 -j zone_wan_postrouting
+iptables -t nat -D delegate_postrouting -o eth1 -j zone_wan_postrouting
+iptables -t nat -A delegate_postrouting -o eth1 -j zone_wan_postrouting
+iptables -t mangle -N mssfix
+iptables -t mangle -N fwmark
+iptables -t mangle -D FORWARD -j mssfix
+iptables -t mangle -A FORWARD -j mssfix
+iptables -t mangle -D PREROUTING -j fwmark
+iptables -t mangle -A PREROUTING -j fwmark
+iptables -t mangle -D mssfix -p tcp -o eth1 -m tcp --tcp-flags SYN,RST SYN -m comment --comment "wan (mtu_fix)" -j TCPMSS --clamp-mss-to-pmtu
+iptables -t mangle -A mssfix -p tcp -o eth1 -m tcp --tcp-flags SYN,RST SYN -m comment --comment "wan (mtu_fix)" -j TCPMSS --clamp-mss-to-pmtu
+iptables -t mangle -D mssfix -p tcp -o eth1 -m tcp --tcp-flags SYN,RST SYN -m comment --comment "wan (mtu_fix)" -j TCPMSS --clamp-mss-to-pmtu
+iptables -t mangle -A mssfix -p tcp -o eth1 -m tcp --tcp-flags SYN,RST SYN -m comment --comment "wan (mtu_fix)" -j TCPMSS --clamp-mss-to-pmtu
+iptables -t raw -N delegate_notrack
+iptables -t raw -D PREROUTING -j delegate_notrack
+iptables -t raw -A PREROUTING -j delegate_notrack
+
+
+
+
+
+ * Clearing IPv4 filter table
+ * Clearing IPv4 nat table
+ * Clearing IPv4 mangle table
+ * Clearing IPv4 raw table
+ * Populating IPv4 filter table
+   * Zone 'lan'
+   * Zone 'wan'
+   * Rule 'Allow-DHCP-Renew'
+   * Rule 'Allow-Ping'
+   * Rule 'Allow-IGMP'
+   * Rule #7
+   * Rule #8
+   * Rule '-ftp'
+   * Forward 'lan' -> 'wan'
+ * Populating IPv4 nat table
+   * Zone 'lan'
+   * Zone 'wan'
+ * Populating IPv4 mangle table
+   * Zone 'lan'
+   * Zone 'wan'
+ * Populating IPv4 raw table
+   * Zone 'lan'
+   * Zone 'wan'
+ * Clearing IPv6 filter table
+ * Clearing IPv6 mangle table
+ * Clearing IPv6 raw table
+ * Populating IPv6 filter table
+   * Zone 'lan'
+   * Zone 'wan'
+   * Rule 'Allow-DHCPv6'
+   * Rule 'Allow-MLD'
+   * Rule 'Allow-ICMPv6-Input'
+   * Rule 'Allow-ICMPv6-Forward'
+   * Rule #7
+   * Rule #8
+   * Forward 'lan' -> 'wan'
+ * Populating IPv6 mangle table
+   * Zone 'lan'
+   * Zone 'wan'
+ * Populating IPv6 raw table
+   * Zone 'lan'
+   * Zone 'wan'
+ * Set tcp_ecn to off
+ * Set tcp_syncookies to on
+ * Set tcp_window_scaling to on
+ 
+ 
+1. Opening ports
+config rule
+        option src              wan
+        option dest_port        22
+        option target           ACCEPT
+        option proto            tcp
+
+2. Opening ports for selected subnet/host
+config rule
+        option src              wan
+        option src_ip           '12.34.56.64/28'
+        option dest_port        22
+        option target           ACCEPT
+        option proto            tcp
+3. Port forwarding for IPv4 (Destination NAT/DNAT)
+config redirect
+        option src       wan
+        option src_dport 80
+        option proto     tcp
+        option dest      lan
+        option dest_ip   192.168.1.10
+
+config redirect
+        option src       wan
+        option src_dport 5555
+        option proto     tcp
+        option dest      lan
+        option dest_ip   192.168.1.100
+        option dest_port 22
+
+4. Stateful firewall without NAT
+config zone
+        option name             wan
+        list   network          'wan'
+        list   network          'wan6'
+        option input            REJECT
+        option output           ACCEPT
+        option forward          REJECT
+        option masq             0
+        option mtu_fix          1
+        option conntrack        1
+
+5. DNAT/SNAT redirects and forwarding combination
+config redirect
+        option name     'icmp DNAT'
+        option src      'wan'
+        option src_dip   '1.2.3.4'
+        option proto    'icmp'
+        option dest     'dmz'
+        option dest_ip  '192.168.1.79'
+        option target   'DNAT'
+
+config redirect
+        option name     'icmp SNAT'
+        option src      'dmz'
+        option src_ip   '192.168.1.79'
+        option src_dip  '1.2.3.4'
+        option proto    'icmp'
+        option dest     'wan'
+        option target   'SNAT'
+
+6. Source NAT (SNAT)
+config redirect
+        option src              lan
+        option dest             wan
+        option src_ip           10.55.34.85
+        option src_dip          63.240.161.99
+        option dest_port        123
+        option target           SNAT
+7. Block access to a specific host
+config rule
+        option src              lan
+        option dest             wan
+        option dest_ip          123.45.67.89
+        option target           REJECT
+
+8. Block access to the Internet using MAC
+config rule
+        option src              lan
+        option dest             wan
+        option src_mac          00:00:00:00:00:00
+        option target           REJECT
+
+9. Block access to the Internet for specific IP on certain times
+config rule
+        option src              lan
+        option dest             wan
+        option src_ip           192.168.1.27
+        option proto            all
+        option extra            '-m time --weekdays Mon,Tue,Wed,Thu,Fri --timestart 21:00 --timestop 09:00'
+        option target           REJECT
+10. Restricted forwarding rule
+config rule
+        option src              lan
+        option dest             wan
+        option dest_port        1000-1100
+        option proto            tcpudp
+        option target           REJECT
+
+11. Simple output rule
+config rule
+        option dest             wan
+        option dest_ip          8.8.8.8
+        option proto            icmp
+        option target           REJECT
+
+12. Transparent proxy rule (same host)
+config redirect
+    option src              lan
+    option proto            tcp
+    option src_dport        80
+    option dest_port        3128
+    option dest_ip          192.168.1.1
+
+13. Transparent proxy rule (external)
+config redirect
+        option src              lan
+        option proto            tcp
+        option src_ip           !192.168.1.100
+        option src_dport        80
+        option dest_ip          192.168.1.100
+        option dest_port        3128
+        option target           DNAT
+
+config redirect
+        option dest             lan
+        option proto            tcp
+        option src_dip          192.168.1.1
+        option dest_ip          192.168.1.100
+        option dest_port        3128
+        option target           SNAT
+
+14. Simple DMZ rule
+config redirect
+	option src              wan
+	option proto            all
+	option dest_ip          192.168.1.2
+
+15. IPSec passthrough
+# AH protocol
+config rule
+        option src              wan
+        option dest             lan
+        option proto            ah
+        option target           ACCEPT
+
+# ESP protocol
+config rule
+        option src              wan
+        option dest             lan
+        option proto            esp
+        option target           ACCEPT
+
+For some configurations you also have to open port 500/UDP.
+
+# ISAKMP protocol
+config rule
+        option src              wan
+        option dest             lan
+        option proto            udp
+        option src_port         500
+        option dest_port        500
+        option target           ACCEPT
+
+config include 
+    option path /etc/firewall.user 
+config include 
+    option path /etc/firewall.vpn
+
+
+
+
+
+

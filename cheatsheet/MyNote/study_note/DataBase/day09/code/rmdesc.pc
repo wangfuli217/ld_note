@@ -1,0 +1,18 @@
+#include<stdio.h>
+exec sql include sqlca;
+int main(void)
+{
+	exec sql begin declare section;
+		char userpasswd[30]="tarena/tarena";
+		char var_name[30];
+	exec sql end   declare section;
+	exec sql connect:userpasswd;
+	exec sql select first_name into :var_name from s_emp where id=1;
+	printf("%s\n",var_name);
+	exec slq select first_name into :var_name from s_emp@db30todb70 where id=1;
+	printf("%s\n",var_name);
+	exec sql update s_emp@db30todb80 set first_name='abc123',salary=12345 where id=30;
+	commit;
+	exec sql commit work release;
+	return 0;
+}

@@ -1,0 +1,25 @@
+http://www.cnblogs.com/out8/p/4225924.html
+
+atomic_t 类型在进行整数算术时是不错的。 但是， 它无法工作的好， 当你需要以原子方式操作单个位时。 为此， 内核提供了一套函数来原子地修改或测试单个位。 因为整个操作在单步内发生， 没有中断(或者其他处理器)能干扰。  www.ahlinux.com  
+原子位操作非常快， 因为它们使用单个机器指令来进行操作， 而在任何时候低层平台做的时候不用禁止中断。 函数是体系依赖的并且在 中声明。 它们保证是原子的， 即便在 SMP 计算机上， 并且对于跨处理器保持一致是有用的。
+不幸的是， 键入这些函数中的数据也是体系依赖的。 nr 参数(描述要操作哪个位)常常定义为 int, 但是在几个体系中是 unsigned long. 要修改的地址常常是一个 unsigned long 指针， 但是几个体系使用 void * 代替。
+各种位操作是：
+
+void set_bit(nr, void *addr);
+设置第 nr 位在 addr 指向的数据项中。
+
+void clear_bit(nr, void *addr);
+清除指定位在 addr 处的无符号长型数据。 它的语义与 set_bit 的相反。
+
+void change_bit(nr, void *addr);
+翻转这个位。
+
+test_bit(nr, void *addr);
+这个函数是唯一一个不需要是原子的位操作; 它简单地返回这个位的当前值。
+
+int test_and_set_bit(nr, void *addr);
+int test_and_clear_bit(nr, void *addr);
+int test_and_change_bit(nr, void *addr);
+原子地动作如同前面列出的， 除了它们还返回这个位以前的值。
+
+

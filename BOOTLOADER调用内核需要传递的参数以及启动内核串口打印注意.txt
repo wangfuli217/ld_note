@@ -1,0 +1,112 @@
+最近搞阳初2410的板子，做的U-BOOT1.2.0能从NAND FLASH启动起来了，但是引导内核真是搞怪，前几天还能引导的，这几天又不能引导了，但是这些内核用VIVI都是能引导的，搞得头痛死了，总是死在下面这个地方：
+
+Uncompressing Linux....................................................... done, booting the kernel.
+
+后来发现是频率的问题。因为网上有人也遇到此问题，相关说法如下：
+
+    之后用仿真器追踪内核结果发现:
+
+    start_kernel函数的time_init()中程序进入死循环~~
+
+    我随之进入time_init()
+
+    继续进入        system_timer->init();
+     
+    结果发现,我的fclk,pclk都不能得到正确的值,积存器正确,我拿笔都能算出来,可是他就是总出错,所以我一气之下把他们全部写死.
+
+    具体如下:
+       在\arch\arm\mach_s3c2410\s3c2410.c 中 搜索 fclk ;
+
+       fclk = s3c2410_get_pll(MPLLCON, xtal);   //这是他原来的,结果不是我们想要的200MHZ
+
+
+            fclk =200*1000*1000 ; // 这是我加的
+
+       在\arch\arm\mach_s3c2410\time.c 中搜索 pclk:
+
+        pclk =   clk_get_rate(clk);         //这是原来的
+
+        pclk = 50*1000*1000;           //这是我加的
+
+       当然这都是根据2410的DATASHEET而定的
+  
+       我现在用的是FCLK : HCLK : PCLK  =  1 : 2 : 4 ,所以我分别写死为200M 100M 50M.
+
+看来我的问题差不多也出在这边了，fclk得不到正确的值，由于没有仿真器，只能这么推测了。因为我终端上显示出来的传递参数都没有问题。
+
+我再看了看VIVI，它里面用的就是200M。
+
+2410的U-BOOT原来运行频率是202.8M，后来把U-BOOT的频率改成200M，2.6.20.3的内核和阳初光盘的2.4.18的内核都能稳定地引导了。
+
+修改文件如下：
+
+"board/yangchu2410/smdk2410.c"
+
+#define FCLK_SPEED 1
+
+#if FCLK_SPEED==0  /* Fout = 203MHz, Fin = 12MHz for Audio */
+#define M_MDIV 0xC3
+#define M_PDIV 0x4
+#define M_SDIV 0x1
+#elif FCLK_SPEED==1  /* Fout = 202.8MHz */
+//#define M_MDIV 0xA1
+//#define M_PDIV 0x3
+//#define M_SDIV 0x1
+#define M_MDIV 0x5c  /* Fout = 200MHz */
+#define M_PDIV 0x4
+#define M_SDIV 0x0
+#endif
+
+ 
+
+ 
+
+下面转载网络上一篇文章：
+
+Boot Loader 调用 Linux 内核的方法是直接跳转到内核的第一条指令处，也即直接跳转到 MEM_START＋0x8000 地址处。在跳转时，下列条件要满足：
+
+1． CPU 寄存器的设置：
+
+    R0＝0；
+
+    R1＝机器类型 ID；关于 Machine Type Number，可以参见 linux/arch/arm/tools/mach-types。
+
+    R2＝启动参数标记列表在 RAM 中起始基地址；
+
+2． CPU 模式：
+
+    必须禁止中断（IRQs和FIQs）；
+
+    CPU 必须 SVC 模式；
+
+3． Cache 和 MMU 的设置：
+
+    MMU 必须关闭；
+
+    指令 Cache 可以打开也可以关闭；
+
+    数据 Cache 必须关闭；
+
+如果用 C 语言，可以像下列示例代码这样来调用内核（U-BOOT的do_bootm_linux()函数的最后一句话）：
+
+
+void (*theKernel)(int zero, int arch, u32 params_addr) = (void (*)(int, int, u32))KERNEL_RAM_BASE;
+……
+theKernel(0, ARCH_NUMBER, (u32) kernel_params_start);
+
+
+注意，theKernel()函数调用应该永远不返回的。如果这个调用返回，则说明出错。
+
+ 
+
+关于串口终端
+
+在 boot loader 程序的设计与实现中，没有什么能够比从串口终端正确地收到打印信息能更令人激动了。此外，向串口终端打印信息也是一个非常重要而又有效的调试手段。但是，我们经常会碰到串口终端显示乱码或根本没有显示的问题。造成这个问题主要有两种原因：(1) boot loader 对串口的初始化设置不正确。(2) 运行在 host 端的终端仿真程序对串口的设置不正确，这包括：波特率、奇偶校验、数据位和停止位等方面的设置。
+
+此外，有时也会碰到这样的问题，那就是：在 boot loader 的运行过程中我们可以正确地向串口终端输出信息，但当 boot loader 启动内核后却无法看到内核的启动输出信息。对这一问题的原因可以从以下几个方面来考虑：
+
+(1) 首先请确认你的内核在编译时配置了对串口终端的支持，并配置了正确的串口驱动程序。
+
+(2) 你的 boot loader 对串口的初始化设置可能会和内核对串口的初始化设置不一致。此外，CPU 时钟频率的设置也会影响串口，因此如果 boot loader 和内核对其 CPU 时钟频率的设置不一致，也会使串口终端无法正确显示信息。
+
+(3) 最后，还要确认 boot loader 所用的内核基地址必须和内核映像在编译时所用的运行基地址一致。假设你的内核映像在编译时用的基地址是 0xc0008000，但你的 boot loader 却将它加载到 0xc0010000 处去执行，那么内核映像当然不能正确地执行了。

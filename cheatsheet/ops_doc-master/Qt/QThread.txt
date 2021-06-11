@@ -1,0 +1,342 @@
+
+https://www.cnblogs.com/liushui-sky/p/5829563.html
+自我理解(重点)：
+    理解：如QThread thread; A.moveToThread(&thread)，moveToThread() 是改变了对象A的线程依附性关系。
+将对象A及其内部的成员变量的所属线程切换到次线程thread中。
+注：可以通过调用QObject::thread()可以查询一个QObject的线程依附性,
+        通过QThread::currentThread()可以查询当前运行所属线程，都非常有用。
+
+        
+Qt有两种多线程的方法：
+    继承QThread的run函数；
+    把一个继承QObject的类转移到一个Thread里；
+    在使用继承QThread的run方法之前需要了解一条规则：
+    QThread只有run函数是在新线程里的，其他所有函数都在QThread生成的线程里；
+  QThread的继承类的其他函数尽量不要有太耗时的操作，要确保所有耗时的操作都在run函数里。
+  在UI线程下调用QThread的非run函数(其实也不应该直接调用run函数，而应该使用start函数)，
+和执行普通函数无区别，这时，如果这个函数要对QThread的某个变量进行变更，而这个变量在run函数里也会被用到，
+这时就需要注意加锁的问题，因为可能这个变量前几毫秒刚刚在run中调用，再调用时已经被另外的线程修改了。
+    QThread是线程类，是实现多线程操作的核心类，一般从QThread继承定义自己的线程类。线程之间的同步是其交互的主要问题。
+    线程之间的同步类：QMutex,QMutexLocker,QReadWriteLock,QwaitCondition,QSemaphore;
+    Qt Concurrent :实现多线程程序自动根据处理器内核个数调整线程个数。
+​   一个QThread类的对象管理一个线程，一般从QThread继承一个自定义类，并重定义虚函数run()，在run()函数里实现线程需要完成的任务。
+    调用start()开始执行工作线程的任务，start()会在内部调用run()函数，进入工作线程的事件循环，
+在run()函数里调用exit()或quit()可以结束线程的事件循环，或在主线程里调用terminate()强制结束线程。
+| 类型         | 函数                                | 功能                                                         |
+| ------------ | ----------------------------------- | ------------------------------------------------------------ |
+| 公共函数     | bool isFinished()                   | 线程是否结束                                                 |
+|              | bool isRunning()                    | 线程是否正在运行                                             |
+|              | Priority priority()                 | 返回线程的优先级                                             |
+|              | void setPriority(Priority priority) | 设置线程的优先级                                             |
+|              | void exit(int returnCode=0)         | 退出线程的事件循环，退出码为returnCode，0表示成功退出；否则表示有错误 |
+|              | bool wait(unsigned long time)       | 阻止线程执行，直到线程结束（从run()函数返回），或等待事件超过time毫秒 |
+| 公共槽函数   | void quit()                         | 退出线程的事件循环，并返回代码0，等效于exit(0)               |
+|              | void start(Priority priority)       | 内部调用run()开始执行线程，操作系统根据priority参数进行调度  |
+|              | void terminate()                    | 终止线程的运行，但不是立即结束线程，而是等待操作系统结束线程。使用terminate()之后应使用wait() |
+| 信号         | void finished()                     | 在线程就要结束时发射此信号                                   |
+|              | void started()                      | 在线程开始执行、run()函数被调用之前发射此信号                |
+| 静态公共成员 | int idealThreadCount()              | 返回系统上能运行的线程的理想个数                             |
+|              | void msleep(unsigned long msecs)    | 强制当前线程休眠msecs毫秒                                    |
+|              | void sleep(unsigned long secs)      | 强制当前线程休眠secs毫秒                                     |
+|              | void usleep(unsigned long usecs)    | 强制当前线程休眠usecs毫秒                                    |
+| 保护函数     | virtual void run()                  | start()调用run()函数开始线程任务的执行，所以在run()函数里实现线程的任务功能 |
+|              | int exec()                          | 由run()函数调用，进入线程的事件循环，等待exit()退出          |
+
+注意：在线程中是无法使用任何界面部件类的。
+​ 强制终止正在执行的线程，使用terminate()函数。但是线程是否会被立即终止，依赖于操作系统的调度策略。可以在后面调用QThread::wait()来同步终止。
+​ 静态函数currentThreadId()和currentThread()可以返回当前执行的线程的标识符。
+
+
+如代码：
+QThread *thread;
+thread=new QThread(this);
+qDebug()<<"1:"<<commUdpClient->thread();
+commUdpClient->moveToThread(thread);
+thread->start();
+qDebug()<<"2:"<<commUdpClient->thread();
+
+输出：
+1: QThread<0x812c98>
+2: QThread<0x819160>
+
+说明对象commUdpClient确实发生所在线程的变化。但是值得注意的是，commUdpClient对象中的
+QUdpSocket *socket;
+QUdpSocket *socket2;
+QUdpSocket socket3;   
+前两个指针在构造函数里和槽函数里初始化，所属线程是有很大区别的。
+如下面代码所示，
+  在构造函数里初始化socket2，意味着属于主线程，不管commUdpClient是否移到子线程，它还是属于主线程；
+  而socket是在commUdpClient对象移到子线程后，再在槽函数中初始化，则属于子线程；
+  socket3默认在构造函数里初始化，即使构造函数没有显式初始化，但是也属于主线程，
+其它如int、char等基础数据变量也是属于主线程的。
+
+所以在利用moveToThread方式使用多线程的情况下，commUdpClient类声明中类类型对象建议都声明为指针，
+然后都在某个槽函数中初始化，而基础数据变量如int、char等建议声明为private，
+如果需要改变则利用属性的方式get、set来改变，实在需要使用public，则需要加锁，不然会出错。
+
+原则:1、采用信号方式调用通过moveToThread()方法移到另一个线程中运行的对象的槽方法。
+     2、不要在该对象A的构造函数中初始化指针变量B（如B=new QUdpSocket()），因为对象A虽然移到了子线程中，
+只是代表所有的槽函数在子线程ThreadSon中运行，但是对象A构造的过程是在创建该对象的线程ThreadParent中完成的，
+也即意味着如果在构造函数中初始化指针变量，则该指针指向的内存还是属于线程ThreadParent，而非线程ThreadSon，
+这与我们的初衷不相符合，尤其是这些对象要在槽函数中使用.
+
+
+
+https://blog.csdn.net/dbzhang800/article/details/6554104
+基本上有种使用线程的场合：
+  通过利用处理器的多个核使处理速度更快。
+  为保持GUI线程或其他高实时性线程的响应，将耗时的操作或阻塞的调用移到其他线程。
+
+何时使用其他技术替代线程
+    开发人员使用线程时需要非常小心。启动线程是很容易的，但确保所有共享数据保持一致很难。
+遇到问题往往很难解决，这是由于在一段时间内它可能只出现一次或只在特定的硬件配置下出现。
+在创建线程来解决某些问题之前，应该考虑一些替代的技术 ：
+1.1 QEventLoop::processEvents()
+    在一个耗时的计算操作中反复调用QEventLoop::processEvents() 可以防止界面的假死。
+尽管如此，这个方案可伸缩性并不太好，因为该函数可能会被调用地过于频繁或者不够频繁。
+
+1.2 QTimer
+    后台处理操作有时可以方便地使用Timer安排在一个在未来的某一时刻执行的槽中来完成。
+在没有其他事件需要处理时，时间隔为0的定时器超时事件被相应
+
+1.3 QSocketNotifier QNetworkAccessManager QIODevice::readyRead()
+    这是一个替代技术，替代有一个或多个线程在慢速网络执行阻塞读的情况。只要响应部分
+的计算可以快速执行，这种设计比在线程中实现的同步等待更好。与线程相比这种设计更不容易
+出错且更节能(energy efficient)。在许多情况下也有性能优势。
+
+    一般情况下，建议只使用安全和经过测试的方案而避免引入特设线程的概念。
+QtConcurrent 提供了一个将任务分发到处理器所有的核的易用接口。线程代码完全被隐藏在 QtConcurrent 框架下，所以你不必考虑细节。
+尽管如此，QtConcurrent 不能用于线程运行时需要通信的情况，而且它也不应该被用来处理阻塞操作。
+
+应该使用 Qt 线程的哪种技术？
+2.1 一次调用
+  在另一个线程中运行一个函数，函数完成时退出线程.
+    编写函数，使用QtConcurrent::run 运行它
+    派生QRunnable，使用QThreadPool::globalInstance()->start() 运行它
+    派生QThread，重新实现QThread::run() ，使用QThread::start() 运行它
+2.2 一次调用
+  需要操作一个容器中所有的项。使用处理器所有可用的核心。一个常见的例子是从图像列表生成缩略图。
+    QtConcurrent 提供了map()函你数来将操作应用到容器中的每一个元素，提供了fitler()函数来选择容器元素，以及指定reduce函数作为选项来组合剩余元素。
+2.3 一次调用
+  一个耗时运行的操作需要放入另一个线程。在处理过程中，状态信息需要发送会GUI线程。
+    使用QThread，重新实现run函数并根据需要发送信号。使用信号槽的queued连接方式将信号连接到GUI线程的槽函数。
+2.4 持久运行
+  生存在另一个线程中的对象，根据要求需要执行不同的任务。这意味着工作线程需要双向的通讯。
+    派生一个QObject对象并实现需要的信号和槽，将对象移动到一个运行有事件循环的线程中并通过queued方式连接的信号槽进行通讯。
+2.5 持久运行
+  生存在另一个线程中的对象，执行诸如轮询端口等重复的任务并与GUI线程通讯。
+    同上，但是在工作线程中使用一个定时器来轮询。尽管如此，处理轮询的最好的解决方案是彻底避免它。有时QSocketNotifer是一个替代。
+  
+QObject与线程
+    在创建时QObject保存了到当前线程的指针。当事件使用postEvent()被派发时，这个信息变得很有用。
+事件被放置到相应线程的事件循环中。如果QObject所依附的线程没有事件循环，该事件将永远不会被传递。
+
+    要启动事件循环，必须在run()内调用exec()。线程关联可以通过moveToThread()来更改。
+    
+    当从其他线程调用对象的方法时开发人员必须始终保持谨慎。线程关联不会改变这种状况。 
+Qt文档中将一些方法标记为线程安全。postEvent()就是一个值得注意的例子。一个线程安全的
+方法可以同时在不同的线程被调用。
+
+
+3. 使用互斥量保护数据的完整
+4. 使用事件循环防止数据破坏
+    Qt的事件循环对线程间的通信是一个非常有价值的工具。每个线程都可以有它自己的事件循环。
+在另一个线程中调用一个槽的一个安全的方法是将调用放置到另一个线程的事件循环中。
+这可以确保目标对象调用另一个的成员函数之前可以完成当前正在运行的成员函数。
+
+那么，如何才能把一个成员调用放于一个事件循环中？ Qt的有两种方法来做这个。
+一种方法是通过queued信号槽连接；
+一种是使用QCoreApplication::postEvent()派发一个事件。
+queued的信号槽连接是异步执行的信号槽连接。内部实现是基于posted的事件。
+信号的参数放入事件循环后信号函数的调用将立即返回。
+
+连接的槽函数何时被执行依赖于事件循环其他的其他操作。
+通过事件循环通信消除了我们使用互斥量时所面临的死锁问题。这就是我们为什么推荐使用事件循环，而不是使用互斥量锁定对象的原因。
+
+
+处理异步执行
+    一种获得一个工作线程的结果的方法是等待线程终止。在许多情况下，一个阻塞等待是不可接受的。
+阻塞等待的替代方法是异步的结果通过posted事件或者queued信号槽进行传递。由于操作的结果不会出现
+在源代码的下一行而是在位于源文件其他部分的一个槽中，这会产生一定的开销，因为，但在位于源文件中
+其他地方的槽。 Qt开发人员习惯于使用这种异步行为工作，因为它非常相似于GUI程序中使用的的事件驱动编程。
+
+英文扩展
+http://blog.debao.me/2013/08/how-to-use-qthread-in-the-right-way-part-2/ 
+http://blog.debao.me/2013/08/how-to-use-qthread-in-the-right-way-part-1/
+
+
+https://stackoverflow.com/questions/11033971/qt-thread-with-movetothread
+QThread* thread = new QThread( );
+ Task* task = new Task();
+
+ // move the task object to the thread BEFORE connecting any signal/slots
+ task->moveToThread(thread);
+
+ connect(thread, SIGNAL(started()), task, SLOT(doWork()));
+ connect(task, SIGNAL(workFinished()), thread, SLOT(quit()));
+
+ // automatically delete thread and task object when work is done:
+ connect(task, SIGNAL(workFinished()), task, SLOT(deleteLater()));
+ connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
+
+ thread->start();
+
+in case you arent familiar with signals/slots, the Task class would look something like this:
+
+class Task : public QObject
+{
+Q_OBJECT
+public:
+    Task();
+    ~Task();
+public slots:
+    // doWork must emit workFinished when it is done.
+    void doWork();
+signals:
+    void workFinished();
+};
+
+
+http://www.kuqin.com/qtdocument/qthread.html
+QThread类提供了与系统无关的线程。
+QThread是在run()中开始运行的。你继承run()并且在其中包含你的代码。例如：
+
+class MyThread : public QThread {
+public:
+    virtual void run();
+};
+
+void MyThread::run()
+{
+    for( int count = 0; count < 20; count++ ) {
+        sleep( 1 );
+        qDebug( "Ping!" );
+    }
+}
+int main()
+{
+    MyThread a;
+    MyThread b;
+    a.start();
+    b.start();
+    a.wait();
+    b.wait();
+}
+    这将会开始两个线程，每个线程在屏幕上写20次“Ping!”并且退出。在main()的结尾调用wait()是必需的，
+因为main()的结束会终结整个程序，它会杀掉所有其它线程。当每个MyThread运行到MyThread::run()结尾时，
+它就结束运行，就好像一个应用程序离开main()时所做的一样。
+
+警告：所有的GUI类（比如，QWidget和它的子类），操作系统核心类(比如，QProcess)和网络类都不是线程安全的。
+QRegExp使用一个静态缓存并且也不是线程安全的，即使通过使用QMutex来保护的QRegExp对象。
+
+
+https://blog.csdn.net/liang19890820/article/details/51800024
+    QThread代表在程序中一个单独的线程控制。线程在run()中开始执行，默认情况下，run()通过
+调用exec()启动事件循环并在线程里运行一个Qt的事件循环。
+
+详细描述
+----------------
+当线程started()和finished()时，QThread会通过一个信号通知你，可以使用isFinished()和isRunning()来查询线程的状态。
+
+你可以通过调用exit()或quit()来停止线程。在极端情况下，可能要强行terminate()一个执行线程。但是，这样做很危险
+
+    可以释放运行刚刚结束的线程对象，通过连接finished()信号到QObject::deleteLater()槽。
+使用wait()来阻塞调用的线程，直到其它线程执行完毕（或者直到指定的时间过去）。
+
+    QThread还提供了静态的、平台独立的休眠函数：sleep()、msleep()、usleep()，允许秒，毫秒和微秒来区分，
+
+    注意：一般情况下，wait()和sleep()函数应该不需要，因为Qt是一个事件驱动型框架。
+考虑监听finished()信号来取代wait()，使用QTimer来取代sleep()。
+
+    静态函数currentThreadId()和currentThread()返回标识当前正在执行的线程。前者返回该线程平台特定的ID，后者返回一个线程指针。
+    要设置线程的名称，可以在启动线程之前调用setObjectName()。如果不调用setObjectName()，线程的名称将是线程对象的运行时类型
+QThread子类的类名。
+
+线程管理
+----------------
+可以将常用的接口按照功能进行以下分类：
+    线程启动
+        void start(Priority priority = InheritPriority) [slot]
+        调用后会执行run()函数，但在run()函数执行前会发射信号started()，操作系统将根据优先级参数调度线程。
+如果线程已经在运行，那么这个函数什么也不做。优先级参数的效果取决于操作系统的调度策略。特别是那些不支持
+线程优先级的系统优先级将会被忽略
+
+线程执行
+    int exec() [protected]
+    进入事件循环并等待直到调用exit()，返回值是通过调用exit()来获得，如果调用成功则范围0。
+
+    void run() [virtual protected]
+    线程的起点，在调用start()之后，新创建的线程就会调用这个函数，默认实现调用exec()，
+大多数需要重新实现这个函数，便于管理自己的线程。该方法返回时，该线程的执行将结束。
+
+线程退出
+    void quit() [slot]
+    告诉线程事件循环退出，返回0表示成功，相当于调用了QThread::exit(0)。
+
+    void exit(int returnCode = 0)
+    告诉线程事件循环退出。
+    调用这个函数后，线程离开事件循环后返回，QEventLoop::exec()返回returnCode，按照惯例，0表示成功；任何非0值表示失败。
+
+    void terminate() [slot]
+    终止线程，线程可能会立即被终止也可能不会，这取决于操作系统的调度策略，使用terminate()
+之后再使用QThread::wait()，以确保万无一失。当线程被终止后，所有等待中的线程将会被唤醒。
+    警告：此函数比较危险，不鼓励使用。线程可以在代码执行的任何点被终止。线程可能在更新数据
+时被终止，从而没有机会来清理自己，解锁等等。。。总之，只有在绝对必要时使用此函数。
+
+    void requestInterruption()
+    请求线程的中断。该请求是咨询意见并且取决于线程上运行的代码，来决定是否及如何执行这样的请求。
+此函数不停止线程上运行的任何事件循环，并且在任何情况下都不会终止它。
+
+线程等待
+    void msleep(unsigned long msecs) [static]
+    强制当前线程睡眠msecs毫秒
+
+    void sleep(unsigned long secs) [static]
+    强制当前线程睡眠secs秒
+
+    void usleep(unsigned long usecs) [static]
+    强制当前线程睡眠usecs微秒
+
+    bool wait(unsigned long time = ULONG_MAX)
+    线程将会被阻塞，等待time毫秒。和sleep不同的是，如果线程退出，wait会返回。
+
+线程状态
+    bool isFinished() const
+    线程是否结束
+
+    bool isRunning() const
+    线程是否正在运行
+
+bool isInterruptionRequested() const
+    如果线程上的任务运行应该停止，返回true。可以使用requestInterruption()请求中断。
+    此函数可用于使长时间运行的任务干净地中断。从不检查或作用于该函数返回值是安全的，
+但是建议在长时间运行的函数中经常这样做。注意：不要过于频繁调用，以保持较低的开销。
+
+
+线程优先级
+    void setPriority(Priority priority)
+    设置正在运行线程的优先级。如果线程没有运行，此函数不执行任何操作并立即返回。
+使用的start()来启动一个线程具有特定的优先级。优先级参数可以是QThread::Priority枚举除InheritPriortyd的任何值。
+
+常量                              值              描述
+QThread::IdlePriority               0               没有其它线程运行时才调度                                                           
+QThread::LowestPriority             1               比LowPriority调度频率低                                                    
+QThread::LowPriority                2               比NormalPriority调度频率低                                                         
+QThread::NormalPriority             3               操作系统的默认优先级                                                       
+QThread::HighPriority               4               比NormalPriority调度频繁                                                           
+QThread::HighestPriority            5               比HighPriority调度频繁                                                     
+QThread::TimeCriticalPriority       6               尽可能频繁的调度                                                           
+QThread::InheritPriority            7               使用和创建线程同样的优先级. 这是默认值   
+
+
+1. worker-object
+可以使用worker-object通过QObject::moveToThread将它们移动到线程中。
+
+2. 子类化QThread
+另一种使代码运行在一个单独的线程中的方法，是子类化QThread中并重新实现的run()函数。
+
+
+
+
+
+

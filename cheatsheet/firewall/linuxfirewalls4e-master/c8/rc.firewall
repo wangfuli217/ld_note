@@ -1,0 +1,28 @@
+#!/bin/sh
+
+NFT="/usr/local/sbin/nft"
+
+for i in `$NFT list tables | awk '{print $2}'`
+do
+        echo "Flushing ${i}"
+        $NFT flush table ${i}   
+        for j in `$NFT list table ${i} | grep chain | awk '{print $2}'`
+        do
+                echo "...Deleting chain ${j} from table ${i}"
+                $NFT delete chain ${i} ${j}
+        done
+        echo "Deleting ${i}"
+        $NFT delete table ${i}  
+done
+
+if [ "$1" = "stop" ]
+then
+echo "Firewall completely stopped!  WARNING: THIS HOST HAS NO FIREWALL RUNNING."
+exit 0
+fi
+
+$NFT -f setup-tables
+
+$NFT add rule nat postrouting ip saddr 192.168.56.0/24 oif eth0 snat 192.168.1.214
+$NFT add rule nat prerouting iif eth0 tcp sport 1024-65535 tcp dport 2200 dnat { 192.168.56.102:22 }
+#$NFT add rule filter forward iif eth0 oif eth1 tcp sport 1024-65535 ip daddr 192.168.56.102 tcp dport 22 accept

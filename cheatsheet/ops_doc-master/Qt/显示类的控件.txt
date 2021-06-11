@@ -1,0 +1,101 @@
+1. 标签控件 QLabel
+内容            设置方法
+普通文本        传递 QString 字符串给 setText() 函数。
+丰富文本        传递含有 HTML 标记的 QString 字符串给 setText() 函数。                                                     
+像素图          传递一个 QPixmap 对象给 setPixmap() 函数。
+短片            传递一个 QMovie 对象给 setMovie() 函数，QMovie 仅支持动态图，不是真的电影。                                        
+数字            传递一个 int 或 double 变量给 setNum() 函数，会显示普通的数字字符串。                                              
+无              等同于设置一个空字符串，也可以用函数 clear() 清空所有内容。  
+
+1.1 文本设置
+void setTextFormat(Qt::TextFormat)
+明确指定当前文本格式，可选的有三种格式，
+默认是 Qt::AutoText，自动判断；
+如果设置为 Qt::PlainText，就是强制作为普通无格式文本显示；
+如果设置为 Qt::RichText，那就一定作为丰富文本格式显示。
+1.2 超链接
+用户点击超链接之后，自动用系统浏览器打开超链接，那么可以设置 openExternalLinks 属性为 true：
+void setOpenExternalLinks(bool open)
+1.3 换行
+要让标签控件的文本换行，有两种方式：
+一是改变标签的文本内容，手动加 "\r\n" 或者 "<br>" 换行字符；
+另一种是设置 setWordWrap(true)，wordWrap 属性为 true 时，自动根据文本长度换行显示。
+
+
+
+2. 丰富文本浏览控件 QTextBrowser
+3. 图形视图 QGraphicsView
+    QGraphicsView 类是属于视图显示的部分，而内部模型是 QGraphicsScene，
+绘图场景类内部可以添加各种图形，如线条、矩形、多边形，另外还可以自定义绘图条目 QGraphicsItem，
+4. 日历控件 QCalendarWidget
+日历控件常用的属性是 selectedDate，就是选中的高亮的日子，该属性访问函数为：
+    QDate selectedDate() const
+void setSelectedDate(const QDate & date)
+用户是可以从日历界面自己选中日子的，选中日子变化时，发送信号：
+    void selectionChanged()
+日历控件默认是不显示日子列表的网格，可以通过属性 gridVisible 改变是否显示网格的特性，访问函数为：
+    bool isGridVisible() const
+    void setGridVisible(bool show)
+
+5. LCD 数字显示 QLCDNumber
+这里的 LCD 数字显示控件就是比较传统的电子表、计算器等液晶显示器，也俗称 888 显示器
+属性                设置函数                      描述
+digitCount          void setDigitCount(int)       数字的位数限定，这个控件类不限定数值大小，只限定数的位数。
+segmentStyle   void setSegmentStyle(SegmentStyle) 设置笔画线段的显示风格。SegmentStyle 是枚举类型，有三种，默认是QLCDNumber::Filled 
+intValue和value     void display(int num)             既可以获取整型数值 intValue()，也可以获取浮点数值 value()。
+                    void display(double num)          数值的设置函数不叫 set*，而是 display() 函数。
+                    void display(const QString & s) 
+smallDecimalPoint   void setSmallDecimalPoint(bool) 小数点的显示方式，默认情况下该属性为 false，小数点会占一个数字位。
+                                                    如果设置函数参数为 true，小型小数点就显示在数字之间的缝隙，而不会单独占一位。
+mode                void setMode(Mode)              设置显示的数字类型，比如十进制、二进制等，默认是十进制 QLCDNumber::Dec。
+属性的设置函数上面列举了，而属性的获取函数与属性名一样，所以没列。
+
+setSegmentStyle() 函数用于设置数字笔画的显示风格，显示风格 SegmentStyle 有三个枚举常量：
+①QLCDNumber::Outline，用背景色绘制笔画，这个显示风格其实看不清数字，不建议用。
+②QLCDNumber::Filled，用背景色填充每个笔画的边框，笔画内部用前景色绘制。在控件比较小时，每个数字位也比较小，笔画比较细，这个显示风格就 看不清数字，因为几乎全是用背景色画笔画。如果控件比较大，那么前景色绘制的部分就比较清晰。如果控件比较小，也不建议用这个风格。
+③QLCDNumber::Flat，笔画全部用前景色填充，笔画的边框也是一样的前景色，所以称为扁平风格，这个显示风格最推荐使用，笔画非常清晰。
+
+LCD 数字显示控件的数值，有两个属性，intValue 是整数类型，value 是双精度浮点数类型，这个控件类不限定数值的大小，只限定显示的数字位数。
+
+    因为是数字显示控件，不是编辑控件，它的显示通过三个 display() 函数设置，使用 QString 为参数的 display() 函数，
+除了显示数字和小数点，还能显示一些能支持的字符，比如 字母O/数字0、S/5、g/9、负号、小数点、十六进制数、冒号、度数（°）等。
+
+    LCD 数字显示控件的工作模式 mode 有四种，QLCDNumber::Hex 是十六进制、QLCDNumber::Dec 是十进制、
+QLCDNumber::Oct 是八进制、QLCDNumber::Bin 是二进制，默认的模式是十进制的。
+    
+6. 进度条 QProgressBar
+进度条 QProgressBar 常用的属性、设置函数和描述如下表
+属性            设置函数                描述
+orientation     void setOrientation(Qt::Orientation)     显示的方向，Qt::Horizontal 是水平进度条(默认值)，Qt::Vertical 是垂直进度条。
+format          void setFormat(const QString & format)   设置显示文本的格式，默认格式是 "%p%"，就是百分比显示，如 78%       
+textVisible     void setTextVisible(bool visible)        决定是否显示百分比的文本，一般是显示的，例外的是苹果系统风格从不显示进度条文本的。
+maximum         void setMaximum(int maximum)             进度条数值的上限。                                                 
+minimum         void setMinimum(int minimum)             进度条数值的下限。                                                 
+value           void setValue(int value)                 进度条当前数值。                                                           
+text            无                                       进度条文本通过 format 属性设置，可以获取文本 text()，但不能直接设置文本。
+    
+数值的范围由 setMaximum() 和 setMinimum() 函数限定，或者用如下范围设置函数一次设置：
+void setRange(int minimum, int maximum)
+
+显示的文本格式通过 setFormat() 函数来控制，参数字符串默认是 "%p%" ，意义为：
+第一个 "%p" 是格式串占位符，指计算百分比数值，第二个 "%" 就是指百分号本身，这样显示的就是如 "24%" 字样。
+如果希望显示当前数值本身，而不是百分比，那么用格式串占位符 "%v" ，就代表当前的 value 值。
+另外还有一个格式串占位符是 "%m" ，代表上限减去下限的差额。
+
+三个格式串占位符是可以混搭的，比如 "%v/%m" 就是既显示当前值，也显示总差额，比如显示为 "24/100" 。
+除去三个占位符的其他字符，会照原样显示，比如 / 字符。再比如 "%v MB/%m MB"，实际显示为 "24 MB/100 MB" 。
+
+void setTextDirection(QProgressBar::Direction textDirection)
+QProgressBar::TopToBottom 表示从顶部到底部显示文本，QProgressBar::BottomToTop 是从底部到顶部显示文本。
+
+7. 线条 Line
+
+
+8. OpenGL 三维绘图控件 QOpenGLWidget
+
+
+9. QtQuick 1 控件 QDeclarativeView
+
+10. QtQuick 2 控件 QQuickWidget
+
+11. 网页浏览视图 QWebView

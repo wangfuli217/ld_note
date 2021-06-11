@@ -1,0 +1,28 @@
+#include<stdio.h>
+exec sql include sqlca;
+int main(void)
+{
+	exec sql begin declare section;
+		char userpasswd[30]="tarena/tarena";
+		char sqlstr[100]="select id,first_name,salary from s_emp where id>:b0";
+		int id=15;
+		struct{
+			int id;
+			char name[30];
+			double salary;
+		}emp;
+	exec sql end declare section;
+	exec sql connect:userpasswd;
+	exec sql prepare s from :sqlstr;
+	exec sql declare papapa928 cursor for s;
+	exec sql open papapa928 using :id;
+	exec sql whenever notfound do break;
+	while(1)
+	{
+		exec sql fetch papapa928 into :emp;
+		printf("%d %s %lg\n",emp.id,emp.name,emp.salary);
+	}
+	exec sql close papapa928;
+	exec sql commit work release;
+	return 0;
+}

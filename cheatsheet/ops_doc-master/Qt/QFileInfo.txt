@@ -1,0 +1,190 @@
+
+https://qtguide.ustclug.org/ch07-01.htm
+1. QFileInfo 类提供了不依赖具体系统的文件(指文件和文件夹，Unix系统中文件夹也是算文件的，下 同)信息。
+   QFileInfo 提供关于文件的名称、在文件系统中的位置路径等信息，它访问权限信息、判断是不是文件夹或符号链接(快捷方式)等。
+   文件的大小和最后修改/读取时间也是可以获取的。
+   QFileInfo 还能用于获取 Qt 程序运行时的内部资源系统文件信息。
+2. 相对路径 和 绝对路径
+   QFileInfo 既可以根据相对路径，也可以根据绝对路径指向一个文件。
+   绝对路径总是以文件系统根打头(/、C:/、D:/ 等)。
+   相对路径直接以某个目录名或文件名打头，并指出相对于程序当前工作路径的位置。
+   
+   绝对路径例子如 "/tmp/quartz"。相对路径举例如 "src/fatlib"，这是相对于程序工作路径的形式。
+   
+   QFileInfo 提供了如下函数判断当前文件路径是否为相对路径：
+   bool QFileInfo::​isRelative() const
+   也可以用如下函数，明确地把当前文件路径转为绝对路径：
+   bool QFileInfo::​makeAbsolute()
+   makeAbsolute() 函数如果是真的是把相对路径转为绝对路径，那么返回 true，如果原本就是绝对路径，那么返回 false。
+   
+   QFileInfo::​makeAbsolute() 函数返回值与之前的 QDir::makeAbsolute() 返回值有区别：之前的 QDir::makeAbsolute() 实际测试总是返回 true，
+而 QFileInfo::​makeAbsolute() 如果判断出原本就是绝对路径，它会返回转换失败。
+   
+   [ isRelative() makeAbsolute() ]
+3. 构造函数
+   QFileInfo 可以在构造函数或者随后用 setFile() 函数指定要访问的文件，
+    QFileInfo()    //无参数，后面可以用 setFile() 函数设置文件名
+    QFileInfo(const QString & file)   //根据相对路径或绝对路径的字符串，访问文件
+    QFileInfo(const QFile & file)    //从一个 QFile对象提取该文件的信息
+    QFileInfo(const QDir & dir, const QString & file)  //根据路径对象和相对它的文件名，访问文件夹信息
+    QFileInfo(const QFileInfo & fileinfo)    //复制构造函数
+    与构造函数参数类似的，setFile() 函数重载有三个：
+    void QFileInfo::​setFile(const QString & file)   //根据相对路径或绝对路径访问文件信息
+    void QFileInfo::​setFile(const QFile & file)     //从已有 QFile 对象提取出文件信息
+    void QFileInfo::​setFile(const QDir & dir, const QString & file) //根据路径对象和相对它的文件名，访问文件夹信息
+   
+   设置好需要访问的文件名之后，下面就是判断该文件有哪些信息了，首先要判断是否存在：
+   bool QFileInfo::​exists() const
+   存在性得到确认之后，才能进行下一步信息获取。
+   
+     函数                      描述
+bool    isFile()               是否为文件(不是文件夹)，符号链接指向文件也算
+bool    isDir()                是否为文件夹，符号链接指向文件夹也算
+bool    isSymLink()            是否为符号链接(快捷方式)
+QString symLinkTarget()        如果是符号链接，就返回链接指向的原本文件夹或文件，否则返回空串
+qint64  size()                 返回文件大小，如果文件不存在或者无权限读取，那么返回            0
+   符号链接(快捷方式)，对于 Unix 系统(含 Linux、Mac OS X)，符号链接会由底层操作系统处理，
+符号链接的 size() 结果等同于链接指向的原本文件大小，如果用 QFile 打开符号链接，那么也是打开链接指向的原本文件。
+#ifdef Q_OS_UNIX
+QFileInfo info1("/home/bob/bin/untabify");
+info1.isSymLink();          // returns true
+info1.absoluteFilePath();   // returns "/home/bob/bin/untabify"
+info1.size();               // returns 56201
+info1.symLinkTarget();      // returns "/opt/pretty++/bin/untabify"
+
+QFileInfo info2(info1.symLinkTarget());
+info2.isSymLink();          // returns false
+info2.absoluteFilePath();   // returns "/opt/pretty++/bin/untabify"
+info2.size();               // returns 56201
+
+#endif
+"/home/bob/bin/untabify" 是一个符号链接，链接指向的本体文件是 "/opt/pretty++/bin/untabify" ，
+符号链接的文件大小等同于原本文件的大小。这里可以另外学到一个知识，
+
+通过判断宏 Q_OS_UNIX，可以知道当前操作系统是不是 Unix 系列的。
+info1 构造函数里使用的是本地化路径分隔符，注意 C++ 里面字符串中 "\" 是转义字符，如果表示反斜杠自己，字符串中需要用 "\\" 表示一个反斜杠。
+
+4. 路径文件名解析
+   获取 QFileInfo 对象里面的完整路径文件名，可以通过如下函数：
+   QString QFileInfo::​filePath() const            //含路径和文件名，可能是相对的，也可能是绝对的路径文件名
+   QString QFileInfo::​absoluteFilePath() const    //返回绝对路径文件名
+   QString QFileInfo::​canonicalFilePath() const   //返回权威路径文件名
+   canonicalFilePath() 会对多余的 "."、".."、"/" 做规约，如果是 Unix 符号链接就返回本体文件的绝对路径文件名。
+
+   如果只获取路径部分，而不带文件名，使用如下函数：（和刚才三个对比，函数名里有 "file" 字样的，返回结果才带有文件名）
+   QString QFileInfo::​absolutePath() const   //返回绝对路径目录，不含文件名
+   QString QFileInfo::​canonicalPath() const  //返回权威路径目录，不含文件名
+   canonicalPath() 是类似的做规约，但只返回路径部分，而不带文件名。
+   
+   完整的路径文件名是可以拆解开来的，可以划分为路径和文件名自身：
+   QString QFileInfo::​path() const      //返回当前路径文件名前面的路径部分
+   QString QFileInfo::​fileName() const  //返回文件名部分
+   
+举例：
+1. 文件 "/tmp/archive.tar.gz" 为例，path() 返回 "/tmp" ，fileName() 返回 "archive.tar.gz" 。
+2. 如果 QFileInfo 对象里面的完整路径文件名是以分隔符 ('/') 结尾，比如 "/home/suse132/" ，
+   那么 path() 返回 "/home/suse132" ，​fileName()返回的是空串。
+3. 如果完整文件名是 "/home/suse132" ，那么 path() 返回 "/home" ，fileName() 返回 "suse132" 。
+    注意这两个函数是不检查文件或文件夹是否存在，它们就是单纯地拆解完整文件名为两个部分而已，
+它们将最后一个路径分隔符左边的归为路径 path()，右边的归为文件名 fileName()。如果末尾就是分隔符，
+那么文件名 fileName() 为空。
+
+Qt 类库中涉及到返回文件夹路径(分 区根路径除外)的函数，返回的字符串一般不带拖尾的路径分隔符 '/' ，
+如果需要在文件夹路径字符串末尾添加分隔符，可以自己用代码添加一个。
+
+   对于去除路径的文件名，比如 "archive.tar.gz" ，还可以进一步进行拆解：
+   QString QFileInfo::​baseName() const        //去除所有扩展名，得到基本名，如 "archive"
+   QString QFileInfo::​completeSuffix() const  //全部的扩展名，如 "tar.gz"
+   也就是说 baseName() + completeSuffix() == 原文件名。
+   
+   文件名还有另一种拆解方式：
+   QString QFileInfo::​suffix() const          //最后一个扩展名，如 "gz"
+   QString QFileInfo::​completeBaseName() const  //去除最后一个扩展名的前面部分，如 "archive.tar"
+   这里的 completeBaseName() + suffix() == 原文件名。
+   
+5. 访问权限判断
+关于文件的创建时间、修改时间，读、写、执行权限，所属用户、组别以及详细权限信息等，可以用下表中的函数获取：
+函数                             描述
+QDateTime created()              文件创建时间
+QDateTime lastModified()         最后修改时间
+QDateTime lastRead()             最后读取时间
+bool      isReadable()            用户对该文件是否有读权限
+bool      isWritable()           用户对该文件是否有写权限
+bool      isExecutable()          用户对该文件是否有执行权限
+QString   owner()                文件所属的用户
+uint      ownerId()               文件所属的用户ID
+QString   group()                文件所属的组别
+uint      groupId()              文件所属的组别ID
+
+如果希望同时判断某个文件的多项权限信息，可以通过专门的权限判断函数：
+bool QFileInfo::​permission(QFile::Permissions permissions) const
+参数 permissions 可以是多项权限枚举标志的按位或运算结果，同时判断该文件是否同时具有这些权限：
+
+枚举常量                        数值            描述
+QFileDevice::ReadOwner          0x4000          文件所属用户可读
+QFileDevice::WriteOwner         0x2000          文件所属用户可写
+QFileDevice::ExeOwner           0x1000          文件所属用户可执行
+QFileDevice::ReadGroup          0x0040          文件所属组别可读
+QFileDevice::WriteGroup         0x0020          文件所属组别可写
+QFileDevice::ExeGroup           0x0010          文件所属组别可执行
+QFileDevice::ReadOther          0x0004          其他任意用户可读
+QFileDevice::WriteOther         0x0002          其他任意用户可写
+QFileDevice::ExeOther           0x0001          其他任意用户可执行
+QFileDevice::ReadUser           0x0400          当前用户可读
+QFileDevice::WriteUser          0x0200          当前用户可写
+QFileDevice::ExeUser            0x0100          当前用户可执行
+
+# 说明一下，QFileInfo 类和 QFile 类都可以判断这些权限，而 QFileDevice 是 QFile 的基类。
+    表格中前面 9 个都是从 Unix 系统引入权限表示方法，对于 Unix、Linux、Mac OS X 系统这些权限比较重要，
+对于 Windows 基本不用检查这些权限。
+    最后 3 个权限 ReadUser、WriteUser、ExeUser 是与程序关系密切的，与系统平台无关，是 Qt 自创的，
+用于判断当前程序是否能对该文件有读、写、可执行权限。
+
+如果要同时判断当前程序是否对某个文件有读、写、执行权限，可以用下面代码：
+QFileInfo fi("/usr/bin/ping");
+qDebug()<<fi.permission(QFileDevice::ReadUser
+                  | QFileDevice::WriteUser
+                  | QFileDevice::ExeUser);
+
+Windows 系统一般判断读写权限（ReadUser | WriteUser）就行了，因为只有特定扩展名的文件才能运行。
+而在 Unix 系统中，任意扩展名的文件都可以当可执行文件来运行。
+
+如果要获取当前文件所具有的全部访问权限，可以用如下函数统一获取：
+QFile::Permissions QFileInfo::​permissions() const
+    注意 permissions() 多了一个字母 s，而且没有参数。它的返回值就是文件具备的所有权限，
+返回值与上面表格列举的权限枚举常量做按位或运算，就可 以判断分别有哪些权限。
+
+对于 Unix 系列的操作系统，上面权限判断默认都是启用的，对于 Windows 的 NTFS 分区，情况不一样。
+对于 NTFS 分区的文件，因为性能原因 ，Qt 对文件所属关系（ownership）和访问权限（permissions）的检查默认没有开启。如果需要开启对 NTFS 分区文件的所属关系和权限检查，那么首先手动定义：
+extern Q_CORE_EXPORT int qt_ntfs_permission_lookup;
+开启权限检查就执行下面这句代码：
+qt_ntfs_permission_lookup++;    // 开启权限检查
+关闭权限检查就执行下面的：
+qt_ntfs_permission_lookup--;    // 重新关闭权限检查
+
+
+6. 性能问题
+一些 QFileInfo 的函数需要查询真实的文件系统，比如 canonicalPath() 、absolutePath()是需要查询真实路径位置的，会查询文件系统。
+而另外一些函数只访问 QFileInfo 对象自己保存的数据，比如 path() 函数并不会查询文件系统，它只把内部存的路径文件名拆分一下，返回路径部分。
+也就是说，与 QDir 类似， QFileInfo 对象可以处理不存在的虚假路径文件名，只用于解析文件名等用途。
+
+注意：为了优化运行效率，QFileInfo 对象会将上次查询的真实文件信息做缓存。如果上次查询后，真实文件被修改了，以前缓存的信息可能是旧的，没更新。
+可以通过刷新函数消除旧的缓存信息：
+void QFileInfo::​refresh()
+如果不希望 QFileInfo 对象缓存以前查询的信息，可以通过如下函数设置：
+void QFileInfo::​setCaching(bool enable)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

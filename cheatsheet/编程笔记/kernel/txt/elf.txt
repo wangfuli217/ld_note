@@ -1,0 +1,350 @@
+/usr/lib has but always 
+/usr/bin/ld: cannot find -lpcap
+collect2: ld returned 1 exit status
+need libpcap.so, neither libpcap.so.1 nor libpcap.so.1.1.1
+just make a symbol link
+    or there's libpcap.a in /usr/lib, delete it
+
+
+machine a  libxxx.so.1.0.0      
+machine b  libxxx.so.2.0.0
+    can't change sym-link and so's name to 2.0.0 to fix the portable problem, ldconfig (cache) knows which version,
+    after `sudo ldconfig`, sym-link rebuild
+
+
+ELF格式的可执行文件中，全局内存包括三种：bss、data和rodata
+
+变量bss_array的大小为4M，而可执行文件的大小只有5K。 由此可见，bss类型的全局变量只占运行时的内存空间，而不占文件空间
+仅仅是把初始化的值改为非零了，文件就变为4M多。由此可见，data类型的全局变量是即占文件空间，又占用运行时内存空间的
+
+ rodata是在多个进程间是共享的，这可以提高空间利用率
+
+violatile关键字通常用来修饰多线程共享的全局变量和IO内存。告诉编译器，不要把此类变量优化到寄存器中，每次都要老老实实的从内存中读取，因为它们随时都可能变化
+
+ELF Header:										"readelf -h"
+  Magic:   7f 45 4c 46 01 01 01 03 00 00 00 00 00 00 00 00 
+  Class:                             ELF32
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - Linux
+  ABI Version:                       0
+  Type:                              EXEC (Executable file)
+  Machine:                           Intel 80386
+  Version:                           0x1
+  Entry point address:               0x80484d0                  (it's _start, -> init env -> call main() -> dest env)
+  Start of program headers:          52 (bytes into file)
+  Start of section headers:          4008 (bytes into file) 	(0xfa8)
+  Flags:                             0x0
+  Size of this header:               52 (bytes)
+  -
+  Size of program headers:           32 (bytes)
+  Number of program headers:         8
+  -
+  Size of section headers:           40 (bytes)
+  Number of section headers:         30
+  -
+  Section header string table index: 27
+
+There are 30 section headers, starting at offset 0xfa8:		(4008)			"readelf -S"
+Section Headers:
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .interp           PROGBITS        08048134 000134 000013 00   A  0   0  1
+  [ 2] .note.ABI-tag     NOTE            08048148 000148 000020 00   A  0   0  4
+  [ 3] .note.gnu.build-i NOTE            08048168 000168 000024 00   A  0   0  4
+  [ 4] .gnu.hash         GNU_HASH        0804818c 00018c 000024 04   A  5   0  4
+  [ 5] .dynsym           DYNSYM          080481b0 0001b0 0000e0 10   A  6   1  4
+  [ 6] .dynstr           STRTAB          08048290 000290 0000a3 00   A  0   0  1
+  [ 7] .gnu.version      VERSYM          08048334 000334 00001c 02   A  5   0  2
+  [ 8] .gnu.version_r    VERNEED         08048350 000350 000040 00   A  6   2  4
+  [ 9] .rel.dyn          REL             08048390 000390 000010 08   A  5   0  4
+  [10] .rel.plt          REL             080483a0 0003a0 000050 08   A  5  12  4
+  [11] .init             PROGBITS        080483f0 0003f0 000030 00  AX  0   0  4
+  [12] .plt              PROGBITS        08048420 000420 0000b0 04  AX  0   0  4
+  [13] .text             PROGBITS        080484d0 0004d0 00060c 00  AX  0   0 16
+  [14] .fini             PROGBITS        08048adc 000adc 00001c 00  AX  0   0  4
+  [15] .rodata           PROGBITS        08048af8 000af8 0000a3 00   A  0   0  8
+  [16] .eh_frame_hdr     PROGBITS        08048b9c 000b9c 00001c 00   A  0   0  4
+  [17] .eh_frame         PROGBITS        08048bb8 000bb8 000068 00   A  0   0  4
+  [18] .ctors            PROGBITS        08049c20 000c20 000008 00  WA  0   0  4
+  [19] .dtors            PROGBITS        08049c28 000c28 000008 00  WA  0   0  4
+  [20] .jcr              PROGBITS        08049c30 000c30 000004 00  WA  0   0  4
+  [21] .dynamic          DYNAMIC         08049c34 000c34 0000d0 08  WA  6   0  4
+  [22] .got              PROGBITS        08049d04 000d04 000004 04  WA  0   0  4
+  [23] .got.plt          PROGBITS        08049d08 000d08 000034 04  WA  0   0  4
+  [24] .data             PROGBITS        08049d3c 000d3c 000004 00  WA  0   0  4
+  [25] .bss              NOBITS          08049d40 000d40 00000c 00  WA  0   0  4
+  [26] .comment          PROGBITS        00000000 000d40 00016c 00      0   0  1
+  [27] .shstrtab         STRTAB          00000000 000eac 0000fc 00      0   0  1
+  [28] .symtab           SYMTAB          00000000 001458 000540 10     29  51  4
+  [29] .strtab           STRTAB          00000000 001998 00033a 00      0   0  1
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings)
+  I (info), L (link order), G (group), x (unknown)
+  O (extra OS processing required) o (OS specific), p (processor specific)
+
+Entry point 0x80484d0									"readelf -l"
+There are 8 program headers, starting at offset 52
+
+Program Headers:	  (vir = phy)
+  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+  PHDR           0x000034 0x08048034 0x08048034 0x00100 0x00100 R E 0x4
+  INTERP         0x000134 0x08048134 0x08048134 0x00013 0x00013 R   0x1
+      [Requesting program interpreter: /lib/ld-linux.so.2]
+  LOAD           0x000000 0x08048000 0x08048000 0x00c20 0x00c20 R E [0x1000]
+  LOAD           0x000c20 0x08049c20 0x08049c20 0x00120 0x0012c RW  [0x1000]
+  DYNAMIC        0x000c34 0x08049c34 0x08049c34 0x000d0 0x000d0 RW  0x4
+  NOTE           0x000148 0x08048148 0x08048148 0x00044 0x00044 R   0x4
+  GNU_EH_FRAME   0x000b9c 0x08048b9c 0x08048b9c 0x0001c 0x0001c R   0x4
+  GNU_STACK      0x000000 0x00000000 0x00000000 0x00000 0x00000 RW  0x4
+
+ Section to Segment mapping:
+  Segment Sections...
+   00     
+   01     .interp 
+   02     .interp .note.ABI-tag .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_r .rel.dyn .rel.plt .init .plt .text .fini .rodata .eh_frame_hdr .eh_frame 
+   03     .ctors .dtors .jcr .dynamic .got .got.plt .data .bss 
+   04     .dynamic 
+   05     .note.ABI-tag .note.gnu.build-id 
+   06     .eh_frame_hdr 
+   07
+
+
+---------------------------------------------------------------------------------------------
+
+'Using as', ch 4
+
+as can also generate whatever other named sections you specify using the ‘.section’ 
+
+Although the linker never arranges two partial programs’ data sections with overlapping addresses after
+linking, by definition their absolute sections must overlap. Address {absolute 239} in
+one part of a program is always the same address when the program is running as address
+{absolute 239} in any other part of the program.
+
+section undefined:
+- value is unknown at assembly time 
+- a symbol reference to a named common block is undefined
+- only way to generate an undefined address is to mention an undefined symbol
+
+as internal sec
+sub sec
+	.text = .text 0 (once be created, can't be changed by the program!!!! doesn't like Bash)
+	.data = .data 0
+ld sec
+	named; .text; .data
+	undefined		be as treated as .extern, ie ignored
+	.bss
+	.absolute(unrelocatable)
+bss sec
+	.skip; symbol definitions(only)
+
+local counter:	can only be changed by '.align'
+---------------------------------------------------------------------------------------------
+
+a.o:     file format elf32-i386
+Disassembly of section .text:
+00000000 <_start>:
+   0:	b8 01 00 00 00       	mov    $0x1,%eax
+   5:	bb 2a 00 00 00       	mov    $0x2a,%ebx
+   a:	cd 80                	int    $0x80
+
+a.out:     file format elf32-i386
+Disassembly of section .text:
+08048054 <_start>:
+ 8048054:	b8 01 00 00 00       	mov    $0x1,%eax
+ 8048059:	bb 2a 00 00 00       	mov    $0x2a,%ebx
+ 804805e:	cd 80                	int    $0x80
+---------------------------------------------------------------------------------------------
+
+compiled file size:
+gcc-as == as
+gcc-ld <  ld	=>	gcc == as + gcc < as + ld
+
+* /etc/ld.so.conf：包含共享库的搜索位置
+* ldconfig：共享库管理工具，一般在更新了共享库之后要运行该命令
+* ldd：可查看可执行文件所使用的共享库
+
+.rodata linked -> .text
+
+gcc -shared -fPIC -Wl,-soname,libzy.so.1 -o libzy.so.1.0.0 *.c
+mv libzy.so.1.0.0 /usr/lib
+ > ll
+-rwxrwxr-x.  1 jedi jedi     5471  2月 27 18:12 libzy.so.1.0.0
+ > sudo ldconfig
+ > ll
+lrwxrwxrwx.  1 root root       14  2月 27 18:16 libzy.so.1 -> libzy.so.1.0.0
+-rwxrwxr-x.  1 jedi jedi     5471  2月 27 18:12 libzy.so.1.0.0
+
+往/lib和/usr/lib里面加东西，是不用修改/etc/ld.so.conf的，但是完了之后要调一下ldconfig，不然这个library会找不到
+想往上面两个目录以外加东西:
+1. 修改/etc/ld.so.conf，然后再调用ldconfig，不然也会找不到
+如安装了一个mysql到/usr/local/mysql，mysql有一大堆library在/usr/local/mysql/lib下面，这时就 需要在/etc/ld.so.conf下面加一行/usr/local/mysql/lib，保存过后ldconfig一下，新的library才能在程 序运行时被找到。
+2. gcc -Wl,-rpath,/home/jedi/mylib a.c -lzy
+
+some compilers in w32, prepend an underscore to the names of C functions and global variables, 
+if u have a func named "myfunc()", declare it in asm "extern _myfunc"
+
+ELF do not need leading underscore
+gcc -fno-leading-underscore
+gcc -fleading-underscore(work)
+if wanna add:		nasm -dUNDERBARS=1	as --defsym UNDERBARS=1(doesn't work)
+
+Declare linker script symbols as external char arrays
+If you define symbols in a linker script (e.g. g_code, _edata), these should be prototyped in C as an external character array:
+        extern char g_code[], _edata[];
+You can also use unsigned char if you want. Because the following may not do what you want, they should be avoided:
+        extern char *g_code;    /* doesn't work */
+        extern int g_code[];    /* sizeof(int) != 1 */
+
+text -> data -> bss (essential, but could be 0)
+
+ld连接文件顺序-- (show what is GCC's and what is not)
+gcc dummy.c -Wl,--verbose 2>&1 | grep :
+/usr/lib/gcc/i686-redhat-linux/4.4.3/../../../crt1.o 
+/usr/lib/gcc/i686-redhat-linux/4.4.3/../../../crti.o 
+/usr/lib/gcc/i686-redhat-linux/4.4.3/crtbegin.o 
+/tmp/cc284Nxe.o 
+/usr/lib/gcc/i686-redhat-linux/4.4.3/libgcc.a 
+/usr/lib/gcc/i686-redhat-linux/4.4.3/libgcc_s.so 
+/usr/lib/gcc/i686-redhat-linux/4.4.3/../../../libc.so 
+/lib/libc.so.6 
+/usr/lib/libc_nonshared.a 
+/lib/ld-linux.so.2 (dynamic linker)
+/usr/lib/gcc/i686-redhat-linux/4.4.3/libgcc.a 
+/usr/lib/gcc/i686-redhat-linux/4.4.3/libgcc_s.so 
+/usr/lib/gcc/i686-redhat-linux/4.4.3/crtend.o 
+/usr/lib/gcc/i686-redhat-linux/4.4.3/../../../crtn.o 
+
+ELF格式天生就有个不小的缺陷—— segment 个数最多 65535 个，这是由e_phnum来决定的，其类型是16位的无符号整数。对于一些程序来说，65535是不够的，如果它使用了很多mmap(2)的话
+
+chroot到另一个系统环境中时，动态链接库就不再起作用，因为那些是在原来系统的文件树下，如/usr/lib.但在chroot的环境中，无法访问
+
+fPIC经常被用在共享库中，这样就能将相同的库代码为每个程序映射到一个位置，不用担心覆盖掉其他程序或共享库
+fPIE选项仅能在编译可执行码时用，不能用于编译库.除了生成为位置无关代码外，还能假定代码是属于本程序
+想要PIE的程序，需要你除了在gcc增加-fPIE选项外，还需要在ld时增加-pie选项才能产生这种代码。即gcc -fpie -pie来编译程序。单独使用哪一个都无法达到效果
+
+/lib/ld-linux.so.2 ./a.out      exe directrly
+
+LD_DEBUG
+LD_PRELOAD  desired so load firstly, if name-conflict, use the preloaded one
+
+pvtrace:
+    1. link instrument.c with user .c, when exec, record every entry-addr/exit-addr into trace.txt 
+       attribute(constructor/destructor);
+       __cyg_profile_func_enter(void *, void *) __attribute__((no_instrument_function));
+       gcc -g -finstrument-functions
+    2. compile a new tool named "pvtrace", to process trace.txt -- use stack to simulate the call trace use the entry-addr/exit-addr
+
+dynamic checker like valgrind/gcc bounds checker
+    1. compile time: overload lib func like malloc/free, use LD_PRELOAD
+    2. run time :    __attribute__(constructor/destructor)
+
+always_inline   although no optimization, still inline
+
+cc  -shared -fPIC -g -c -o crc.o crc.c
+cc  -shared -fPIC -g -c -o nvram.o nvram.c
+cc  -shared -fPIC -g  -Wl,-soname,libnvram.so.0.1 -o libnvram.so.0.1 crc.o nvram.o
+cc  -c -o cli.o cli.c
+cc -o nvram  cli.o libnvram.so.0.1
+
+
+*** glibc detected *** python: double free or corruption (fasttop): 0x08c94388 ***
+======= Backtrace: =========
+/lib/libc.so.6(+0x6b6c1)[0xb747b6c1]
+/lib/libc.so.6(+0x6cfdb)[0xb747cfdb]
+/lib/libc.so.6(+0x6ed51)[0xb747ed51]
+/lib/libc.so.6(realloc+0xe9)[0xb74802e9]
+/usr/lib/libglib-2.0.so.0(g_realloc+0x3a)[0xb6fe896a]
+/usr/lib/libglib-2.0.so.0(g_realloc_n+0x8a)[0xb6fe8cda]
+/usr/lib/libgdk-x11-2.0.so.0(+0x2a176)[0xb686e176]
+/usr/lib/libgdk-x11-2.0.so.0(+0x2acef)[0xb686ecef]
+/usr/lib/libgdk-x11-2.0.so.0(gdk_region_union+0xa4)[0xb686f4f4]
+/usr/lib/libgdk-x11-2.0.so.0(+0x34e8c)[0xb6878e8c]
+/usr/lib/libgdk-x11-2.0.so.0(+0x3514a)[0xb687914a]
+/usr/lib/libgtk-x11-2.0.so.0(+0x26728b)[0xb6b4128b]
+/usr/lib/libgtk-x11-2.0.so.0(+0x26d5df)[0xb6b475df]
+/usr/lib/libgtk-x11-2.0.so.0(gtk_widget_queue_resize+0x7b)[0xb6b4767b]
+/usr/lib/libgtk-x11-2.0.so.0(gtk_image_set_from_file+0x88)[0xb69ece08]
+/usr/lib/python2.7/site-packages/gtk-2.0/gtk/_gtk.so(+0x1188ee)[0xb6dbb8ee]
+/usr/lib/libpython2.7.so.1.0(PyCFunction_Call+0x148)[0xb75dc278]
+/usr/lib/libpython2.7.so.1.0(PyEval_EvalFrameEx+0x4692)[0xb763a182]
+/usr/lib/libpython2.7.so.1.0(PyEval_EvalCodeEx+0x7f0)[0xb763bf70]
+/usr/lib/libpython2.7.so.1.0(+0x525de)[0xb75c75de]
+/usr/lib/libpython2.7.so.1.0(PyObject_Call+0x5c)[0xb75a04cc]
+/usr/lib/libpython2.7.so.1.0(PyEval_EvalFrameEx+0x3826)[0xb7639316]
+/usr/lib/libpython2.7.so.1.0(PyEval_EvalFrameEx+0x5c66)[0xb763b756]
+/usr/lib/libpython2.7.so.1.0(PyEval_EvalFrameEx+0x5c66)[0xb763b756]
+/usr/lib/libpython2.7.so.1.0(PyEval_EvalCodeEx+0x7f0)[0xb763bf70]
+/usr/lib/libpython2.7.so.1.0(+0x524f7)[0xb75c74f7]
+/usr/lib/libpython2.7.so.1.0(PyObject_Call+0x5c)[0xb75a04cc]
+/usr/lib/libpython2.7.so.1.0(+0x3ae99)[0xb75afe99]
+/usr/lib/libpython2.7.so.1.0(PyObject_Call+0x5c)[0xb75a04cc]
+/usr/lib/libpython2.7.so.1.0(PyEval_CallObjectWithKeywords+0x58)[0xb7635538]
+/usr/lib/libpython2.7.so.1.0(+0xf6bf2)[0xb766bbf2]
+/lib/libpthread.so.0(+0x5df0)[0xb7561df0]
+/lib/libc.so.6(clone+0x5e)[0xb74de98e]
+======= Memory map: ========
+08048000-08049000 r-xp 00000000 08:08 532719     /usr/bin/python2.7
+08049000-0804a000 rw-p 00000000 08:08 532719     /usr/bin/python2.7
+084d4000-08cff000 rw-p 00000000 00:00 0          [heap]
+b0ec2000-b0edd000 r-xp 00000000 08:08 564730     /usr/lib/libgcc_s.so.1
+b0edd000-b0ede000 rw-p 0001a000 08:08 564730     /usr/lib/libgcc_s.so.1
+b0f00000-b0f21000 rw-p 00000000 00:00 0 
+b0f21000-b1000000 ---p 00000000 00:00 0 
+b101b000-b101c000 ---p 00000000 00:00 0 
+b101c000-b181c000 rw-p 00000000 00:00 0 
+b181c000-b187c000 rw-s 00000000 00:04 23986204   /SYSV00000000 (deleted)
+b187c000-b18dc000 rw-s 00000000 00:04 23953435   /SYSV00000000 (deleted)
+b18dc000-b18f6000 r--s 00000000 08:08 524676     /usr/share/mime/mime.cache
+b18f6000-b1fd9000 r--p 00000000 08:08 577600     /usr/share/icons/hicolor/icon-theme.cache
+b1fd9000-b5276000 r--p 00000000 08:08 564108     /usr/share/icons/gnome/icon-theme.cache
+b5276000-b531d000 r--p 00000000 08:08 654141     /usr/share/fonts/TTF/DejaVuSans.ttf
+b531d000-b5425000 rw-p 00000000 00:00 0 
+b5425000-b5431000 r-xp 00000000 08:08 595        /lib/libudev.so.0.10.0
+b5431000-b5432000 rw-p 0000b000 08:08 595        /lib/libudev.so.0.10.0
+b5432000-b5455000 r-xp 00000000 08:08 547981     /usr/lib/gio/modules/libgvfsdbus.so
+b5455000-b5456000 rw-p 00023000 08:08 547981     /usr/lib/gio/modules/libgvfsdbus.so
+b5456000-b5490000 r-xp 00000000 08:08 532770     /usr/lib/libibus.so.2.0.0
+b5490000-b5492000 rw-p 00039000 08:08 532770     /usr/lib/libibus.so.2.0.0
+b5492000-b54cd000 r-xp 00000000 08:08 529845     /usr/lib/libdbus-1.so.3.5.3
+b54cd000-b54ce000 r--p 0003b000 08:08 529845     /usr/lib/libdbus-1.so.3.5.3
+b54ce000-b54cf000 rw-p 0003c000 08:08 529845     /usr/lib/libdbus-1.so.3.5.3
+b54e4000-b54f1000 r--p 00000000 08:08 677304     /usr/share/fonts/TTF/VeraMono.ttf
+b54f1000-b54f5000 r-xp 00000000 08:08 532776     /usr/lib/gtk-2.0/2.10.0/immodules/im-ibus.so
+b54f5000-b54f6000 rw-p 00003000 08:08 532776     /usr/lib/gtk-2.0/2.10.0/immodules/im-ibus.so
+b54f6000-b5507000 r--p 00000000 08:08 677297     /usr/share/fonts/TTF/Vera.ttf
+b5507000-b5509000 r--s 00000000 08:08 1019       /var/cache/fontconfig/1876b2dcf508980ebba421dbe8e808d3-le32d4.cache-3
+b5509000-b5519000 r--s 00000000 08:08 892        /var/cache/fontconfig/8d4af663993b81a124ee82e610bb31f9-le32d4.cache-3
+b5519000-b551f000 r--s 00000000 08:08 20491      /var/cache/fontconfig/d62e99ef547d1d24cdb1bd22ec1a2976-le32d4.cache-3
+b551f000-b5553000 r--s 00000000 08:08 20490      /var/cache/fontconfig/f6b893a7224233d96cb72fd88691c0b4-le32d4.cache-3
+b5553000-b5594000 r--s 00000000 08:08 20489      /var/cache/fontconfig/17090aa38d5c6f09fb8c5c354938f1d7-le32d4.cache-3
+b5594000-b55d5000 r--s 00000000 08:08 20487      /var/cache/fontconfig/df311e82a1a24c41a75c2c930223552e-le32d4.cache-3
+b55d5000-b5738000 r-xp 00000000 08:08 523266     /usr/lib/libcrypto.so.1.0.0
+b5738000-b574c000 rw-p 00162000 08:08 523266     /usr/lib/libcrypto.so.1.0.0
+b574c000-b574f000 rw-p 00000000 00:00 0 
+b5759000-b575a000 rw-p 00000000 00:00 0 
+b575a000-b576d000 r-xp 00000000 08:08 547977     /usr/lib/libgvfscommon.so.0.0.0
+b576d000-b576e000 rw-p 00013000 08:08 547977     /usr/lib/libgvfscommon.so.0.0.0
+b576e000-b5770000 r-xp 00000000 08:08 1445250    /usr/lib/python2.7/lib-dynload/_random.so
+b5770000-b5771000 rw-p 00001000 08:08 1445250    /usr/lib/python2.7/lib-dynload/_random.so
+b5771000-b5773000 r-xp 00000000 08:08 1445272    /usr/lib/python2.7/lib-dynload/_hashlib.so
+b5773000-b5774000 rw-p 00002000 08:08 1445272    /usr/lib/python2.7/lib-dynload/_hashlib.so
+b5774000-b57b4000 r-xp 00000000 08:08 1835956    /usr/lib/python2.7/site-packages/numpy/random/mtrand.so
+b57b4000-b57cf000 rw-p 0003f000 08:08 1835956    /usr/lib/python2.7/site-packages/numpy/random/mtrand.so
+b57cf000-b588d000 r-xp 00000000 08:08 528329     /usr/lib/libgfortran.so.3.0.0
+b588d000-b588e000 rw-p 000bd000 08:08 528329     /usr/lib/libgfortran.so.3.0.0
+b588e000-b588f000 rw-p 00000000 00:00 0 
+b588f000-b58db000 r-xp 00000000 08:08 560637     /usr/lib/libblas.so.3.3.0
+b58db000-b58dc000 rw-p 0004b000 08:08 560637     /usr/lib/libblas.so.3.3.0
+b58dc000-b5d6e000 r-xp 00000000 08:08 565683     /usr/lib/liblapack.so.3.3.0
+b5d6e000-b5d70000 rw-p 00492000 08:08 565683     /usr/lib/liblapack.so.3.3.0
+b5d70000-b5e7d000 rw-p 00000000 00:00 0 
+b5e7d000-b5e7e000 r--s 00000000 08:0a 912222     /home/hask/.local/share/mime/mime.cache
+b5e7e000-b5e93000 r-xp 00000000 08:08 1445256    /usr/lib/python2.7/lib-dynload/_ctypes.so
+b5e93000-b5e96000 rw-p 00014000 08:08 1445256    /usr/lib/python2.7/lib-dynload/_ctypes.so
+b5e96000-b5e9e000 r-xp 00000000 08:08 1445880    /usr/lib/python2.7/site-packages/numpy/fft/fftpack_lite.so
+b5e9e000-b5e9f000 rw-p 00007000 08:08 1445880    /usr/lib/python2.7/site-packages/numpy/fft/fftpack_lite.so
+b5e9f000-b5ea3000 r-xp 00000000 08:08 1578008    /usr/lib/python2.7/site-packages/numpy/linalg/lapack_lite.so
+b5ea3000-b5ea4000 rw-p 00004000 08:08 1578008    /usr/lib/python2.7/site-packages/numpy/linalg/lapack_lite.so
+b5ea4000-b5ea8000 r-xp 00000000 08:08 1835966    /usr/lib/python2.7/site-packages/numpy/lib/_compiled_base.so
+b5ea8000-b5ea9000 rw-p 00003000 08:08 1835966    /usr/lib/python2.7/site-packages/numpy/lib/_compiled_base.so

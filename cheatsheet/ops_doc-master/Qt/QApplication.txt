@@ -1,0 +1,78 @@
+http://www.kuqin.com/qtdocument/qapplication.html
+
+    QApplication类代表应用程序，在每个程序中只能有一个它的实例。在有图形界面的程序
+中必须有一个QApplication类的实例，并且必须在所有窗口类的实例生成之前生成。它最主要
+的功能是实现主事件循环。在主事件循环内，窗口才可以相应消息，并对事件做出处理。
+    QApplication类的exec方法代表启动主事件循环.在主事件循环内，窗口才可以响应消息，
+并对事件做出处理。
+    QApplication类的exec方法代表启动主事件循环，这个函数在正常运行时不会返回，
+只有当主事件循环退出时才返回，通常这也就意味着整个程序要退出。
+    QApplication类的构造函数接受与main函数相同的参数，它也能够处理执行程序时的命令行参数。
+这里的参数传递是必需的，因为在执行程序时要用到QApplication类才能识别的-qws参数。
+    提示：可以对main函数传入的参数进行处理，甚至直接构造一个全新的参数列表，然后再传递给QApplication类的构造函数。
+
+函数分组
+系统设置 	desktopSettingsAware()、setDesktopSettingsAware()、cursorFlashTime()、setCursorFlashTime()、
+            doubleClickInterval()、setDoubleClickInterval()、wheelScrollLines()、setWheelScrollLines()、
+            palette()、setPalette()、font()、setFont()、fontMetrics()。
+事件处理 	exec()、processEvents()、enter_loop()、exit_loop()、exit()、quit()。 sendEvent()、postEvent()、
+            sendPostedEvents()、removePostedEvents()、hasPendingEvents()、notify()、macEventFilter()、qwsEventFilter()、
+            x11EventFilter()、x11ProcessEvent()、winEventFilter()。
+图形用户界面风格 	style()、setStyle()、polish()。
+颜色使用 	colorSpec()、setColorSpec()、qwsSetCustomColors()。
+文本处理 	setDefaultCodec()、installTranslator()、removeTranslator()、translate()。
+窗口部件 	mainWidget()、setMainWidget()、allWidgets()、topLevelWidgets()、desktop()、activePopupWidget()、
+            activeModalWidget()、clipboard()、focusWidget()、winFocus()、activeWindow()、widgetAt()。
+高级光标处理 	hasGlobalMouseTracking()、setGlobalMouseTracking()、overrideCursor()、setOverrideCursor()、restoreOverrideCursor()。
+X窗口系统同步 	flushX()、syncX()。
+对话管理 	isSessionRestored()、sessionId()、commitData()、saveState()。
+线程 	lock()、unlock()、locked()、tryLock()、wakeUpGuiThread()。
+杂项 	closeAllWindows()、startingUp()、closingDown()、type()。
+
+
+1、QApplication 
+    [管理控制流和主要设置]
+    QApplication类管理GUI程序的控制流和主要设置，是基于QWidget的，为此特化了QGuiApplication
+的一些功能，处理QWidget特有的初始化和结束收尾工作。
+    对于使用了Qt的任何GUI程序来说，不管何时何地有多少个Window，但只有一个QApplication
+对象，如果不是基于QWidget的程序，相应的则使用QGuiApplication，后者不依赖于QWidget
+特有的库。
+
+    [主事件循环, 应用程序初始化和结束&对话管理，系统范围和应用程序范围设置]
+    QApplication类包含主事件循环，在其中来自窗口系统和其它资源的所有事件被处理和调度。
+QApplication也处理应用程序的初始化和结束，并且提供对话管理。QApplication也处理绝大多数
+系统范围和应用程序范围的设置。
+    [单实例]
+    对于任何一个使用Qt的图形用户界面应用程序，都正好存在一个QApplication对象，而不论这个
+应用程序在同一时间内是不是有0、1、2或更多个窗口。
+    [qApp]
+    QApplication对象是可以通过全局变量qApp访问。它的负责的主要范围有：
+1.使用用户的桌面设置，例如palette()、font()和doubleClickInterval()来初始化应用程序。
+  如果用户改变全局桌面，例如通过一些控制面板，它会对这些属性保持跟踪。
+2. 执行事件处理，也就是说它从低下的窗口系统接收事件并且把它们分派给相关的窗口部件。
+  通过使用sendEvent()和postEvent()，你可以发送你自己的事件到窗口部件。
+3. 分析命令行参数并且根据它们设置内部状态。关于这点的详细情况请参考下面的构造函数文档。
+4. 定义了由QStyle对象封装的应用程序的观感。在运行状态下，可以通过setStyle()来改变。
+5. 指定了应用程序如何分配颜色。详细情况请参考setColorSpec()。 
+6. 定义了默认文本编码(请参考setDefaultCodec())并且提供了通过translate()用户可见的本地化字符串。
+7. 提供了一些像desktop()和clipboard()这样的魔术般的对象。
+8. 知道应用程序的窗口。你可以使用widgetAt()来询问在一个确定点上存在哪个窗口部件，
+   得到一个topLevelWidgets()(顶级窗口部件)的列表和通过closeAllWindows()来关闭所有窗口，等等
+9. 管理应用程序的鼠标光标处理，请参考setOverrideCursor()和setGlobalMouseTracking()。 
+10. 在X窗口系统上，它提供刷新和同步通讯流的函数，请参考flushX()和syncX()。
+11. 提供复杂的对话管理支持。这使得当用户注销时，它可以让应用程序很好地结束，如果无法终止，
+    撤消关闭进程并且甚至为未来的对话保留整个应用程序的状态。
+    详细情况请参考isSessionRestored()、sessionId()、commitData()和saveState()。 
+    
+[说明]
+1. 因为QApplication对象做了如此多的初始化，它必须在所有与用户界面相关的其它类被创建之前被创建。
+2. 因为它也处理命令行参数，在应用程序中对argv解释和修改之前创建它通常是一个好主意。
+
+
+https://www.cnblogs.com/wuyepeng/p/9722676.html
+
+
+
+
+
+

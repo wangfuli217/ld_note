@@ -1,0 +1,57 @@
+https://github.com/Mshrimp/kernel_code_note
+
+2.13.3.fastboot的基本分析
+2.13.3.1、什么是fastboot
+(1)fastboot是android使用的一种刷机方法.android系统设计了2种刷机方式：fastboot和recovery。
+(2)fastboot使用usb作为物理传输。刷机其实就是镜像传输+烧录，fastboot刷机时就是通过usb线来传输镜像的。
+(3)fastboot是uboot中的一个命令。uboot进入命令行中后，如果需要刷机，则可以在命令行执行fastboot命令就可以让uboot进入fastboot模式，刷机就是在fastboot模式下进行的。
+(4)fastboot需要主机端的fastboot软件配合。要实现fastboot刷机，只有开发板端uboot是不行的，还需要在主机上有fastboot.exe的软件配合。
+(5)fastboot在开发板和主机间定义了一套协议。其实fastboot是我们在开发板和主机之间定义的一套协议，这套协议以usb为底层传输物理层，协议规定了主机fastboot软件和开发板fastboot软件之间的信息传输规则。消息传递可以实现功能有：主机可以向开发板发送命令、开发板可以向主机发送回复、主机可以向开发板发送文件（download）
+
+2.13.3.2、fastboot的工作原理
+
+(1)uboot的fastboot命令将开发板伪装成一个usb从设备。开发板本身并不是一个usb设备，所以开发板直接插到电脑上电脑是没有反应，没有提示发现设备需要装驱动的。伪装之后开发板就被主机windows识别成一个安卓手机了。
+(2)主机的fastboot软件和开发板的fastboot程序通信来工作。平时工作时，开发板端只要执行了fastboot命令进入fastboot模式即可，剩下的就不用管了。主机端通过运行fastboot命令，传递不同的参数来实现主机端和开发板端的通信。
+譬如主机端执行fastboot devices，则这个命令通过USB线被传递到开发板中被开发板的fastboot程序接收，接收后去处理然后向主机端发送反馈信息，主机端接收到反馈信息后显示出来。
+(3)我们学习fastboot时分析代码的思路就是：
+主机端：fastboot.exe的源代码没有，fastboot协议虽然能找到但是很枯燥，所以主机端没有去分析的。
+开发板端：主要分析点就是uboot如何进入fastboot模式，fastboot模式下如何响应主机发送的各种命令。
+
+
+2.13.4.uboot的fastboot代码分析1
+2.13.4.1、do_fastboot函数
+(1)do_fastboot函数本身涉及到很多操作SD/Nand等磁盘的，主要目的是为了刷机。要完整的分析fastboot的函数细节很复杂很麻烦，我们并不是要做这个。
+
+2.13.4.2、关键点：rx_handler（顺藤摸瓜一路找下去）
+do_fastboot
+	fastboot_poll
+		fboot_usb_int_hndlr
+			fboot_usb_pkt_receive
+				fboot_usb_int_bulkout
+					fastboot_interface->rx_handler（函数指针）
+						指向cmd_fastboot.c/rx_handler
+找的过程涉及到USB物理层通信的一些概念和理解，相对比较复杂。最终uboot这边的fastboot是通过rx_handler函数来处理主机端fastboot软件发送过来的信息的。fastboot协议的命令实现都在这个函数中提现。所以这个函数的分析就是重点。
+						
+2.13.4.3、代码分析
+(1)大文件download机制
+rx_handler函数中通过if和else分成了两部分，if部分负责处理download，else部分负责处理命令。usb传输单次传输最大只能有限个字节（64、256），因此当我们发送比较小的东西（譬如命令）时可以单次传输完毕；当我们发送比较大的东西（譬如文件）时就必须要分包发送。
+
+(2)down后的响应机制。开发板端通过fastboot_tx_status函数向主机发送响应，主机显示这个响应。
+
+
+2.13.5.uboot的fastboot代码分析2
+(1)uboot中fastboot有关的一些宏定义设置值
+CFG_FASTBOOT_TRANSFER_BUFFER	配置fastboot工作时的缓冲区地址，fastboot在执行某些功能时需要大块内存做缓冲区（譬如download时），这里就是在给他配置缓冲区。
+CFG_FASTBOOT_TRANSFER_BUFFER_SIZE  fastboot缓冲区的大小。
+注意：很多同学在之前刷机时，烧录uboot和zImage都正常，但是烧录android镜像x210.img时错误，提示：image too large...（意思是文件太大）。这个错误的原因就是x210.img太大了，超出了CFG_FASTBOOT_TRANSFER_BUFFER_SIZE所以放不下了，所以uboot的fastboot这里报错了。
+
+2.13.5.1、fastboot命令响应之：fastboot reboot
+(1)作用：在PC机这边可以远程重启开发板
+2.13.5.2、fastboot命令响应之：fastboot getvar
+(1)作用是得到一些fastboot中定义的变量名的值，譬如version、product。。。。。
+2.13.5.3、fastboot命令响应之：fastboot erase
+2.13.5.4、fastboot命令响应之：fastboot download
+2.13.5.5、fastboot命令响应之：fastboot boot
+2.13.5.6、fastboot命令响应之：fastboot flash
+2.13.5.7、fastboot命令响应之：fastboot oem
+(1)oem命令是用户自定义的。其他命令全都是fastboot协议定义的，但是有时候自带的命令不足以使用，oem厂商可能希望定义一些自己专有的命令，则可以使用oem命令。

@@ -1,0 +1,176 @@
+iproute介绍
+
+iproute是众多工具包的合集
+
+~]# rpm -ql iproute |grep sbin
+ COMMAND := { arpd | bridge | cbq | ctstat | genl | ifcfg | ifstat | ip | lnstat | nstat | routef | routel | rtacct | rtmon | rtpr | rtstat | ss | tc }
+
+ip基本使用方法
+
+~]# ip --hel
+ip [ OPTIONS ] OBJECT { COMMAND | help }
+  OBJECT := { link | addr | addrlabel | route | rule | neigh | ntable | tunnel | tuntap | maddr | mroute | mrule | monitor | xfrm | netns | l2tp | tcp_metrics | token }
+  OPTIONS := { -V[ersion] | -s[tatistics] | -r[esolve] | -f[amily] { inet | inet6 | ipx | dnet | link } | -o[neline] }
+
+查看链路信息
+
+~]# ip link
+
+查看IP地址
+
+~]# ip addr
+
+查看路由[类似 route -n 和 netstat -nr]
+
+~]# ip route |column -t
+
+#使用ip route命令添加路由
+ip route add 192.168.1.0/24 dev eth0
+ip route add 192.168.55.0/24 via 10.1.2.1
+ip route add 192.168.55.0/24 via 10.1.2.1 dev eth0
+
+#使用ip route命令添加默认路由
+ip route add default via 10.1.2.1 src 10.1.2.139 dev eth0
+ip route add default via 10.1.2.1 dev eth0
+ip route add default via 10.1.2.1
+ip route add via 10.1.2.1
+#metric相当于浮动值，10.1.2.1链路断掉后会自动启用10.1.3.1
+ip route add via 10.1.3.1 metric 2048
+
+#使用route命令实现上述效果[不建议使用]
+route add -net 192.168.1.0/24  dev eth0
+route add -net 192.168.54.0/24 gw 10.1.2.1
+route add -net 192.168.54.0/24 gw 10.1.2.1 dev eth0
+route add default gw 10.1.2.1 dev eth0
+route add default gw 10.1.2.1
+route add default gw 10.1.3.1 metric 2048
+
+查看arp信息[类似 arp -n]
+
+~]# ip neigh
+
+# ip neigh add 10.1.1.5 dev eth1 lladdr 02:00:35:e1:00:09
+# ip neigh del 10.1.1.5 dev eth1 lladdr 02:00:35:e1:00:09
+
+Linux策略路由
+
+你应该知道传统的路由是以目的地IP为准和主机上的路由表进行匹配的，如果你想让本机的HTTP协议经eth1出去、FTP协议经eth0出去呢？如果你还想根据目的地IP决定数据包从哪个接口出去呢？显然普通的路由功能提供不了这样的服务，这时候我们就要用到高级路由里面的策略路由功能了。
+
+Linux系统可以同时存在256(0-255)个路由表，而且每个路由表都各自独立，互不相关。数据包在传输时是根据RPDB(路由策略数据库)内的策略决定数据包应该用哪个路由表传输的。
+rule的简单用法
+
+查看RPDB中的路由表
+
+~]# ip rule
+0:          from all lookup local 
+32766:  from all lookup main 
+32767:  from all lookup default 
+
+~]# ip route list table main
+~]# ip route show table local
+#ip route命令默认显示的就是main表。default表为空。
+
+显示的内容，大体上可以分为三段：
+
+第一段：冒号之前的数字，表示该路由表被匹配的优先顺序，数字越小，越早被匹配。这个优先级别范围是0~4亿多。默认0、32766、32767三个优先级别已被占用。如果在添加规则时没有定义优先级别，那么默认的优先级别会从32766开始递减，可以通过prio ID参数在设置路由表时添加优先级。
+第二段：from关键字，这里显示的是匹配规则，当前表示的是从哪里来的数据包，除了from关键字外，还有to、tos、fwmark、dev等等。
+第三段：loacl/main/default 这些都是路由表名称，表示数据包要从那个路由表送出去。local表包含本机路由及广播信息，main表就是我们route -n看到的内容，default表，默认为空。
+
+使用ip命令来添加路由表
+
+#根据源地址决定路由表
+ip rule add from 192.168.10.0/24  table 100
+ip rule add from 192.168.20.20    table 110
+
+#根据目的地址决定路由表
+ip rule add to   192.168.30.0/24  table 120
+ip rule add to   192.168.40.0/24  table 130
+
+#根据网卡设备决定路由表
+ip rule add dev  eth0  table 140
+ip rule add dev  eth1  table 150
+
+#根据MARK值决定路由表
+ip rule add fwmark 1 pref 20 table 200
+ip rule add fwmark 2 pref 30 table 300
+
+#此外还可以根据其他条件进行设置，例如tos等等。pref是优先级
+
+#刷新路由缓存
+ip route flush cache
+
+上面的路由表都是用100、110、120、130等数字表示的，时间一久难免自己也会忘记该路由表的作用，不过iproute提供了一个路由表和名称的对应表(/etc/iproute2/rt_tables)，可以手动修改该表。
+
+~]# ip rule add from 192.168.0.0/24 table 100
+~]# echo "100    unicom" >> /etc/iproute2/rt_tables
+~]# ip rule |grep unicom
+32765:  from 192.168.0.0/24 lookup unicom
+
+使用ip命令来删除路由表
+
+#根据明细条目删除
+ip rule del from 192.168.0.0/24
+
+#根据优先级删除
+ip rule del prio 32765
+
+#根据表名称来删除
+ip rule del table unicom
+
+流量分离
+
+已知信息
+
+~]# ip route 
+default via 10.1.2.1 dev eth0  proto static  metric 1024 
+10.1.1.0/24 dev eth1  proto kernel  scope link  src 10.1.1.223 
+10.1.2.0/24 dev eth0  proto kernel  scope link  src 10.1.2.139 
+10.1.3.0/24 dev eth2  proto kernel  scope link  src 10.1.3.42
+# eth2网关是10.1.3.1
+
+想要实现的效果
+
+                                          ===> from 10.1.1.0/25 ===> eth0 10.1.2.139 ===> GW/10.1.2.1
+10.1.1.0/24 ===> GW/10.1.1.223 eth1 ====> =
+                                          ===> from 10.1.1.128/25 ===> eth2 10.1.3.42 ===> GW/10.1.3.1
+源地址10.1.1.0/25从eth0出去；源地址10.1.1.128/25从eth2出去
+
+具体配置
+
+#SNAT
+iptables -t nat -A POSTROUTING -s 10.1.1.0/25 -o eth0 -j SNAT --to-source 10.1.2.139
+iptables -t nat -A POSTROUTING -s 10.1.1.128/25 -o eth2 -j SNAT --to-source 10.1.3.42
+
+#策略路由
+ip rule add from 10.1.1.128/25 table 100
+ip route add default via 10.1.3.1 table 100
+ip route add default via 10.1.2.1 proto static metric 300
+ip route add default via 10.1.3.1 proto static metric 600
+
+#开启FORWARD转发
+iptables -D FORWARD -j REJECT --reject-with icmp-host-prohibited
+
+#开启路由转发
+sysctl -w net.ipv4.ip_forward=1
+echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+sysctl -p
+
+保存配置
+
+iptables-save > /etc/sysconfig/iptables
+echo "default via 10.1.3.1 table 100" > /etc/sysconfig/network-scripts/route-eth1 
+echo "from 10.1.1.128/25 table 100" > /etc/sysconfig/network-scripts/rule-eth1 
+echo "default via 10.1.2.1 proto static metric 300" > /etc/sysconfig/network-scripts/route-eth0 
+echo "default via 10.1.3.1 proto static metric 600" > /etc/sysconfig/network-scripts/route-eth2 
+
+静态路由配置可以每个接口被存储在/etc/sysconfig/network-scripts/route-interface
+策略路由配置可以每个接口被存储在/etc/sysconfig/network-scripts/rule-interface
+
+基于端口的策略路由
+
+ip route add default via 10.1.2.1
+ip rule add fwmark 1 pref 20 table 200
+ip route add default via 10.1.3.1 table 200
+iptables -t mangle -A PREROUTING -p tcp -m multiport --dports 80,443,8000 -s 10.1.1.0/24 -j MARK --set-mark 1
+iptables -t mangle -A PREROUTING -p udp --dport 53 -s 10.1.1.0/24 -j MARK --set-mark 1
+iptables -t nat -A POSTROUTING -m mark --mark 1 -o eth2 -j MASQUERADE

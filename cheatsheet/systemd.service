@@ -1,0 +1,295 @@
+Systemd 所支持的12种 Unit 文件类型。
+后缀名作用
+.automount
+用于控制自动挂载文件系统。自动挂载即当某一目录被访问时系统自动挂载该目录，这类 unit 取代了传统 Linux 系统的 autofs 相应功能
+
+.device
+对应 /dev 目录下设备，主要用于定义设备之间的依赖关系
+
+.mount
+定义系统结构层次中的一个挂载点，可以替代过去的 /etc/fstab 配置文件
+
+.path
+用于监控指定目录变化，并触发其他 unit 运行
+
+.scope
+这类 unit 文件不是用户创建的，而是 Systemd 运行时自己产生的，描述一些系统服务的分组信息
+
+.service
+封装守护进程的启动、停止、重启和重载操作，是最常见的一种 unit 类型
+
+.slice
+用于描述 cgroup 的一些信息，极少使用到，一般用户就忽略它吧
+
+.snapshot
+这种 unit 其实是 systemctl snapshot 命令创建的一个描述 Systemd unit 运行状态的快照
+
+.socket
+监控系统或互联网中的 socket 消息，用于实现基于网络数据自动触发服务启动
+
+.swap
+定义一个用于做虚拟内存的交换分区
+
+.target
+用于对 unit 进行逻辑分组，引导其他 unit 的执行。它替代了 SysV 中运行级别的作用，并提供更灵活的基于特定设备事件的启动方式。例如 multi-user.target 相当于过去的运行级别5，而 bluetooth.target 在有蓝牙设备接入时就会被触发
+
+.timer
+封装由system的里面由时间触发的动作, 替代了 crontab 的功能
+这些琳琅满目的种类，几乎囊括了系统管理的大部分的日常工作内容，一致的配置格式和操作方法使得即便普通的 Linux 系统使用者和软件开发者也能够很快的上手修改系统的配置，妈妈再也不用担心我们把系统弄挂了。其实这些配置文件类型中，真正经常需要修改的并不多，并且这篇文章只打算对其中最常用的，也是之前一直在写的 .service 类型展开说明。主要出于篇幅考虑，不过，既然格式都统一了，只要将一种配置类型用熟了，其他的配置学习来还不是分分钟的事啦 :D
+
+需要再次强调的是，Unit 文件按照 Systemd 约定，应该被放置在指定的3个系统目录之一。这3个目录是有优先级的，依照下面表格，越靠上的优先级越高，因此在几个目录中有同名文件的时候，只有优先级最高的目录里的那个会被使用。
+
+路径说明
+/etc/systemd/system
+系统或用户提供的配置文件
+
+/run/systemd/system
+软件运行时生成的配置文件
+
+/usr/lib/systemd/system
+系统或第三方软件安装时添加的配置文件
+由于这里的最后一个目录在 CoreOS 中是属于系统的只读分区，因此在 CoreOS 中，第三方软件如果安装时可能需要特别处理，将配置的 Unit 文件放到 /run/systemd/system目录中。索性 CoreOS 本来也不推荐直接在系统上安装软件，人家特意把系统分区做成只读这个意思就已经很明确了。一些确实需要安装在 CoreOS 上的软件比如 Deis，它的 .service 服务配置都是放到 /run/systemd/system目录里面的。
+
+
+Service文件
+开门见山，直接来看两个实际的服务配置文件吧。
+第一个配置是 CoreOS 系统中 Docker 服务的 Unit 文件，
+路径是 /usr/lib/systemd/system/docker.service，可以看到其中的内容相当精简易读。
+    [Unit]
+    Description=Docker Application Container Engine
+    Documentation=http://docs.docker.com
+    After=docker.socket early-docker.target network.target
+    Requires=docker.socket early-docker.target
+    [Service]
+    Environment=TMPDIR=/var/tmp
+    Environment=DOCKER_OPTS='--insecure-registry="0.0.0.0/0"'
+    EnvironmentFile=-/run/docker_opts.env
+    LimitNOFILE=1048576
+    LimitNPROC=1048576
+    ExecStart=/usr/lib/coreos/dockerd --daemon --host=fd:// $DOCKER_OPTS
+    [Install]
+    WantedBy=multi-user.target
+
+第二个配置的写法风格与前一个有所差异，但同样的内容清晰，条理明确。这个配置来自 CoreOS 的一篇文档，作用是启动一个 Apache 服务容器然后将服务的运行信息注册到 Etcd 中。
+（注意，这篇文档原文中的示例中似乎有一个错误，在启动 docker 时，ExecStart 中的命令参数 -p 80:80 应当为 -p 8081:80，下面代码已修正）
+
+    [Unit]
+    Description=My Advanced Service
+    After=etcd.service
+    After=docker.service
+    [Service]
+    TimeoutStartSec=0
+    ExecStartPre=-/usr/bin/docker kill apache1
+    ExecStartPre=-/usr/bin/docker rm apache1
+    ExecStartPre=/usr/bin/docker pull coreos/apache
+    ExecStart=/usr/bin/docker run --name apache1 -p 8081:80 coreos/apache /usr/sbin/apache2ctl -D FOREGROUND
+    ExecStartPost=/usr/bin/etcdctl set /domains/example.com/10.10.10.123:8081 running
+    ExecStop=/usr/bin/docker stop apache1
+    ExecStopPost=/usr/bin/etcdctl rm /domains/example.com/10.10.10.123:8081
+    [Install]
+    WantedBy=multi-user.target
+
+仔细观察着两个服务配置，其中有一些很明显的共同点。我们接下来就以这两个 Unit 文件为例，一步步的分析一下 Systemd 服务配置的写法。
+
+Service 的 Unit 文件可以分为3个配置区段，其中 Unit 和 Install 段是所有 Unit 文件通用的，用于配置服务（或其他系统资源）的描述、依赖和随系统启动方式。而 Service 段则是服务类型的 Unit 文件（后缀.service）特有的，用于定义服务的具体管理和操作方法。其他的每种配置文件也都会有一个特有的配置段，这就是几种不同 Unit 配置文件最明显的区别。
+来看看每个配置段常用的参数有哪些。
+
+
+一、Unit 段
+[Unit]区块通常是配置文件的第一个区块，用来定义 Unit 的元数据，以及配置与其他 Unit 的关系。它的主要字段如下。
+
+    Description一段描述这个 Unit 文件的文字，通常只是简短的一句话。
+    Documentation指定服务的文档，可以是一个或多个文档的URL路径。
+    Requires依赖的其他 Unit 列表，列在其中的 Unit 模块会在这个服务启动的同时被启动，并且如果其中有任意一个服务启动失败，这个服务也会被终止。
+    Wants与 Requires 相似，但只是在被配置的这个 Unit 启动时，触发启动列出的每个 Unit 模块，而不去考虑这些模块启动是否成功。
+    After与 Requires 相似，但会在后面列出的所有模块全部启动完成以后，才会启动当前的服务。
+    Before与 After 相反，在启动指定的任一个模块之前，都会首先确保当前服务已经运行。
+    BindsTo与 Requires 相似，但是一种更强的关联。启动这个服务时会同时启动列出的所有模块，当有模块启动失败时终止当前服务。反之，只要列出的模块全部启动以后，也会自动启动当前服务。并且这些模块中有任意一个出现意外结束或重启，这个服务会跟着终止或重启。
+    PartOf这是一个 BindTo 作用的子集，仅在列出的任何模块失败或重启时，终止或重启当前服务，而不会随列出模块的启动而启动。
+    OnFailure当这个模块启动失败时，就自动启动列出的每个模块。
+    Conflicts与这个模块有冲突的模块，如果列出模块中有已经在运行的，这个服务就不能启动，反之亦然。
+    Condition...：当前 Unit 运行必须满足的条件，否则不会运行
+    Assert...：当前 Unit 运行必须满足的条件，否则会报启动失败
+上面这些配置中，除了 Description 外，都能够被添加多次。比如前面第一个例子中的After参数在一行中使用空格分隔指定所有值，也可以像第二个例子中那样使用多个After参数，在每行参数中指定一个值。
+
+二、Install 段
+[Install]通常是配置文件的最后一个区块，用来定义如何启动，以及是否开机启动。它的主要字段如下。
+这个段中的配置与 Unit 有几分相似，但是这部分配置需要通过 systemctl enable 命令来激活，并且可以通过 systemctl disable 命令禁用。另外这部分配置的目标模块通常是特定启动级别的 .target 文件，用来使得服务在系统启动时自动运行。
+    WantedBy 和前面的 Wants 作用相似，只是后面列出的不是服务所依赖的模块，而是依赖当前服务的模块。
+它的值是一个或多个 Target，当前 Unit 激活时（enable）符号链接会放入/etc/systemd/system目录下面以 Target 名 + .wants后缀构成的子目录中
+    RequiredBy
+和前面的 Requires 作用相似，同样后面列出的不是服务所依赖的模块，而是依赖当前服务的模块。
+它的值是一个或多个 Target，当前 Unit 激活时，符号链接会放入/etc/systemd/system目录下面以 Target 名 + .required后缀构成的子目录中
+    Also # 当前 Unit 激活（enable）时，会被同时激活的其他 Unit
+当这个服务被 enable/disable 时，将自动 enable/disable 后面列出的每个模块。
+    Alias：当前 Unit 可用于启动的别名
+    
+上面的两个例子中使用的都是 “WantedBy=multi-user.target” 表明当系统以多用户方式（默认的运行级别）启动时，这个服务需要被自动运行。当然还需要 systemctl enable 激活这个服务以后自动运行才会生效。关于 Linux 系统启动时的运行级别，可以参看这篇文章。
+
+三、Service 段
+[Service]区块用来 Service 的配置，只有 Service 类型的 Unit 才有这个区块。它的主要字段如下。
+这个段是 .service 文件独有的，也是对于服务配置最重要的部分。这部分的配置选项非常多，主要分为服务生命周期控制和服务上下文配置两个方面，下面是比较常用到的一些参数。
+服务生命周期控制相关的参数：
+    Type 服务的类型，常用的有 simple（默认类型） 和 forking。默认的 simple 类型可以适应于绝大多数的场景，因此一般可以忽略这个参数的配置。而如果服务程序启动后会通过 fork 系统调用创建子进程，然后关闭应用程序本身进程的情况，则应该将 Type 的值设置为 forking，否则 systemd 将不会跟踪子进程的行为，而认为服务已经退出。
+        Type=simple：默认值，执行ExecStart指定的命令，启动主进程
+        Type=forking：以 fork 方式从父进程创建子进程，创建后父进程会立即退出
+        Type=oneshot：一次性进程，Systemd 会等当前服务退出，再继续往下执行
+        Type=dbus：当前服务通过D-Bus启动
+        Type=notify：当前服务启动完毕，会通知Systemd，再继续往下执行
+        Type=idle：若有其他任务执行完毕，当前服务才会运行
+        
+    RemainAfterExit
+值为 true 或 false（也可以写 yes 或 no），默认为 false。当配置值为 true 时，systemd 只会负责启动服务进程，之后即便服务进程退出了，systemd 仍然会认为这个服务是在运行中的。这个配置主要是提供给一些并非常驻内存，而是启动注册后立即退出然后等待消息按需启动的特殊类型服务使用
+
+    ExecStart # 启动当前服务的命令
+这个参数是几乎每个 .service 文件都会有的，指定服务启动的主要命令，在每个配置文件中只能使用一次。
+
+    ExecStartPre # 启动当前服务之前执行的命令
+指定在启动执行 ExecStart 的命令前的准备工作，可以有多个，如前面第二个例子中所示，所有命令会按照文件中书写的顺序依次被执行。
+
+    ExecStartPost # 启动当前服务之后执行的命令
+指定在启动执行 ExecStart 的命令后的收尾工作，也可以有多个。
+
+    TimeoutStartSec
+启动服务时的等待的秒数，如果超过这个时间服务任然没有执行完所有的启动命令，则 systemd 会认为服务自动失败。这一配置对于使用 Docker 容器托管的应用十分重要，由于 Docker 第一次运行时可以能会需要从网络下载服务的镜像文件，因此造成比较严重的延时，容易被 systemd 误判为启动失败而杀死。通常对于这种服务，需要将 TimeoutStartSec 的值指定为 0，从而关闭超时检测，如前面的第二个例子。
+
+    ExecStop # 停止当前服务时执行的命令
+停止服务所需要执行的主要命令。
+
+    ExecStopPost # 停止当其服务之后执行的命令
+指定在 ExecStop 命令执行后的收尾工作，也可以有多个。
+
+    TimeoutStopSec
+停止服务时的等待的秒数，如果超过这个时间服务仍然没有停止，systemd 会使用 SIGKILL 信号强行杀死服务的进程。
+
+Restart：定义何种情况 Systemd 会自动重启当前服务，可能的值包括always（总是重启）、on-success、on-failure、on-abnormal、on-abort、on-watchdog
+RestartSec：自动重启当前服务间隔的秒数
+    
+异常退出
+启动/停止超时
+被异常KILL
+    RestartSec
+如果服务需要被重启，这个参数的值为服务被重启前的等待秒数。
+
+    ExecReload
+重新加载服务所需执行的主要命令。
+
+服务上下文配置相关的参数：
+    Environment
+
+为服务添加环境变量，如前面的第一个例子中所示。
+    EnvironmentFile
+
+指定加载一个包含服务所需的环境变量列表的文件，文件中的每一行都是一个环境变量的定义。
+    Nice
+
+服务的进程优先级，值越小优先级越高，默认为0。-20为最高优先级，19为最低优先级。
+    WorkingDirectory
+
+指定服务的工作目录。
+    RootDirectory
+
+指定服务进程的根目录（ / 目录），如果配置了这个参数后，服务将无法访问指定目录以外的任何文件。
+    User
+
+指定运行服务的用户，会影响服务对本地文件系统的访问权限。
+    Group
+
+指定运行服务的用户组，会影响服务对本地文件系统的访问权限。
+    LimitCPU / LimitSTACK / LimitNOFILE / LimitNPROC 等
+
+限制特定服务可用的系统资源量，例如 CPU，程序堆栈，文件句柄数量，子进程数量… 不再展开说明了，值的含义可参考 Linux 文档资源配额部分中 RLIMIT_ 开头的那些参数们。
+
+列完这么一大推参数的我也是醉了（这些都是常用的参数，不常用的还没写咧），但其实嘛，Systemd 的精华也就在此了。再仔细一推敲，这么些冗长的参数之间还是有些规律的，并且大多可以望文生义，因此写 Unit 文件的差事本身倒并不让人觉得枯燥。反观过去需要学习N种不同配置格式来管理N种不同的系统资源的方法，Systemd的理念实在是先进了太多了。而这些参数云云，大概只有用得多了，才会觉得它们看起来不那么讨厌了吧o(//_//)oFleet 的 X-Fleet 段
+
+前面讨论的都是 Systemd 使用的 Unit 文件。在这个系列的 Fleet 那篇中，演示了 Fleet 中的服务配置。
+
+Fleet 的 Unit 服务描述文件，实际上就是 Systemd 的 .service 配置文件的翻版。但为了方便服务在集群环境的自适应管理，Fleet 在 Systemd 的 Unit 配置基础上添加了一个 X-Fleet 段，专门用于描述服务应该被分配到集群的哪些节点启动。它的可用参数只有5个，可以请出来一一亮相。
+
+    MachineID
+直接了当的告诉 Fleet 这个服务只能运行在特定的一个节点上，注意这里的值必须是完整的节点 ID，这个 ID 可以通过 “fleetctl list-machines -l” 命令获得。
+
+    MachineOf
+值是另一个 .service 文件，表示当前服务必须运行在与指定的这个服务在同一个节点上。
+
+    MachineMetadata
+值是一个节点的 Metadata 内容，例如 "region=us-east-1" 。这些 Metadata 是在启动节点时通过 Cloudinit 写进去的，具体方法在系列的 Fleet 那篇文章有提及。这个参数可以使用多次，或在通过空格分隔将多个值同时传进去。
+
+    Conflicts
+值是一个 .service 文件的，Conflicts参数也可以使用多次，并且其值可以使用通配符，例如 apache* 表示所有以 “apache” 开头的服务。
+
+    Global
+如果值为 true，则这个服务会被部署到集群中符合 MachineMetadata限定条件的每一个节点上。注意，当 Global 值为 true 时，除了 MachineMetadata外的所有其他约束条件都会被忽略。
+前四个参数在 Fleet v0.8 版本前被命名为 X-ConditionMachineID、X-ConditionMachineOf、X-ConditionMachineMetadata和 X-Conflicts，这些写法现在已经停止使用了，但仍然可能会在一些早期的文档或网络文章中出现，如果看见了，淡定的飘过吧。
+Unit模板
+
+在现实中，往往有一些应用需要被复制多份运行，例如在一个负载均衡实例后面运行的多个相同的服务实例。但是按照之前的例子，每个服务都需要一个单独的 Unit 文件，这样复制多份相同文件的做显然不便于服务的管理。为此 Systemd 定义了一种特殊的 Service Unit文件，称为 Unit 模板。
+模板文件的主要特点是，文件名以@符号结尾，而启动的时候指定的Unit名称为模板名称附加一个参数字符串。例如，将之前的例子第二个 Unit 文件修改为可以用于启动多个实例的模板。
+一、首先修改文件名，添加一个@符号
+例如原来的文件名是 apache.service，那么可以将它修改为 apache@.service，这样做的目的是表面这个文件是一个模板文件。而在服务启动时可以在@后面放置一个用于区分服务实例的附加字符串参数，通常这个参数会使用监听的端口号或使用的控制台TTY编号等。例如 “systemctl start apache@8080.service”。
+二、然后修改 Unit 文件内容
+
+Unit 文件中可以获取服务启动时的附加参数，因此通常需要修改 Unit 文件中不应固定的部分，例如服务监听的 IP 和端口，替换为从附加参数中获取。
+
+    [Unit]
+    Description=My Advanced Service Template
+    After=etcd.servicedocker.service
+    [Service]
+    TimeoutStartSec=0
+    ExecStartPre=-/usr/bin/docker kill apache%i
+    ExecStartPre=-/usr/bin/docker rm apache%i
+    ExecStartPre=/usr/bin/docker pull coreos/apache
+    ExecStart=/usr/bin/docker run --name apache%i -p %i:80 coreos/apache /usr/sbin/apache2ctl -D FOREGROUND
+    ExecStartPost=/usr/bin/etcdctl set /domains/example.com/%H:%i running
+    ExecStop=/usr/bin/docker stop apache1
+    ExecStopPost=/usr/bin/etcdctl rm /domains/example.com/%H:%i
+    [Install]
+    WantedBy=multi-user.target
+
+仔细观察一下变化了的地方，上面使用到了占位符 %H 和 %i，常用的占位符有6种（一共19种，其余不怎么常用的查文档吧），这些占位符会在 Unit 启动时被实际的值动态的替换掉。
+
+占位符
+	
+
+作用
+
+%n
+	
+
+完整的 Unit 文件名字，包括 .service 后缀名
+
+%m
+	
+
+实际运行的节点的 Machine ID，适合用来做Etcd路径的一部分，例如 /machines/%m/units
+
+%b
+	
+
+作用有点像 Machine ID，但这个值每次节点重启都会改变，称为 Boot ID
+
+%H
+	
+
+实际运行节点的主机名
+
+%p
+	
+
+Unit 文件名中在 @ 符号之前的部分，不包括 @ 符号
+
+%i
+	
+
+Unit 文件名中在 @ 符号之后的部分，不包括 @ 符号和 .service 后缀名
+
+顺带一提，这些参数中除了 %i 以外，同样可以用于非模板的 Unit 文件中。%p 在普通 Unit 文件中会被动态替换为服务名称去掉 .service 后缀的名字。
+三、启动 Unit 模板的服务实例
+
+模板服务的启动对于 Systemd 和 Fleet 大致相同。
+
+Systemd 的情况略简单一些，只需要运行时加上后缀参数。例如 “systemctl start apache@8080.service”。Systemd 首先会在其特定的目录下寻找名为 apache@8080.service的文件，如果没有找到，而文件名中包含@字符，它就会尝试去掉后缀参数匹配模板文件。例如没有找到 apache@8080.service，那么Systemd会找到apache@.service，并将它通过模板文件中实例化。
+
+Fleet 没有特定的 Unit 文件存放目录，不过在通过 fleetctl start 或 fleetctl submit 命令指定 Unit 文件路径时加上后缀参数，Fleet 同样会自动匹配去掉后缀参数后的模板文件。例如 “fleetctl submit ${HOME}/apache@8080.service”，就会匹配到 ${HOME} 目录下面的 apache@.service 模板文件。
+后续综合案例的文章中，还会结合实际例子详细的介绍模板的使用场景。
+

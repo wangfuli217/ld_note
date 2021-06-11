@@ -1,0 +1,33 @@
+
+--[[
+io.stderr:write
+io.stdout:write
+io.write
+1. 函数的参数个数可变， 只要使用逗号分隔即可。 不过参数不能是 nil， 否则报错， 像这样：
+   lua: hello.lua:4: bad argument #4 to 'write' (string expected, got nil)
+2. io.write(a..b..c)  ----".." 表示连接两个字符串
+   这跟 io.write(a, b, c) 的输出效果相同。但是我们应该避免第一种写法， 原因是".."字符串连接行为会消耗更多的资源。
+   
+作为一个约定：在debugging过程中应该使用print函数，而只有在需要严格做输出格式控制的时候使用write函数
+--]]
+io.stderr:write("sin(3)= ", math.sin(3), '\n') ----- 输出 sin(3)= 0.14112000805987
+
+a = 'a' b = 'b' c = 'c'
+io.stderr:write(a..b..c..'\n')  ----".." 表示连接两个字符串
+
+
+--[[
+print
+1. print 函数的调用会附加一些格外的格式， 比如：
+   print(a,b)
+   他会在a,b之间插入 \t 制表符，并且结尾自动回车；
+2. print会自动调用参数的tostring方法，因此他可以调试的时候输出table, function, nil。
+   注意：io.write因为原样输出参数，没有调用tostring, 因此如果像这样：io.write({})也会报错，
+   说参数应该是string，不能是table 元气
+--]]
+print("hello","Lua");print("Hi")
+--hello     Lua
+--Hi
+io.write("hello","Lua");io.write("HI","\n")
+--helloLuaHI
+

@@ -1,0 +1,516 @@
+看流量大小是没用的，要看包速率的快慢，这个之前有讨论
+用 1518Bytes 的包塞满 100Mbps 链路，和用 64Bytes 塞满 100Mbps 链路，对 CPU 负载是截然不同的，他们的 pps 不同
+
+解决互联网地址短缺的首选“正统”方案是IPv6，而不是NAT，是因为IETF认为NAT破坏了互联网“端到端透明性”的核心思想，是有害于互联网的发展的
+
+
+/etc/udev/rules.d/70-persistent-net.rules (all phy-soft NIC info matches)
+    SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="00:22:15:eb:64:a3", ATTR{dev_id}=="0x0", ATTR{type}=="1", KERNEL=="eth*", NAME="eth0"
+/etc/init.d/udev* restart
+
+dns
+208.67.222.222 
+208.67.222.220
+168.95.192.1
+168.95.192.2
+203.80.96.9 
+203.80.96.10
+
+sudo ifconfig eth0 192.168.1.114
+sudo route add default gw 192.168.1.1
+ping yahoo.com
+sudo arp -s 192.168.1.1 38:83:45:AE:5A:AA
+
+curl ifconfig.me    show my public ip
+
+regard wireless-router as AP or switch
+    1. set LAN-ip as any available in mother-router's DHCP range, like 192.168.1.188 (192.168.1.1-192.168.1.199)
+    2. close wireless-router's DHCP
+
+SYN ACK FIN PSU URG RST
+1st seq num is random int, 1st ack number is that num + data lenth
+but syn pack has no data, TCP regard it as having 1 byte, then 
+ack num = seq num + 1
+
+10/100m自适应   对端多少我就多少
+
+如果想定死网卡的名字可以使用ifrename
+    man ifrename; iftab
+    /etc/iftab
+
+cat /proc/net/dev  ==  netstat -i
+
+mii-tool -v   
+ethtool eth0
+    check nic info, for 100M, MTU is 1500
+    -g eth0     ring buffer
+RxDescriptors
+specifies the "number of descriptors" (not buffer size) to store incoming frames on the adapter. 
+The default value is 256, which is also the maximum for some types of E1000-based adapters. 
+Others can allocate up to 4096 of these descriptors. The size of the receive buffer associated with each descriptor varies with the MTU configured on the adapter. 
+It is always a power-of-two number of bytes. The number of descriptors available will also depend on the per-buffer size. 
+"When all buffers have been filled by incoming frames, an interrupt will have to be signaled in any case."
+    -k eth0     all offload config
+    -C ethX rx-usecs 4  new interrupt moderation model introduced in 2.6.35, that's InterruptThrottleRate=4
+http://serverfault.com/questions/241421/napi-vs-adaptive-interrupts
+the delay between the tx and rx events and the generation of interrupts for those events.
+rx-frames[-irq] rx-usecs[-irq] tx-frames[-irq] tx-usecs[-irq]
+The frames parameters specify how many packets are received/transmitted before generating an interrupt. The usecs parameters specify how many microseconds after at least 1 packet is received/transmitted before generating an interrupt. The [-irq] parameters are the corresponding delays in updating the status when the interrupt is disabled.
+    -A ethX autoneg off rx off
+
+
+sudo dstat --cpu --int --net -N eth0 --sys --socket --tcp --udp --unix --ipc --profile
+
+混杂模式下，网卡收到的包有几种： 
+1，发给本机的。 
+2，发给其他的机器的，但链路层是发给本机的，即本机是router。 
+3，发给其他的机器的，并且链路层也不是发给本机的，即sniffer到的包。
+netfilter不能截获第3种包，除非你修改内核，或者利用bridge的br_handle_frame_hook。 
+
+用 tcpdump 抓包时，网卡会自动进入混杂模式，但停止抓包后网卡会自动退出混杂模式
+
+route add -net 192.168.9.0 netmask 255.255.255.0 dev eth0
+route add -host 192.168.9.3 gw 192.168.9.1
+route add default gw 192.168.9.1 dev ethX (connect to outside)
+
+混杂模式就是接收所有经过网卡的数据包，包括不是发给本机的包。默认情况下网卡只把发给本机的包（包括广播包）传递给上层程序，其它的包一律丢弃。
+简单的讲,混杂模式就是指网卡能接受所有通过它的数据流，不管是什么格式，什么地址的。具体的地址转发则是在接受到数据后由MAC层来进行。
+非混杂 = receive + send + route
+
+switch has an ability of port mirror -> 1 in 2 same out
+
+iptables目前还没有比较好的方法来防护synflood，只有一个limit模块，来限制速度的
+
+iwlist channel      wireless card channel support
+如果连未加密或WEP加密网络
+iwlist wlan0 scanning 列出附近的无线网络信息
+iwconfig wlan0 essid 网络名 key 密码（每4位隔开）: iwconfig wlan0 essid TP-LINK_7A293E key 1234-5678-90 
+sudo dhclient wlan0 申请dhcp服务器给分配ip
+再用route设置路由表 单敲'route' 显示本机现有的路由表 当无连接或断开连接后 为空：
+% route                                    
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+对常规家庭路由 敲入
+sudo route add -net default gw 192.168.1.1 dev wlan0
+sudo route add -net 192.168.1.0 netmask 255.255.255.0 dev wlan0
+即对所有网络的请求 均由wlan0发往网关192.168.1.1；对所有子网内主机 均由wlan0直接发不过网关
+% route 
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+192.168.1.0     *               255.255.255.0   U     2      0        0 wlan0
+default         192.168.1.1     0.0.0.0         UG    0      0        0 wlan0
+最后这步即使命令行连接有线网络也要设置
+对于WPA加密网络 需要用wpa_supplicant和wpa_passphrase 操作方式见
+http://www.linuxdiyf.com/bbs/thread-67492-1-1.html
+不过我刚试了试 没成功。。。。
+
+128.224.164.82 2014 -- 128.224.165.247
+telnet can only attach one
+
+host被用于hostname查找，比DNS优先级高
+
+dnsutils    host nslookup nsupdate dig
+
+外网通过ssh访问内网的方法：
+$ ssh -f -N -R 7070:127.0.0.1:22 外网主机用户名@外网主机ip
+$ ssh 内网主机用户名@127.0.0.1 -p 7070
+原理：将外网7070的端口映射到内网主机的22端口
+外网通过ssh访问内网的方法：
+$ ssh -f -N -R 7070:127.0.0.1:22 外网主机用户名@外网主机ip
+$ ssh 内网主机用户名@127.0.0.1 -p 7070
+原理：将外网7070的端口映射到内网主机的22端口
+
+nic speed:
+    ifconfig eth0 media 100baseTX
+    若出現 port: SIOCSIFMAP: Operation not supported ，可以改用 mii-tool，ethtool指令
+    mii-tool -F 100baseTx-FD eth0
+    ethtool -s eth0 speed 100 duplex full autoneg on
+
+169.254.0.0/16, for the special use in link-local addressing. These addresses are only valid on the link, such as a local network segment or point-to-point connection, that a host is connected to. These addresses are not routable and like private addresses cannot be the source or destination of packets traversing the Internet. Link-local addresses are primarily used for address autoconfiguration (Zeroconf) when a host cannot obtain an IP address from a DHCP server or other internal configuration methods.
+in ipv6, fe80: link is sth. like
+
+網路媒體都有其最大可接受的封包量，在乙太網路上可接收的封包為 MAC frame(46-1500)
+
+router is post-office
+每部主機都有自己的路由表
+only thing can check from route/arp table is gateway(WAN isn't handled by us)
+
+network check:
+[root@www ~]# ifconfig  (-a is to show all, including the close)
+[root@www ~]# route -n
+[root@www ~]# ping localhost
+[root@www ~]# ping gateway
+[root@www ~]# ping www.yahoo.com
+[root@www ~]# dig www.yahoo.com
+[root@www ~]# hostname
+
+press route to check gateway fast
+
+get an ip, then check:
+/etc/hosts          hostname-ip(inner)
+/etc/resolv.conf    dns(outer, dns service ip) 
+
+在linux中所有源和目的地都是本地网卡或者127网段的数据都会通过lo这个虚拟网卡发送接收，而且它还能配置别的ip地址：
+ifconfig lo 11.22.33.44 netmask 255.255.255.0
+ 
+从TCP/IP说起，第一个问题当然是典型的三次握手，他回答出来以后问那UDP的建立是如何的，
+接着问那TCP有没有重传机制，协议层是怎么做的（这个问 题可以回答不出来，协议随时都可以查到，硬背的是傻瓜，但是大概的道理要懂），
+然后问那一般在什么情况下选择TCP，什么情况下选择UDP，接着问那如果我如果 一定需要UDP（比如组播）但在此基础上做到超时重传该怎么办，客户端和服务器端各需要注意哪些问题
+SYN
+SYN-ACK
+SYN-ACK-ACK
+
+桥与交换机的区别在与市场，而不在与技术。交换机对网络进行分段的方式与网桥相同，交换机就是一个多端口的网桥。确切地说，高端口密度的网桥就称为局域网交换机。
+交换机工作时，实际上允许许多组端口间的通道同时工作。所以，交换机的功能体现出不仅仅是一个网桥的功能，而是多个网桥功能的集合。即网桥一般分有两个端口，而交换机具有高密度的端口。 
+
+防火墙的作用本质就是检测网络中的数据包，判断其是否违反了预先设置的规则，如果违反就加以阻止
+
+802.11 ，1997年，原始标准(2Mbit/s 工作在2.4GHz)。
+802.11a，1999年，物理层补充(54Mbit/s工作在5GHz) 。
+802.11b，1999年，物理层补充(11Mbit/s工作在2.4GHz) 。
+802.11c，符合802.1D的媒体接入控制层(MAC) 桥接(MAC Layer Bridging) 。
+802.11d，根据各国无线电规定做的调整。
+802.11e ，对服务等级(Quality of Service, QS) 的支持。
+802.11f，基站的互连性(Interoperability) 。
+802.11g，物理层补充(54Mbit/s工作在2.4GHz) 。
+802.11h，无线覆盖半径的调整，室内(indoor) 和室外(outdoor) 信道(5GHz频段) 。
+802.11i，安全和鉴权(Authentification)方面的补充。
+
+換器與集線器最大的差異，在於交換器內有一個特別的記憶體， 這個記憶體可以記錄每個 switch port 與其連接的 PC 的 MAC 位址
+所以 switch 不是共享媒體，且 switch 的每個埠口 (port) 都具有獨立的頻寬喔！
+現在的 switch 規格很多， 在選購的時候，千萬記得選購可以支援全雙工/半雙工(full/half duplex)，以及支援 Jumbo frame 的為佳！
+router 3
+switch 2 all independent (Bridge)
+hub    1 share band width
+如果用HUB来把几台电脑组起来,就必须需要一台电脑做主机,里面要两张网卡,一张网卡连猫一张连HUB,然后工享上网,这样的方法非常麻烦,而且主机不能休息. 
+如果用路由器组网,可以直接用路由连猫,然后电脑连路由,路由有自己拨号的功能,也就是说,只要路由开着,下面所有连着路由的电脑都可以上网,比较好.现在的路由器主要就是用来代替主机可以拨号用. 
+如果用交换机上网,其实也是一样的,交换机是不会自己拨号的,所以还要接个主机或者路由,一般的像寝室这样的局域网是不会用到交换机的,只有小型局域网才会用到,用于LAN-WAN的连接,当然,也有带路由的交换机,那就很贵了.
+
+ping 127.0.0.1  loopback test, if tcp/ip set right done on local machine
+
+switch/hub has no IP, so aren't node
+ap
+
+switch  port-MAC
+router    IP-MAC(arp)
+
+一張網卡至少可以搭配一個以上的網路介面；而每部主機內部其實也都擁有一個內部的網路介面，那就是 loopback (lo) 這個迴圈測試介面！
+
+非對稱數位用路回路 (Asymmetric Digital Subscriber Line, ADSL)：透過 pppoe 協定
+電話的高頻部分，與一般講電話的頻率不同。 因此妳可以一邊使用 ADSL 上網同時透過同一個電話號碼來打電話聊天.由於上傳/下載的頻寬不同， 因此才稱為非對稱的回路。
+
+PPP (point to point)
+    PPPoE (over ethernet, physical)
+    PPPoA (over ATM, physical)
+
+網路忙碌時，集線器燈號閃個不停，但我的主機明明沒有使用網路：
+透過上述的流程我們會知道，不管哪一部主機發送出訊框，所有的電腦都會接收到！因為集線器會複製一份該資料給所有電腦。 因此，雖然只有一部主機在對外連線，但是在集線器上面的所有電腦燈號就都會閃個不停！
+
+MAC(46-1500)想成是一個在網路線上面傳遞的包裹，而這個包裹是整個網路硬體上面傳送資料的最小單位了
+IP(65535)   lift(ip) >> box(mac), so unpack
+
+不可同時為 0 也不可同時為 1 ，因為全為 0 表示整個網段的位址 (Network IP)，而全為 1 則表示為廣播的位址 (Broadcast IP)。例如上面的例子當中，192.168.0.0 (Host_ID 全部為 0)以及 192.168.0.255 (Host_ID 全部為 1) 不可用來作為網段內主機的 IP 設定
+貴單位公司內的電腦群，或者是你宿舍或家裡面的所有電腦，當然都設定在同一個網域內是最方便的， 因為如此一來每一部電腦都可以直接透過 MAC 來進行資料的交流，而不必經由 Router (路由器) 來進行封包的轉遞
+
+
+IP only has 2 type: public/private
+private: 
+Class A：10.0.0.0    - 10.255.255.255
+Class B：172.16.0.0  - 172.16(31?).255.255
+Class C：192.168.0.0 - 192.168.255.255
+
+loopback virtual NIC(netmask interface card) 127.0.0.1  test inner loop
+
+知道了 Network 以及 Netmask 之後，就可以定義出該網域的所有 IP 了
+因為由 Netmask 就可以推算出來 Broadcast 的 IP 啊！因此，我們常常會以 Network 以及 Netmask 來表示一個網域
+192.168.0.0/255.255.255.0 == 192.168.0.0/24 (24 bits net_id in mask)   it's CIDR (Classless Interdomain Routing) 无层级 即不分ABC类地址
+    so 192.168.10.100/25 and 192.168.10.200/25 are in diff network
+
+% route                                                                                                                                    ~
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+128.224.158.0   *               255.255.254.0   U     1      0        0 eth0
+default         128.224.158.1   0.0.0.0         UG    0      0        0 eth0
+my IP is 128.224.159.158, the net is 23bit net_id, so 128.224.158.0 is the network
+send to all network, use eth0 directly(just MAC no IP, so no ARP); send to others, give it to gateway
+
+(IP softaddr 與 MAC hardaddr) 勢必有一個關連性存在吧？沒錯！那就是我們要談到的 ARP
+當我們想要瞭解某個 IP 其實是設定於某張乙太網路卡上頭時，我們的主機會對整個區網發送出 ARP 封包， 對方收到 ARP 封包後就會回傳他的 MAC 給我們，我們的主機就會知道對方所在的網卡，那接下來就能夠開始傳遞資料囉。 如果每次要傳送都得要重新來一遍這個 ARP 協定那不是很煩？因此，當使用 ARP 協定取得目標 IP 與他網卡卡號後， 就會將該筆記錄寫入我們主機的 ARP table 中 (記憶體內的資料) 記錄 20 分鐘
+
+% arp (only WAN, no LAN)
+Address                  HWtype  HWaddress           Flags Mask            Iface
+128.224.158.1            ether   00:17:df:e5:ac:00   C                     eth0
+
+anti ARP attack
+arp -s IP MAC
+arp -a (to show arp table)
+
+mtr/ping/traceroute use ICMP
+
+only 4 important files:
+/etc/hosts (find inner hostname-ip, 私有網域內部，最好將所有的 IP 都寫入)
+/etc/resolv.conf(find outer, dns service ip, if can't handle domain, set this)
+/etc/sysconfig/network-scripts/ifcfg-eth0
+/etc/sysconfig/network
+/etc/hosts: 127.0.0.1               localhost.localdomain   localhost
+            # 主機的 IP             主機的名稱              主機的別名
+/etc/resolv.conf 
+    % cat /etc/resolv.conf                                                                                                                     ~
+    # Generated by NetworkManager
+    domain corp.ad.wrs.com
+    search corp.ad.wrs.com
+    nameserver 128.224.160.11(main dns)
+    nameserver 147.11.100.30 (aux dns)
+    nameserver 147.11.1.11   (aux dns)
+
+cmd wireless:
+ifconfig wlan0 up / ifup wlan0
+iwlist wlan0 scanning
+iwconfig wlan0 essid "haskell"
+
+主機為使用 ADSL 撥接，所以當撥接成功後會產生一個 ppp0 的介面，這個 ppp0 介面也有自己的 default gateway ，好了，那麼當你要將封包傳送到 Yahoo 這個非為本網域的主機時， 這個封包是要傳到 eth0 還是 ppp0 呢？因為兩個都有 default gateway 啊
+default gateway 應該只能有一個， 如果是撥接，請不要在 ifcfg-eth0 當中指定 GATEWAY或 GATEWAYDEV 等變數
+
+change NIC name:
+ip link set eth0 down
+ip link set eth0 name xxxx
+
+ping
+主機與待偵測主機並不在同一個網域內， 那麼 TTL 預設使用 255 ，如果是同一個網域內，那麼 TTL 預設則使用 64 
+
+防火墙将WEB Server的内部地址192.168.1.1映射为外部地址202.96.23.11，外部访问202.96.23.11地址实际上就是访问访问 192.168.1.1
+
+start ssh:
+cat /etc/hosts.deny
+ALL: ALL
+sudo /etc/rc.d/sshd start
+so when ssh to login, say: ssh_exchange_identification: Connection closed by remote host
+comment ALL: ALL
+
+[root@www ~]# vim /etc/sysctl.conf
+net.ipv4.ip_forward = 1
+NAT 比路由器多了一個『 IP 轉換』的功能。怎麼說呢？
+一般來說，路由器會有兩個網路介面，透過路由器本身的 IP 轉遞功能讓兩個網域可以互相溝通網路封包。 那如果兩個介面一邊是公共 IP (public IP) 但一邊是私有 IP (private IP) 呢？ 由於私有 IP 不能直接與公共 IP 溝通其路由資訊，此時就得要額外的『 IP 轉譯』功能了；
+Linux 的 NAT 伺服器可以透過修改封包的 IP 表頭資料之來源或目標 IP ，讓來自私有 IP 的封包可以轉成 NAT 伺服器的公共 IP ，就可以連上 Internet ！
+所以說，當路由器兩端的網域分別是 Public 與 Private IP 時，才需要 NAT 的功能
+
+static routing:
+net.ipv4.ip_forward = 1 && route to set rules
+dynamic routing:
+
+router has 2 NIC, if a linux top wants to be a router, 2 NIC at least
+but a NIC can has multy IP, IP alias
+LAN & WLAN  50-83-34
+WAN         50-83-35
+
+use laptop as a router:
+when /etc/init.d/network restart fails on eth0 of NetworkManager, check /etc/sysconfig/network-scripts/ifcfg-eth0 to delete NM_HANDLE, or use NetworkManager to eth0/wlan0 simutaneously
+finally, it fails, the problem is the FAST router, because use tcpdump -i eth0/wlan0 -nnvv to check, laptop router could send the package from desktop to FAST but no response  
+
+tcpdump:
+    -w      write to file
+    -c      pack count
+    -F      read expressions from file
+    -i      interface
+    -l      line buffering when output
+    -n      no dns query
+    -nn     don't convert known port to its protocol name
+    -s      len of every pack, always specify -s 0, means recording all
+    -v      verbose, ttl/len/..
+
+route add/del -net/-host 192.168.1.0(it's a net, 0)/192.168.1.101(host, whatever) gw ... dev eth3
+route add -net default gw 128.224.158.1 dev eth0
+
+when the board starts, "Sending DHCP requests"
+ 
+netstat -s   show IP TCP UDP ICMP details
+        -i   cat /proc/net/dev
+            Iface       MTU Met    RX-OK RX-ERR RX-DRP RX-OVR    TX-OK TX-ERR TX-DRP TX-OVR Flg
+            eth0       1500   0    54648      0      0      0 28978502      0      0      0 BMRU
+            lo        16436   0    13164      0      0      0    13164      0      0      0 LRU
+
+
+php asp perl    are on the server to process
+js html         on the client, embeded in browser, server sends js codes to browser
+
+ssh 
+ssl     https
+
+dnsmasq:
+it's the same to add new host-ip pairs in /etc/hosts or /etc/dnsmasq.conf
+in /etc/dnsmasq.conf "server=/domain name/dns server IP" is for look outside 
+                     "address=/domain name/resolved IP" is for new resolve rules
+
+客户机通过DHCP自动获得IP地址的过程就是通过广播来实现
+
+mtr == traceroute + ping    so amazing
+
+NAT 伺服器與路由器有啥不同？基本上，NAT 伺服器一定是路由器，不過， NAT 伺服器由於會修改 IP 表頭資料， 因此與單純轉遞封包的路由器不同。最常見的 IP 分享器就是一個路由器，但是這個 IP 分享器一定會有一個 Public IP 與一個 Private IP，讓 LAN 內的 Private IP 可以透過 IP 分享器的 Public IP 傳送出去喔！ 至於路由器通常兩邊都是 Public IP 或同時為 Private IP。
+
+用戶端主機會發送出 DHCP 要求給所有物理網段內的電腦。此封包的目標 IP 會是 255.255.255.255， 所以一般主機接收到這個封包後會直接予以丟棄，但若區域網路內有 DHCP 伺服器時會如何回應
+
+ping6 ::1
+ping6 -I eth0 outer_addr    when send to outside, must specify the interface
+netstat -A inet6 -atunp
+
+% ping -c 1 128.224.158.139                                                                                                                ~
+PING 128.224.158.139 (128.224.158.139) 56(84) bytes of data.
+64 bytes from 128.224.158.139: icmp_req=1 ttl=64 time=0.406 ms
+--- 128.224.158.139 ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 0.406/0.406/0.406/0.000 ms
+% arp -n                                                                                                                                   ~
+Address                  HWtype  HWaddress           Flags Mask            Iface
+128.224.158.139          ether   78:2b:cb:84:ea:05   C                     eth0
+128.224.158.1            ether   00:17:df:e5:ac:00   C                     eth0
+
+/etc/hosts          resolve by ourselves, for connect inside
+                    could write all intranet domain-IP pairs in it, like "192.168.1.100 inner-1", name is voluntary
+/etc/resolv.conf    resolve by specific IP (dns server), for connect outside
+
+翻墙的 tunnel 还是自己写，私有协议的好。不会被封。而且比正规的加密 tunnel 性能要好的多。毕竟只需要绕开墙的检查就可以了。保密可以由更上层来做，比如用 https 访问。
+
+brctl:
+    brctl addbr abr
+    brctl addif abr eth0; ifconfig eth0 0.0.0.0 promisc
+    brctl addif abr eth1; ifconfig eth1 0.0.0.0 promisc
+    ifconfig abr up
+    route add default gw 192.168.9.1
+
+add 
+ONBOOT="yes"
+BOOTPROTO="dhcp"    to /etc/sysconfig/network-scripts/ifcfg-eth0, kill NetworkManager, /etc/init.d/network restart, net works also
+% sudo dhclient -1 -q -lf /var/lib/dhclient/dhclient-eth0.leases -pf /var/run/dhclient-eth0.pid eth0
+to connect without NetworkManager
+
+if several dhcp servers in LAN, client gets the first response, because dhcp request sent via multicast
+
+dhclient is a replace for dhcpcd
+
+/var/lib/dhcp/dhclient-eth0.leases                  record network config which got from server
+pek-tuxlab.wrs.com:/var/lib/dhcpd/dhcpd.leases      record all clients details
+
+pek-tuxlab is a dhcp server
+yzhang6@pek-tuxlab ~/test1 $ ps aux |grep dh
+root      2738  0.0  0.0   3068  1256 ?        Ss   Feb15   0:19 /usr/sbin/dhcpd
+
+DHCP:
+server ifcfg-eth0, must set a initial IP, like IPADDR=192.168.1.60, (BOOTPROTO whatever) otherwise when start dhcpd, "Not configured to listen on any interfaces!"
+for the sake of subnet is in diff net with the server itself (SAME NET!!!)
+client ifcfg-eth0, BOOTPROTO="dhcp"
+% cat /etc/resolv.conf                                                                                                                                  ~
+; generated by /sbin/dhclient-script
+search vbird.tsai (search means the dhcp server's domain-name, set in dhcpd.conf, not hostname)
+nameserver 147.11.1.11
+
+if can't work, vim /etc/dhclient.conf:
+    interface "eth0" {
+        send dhcp-client-identifier 01:aa:bb:cc:dd:ee:ff;
+    }
+
+lease {
+  interface "eth0";
+  fixed-address 192.168.1.20;
+  option subnet-mask 255.255.255.0;
+  option routers 192.168.1.1;
+  option dhcp-lease-time 259200;
+  option dhcp-message-type 5;
+  option domain-name-servers 147.11.1.11;
+  option dhcp-server-identifier 192.168.1.60;
+  option nis-domain "vbird.tsai";
+  option broadcast-address 192.168.1.255;
+  option domain-name "vbird.tsai";
+  renew 5 2011/02/18 19:42:44;
+  rebind 6 2011/02/19 23:45:21;
+  expire 0 2011/02/20 08:45:21;
+}
+
+% sudo /etc/init.d/network restart                                                                                                                           ~
+Shutting down interface eth0:                              [  OK  ]
+Shutting down interface wlan0:                             [  OK  ]
+Shutting down loopback interface:                          [  OK  ]
+Bringing up loopback interface:                            [  OK  ]
+Bringing up interface eth0:  
+Determining IP information for eth0...PING 192.168.1.1 (192.168.1.1) from 192.168.1.20 eth0: 56(84) bytes of data.
+
+--- 192.168.1.1 ping statistics ---
+4 packets transmitted, 0 received, +3 errors, 100% packet loss, time 2999ms
+pipe 3
+PING 128.224.158.1 (128.224.158.1) from 128.224.158.134 eth0: 56(84) bytes of data.
+
+--- 128.224.158.1 ping statistics ---
+4 packets transmitted, 0 received, +3 errors, 100% packet loss, time 2999ms
+pipe 3
+ failed.
+                                                           [FAILED]
+
+
+rinetd -- internet ``redirection server'' 
+古老，短小，简单的转发软件
+启动方式为 /usr/sbin/rinetd -c config.file
+关于config文件
+206.125.69.81 80 10.1.1.2 80
+将所有发往 206.125.69.81 80端口的转发到10.1.1.2 80
+0.0.0.0 23 10.1.1.2 23
+将所有发往本地的23端口的请求转发到10.1.1.2
+许可访问 allow 206.125.69.*
+日志记录 logfile /var/log/rinetd.log
+
+vlan:      
+    switch              box         server
+   +------+           +------+     +----+  no vconfig in box, traffic is ok, but box can only sniff pack in ebtables/tcpdump, not iptables
+   |      +--vlan1----+      +-----+    |  if use vconfig, eth0.0-br0.0-eth1.0, only traffic of vlan1 ok, other vlanX jams.
+   |      |           |      |     |    |  so need to vconfig every eth0.X-br0.X-eth1.X
+   |      +--vlan2    |      |     +----+
+   |      |           |      |
+   +------+           +------+
+
+
+IPv6:
+ping6 -I eth0 ...
+netstat -A inet6 -atunp
+[::ffff:128.224.158.139] ipv4, not 6
+
+link/site/global
+Routers will not forward datagrams using link-local addresses at all
+site-local IPv6 addresses are the equivalent of IPv4 private addresses, since they are routed throughout the organization. 
+The concept of link-local scope is new to IPv6.
+
+NIC optimization:
+rx/tx descriptors:
+    for tx, 8-64 bytes per desc, for rx, 2048 per desc (desc itself is only 16 fixed bytes), because it must be aligned, at least 1500, and isn't permitted to cross a 4 KB page boundary
+    BSIZE in RCTL to set, Buffers that are 2048 bytes require only one descriptor per receive packet maximizing descriptor efficiency.
+    RFC2544 (fast forwarding), we've observed that excessively large descriptor rings decrease performance because of cache thrashing.
+
+
+REMOTE_ADDR  访问客户端的 IP 地址
+HTTP_VIA   如果有该条信息, 就证明您使用了代理服务器,代理服务器的地址就是后面的数值。
+HTTP_X_FORWARDED_FOR   如果有该条信息, 也证明了您使用了代理服务器代理服务器的地址就是后面的数值。
+HTTP_ACCEPT_LANGUAGE   您浏览器所使用的语言集
+HTTP_USER_AGENT   对大多数浏览器而言，这个值一般是 Mozilla. 可能还会包括浏览器的类型和版本号以及操作系统信息。
+HTTP_HOST   网页服务器名称
+使用不同种类代理服务器，上面的信息会有所不同：
+一、没有使用代理服务器的情况：
+REMOTE_ADDR = 您的 IP
+HTTP_VIA = 没数值或不显示
+HTTP_X_FORWARDED_FOR = 没数值或不显示
+二、使用透明代理服务器的情况：Transparent Proxies
+REMOTE_ADDR = 代理服务器 IP
+HTTP_VIA = 代理服务器 IP
+HTTP_X_FORWARDED_FOR = 您的真实 IP
+这类代理服务器还是将您的信息转发给您的访问对象，无法达到隐藏真实身份的目的。
+三、使用普通匿名代理服务器的情况：Anonymous Proxies
+REMOTE_ADDR = 代理服务器 IP
+HTTP_VIA = 代理服务器 IP
+HTTP_X_FORWARDED_FOR = 代理服务器 IP
+隐藏了您的真实IP，但是向访问对象透露了您是使用代理服务器访问他们的。
+四、使用欺骗性代理服务器的情况：Distorting Proxies
+REMOTE_ADDR = 代理服务器 IP
+HTTP_VIA = 代理服务器 IP
+HTTP_X_FORWARDED_FOR = 随机的 IP
+告诉了访问对象您使用了代理服务器，但编造了一个虚假的随机IP代替您的真实IP欺骗它。
+五、使用高匿名代理服务器的情况：High Anonymity Proxies (Elite proxies)
+REMOTE_ADDR = 代理服务器 IP
+HTTP_VIA = 没数值或不显示
+HTTP_X_FORWARDED_FOR = 没数值或不显示
+完全用代理服务器的信息替代了您的所有信息，就象您就是完全使用那台代理服务器直接访问对象。

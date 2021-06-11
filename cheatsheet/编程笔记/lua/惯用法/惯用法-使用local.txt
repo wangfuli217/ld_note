@@ -1,0 +1,38 @@
+  在代码运行前，Lua会把源码预编译成一种中间码，类似于Java的虚拟机。这种格式然后会
+通过C的解释器进行解释，整个过程其实就是通过一个while循环，里面有很多的switch...
+case语句，一个case对应一条指令来解析。
+
+    自Lua 5.0之后，Lua采用了一种类似于寄存器的虚拟机模式。Lua用栈来储存其寄存器。
+每一个活动的函数，Lua都会其分配一个栈，这个栈用来储存函数里的活动记录。每一个函数
+的栈都可以储存至多250个寄存器，因为栈的长度是用8个比特表示的。
+
+    有了这么多的寄存器，Lua的预编译器能把所有的local变量储存在其中。这就使得Lua在
+获取local变量时其效率十分的高。
+举个栗子： 假设a和b为local变量，a = a + b的预编译会产生一条指令：
+  ;a是寄存器0 b是寄存器1
+  ADD 0 0 1
+但是若a和b都没有声明为local变量，则预编译会产生如下指令：
+  GETGLOBAL    0 0    ;get a
+  GETGLOBAL    1 1    ;get b
+  ADD          0 0 1  ;do add
+  SETGLOBAL    0 0    ;set a
+
+所以你懂的：在写Lua代码时，你应该尽量使用local变量。
+
+以下是几个对比测试，你可以复制代码到你的编辑器中，进行测试。
+  a = os.clock()
+  for i = 1,10000000 do
+    local x = math.sin(i)
+  end
+  b = os.clock()
+  print(b-a) --1.113454
+
+把math.sin赋给local变量sin：
+  a = os.clock()
+  local sin = math.sin
+  for i = 1,10000000 do
+    local x = sin(i)
+  end
+  b = os.clock()
+  print(b-a) --0.75951
+直接使用math.sin，耗时1.11秒；使用local变量sin来保存math.sin，耗时0.76秒。可以获得30%的效率提升！

@@ -1,0 +1,62 @@
+--[[
+  原型：collectgarbage ([opt [, arg]]) 是垃圾收集器的通用接口，用于操作垃圾收集器
+  解释：这个函数是垃圾回收机制的一个通用接口，根据它的第一个参数opt会展现出不同的功能，
+  具体解释如下：
+    "collect"：执行一个完整的垃圾回收周期，这是一个默认的选项。
+    "stop"：停止垃圾收集器(如果它在运行)。
+    "restart"：将重新启动垃圾收集器(如果它已经停止)。
+    "count"：返回当前使用的的程序内存量(单位是Kbytes)。
+
+    "step"：执行垃圾回收的步骤，这个步骤的大小由参数arg(较大的数值意味着较多的步骤)
+以一种不特定的方式来决定，如果你想控制步骤的大小，你必须实验性的调整参数arg的值，
+如果这一步完成了一个回收周期则函数返回true。
+    "setpause"：给参数arg设置一个新值，用于设置回收器的暂停参数，并返回原来的暂停数值。
+                arg/100 的值作为暂定收集的时长
+    "setstepmul"：给参数arg设置一个新值，用于设置回收器的步进乘数，并返回原来的步骤的值。
+                arg/100 的值，作为步长的增幅(即新步长＝旧步长*arg/100)
+--]]
+
+
+local x = 1
+local y = 2
+local z = 3;
+-- 先统计现有内存使用情况
+local mem1 = collectgarbage("count")
+print("\ninit memory is", mem1, "kb")
+
+-- 申请一些内存
+local local_list = {}
+for i=1,100 do
+    local v = {}
+    for i=1,10 do
+        table.insert(v, i* 6)
+    end
+    table.insert(local_list, v)
+end
+
+local mem2 = collectgarbage("count")
+print("\nafter apply memory is", mem2, "kb")
+
+-- 内存回收
+collectgarbage("collect")
+
+-- 检查回收完的内存
+local mem3 = collectgarbage("count")
+print("\nafter collect memory is", mem3, "kb")
+
+local_list = nil
+
+-- 再次内存回收
+collectgarbage("collect")
+
+-- 检查回收完的内存
+local mem4 = collectgarbage("count")
+print("\nafter collect again memory is", mem4, "kb")
+
+--[[
+Lua使用增量标记和使用两个数字来控制其垃圾回收周期即利用垃圾收集暂停数字和垃圾收集器的步进乘数来控制回收机制。
+由所给的例子可以看出当local_list被设置成nil时，函数的回收机制才生效，其实如果出了参数的作用域，垃圾回收也是会生效的。
+选项setpause的使用方法：collectgarbage("setpause", 200)，表示当收集器在总使用内存数量达到上次垃圾收集时的两倍时再开启新的收集周期。
+选项setstepmul的使用方法：collectgarbage("setstepmul", 200)，表示垃圾收集器的运行速度是内存分配的2倍，如果此值小于100可能会导致垃圾回收不能形成完整的周期。
+既然垃圾回收可以节省内存，是不是在lua中频繁调用函数collectgarbage()会提高性能？实践表明，反复垃圾回收反而会明显降低性能。
+--]]

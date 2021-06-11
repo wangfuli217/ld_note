@@ -1,0 +1,103 @@
+基本用法： javac some/package/Myclass.java
+javac是Java源码编译器，把.java源码文件编译成字节码(保存在.class文件中)。
+
+现代化Java项目往往不直接使用javac，因为它相对底层，也不灵活，尤其是对较大型的代码基而言，IDE要么自动为开发者调用javac，
+要么提供原生编译器，在编写代码的同时掉。部署时，多数项目会使用单独的构建工具，例如Maven、Ant或Gradle。
+-classpath ：提供编译器需要的类
+-d some/dir 告诉javac把编译得到的类文件放在哪儿
+@project.list 从project.list文件中加载选项和源码文件
+-help 选项的帮助信息。
+-x 非标准选项的帮助信息
+-source <version> 指定javac能接受的Java版本
+-target <version> 指定javac编译得到的类文件版本
+-profile <profile> 设定编译应用时javac使用的配置。
+-Xlint 显示详细的告警信息。
+-Xstdout 把编译过程中的输出存放入一个文件
+-g 把调试添加到类文件中。
+
+基本用法： java some.package.myclass 
+           java -jar my-packaged.jar
+java是启动Java虚拟机的可执行文件。程序的首个入口点是指定类中的main()方法，这个方法的签名如下：
+public static void main(String[] args)
+这个方法在启动JVM时创建的应用线程里运行，这个方法返回后(以及启动的其他所有非守护应用线程都终止运行)，JVM线程就退出。
+
+如果执行的是JAR文件而不是类(可执行的jar格式)，那么JAR文件必须包含一个元数据，告诉JVM从哪个类开始执行。
+这个元数据是Main-Class:属性。包含在META-INF/目录的MANIFESTMF文件中。
+-cp <classpath> ：定义从那个路径读取类
+-X -? -help 显示java可执行文件及其选项的帮助信息
+-D<property=value> 设定Java系统属性，在Java程序中能取回设定的属性。使用这种方法可以设定任意个属性。
+-jar 运行一个可执行的JAR文件
+-Xbootclasspath(/a or /p) ：运行时使用其他系统类路径
+-client -server 选在一个HotSpot JIT编译器
+-Xint -Xcomp -Xmind 控制JIT
+-Xms<size> 设定分配给JVM堆内存的最小值
+-Xmx<size> 设定分配给JVM堆内存的最大值
+-agentlib:<agent> -agentpath:<path to agent> 指定JVM Tooling Interface代理，附着在启动的进程上，这种代理一般用于检测程序
+-verbose 生成额外的输出，有时对调试有用。
+
+基本用法： jar cvf my.jar someDir/
+说明：     jar用于处理Java档案(.jar)文件，这是ZIP格式的文件，包含java类、附加的资源和元数据。这个工具处理.jar文件时
+有五种主要的操作模式：创建、更新、索引、列表和提取。
+
+c 创建一个档案文件
+u 更新档案文件
+i 索引档案文件
+t 列出档案文件中的内容
+x 提取档案文件中的内容
+
+v详细模式
+f处理指定的文件，而不是标准输入
+0 存储但不压缩添加到档案文件中的文件
+m 把指定文件中的内容添加到JAR文件中的元数据清单文件中
+e 把JAR文件变成可执行文件，而且使用指定类作为入口点。
+
+基本用法： javadoc some.package
+javadoc从Java源码文件中生成文档。Javadoc会读取特定格式的注释，将其解释成标准的文档恶事，然后再输出为各种格式的文档。
+-cp <classpath> 定义要使用的类路径
+-D <directory> 告诉javadoc把生成的文档保存在哪里
+
+基本用法：jdeps:是静态分析工具，用于分析包或类的依赖。这个工具有多种用途，可以识别开发者编写的代码中对JDK内部未注释
+的API的调用，还能帮助跟踪传递依赖。
+jdeps还能确认JAR文件是否能在某个紧凑配置中运行。
+jdeps com.me.MyClass
+
+基本用法：jps <remote URL> 列出本地设备中所有活动的JVM进程。
+基本用法：jstat <pid> 这个命令显示指定Java进程的一些基本信息。
+-option 列出jstat能输出的信息类型
+-class 输出到目前为止类加载的活动状态
+-compiler 目前为止当前进程的JIT编译信息
+-gcutil 详细的垃圾回收信息
+
+-class：统计class loader行为信息
+-compile：统计编译行为信息
+-gc：统计jdk gc时heap信息
+-gccapacity：统计不同的generations（不知道怎么翻译好，包括新生区，老年区，permanent区）相应的heap容量情况
+-gccause：统计gc的情况，（同-gcutil）和引起gc的事件
+-gcnew：统计gc时，新生代的情况
+-gcnewcapacity：统计gc时，新生代heap容量
+-gcold：统计gc时，老年区的情况
+-gcoldcapacity：统计gc时，老年区heap容量
+-gcpermcapacity：统计gc时，permanent区heap容量
+-gcutil：统计gc时，heap情况 
+
+jinfo <process PID>
+jinfo <core file>
+用于显示系统属性和运行中的java进行的JVM选项。
+
+jstack <process ID>
+用于输出进程中每个Java线程的堆栈跟踪
+
+jmap <process>
+用于查看运行中的Java进程的内存分配情况
+-dump:[live,]format=b,file=<filename> 使用hprof二进制形式,输出jvm的heap内容到文件=. live子选项是可选的，假如指定live选项,那么只输出活的对象到文件.
+-finalizerinfo 打印正等候回收的对象的信息.
+-heap 打印heap的概要信息，GC使用的算法，heap的配置及wise heap的使用情况.
+-histo[:live] 打印每个class的实例数目,内存占用,类全名信息. VM的内部类名字开头会加上前缀”*”. 如果live子参数加上后,只统计活的对象数量.
+-permstat 打印classload和jvm heap长久层的信息. 包含每个classloader的名字,活泼性,地址,父classloader和加载的class数量. 另外,内部String的数量和占用内存数也会打印出来.
+-F 强迫.在pid没有相应的时候使用-dump或者-histo参数. 在这个模式下,live子参数无效.
+-h | -help 打印辅助信息
+-J 传递参数给jmap启动的jvm.
+
+
+
+javap <classname> Java类的反汇编程序

@@ -1,0 +1,46 @@
+6. 源码编译：
+    Cygwin:
+        cygport (cygwin编译安装打包工具):
+            安装cygport：
+                $ apt-cyg install cygport       #安装cygport
+            使用：
+                $ cygport gdb.cygport prep      #准备
+                $ cygport gdb.cygport compile   #编译
+                $ cygport gdb.cygport install   #安装
+                $ cygport gdb.cygport package   #打包
+
+        universal-ctags:
+            github:
+                $ git clone https://github.com/universal-ctags/ctags.git
+            dependence：
+                $ apt-cyg install mingw64-i686-gcc-core
+                $ apt-cyg install mingw64-i686-win-iconv
+            修改mk_mingw.mak：
+                DEFINES下加入 "-DUNIX_PATH_SEPARATOR"
+            command：
+                make -f mk_mingw.mak  CC=i686-w64-mingw32-gcc
+
+        YouCompleteMe:
+            github:
+                $ git clone https://github.com/Valloric/YouCompleteMe.git
+                $ git submodule update --init --recursive
+            dependence:
+                $ apt-cyg install libboost-devel
+                $ apt-cyg install libboost_python3-devel
+                $ apt-cyg install python3-devel
+                $ apt-cyg install libclang-devel
+            command:
+                $ python3 install.py --clang-completer --system-libclang --system-boost
+
+        arm-none-eabi-gdb:
+            最新版本在：
+                ftp://sourceware.org/pub/gdb/releases/
+            原始cygwin版本下载：
+                $ apt-cyg source gdb
+                修改下载的gdb源文件的gdb.cygport:
+                    src_compile()内的cygconf中，加入：--target arm-none-eabi
+                                                删除：--with-system-readline
+                    删除PATCH_URI里的内容
+                用最新版本的gdb替换.tar.xz文件
+            使用cygport编译安装
+requires: cygwin libexpat1 libgcc1 libiconv2 libintl8 liblzma5 libncursesw10 libstdc++6 python2 zlib0

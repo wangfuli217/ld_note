@@ -1,0 +1,21 @@
+#include<stdio.h>
+exec sql include sqlca;
+int main(void)
+{
+	exec sql begin declare section;
+		char userpasswd[30]="tarena/tarena";
+		typedef struct{
+			int id;
+			char name[30];
+			double salary;
+		}emp;
+		emp datas[50];
+		int i=0;
+	exec sql end   declare section;
+	exec sql connect:userpasswd;
+	exec sql select id,first_name,salary into :datas from s_emp;
+	for(i=0;i<sqlca.sqlerrd[2];i++)
+		printf("%d %s %lg\n",datas[i].id,datas[i].name,datas[i].salary);
+	exec sql commit work release;
+	return 0;
+}

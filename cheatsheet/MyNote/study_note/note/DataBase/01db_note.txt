@@ -1,0 +1,203 @@
+guoaj@tarena.com.cn
+
+数据的存储方式
+	内存
+	FILE
+	DB ----> DBMS
+
+关系型数据库管理系统
+	RDB	 关系型数据库	基于二维表的数据库  叫关系型数据库
+	sql	结构化查询语言(struct query  language)
+	二维表中涉及到的内容
+		行
+		列
+		表头
+		字段名
+		字段值
+
+常见的数据库管理系统
+	oracle		oracle(甲骨文)	
+	db2			IBM
+	sqlserver   MIC(微软)
+	mysql		SUN--->oracle
+
+操作关系型数据库的语言
+	select语句	查询语句
+	DDL			数据定义语句
+		create table	建立表
+		drop   table	删除表
+		alter  table	修改表
+	DML			数据操作语句
+		insert	增加数据
+		delete	删除数据
+		update	修改数据
+	TCL			事务控制语句
+		commit		提交数据
+		rollback	回滚数据
+		savepoint	保存点
+
+操作oracle
+	远程登录oracle服务器
+	telnet 
+	使用sqlplus操作oracle数据库
+	sqlplus
+	sqlplus   用户名/密码
+	!clear	清屏
+
+使用sqlplus中的desc查看表的结构
+	desc	表名;	例desc s_emp;
+	表头中每个字段的名字
+	字段能否为NULL,没有not null就是普通字段
+	字段的类型	number数字类型
+				varchar2(n)	字符串类型
+				date	日期类型
+
+from子句
+
+	如何从表中查询一个字段对应的内容
+		select  字段名	from 表名;
+		select SALARY from s_emp;
+
+	如何从表中查询多个字段对应的内容
+		select  字段名1,字段名2,字段名3...  from 表名;
+	l	查看上一个执行的指令
+	/	执行上一次执行的指令
+
+	如何从表中查询所有的字段对应的内容
+	*	可以代表所有的字段名
+		select * from s_emp;
+
+	sql中的字段的数学运算
+		+ - * /
+		select salary,salary+1000 from s_emp;
+		select salary,salary+salary*0.3 from s_smp;
+		一个月按照22天计算 求s_emp表每个人的平均工资
+		select salary,salary/22 from s_emp;
+
+	字段或者表达式的别名
+		显示s_emp表中的月薪和年薪
+		select salary,salary*13 yearsal from s_emp;
+		字段或者表达式的别名只能有一个
+		select salary sal,salary*13 "Year Sal" from s_emp;
+		双引号可以把多个别名看成一个,并且它能解决 别名原样显示
+
+	sql如何表达字符串
+		sql中表达字符串,需要使用单引号
+
+	如何拼接字符串
+		oracle中使用||来完成字符串的拼接
+		'hello' ||'world'
+		select 'hello'||'world' from s_emp;
+		dual就是一张单行单列的测试表
+		select 'hello'||'world' from dual;
+		把s_emp表中first_name和last_name拼接起来
+
+	NULL值的处理
+		NULL值和任何值做运算结果都是NULL
+		年薪新的计算方式是月薪*12+月薪*12*提成/100
+		select salary,salary*12*(1+commission_pct/100) from s_emp;
+		NULL值处理函数nvl(par1,par2)
+			当par1为NULL时,就返回par2的值
+			当par1不为NULL时,就返回par1本身
+			NULL值要尽早处理
+			select salary,salary*12*(1+nvl(commission_pct,100)/100) from s_emp;
+		显示s_emp表中 所有的first_name 和salary以及manager_id
+			select first_name,salary,nvl(manager_id,-1) from s_emp;
+
+	数据排重	distinct
+		select distinct salary from s_emp;
+		多字段排重 联合排重
+		select distinct title,salary from s_emp;
+
+where子句
+	概念:where子句又叫条件子句 是对表中的行数据进行限制,满足条件的数据被选中,不符合条件的数据被过滤掉
+
+	语法
+		select 字段名	from  表名	where 条件;
+	两个极限条件
+		where 1=1;恒等条件 永远为真
+		where 1=2;恒假条件 永远为假
+	举例
+		select id,first_name,salary from s_emp where 1=1;
+		查询s_emp表中月薪大于1400的员工,显示id first_name,salary
+		select id,first_name,salary from s_emp where salary>1400;
+
+	常见的条件运算符
+		>= <= > < != = 
+
+	SQL中提供的运算符
+
+		表达一个闭区间的[a,b]
+			where 字段 between  a and b;
+			把s_emp表中工资在[1450,2500]之间的员工查询出来,显示id first_name,salary
+			salary id,first_name,salary from s_emp where salary between 1450 and 2500;
+
+		表达一个字段的取值来自一个列表
+			where 字段 in(值1,值2,值3...);
+			把s_emp表中部门编号是31或32或50部门的数据,显示id,first_name,dept_id
+			select id,first_name,dept_id from s_emp where dept_id in(31,32,50);
+
+	模糊查询	like
+		SQL中的通配符
+			%	0-n个任意字符
+			-	一个任意字符
+		where name like '李%'
+		where name like '%龙%' 
+		找出s_emp表中first_name中带a的
+		select first_name from s_emp where first_name like '%a%';
+		SQL语句不区分大小写,但字符串的值严格区分大小写
+		
+		特殊的模糊查询:
+			desc user_tables; 用户所有的表
+			select table_name from user_tables;
+			找出以S_开头的表名
+			--这个语句逻辑上有问题 多了一些不满足条件的数据
+			下面语句代表\后面的字符 需要进行转义处理
+			select table_name from user_tables where table_name like 'S\_%' escape '\';
+			找出S__开头的表名
+			select table_name from user_tables where table_name like 'S\_\_%' escape '\';
+
+		建立一张表
+			create table 表名
+
+	NULL值的判断
+		其它运算符对NULL值判断无效
+		找出提成是10的员工,列出id和commission_pct
+			select id,commission_pct from s_emp where commission_pct=10;
+		找出提成是空的
+			select id,commission_pct from s_emp where commission_pct is null;
+
+逻辑条件连接符
+	and
+		[a,b]	where f>=a and f<=b;
+	or
+	not
+		=				!= <> ^=
+		>				<=
+		<				>=
+		between a and b not between a and b
+		in				not in
+		like			not like
+		is null			is not null
+		找出提成不是空的员工,列出id first_name commssion_pct
+			select id,first_name,commission_pct from s_emp where commission_pct is not null;
+
+条件 或者表达式的优先级问题
+
+数据的排序		order by
+	概念:按照一定的排序标准和排序方式 把一组数据组织起来
+	排序方式:升序	默认 asc 自然顺序 字典顺序	
+			 降序		 desc
+
+	语法
+		select 字段from 表名 where 条件 order by 排序标准 排序方式;
+		按照月薪排序,显示s_emp表中的数据,显示id,first_name,salary
+			select id,first_name,salary from s_emp order by salary;
+
+	多字段排序
+		当第一排序字段的值相同时 可以启用第二排序字段对数据排序
+		按照月薪排序,如果月薪相同则按first_name,显示s_emp表中的数据,显示id,first_name,salary
+			select id,first_name,salary from s_emp order by salary,first_name desc;
+
+	测试NULL值在排序中如何处理
+

@@ -1,0 +1,1387 @@
+main(methods){
+获取当前环境可以支持的后台方法，返回指针数组，每个指针指向支持方法的名字。数组的末尾指向NULL
+const char **methods = event_get_supported_methods(); 
+
+分配新的event_config对象并赋初值。event_config对象用来改变event_base的行为。
+相关查看event_base_new_with_config，event_config_free，event_config结构体等
+cfg = event_config_new();
+
+可以通过名字让 libevent 避免使用特定的可用后端,
+event_config_avoid_method(cfg, backend)
+
+设置event_base的工作模式，需要在申请event_config之后运行，在配置event_base之前执行；
+可以设置多个工作模式同时存在，但是需要注意的是不是每种工作模式都是可以设置的，
+需要查看本地内核环境以及后台方法是否支持， 从enum event_base_config_flag中选择
+event_config_set_flag(cfg, EVENT_BASE_FLAG_IGNORE_ENV)
+
+使用配置信息创建event_base
+base = event_base_new_with_config(cfg);
+
+获取当前正在使用的后台方法名
+event_base_get_method(base)
+
+event_base_free(base);
+event_config_free(cfg);
+}
+
+main(version){
+const char *event_get_version(void)             LIBEVENT_VERSION
+ev_uint32_t event_get_version_number(void)      LIBEVENT_VERSION_NUMBER
+}
+main(base_features){
+设置后台方法特征，让 libevent 不使用不能提供所有指定特征的后端；
+设置后台方法特征的代码应该在event_base_new_with_config之前进行
+注意，这里不是采用或的方式，而是直接替换为输入的方法特征
+EV_FEATURE_ET, EV_FEATURE_O1, EV_FEATURE_FDS, EV_FEATURE_EARLY_CLOSE
+event_config_require_features(cfg, EV_FEATURE_ET)
+
+获取后台方法的工作模式
+event_base_get_features(base) & EV_FEATURE_ET
+}
+main(base_environ){ 可以通过设置环境变量和event_config_avoid_method(cfg, backend)来设置避免使用某些后端
+setenv("EVENT_NOEPOLL", "1", 1);
+setenv("EVENT_NOPOLL", "1", 1);
+setenv("EVENT_NOSELECT", "1", 1);
+}
+
+main(event_base_new){
+1. 创建默认的event_base
+base = event_base_new();
+
+2. 根据所给条件赋值给事件ev1
+将事件ev绑定在base上，关联文件描述符fd;关注的事件类型是events，事件发生时的;
+回调函数是callback，回调函数的参数是arg，把给定的event类型对象的每一个成员赋予一个指定的值
+event_assign(&ev1, base, data->pair[1], EV_READ|EV_PERSIST, basic_read_cb, &args); 
+
+3. 在event_new或者event_assign之后执行,将非未决的event注册到base中，成为未决状态.
+参数 ev1：通过event_assign或者event_new初始化过的事件
+参数 tv：等待事件执行的最长时间，如果NULL则从来不会超时，即永久等待
+包括IO事件、信号事件、定时事件
+定时事件：
+(1)最小堆：时间超时时间存储在最小堆，每次执行超时任务都从最小堆堆顶取任务执行
+(2)最小堆＋公用超时队列：相同超时的任务存储在同一个超时队列，每一个超时队列的队首事件存储在最小堆，
+   每次执行超时任务时都从最小堆堆顶取任务执行，然后遍历执行该任务所在公用超时队列中的所有超时任务
+event_add(&ev1, NULL)
+
+4. 等待事件变为活跃，然后运行事件回调函数
+相比event_base_dispatch函数，这个函数更为灵活。默认情况下，loop会一直运行到没有等待事件或者激活的事件，或者
+运行到调用event_base_loopbreak或者event_base_loopexit函数。你可以使用’flags‘调整loop行为。
+参数base：event_base_new或者event_base_new_with_config产生的event_base结构体
+flags：
+EVLOOP_ONCE：    阻塞直到有活动事件，然后在所有活动事件运行回调后退出 
+EVLOOP_NONBLOCK：非阻塞，查看现在准备好哪些事件，运行优先级最高的回调，然后退出
+EVLOOP_NO_EXIT： loop一直运行，直到调用相关loop停止函数
+返回值：成功则为0，失败则为-1，如果因为没有等待的事件或者激活事件而退出则返回1
+1. 信号标记被设置，则调用信号的回调函数
+2. 根据定时器最小时间，设置I/O多路复用的最大等待时间，这样即使没有I/O事件发生，也能在最小定时器超时时返回。
+3. 调用I/O多路复用，监听事件，将活跃事件添加到活跃事件链表中
+4. 检查定时事件，将就绪的定时事件从小根堆中删除，插入到活跃事件链表中
+5. 对活跃事件链表中的事件，调用event_process_active(）函数，在该函数内调用event的回调函数，优先级高的event先处理 
+event_base_loop(base, 0)
+
+5. 从一系列监听的事件中移除事件，函数event_del将取消参数ev中的event。
+   如果event已经执行或者还没有添加成功，则此调用无效
+   event_del(arg->ev);
+   
+6. 经过tv时间后退出loop,如果tv参数为NULL,会立即停止循环,没有延时
+如果 event_base 当前正在执行任何激活事件的回调,
+则回调会继续运行,直到运行完所有激活事件的回调之才退出
+event_base_loopexit(arg->eb, NULL);
+}
+
+main(free_active_base){
+1. 初始化event_base结构体，赋值全局current_base
+base1 = event_init(); 
+event_assign(&ev1, base1, data->pair[1], EV_READ, dummy_read_cb, NULL);                                                               
+event_add(&ev1, NULL);
+event_base_free(base1);  /* should not crash */   
+
+2. 可以手动地把一个event激活
+否则需要event_base_dispatch死等外界条件把event激活外                                              
+res是激活的原因，是诸如EV_READ EV_TIMEOUT之类的宏.                                                
+ncalls只对EV_SIGNAL信号有用，表示信号的次数  
+event_active(&ev1, EV_READ, 1); 
+}
+main(manipulate_active_events){ event_acitve事件之后，事件就处于Pending状态
+1. 检查事件ev是否处于未决或者激活状态
+如果event包含EV_TIMEOUT 标志，则tv会保存事件的超时值
+event_pending(&ev1, EV_READ|EV_TIMEOUT|EV_WRITE, NULL),
+}
+main(event_new_selfarg){ event自身作为event_new的参数
+1. 获取event所属的event_base  
+event_get_base(ev);
+
+2.获取pending队列中正在运行的event
+event_base_get_running_event(base);
+}
+main(event_assign_selfarg){ event自身作为event_assign的参数
+1. 获取event本身                                                                                     
+很多时候，你可能想创建一个以接收它本身作为回调函数参数的event。                                   
+你不能只传一个指向event对象的指针，因为调用event_new()时这个event还不存在。                       
+为了解决这个问题你可以使用event_self_cbarg()。
+void *event_self_cbarg(void)
+event_assign(&ev, base, -1, EV_READ, event_selfarg_cb, event_self_cbarg());
+}
+main(event_base_get_num_events){
+1. 获取指定类型event的个数
+int event_base_get_num_events(struct event_base *base, unsigned int type) 
+type:
+EVENT_BASE_COUNT_ACTIVE  : 已被触发有效event个数
+EVENT_BASE_COUNT_VIRTUAL : 有looopexit和loopbreak调用设置的虚拟event
+EVENT_BASE_COUNT_ADDED   : 被添加到到event_base的事件，包括内部event
+默认情况下libevent itself adds a timeout event, so the event_count is 2 here
+
+event_base_add_virtual_(base);
+
+event_base_loop(base, 0); 结束之后所有event都应该处理完毕。
+}
+main(event_base_get_max_events){
+event_base_get_max_events(struct event_base *base, unsigned int type, int clear)
+}
+main(bad_assign){ EV_SIGNAL|EV_READ 不能同时被设置
+event_assign(&ev, NULL, -1, EV_SIGNAL|EV_READ, dummy_read_cb, NULL); 
+}
+main(bad_reentrant){ event_base_loop函数不能在bad_reentrant_run_loop_cb中调用
+event_assign(&ev, base, -1, 0, bad_reentrant_run_loop_cb, base);
+
+r = event_base_loop(base, 0);   
+}
+main(active_later){
+1. 没处理EV_READ的时候，执行该操作(跟踪某个操作个数)
+event_active_later_(ev_activate, EV_READ);
+}
+main(event_remove_timeout){ event_remove_timer只能删除TIMEOUT事件，不能删除READ|WRITE事件
+event_remove_timer(ep[0]);
+event_remove_timer(ep[1]);
+}
+main(persistent_timeout){ 注册周期性事件
+event_assign(&ev, global_base, -1, EV_TIMEOUT|EV_PERSIST,  periodic_timeout_cb, &count);                                                           
+event_add(&ev, &tv);
+}
+main(persistent_timeout_jump){ 在event_add之后sleep不能造成超时事件叠加，只有一个有效
+event_assign(&ev, data->base, -1, EV_PERSIST, periodic_timeout_cb, &count);
+event_add(&ev, &msec100);
+}
+main(persistent_active_timeout){
+1. 快速配置一个一次性的事件
+int event_base_once (struct event_base *base,
+                     evutil_socket_t    fd,
+                     short              what,
+                     event_callback_fn  cb,
+                     void              *arg,
+                     const struct timeval *tv);
+
+这个函数完成前面的event_new和event_add动作，并且不返回event对象。调用这个函数创建的对象直接加入到event_base中，并且执行了一次callback之后，自动delete和free掉。
+　　Event的优先级默认，what不支持EV_SIGNAL和EV_PERSIST。
+　　从libevent 2.1.2之后，即便一个event还没有被activate过，在event_base被释放时，也会一并被释放掉。在这之前这算是一个bug。不过也请注意其他所有不由libevent管理的资源（比如arg），要防止内存泄漏。
+
+}
+main(priorities){ event的超时事件优先级处理
+1. 设置event_base的优先级个数,并分配base->activequeues优 先 级 将 从0(最高) 到n_priorities-1(最低) 
+event_base_priority_init(global_base, npriorities); 
+此函数即将被废弃
+timeout_set(&one.ev, test_priorities_cb, &one); 
+timeout_set(&two.ev, test_priorities_cb, &two);
+
+2. 设置event的优先级：高优先级的事件先运行,pri越小优先级越高
+event_priority_set(&two.ev, npriorities - 1) 
+}
+main(priority_active_inversion){
+event_active(&pai_events[2], EV_TIMEOUT, 1);  超时event激活低优先级event. 间接提高超时event
+从pending状态到active状态，受到时间因素，IO因素和进程event_acvtive的影响。相对而言
+event_active是直接调用，IO因素是不定时的，时间是固定超时。
+多个事件都在active状态时，优先级达到控制事件执行顺序的问题。
+}
+main(common_timeout){ 不使用小堆二叉树，而是使用链表; 返回一个指向特殊timeval结构体的指针，
+const struct  timeval * event_base_init_common_timeout(
+      struct event_base *base,  
+      const  struct  timeval* duration);
+    该方法的参数有event_base，以及一个用来初始化的公用超时时间值。该函数返回一个指向特殊timeval结构体的指针，
+可以使用该指针表明将event添加到O(1)的队列中，而不是O(lg n)的堆中。这个特殊的timeval结构可以在代码中自由的复制和分配。
+该timeval只能工作在特定的event_base上(参数)。不要依赖于该timeval的实际值：libevent仅使用它们来指明使用哪个队列。
+
+event_base_init_common_timeout(base,&tv)) # 相同的tv值，只创建一个链表；所以ms1_200和ms2_200的返回地址是相等的。
+ms1_200 = event_base_init_common_timeout(base, &tmp_200_ms);
+ms2_200 = event_base_init_common_timeout(base, &tmp_200_ms);
+ms1_200 == ms2_200;
+}
+main(simpleread){ 简单读(一次有数据，下次结束)
+event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
+}
+main(simpleread_multiple){ fd,flag,simpleread_multiple_cb 以不同event注册两次
+event_set(&two, pair[1], EV_READ, simpleread_multiple_cb, NULL);
+event_set(&one, pair[1], EV_READ, simpleread_multiple_cb, NULL);
+}
+main(simplewrite){
+event_set(&ev, pair[0], EV_WRITE, simple_write_cb, &ev); 
+}
+main(simpleclose){ 当对端关闭之后，EV_READ和EV_WRITE都会有消息触发
+rev = event_new(base, pair1[1], EV_READ, record_event_cb, &got_read_on_close);
+wev = event_new(base, pair2[1], EV_WRITE, record_event_cb,&got_write_on_close);
+}
+main(multiple){ 
+event_set(&ev2, pair[1], EV_READ, multiple_read_cb, &ev2); 
+}
+main(persistent){ 基于全局变量的持久性读写
+event_set(&ev, pair[0], EV_WRITE|EV_PERSIST, multiple_write_cb, &ev);
+}
+main(combined){ 基于socket的读写
+event_set(&r1.ev, pair[0], EV_READ, combined_read_cb, &r1);
+event_set(&w1.ev, pair[0], EV_WRITE, combined_write_cb, &w1);
+event_set(&r2.ev, pair[1], EV_READ, combined_read_cb, &r2);
+event_set(&w2.ev, pair[1], EV_WRITE, combined_write_cb, &w2);
+}
+main(simpletimeout){ 简单超时
+tv.tv_usec = 200*1000;                                                                           
+tv.tv_sec = 0;
+evtimer_set(&ev, timeout_cb, NULL);                                                              
+evtimer_add(&ev, &tv); 
+}
+main(loopbreak){
+检测循环是否是event_base_loopexit退出的 
+event_base_got_exit(global_base)
+
+检测循环是否是event_base_break退出的
+event_base_got_break(global_base)
+
+int event_add(struct event *ev, const struct timeval *tv); 
+重复调用event_add，如果tv==NULL，则没有影响；如果tv!=NULL，则更新超时时间
+}
+main(loopexit){ 一次
+event_loopexit(&tv);  与 event_base_got_exit(global_base)
+
+1. loop或者dispatch之后，如果是ONCE或者EVLOOP_NONBLOCK； 则在event_base结构上的事件仍然在，
+且，pending的仍为pending状态，active的仍为active状态，nopending的仍为nopending状态；
+且，已打开的fd仍处于打开状态，已注册的超时事件仍然生效，已注册的信号事件仍然生效。
+且，fd和信号资源是全局进程和系统资源。
+}
+main(loopexit_multiple){  多次
+event_base_loopexit() 是通过TIMEOUT超时事件实现的，所以
+多次调用event_base_loopexit()，会以最短时间作为退出loop或dispatch时间点。
+1. 如果tv为NULL，则立即停止。
+}
+
+main(nonpersist_readd){ event_add : # 函数返回0表示成功，返回-1表示失败。
+EVLOOP_ONCE
+1. 阻塞直到有活动事件，然后在所有活动事件运行回调后退出 
+event_loop(int flags)
+}
+main(multiple_events_for_same_fd){ 如
+event_set(&e1, pair[0], EV_READ, test_multiple_cb, NULL); 
+event_set(&e2, pair[0], EV_WRITE, test_multiple_cb, NULL); 
+}
+main(want_only_once){ 没有pending和active事件返回1， 调用出错返回-1 ； 0表示正常退出，
+event_loop_dispatch()会在event_base上一直运行，直到其上已经没有注册的events了 或者event_base_loopexit() | event_base_loopbreak() 被调用。
+    运行loop时，它会重复检查那些已经注册的events是否触发了(比如，一个读event的文件描述符变得可读，
+或者后一个超时event已经超时)。一旦触发，该函数会将这些触发的events标记为active，并且开始运行回调函数。
+}
+main(event_once){ 该函数成功时返回0，失败是返回-1.
+r = event_base_once(data->base, data->pair[0], EV_READ, read_called_once_cb, NULL, NULL);  # 一次读
+r = event_base_once(data->base, -1, EV_TIMEOUT, timeout_called_once_cb, NULL, &tv);        # 超时事件
+r = event_base_once(data->base, -1, 0, NULL, NULL, NULL);                                  # 参数无效
+r = event_base_once(data->base, -1, EV_TIMEOUT, immediate_called_twice_cb, NULL, NULL);    # 超时事件
+r = event_base_once(data->base, -1, EV_TIMEOUT, immediate_called_twice_cb, NULL, &tv);     # 超时事件 与上面超时事件参数一样，event却不同
+
+1. 快速配置一个一次性的事件
+int event_base_once (struct event_base *base,
+                     evutil_socket_t    fd,
+                     short              what,
+                     event_callback_fn  cb,
+                     void              *arg,
+                     const struct timeval *tv);
+
+这个函数完成前面的event_new和event_add动作，并且不返回event对象。调用这个函数创建的对象直接加入到event_base中，并且执行了一次callback之后，自动delete和free掉。
+　　Event的优先级默认，what不支持EV_SIGNAL和EV_PERSIST。
+　　从libevent 2.1.2之后，即便一个event还没有被activate过，在event_base被释放时，也会一并被释放掉。在这之前这算是一个bug。
+不过也请注意其他所有不由libevent管理的资源(比如arg)，要防止内存泄漏。
+}
+main(event_once_never){
+event_base_once()事件遇到event_base_loopexit()调用的时候，loop或者dispatch直接退出，不受pending事件影响；
+event_once_never： event_base_once()事件 超时时长超过  event_base_loopexit() 定义时长时，定时器事件忽略不执行。
+}
+main(event_pending){  返回所有该event当前正在"挂起"或"激活"的标志。
+1. 检查事件ev是否处于未决或者激活状态
+如果event包含EV_TIMEOUT 标志，则tv会保存事件的超时值 
+event_pending(r, EV_READ, NULL);   
+event_pending(w, EV_WRITE, NULL);  
+event_pending(r, EV_WRITE, NULL); 
+event_pending(r, EV_READ|EV_WRITE, NULL);
+event_pending(r, EV_TIMEOUT, NULL);
+event_pending(t, EV_TIMEOUT, NULL);
+event_pending(t, EV_TIMEOUT, &tv2);
+
+通过event_pending()可以检查是否pending某个事件；用于事件检查是否需要event_add判断。
+}
+main(event_closed_fd_poll){ 异常poll
+epoll_ctl EPOLL_CTL_ADD 存在错误： EBADF EEXIST 存在无效fd或者fd已经存在
+poll                    存在错误： EINVAL 时间参数错误或者存在无效fd
+select                  存在错误： EINVAL 时间参数错误或者存在无效fd
+
+libevent在epoll中对EBADF EEXIST而言，只会使得本次调用退出，但是不会影响epoll_wait()调用。
+libevent在poll和select中，出现EINVAL则会导致poll，select退出。影响整体loop或者dispatch调用
+}
+main(dup_fd){
+dup产生的fd，由event_add(ev1, NULL);注册的两个回调函数都会接受到FD_READ消息。
+
+event_base_loop(base, EVLOOP_ONCE);  阻塞直到有活动事件，然后在所有活动事件运行回调后退出 
+}
+main(mm_functions){
+
+}
+main(many_events){
+检查多个事件，
+}
+main(many_events_slow_add){
+}
+main(struct_event_size){
+}
+main(get_assignment){}
+main(event_foreach){}
+main(gettimeofday_cached){
+cfg = event_config_new(); 
+event_config_set_flag(cfg, EVENT_BASE_FLAG_NO_CACHE_TIME);
+cached_time_base = base = event_base_new_with_config(cfg);
+
+获取到的时间为开始执行此轮事件回调函数的时间，成功返回 0 失败返回负数  
+event_base_gettimeofday_cached(NULL, &tv1)
+更新base的缓存时间 
+event_base_update_cache_time(struct event_base *base) 
+gettimeofday
+evutil_gettimeofday(&now, NULL);
+}
+main/gettimeofday_cached_sleep
+main/gettimeofday_cached_reset
+main/gettimeofday_cached_disabled
+main/gettimeofday_cached_disabled_nosleep
+main(active_by_fd){
+/* Ensure no crash on nonexistent FD. */                                                    
+event_base_active_by_fd(base, 1000, EV_READ);                                               
+                                                                                            
+/* Ensure no crash on bogus FD. */                                                          
+event_base_active_by_fd(base, -1, EV_READ);                                                 
+                                                                                            
+/* Ensure no crash on nonexistent/bogus signal. */                                          
+event_base_active_by_signal(base, 1000);                                                    
+event_base_active_by_signal(base, -1);
+}
+main/fork{
+evsignal_set(&sig_ev, SIGCHLD, fork_signal_cb, &sig_ev);
+evsignal_add(&sig_ev, NULL);
+
+evsignal_set(&existing_ev, SIGUSR2, fork_signal_cb, &existing_ev);
+evsignal_add(&existing_ev, NULL);
+
+evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
+evsignal_add(&usr_ev, NULL);
+
+ fork_signal_cb(evutil_socket_t fd, short events, void *arg)
+}
+main(del_wait){
+}
+heap(randomized){
+内部堆随机测试
+}
+et(et){
+epoll
+}
+et(et_mix_error){ 不能同时支持ET和LEVEL两种触发模式 }
+finalize/cb_invoked
+finalize/free_finalize
+finalize/within_cb
+evbuffer(evbuffer){
+1. 用来创建一个evbuffer
+evbuffer_new();
+
+2. 函数向buf中添加格式化的数据。format参数以及后续的其他参数类似于C库中的printf和vprintf函数中的参数。
+evbuffer_add_printf(evb, "%s/%d", "hello", 1); # 这些函数返回添加到buf中的字节数。
+
+3. 返回 evbuffer 存储的字节数
+evbuffer_get_length(evb)  == EVBUFFER_LENGTH(x)  # 返回evbuffer中存储的字节数。 
+
+EVBUFFER_DATA(x)    
+
+4. 将 inbuf 中的所有数据移动到 outbuf 末尾,
+evbuffer_add_buffer(evb, evb_two);  # 成功时返回0,失败时返回-1
+
+5. 从evbuffer头中移除数据 -- 头部
+evbuffer_drain(evb, strlen("hello/")); # 该函数成功返回0，失败返回-1。
+
+6. 用来把链表内存拉直，即把一定数量的数据从链表中copy到一个连续的内存空间,
+保证这些字节是连续的,占据相同的内存块,  
+  size 是负的,函数会线性化整个缓冲区                                                       
+  size 大于缓冲区中的字节数,函数返回 NULL                                                  
+  否则,返回指向 buf 中首字节的指针 
+unsigned char *evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size)  此后即可memcmp和memcpy了
+
+7. 在链表头添加数据
+evbuffer_prepend(evb, "something", 9); -- 头部
+
+8. 从 src 中移动 datlen 字节到 dst 末尾,尽量少进行复制,返回移动的字节数
+int evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,  size_t datlen)
+
+9.  扩展缓冲区以至少提供 size 字节的空间,
+扩展空间的指针,以及其长度,会存储在通过 vec 传递的向量数组中,n_vec 是数组的长度
+evbuffer_reserve_space(evb, 10000, v, 1);
+
+10. 把vec中的数据添加进evbuffer缓冲区,一般和evbuffer_reserve_space()结合使用
+int evbuffer_commit_space(struct evbuffer *buf, struct evbuffer_iovec *vec, int n_vecs)
+}
+evbuffer(remove_buffer_with_empty){
+通过引用向 evbuffer 末尾添加一段数据。不会进行复制:evbuffer 只会存储一个到
+data 处的 datlen 字节的指针。因此,在 evbuffer 使用这个指针期间,必须保持指针是有效的。
+evbuffer 会在不再需要这部分数据的时候调用用户提供的 cleanupfn 函数
+int evbuffer_add_reference(struct evbuffer *outbuf,
+                       const void *data, size_t datlen,
+                       evbuffer_ref_cleanup_cb cleanupfn, void *extra)
+}
+evbuffer(remove_buffer_with_empty2){}
+evbuffer(remove_buffer_with_empty3){}
+evbuffer/add_buffer_with_empty(evbuffer_add_buffer){
+基于性能的考虑，libevent优化了在evbuffer间移动数据的功能。
+int evbuffer_add_buffer(struct evbuffer *dst, struct evbuffer*src);
+int evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst, size_t datlen);
+}
+evbuffer/add_buffer_with_empty2
+evbuffer(reserve2){
+evbuffer_reserve_space(buf, 128, v, 2) # 存留空间，
+evbuffer_commit_space(buf, v, 1);      # 已占用空间
+}
+evbuffer/reserve_many
+evbuffer/reserve_many2
+evbuffer/reserve_many3
+evbuffer(expand){
+evbuffer_get_waste(struct evbuffer *buf, size_t *allocatedp, size_t *wastedp, size_t *usedp)
+
+int evbuffer_expand(struct evbuffer *buf, size_t datlen); # 成功返回0，失败返回-1
+扩展evbuffer的可用空间，该函数会改变buffer中的最后一个内存块，或者添加一个新的内存块，将buffer的
+可用空间扩展到至少datlen个字节。扩展buffer到足够大，从而在不需要进行更多的分配情况下就能容纳datlen个字节。
+}
+evbuffer(expand_overflow){ 越界
+evbuffer_expand(buf, EVBUFFER_CHAIN_MAX);
+}
+evbuffer(add1){evbuffer_add(buf, data, data_len) 和 evbuffer_add_printf(buf, "3");}
+evbuffer(add2){evbuffer_add(buf, data, data_len) 和 evbuffer_add_printf(buf, "3");}
+evbuffer(reference){}
+evbuffer/reference2
+evbuffer(iterative){}
+evbuffer(readln){}
+evbuffer(search_eol){}
+evbuffer(find){
+在缓冲区中搜索字符串的首次出现,返回其指针
+unsigned char * evbuffer_find(struct evbuffer *buf, const unsigned char *data, size_t size); 
+}
+evbuffer(ptr_set){
+int evbuffer_ptr_set(struct evbuffer *buffer, 
+                     struct evbuffer_ptr *pos,
+                     size_t position, 
+                     enum evbuffer_ptr_how how
+                     );
+evbuffer_ptr_set函数设置evbuffer_ptr结构pos为buffer中的某个位置。
+如果how为EVBUFFER_PTR_SET，则pos移动到buffer中的position位置，
+如果是EVBUFFER_PTR_ADD，则pointer向后移动position个字节。因此，
+如果pos没有初始化的话，则how参数只能为EVBUFFER_PTR_SET。
+# 该函数成功时返回0，失败是返回-1.
+}
+evbuffer(search){
+struct evbuffer_ptr evbuffer_search(struct evbuffer *buffer,
+                                    const char *what, 
+                                    size_t len,  
+                                    const struct evbuffer_ptr *start);
+struct evbuffer_ptr evbuffer_search_range(struct evbuffer *buffer,
+                                          const char *what, size_t len,  
+                                          const struct evbuffer_ptr *start,
+                                          const struct evbuffer_ptr *end);
+struct evbuffer_ptr evbuffer_search_eol(struct evbuffer *buffer,
+                                        struct evbuffer_ptr *start,  
+                                        size_t *eol_len_out,
+                                        enum evbuffer_eol_style eol_style);
+
+    evbuffer_search函数在buffer中扫描长度为len的what字符串的位置。
+如果能找到该字符串，则返回的evbuffer_ptr结构中的pos指明该字符串的位置，否则pos为-1。
+如果提供了start参数，则该参数指定开始搜索的位置；
+如果没有提供，则表明从从buffer的开头开始搜索。
+
+evbuffer_search_range函数类似于evbuffer_search，但它只在buffer中end参数指明的位置之前进行搜索。
+    evbuffer_search_eol函数，类似于evbuffer_readlen，探测行结束符，只是该函数并不复制该行。
+该函数返回evbuffer_ptr结构，其中的pos指明了行结束符的起始地址。
+如果eol_len_out不是NULL，则其被置为EOL字符串的长度。
+}
+evbuffer(callbacks){
+evbuffer和回调函数
+    使用evbuffer时，经常会想知道数据何时添加到或者移除出evbuffer。libevent提供了一般性的evbuffer
+回调机制支持这种需求。
+struct  evbuffer_cb_info {
+    size_t orig_size;
+    size_t n_added;
+    size_t n_deleted;
+};
+
+typedef void(*evbuffer_cb_func)(struct evbuffer *buffer, const struct evbuffer_cb_info *info, void *arg);
+    当数据添加到或者移除出evbuffer的时候，就会调用evbuffer的回调函数。该函数的参数是buffer，
+    指向evbuffer_cb_info结构体的指针，以及一个用户提供的参数。
+    evbuffer_cb_info结构的orig_size成员记录了buffer大小改变之前，buffer中的字节数；
+    n_added成员记录了添加到buffer的字节数；
+    n_deleted记录了移除的字节数。
+  
+struct  evbuffer_cb_entry;
+struct  evbuffer_cb_entry *evbuffer_add_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg);
+    evbuffer_add_cb函数向evbuffer中添加回调函数，并且返回一个非透明的指针，该指针后续可以用来
+引用该特定的回调实例。cb参数就是会调用的回调函数，cbarg是用来传递给该函数的用户提供的参数。
+    在单个evbuffer上可以有多个回调函数，添加新的回调不会删除旧的回调函数。
+
+    注意，释放一个非空evbuffer并不算作从中抽取数据，而且释放evbuffer也不会释放其回调函数的用户提供的数据指针。
+    如果不希望一个回调函数永久的作用在buffer上，可以将其移除（永久移除），或者禁止（暂时关闭）
+
+int evbuffer_remove_cb_entry(struct evbuffer *buffer, struct evbuffer_cb_entry  *ent);
+int  evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg);
+}
+evbuffer(add_reference){}
+#evbuffer(multicast){}
+#evbuffer/multicast_drain
+evbuffer(prepend){}
+evbuffer(peek){
+int evbuffer_peek(struct evbuffer *buffer, 
+                  ev_ssize_t len,
+                  struct evbuffer_ptr *start_at,
+                  struct evbuffer_iovec *vec_out,  
+                  int n_vec
+                  );
+    当调用evbuffer_peek函数时，在vec_out中给定一个evbuffer_iovec结构的数组。数组长度为n_vec。
+该函数设置数组中的结构体，使每个结构体的iov_base都指向evbuffer内部的一个内存块，并且将iov_len置为内存块的长度。
+    如果len小于0，则evbuffer_peek函数会尽可能的设置所有给定的evbuffer_iovec结构。否则，
+要么至少填充len个字节到evbuffer_iovec中，要么将所有evbuffer_iovec都填充满。
+    如果该函数能够得到所有请求的字节，则该函数将返回实际使用的evbuffer_iovec结构的个数，否则，
+它返回为了能得到所有数据而需要的evbuffer_iovec的个数。
+如果ptr为NULL，则evbuffer_peek从buffer的起始处开始取数据，否则，从start_at参数开始取数据。
+}
+evbuffer/peek_first_gt
+evbuffer/freeze_start
+evbuffer/freeze_end
+evbuffer/add_iovec
+evbuffer(copyout){
+复制evbuffer中的数据
+    有时希望只是复制buffer前端的数据而不删除它。比如，你可能希望确认某种类型的完整记录是否已经到达，
+而不删除任何数据(就像evbuffer_remove的动作)，也不对buffer内部做任何重新部署(就像evbuffer_pullup那样)
+ev_ssize_t evbuffer_copyout(struct evbuffer *buf, void *data, size_t datlen);
+ev_ssize_t evbuffer_copyout_from(struct evbuffer *buf,
+                                 const struct evbuffer_ptr *pos,
+                                 void *data_out, 
+                                 size_t datlen);
+    evbuffer_copyout函数类似于evbuffer_remove，但是并不删除buffer中的任何数据。也就是说，
+它只是复制buf前端的前datlen个字节到data中。
+如果buffer中少于datlen个字节，则该函数复制所有存在的字节。
+# 该函数失败时返回-1，成功时返回复制的字节数。
+
+    evbuffer_copyout_from函数类似于evbuffer_copyout，但它不是复制buffer前端的数据，
+而是以pos指明的位置为起点进行复制。参考"在evbuffer中搜索"一节，查看evbuffer_ptr结构的更多信息。
+如果从buffer中复制数据太慢，则可以使用evbuffer_peek函数。
+}
+evbuffer/file_segment_add_cleanup_cb
+evbuffer(add_file_sendfile){
+向evbuffer中添加文件
+一些操作系统提供了将文件写入到网络中，而不需要复制数据到用户空间中的方法。可以通过简单的接口访问这些机制：
+    int evbuffer_add_file(struct evbuffer *output, int fd, ev_off_t offset, size_t length);
+evbuffer_add_file函数假设已经有一个用来读的打开的文件描述符fd。该函数从该文件的offset位置开始，
+读取length个字节，写入到output的尾端。
+# 该函数成功时返回0，失败是返回-1。
+    警告：在Libevent2.0.x中，通过这种方式添加的数据，仅有下面几种操作数据的方式是可靠的：
+    通过evbuffer_write*函数将数据发送到网络中；通过evbuffer_drain函数进行抽取数据，
+    通过evbuffer_*_buffer函数将数据移动到其他evbuffer中。下列操作是不可靠的：
+    通过evbuffer_remove函数从buffer中抽取数据；
+    通过evbuffer_pullup线性化数据等等。Libevent2.1.x会修复这些限制。
+    如果操作系统支持splice和sendfile函数，则在调用evbuffer_write时，
+Libevent直接使用这些函数发送fd中的数据到网络中，而不需要将数据复制到用户内存中。
+如果不存在splice或sendfile函数，但是有mmap函数，则Libevent会对文件做mmap，并且
+内核会知道不需要将数据复制到用户空间。如果上述函数都不存在的话，则Libevent会将
+数据从磁盘读取到内存中。
+    当文件中的数据刷新到evbuffer之后，或者当释放evbuffer时，就会关闭文件描述符。
+如果不希望关闭文件，或者希望对文件有更细粒度的控制，则可以参考下面的文件段(file_segment)功能。
+}
+evbuffer/add_file_mmap
+evbuffer/add_file_linear
+evbuffer/add_file_nosegment
+evbuffer/add_big_file_sendfile
+evbuffer/add_big_file_mmap
+evbuffer/add_big_file_linear
+evbuffer/add_big_file_nosegment
+evbuffer/add_file_offset_sendfile
+evbuffer/add_file_offset_mmap
+evbuffer/add_file_offset_linear
+evbuffer/add_file_offset_nosegment
+evbuffer/add_file_offset2_sendfile
+evbuffer/add_file_offset2_mmap
+evbuffer/add_file_offset2_linear
+evbuffer/add_file_offset3_sendfile
+evbuffer/add_file_offset3_mmap
+evbuffer/add_file_offset3_linear
+signal(simplestsignal){
+evsignal_set(&ev, SIGALRM, signal_cb, &ev); evsignal_add(&ev, NULL); 
+
+    在libevent2.0之前的版本中，没有event_assign或者event_new函数，而只有event_set函数，该函数返回的event与“当前”base相关联。
+如果有多个event_base，则还需要调用event_base_set函数指明event与哪个base相关联。
+void event_set(struct event *event, evutil_socket_t fd, short what,
+               void(*callback)(evutil_socket_t, short, void *), void *arg);
+int event_base_set(struct event_base * base, struct event *event);
+        event_set函数类似于event_assign，除了它使用“当前”base的概念。event_base_set函数改变event所关联的base。
+        如果是处理超时或者信号events，event_set也有一些便于使用的变种：evtimer_set类似于evtimer_assign，
+而evsignal_set类似于evsignal_assign。
+}
+signal(simplesignal){ 资源合理利用
+evsignal_set->evsignal_add->signal_cb->evsignal_del
+                                                  setitimer(ITIMER_REAL, &itv, NULL) == -1 ->evsignal_del  }
+signal(multiplesignal){
+evsignal_set(&ev_one, SIGALRM, signal_cb, &ev_one);
+evsignal_add(&ev_one, NULL); 
+
+evsignal_set(&ev_two, SIGALRM, signal_cb, &ev_one);
+evsignal_add(&ev_two, NULL); 
+信号发生时，这两个回调函数都会被回调。
+}
+signal(immediatesignal){
+evsignal_set(&ev, SIGUSR1, signal_cb, &ev);
+evsignal_add(&ev, NULL);
+raise(SIGUSR1);
+event_loop(EVLOOP_NONBLOCK);  # 被立刻回调
+}
+signal(signal_dealloc){
+evsignal_set(&ev, SIGUSR1, signal_cb, &ev); 
+evsignal_add(&ev, NULL);
+evsignal_del(&ev); # evsignal_del之后，立刻从被删除。
+event_base_free(base); 
+}
+signal(signal_pipeloss){
+信号的传递依赖pipe管道
+}
+signal(signal_switchbase){
+信号注册在多个base上的时候，只有一个base上的信号回调函数被执行
+}
+signal(signal_restore){
+sa.sa_handler = signal_cb_sa;                                                                    
+sa.sa_flags = 0x0;
+sigemptyset(&sa.sa_mask);
+if (sigaction(SIGUSR1, &sa, NULL) == -1)                                                         
+    goto out;                          
+# 下面的操作会覆盖上面对信号的handler操作；
+evsignal_set(&ev, SIGUSR1, signal_cb, &ev);                                                      
+evsignal_add(&ev, NULL);                                                                         
+evsignal_del(&ev);     
+}
+signal(signal_assert){
+SIGCONT: 忽略
+}
+signal(signal_while_processing){
+1. 超时回调触发信号；
+2. 信号处理函数自身触发信号
+}
+util(ipv4_parse){ 
+int evutil_inet_pton(int af, const char *src, void *dst); # 函数成功时返回1，失败是返回0。
+ enum entry_status { NORMAL, CANONICAL, BAD };
+{ "1.2.3.4", 0x01020304u, CANONICAL },                                                           
+{ "255.255.255.255", 0xffffffffu, CANONICAL },                                                   
+{ "256.0.0.0", 0, BAD },                                                                         
+{ "ABC", 0, BAD },                                                                               
+{ "1.2.3.4.5", 0, BAD },                                                                         
+{ "176.192.208.244", 0xb0c0d0f4, CANONICAL },                                                    
+{ NULL, 0, BAD },    
+}
+util(ipv6_parse){  
+int evutil_inet_pton(int af, const char *src, void *dst); # 函数成功时返回1，失败是返回0。
+enum entry_status { NORMAL, CANONICAL, BAD };
+{ "::", { 0, 0, 0, 0, }, CANONICAL },                                                            
+{ "0:0:0:0:0:0:0:0", { 0, 0, 0, 0, }, NORMAL },                                                  
+{ "::1", { 0, 0, 0, 1, }, CANONICAL },                                                           
+{ "::1.2.3.4", { 0, 0, 0, 0x01020304, }, CANONICAL },                                            
+{ "ffff:1::", { 0xffff0001u, 0, 0, 0, }, CANONICAL },                                            
+{ "ffff:0000::", { 0xffff0000u, 0, 0, 0, }, NORMAL },                                            
+{ "ffff::1234", { 0xffff0000u, 0, 0, 0x1234, }, CANONICAL },                                     
+{ "0102::1.2.3.4", {0x01020000u, 0, 0, 0x01020304u }, NORMAL },                                  
+{ "::9:c0a8:1:1", { 0, 0, 0x0009c0a8u, 0x00010001u }, CANONICAL },                               
+{ "::ffff:1.2.3.4", { 0, 0, 0x000ffffu, 0x01020304u }, CANONICAL },                              
+{ "FFFF::", { 0xffff0000u, 0, 0, 0 }, NORMAL },                                                  
+{ "foobar.", { 0, 0, 0, 0 }, BAD },                                                              
+{ "foobar", { 0, 0, 0, 0 }, BAD },                                                               
+{ "fo:obar", { 0, 0, 0, 0 }, BAD },                                                              
+{ "ffff", { 0, 0, 0, 0 }, BAD },
+{ "fffff::", { 0, 0, 0, 0 }, BAD },
+{ "fffff::", { 0, 0, 0, 0 }, BAD },
+{ "::1.0.1.1000", { 0, 0, 0, 0 }, BAD },
+{ "1:2:33333:4::", { 0, 0, 0, 0 }, BAD },
+{ "1:2:3:4:5:6:7:8:9", { 0, 0, 0, 0 }, BAD },
+{ "1::2::3", { 0, 0, 0, 0 }, BAD },
+{ ":::1", { 0, 0, 0, 0 }, BAD },
+{ NULL, { 0, 0, 0, 0,  }, BAD },
+}
+util(sockaddr_port_parse){
+int evutil_parse_sockaddr_port(const char *str, struct sockaddr *out, int *outlen); # 成功时返回0，失败是返回-1
+    { "[ffff::1]:1000", AF_INET6, "ffff::1", 1000 },
+    { "[ffff::1]", AF_INET6, "ffff::1", 0 },
+    { "[ffff::1", 0, NULL, 0 },
+    { "[ffff::1]:65599", 0, NULL, 0 },
+    { "[ffff::1]:0", 0, NULL, 0 },
+    { "[ffff::1]:-1", 0, NULL, 0 },
+    { "::1", AF_INET6, "::1", 0 },
+    { "1:2::1", AF_INET6, "1:2::1", 0 },
+    { "192.168.0.1:50", AF_INET, "192.168.0.1", 50 },
+    { "1.2.3.4", AF_INET, "1.2.3.4", 0 },
+    { NULL, 0, NULL, 0 },
+}
+util(sockaddr_port_format){
+evutil_format_sockaddr_port_() 从value 到 string
+}
+util(sockaddr_predicates){
+evutil_sockaddr_is_loopback_(const struct sockaddr *addr) 
+}
+util(evutil_snprintf){
+}
+util(evutil_strtoll){}
+util(evutil_casecmp){}
+util(evutil_rtrim){}
+util(strlcpy){}
+util(log){
+event_warnx("Far too many %s (%d)", "wombats", 99);
+LOGEQ(EVENT_LOG_WARN, "Far too many wombats (99)"); 
+RESET();
+event_msgx("Connecting lime to coconut"); 
+LOGEQ(EVENT_LOG_MSG, "Connecting lime to coconut"); 
+RESET();
+event_debug(("A millisecond passed! We should log that!"));
+
+}
+util(upcast){
+
+#define evutil_offsetof (type, field)
+类似于标准的offsetof宏，该宏返回field域在type中的偏移字节。
+}
+util(integers){ 数据类型定义
+ev_int64_t i64;
+ev_uint64_t u64;                                                                                 
+ev_int32_t i32;
+ev_uint32_t u32;                                                                                 
+ev_int16_t i16;
+ev_uint16_t u16;                                                                                 
+ev_int8_t  i8;
+ev_uint8_t  u8;                                                                                  
+
+void *ptr;
+ev_intptr_t iptr;
+ev_uintptr_t uptr;                                                                               
+
+ev_ssize_t ssize;     
+}
+util(rand){
+很多应用都需要一个难以预测的随机数源来保证它们的安全性。
+void  evutil_secure_rng_get_bytes(void * buf,  size_t  n);
+    该接口将n个字节的随机数据填充到buf中。如果平台提供了arc4random函数，则libevent会使用该函数。
+否则的话，libevent使用自己实现的arc4random函数。种子则来自操作系统的熵池(entropy pool)
+(Windows中的CryptGenRandom，其他平台中的/dev/urandom)
+
+int  evutil_secure_rng_init(void);
+void  evutil_secure_rng_add_bytes(const  char * dat,  size_t  datlen);
+一般不需要手动初始化安全随机数生成器，但是如果需要保证它确实成功的初始化，可以调用evutil_secure_rng_init()函数。
+它会seed RNG(随机数生成器)(如果还没有seed过)，并且在成功时返回0。如果返回-1，表明libevent无法在系统上找到好的
+熵源，而且在没有自己初始化时，不能安全的使用RNG。
+
+如果程序运行在可能会放弃权限的环境中(比如说，通过执行chroot())，在放弃权限前应该调用evutil_secure_rng_init()。
+可以调用evutil_secure_rng_add_bytes()向熵池加入更多随机字节，但通常不需要这么做。
+}
+
+
+int evutil_getaddrinfo(const char *nodename, 
+                       const char *servname,
+                       const struct evutil_addrinfo *hints, 
+                       struct evutil_addrinfo **res);
+void evutil_freeaddrinfo(struct evutil_addrinfo *ai);
+const char *evutil_gai_strerror(int err);
+    evutil_getaddrinfo函数尝试根据hints中的规则，解析nodename和servname，并在evutil_addrinfo结构的链表
+res中返回解析的结果。
+# 该函数返回0表示成功，失败时返回一个非0的错误码。
+    nodename和servname两者必须提供一个，
+如果提供了nodename，则它可以是一个文字型的IPv4地址(类似于"127.0.0.1")，
+                          或者一个文字型的IPv6地址(比如"::1")，
+                          或者是一个域名(比如"www.example.com")。
+如果提供了servname，则它既可以是网络服务的符号名称(比如"https")，
+                    或者是一个十进制端口号的字符串(比如"443")。
+如果没有指定servname，则在*res中，端口号将置为0。
+如果不指定nodename，则*res中的地址要么是默认的本地地址，要么是"any"(如果设置了EVUTIL_AI_PASSIVE的话)
+hints中的ai_flags字段提示evutil_getaddrinfo如何进行查找。它可以是0，或者是下列标志的组合：
+EVUTIL_AI_PASSIVE：该标志表明，解析的地址将用来被动监听，而不是主动建链。
+                   一般情况下两者没有区别，除非nodename为NULL：对于主动建链来说，一个为NULL的nodename意味着
+                   本地地址(127.0.0.1或::1)，而对于被动监听来说，一个为NULL的nodename意味着ANY(0.0.0.0或::0).
+EVUTIL_AI_CANONNAME：如果设置了该标志，则会尝试在ai_canonname字段报告主机的规范名称。
+EVUTIL_AI_NUMERICHOST：如果设置了该标志，则仅会解析数字型的IPv4以及IPv6地址；
+                       如果nodename是一个需要解析的域名的话，则该函数会返回EVUTIL_EAI_NONAME错误。
+EVUTIL_AI_NUMERICSERV：如果设置了该标志，则仅会解析数字型的服务名，
+                       如果servname既不是NULL，也不是十进制整数的话，则返回EVUTIL_EAI_NONAME错误。        
+EVUTIL_AI_V4MAPPED：该标志表明，如果ai_family为AF_INET6，并且没有发现IPv6地址的话，
+                    则会将任一IPv4地址返回为一个v4映射（v4-mapped）的IPv6地址。除非操作系统支持，
+                    否则当前的evutil_getaddrinfo不支持该标志。
+EVUTIL_AI_ALL：如果将该标志和EVUTIL_AI_V4MAPPED一起设置，则结果集中的IPv4地址都将返回为v4映射的IPv6地址，
+               而不管是否找到了IPV6地址。除非操作系统支持，否则当前的evutil_getaddrinfo不支持该标志。
+EVUTIL_AI_ADDRCONFIG：设置了该标志，则只有在系统具有非本地IPV4地址的时候，结果集中才包含IPv4地址，
+                      并且只有在系统具有非本地的IPv6地址的时候，结果集中才包含IPv6地址。
+
+hints中的ai_family字段用来告知evutil_getaddrinfo返回何种地址类型。
+设置为AF_INET，则仅返回IPv4地址，
+设置为AF_INET6，则仅返回IPv6地址，
+设置为AF_UNSPEC，则返回所有可能的地址。
+
+hints中的ai_socktype和ai_protocol字段用来告知evutil_getaddrinfo如何使用这些地址。
+他们类似于传递给socket函数的socktype和protocol参数。
+
+    如果evutil_getaddrinfo执行成功，则返回一个evutil_addrinfo结构的链表res，每个结构中的ai_next指针指向
+下一个结构。这种链表是在堆中分配的，所以需要使用evutil_freeaddrinfo函数进行释放。
+util(getaddrinfo){
+/* TCP connect|bind by AF_INET */
+hints.ai_family = PF_UNSPEC;
+hints.ai_socktype = SOCK_STREAM;
+r = evutil_getaddrinfo("1.2.3.4", "8080", &hints, &ai);
+
+/* UDP connect|bind by AF_INET */
+hints.ai_family = PF_UNSPEC;
+hints.ai_protocol = IPPROTO_UDP;
+r = evutil_getaddrinfo("1001:b0b::f00f", "4321", &hints, &ai);
+
+/* TCP bind by AF_INET */
+hints.ai_family = PF_INET;
+hints.ai_protocol = IPPROTO_TCP;
+hints.ai_flags = EVUTIL_AI_PASSIVE; /* as if for bind */
+r = evutil_getaddrinfo(NULL, "9999", &hints, &ai);
+
+/* TCP connect by AF_INET */
+hints.ai_family = PF_INET;
+hints.ai_protocol = IPPROTO_TCP;
+hints.ai_flags = 0; /* as if for connect */
+r = evutil_getaddrinfo(NULL, "9998", &hints, &ai);
+
+/* TCP connect by AF_INET6 */
+hints.ai_family = PF_INET6;
+hints.ai_protocol = IPPROTO_TCP;
+hints.ai_flags = 0; /* as if for connect */
+r = evutil_getaddrinfo(NULL, "9997", &hints, &ai);
+
+/* TCP bind by AF_INET6 */
+hints.ai_flags = EVUTIL_AI_PASSIVE; /* as if for bind. */
+hints.ai_family = PF_INET6;
+hints.ai_protocol = IPPROTO_TCP;
+r = evutil_getaddrinfo(NULL, "9996", &hints, &ai);
+
+/* TCP bind by AF_INET6 | AF_INET */
+hints.ai_flags = EVUTIL_AI_PASSIVE; /* as if for bind. */
+hints.ai_family = PF_UNSPEC;
+hints.ai_protocol = IPPROTO_TCP;
+r = evutil_getaddrinfo(NULL, "9996", &hints, &ai);
+
+/* TCP|UDP  */
+hints.ai_family = PF_UNSPEC;
+hints.ai_flags = EVUTIL_AI_NUMERICHOST;
+r = evutil_getaddrinfo("1.2.3.4", NULL, &hints, &ai);
+
+hints.ai_family = PF_UNSPEC;
+hints.ai_flags = EVUTIL_AI_NUMERICHOST;
+r = evutil_getaddrinfo("www.google.com", "80", &hints, &ai);
+
+hints.ai_family = PF_UNSPEC;
+hints.ai_socktype = SOCK_STREAM;
+hints.ai_flags = EVUTIL_AI_NUMERICSERV;
+r = evutil_getaddrinfo("1.2.3.4", "http", &hints, &ai);
+}
+util(getaddrinfo_live){  (Off by default)
+hints.ai_family = PF_INET;
+hints.ai_protocol = IPPROTO_TCP;
+hints.ai_socktype = SOCK_STREAM;
+r = evutil_getaddrinfo("www.google.com", "80", &hints, &ai);
+
+hints.ai_family = PF_INET6;
+hints.ai_protocol = IPPROTO_TCP;
+hints.ai_socktype = SOCK_STREAM;
+r = evutil_getaddrinfo("ipv6.google.com", "80", &hints, &ai);
+}
+util(mm_malloc){
+mm_malloc(sz) event_mm_malloc_(sz)
+}
+util(mm_calloc){
+mm_calloc(count, size) event_mm_calloc_((count), (size))
+mm_realloc(p, sz) event_mm_realloc_((p), (sz))
+}
+util(mm_strdup){
+mm_strdup(s) event_mm_strdup_(s)
+}
+util(usleep){}
+util(monotonic_res){evutil_gettime_monotonic_}
+util/monotonic_res_precise   (Off by default)
+util/monotonic_res_fallback   (Off by default)
+util/monotonic_prc
+util/monotonic_prc_precise
+util/monotonic_prc_fallback
+util(date_rfc1123){
+    {           0, "Thu, 01 Jan 1970 00:00:00 GMT"} /* UNIX time of zero */,
+    {   946684799, "Fri, 31 Dec 1999 23:59:59 GMT"} /* the last moment of the 20th century */,
+    {   946684800, "Sat, 01 Jan 2000 00:00:00 GMT"} /* the first moment of the 21st century */,
+    {   981072000, "Fri, 02 Feb 2001 00:00:00 GMT"},
+    {  1015113600, "Sun, 03 Mar 2002 00:00:00 GMT"},
+    {  1049414400, "Fri, 04 Apr 2003 00:00:00 GMT"},
+    {  1083715200, "Wed, 05 May 2004 00:00:00 GMT"},
+    {  1118016000, "Mon, 06 Jun 2005 00:00:00 GMT"},
+    {  1152230400, "Fri, 07 Jul 2006 00:00:00 GMT"},
+    {  1186531200, "Wed, 08 Aug 2007 00:00:00 GMT"},
+    {  1220918400, "Tue, 09 Sep 2008 00:00:00 GMT"},
+    {  1255132800, "Sat, 10 Oct 2009 00:00:00 GMT"},
+    {  1289433600, "Thu, 11 Nov 2010 00:00:00 GMT"},
+    {  1323648000, "Mon, 12 Dec 2011 00:00:00 GMT"},
+    {  1435708800, "Wed, 01 Jul 2015 00:00:00 GMT"} /* leap second */,
+    {  1481866376, "Fri, 16 Dec 2016 05:32:56 GMT"} /* the time this test case is generated */,
+    {0, ""} /* end of test cases. */
+}
+bufferevent(bufferevent_new){
+一、首先申请bufferevent
+    使用bufferevent_new函数申请一个struct bufferevent.首先是malloc了一些结构体，然后调用了
+两个重量级的函数，event_set，这个函数被调用两次，分别对应bufferevent中的ev_read和ev_write。
+这个函数是干什么的，在不久以前的某个时刻也注重分析了，就是让某一个套接字初始化给具体的event,
+并且初始化这个event所要关注的事件和事件处理函数，这么一来，bufferevent中的两个event被初始化了！
+暂且不说注册的两个函数(bufferevent_readcb bufferevent_writecb)，这也是重量级的。
+    然后调用函数bufferevent_setcb函数，这个函数注册层的回调函数，这函数处理了从evbuffer中
+读取数据后的相应处理(怎么处理就是用户层的事情了)
+
+struct bufferevent *bufferevent_get_underlying(struct bufferevent *bev)
+返回作为 bufferevent 底层传输端口的另一个 bufferevent
+
+struct bufferevent *bufferevent_pair_get_partner(struct bufferevent *bev) 
+获取另一个成员
+
+typedef void (*bufferevent_data_cb)(struct  bufferevent*bev,  void *ctx);
+typedef void (*bufferevent_event_cb)(struct  bufferevent*bev, short  events,void *ctx);
+void  bufferevent_setcb(struct  bufferevent * bufev,
+                        bufferevent_data_cb readcb,
+                        bufferevent_data_cb writecb,
+                        bufferevent_event_cb eventcb,
+                        void *cbarg);
+void  bufferevent_getcb(struct  bufferevent * bufev,
+                        bufferevent_data_cb *readcb_ptr,
+                        bufferevent_data_cb *writecb_ptr,
+                        bufferevent_event_cb *eventcb_ptr,
+                        void **cbarg_ptr);
+    bufferevent_setcb函数改变bufferevent的一个或多个回调函数。当读取了数据，写入数据或者event发生的时候，
+就会相应的调用readcb、writecb和eventcb函数。这些函数的第一个参数就是发生event的bufferevent，最后一个参数
+是bufferevent_setcb的cbarg参数：可以使用该参数传递数据到回调函数。event回调函数的events参数是event标志的
+位掩码：参考上面的"回调函数和水位线"一节。
+    可以通过传递NULL来禁止一个回调。注意bufferevent上的所有回调函数共享一个cbarg，所以改变改值会影响到所有
+回调函数。
+    可以通过向bufferevent_getcb函数传递指针来检索bufferevent当前设置的回调函数，该函数会将
+*readcb_ptr设置为当前的读回调函数，
+*writecb_ptr设置为写回调函数，
+*eventcb_ptr设置为当前的event回调函数，并且
+*cbarg_ptr设置为当前回调函数的参数。
+如果任何一个指针设置为NULL，则会被忽略。
+
+void  bufferevent_enable(struct bufferevent *bufev, short events);
+void  bufferevent_disable(struct bufferevent *bufev, short events);
+short bufferevent_get_enabled(struct bufferevent *bufev);
+    可以将bufferevent上的EV_READ,EV_WRITE或EV_READ|EV_WRITE使能或者禁止。如果禁止了读取和写入操作，
+则bufferevent不会读取和写入数据。
+    当输出缓冲区为空时，禁止写操作是不必要的：bufferevent会自动停止写操作，而且在有数据可写时又会重启写操作。
+    类似的，当输入缓冲区达到它的高水位线的时候，没必要禁止读操作：bufferevent会自动停止读操作，而且在有空间读取的时候，又重新开启读操作。
+    默认情况下，新创建的bufferevent会使能写操作，而禁止读操作。
+    可以调用bufferevent_get_enabled函数得到该bufferevent当前使能哪些事件。
+    
+5. 在bufferevent中操作数据
+如果不能操作读写的数据，则从网络中读写数据没有任何意义。bufferevent提供函数可以操作读写的数据。
+struct evbuffer *bufferevent_get_input(struct  bufferevent *bufev);
+struct evbuffer *bufferevent_get_output(struct  bufferevent *bufev);
+    这两个函数可以返回读写缓冲区中的数据。在evbuffer类型上所能进行的所有操作，可以参考下一章。
+    注意，应用程序只能从输入缓冲区中移走(而不是添加)数据，而且只能向输出缓冲区添加(而不是移走)数据。
+
+    如果bufferevent上的写操作因为数据太少而停滞(或者读操作因为数据太多而停滞)，则向输出缓冲区中添加数据
+(或者从输入缓冲区中移走数据)可以自动重启写(读)操作。
+int bufferevent_write(struct bufferevent *bufev, const void *data, size_t size);
+int bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf);
+    这些函数向bufferevent的输出缓冲区中添加数据。
+    调用bufferevent_write函数添加data中的size个字节的数据到输出缓冲区的末尾。
+    调用 bufferevent_write_buffer函数则将buf中所有数据都移动到输出缓冲区的末尾。
+# 这些函数返回0表示成功，返回-1表示发生了错误。
+
+size_t bufferevent_read(struct bufferevent  *bufev, void *data, size_t size); # 该函数返回0实际移除的字节数，返回-1表示失败。
+int bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf); # 该函数返回0表示成功，返回-1表示失败。
+    这些函数从bufferevent的输入缓冲区中移走数据。
+    bufferevent_read函数从输入缓冲区中移动size个字节到data中。它返回实际移动的字节数。
+    bufferevent_read_buffer函数则移动输入缓冲区中的所有数据到buf中，
+
+注意bufferevent_read函数中，data缓冲区必须有足够的空间保存size个字节。
+}
+bufferevent(bufferevent_pair){}
+bufferevent(bufferevent_flush_normal){}
+bufferevent(bufferevent_flush_flush){}
+bufferevent(bufferevent_flush_finished){}
+bufferevent(bufferevent_pair_flush_normal){}
+bufferevent(bufferevent_pair_flush_flush){}
+bufferevent(bufferevent_pair_flush_finished){}
+bufferevent(bufferevent_pair_release_lock){}
+bufferevent(bufferevent_watermarks){
+void bufferevent_setwatermark(struct bufferevent *bufev, short events,
+                              size_t lowmark, size_t highmark);
+    bufferevent_setwatermark调整一个bufferevent的读水位线和写水位线。
+如果在events参数中设置了EV_READ参数，则会调整读水位线，
+如果设置了EV_WRITE标志，则会调整写水位线。将高水位线标志置为0，表示"无限制"。
+}
+bufferevent(bufferevent_pair_watermarks){}
+bufferevent(bufferevent_filters){
+可以使用bufferevent_socket_new创建一个基于socket的bufferevent：
+struct bufferevent *bufferevent_socket_new(struct event_base *base,
+                                           evutil_socket_t fd,
+                                           enum bufferevent_options options);
+base表示event_base，
+options是bufferevent选项的位掩码(BEV_OPT_CLOSE_ON_FREE等)。
+fd参数是一个可选的socket文件描述符。
+
+如果希望以后再设置socket文件描述符，可以将fd置为-1。
+    提示：要确保提供给bufferevent_socket_new的socket是非阻塞模式。libevent提供了便于使用的
+evutil_make_socket_nonblocking来设置非阻塞模式。
+# bufferevent_socket_new成功时返回一个bufferevent，失败时返回NULL。
+
+int bufferevent_pair_new(struct event_base *base, int options,
+                         struct bufferevent *pair[2]);
+    调用bufferevent_pair_new，将pair[0]和pair[1]设置为"bufferevent对"，它们之间相互建链。基本上所有常规的
+选项都支持，除了没有任何效果的BEV_OPT_CLOSE_ON_FREE，以及需要始终支持的BEV_OPT_DEFER_CALLBACKS。
+    为什么bufferevent对需要延迟回调函数呢？下面的场景很常见：在成对元素之一进行操作，会调用回调函数，
+进而改变bufferevent的状态，而这又会引起另一个bufferevent回调函数的调用，如此会一直循环往复下去。如果
+回调函数不被延迟，那么这种调用链条就会导致栈溢出，饿死其他链接，并且使得所有回调函数都折返。
+    "bufferevent对"支持flush；无论是设置为BEV_NORMAL还是BEV_FLUSH，都会使所有相关数据从bufferevent对的
+一端传送到另一端，而忽略水位线的限制。设置BEV_FINISHED还会使对端bufferevent额外的产生EOF事件。
+    释放"bufferevent对"的一端，不会使得另一端也自动释放或是产生EOF事件；这只会使得对端的bufferevent
+变为unlink。一旦bufferevent变为unlink状态，那它就再也不能进行读写数据，也不会产生任何事件了。
+
+typedef enum  bufferevent_filter_result(*bufferevent_filter_cb)(
+                                         struct evbuffer  * source,  
+                                         struct  evbuffer *destination, 
+                                         ev_ssize_t  dst_limit,
+                                         enum  bufferevent_flush_mode  mode,  
+                                         void *ctx);
+struct bufferevent  *bufferevent_filter_new(struct bufferevent  *underlying,
+                                            bufferevent_filter_cb  input_filter,
+                                            bufferevent_filter_cb  output_filter,
+                                            int  options,
+                                            void (*free_context)(void *),
+                                            void  *ctx);
+                                            
+   bufferevent_filter_new函数在一个已存在的底层bufferevent之上，创建一个新的过滤型bufferevent。
+所有通过底层bufferevent接收到的数据，在到达过滤型bufferevent之前都会经过输入过滤器进行转换，
+而且所有传送到底层bufferevent的数据，之前都会发送到过滤型bufferevent，通过输出过滤器进行转换。
+   为一个底层bufferevent添加过滤，会替换底层bufferevent的回调函数。依然可以向底层bufferevent的
+evbuffers添加回调函数，但是如果希望过滤器还能工作的话，就不能设置bufferevent本身的回调函数。
+   输入过滤器input_filter和输出过滤器output_filter函数在下面进行描述。
+options中支持所有常用选项。如果设置了BEV_OPT_CLOSE_ON_FREE，那么释放过滤型bufferevent也会释放底层bufferevent。
+ctx是一个传递给过滤函数的可选指针；如果提供了free_context函数的话，则在关闭过滤型bufferevent之前，该函数会在ctx上进行调用。
+   
+   当底层bufferevent的输入缓冲区中有新的可读数据时，就会调用输入过滤器函数。
+   当过滤型bufferevent的输出缓冲区中有新的可写数据时，就会调用输出过滤器函数。
+每个过滤器函数都会接收一对evbuffers作为参数：从source evbuffer中读取数据，向destination evbuffer中写入数据。
+dst_limit参数描述了向destination中添加数据的上限。过滤器函数可以忽略该参数，但是这样做可能会违反高水位线或速率限制。
+如果dst_limit置为-1，则表示无限制。
+
+    mode参数用于在输出时改变过滤器的行为。
+    如果置为BEV_NORMAL，意味着便于转化的输出，置为
+    BEV_FLUSH意味着尽可能多的输出，
+    BEV_FINISHED意味着过滤器函数需要在流的末尾进行必要的清理工作。
+最后，过滤器函数的ctx参数是在调用函数bufferevent_filter_new()时提供的void指针。
+   
+   只要有任何数据成功的写入了目标buffer中，过滤器函数就必须返回BEV_OK，BEV_NEED_MORE意味着不能
+再向目标buffer写入更多的数据了，除非获得更多的输入，或者使用不同的flush模式。如果过滤器中发生
+了不可恢复的错误，则返回BEV_ERROR。
+   创建过滤器会使能底层bufferevent上的读和写操作。无需亲自管理读写：当不再需要读取时，过滤器就会
+挂起底层bufferevent的读操作。对于2.0.8-rc以及之后的版本，允许独立于过滤器，对底层bufferevent的输入
+和输出操作进行使能或禁止操作。但是这样做的话，有可能会使得过滤器不能得到它想要的数据。
+   输入过滤器和输出过滤器无需全部指定，如果省略了某个过滤器，则数据不会被转化而直接被转送。
+}
+bufferevent(bufferevent_pair_filters){}
+bufferevent(bufferevent_filters_disable){}
+bufferevent(bufferevent_pair_filters_disable){}
+bufferevent(bufferevent_connect){
+# listener = evconnlistener_new_bind(base, listener_accept_cb, NULL,
+#                                   LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
+#                                   -1, (struct sockaddr *)&saddr, sizeof(saddr));
+struct evconnlistener *evconnlistener_new_bind(struct event_base *base,
+                                               evconnlistener_cb cb,  
+                                               void *ptr,  
+                                               unsigned flags,  
+                                               int backlog,
+                                               const struct sockaddr *sa,  
+                                               int socklen);
+void evconnlistener_free(struct evconnlistener *lev);
+    两个evconnlistener_new*函数都是分配并返回一个新的链接监听器对象。链接监听器使用event_base，
+在给定监听socket上监听新的TCP链接的到来。当一个新的链接到来时，它调用给定的回调函数。
+
+base参数是监听器用来监听链接的event_base。
+cb函数  是新链接到来时需要调用的回调函数； # 如果cb为NULL，则直到设置了回调函数为止，监听器相当于被禁用。
+ptr指针 传递给回调函数。
+flag参数控制监听器的行为 # 可以使用or运算将任意数量的标志绑定在一起
+LEV_OPT_LEAVE_SOCKETS_BLOCKING：默认情况下，当链接监听器接收一个新的到来的socket时，会将其置为非阻塞状态，
+                                从而方便libevent后续的操作。如果设置了该标志，则会禁止这种行为。
+LEV_OPT_CLOSE_ON_FREE：         如果设置了该标志，则链接监听器会在释放时关闭底层的socket。
+LEV_OPT_CLOSE_ON_EXEC：         设置该标志，链接监听器会在底层监听socket上设置"执行时关闭"(close-on-exec)标志。
+                                详细信息可以参考操作系统手册中的fcntl和FD_CLOEXEC部分。
+LEV_OPT_REUSEABLE：             默认情况下在某些平台上，当一个监听socket关闭时，只有经过一定时间之后，
+                                其他的socket才能绑定到相同的端口上。设置该标志可以使Libevent标志该socket为
+                                可重复使用的，因此一旦它关闭了，则其他socket可以在同一个端口上进行监听。
+LEV_OPT_THREADSAFE：            为监听器分配锁，因此可以在多线程中安全的使用。
+LEV_OPT_DISABLED：              将监听器初始化为禁止状态。可以通过函数evconnlistener_enable手动将其使能。
+LEV_OPT_DEFERRED_ACCEPT：       设置该标志，则告知内核，直到接收到对端数据，并且本地socket准备好读取之前，
+                                不通知socket接收新链接。
+    如果网络协议并非以客户端传递数据为开始，则不要使用该标志，因为这样有时会使得内核永远不通知新链接的到来。
+并非所有系统都支持该标志：在那些不支持的系统上，该标志没有任何作用。
+
+backlog参数表示在任何时刻，网络栈所允许的等待在"未接受"(not-yet-accepted)状态的挂起链接的最大个数。
+  如果backlog为负数，则libevent会自行选择一个比较好的backlog值；
+  如果该值为0，则libevent认为你已经在给定的socket上调用过listen函数了。
+
+evconnlistener_new函数假定已经在希望监听的端口上绑定了socket，也就是fd参数。
+如果希望Libevent分配并绑定自己的socket，则可以调用evconnlistener_new_bind函数，并且传递一个希望绑定的sockaddr地址及其长度。
+释放一个链接监听器，调用evconnlistener_free函数。
+
+    注意：使用evconnlistener_new函数时，确定已经通过evutil_make_socket_nonblocking或者手动设置socket选
+项，将监听socket设置为非阻塞模式。如果监听socket处于阻塞模式，则会有未定义的行为发生。
+    
+1.2 链接监听器的回调函数
+typedef void (*evconnlistener_cb)(struct evconnlistener *listener,
+                                  evutil_socket_t sock,  
+                                  struct sockaddr *addr,  
+                                  int len, 
+                                  void *ptr);
+    当新的链接到来时，就会调用回调函数。其中的listener参数就是接收链接的链接监听器，sock参数就是
+新的socket本身。addr和len就是链接对端的地址及其长度。ptr就是用户提供的传递给evconnlistener_new函数的参数。
+
+
+在基于socket的bufferevent上进行建链
+如果一个bufferevent的socket尚未建链，则可以通过下面的函数建立新的连接：
+int  bufferevent_socket_connect(struct bufferevent *bev,
+                                struct sockaddr *address, int addrlen);
+address和addrlen参数类似于标准的connect函数。
+如果该bufferevent尚未设置socket，则调用该函数为该bufferevent会分配一个新的流类型的socket，并且置其为非阻塞的。
+如果bufferevent已经设置了一个socket，则调用函数bufferevent_socket_connect会告知libevent该socket尚未建链，
+    在建链成功之前，不应该在其上进行读写操作。 # 
+在建链成功之前，向输出缓冲区添加数据是可以的。
+# 该函数如果在建链成功时，返回0，如果发生错误，则返回-1.
+
+注意：如果使用bufferevent_socket_connect进行建链的话，会得到BEV_EVENT_CONNECTED事件。
+      如果自己手动调用connect，则会得到write事件。
+      如果在手动调用connect的情况下，仍然想在建链成功的时候得到BEV_EVENT_CONNECTED事件，可以在connect返回-1，
+      并且errno为EAGAIN或EINPROGRESS之后，调用bufferevent_socket_connect(bev, NULL, 0)函数。
+      
+3. 通过hostname建链
+经常性的，可能希望将解析主机名和建链操作合成一个单独的操作，可以使用下面的接口：
+int bufferevent_socket_connect_hostname(struct  bufferevent *bev,
+                                        struct evdns_base *dns_base,  
+                                        int family, 
+                                        const char *hostname,
+                                        int port); # 该函数如果在建链成功时，返回0，如果发生错误，则返回-1.
+int bufferevent_socket_get_dns_error(struct  bufferevent *bev);
+    该函数解析主机名，查找family类型的地址(family的类型可以是AF_INET, AF_INET6和AF_UNSPEC)。
+}
+bufferevent(bufferevent_connect_defer){}
+bufferevent(bufferevent_connect_lock){}
+bufferevent(bufferevent_connect_lock_defer){}
+bufferevent(bufferevent_connect_unlocked_cbs){}
+bufferevent(bufferevent_connect_fail){
+
+#define EVUTIL_SOCKET_ERROR()
+#define EVUTIL_SET_SOCKET_ERROR(errcode)
+#define evutil_socket_geterror(sock)
+#define evutil_socket_error_to_string(errcode)
+这些宏访问并操作socket错误码。EVUTIL_SOCKET_ERROR返回本线程最近一次的socket操作的全局错误码。
+evutil_socket_geterror针对某个特定socket做同样的事。(在类Unix系统上，全局错误码就是errno)。
+    EVUTIL_SET_SOCKET_ERROR改变当前的socket错误码(类似于在Unix上设置errno)，
+evutil_socket_error_to_string返回给定错误码的字符串描述。(类似于Unix上的strerror)
+(之所以需要这些函数，是因为Windows没有为socket函数的错误定义errno，而是使用函数WSAGetLastError)
+    注意：在windows上，套接字错误码与标准C错误码errno是不同的。
+
+evutil_socket_t listener = socket(AF_INET, SOCK_STREAM, 0);  # evutil_socket_t即int类型
+
+evutil_socket_t Win下与 SOCKET 类型相同，Linux下与 int 类型相同
+
+# if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
+int evutil_socketpair(int d, int type, int protocol, evutil_socket_t sv[2]);
+# 成功返回0； 否则返回-1；
+int evutil_make_socket_nonblocking(evutil_socket_t sock);  # 在Unix上，置为O_NONBLOCK，在Windows上置为FIONBIO。
+# 成功返回0； 否则返回-1；
+int evutil_make_listen_socket_reuseable(evutil_socket_t sock);  # 在Unix上，是设置SO_REUSEADDR，而在Windows上，该标志却有其他意义。
+# 成功返回0； 否则返回-1；
+int evutil_make_listen_socket_reuseable_port(evutil_socket_t sock); 
+# 成功返回0； 否则返回-1；
+int evutil_make_socket_closeonexec(evutil_socket_t sock);  # 在Unix上是设置FD_CLOEXEC 标志，而在Windows上什么也不做。
+# 成功返回0； 否则返回-1；
+int evutil_make_tcp_listen_socket_deferred(evutil_socket_t sock);  TCP_DEFER_ACCEPT
+# 成功返回0； 否则返回-1；
+}
+bufferevent(bufferevent_timeout){
+if ((what & (BEV_EVENT_READING|BEV_EVENT_TIMEOUT))    
+    == (BEV_EVENT_READING|BEV_EVENT_TIMEOUT)) {       
+    evutil_gettimeofday(&res->read_timeout_at, NULL); 
+    ++res->n_read_timeouts;                           
+}                                                     
+if ((what & (BEV_EVENT_WRITING|BEV_EVENT_TIMEOUT))    
+    == (BEV_EVENT_WRITING|BEV_EVENT_TIMEOUT)) {       
+    evutil_gettimeofday(&res->write_timeout_at, NULL);
+    ++res->n_write_timeouts;                          
+} 
+}
+bufferevent/bufferevent_timeout_pair
+bufferevent/bufferevent_timeout_filter
+bufferevent/bufferevent_timeout_filter_pair
+bufferevent(bufferevent_trigger){}
+bufferevent/bufferevent_trigger_defer
+bufferevent/bufferevent_trigger_postpone
+bufferevent/bufferevent_trigger_defer_postpone
+bufferevent(bufferevent_zlib){
+
+}
+bufferevent/bufferevent_connect_fail_eventcb_defer
+bufferevent/bufferevent_connect_fail_eventcb
+bufferevent/bufferevent_socket_filter_inactive
+bufferevent/bufferevent_pair_flush
+bufferevent/bufferevent_filter_data_stuck
+http(primitives){
+evhttp_htmlescape gitbub for man
+}
+http/base
+http/bad_headers
+http/parse_query
+http/parse_uri
+http/parse_uri_nc
+http/uriencode
+http/basic
+http/simple
+http/cancel
+http/cancel_by_host
+http/cancel_by_host_no_ns
+http/cancel_by_host_inactive_server
+http/cancel_inactive_server
+http/cancel_by_host_no_ns_inactive_server
+http/cancel_by_host_server_timeout   (Off by default)
+http/cancel_server_timeout   (Off by default)
+http/cancel_by_host_no_ns_server_timeout   (Off by default)
+http/cancel_by_host_ns_timeout_server_timeout   (Off by default)
+http/cancel_by_host_ns_timeout
+http/cancel_by_host_ns_timeout_inactive_server
+http/virtual_host
+http/post
+http/put
+http/delete
+http/allowed_methods
+http/failure
+http/connection
+http/persist_connection
+http/autofree_connection
+http/connection_async
+http/close_detection
+http/close_detection_delay
+http/bad_request
+http/incomplete
+http/incomplete_timeout
+http/terminate_chunked
+http/terminate_chunked_oneshot
+http/on_complete
+http/highport
+http/dispatcher
+http/multi_line_header
+http/negative_content_length
+http/chunk_out
+http/stream_out
+http/stream_in
+http/stream_in_cancel
+http/connection_fail
+http/connection_retry   (Off by default)
+http/connection_retry_conn_address   (Off by default)
+http/data_length_constraints
+http/read_on_write_error
+http/non_lingering_close
+http/lingering_close
+http/ipv6_for_domain
+http/get_addr
+http/set_family
+http/set_family_ipv4
+http/set_family_ipv6
+http/write_during_read
+http/request_own
+http/https_basic
+http/https_filter_basic
+http/https_simple
+http/https_simple_dirty
+http/https_incomplete
+http/https_incomplete_timeout
+http/https_connection_retry   (Off by default)
+http/https_connection_retry_conn_address   (Off by default)
+http/https_chunk_out
+http/https_filter_chunk_out
+http/https_stream_out
+http/https_connection_fail
+http/https_write_during_read
+http/https_connection
+http/https_persist_connection
+dns/server
+dns/gethostbyname   (Off by default)
+dns/gethostbyname6   (Off by default)
+dns/gethostbyaddr   (Off by default)
+dns/resolve_reverse   (Off by default)
+dns/search_empty
+dns/search
+dns/search_lower
+dns/search_cancel
+dns/retry
+dns/retry_disable_when_inactive
+dns/reissue
+dns/reissue_disable_when_inactive
+dns/inflight
+dns/bufferevent_connect_hostname
+dns/disable_when_inactive
+dns/disable_when_inactive_no_ns
+dns/getaddrinfo_async
+dns/getaddrinfo_cancel_stress
+dns/leak_shutdown
+dns/leak_cancel
+dns/leak_resume
+dns/leak_cancel_and_resume
+dns/leak_resume_send_err
+dns/leak_cancel_and_resume_send_err
+dns/client_fail_requests
+dns/client_fail_requests_getaddrinfo
+evtag/int
+evtag/fuzz
+evtag/encoding
+evtag/peek
+rpc/basic_test  (DISABLED)
+rpc/basic_message  (DISABLED)
+rpc/basic_client  (DISABLED)
+rpc/basic_queued_client  (DISABLED)
+rpc/basic_client_with_pause  (DISABLED)
+rpc/client_timeout  (DISABLED)
+rpc/test  (DISABLED)
+thread/basic
+thread/forking
+thread/conditions_simple
+thread/deferred_cb_skew   (Off by default)
+thread/no_events
+listener/randport
+listener/randport_ts
+listener/error_unlock
+listener/error
+listener/error_ts
+ssl/bufferevent_socketpair
+ssl/bufferevent_socketpair_write_after_connect
+ssl/bufferevent_filter
+ssl/bufferevent_filter_write_after_connect
+ssl/bufferevent_renegotiate_socketpair
+ssl/bufferevent_renegotiate_filter
+ssl/bufferevent_socketpair_startopen
+ssl/bufferevent_filter_startopen
+ssl/bufferevent_socketpair_dirty_shutdown
+ssl/bufferevent_filter_dirty_shutdown
+ssl/bufferevent_renegotiate_socketpair_dirty_shutdown
+ssl/bufferevent_renegotiate_filter_dirty_shutdown
+ssl/bufferevent_socketpair_startopen_dirty_shutdown
+ssl/bufferevent_filter_startopen_dirty_shutdown
+ssl/bufferevent_socketpair_fd
+ssl/bufferevent_socketpair_freed
+ssl/bufferevent_socketpair_freed_fd
+ssl/bufferevent_filter_freed_fd
+ssl/bufferevent_socketpair_timeout
+ssl/bufferevent_socketpair_timeout_freed_fd
+ssl/bufferevent_connect
+ssl/bufferevent_connect_sleep

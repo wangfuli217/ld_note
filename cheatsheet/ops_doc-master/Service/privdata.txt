@@ -1,0 +1,388 @@
+1. 私有数据在编程中的作用？
+2. 何时设计带有私有数据的结构体或函数
+3. 内核中私有数据和设备驱动
+4. gcc扩展内存布局和私有数据关系
+
+全局变量 和 不可重入函数(全局函数)
+  避免使用全局变量
+  避免使用不可重入函数
+      避免设计有状态的不可重入函数
+
+不可重入函数可以看做全局变量的扩展形式。
+  不可重入函数封装全局变量操作，增加安全性和扩展性
+  不可重入函数封装全局变量操作，可以增加线程互斥锁，扩展成线程安全可重入函数。
+  不可重入函数封装全局变量操作，可以增加数据结构，扩展成线性序列或者非线性序列。
+
+privdata(){
+1. 私有数据 和 回调函数 之间的关系 -> 简化fd到连接上下文信息的反向检索
+    对于单实例的客户端fd设计 和 服务器监听fd设计，在回调函数中 通过全局变量 直接引用 fd关联的连接上下文信息 或 监听上下文信息，
+因此，私有数据(上下文信息)的传递 就没有必要(私有数据参数为NULL，回调函数忽略私有数据)。
+    对于多实例的客户端fd设计，在回调函数中 通过私有数据 引用客户端fd关联的连接上下文信息，简化反向查找(简化fd查找客户端连接上下文)
+因此，私有数据(上下文信息)的传递 就很有需要(私有数据参数为上下文信息，回调函数将私有数据强制类型转换成上下文实例)。
+    moosefs 在 desc函数(读写请求标识注册)中记录了 注册fd在外部数组中的位置pos；在 serve函数(读写数据处理)中使用了 desc函数中
+记录fd位置信息pos，避免提供额外检索fd相同的函数。此时，参数pdesc是多条连接上下文的私有数据集合，+pos获得连接上下文：即pdesc集合中
+fd字段和事件响应信息字段，pdesc[pos].fd与连接上下文的fd相同，因此，连接上下文信息由pdesc和pos共同确定。
+
+# 回调函数的可重入性.
+  如果回调函数是不可重入的，那么，私有数据(上下文信息)的传递就没有必要；-- 不可重入函数通过全局变量直接引用连接上下文信息。
+  如果回调函数是可重入的，  那么，私有数据(上下文信息)的传递就很有需要。     可重入函数通过私有数据引用连接上文信息。
+  可重入的回调函数，回调函数入参部分存在fd和事件类型信息，通过反向查找也可以得到fd对应的客户端连接上下文信息。所以，
+私有数据(上下文信息)需要但非必要。需要是指可以避免反向查找，简化代码提高访问速度；非必要是指可以通过反向查找获得上下文。
+
+  不可重入又密切相关的desc函数(读写请求标识注册)和serve函数(读写数据处理)，不可重入是两个函数都使用了全局变量；密切相关是两个函数
+引用了相同的全局变量且desc函数对全局变量的特定字段进行设置(传入)、serve函数对全局变量的特定字段进行引用(传出)。desc函数在poll前将
+读写请求标识注册到全局变量pdesc中并记录fd的位置到pos字段，serve函数在poll后通过pos字段引用全局变量pdesc中的信息。全局变量pdesc
+和pos实现了快速反向查找的功能，所以私有数据 的传递 就没有必要。
+  desc的传入参数和serve的传出参数之间 存在的关系。
+
+libevent,libuv,redis(ae.c) 通过私有数据传入和传出完成 注册回调函数与调用回调函数 之间连接(上下文)关系确定，链表方式上下文，私有数据即链表节点。
+moosefs                    通过pos字段传入和传出完成  注册回调函数和调用回调函数 之间连接(上下文)关系确定。数组方式上下文，私有数据由pos字段传入和传出。
+如何完成 注册回调函数 与 调用回调函数 之间上下文传递，-- 变量的赋值和引用 可以视为 一种 函数的变量传入和传出
+libevent,libuv,redis(ae.c) 在注册回调函数时传入额外参数(私有数据)。 私有数据 -- clientData
+moosefs                    在调用desc时传入额外参数(位置信息pos)。  类型数据 -- uint32_t pos + desc 
+
+2. 私有数据 和 模块接口 之间的关系 -> 初始化不同，释放不同，过程API相同 -> 
+    redis 通过 私有数据apidata将 select epoll kqueue dev/event 不相同的多个系统接口，抽象成相同的模块接口。
+    redisAsyncContext通过私有数据ev(data)，将libevent,libev,libuv,ae等不同的多个事件驱动后端，抽象成相同的回调接口。
+    libevent 通过 私有数据evbase将 select epoll kqueue dev/event 不相同的多个系统接口，抽象成相同的回调接口。
+redis依赖预编译器的选择，libevent依赖接口参数的选择。
+    libuv 通过 内存空间扩展，将tcp, pipe, tty抽象成stream类型，结果是，tcp, pipe, tty初始化不同，释放不同，但是这些类型
+使用了相同的uv_listen, uv_accept, uv_read_start, uv_read_stop, uv_write, uv_stream_set_blocking, uv_is_closing等接口函数。
+即：初始化不同，释放不同，过程API相同。
+
+# 模块接口的一致性
+  如果模块接口一样，底层接口不一样，那么，就需要void*类型指针指向不同私有数据(不同的底层有不同的私有数据对象)，
+私有数据可以直接作为模块接口的参数传递，也可以绑定到上下文对象上传递。私有数据主要目的就是将模块接口的相同参数
+转化为不同底层接口的接口参数。
+  林洋集中抄表终端中，CFAStorage为基类，CFAFerroelect，CFAFlash，CFAFlashEx，CFARamDisk为实现类，实现类的构造函数参数不同，
+read和write函数具有相同的参数。通过基类设计出了一致性的模块接口，通过实现类屏蔽了底层实现的差异性，实现类实例相当于上下文对象。
+
+初始化不同，释放不同，过程API相同  --> 初始化相同，释放相同，过程API相同
+像poll epoll和select具有可以替代的功能，主要是为了将不同的API接口设计成相同的API接口时，初始化、释放和过程API可以相同。
+
+# 对回调接口的管理
+  回调接口的注册可以通过 绑定回调函数的对象传递，也可以通过 回调函数值传递。对于查找，hash和fd可读，fd可写类型回调函数，
+可以通过 回调函数值传递。对于同时实现fd可读，fd可写和connect, disconnect多个函数的传递，推荐通过 绑定回调函数的对象传递。
+  回调函数的调用可用通过 宏 _EL_ADD_READ _EL_DEL_READ _EL_ADD_WRITE _EL_DEL_WRITE _EL_CLEANUP进行，
+                         宏 listGetDupMethod listGetFree listGetMatchMethod
+                         宏 dictFreeVal dictSetVal  dictFreeKey dictSetKey dictCompareKeys
+
+3. 私有数据 和 模块上下层 关联关系
+  redisAsyncContext的私有数据data，建立了底层模块到上层模块之间的关联关系。此时，私有数据data没有与之关联的回调函数。
+私有数据将底层连接状态变化和数据反馈给上层业务模块。
+  redisAsyncContext的私有数据ev(data)，建立了上层模块和底层模块之间的关联关系。此时，私有数据data有与之关联的回调函数。
+私有数据将上层数据请求 和 数据接收 在上层注册到底层HOOk中。
+
+# 模块上下层 处理
+  sentinel中，需要初始化redisAsyncContext的函数和向redisAsyncContext注册回调函数的函数设计，参数都需要传递redisAsyncContext类型参数，
+在回调函数处理过程中，私有数据关联的sentinelRedisInstance参数相关的函数。实现上层对底层的注册和下层对上层的调用。
+  moosefs中，上层相关参数和底层相关参数 被设计在同一个结构体中，连接处理相关的函数和业务相关的处理函数，都是以 整体对象参数
+作为传递参数。
+
+# redis中对redisClient的管理和sentinel中对sentinelRedisInstance的管理 -> accept类型 与 passive类型 流
+  redisClient是通过listen获得的客户端fd，因此，不关注connected和disconnect事件(没有connected注册函数和disconnect注册函数)。
+redisClient是一个fd关联一个上下文信息，redisClient直接调用ac.c提供的aeCreateFileEvent和aeDeleteFileEvent函数。
+所以，此模式适合accept类型stream。
+  sentinelRedisInstance是通过connect获得的客户端fd，因此，关注connected和disconnect事件(有connected注册函数和disconnect注册函数)。
+sentinelRedisInstance是多个fd关联一个上下文信息。sentinelRedisInstance通过redisAsyncHandleRead和redisAsyncHandleWrite间接调用ae.c的注册函数。
+所以，此模式适合connect类型stream。
+
+# redis中对redisClient的管理和moosefs中对desc和serve的管理存在相似性。都是将redisAsyncContext的两层设计成一层。
+  将数据的发送、接收和业务处理关联起来。
+  
+# libevent中对event的管理和libevent中对bufferevent的管理
+
+4. 私有数据 和 数据管理模块 之间的关系
+  redis通过dict管理具有key-val关联关系的私有数据，redis通过adlist管理val关联链表的私有数据。私有数据的管理模块，
+必然要提供私有数据操作相关的回调函数，回调函数常用以实现查找，内存释放和申请。 提供free,dup和match函数
+  cii 通过list管理val关联链表的私有数据， cii通过 table 管理具有key-val关联关系的私有数据。私有数据的管理模块，
+必然要提供私有数据操作相关的回调函数，回调函数常用以实现查找，内存释放和申请。 提供map(apply)关联的闭包调用和toArray类型函数。
+cii 内存管理是外部heap分配，外部heap释放。这使得 key-val 形式的remove时最好将key和val指针都返回出来。 --- 待待改进.
+
+5. 私有数据 和 消息队列 之间的关系
+  私有数据 即 消息队列管理实例。消息队列管理实例 对外部而言是一个操作上下文，使用 消息队列管理实例 的外部接口不需要关心 "实例"
+内部是如何实现，只需要关心 "实例"的分配、创建 和 "实例"的关闭、删除。以及 通过"实例" 将 设计好的数据入队， 通过"实例" 将入队
+的数据出队。
+
+6. 私有数据 和 线程池 之间的关系
+  私有数据 即 线程池管理实例。 线程池管理实例 对外部而言是一个操作上下文， 使用 线程池管理实例 的外部接口不需要关心 "实例"
+内部如何实现，只需要关心 "实例"的分配、创建 和 "实例"的关闭、删除。以及 通过"实例" 将 设计好的数据入队，通过"实例" 将入队
+的数据出队。
+
+# 通过设计好的私有数据(管理待设计私有数据的上下文) 管理 待设计的私有数据。
+}
+
+redis(){ 
+1. 私有数据 绑定 回调函数一起使用的     ae.c -> aeTimeEvent|aeFileEvent(clientData)
+    将 <相同的一个或多个参数>(aeEventLoop*, int fd, int mask, aeFileProc *proc, void* clientData) 关联到 不同业务对象(void* clientData)上，
+使得 <不同回调函数>(aeFileProc *proc) 处理 <不同业务对象>(void* clientData)。
+    说明: fd和mask 视为输入参数， proc和clientData 视为输出参数， aeEventLoop*视为绑定对象。
+2. 私有数据 绑定 系统函数               ae.c -> aeApiState (apidata)
+    将 不同的系统接口及其参数 关联到 同一个私有数据上，使得 不同的系统接口及其参数 抽象成 相同的接口。
+相同接口可以 在gcc链接object文件前 使用预编译器 进行 函数集 绑定；或者 相同接口可以 在程序执行时 通过选择参数 进行 函数集 绑定。
+3. 私有数据 构建 不同实例之间的关联关系 async.c-> sentinelRedisInstance (data)  async.c -> redisLibeventEvents ev(data) 
+    将 相同的自身(redisAsyncContext)实例 绑定到 不同的业务对象(sentinelRedisInstance)上，使得 redisAsyncContext 作为
+sentinelRedisInstance 的底层( 完成数据报文的收发 )，使得 sentinelRedisInstance 作为 redisAsyncContext的上层 (完成业务数据的管理)
+
+   --- [dict] ---
+dict *dictCreate(dictType *type, void *privDataPtr) 1. 私有数据的设置
+[dictType] 2. 使用私有数据的注册函数
+  unsigned int (*hashFunction)(const void *key);                         # 计算键的哈希值函数   dictHashKey(ht, key)
+  void *(*keyDup)(void *privdata, const void *key);                      # 复制键的函数         函数存在进行拷贝，否则进行地址引用
+  void *(*valDup)(void *privdata, const void *obj);                      # 复制值的函数         函数存在进行拷贝，否则进行地址引用
+  int (*keyCompare)(void *privdata, const void *key1, const void *key2); # 对比两个键的函数     dictCompareKeys(d, key1, key2)
+  void (*keyDestructor)(void *privdata, void *key);                      # 键的释构函数
+  void (*valDestructor)(void *privdata, void *obj);                      # 值的释构函数
+  # 特定于类型的一簇处理函数
+[dict] 3. 保存私有数据的结构体对象
+  dictType *type; # 特定于类型的处理函数
+  void *privdata; # 类型处理函数的私有数据
+  dictht ht[2];   # 哈希表(2)
+  int rehashidx;  # 记录 rehash 进度的标志，值为 -1 表示 rehash 未进行
+  int iterators;  # 当前正在运作的安全迭代器数量
+[dictht] 4. 哈希表
+  dictEntry **table;      # 哈希表节点指针数组（俗称桶，bucket）
+  unsigned long size;     # 指针数组的大小
+  unsigned long sizemask; # 指针数组的长度掩码，用于计算索引值
+  unsigned long used;     # 哈希表现有的节点数量
+[内存管理]
+1. dict,dictht和dictEntry是dict模块自管理对象；通过接口调用进行生命周期管理。
+dict和dictht生命周期   接口  >= dictEntry 生命周期                           接口
+dictCreate+dictRelease 接口     dictAdd+dictReplace+dictAddOrFind+dictDelete 接口
+2. dictType 是给dict注册的 外部管理对象方案；  通过注册函数 由dict接口调用间接 进行生命周期管理。
+# 注册函数用于确定key和val如何分配，释放。即进行内存拷贝还是进行地址引用。或者值应用。
+# 私有数据仅被keyDup valDup keyCompare KeyDestructor valDestructor使用，redis当前没有使用
+
+
+   --- [ae.c] ---
+[aeEventLoop]
+  int maxfd;   /* highest file descriptor currently registered */                                  
+  int setsize; /* max number of file descriptors tracked */                                        
+  long long timeEventNextId;
+  time_t lastTime;     /* Used to detect system clock skew */                                      
+  aeFileEvent *events; /* Registered events */                                                     
+  aeFiredEvent *fired; /* Fired events */                                                          
+  aeTimeEvent *timeEventHead;                                                                      
+  int stop;
+  void *apidata; /* This is used for polling API specific data */                                  
+  aeBeforeSleepProc *beforesleep;                                                                  
+  aeBeforeSleepProc *aftersleep; 
+  
+                                                 私有数据指向特定关联关系
+int aeApiCreate(aeEventLoop *eventLoop)          aeApiState
+创建私有数据的函数名相同，私有数据关联的结构体名称定义相同，但是结构体字段不相同，使用也不相同
+# 私有数据关联的结构体摒弃了各个操作系统 多路IO接口 参数之间的不同，使得不同的底层接口具有相同的对外接口。
+
+[aeTimeEvent]
+  long long id; /* time event identifier. */ 
+  long when_sec; /* seconds */
+  long when_ms; /* milliseconds */ 
+  aeTimeProc *timeProc;
+  aeEventFinalizerProc *finalizerProc;
+  void *clientData;
+  struct aeTimeEvent *prev; 
+  struct aeTimeEvent *next; 
+指定回调函数 timeProc 被执行时，要处理的数据
+
+[aeFileEvent]
+  int mask; /* one of AE_(READABLE|WRITABLE|BARRIER) */
+  aeFileProc *rfileProc;
+  aeFileProc *wfileProc;
+  void *clientData;
+指定回调函数 rfileProc和wfileProc 被执行时，要处理的数据
+
+   --- [async.c] ---
+[ev]
+  void *data                         # 私有数据
+  void (*addRead)(void *privdata);   # 添加读请求
+  void (*delRead)(void *privdata);   # 删除读请求
+  void (*addWrite)(void *privdata);  # 添加写请求
+  void (*delWrite)(void *privdata);  # 删除写请求
+  void (*cleanup)(void *privdata);   # 释放私有数据及其关联资源
+    创建redisAsyncContext和event loop之间的关联关系                      私有数据指向特定关联关系
+int redisLibeventAttach(redisAsyncContext *ac, struct event_base *base)  redisLibeventEvents
+int redisLibevAttach(EV_P_ redisAsyncContext *ac)                        redisLibevEvents
+int redisAeAttach(aeEventLoop *loop, redisAsyncContext *ac)              redisAeEvents
+# 私有数据被addRead delRead addWrite delWrite cleanup等回调函数使用，用来关联redisAsyncContext中读写数据(操作)和event loop读写请求标识(操作)
+                              ae.c                  libevent             libev
+redisAsyncHandleRead       AE_READABLE              EV_READ              EV_READ
+redisAsyncHandleWrite      AE_WRITABLE              EV_WRITE             EV_WRITE
+                        aeCreateFileEvent        redisLibeventReadEvent   redisLibevReadEvent
+                        aeDeleteFileEvent        redisLibeventWriteEvent  redisLibevWriteEvent
+# libevent,libev将readcb和writecb 或者readwritecb 关联到一个 event, ev_io实例上，event, ev_io实例绑定读写数据(操作)和读写请求标识、状态
+  后续对event,ev_io实例进行 event_add|event_del、ev_io_start|ev_io_stop 管理，即可实现 注册读写请求标识 和 调用读写回调函数
+# redis将readcb和writecb 关联到 aeCreateFileEvent和aeDeleteFileEvent 函数中，函数调用绑定读写数据(操作)和读写请求标识
+  后续仍须调用 aeCreateFileEvent和aeDeleteFileEvent 函数，实现 注册读写请求标识 和 调用读写回调函数
+# moosefs 在 mainloop 中遍历调用已注册的 desc 函数，将读写请求标识(POLLIN|POLLOUT)注册到 pollfd.event，
+  后续仍须在 mainloop 中遍历调用已注册的 desc 函数，实现 注册读写请求标识，当有文件描述符有数据时 mainloop调用回调函数serve。
+# dnsmasq 在 main 中遍历注册接口 poll_listen(fd,POLLIN|POLLOUT) 将读写请求标识注册到 poll 之中
+  后续仍须在 main 中遍历注册接口 poll_listen(fd,POLLIN|POLLOUT), 实现 注册读写请求标识，各模块在 mian 中调用 
+  poll_check判断能否读写, 后进行读写。
+
+[data]
+sentinelRedisInstance 一个redis库对应一个 sentinelRedisInstance 实例。实例保存了 host:port 和 该连接的状态信息；
+状态信息包括: 配置纪元，已发送尚未未回复的命令数，cc连接的创建时间，pc连接的创建时间，最后一次从这个实例结束报文时间等等
+可以记录连接登录、状态信息和数据包、数据字节等信息；也可以关联多条连接信息。
+}
+
+asynchronous(event loop){ 
+三种异步执行模式
+1. libevent libev libuv redis
+注册读请求事件(私有数据+回调函数+[读请求标识]) <---------------------------|
+回调函数处理(读数据 + 私有数据)                                            |
+ | 读取请求数据: 将tcp流数据写入数据缓冲区，将数据缓冲区内数据分割成数据块/|\
+ | 处理请求数据：处理已分割好的数据块 | 数据缓冲区内不足形成数据块 ------->| 注册读请求标识
+ | 生成响应数据：                                                          |
+ | 注册写请求标识 + 注册读请求标识                                        /|\
+ | 发送响应数据： | 数据发送完毕：没有待发送数据 ------------------------> | 注册读请求标识
+ | 注册写请求标识 + 注册读请求标识                                         |
+\|/                                                                        |
+ |--------------------------------------------------------------------------
+
+[select|poll|epoll_wait] 
+    redis事件驱动模型，首次调用poll之间，注册监听类型tcp socket。注册类型socket当接收到新连接请求的时候，
+创建新客户端连接实例，并注册读请求标识(注册客户端的读请求标识，是在监听回调函数中完成的，在poll出参后调用)。
+注册函数将私有数据+客户端fd+回调函数写入 event loop 关联的数据结构中(可以是链表、数组、扩展树、小堆等等)。
+通过while(1)重新扫表已注册的fd和与之关联的读事件请求+写事件请求，将fd和读写请求标识组织成select|poll|epoll_wait
+要求的传参格式。
+
+注册回调 -> [select|poll|epoll_wait] -> 处理读请求和处理写请求 -> 注册回调
+         /|\                                                         |
+          | <---------------------------------------------------------
+
+2. moosefs
+注册 desc + serve 两个回调函数
+ | 调用 desc 回调函数(用来注册fd 和 fd关联的读请求标识+fd关联的写请求标识) <-|
+ | poll                                                                      |
+ | 调用 serve 回调函数 (用来处理fd 和 fd关联的读请求函数+fd关联的写请求函数) |
+\|/                                                                          |
+ | --------------------------------------------------------------------------|
+ 
+注册回调 -> 回调desc(fd[POLLIN+POLLOUT]) -> poll -> 回调serve(fd[read + write])
+         /|\                                                         |
+          | <---------------------------------------------------------
+
+3. dnsmasq
+            |
+           \|/
+ | <- poll_reset  恢复默认状态   <-----------------------------------------  |
+ | poll_listen 设置fd和读写请求标识(POLLIN|POLLOUT)                          |
+ | do_poll     调用poll                                                      |
+ | poll_check  检查fd和读写请求标识(POLLIN|POLLOUT) + 执行处理函数           |
+\|/                                                                          |
+ | --------------------------------------------------------------------------|
+ 
+moosefs poll函数入参通过调用注册函数组织; 在poll调用前，在while(1)循环头，通过调用注册函数组织poll入参。
+redis   poll函数入参通过调用API函数组织 ; 在poll调用后，在回调函数调用中，通过调用API 函数组织poll入参。
+moosefs的读写请求标识注册 由注册于主框架的desc函数完成，desc函数在poll前由框架查询各个模块 注册读写请求标识。
+redis  的读写请求标识注册 由主框架提供的add|del函数完成，add|del函数在poll后的event-handler内根据接收发送队列状态决定。
+
+异步实现就是：在需要异步执行的函数执行前，通过注册函数或者API函数组织入参+回调函数；
+              在需要异步执行的函数执行后，调用注册函数或者调用API注册的回调函数；
+}
+
+cii(){
+
+}
+
+libevent(){
+
+}
+
+libuv(){
+
+}
+
+私有数据与csid 建立了 chunk.c和matocssev.c 的关联关系。通过这种关联关系，
+1. chunk.c 可以获知 matocsserv.c 连接状态 和 与连接相关的chunk信息；
+   chunk.c 可以告知 matocsserv.c 请求事件 和 与连接相关的chunk信息；
+这样看：chunk.c 可视为 matocssev.c 的上层， matocsserv.c 可视为 chunk.c 的下层。
+matocsserv.c下层 调用 chunk.c上层 的API 来告知TCP连接状态和业务连接状态。
+chunk.c上层 调用 matocsserv.c下层 的API 获得连接相关的信息。
+chunk.c上层 调用 matocsserv.c下层 的API 请求下层处理数据请求，然后，下层将处理结果上报给上层。
+
+         csdata：对发送给matocsserventry的请求进行记录，这些记录在调用 matocsserventry 提供操作chunk的API函数后，生成记录。在接收到响应之后删除记录。
+matocsserventry: chunkserver 已使用空间，总空间，chunks个数，版本信息 (创建chunks，复制chunk读，复制chunk写，删除chunk)
+matocsserventry: tcp连接(状态，流读写，读写数据包队列)
+
+moosefs(){
+1. chunk.c 和 matocsserv.c
+uint16_t chunk_server_connected(void *ptr)    # matocsserv.c 调用chunk的接口函数，获得*ptr指针，返回唯一标识符给matocsserv.c     tcp已连接完成
+void chunk_server_register_end(uint16_t csid) # matocsserv.c 使用已注册的唯一标识符，通知chunk当前csserver.c内chunkserver的状态  业务已注册完成
+void chunk_server_disconnected(uint16_t csid) # matocsserv.c 使用已注册的唯一标识符，通知chunk当前csserver.c内chunkserver的状态  断链
+
+chunk.c 中的csdata结构体代表一个chunkserver实例。
+  void *ptr;              matocsserv.c 关联的 matocsserventry 实例
+  csopchunk *opchunks;    matocsserventry 实例当前进行的chunk操作列表
+  uint8_t valid;          tcp连接成功标识
+  uint8_t registered;     业务注册成功标识
+  uint8_t newchunkdelay;  新建chunk
+  uint8_t lostchunkdelay; 丢失chunk
+  uint32_t next;          后继
+  uint32_t prev;          前驱
+
+[chunk.c 调用下面函数获得 matocsserventry 实例当前信息]
+char* matocsserv_getstrip(void *e);                                                                                # 获取信息
+int matocsserv_get_csdata(void *e,uint32_t *servip,uint16_t *servport,uint32_t *servver,uint32_t *servlabelmask);  # 获取信息
+... ...
+int matocsserv_send_replicatechunk(void *e,uint64_t chunkid,uint32_t version,void *src); # 通知调用
+... ...
+
+[matocsserventry 调用下面函数 通知 chunk.c 当前连接状态和操作响应]
+uint16_t chunk_server_connected(void *ptr);                                   # 连接状态
+... ...
+void chunk_got_delete_status(uint16_t csid,uint64_t chunkid,uint8_t status);                      # 操作响应
+... ...
+
+mfsmount -> mfsmaster -> mfschunkserver
+                \|/
+                 |
+          mfsmetalogger
+mfsmount      到mfsmaster之间是主动请求响应模式；mfsmount发送的请求，会转化为mfsmaster请求，并对请求予以响应。
+mfsmetalogger 到mfsmaster之间是主动请求响应模式；mfsmetalogger发送的请求，会转化为mfsmaster请求，并对请求予以响应。
+mfschunkserver到mfsmaster之间是被动请求响应模式。mfsmaster发送的请求，会转化为mfschunkserver请求，并对请求予以响应。
+mfsmaster对mfschunkserver有点像redis中的sentinel的模式，但是，一个是被动accept，一个是主动connect。
+
+2. 抽象统计 mfsmount/stats.c
+提高了封装性；不保留内部数据结构。
+私有数据之间自建关联关系。
+
+3. mfscommon/pcqueue.c  mfscommon/squeue.c
+void* queue_new(uint32_t size)     queue 模块内部用于管理队列的结构体，对外部而言，只提供与该实例关联的API接口。
+void* squeue_new(uint32_t length)  queue 模块内部用于管理队列的结构体，对外部而言，只提供与该实例关联的API接口。
+
+int queue_put(void *que,uint32_t id,uint32_t op,uint8_t *data,uint32_t leng)     # 私有数据关联的操作 入队
+int squeue_put(void *que,void *data)                                             # 私有数据关联的操作 入队
+
+int queue_get(void *que,uint32_t *id,uint32_t *op,uint8_t **data,uint32_t *leng) # 私有数据关联的操作 出队
+int squeue_get(void *que,void **data)                                            # 私有数据关联的操作 出队
+
+void queue_close(void *que)     # 私有数据 状态设定为关闭
+void squeue_close(void *que)    # 私有数据 状态设定为关闭
+
+void queue_delete(void *que)    # 私有数据 被删除
+void squeue_delete(void *que)   # 私有数据 被删除
+
+4. mfscommon/workers.c
+void* workers_init(uint32_t maxworkers,uint32_t sustainworkers,uint32_t qleng,char *name,
+                   void (*workerfn)(void *data,uint32_t current_workers_count))  
+                   # workers模块内部用于管理线程池的结构体，对外部而言，只提供与该实例关联的API接口。
+void workers_newjob(void *wsv,void *data) # 私有数据关联的操作 入队
+void workers_term(void *wsv)    # 私有数据 被删除
+
+moosefs 的模块设计 倾向于 主从设计模式。
+1. 模块内部设计一个 Main 结构体 作为管理特定数据的上下文；然后再设计一个或多个 Slave 结构体 作为 与上下文关联的结构体。
+即，模块内部通过 Main上下文 管理一个或多个Slave结构体，
+    设计外部接口 实现Main上下文的管理 和 Slave结构体的管理: 内存的分配、配置和释放。
+2. 模块外部设计而言， 通过私有数据关联到 Main上下文，将Main上下文 作为管理Slave 关联的私有数据的实例。
+外部代码通过调用接口实现 Main上下文的管理: 内存的分配、配置和释放; 
+            调用接口实现 Slave实例的管理: 内存的分配、配置和释放.
+}
+
+kernel(){
+
+}
+
+monit(){
+validate() 周期性检查
+}

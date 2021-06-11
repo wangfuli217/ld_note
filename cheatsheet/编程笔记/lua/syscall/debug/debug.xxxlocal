@@ -1,0 +1,48 @@
+-----getlocal & setlocal-----
+--[[
+  debug.getlocal ([thread,] f, local)
+  可以使用debug.getlocal 函数查看任意活跃函数中的局部变量，
+  这个函数有两个参数：
+                   访问的函数的stack level和访问变量的index值。
+  该函数返回两个值：访问变量的名字和值。
+  
+  如果参数index值大于函数中总的变量的值，那么getlocal函数返回nil。
+  如果stack level值不符合要求，则会引起错误(此时的技巧是通过getinfo函数来先验证stack level)
+--]]
+
+--[[
+  debug.setlocal ([thread,] level, local, value)
+  debug.setlocal来改变局部变量的值，
+  该函数的前两个参数分别为：stack level 和变量的index值，第三个参数则为要设定的新的值。
+  
+  如果index超出了范围，则该函数会返回nil值
+--]]
+-- getlocal和setlocal获得、设定活动函数的局部变量
+function foo (a,b)
+	local x
+    -- 函数体内的局部变量c，有其自身的有效范围，此时已经在函数体的有效范围之外了
+	do local c = a - b -- do..end结构，显示定义变量的作用域
+	end
+	local a = 1
+	while true do
+		local name, value = debug.getlocal(1, a)  -- getlocal参数1：栈级别  参数2：局部变量索引    返回值1：变量名  返回值2：变量值
+		if not name then
+			break
+		end
+		print(name, value)
+		a = a + 1
+	end
+	print('把索引为2的局部变量修改为100:')
+	debug.setlocal(1,2,100)
+	print(string.format('b的值变为：%d',b))
+end
+foo(10,20)
+
+--[[
+a       10       -- 局部变量是a，其index为1
+b       20       -- 其次是b，index为2
+x       nil      -- 接着是x，index为3，
+a       4        -- 为函数体内部的局部变量a，其index为4
+把索引为2的局部变量修改为100:
+b的值变为：100
+--]]

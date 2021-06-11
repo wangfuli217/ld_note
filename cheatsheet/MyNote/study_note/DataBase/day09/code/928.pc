@@ -1,0 +1,23 @@
+#include<stdio.h>
+exec sql include sqlca;
+void processError()
+{
+	printf("have sql error!\n");
+}
+int main(void)
+{
+	exec sql begin declare section;
+		char userpasswd[30]="tarena/tarena";
+		char var_name[30];
+	exec sql end   declare section;
+	exec sql whenever sqlerror do processError();
+	exec sql whenever notfound do processError();
+	printf("app start\n");
+	exec sql connect:userpasswd;
+	exec sql drop table lsdkfjlskdjflsdkjf;
+	exec sql select first_name into :var_name from s_emp where id=-1;
+	printf("%s\n",var_name);
+	exec sql commit work release;
+	printf("app end\n");
+	return 0;
+}

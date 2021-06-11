@@ -1,0 +1,95 @@
+这里的烧写是针对板子里的nandflash中已经有uboot的情况。目的在于熟悉烧写流程及原理！
+连接好开发板，重新启动，进入u-boot交互界面，执行如下操作：
+
+一、配置网络
+# print
+# setenv ipaddr 192.168.64.11  (注：ipaddr 为开发板IP)
+# setenv serverip 192.168.64.12 (注：serverip 为Windows主机IP)
+# setenv gatewayip 192.168.64.1 (注：gatewayip 为网关)
+# saveenv
+# ping 192.168.64.12 (如果能通，则继续往下做)
+
+二、烧写系统文件（先由tftp下载到ddr，再由ddr烧写到nandflash）
+烧写流程为从PC机服务器到板子内存，再从板子内存到nandflash
+首先，启动tftp服务，选择好待下载目标文件的路径，执行如下动作：
+注意：可以先tftp到内存，然后用“bootm 地址”启动测试，不用去擦写nandflash
+
+1)烧写kernel
+// 将内核镜像下载到内存
+# tftp 0x40000000 uImage
+
+// 可以用此命令验证内核是否能正常启动（可选）
+# bootm 0x40000000
+
+// 从地址0x600000开始擦除0x500000字节大小的nandflash空间 
+# nand erase 0x600000 0x500000
+
+// 将内存里0x40000000开始0x500000字节的数据烧写到nandflash
+# nand write 0x40000000 0x600000 0x500000
+
+2)烧写fs
+// 将文件系统镜像下载到内存
+# tftp 0x40000000 rootfs.img
+
+// 从nandflash地址0xe00000开始擦除0xf200000大小的空间
+# nand erase 0xe00000 0xf200000
+
+// 将内存里的文件系统镜像烧写到nandflash
+# nand write.yaffs 0x40000000 0xe00000 0xxxxx（0xxxxx根据执行tftp 0x40000000 rootfs.img下载的大小确定）
+
+3)烧写u-boot
+// 将u-boot.bin文件下载到内存
+# tftp 0x40000000 u-boot.bin
+
+// 从nandflash地址0开始擦除0x600000大小的空间
+# nand erase 0x0 0x600000
+
+// 将内存里0x40000000开始0x600000字节的数据烧写到nandflash
+# nand write 0x40000000 0x0 0x600000
+
+三、重启进入u-boot交互界面，配置uboot的启动参数
+测试1（启动内核）：
+// 设置启动命令：先从nandflash里读到内存，再从内存启动内核
+// 将两条命令同时存到bootcmd里面，要用分号隔开，反斜杠可以提高解析速度
+# setenv bootcmd nand read 0x40000000 0x600000 0x500000\; bootm 0x40000000
+
+// 保存以上设置的环境变量
+# saveenv
+
+重启，观察效果。
+
+测试2（设置机器码）：
+// uboot和内核的机器码要相同
+# setenv machid 0xXXX（根据情况而定）
+# saveenv
+
+重启，观察效果。
+
+测试3（启动本地文件系统）：
+// uboot在启动内核时需要传递参数给内核，最重要的是让内核挂载根文件系统
+// 在磁盘文件系统挂载成功后, 系统会执行磁盘文件系统下的/sbin/init程序
+// 调试终端是串口0，波特率为115200bps
+// 根文件系统类型是yaffs，可读写
+# setenv bootargs root=/dev/mtdblock4 init=/sbin/init console=ttySAC0,115200 rootfstype=yaffs rw
+# saveenv
+重启，观察效果。
+
+
+四、若要实现nfs挂载文件系统则进行如下操作：
+
+1、确保虚拟机virtualbox里的网卡为有线网卡（因为是通过网线挂载的）
+
+2、设置ip地址
+# setenv serverip 192.168.64.13
+
+# setenv ipaddr 192.168.64.11
+# setenv gatewayip 192.168.64.1
+# saveenv
+
+注：serverip为Windows里virtualbox里的Ubuntu的IP
+
+测试4（挂载ubuntu里的根文件系统）：
+# setenv bootargs root=/dev/nfs nfsroot=192.168.64.13:/mini_rootfs ip=192.168.64.11:192.168.64.1::255.255.255.0::eth0:off init=/linuxrc console=ttySAC0,115200
+# saveenv
+
+重启，观察效果。

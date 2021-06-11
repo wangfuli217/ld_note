@@ -1,0 +1,181 @@
+今天内容
+	目录管理
+	进程管理
+
+目录管理
+	opendir函数		打开一个目录
+		#include<sys/types.h>
+		#include<dirent.h>
+		DIR *opendir(const char *name);
+		函数功能
+			主要用于打开参数指定的目录，并且返回该目录所在地址
+	readdir函数
+		include <dirent.h>
+	    struct dirent *readdir(DIR *dirp);
+		int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
+		函数功能
+			主要用于读取参数指定的目录中内容，返回结构体指针
+			truct dirent {
+				ino_t          d_ino;       /* inode number */  i结点编号
+				off_t          d_off;       /* offset to the next dirent */  距离下一个子项的偏移量
+				unsigned short d_reclen;    /* length of this record */		记录的长度
+				unsigned char  d_type;      /* type of file; not supported	文件的类型
+											   by all file system types */	
+				char           d_name[256]; /* filename */					文件名
+			};
+		掌握	
+			d_type - 类型
+			d_name - 文件名
+	closedir函数
+		#include <sys/types.h>
+		#include <dirent.h>
+		int closedir(DIR *dirp);
+	函数功能：
+		主要用于关闭参数指定的目录
+	思考
+		递归打印目录中的内容,要求子目录中的内容也要打印出来
+
+	其他函数
+		mkdir() - 创建一个目录
+		rmdir() - 删除一个目录
+		chdir() - 改变所在的目录
+		getcwd() - 获取当前程序所在的工作目录
+		(get current working directory)
+		...
+
+进程的管理
+	基本概念
+		进程表示在内存中运行的程序
+		程序表示在磁盘上的可执行文件
+	基本命令
+		ps - 表示查看当前终端启动的进程(进程的快照)
+		ps命令的执行结果如下
+			PID - 进程号
+			TTY - 终端的编号
+			TIME - 消耗的CPU时间
+			CMD - 命令的名称和参数
+		ps -aux  - 表示显示所有包含其他使用者的进程
+		执行结果如下
+			USER - 进程的属主
+			PID	- 进程的编号
+			%CPU - 战胜CPU的百分比
+			%MEM - 战胜内存的百分比
+			VSZ - 虚拟内存的大小
+			RSS - 物理内存的大小
+			TTY - 终端编号
+			STAT - 进程的状态信息
+			START - 进程的启动时间
+			TIME - 消耗CPU的时间
+			CMD - 命令的路径和名称以及参数
+		ps -ef  表示以全格式的方式显示当前所有的进程
+		ps -ef | more  分屏显示
+			PPID - 父进程的进程号
+
+常见的进程状态
+	S	休眠状态
+	s	进程的领导者(拥有子进程)
+	Z	僵尸进程
+	R	正在运行的进程
+	O	可运行进程
+	T	挂起状态
+	<	优先级高
+	N	优先级低
+
+目前主流的操作系统都支持多进程，如果进程A启动了进程B，那么进程A叫做进程B的父进程，而进程B就叫做进程A的子进程
+	
+进程0是系统内部的进程，负责启动进程1(init),也会启动进程2,而其他所有的进程都是进程1/进程2直接/间接地启动起来
+
+各种ID的获取
+	PID - 进程号,是进程的唯一标识，操作系统采用延迟重用的策略来管理进程号，保证在每一个时刻PID都唯一
+	PPID - 父进程号,与进程号的使用策略相同
+
+	#include<sys/types.h>
+	#include<unistd.h>
+	getpid() - 获取进程号
+	getppid() - 获取当前进程的父进程号
+	getuid() - 获取用户id
+	getgid() - 获取用户组id
+
+进程的创建
+	fork函数
+	#include<unistd.h>
+	pid_t fork(void);
+	函数功能	
+		主要用于以复制正在调用进程的方式去创建一个新的进程，新进程叫做子进程，原来的进程叫做父进程，成功时父进程返回子进程的id，子进程返回0，失败返回-1
+
+	fork创建子进程的代码执行方式
+		fork之前的代码执行一遍，父进程执行一次
+		fork之后的代码，父子进程各自执行一次
+		fork函数的返回值，父子进程各自返回一次
+	注意
+		fork创建成功子进程之后，父子进程各自独立运行，并没有明确的先后执行顺序
+	
+	父子进程的关系
+		父进程启动了子进程，父子进程同时启动，如果子进程先结束，则父进程负责帮助回收子进程的资源
+		如果父进程先结束，子进程就会变成孤儿进程，子进程变更父进程（重新认定父进程，一般选择init(1)进程作为父进程），init进程也叫做孤儿院
+		如果子进程先结束，但是父进程由于各种原因没有回收子进程的资源，子进程就会变成僵尸进程
+
+	父子进程中内存资源的关系
+		使用fork创建出来的子进程会复制父进程中除了代码区之外的其他内存区域，代码区和父进程共享
+
+扩展
+	如何创建出4个进程
+	fork();
+	fork();
+	4个进程：1个父进程+2个子进程+1个孙子进程
+	如何创建出3个进程？
+	pid_t pid=fork();
+	if(0!=pid)   //父进程
+	{
+		fork();
+	}
+	3个进程分别是1个父进程＋2个子进程
+	俗称fork炸弹
+	while(1)
+	{
+		fork();
+	}
+
+进程的终止
+	正常终止进程的方式
+		1.在main函数中执行了return 0;
+		2.调用exit()函数终止进程
+		3.调用_exit()/_Exit()函数
+		4.最后一个线程返回
+		5.最后一个线程调用了pthread_exit()函数
+	非正常终止的方式
+		1.采用信号终止进程
+		2.最后一个线程被其他线程取消
+
+使用_exit()/_Exit()函数终止进程
+	#include <unistd.h>
+	void _exit(int status);
+	#include <stdlib.h>
+	void _Exit(int status);
+	函数功能
+		这两个函数都用于立即终止正在调用的进程，参数作返回值返回给父进程，来代表进程的退出状态，可以使用wait系列函数获取退出状态
+	#include <stdlib.h>
+	void exit(int status);
+	函数功能
+		主要用于引起正常进程的终止，参数status中的低8位作为退出状态信息返回给父进程，该函数在终止进程期间会调用atexit()/on_exit()函数注册过的函数
+	#include<stdlib.h>
+	int atexit(void(*function)(void));
+	函数功能
+		主要用于按照参数指定的函数进行注册，注册过的函数会在正常进程终止时被调用
+	
+进程的等待/回收
+	wait函数
+		#include<sys/types.h>
+		#include<sys/wait.h>
+		pid_t wait(int *status);
+		函数功能
+			主要用于挂起正在运行的进程进入阻塞状态，直到有一个子进程终止，参数用于获取终止进程的退出状态，成功返回终止进程的进程号，失败返回-1
+		WIFEXITED(status)	判断是否正常终止
+		WEXITSTATUS(status)	获取进程的退出状态信息
+
+作业	
+	查询并尝试使用waitpid函数
+
+明日预报
+	进程管理
+	信号处理

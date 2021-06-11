@@ -1,0 +1,140 @@
+debug库并不给你一个可用的Lua调试器，而是给你提供一些为Lua写一个调试器的方便。
+  出于性能方面的考虑，关于这方面官方的接口是通过C API实现的。
+  Lua中的debug库就是一种在Lua代码中直接访问这些C函数的方法。
+  Debug库在一个debug表内声明了他所有的函数。
+
+debug库由两种函数组成：自省(introspective)函数和hooks。
+  自省函数使得我们可以检查运行程序的某些方面，比如活动函数栈、当前执行代码的行号、本地变量的名和值。
+  Hooks可以跟踪程序的执行情况。
+
+Debug库中的一个重要的思想是栈级别(stack level)。
+  一个栈级别就是一个指向在当前时刻正在活动的特殊函数的数字，也就是说，这个函数正在被调用但还没有返回。
+  调用debug库的函数级别为1，调用他(他指调用debug库的函数)的函数级别为2，以此类推。
+
+1. 自省 debug.getinfo
+在debug库中主要的自省函数是debug.getinfo。他的第一个参数可以是一个函数或者栈级别。对于函数foo调用debug.getinfo(foo)，将返回关于这个函数信息的一个表。这个表有下列一些域：
+  source，标明函数被定义的地方。如果函数在一个字符串内被定义（通过loadstring），source就是那个字符串。如果函数在一个文件中定义，source是@加上文件名。
+  short_src，source的简短版本（最多60个字符），记录一些有用的错误信息。
+  linedefined，source中函数被定义之处的行号。
+  what，标明函数类型。如果foo是一个普通得Lua函数，结果为 "Lua"；如果是一个C函数，结果为 "C"；如果是一个Lua的主chunk，结果为 "main"。
+  name，函数的合理名称。
+  namewhat，上一个字段代表的含义。这个字段的取值可能为：W"global"、"local"、"method"、"field"，或者 ""（空字符串）。空字符串意味着Lua没有找到这个函数名。
+  nups，函数的upvalues的个数。
+  func，函数本身；详细情况看后面。
+
+当foo是一个C函数的时候，Lua无法知道很多相关的信息，所以对这种函数，只有what、name、namewhat这几个域的值可用。
+
+以数字 n调用debug.getinfo(n)时，返回在n级栈的活动函数的信息数据。比如，
+  如果n=1，返回的是正在进行调用的那个函数的信息。
+  如果n=0表示C函数getinfo本身
+  如果n比栈中活动函数的个数大的话，debug.getinfo返回nil。
+当你使用数字n调用debug.getinfo查询活动函数的信息的时候，返回的结果table中有一个额外的域：currentline，即在那个时刻函数所在的行号。另外，func表示指定n级的活动函数。
+
+2. 自省 debug.getlocal
+调用debug库的getlocal函数可以访问任何活动状态的局部变量。
+  这个函数由两个参数：将要查询的函数的栈级别和变量的索引。函数有两个返回值：变量名和变量当前值。
+    如果指定的变量的索引大于活动变量个数，getlocal返回nil。
+    如果指定的栈级别无效，函数会抛出错误。
+function foo (a,b)       -- a b
+    local x              -- x
+    do local c = a - b end
+    local a = 1          -- a
+    while true do
+       local name, value = debug.getlocal(1, a)
+       if not name then break end
+       print(name, value)
+       a = a + 1
+    end
+end
+
+foo(10, 20)
+结果为：
+a      10
+b      20
+x     nil
+a      4
+
+3. 自省 debug.getupvalue
+通过debug库的getupvalue函数访问Lua函数的upvalues。和局部变量不同的是，即使函数不在活动状态他依然有upvalues（这也就是闭包的意义所在）。
+所以，getupvalue的第一个参数不是栈级别而是一个函数（精确的说应该是一个闭包），第二个参数是upvalue的索引。
+Lua按照upvalue在一个函数中被引用(refer)的顺序依次编号，因为一个函数不能有两个相同名字的upvalues，所以这个顺序和upvalue并没什么关联（relevant）。
+可以使用函数ebug.setupvalue修改upvalues。也许你已经猜到，他有三个参数：一个闭包，一个upvalues索引和一个新的upvalue值。和setlocal类似，这个函数返回upvalue的名字，或者nil（如果upvalue索引超出索引范围）。
+
+function getvarvalue (name)
+    local value, found
+    -- try local variables
+    local i = 1
+    while true do
+       local n, v = debug.getlocal(2, i)
+       if not n then break end
+       if n == name then
+           value = v
+           found = true
+       end
+       i = i + 1
+    end
+    if found then return value end
+
+
+    -- try upvalues
+    local func = debug.getinfo(2).func
+    i = 1
+    while true do
+       local n, v = debug.getupvalue(func, i)
+       if not n then break end
+       if n == name then return v end
+       i = i + 1
+    end
+    -- not found; get global
+    return getfenv(func)[name]
+end
+
+1. Hook debug.sethook
+debug库的hook是这样一种机制：注册一个函数，用来在程序运行中某一事件到达时被调用。
+有四种可以触发一个hook的事件：
+  当Lua调用一个函数的时候call事件发生；
+  每次函数返回的时候，return事件发生；
+  Lua开始执行代码的新行时候，line事件发生；
+  运行指定数目的指令之后，count事件发生。
+Lua使用单个参数调用hooks，参数为一个描述产生调用的事件："call"、"return"、"line" 或 "count"。
+另外，对于line事件，还可以传递第二个参数：新行号。我们在一个hook内总是可以使用debug.getinfo获取更多的信息。
+
+使用带有两个或者三个参数的debug.sethook 函数来注册一个hook：
+  第一个参数是hook函数；
+  第二个参数是一个描述我们打算监控的事件的字符串；
+  可选的第三个参数是一个数字，描述我们打算获取count事件的频率。
+  
+为了监控call、return和line事件，可以将他们的第一个字母（'c'、'r' 或 'l'）组合成一个mask字符串即可。要想关掉hooks，只需要不带参数地调用sethook即可。
+debug.sethook(print, "l")
+
+function trace (event, line)
+    local s = debug.getinfo(2).short_src
+    print(s .. ":" .. line)
+end
+
+debug.sethook(trace, "l")
+
+1. Hook Profiles
+我们程序的主要数据结构是两张表，一张关联函数和他们调用次数的表，一张关联函数和函数名的表。这两个表的索引下标是函数本身。
+local Counters = {}
+local Names = {}
+在profiling之后，我们可以访问函数名数据，但是记住：在函数在活动状态的情况下，可以得到比较好的结果，因为那时候Lua会察看正在运行的函数的代码来查找指定的函数名。
+现在我们定义hook函数，他的任务就是获取正在执行的函数并将对应的计数器加1；同时这个hook函数也收集函数名信息：
+local function hook ()
+    local f = debug.getinfo(2, "f").func
+    if Counters[f] == nil then  -- first time `f' is called?
+       Counters[f] = 1
+       Names[f] = debug.getinfo(2, "Sn")
+    else   -- only increment the counter
+       Counters[f] = Counters[f] + 1
+    end
+end
+下一步就是使用这个hook运行程序，我们假设程序的主chunk在一个文件内，并且用户将这个文件名作为profiler的参数：
+prompt> lua profiler main-prog
+这种情况下，我们的文件名保存在arg[1]，打开hook并运行文件：
+local f = assert(loadfile(arg[1]))
+debug.sethook(hook, "c")    -- turn on the hook
+f()    -- run the main program
+debug.sethook()   -- turn off the hook
+
+

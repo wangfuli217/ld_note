@@ -1,0 +1,186 @@
+waf(保镖) - ips(门卫) - fw(not include APP-layer) - ids(layer 7)
+
+IPS/IDS 系统设计之初就是作为一种基于特征的应用层攻击检测设备。
+
+只防御不进攻的手段逐渐暴露出一系列的弱点。IDS最为致命的弱点就是它只能分析但是不能采取措施，这种被动的消极防御成为制约它的命门。
+此外由于它的功能在于检测，所以其会发送大量的告警信息，这就需要网络维护者有足够的经验去从浩瀚的告警信息中提炼出真正有用的信息，这给管理和维护带来了相当大的难度。
+另外，IDS还有一个弱点就是在于其在实效过程中会开放其所保护的网络，这就使攻击者有机可乘。
+
+检测无非两种，流检测和文件检测。
+流检测的原理是特征码匹配，
+用的是多模式匹配，dfa-nfa状态机这些。
+流检测的好处是快，不用缓存数据包，很多可以做到很高的吞吐。
+坏处是特征码如果压缩或者变形，是没办法处理的。
+当然特征码如何写也是很考验功力的。。。
+文件检测是全部收下来再检测，
+基本原理也是特征匹配，dfa-nfa状态机这些。
+因为全部收下来了，是可以解决某些压缩，变形处理的。
+坏处是这种情况是必须保存所有数据包的，吞吐上不去。而且延迟很大，很多时间敏感的业务不能支持。如果是处理多重压缩，更是慢的不行。。
+多模式匹配和特征码多少无关的。100条特征码和1000条的检测效率一样的
+文件检测是防病毒，流检测是入侵防护。场合不一样。
+流检测和文件检测也没有无法逾越的鸿沟，其实质就在cache的长度和处理的频率。不做cache，包到即处理，就是极端的流处理了; cache全部，收完再处理，就是文件
+WAF这个东西不是看TCP的并发数的，跟他毫无关系，注意是看HTTP的新建速率
+
+大的网站可能有很多台主机利用负载均衡技术提供同一个网站的www服务
+
+cmd5.com        md5 reverse
+
+ddos:
+    tcp_max_syn_backlog来定义半连接队列的最大数
+    操作系统的核心内存是专门提供给系统内核使用的内存不能进行虚拟内存转换
+    标准SYN数据包64字节 5000个等于 5000*64 *8(换算成bit)/1024=2500K也就是 2.5M带宽 ，如此小的带宽就可以让服务器的端口瘫痪
+    防火墙设计原理中并没有考虑针对ddos攻击的防护
+    iptables目前还没有比较好的方法来防护synflood，只有一个limit模块，来限制速度的
+    可以尝试将linux系统自己的syncookies启动起来。尽管效率可能不怎么好
+
+gui
+    access control  list
+    acl_setting     basic
+    rule_acl        advanced, according to rules
+    rpi_config      reverse proxy interface
+    userrule        user defined rules
+    yx_rules_ref    rules have been encrpted in machine, while their desc are in db
+    white/black     has been replaced by acl
+
+
+faw install
+        /etc/udev/rules.d/75-persistent-net-generator.rules.optional
+
+        5820 
+        in/out/in1/out1/empty/rpi/dmi/dsi
+        eth0 1 5 6 7 4 2(dhcp) 3
+
+        /etc/network.d/interfaces/
+
+        get installation package 192.168.9.30/hwaf-url-pattern-2.6.....tar.gz
+
+        /factory/README
+        recompile kernel / 3rdparty / waf
+
+        2810 
+        ./perinstall.sh --hw=
+
+        8 or 6 + 2
+
+        cd /factory/install
+        vim install.conf
+
+        privilege in lecense
+
+        queue_num + mgr = cores
+
+        install.sh --conf ./install.conf ./hwaf-part-2.6.0.4......tar.gz
+
+        install ok, then check
+        check/etc/waf_ 3 files: nics / db info / config file
+
+        /var/waf
+        /var/www
+
+
+        1. dsi (only 1 unconfigatable, 192.168.100.1, has dhcp to allocate a ip to laptop) <- laptop
+        2. 网络设置 -> 网络接口 -> 配置DMI (ip/netmask/dns)
+        3. 静态路由 -> 配置gataway
+        4. dns
+        5. 配置完成，确定部署方式 1网桥支持多进多出 n网桥可防护多路
+
+        阻断(本身正常但只要有不合法操作阻断后续所有) 拦截(仅过滤危险行为) 入侵监测 放行
+
+        服务器集中就不需RP 如果不集中 除非放在总出口
+        解决方法就是对放在waf后的服务器in-out直接，其余走RPI
+        get a ip for RPI, same net with original web; 
+        set dns of domain to new ip of RPI;
+        高级 -> 反代设置 -> original domain-local port-original ip & port
+
+        vlan环境下waf不工作 需要抓包或问管理员vlan ID,在.cap包中DST下会有ID字段
+        把ID全部进入到waf的vlan列表中，waf引擎发现ID不在列表中的会直接丢弃
+
+        端口汇聚必须是同类型网卡必须是偶数端口
+
+        switch has an ability of port mirror -> 1 in 2 same out
+
+        hard disk just for 防篡改(backup all web files) log is so tiny....
+
+
+faw
+    waf_url_pattern     stable branch now
+
+    genfile -o file.list
+    release.sh 
+    install.conf all runtime config
+
+    ./update-release.sh -t full -v 2.6.04.4962 -f file.llist -o hwaf-update-2.6.04.4962... -> .dat update pack
+        full / partial / patch
+
+    just use pcap in 实时流量统计 in gui
+    engine use nfq instead of pcap to rebuild tcp stream
+    drop nothing, set to RST and change some data contents
+    nids tcp stream rebuild -> func handle 1 by 1 in "plugins"
+    3 return status: accept/drop/unknown
+
+    url match just use wildcard (fnmatch)
+    pcre only in last step -- detect engine
+
+    stream -> iptables (may block all udp&icmp) -> waf_eng (nfq)
+
+    preprocess      data store
+    acl             basic access control list   accept/deny
+    blockcheck      block list
+    pagestat        page statistics
+    requestcheck    put/post/get
+    overflowcheck-> ruleacl (advanced)
+    anticc
+    urlpattern
+    wafengine
+
+    all packs to ruleacl are something abnormal
+        ruleacl could just record some to db then return directly 
+
+    wafsrv find a target ip to block -> notice wafmgr -> other wafsrv
+
+    monitor direction: wafsrv <- wafmgr (port 679) <- wafwdg
+        who die, it's supervisor restart a new one
+
+    crontab
+        mysql restart  /day
+        apache restart /week
+        mem retrieve certain time every day
+
+    iptables -L
+
+    nfq balance 40:42
+
+    http return
+    >15K drop
+    distinguish http header/body (unzip gziped pack; encoding: chunk, start with len end with 0)
+
+    访问控制
+    事前(基本访问控制，ip&page, 类似普通fw): can make 3 dicision: disgard/to engine/bypass engine
+            可针对具体页面 支持wildcard
+    事中(内置规则):
+    事后(高级访问控制, ip&page&rule): 如果没有高控 有了误报 只能放了该ip或page，或停了rule,很粗犷
+    只有犯了rule的才去高控过滤 否则直接过去, 不过engine效率高
+
+    大包小包都可被waf重组
+
+    交换机2口可在不同vlan 不同ID 不同网段 划分区域 让无法互访问
+
+td:
+    bug -> new -> open -> fix -> tested -> close
+    9.17/TDbin
+
+
+上交大外部每天也就70M  但内部很大
+反向代理方式 流量上下行对称 (vpn & 端口转发 also work)
+改dns到我们需要一天
+was也只能用post请求打满带宽 get请求达不到
+5机房 动态dns 解决单点故障问题 即用dns解决单点故障 但dns的单点故障没人能解决
+cname解析2次 所以不用 且只能解析2级域名 不能对1 即必须带www
+ns服务器指向yxlink的ns服务器
+ns服务器能指向多个
+南方移动多 北方联通多
+我们要有daemon测自己健康状况 自动dns到网速waf
+公信布要备案域名 还要备案放该域名的机房
+知道窗与可以查找某域名的解析历史 这样就知道真实ip就知道具体在哪个机房
+
+没有技术壁垒 硬件成本高的都不能做

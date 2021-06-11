@@ -1,0 +1,114 @@
+regexp, sed & awk
+=================
+A summary of Regular Expressions and the sed(1) and awk(1) tools for
+Unix-based systems.  Version 1.01, 01-Aug-2004, Brendan Gregg.
+
+
+Regular Expressions
+-------------------
+The following can be used in grep, egrep, sed and awk:
+
+	Symbol	Desc
+	.	Any 1 character
+	.*	Anything (biggest match possible)
+	[a-z]	1 char in set
+	[^a-z]	1 char not in set
+	^	Start of line anchor
+	$	End of line anchor
+	*	Previous item 0+ times
+
+The following are less common, and are not supported by all:
+
+	Symbol	Desc
+	(A|B)	A OR B
+	\<	Start of word anchor
+	\>	End of word anchor
+	\( \)	Group characters, may be backref'd with \1, \2, ...
+	?	Previous item either once or not at all
+	\{n\}	Previous item n times
+	\{n,m\}	Previous item n to m times
+	\{n,\}	Previous item n or more times
+
+
+Stream Editor
+-------------
+sed is most commonly used to search and replace text - such as:
+
+	cmd | sed 's/old/new/g'
+	sed 's/old/new/g' infile > outfile
+
+sed's features include:
+
+	Action		Desc
+	s/old/new/	Substitute old text (RE) for new
+	s/old/new/g	Substitute old text (RE) for new, all per line
+	/RE/s/old/new/g	Substitute old for new, on lines that match RE
+	3s/old/new/g	Substitute old for new, on line 3 only
+	3,6s/old/new/g	Substitute old for new, lines 3 to 6 only
+	/RE/d		Delete lines that match Regular Expression - RE
+	1d		Delete line 1
+	10,25d		Delete lines 10 - 25
+	/A/,/B/d	Delete line blocks that start and end with A & B
+	s/RE/-&-/g	Symbol '&' includes RE in new text expression
+	/RE/p		Print lines containing RE only (must use sed -n)
+	1,10p		Print lines 1 - 10 only (must use sed -n)
+	
+examples:
+
+   cat /etc/passwd | sed 's/:.*//'			# list usernames
+   cat /var/adm/messages | sed 's/.*fail.*/!!!&!!!/'	# draw attention
+   ifconfig hme0 | sed '/inet/!d;/inet/s/.*inet \(.*\) netm.*/\1/;'
+	# delete lines without "inet", backref IP and print.
+
+
+AWK Programming Language
+------------------------
+
+Awk is an extensive text reporting language. It is most commonly used to
+print out fields or columns of text - such as:
+
+	cmd | awk '{ print $2 }'
+	awk '{ print $2 }' infile
+	
+print - variations on the print statement:
+
+	{ print $2 }			Print out field 2
+	{ print $2,$4 }			Print fields 2 and 4
+	{ print $2 "\t" $4 }		Print fields seperated by a tab
+	{ print "user:",$1,"uid",$3 }	Printing fields and text
+	{ printf "%10s %-5s\n",$1,$2 }	Columns - 10 char right, 5 char left
+
+addresses - code before a { print ... } statement:
+
+	/RE/			if line contains the Regular Expression
+	BEGIN			once at start of program
+	END			once at end of program
+	NR == 4			once on line 4
+	NR > 2			lines 3 onwards
+	NR > 2 && NR < 11 	lines 3 to 10
+	$3 ~ /RE/		if field 3 contains RE
+	$9 !~ /RE/		if field 9 does not contain RE
+
+syntax - variables in awk, also inside a { ... } statement:
+
+	NR			line number variable
+	FS = ":"		set input field seperator to ":"
+	OFS = "\t"		set output field seperator to a tab
+	name = $1		variable "name" is set to field 1
+	sum = sum + $5		variable sum = sum plus field 5
+	sum += $5		... same as above
+	x = 5			variable x = 5
+	print x			print variable x
+	print "name:",name	printing text with variables
+	
+examples:
+
+   ls -l | awk '{ print "file",$9,"has size",$5,"bytes" }   # pretty ls?
+   cat /etc/passwd | awk 'BEGIN { FS=":" } { print $1 }'    # list usernames
+   IP=`ifconfig hme0 | awk '/inet/ { print $2 }'`	    # set IP var
+   cat logfile.txt | awk '				    # report
+	BEGIN  { print "My report on blah\n" 
+	        printf "%10s %-20s | %s\n","hostname","time","fault" }
+	/fail/ { print "AHOY! The following line is a failure!" }
+	      { sum = sum + $5; printf "%10s %-20s | %s\n",$2,$3,$1 }
+	END    { print "total faults:",sum }'

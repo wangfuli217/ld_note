@@ -1,0 +1,191 @@
+https://htmlpreview.github.io/?https://raw.githubusercontent.com/openwrt/luci/master/documentation/api/modules/luci.model.uci.html
+
+Cursor(add){
+  + Cursor:add (config, type) Add an anonymous section.
+  # config: UCI config
+  # type: UCI section type
+  $ Name of created section
+  
+  1. 添加匿名section
+  x:add("config", "type")
+  name = x:add("network", "switch")
+  print(name)  -- cfg0e3777
+  
+  2. 添加命名section
+  x:set("config", "name", "type")
+  x:set("network", "wan6", "interface")
+}
+Cursor(apply){
+  + Cursor:apply (configlist, command) Applies UCI configuration changes
+  # configlist: List of UCI configurations
+  # command: Don't apply only return the command
+}
+Cursor(change){
+  + Cursor:changes (config)	Get a table of saved but uncommitted changes.
+  # config: UCI config
+  $ Table of changes
+}
+Cursor(commit){
+  + Cursor:commit (config)	Commit saved changes.
+  # config: UCI config
+  $ Boolean whether operation succeeded
+  
+  1. commits (saves) 
+  x:commit("config")
+}
+Cursor(delete){
+  + Cursor:delete (config, section, option)	Deletes a section or an option.
+  # config: UCI config
+  # section: UCI section name
+  # option: UCI option (optional)
+  $ Boolean whether operation succeeded
+  
+  1. delete option
+  x:delete("config", "section", "option")
+  x:delete("network", "lan", "force_link")
+  2. delete section
+  x:delete("config", "section")
+  x:delete("network", "wan6")
+}
+Cursor(delete_all){
+  + Cursor:delete_all (config, type, comparator)	Delete all sections of a given type that match certain criteria.
+  # config: UCI config
+  # type: UCI section type
+  # comparator: Function that will be called for each section and returns a boolean whether to delete the current section (optional)
+}
+Cursor(foreach){
+  + Cursor:foreach (config, type, callback)	Call a function for every section of a certain type.
+  # config: UCI config
+  # type: UCI section type
+  # callback: Function to be called
+  $ Boolean whether operation succeeded
+  
+  x:foreach("config", "type", function(s) ... end)
+  s['.type'] → section type
+  s['.name'] → section name
+  
+  x:foreach("system", "timeserver", function(s)
+    print('------------------')
+    for key, value in pairs(s) do
+      print(key .. ': ' .. tostring(value))
+    end
+  end)
+  # 输出信息                        真实内容
+  ------------------                config timeserver 'ntp'
+  .name: ntp                              list server '0.openwrt.pool.ntp.org'
+  .type: timeserver                       list server '1.openwrt.pool.ntp.org'
+  .index: 1                               list server '2.openwrt.pool.ntp.org'
+  enabled: 1                              list server '3.openwrt.pool.ntp.org'
+  .anonymous: false                       option enabled '1'
+  server: table: 0xb6fad0
+  
+  uci=require("uci")
+  function getConfType(conf,type)
+     local curs=uci.cursor()
+     local ifce={}
+     curs:foreach(conf,type,function(s) ifce[s[".index"]]=s end)
+     return ifce
+  end
+}
+Cursor(get){
+  + Cursor:get (config, section, option) Get a section type or an option
+  # config: UCI config
+  # section: UCI section name
+  # option: UCI option (optional)
+  $ UCI value
+  
+  x:get("config", "sectionname", "option")
+  print(x:get("network", "lan", "proto"))   -- 'static'
+  print(x:get("network", "lan"))            -- 'Interface'
+}
+Cursor(get_all){
+  + Cursor:get_all (config, section)	Get all sections of a config or all values of a section.
+  data = x:get_all("system")
+  print(type(data))           -- table
+  luci.util.dumptable(data)   -- 表内容
+  
+  [".type"] gives the type of the section;
+  [".name"] gives the real name of the section (note that these names are auto-generated);
+  [".index"] is the index of the list (starting from 1);
+}
+Cursor(get_bool){
+Cursor:get_bool (config, section, option)	Get a boolean option and return it is value as true or false.
+}
+Cursor(get_confdir){
+Cursor:get_confdir ()	Get the configuration directory.
+}
+Cursor(get_first){
+Cursor:get_first (config, type, option, default)	Get the given option from the first section with the given type.
+}
+Cursor(get_list){
+Cursor:get_list (config, section, option)	Get an option or list and return values as table.
+}
+Cursor(get_savedir){
+Cursor:get_savedir ()	Get the directory for uncomitted changes.
+}
+Cursor(get_session_id){
+Cursor:get_session_id ()	Get the effective session ID.
+}
+Cursor(load){
+Cursor:load (config)	Manually load a config.
+}
+Cursor(revert){
+  + Cursor:revert (config)	Revert saved but uncommitted changes.
+  # config: UCI config
+  $ Boolean whether operation succeeded
+  
+  x:revert("config")
+}
+Cursor(save){
+Cursor:save (config)	Saves changes made to a config to make them committable.
+}
+Cursor(secion){
+Cursor:section (config, type, name, values)	Create a new section and initialize it with data.
+}
+Cursor(set){
+  + Cursor:set (config, section, option, value)	Set a value or create a named section.
+  # config: UCI config
+  # section: UCI section name
+  # option: UCI option or UCI section type
+  # value: UCI value or nothing if you want to create a section
+  
+  x:set("config", "sectionname", "option", "value")
+  x:set("network", "wan", "proto", "dhcp")
+  
+  x:set("config", "sectionname", "option", { "foo", "bar" })
+  
+  x:set("system", "ntp", "server", {
+  "0.openwrt.pool.ntp.org",
+  "1.openwrt.pool.ntp.org",
+  "2.openwrt.pool.ntp.org",
+  "3.openwrt.pool.ntp.org"
+  })
+
+}
+Cursor(set_confdir){
+Cursor:set_confdir (directory)	Set the configuration directory.
+}
+Cursor(set_list){
+Cursor:set_list (config, section, option, value)	Set given values as list.
+}
+Cursor(set_savedir){
+Cursor:set_savedir (directory)	Set the directory for uncommited changes.
+}
+Cursor(set_session_id){
+Cursor:set_session_id (id)	Set the effective session ID.
+}
+Cursor(substate){
+Cursor:substate ()	Create a sub-state of this cursor.
+}
+Cursor(tset){
+Cursor:tset (config, section, values)	Updated the data of a section using data from a table.
+}
+Cursor(unload){
+Cursor:unload (config)	Discard changes made to a config.
+}
+cursor(){
+cursor ()	Create a new UCI-Cursor.
+}
+cursor_state(){
+cursor_state ()	Create a new Cursor initialized to the state directory.
+}

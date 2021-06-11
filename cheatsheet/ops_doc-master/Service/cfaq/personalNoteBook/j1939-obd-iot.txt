@@ -1,0 +1,87 @@
+PC_USART_IRQHandler()
+SetEXTFilter()
+STD0250000 000 000 000 000 //侦听所有的CAN数据，标准和扩展
+
+2018.4.20: 开1个buffer[1k]接收can bus data,起个定时器500ms,如果buffer满或者定时器超时，则计算1939所有参数（由用户通过j1939.txt提供），并输出到impact平台，然后清空buffer;
+
+
+下一步计划：
+替换ControlCan.dll才能使用CanPro,CanTest，否则软件提示打开设备失败？
+用Ecantools或者CanPro的自发自收模式来解析西安j1939数据？
+修改Obd侦听器的波特率为115200,
+通过OBD模拟器熟悉广成公司的USBCAN抓数据和回放功能，熟悉CanPro, ECanTool, CanTest软件使用，
+然后用CanPro的模拟发送j1939数据，用USBCAN+obd侦听器 简单的写一个virtualbox-linux程序来解析speed, 参考python程序；
+修改obd侦听器下位机代码，打桩发送j1939内容给pc,然后用测试解析？
+用USBCAN去现场抓数据，并测试自己写的解析程序？
+/////////////////////////////////
+需要采集的j1939数据项：61443Lod(EEC2,SPN92),61444Rpm(EEC1,SPN190),61450(SPN132),65217(SPN917,SPN918),65257(SPN250),65262Ect(SPN110), 65265Spd(SPN84),  65266XH怠速油耗，65266XM行驶油耗，65269IAT(SPN172),65271Vbat(SPN158?);
+发动机转速(SPN190)，发动机负荷(SPN92)，发动机进气流量(SPN132)，发动机燃油温度(SPN174)，车速(SPN84)，里程(SPN244, SPN245,SPN917,SPN918)，
+平均油耗(SPN185?)，电瓶电压(SPN158?)，剩余油量(?)，冷却液温度(SPN110)，总燃油消耗量(SPN250), 单次燃油消耗(SPN182),燃油率(SPN183)
+进气温度(SPN172)，开车时间(SPN246), 当前状态（运行，熄火），故障码(PGN=65226);
+
+//////////////////////////////////
+///////////////////成功解析j1939协议：j1939与标准OBD协议区别：OBD协议采用问答式通信，可以获取指定数据参数，而j1939只能侦听，然后过滤需要的参数；
+1.连线：OBD模拟器 + OBDAnalylst + USBCAN PRO; 不需要OBD诊断器;
+2.OBD模拟器启动协议(29bit,250K),点火，OBDAnalyst速率自动识别成功(250K),然后发送j1939协议的数据(18FEF100 8 FC FF FE 04 00 00 00 00)
+3.CanPro可以成功收到OBDAnalyst的数据，并且DBC加载j1939协议解析数据成功，比如wheelbasedVechiclespeed=254.995km/h
+//////////////////
+
+
+对于收到的CAN数据帧的CAN_ID，如果屏蔽码的某个bit=0,则CAN_ID该bit值需要校验（要求CAN_ID该bit的值和校验码一致才会接收）,如果屏蔽码的某个bit=1则不校验；
+如果屏蔽码是0xFFFFFFFF则接收所有的CAN ID;注意：屏蔽码和校验码都是32bit的；
+
+
+
+
+ZLG9021系列 串口转蓝牙4.0 http://www.zlg.cn/wireless/wireless/product/id/199.html
+https://download.csdn.net/download/banpingshui234/3041261 英文原版协议全集，超清晰
+http://tucrrc.utulsa.edu/J1939.html
+https://github.com/XeiTongXueFlyMe/J1939  基于SAE J1939协议，开源可移植的J1939驱动。技术支持群： 264864184
+https://xeitongxueflyme.github.io/j1939doc.github.io/  j1939移植例子
+http://www.zlg.cn/can/down/down/id/42.html  周立功CanPro协议分析平台，J1939协议分析插件下载，安装完CanPro后删除CANPro\ProtocolScripts\SAE J1939.proS,
+再安装J1939Plugin_Setup110.exe，然后就可以在CanPro里面选择协议J1939了;另外，CanPro自带了dbc文件,CANPro\DBCFiles\j1939.dbc;
+A Companion Spreadsheet for SAE J1939 is available in Excel format.
+
+购买的j1939设备：1）广成可见的USB-CAN-PROI; 2)QBD66开发板；
+
+Cummins : 康明斯发动机,福田，东风卡车使用；
+j1939包含了数据链路层和应用层，底层物理层是 29bitCAN 250Kbit协议;
+比较重要的协议是: j1939-71 application layer, j1939-21 data link layer;
+某些CAN数据帧的域不是在j1939中定义，因为它们完全由CAN规范决定，对数据链路层以上的层是不可见的，它包括SOF，SRR，IDE，RTR，控制域部分，CRC域，ACK域和EOF域这些域由CAN协议定义的，SAE J1939不能修改，也无需关心。
+长度大于8字节的j1939协议消息无法用一个单独的CAN数据帧来装载，必须拆分为多个CAN数据帧，并分配seq num(first data byte), 每个CAN数据帧只可能有一种PDU;
+SAE J1939只支持CAN扩展帧格式，每个CAN数据帧都是29bit CANID + 固定8字节的数据域;
+用于数据解析的PGN包含在CAN标识符段(29bit)，
+解析方法：先从29bit的can id得到PGN(如果middle two bytes)，然后查协议J1939-71找到该PGN的数据字节含义和SPN，再根据SPN查找真实值的计算方法；
+
+18FEF100 8 FC FF FE 04 00 00 00 00         1ms,yes,Vehicle Speed,km/h, SPN = 84,PGN = 0xFEF1=65265;CCVS
+解析: Parameter Group Number:PGN = FEF1,means "Cruise Control/Vehicle Speed", Byte2-3=FEFF(Wheel-Based Vehicle Speed), SAE+J1939-71-2006.pdf page626.
+
+18EBFF00 8 01 43 4D 4D 4E 53 2A 34         1ms ,TPDT
+解析: pdu format=EB=235<240,so PGN=EB, dest addr=FF means broadcast msg,   not find in 1939-71?
+
+18FECA00 8 43 FF 54 00 02 01 FF FF         4ms, DM1,诊断消息
+解析： PGN=FECA, diagnose message(DM) ！！
+ 
+18EAFF00 3 DA FE 00                        1ms, RQST
+解析: j1939里面只有1种报文的数据长度是3字节长，其它绝大多数都是8字节，是一个request 报文；
+
+
+CAN分析仪下位机代码：
+DisplayCAN() 把监听的CAN报文传给PC;
+PC_USART_Config(921600);CAN分析仪的波特率是921600;
+
+0CFE6CEE 8 FF FF 3F 3F 00 00 00 00         1ms, TCO1转速计,PGN=FE6C,参考j1939-71 5.3.143
+18F00F52 8 FF FF FF FF FF FF FF FF         1ms, yes 氮氧传感器发送的报文,0xFF表示数据无效
+18EBFF00 8 01 43 4D 4D 4E 53 2A 34         1ms ,yes
+18FEE000 8 C3 3A 1F 00 AC 3A 1F 00         1ms ,yes
+0CF00400 8 30 7D 8D 77 18 00 0F 8D         1ms ,yes
+0CF00300 8 D1 00 1F FF FF FF 81 7D         1ms ,yes
+18FEDF00 8 85 A0 28 7D FB FF FF F3         1ms ,yes
+18FEF200 8 32 00 00 00 2F 0A FF FF         1ms ,yes
+0CF00400 8 30 7D 8D 73 18 00 0F 8D         1ms ,yes
+18FEDF00 8 85 A0 28 7D FB FF FF F3         1ms ,yes
+18F00100 8 FF FF FF FF 00 FF FF FF         1ms ,yes
+0CF00400 8 30 7D 8D 74 18 00 0F 8D         1ms ,yes
+18EBFF00 8 02 46 20 65 30 35 44 30         1ms ,yes
+18FEF000 8 FF FF FF 7B 18 FC CC FF         1ms ,yes
+18FEF100 8 FC 00 00 04 00 00 00 00         1ms  Cruise Control/Vehicle Speed(byte2-3)=0km/h

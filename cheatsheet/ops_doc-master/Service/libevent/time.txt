@@ -1,0 +1,45 @@
+#include <sys/time.h> (See libbsd(7) for include usage.)
+
+void TIMEVAL_TO_TIMESPEC(struct timeval *tv, struct timespec *ts);
+void TIMESPEC_TO_TIMEVAL(struct timeval *tv, struct timespec *ts);
+
+struct timeval { time_t tv_sec; suseconds_t tv_usec; };
+struct timespec { time_t tv_sec; long tv_nsec; };
+
+static void 
+example(struct timespec *spec, time_t minutes) 
+{ 
+    struct timeval elapsed; 
+ 
+    (void)gettimeofday(&elapsed, NULL); 
+ 
+    _DIAGASSERT(spec != NULL); 
+    TIMEVAL_TO_TIMESPEC(&elapsed, spec); 
+ 
+    /* Add the offset for timeout in minutes. */ 
+    spec->tv_sec = spec->tv_sec + minutes * 60; 
+}
+
+void timeradd(struct timeval *a, struct timeval *b, struct timeval *res);
+void timersub(struct timeval *a, struct timeval *b, struct timeval *res);
+void timerclear(struct timeval *tv);
+int timerisset(struct timeval *tv);
+int timercmp(struct timeval *a, struct timeval *b, CMP);
+void timespecadd(struct timespec *a, struct timespec *b, struct timespec *res);
+void timespecsub(struct timespec *a, struct timespec *b, struct timespec *res);
+void timespecclear(struct timespec *ts);
+int timespecisset(struct timespec *ts);
+int timespeccmp(struct timespec *a, struct timespec b, CMP);
+
+The timeradd() and timespecadd() macros add the time information stored in a to b, storing the result in res. 
+With timeradd() the results are simplified such that the value of res->tv_usec is always less than 1,000,000 (1 second). 
+With timespecadd() the res->tv_nsec member of struct timespec is always less than 1,000,000,000.
+
+The timersub() and timespecsub() macros subtract the time information stored in b from a and store the resulting structure in res.
+
+The timerclear() and timespecclear() macros initialize the structures to midnight (0 hour) January 1st, 1970 (the Epoch). 
+In other words, they set the members of the structure to zero.
+
+The timerisset() and timespecisset() macros return true if the input structure is set to any time value other than the Epoch.
+
+The timercmp() and timespeccmp() macros compare a to b using the comparison operator given in CMP. The result of the comparison is returned.

@@ -1,0 +1,18 @@
+1）BIOS 如果有的话
+2）Bootstrap代码，用于将bootloader放置到启动设备
+3）bootloader的一个或多个实际阶段
+4）在一个与bootloader通信的外部主机上执行的程序。
+EP7211在bootstrap模式下上电后，它从一个128B的内部存储器执行代码，这个128B代码经过串口从主机下载bootstrap镜像到一个半载2KB SRAM，并把控制权交给它，
+引导套件就是在结构上被分成三个阶段，每个阶段从不同地址加载
+1）第一个阶段（128B镜像）是处理固件的一部分
+2）第二个阶段运行于片上SRAM，因此最高能达2KB，这就是bootstrapper
+3) bootstrapper从外部主机下载实际的bootloader镜像到闪存顶部，当处理器用正常操作模式上电是，bootloader获得控制权。
+注意：驻存在处理器内的微代码本身不能用作bootstrapper，因为bootstrapper需要有对闪存编程的能力，因为一个处理可以使用多种类型的闪存芯片，所以bootstrapper
+代码必须与板相关。
+
+许多控制芯片不支持bootstrapper模式，它们的bootloader是通过JTAG接口写入到闪存的。
+也有同时支持bootstrapper和JTAG接口方式的芯片。
+
+当bootloader被烧录到闪存上后，他就能像其他固件组建一样更新自己。（入内核和文件系统）。
+
+bootloader:Redboot、BLOB、u-boot、LILO、GRUB、SYSLINUX

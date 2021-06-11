@@ -1,0 +1,68 @@
+组织：中国互动出版网（http://www.china-pub.com/）
+RFC文档中文翻译计划（http://www.china-pub.com/compters/emook/aboutemook.htm）
+E-mail：ouyang@china-pub.com
+译者：顾国飞（ggfei    ggfei@263.net）
+译文发布时间：2001-4-2
+版权：本中文翻译文档版权归中国互动出版网所有。可以用于非商业用途自由转载，但必须保留本文档的翻译及版权信息。
+
+Network Working Group                                          J. Postel
+Request for Comments: 860                                    J. Reynolds
+                                                                     ISI
+Obsoletes: NIC 16238                                            May 1983
+
+RFC 860  TELNET TIMING MARK选项
+(RFC 860 TELNET TIMING MARK OPTION)
+
+本RFC规范了一个ARPA Internet community上的标准。在ARPA Internet上的所有主机应当采用和实现这个标准。
+目录
+1. 命令名和代码	2
+2. 命令意义	2
+3. 默认值	2
+4. 选项产生原因	2
+5. 具体描述	3
+
+
+1. 命令名和代码
+TIMING-MARK 6
+2. 命令意义 
+* IAC DO TIMING-MARK
+命令发出者要求接收者在数据流的适当位置返回一个WILL TIMING-MARK，具体位置在文章的后面加以说明。 
+* IAC WILL TIMING-MARK
+命令发出者确认接收者乐意进行同步，发出了DO TIMING-MARKING。 
+* IAC WON'T TIMING-MARK
+命令发出者拒绝在数据流中加上确定同步的命令。 
+* IAC DON'T TIMING-MARK
+命令发出者通过命令接收者原来收到的WILL TIMING-MARK被忽略了。 
+3. 默认值
+WON'T TIMING-MARK，DON'T TIMING-MARK，也就是说默认情况下不对telnet两端的活动进行同步。
+4. 选项产生原因
+有时用户需要知道TELNET另一端已经将传输过去的数据处理完毕，这个选项此时就比较有用了，即使被拒绝进行同步，返回的拒绝代码也表示原来发出的数据都接收到了。
+下面是一个例子，可以想象一个全双工服务器它允许用户在处理用户输入之前预先输入一些命令。假设双方同意Suppress Go Ahead选项，而且服务器同意提供回显。现在服务器抛弃了一条不可知的命令，这条命令可能是用户的输入错误，服务器可能将用户所有预先输入的命令抛弃，并向用户发出一条错误命令，并且在用户看到错误信息后开始处理用户的新命令。如果用户是本地的，系统可以抛弃缓冲的输入，但是用户输入可能在用户主机或其它地方缓冲。因此服务器必须发出DO TIMING-MARK，并希望从在数据流的合适地方得到WILL TIMING-MARK。这个合适的地方就是用户看到错误信息后输入的第一个字符。
+在上例中，如果用户已经意识到自己输入错误，而希望在服务器做出反应前就纠正这个错误并回到预先输入状态。它可以让自己的系统发出WILL TIMING-MARK给服务器，然后再次开始预先输入。在这种情况下，合适的位置是由用户自己定义的。在上面二例中，系统负责传输DO TIMING-MARK来抛弃数据，而WILL TIMING-MARK则是用来对什么字符应该抛弃提供信息。
+5. 具体描述
+假设进程A希望和B同步，A发出DO TIMING-MARK，如果B拒绝则发出WON'T TIMING-MARK，如同意则将timing mark放出输出缓冲BUF2中。下来不将数据传输给终端，而是将标记输入到接收缓冲BUF1中，发给A。当标记进入BUF1时，B发出WILL TIMING-MARK给A。
+
+
+当A接收到WILL TIMING-MARK时，它知道在timing markf发出前发出的所有数据B都收到了。下面是此选项三个典型用途：
+A. 测量在进程和终端之间或进程和进程之间的响应延时。
+B. 同步交互，过程就如上面4中所述那样。当A收到非法命令时，它可以：
+i. 发出<carriage return>，<line feed>和<question mark>.
+ii. 发出DO TIMING-MARK 
+iii. 发出错误信息
+iv. 开始读出输入并抛弃直到WILL TIMING-MARK 
+v. 重要开始解释输入
+这就达到了在用户实际看到question mark 之前，抛弃所有在非法命令后的数据的目的。
+C. B的终端用户希望抛弃从A来的一些不想要的输出，
+i. B发出DO TIMING-MARK，后面是一些新命令 
+ii. B开始读出A的输出，抛弃接收到的数据，直到WILL TIMING-MARK. 
+iii. B重新转发A的输出到终端
+这样就抛弃了所有来自A的输出，直到A看到timing mark ，但不是对接下来命令进行响应的输出。
+RFC 860 TELNET TIMING MARK OPTION                       RFC 860  TELNET TIMING MARK选项
+
+1
+
+
+2
+ＲＦＣ文档中文翻译计划
+
+

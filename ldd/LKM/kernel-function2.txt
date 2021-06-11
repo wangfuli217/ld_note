@@ -1,0 +1,189 @@
+应用程序通过/dev/目录中的设备节点操作设备，通过/sys/目录中的节点收集设备信息。
+由于IO操作的不确定因素以及处理器和IO设备之间速度的不匹配，设备往往通过某种硬件信号异步低唤起处理器的注意，这些硬件信号就是中断。
+中断->中断号->中断服务例程   [中断上下文|原子上下文]   中断处理函数在中断上下文执行。
+
+1）中断上下文代码绝对不可以停止运行。中断处理函数不能通过调用schedule_timeout等睡眠函数放弃处理器，在从中断处理函数中调用一个内核API之前，
+应该仔细分析它，以确保其内部不会触发阻碍等待。例如：input_register_device表面上看起来没有问题，但是它内部已GFP_KERNEL为参数待用kmalloc
+用这种方式调用kmalloc的话，如果系统的空闲内存低于某警戒线，kmalloc将睡眠，等待对换程序释放内存。
+2）为了在中断处理函数中保护临界区，不能时候互斥体，因为他们也许导致睡眠，只能使用自旋体，切记不得不使用的时候再使用
+3）中断处理函数不能与用户空间直接交互数据
+4）中断处理函数一方面要快速为其他进程让位，另一方面又需要完成它的工作。于是分为顶半部和底半部，底半部softirq和tasklet
+5）中断处理函数不必是可重用的
+6）中断处理函数可以被更高优先级IRQ的中断处理函数打断
+
+函数可以检查in_interrupt的返回值，以查看自身是否位于中断上下文中。
+与外部硬件产生的异步中断不一样，也存在同步到达的中断，同步中断意味着他们不会不期而遇：他们由处理器本身执行某执行而产生。外部中断和同步中断在内核中使用相同的确认机制处理
+同步中断的例子包括
+1）异常，被用于报告严重的运行时错误
+2）软中断，如用于实现x86体系架构上的系统调用int 0x80指令。
+
+/proc/interrupts文件中有系统活动的IRQ的列表。
+irq的序号， 在各自cpu上发生中断的次数，可编程中断控制器，设备名称（request_irq的dev_name字段）
+           CPU0       CPU2       CPU3
+ 24:          0          0          0  s3c-uart  s5pv210-uart
+ 26:         41          0          0  s3c-uart  s5pv210-uart
+ 98:          0          0          0       GIC  s3c-pl330.0
+ 99:          0          0          0       GIC  s3c-pl330.1
+100:          0          0          0       GIC  s3c-pl330.2
+107:          0          0          0       GIC  s3c2410-wdt
+
+
+对于PCI等IO而言，返回值的意义更重要，因为多个设备可能共享同一个IRQ。 IRQ_HANDLED或者IRQ_NONE
+IRQF_DISABLED表示意味着这个中断处理为快中断，因此在调用出函数的时候，内核将禁用所有的中断。
+IRQF_TRIGGER_RISING暗示导航杆将在中处理线上产生一个上升沿已发出中断。
+IRQF_TRIGGER_HIGH 表示高电平触发
+IRQF_TRIGGER_LOW  表示低电平触发
+
+IRQF_TRIGGER_NONE0x00000000
+IRQF_TRIGGER_FALLING 0x00000002   
+IRQF_TRIGGER_MASK (IRQF_TRIGGER_HIGH | IRQF_TRIGGER_LOW | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)
+IRQF_TRIGGER_PROBE 0x00000010
+IRQF_DISABLED           0x00000020* IRQF_DISABLED - keep irqs disabled when calling the action handler
+IRQF_SAMPLE_RANDOM      0x00000040* IRQF_SAMPLE_RANDOM - irq is used to feed the random generator
+IRQF_SHARED             0x00000080* IRQF_SHARED - allow sharing the irq among several devices
+IRQF_PROBE_SHARED       0x00000100* IRQF_PROBE_SHARED - set by callers when they expect sharing mismatches to occur
+IRQF_TIMER              0x00000200* IRQF_TIMER - Flag to mark this interrupt as timer interrupt
+IRQF_PERCPU             0x00000400* IRQF_PERCPU - Interrupt is per cpu
+IRQF_NOBALANCING        0x00000800* IRQF_NOBALANCING - Flag to exclude this interrupt from irq balancing
+IRQF_IRQPOLL            0x00001000* IRQF_IRQPOLL - Interrupt is used for polling (only the interrupt that is
+
+设备驱动程序必须将它们的IRQ号与一个中断处理函数连接，因此，它们需要知道它们正在驱动的设备的IRQ号，IRQ号的分配可以很直接，也可能需要复杂的探测过程，
+例如在PC体系架构中，定时器中断响应的IRQ 0，RTC中断响应IRQ 8，现代的中断技术足够强大，它能够响应对IRQ的查询（系统启动过程中由BIOS分配），PCI驱动程序能够
+访问设备配置空间的相应区域并获得IRQ。对于较老的设备，驱动程序也许不得不利用特定硬件的只是来探测和解析IRQ。
+
+
+驱动程序初始化的时候不适合申请IRQ，因为这样会导致甚至在设备未被使用的时候有价值的资源就被占用了。因此，设备驱动程序通常在应用程序打开设备的时候
+申请IRQ。类似地，IRQ也是在应用程序关闭设备的时候释放IRQ的，而不是在退出驱动程序模块的时候。使用free_irq可以释放一个IRQ。
+
+中断需要完成大量的设备数据处理，但又不得尽可能快的退出。为了摆脱这一困境，中断处理程序被分成2部分：一个急切抢占并与硬件交互的顶半部；一个处理
+所有使能的中断的并不急切的底半部。同顶半部不一样，底半部是同步的，因为内核决定了它什么时候会执行中断。
+softirq、tasklet和工作队列可以用于解析底半部的工作。
+
+softirq是一种基本底半部机制，有较强的加锁需求，仅仅在一些对性能敏感的子系统（网络层、SCSI层和内核定时器）中才会使用；
+tasklet建立在softirq之上，使用起来更简单。除非有严格的可扩展性和速度要求，都建议使用tasklet。
+softirq和tasklet的主要不同是，前者是可重用的，而后者不是。softirq的不同实例可以运行在不同的处理器上，而tasklet则不允许。
+
+中断处理函数和tasklet都不需要可重用，而且，两者都不能睡眠。另外，中断处理函数、tasklet和softirq都不能被抢占。
+工作队列在进程上下文执行，允许睡眠，因此可以使用互斥体这类可能导致睡眠的函数。
+
+执行上下文   延后的工作运行于中断上下文         延后的工作运行于中断上下文    延后的工作运行于进程上下文
+可重用       可以在不同的CPU上同时运行          不可以在不同的CPU上同时运行   可以在不同的CPU上同时运行
+睡眠         不能睡眠                            不能睡眠                      可以睡眠
+抢占         不能抢占和调度                      不能抢占和调度                可以抢占和调度
+易用性       不容易使用                          容易使用                       容易使用
+何时使用     如果延后的工作不会睡眠，而且       如果延后的工作不能睡眠         如果延后的工作可以睡眠
+             有严格的可扩展性或速度要求
+
+##################### udev #########################
+udev的工作取决于以下几项：
+内核中的sysfs支持。sysfs是Linux设备模型的一个重要组成部分，位于内存中，在启动时被挂载在了/sys
+一套用户空间守护程序和实用工具 udevd和udevinfo
+用户自定的规则，位于/etc/udev/rules.d目录中，可以根据对应设备的特点设置规则。
+udevinfo -a -p /sys/block/sr0
+udevinfo -a -p /sys/block/sr1
+udevadm info --query=all --path=/sys/block/dm-0
+
+procfs是查看内核内部的一个通用视窗；sysfs则特定地对应于设备模型
+
+
+kref对象：用于引用计数管理，kref_init接口用于初始化kref接口，kref_get用于增加kref相关的引用计数，而kref_put则用于减少引用计数，当没有剩下的引用后，对象会被释放。
+kset的指针，表征kobject归属的对象集object set
+kobj_type 用于描述kobject对象类型。
+kobject与sysfs紧密关联。内核中的每个对象实例都是一个sysfs的代表。
+/sys/class/misc/rtc/dev包含了分配给该设备的主次设备号；
+/sys/class/misc/rtc/uevent用于冷插拔
+/dev/rtc是应用程序访问RTC驱动的入口。
+
+
+modprobe rtc -> rtc_init() -> misc_register(&rtc_dev) -> class_device_register ->
+    \|/                                                      |                            \|/
+kobject_add()                     \|/                        |                      kobject_uevent
+    \|/                   class_device_create_file          \|/                            |
+sysfs_create_dir()                \|/               class_device_add_attrs                \|/
+    \|/                   sysfs_create_file()               \|/                       kobject_uevent_env()
+/sys/class/misc/rtc/             \|/                class_device_create_file              \|/
+                         /sys/class/misc/rtc/uevent         \|/                    udevd通过netlink套接字接收uevent，
+                                                   sysfs_create_file               并在咨询过规则数据后创建/dev/节点
+                                                            \|/                           \|/
+                                                    /sys/class/misc/rtc/dev            /dev/rtc
+                                                    
+                                                    
+一些设备在开始运行前，必须下载微码（fireware）微码会在片上的微控制器中执行，过去，设备驱动程序通常将微码存放在头文件的静态数组中。但是，这种途径并不
+安全，因为微码同时设备制造商的具有产权的镜像文件，它们不适宜进入GPL的内核。内核和固件发布的时间线不同.
+1)初始化过程中,驱动程序调用如下语句:
+request_fireware(.. "ipw2001-1.3fw",..);
+2)步骤1将向用户空间分发一个热插拔uevent，并提供所请求为嘛镜像的标识信息；
+3）udevd接收该uevent，并调用/sbin/fireware_helper进行相应。为此，它使用了/etc/udev/rules.d目录下某一规则文件中与规则类似的规则进行处理
+ACTION=="add", SUBSYSTEM=="fireware", RUN="/sbin/fireware_helper"                                                    
+4)/sbin/fireware_helper在/lib/fireware目录中找到对应的微码镜像ipw2100-1.3.fw并将该镜像转存到/sys/class/0000:02:02.0/data
+5)驱动程序接收微码，并将其下载到设备中，下载完成后，他调用release_fireware()释放相应的数据结构
+6）驱动程序完成剩余的初始化工作，无线网卡进入工作状态。
+
+##################### 内存屏障 #########################
+wmb():可以阻止写操作的移动
+rmb():则禁止读操作的移动
+mb():会设置读写的屏障
+
+
+tasklet_struct   include/linux/interrupt.h      管理tasklet
+kobject          include/linux/kobject.h        封装一个内核对象的公共属性
+kset             include/linux/kobject.h        kobject所属的对象集
+kobj_type        include/linux/kobject.h        描述一个kobject所属的对象集
+class            include/linux/kobject.h        对驱动程序输入某泛类的里面的抽象
+bus              include/linux/device.h         
+device           include/linux/device.h         构建Linux设备模型支柱的结构体
+device_driver    include/linux/device.h         
+
+
+request_irq                   kernel/irq/manage.c   请求IRQ，并为其分配一个中断处理函数
+free_irq                      kernel/irq/manage.c   释放IRQ
+disable_irq                   kernel/irq/manage.c   禁止与某IRQ关联的中断
+disable_irq_nosync            kernel/irq/manage.c   禁止与某IRQ关联的中断,并且不等待目前的中断处理实例返回
+enable_irq                    kernel/irq/manage.c   重新使能已经被disable_irq或disable_irq_nosync禁止的中断
+                                                    
+open_softirq                  kernel/softirq.c      打开软中断
+raise_softirq                 kernel/softirq.c      标识软中断需要被执行
+tasklet_init                  kernel/softirq.c      动态创建tasklet
+tasklet_schedule              include/linux/interrupt.h[kernel/softirq.c] 标识tasklet需要被执行
+tasklet_enable                include/linux/interrupt.h 使能tasklet
+tasklet_disable               include/linux/interrupt.h 禁用tasklet
+tasklet_disable_nosync        include/linux/interrupt.h 禁用tasklet，并且不等待目前的中断处理实例返回
+class_device_register         drivers/base/class.c       Linux设备模型中的一系列函数：创建破坏类、设备类以及关联的kobject和sysfs文件
+kobject_add                   lib/kobject.c
+sysfs_create_sysfs            lib/kobject_uevent.c
+class_device_create           fs/sysfs/dir.c
+class_device_destory          fs/sysfs/file.c
+class_create                  
+class_destory                 
+class_device_create_file      
+sysfs_create_file             
+class_device_add_attrs        
+kobject_uevent                
+
+
+ksoftirqd pdflush khubd内核线程分别位于/kernel/softirq.c mm/pdflush.c dirvers/usb/core/hub.c文件中
+
+在kernel/exit.c文件中可以找到daemonize(),以用于模式助手实现的代码见kernel/kmod.c文件
+
+内核工作队列的实现代码见kernel/workqueue.c文件，为了更好理解工作队列的用法，可以查看dirvers/net/wireless/ipw2200.c中的
+PRO/Wireless 2200 网络驱动程序
+
+内核通知链的实现代码见kernel/sys.c 和 include/linux/notifier.h文件。
+查看kernel/sched.c和include/linux/completion.h文件可以挖掘完成接口的实现机理
+kernel/kthread.c文件中kthread辅助接口的源代码
+include/linux/err.h文件中有错处理接口的定义。
+
+核心的中断处理代码是通用的，位于kernel/irq/目录，而体系架构相关的部分位于arch/your-arch/kernel/irq.c。该文件中定义的do_IRQ
+函数是开始分析内核中断处理机制的一个不错起点。
+
+内核软中断和tasklet的实现代码见kernel/softirq.c,该文件也包含了提供更细粒度对软中断和tasklet进行控制的函数。查看
+include/linux/interrupt.h可以获得软中断向量的枚举以及实现自己的中断处理函数的原型。
+
+drivers/net/lib8390.c可以作为编写中断处理函数和底半部的实例，
+
+kobject的实例和相关代码位于lib/kobject.c和include/linux/kobject.h文件中。
+drivers/base/sys.c包含了sysfs的实现。
+drivers/base/class.c包含了设备类API。
+lib/kobject_uevent.c文件提供了通过netlink套接字子分发热插拔uevent的代码，
+
+

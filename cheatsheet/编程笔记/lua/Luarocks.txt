@@ -1,0 +1,144 @@
+什么是 Luarocks
+  Luarocks 是一个 Lua 包管理器，基于 Lua 语言开发，提供一个命令行的方式来管理 Lua 包依赖、
+  安装第三方 Lua 包等，社区比较流行的包管理器之一，另还有一个 LuaDist，Luarocks 的包数量
+  比 LuaDist 多，更细节的两者对比可参阅 这里。
+  
+源码安装部署 Luarocks
+  wget http://luarocks.org/releases/luarocks-2.2.2.tar.gz 
+  tar zxvf luarocks-2.2.2.tar.gz 
+  cd luarocks-2.2.2 
+  ./configure --help
+    configure help 查看所支持的安装配置，这里我们主要关注以下两个
+      --prefix=DIR       Prefix where LuaRocks should be installed. Default is /usr/local
+      --with-lua=PREFIX  Use Lua from given prefix. Default is auto-detected (the parent directory of $LUA_BINDIR)
+  
+  为何强调设置 --prefix
+    设置 prefix 会自动将 Luarocks 以及往后使用 Luarocks 安装的 Lua 包，LuaC 包都安装到 
+    Luarocks 安装路径下的相应位置，否则相关的包文件散落在文件系统中，显得杂乱不便于管理，
+    如果所安装的 Lua 模板包含 bin 文件，则会自动安装到此目录下的 bin 路径，与 Luarocks 
+    可执行文件同一路径，更便于管理、使用。
+    
+    ./configure --prefix=/usr/local/luarocks-2.2.2 --with-lua=/usr/local/lua-5.1.5 
+    make build 
+    make install
+    
+    安装完成后，直接运行 luarocks 即可使用。
+    luarocks
+    
+注册 Luarocks 为 Lua 社区贡献自己的代码
+  到 官网 注册一个 luarocks 账号  # https://luarocks.org/
+
+Luarocks 使用初探
+  命令行运行luarocks，或者luarocks help能看到相关luarocks的详细信息，大致分为以下6个段。
+    1. NAME/名称 显示 Luarocks 说明信息 - LuaRocks main command-line interface
+    2. SYNOPSIS/概要 显示luarocks命令参数使用格式：
+    luarocks [--from=<server> | --only-from=<server>] [--to=<tree>] [VAR=VALUE]... <command> [<argument>]
+    3. GENERAL OPTIONS/通用选项 被所有命令所支持的选项，包含指定搜索 rocks/rockspecs 的 server，默认的 server 搜寻顺序为：
+    https://luarocks.org
+    https://raw.githubusercontent.com/rocks-moonscript-org/moonrocks-mirror/master/
+    http://luafr.org/moonrocks/
+    http://luarocks.logiceditor.com/rocks
+    另外选项还设置是否仅仅下载源码、是否显示安装过程、指定超时时间等。
+    4. VARIABLES/变量 Variables from the "variables" table of the configuration file can be overriden with VAR=VALUE assignments.
+    5. COMMANDS/命令列表 luarocks 的常规操作命令 install、search、list 等
+    6. CONFIGURATION/相关配置信息 Lua 版本，rocks trees 等安装 luarocks 时的配置
+    luarocks search vanilla  
+    luarocks search vanilla --verbose
+    可以使用 luarocks <command> help 查看 command 更细节的帮助文档，这也非常有用。
+    
+几个常用的 luarocks 命令详解
+  download、help、install、list、new_version、remove、upload
+  
+  project: 
+  tree ./t-luarocks
+  ./t-luarocks
+  ├── test
+  │   ├── spec
+  │   │   └── init.lua
+  │   ├── sys
+  │   │   ├── config.lua
+  │   │   └── vanilla.lua
+  │   └── v
+  │       ├── application.lua
+  │       ├── bootstrap.lua
+  │       ├── controller.lua
+  │       └── dispatcher.lua
+  └── test-0.0.rc1-1.rockspec
+
+  luarocks help build
+  build 命令用来基于 rock 二进制文件安装 Lua 包，前提 rock 文件基于规范的 rockspec
+  文件打包，且 rockspec 包含正确的 build 段描述。
+
+  luarocks help doc
+  doc 命令用来显示本地已经安装的 Lua 包根目录下所有的 Markdown 文档列表，并默认
+  自动打开 README.md 文件，如果相应的 Lua 包本地并没有安装，则会到服务器(#server)上搜寻。
+  
+  luarocks help lint
+  lint 命令用来检查当前目录 rockspec 文件（rockspec 文件为 Luarocks 包管理的描述文件，
+  细节写法会另起文档描述）的格式，如果格式没问题则不会有任何显示，否则则暴露细节错误，指导修改。
+  
+  luarocks help make
+  make 命令基于一个 rockspec 文件安装 Lua 包，这个文件必须是本地的一个文件，而不像 install 
+  那样可以是一个网络文件。这个命令还可以通过追加参数 --pack-binary-rock 而仅仅编译生成 rock 
+  文件，make 命令与 install 命令的区别在于 install 基于 rock文件，而 make 必须基于 rockspec 文件。
+  
+  luarocks help pack
+  pack 命令根据本地 rockspec 文件将 Lua 源码包打包成二进制的 rock 文件（install 命令基于 rock 文件进行安装）。
+  
+  luarocks help path
+  path 命令显示当前 Luarocks 所配置的 LUA_PATH 和 LUA_CPATH 值。
+  
+  luarocks help purge
+  purge 命令必须传入一个 --tree 参数，这里的 tree 其实是一个路径，luarocks 安装 Lua 包所在路径，
+  purge 命令将这个路径下面所有的包都 remove。这个命令完全挽救了没有指定 --prefix 而安装 luarocks 
+  的同学，在没有指定 --prefix 的时候 luarocks 将默认的安装到 /usr/local 路径下，基于此安装的包也
+  将散落在整个 /usr/local 目录，真是太乱。这时候在命令行执行 luarocks purge --tree=/usr/local 
+  整个世界都干净了。
+  
+  luarocks help show
+  show 命令可用来显示包信息，这些信息来自于当前 Lua 包的 rockspec 文件中。
+  
+  luarocks help unpack
+  unpack 命令将 pack 命令打包的 rock 解开。
+  
+  luarocks help upload
+  upload 命令会根据 rockspec 文件将当前 Lua 包打包成 rock 文件然后上传至 luarocks.org，
+  上传需要添加一个在官网配置(#api-key) 过的 api-key 参数进行验证。
+  
+  luarocks help write_rockspec
+  write_rockspec 命令在当前目录自动生成一个 rockspec 文件骨架，一个 template，
+  注意仅仅是一个骨架，有些参数必须落实，否则无法正常使用，比如 source、description 段的配置。
+  
+  
+rockspec
+  package ="vanilla"
+version ="0.1.0-1"
+
+source ={
+    url ="git://github.com/idevz/vanilla.git" #必须为可访问的在线库地址
+}
+
+description ={
+    summary       ="A Lightweight Openresty Web Framework",
+    homepage      ="http://idevz.github.io/vanilla",
+    maintainer    ="zhoujing<zhoujing00k@gmail.com>",
+    license       ="MIT"                    #必须指明所基于的开源协议
+}
+
+dependencies ={
+    "lua=5.1",
+    ... ...
+    "lua-resty-http=0.06-0"
+}
+
+build ={
+    type ="builtin",
+    modules ={
+        ["vanilla.v.view"]                      ="vanilla/v/view.lua",
+        ... ...
+        ["vanilla.v.views.rtpl"]                ="vanilla/v/views/rtpl.lua",
+    },
+    install ={
+        bin ={ "bin/vanilla" }
+    },
+}

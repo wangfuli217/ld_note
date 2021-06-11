@@ -1,0 +1,1 @@
+cmd_/home/jedi/.src/lddd/06/globalmem驱动/globalmem.ko := ld -r -m elf_i386 -T /usr/src/kernels/2.6.32.11-99.fc12.i686.PAE/scripts/module-common.lds --build-id -o /home/jedi/.src/lddd/06/globalmem驱动/globalmem.ko /home/jedi/.src/lddd/06/globalmem驱动/globalmem.o /home/jedi/.src/lddd/06/globalmem驱动/globalmem.mod.o

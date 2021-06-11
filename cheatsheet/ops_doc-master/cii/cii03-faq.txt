@@ -1,0 +1,26 @@
+3.5 Atom_new 会比较 struct atom 实例的 len 字段与输入字节序列的长度，以避免比较长度不同的序列。
+如果每个原子的哈希码（而不是 buckets 的索引）也存储在 struct atom 中，还可以比较哈希码。实现并测量这种"改进"。
+这种做法值得吗？
+
+3.6 Atom_length 执行得比较慢。修改 Atom 的实现，使得 Atom_length 的运行时间与 Atom_new 大致相同。
+
+3.7 Atom 接口之所以演变到现在这种形式，是因为其中的各个函数是客户程序最常用的。还可能使用其他的函数和设计，
+这里和后续的各习题将探讨这些可能性，请实现
+extern void Atom_init(int hint);
+其中 hint 是对客户程序预期创建的原子数目的估计。在可能调用 Atom_init 时，读者会添加何种已检查的运行时错误
+以约束其行为？
+
+3.8 在对 Atom 接口扩展中，可能提供几种函数来释放原子。例如下述函数：
+extern void Atom_free(const char *str);
+extern void Atom_reset(void);
+可以分别释放 str 指定的原子及所有原子。请实现这些函数。不要忘记指定并实现适当的已检查的运行时错误。
+
+3.9 一些客户程序开始执行时，会将大量字符串设置为原子，供后续使用。请实现
+extern void Atom_vload(const char *str, ...);
+extern void Atom_aload(const char *strs[]);
+Atom_vload 会将可变长参数列表中的字符串创建为原子，直至遇到 NULL 指针为止，而 Atom_aload 对一个指针数组
+做同样的操作（即各数组项为指向字符串的指针，遇到 NULL 指针表示数组结束）。
+
+3.10 如果客户程序承诺不释放字符串，那么可以避免复制字符串，对于字符串常数来说这是一个简单的事实，请实现
+extern const char *Atom_add(const char *str, int len);
+其工作方式如同 Atom_new，但并不复制字节序列。如果读者提供 Atom_add 和 Atom_free（以及习题 3.8 中的 Atom_reset），必须指定并实现何种已检查的运行时错误？

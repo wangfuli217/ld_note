@@ -1,0 +1,132 @@
+setjmp.h
+  这个头文件提供非局部跳转功能(局部跳转是指通过goto语句局限在函数内部的跳转)。
+它通过保存调用环境信息进行跳转，允许程序员绕过正常的函数调用和返回机制。
+
+应特殊注意的几点：
+  调用setjmp的函数中的局部变量如果在setjmp到longjmp的执行路径上被修改了，应声明为volatile；
+  调用longjmp的函数必须与调用setjmp的函数相同，或这个函数调用的函数调用了longjmp；
+  longjmp永远不会返回，调用它的函数或函数的函数都不会返回，局部变量可能没有机会运行到作用域结束，在作用域结束才调用的代码都不会执行，例如VLA的释放以及C++对象析构函数的调用；
+  setjmp的调用表达式必须是独立唯一的表达式，否则可能会导致无定义行为；
+  setjmp和longjmp调用对，必须在同一个线程中；
+  
+jmp_buf
+jmp_buf
+
+// Defined in MS compiler for x86
+typedef struct __JUMP_BUFFER {
+  unsigned long Ebp;
+  unsigned long Ebx;
+  unsigned long Edi;
+  unsigned long Esi;
+  unsigned long Esp;
+  unsigned long Eip;
+  unsigned long Registration;
+  unsigned long TryLevel;
+  unsigned long Cookie;
+  unsigned long UnwindFunc;
+  unsigned long UnwindData[6];
+} _JUMP_BUFFER;
+typedef int jmp_buf[16];
+
+// For ARM
+typedef struct _JUMP_BUFFER {
+    unsigned long Frame;
+    unsigned long R4;
+    unsigned long R5;
+    unsigned long R6;
+    unsigned long R7;
+    unsigned long R8;
+    unsigned long R9;
+    unsigned long R10;
+    unsigned long R11;
+    unsigned long Sp;
+    unsigned long Pc;
+    unsigned long Fpscr;
+    unsigned long long D[8]; // D8-D15 VFP/NEON regs
+} _JUMP_BUFFER;
+typedef int jmp_buf[28];
+
+// For x64
+typedef struct _JUMP_BUFFER {
+    unsigned __int64 Frame;
+    unsigned __int64 Rbx;
+    unsigned __int64 Rsp;
+    unsigned __int64 Rbp;
+    unsigned __int64 Rsi;
+    unsigned __int64 Rdi;
+    unsigned __int64 R12;
+    unsigned __int64 R13;
+    unsigned __int64 R14;
+    unsigned __int64 R15;
+    unsigned __int64 Rip;
+    unsigned long MxCsr;
+    unsigned short FpCsr;
+    unsigned short Spare;
+    SETJMP_FLOAT128 Xmm6;
+    SETJMP_FLOAT128 Xmm7;
+    SETJMP_FLOAT128 Xmm8;
+    SETJMP_FLOAT128 Xmm9;
+    SETJMP_FLOAT128 Xmm10;
+    SETJMP_FLOAT128 Xmm11;
+    SETJMP_FLOAT128 Xmm12;
+    SETJMP_FLOAT128 Xmm13;
+    SETJMP_FLOAT128 Xmm14;
+    SETJMP_FLOAT128 Xmm15;
+} _JUMP_BUFFER;
+typedef struct _CRT_ALIGN(16) _SETJMP_FLOAT128 {
+    unsigned __int64 Part[2];
+} SETJMP_FLOAT128;
+typedef SETJMP_FLOAT128 jmp_buf[16];
+类型jmp_buf是一个用于存储当前调用环境信息以便以后恢复的数组。 通过使用宏setjmp存储环境信息，通过调用longjmp恢复环境。
+
+
+
+int setjmp(jmp_buf env);
+  宏函数setjmp用于将当前代码执行点的调用环境信息保存到变量env中，后面调用longjmp可以恢复这个环境。
+  用env保存的信息调用longjmp，环境会恢复到与之相同的状态并跳转到对应的执行点(即调用setjmp的地方)
+  (恢复到setjmp内部后，setjmp)会返回一个非零值。
+  
+  如果从setjmp到longjmp的执行路径上，调用setjmp的函数的局部变量有被修改， 这些局部变量要声明为volatile，否则会导致无定义行为。
+  volatile声明的变量在使用时，每次访问都必须从内存中取值，防止编译器优化将其缓存到寄存器中。 
+  必须声明为volatile的原因是，当环境恢复后寄存器中的值会恢复到原来的值，如果这个变量被修改了， 再从寄存器中取值就会发生错误，这种情况下必须访问内存中变量的实际值。
+  
+  对setjmp的调用，只能作为自身表达式的语句， 或作为唯一的控制表达式(可以取逻辑非或与整数常量表达式进行比较)
+  用在选择或迭代语句(if, switch, for, while)中， 否则会导致无定义行为。
+    // the entire expression of an expression statement
+    setjmp(env);
+    
+    // the entire controlling expression
+    switch (setjmp(env)) { ... }
+    
+    // with the nagative operator and as the entire controlling expression
+    while (!setjmp(env)) { ... }
+    
+    // with compare to a integer constant expression and as the entire controlling expression
+    if (setjmp(env) > 10) { ... }
+  这个宏会返回多次：第一次是对它的直接调用，这时会返回0； 其他情况是从longjmp恢复过来，它会再次返回，
+  这时会返回longjmp第2个参数的值，除非这个值是0(是0则返回1)。
+
+void longjmp(jmp_buf env, int val);
+  函数longjmp用于将环境恢复到前一次setjmp保存的env状态。 这个函数永远不会返回，相反会将控制权转移到对应的setjmp调用点，
+  然后setjmp返回longjmp的参数val(除非这个值是0，则会返回1)。
+   
+  如果没有调用setjmp将恢复点的环境保存在env， 或调用setjmp的函数已经执行完了(不管是返回还是另外的longjmp)
+  都会导致无定义行为。 也即，当函数longjmp被调用时，env必须通过调用setjmp保存好了恢复环境，
+  另外调用setjmp的函数当前必须还在调用栈中。 因此调用longjmp的函数必须与调用setjmp的函数相同，或这个函数调用的函数调用了longjmp。
+  
+  因为longjmp不会返回，调用它的函数或函数的函数都不会返回， 这些函数中定义的变长数组都没有机会运行到其作用域结束，
+  因此longjmp恢复调用环境时，这些变长数组都不会释放，可能引起内存泄漏
+   
+  在C++中使用longjmp的情况也一样，如果调用longjmp的函数中定义的对象有实际意义的析构函数， 栈展开时(栈回到环境恢复点的状态)
+  对应的析构函数都不会被调用(因为对象都没有运行到作用域结束)，导致无定义行为。
+    void g(int n){
+        int a[n]; // a may remain allocated
+        h(n); // does not return
+    }
+    void h(int n){
+        int b[n]; // b may remain allocated
+        longjmp(buf, 2); // might cause a memory leak for h's b and g's a
+    }
+  数据竞争：setjmp和longjmp调用对仅限于在当前线程中使用。
+  longjmp主要用来处理不预期错误条件，该情况下函数不能进行有意义的返回，与其他语言中的异常处理类似。
+    

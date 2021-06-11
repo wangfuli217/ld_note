@@ -1,0 +1,209 @@
+R(红)  	G(绿)	B(蓝)	不同比例混合表示各种色彩,R,G,B范围为0-255
+Y(亮度)	色度(U,V)		由RGB转換而来,Y=0.299R+0.587G+0.114B,U=-0.147R-0.289G+0.436B,V=0.615R-0.515G-0.100B
+R=Y+1.14V  G=Y-0.39U-0.58V	B=Y+2.03U
+
+ES流(Elementary Stream): 也叫基本码流,包含视频、音频或数据的连续码流.
+PES流(Packet Elementary Stream): 也叫打包的基本码流, 是将基本的码流ES流根据需要分成长度不等的数据包, 并加上包头就形成了打包的基本码流PES流.
+TS流(Transport Stream): 也叫传输流, 是由固定长度为188字节的包组成, 含有独立时基的一个或多个program, 一个program又可以包含多个视频、音频、和文字信息的ES流; 每个ES流会有不同的PID标示. 而又为了可以分析这些ES流, TS有一些固定的PID用来间隔发送program和ES流信息的表格: PAT和PMT表.
+(在MPEG-2系统中,由视频, 音频的ES流和辅助数据复接生成的用于实际传输的标准信息流称为MPEG-2传送流)
+
+/home/ssd/log/NodeCMS 					计算节点日志
+/home/ssd/log/computeNode...			云分析计算节点日志
+/home/ssd/log/NodeCMS/default			高密日志
+/home/ssd/log/msghan...					发送日志
+/home/ssd/log/task...					任务日志
+/home/ssd/share 						TX1日志
+TASKMANAGER.log 						查看任务状态
+ivmslog.log								最新日志
+
+t1										命令,查看tx1情况,最后2条是网关信息,红色的表示异常
+
+IPS			监所
+IED			周界
+
+/home/soft/BigData/ComputingNodeCMS 计算节点安装目录
+/home/soft/SmartNode/arm 底层库，HMS，取流库。
+submint node编号送去140即tx1编号
+
+cat TASKMANAGER.log | grep temp_732ea1babe9b40b9b0a3911b1f109639_00000000_00000001_0
+cat VcaEngine.log | grep AddTask | grep -w "id 26"     就能找到tx1编号,再进入/home/ssd/share/tx1编号目录  查看日志
+
+HPC										高性能计算(High performance computing)
+HQ										高质量(High Quality)
+
+AllDecode								解码,进行隔帧处理后,每8帧拼成一个包塞入FRCNN,硬解
+FRCNN									目标检测算法库
+HMS										目标轨迹提取
+IMGEncode								图片压缩模块,格式为jpeg
+PPY										对每个目标进行PPY建模和高级属性提取
+Export									将PPY的模型数据和属性特征塞入Export模块,回调函数将每个PPY结果回调至上层引擎
+
+HMS主要任务 							以图搜图和HMS视频分析
+HMSPicIRTaskInterface					以图搜图,主要实现图片任务的检测功能和分析功能,主要包括解码,目标检测,目标轨迹分析,目标建模及高级属性分析提取模块
+HMSTaskInterface						实现视频的结构化分析任务，主要实现视频的行人分析、车辆分析和混合目标分析的功能。主要包括解码模块、目标检测模块、目标轨迹分析模块、图片编码模块和目标建模及高级属性提取模块
+TargetDetector							目标检测模块
+
+一般Demo下跑高质量图片,SmartNvrTest下跑高质量视频,SmartNvrTest下面也有高性能
+
+x86VcaEnginely2.1.2
+VcaEngineHP
+
+猎鹰流程
+
+高质量视频流程,这种是c流程
+HPC_EncryptGetKey						获取加密密钥,放入HPC_ECPT_HEAD.byData前32位中
+手动填写后面32位明文     				放入明文到HPC_ECPT_HEAD后32位中
+填写HPC_ECPT_HEAD结构的一些信息			nSize填htonl(sizeof(HPC_EncryptGetKey)),nSegLen填htonl(32),byDept 1,ncmd htonl(0x10000001),byStart[0,1,2,3]不确定是否每次填0x48,0x56,0x43,0x41
+OSCreateSocket							创建连接,包含创建socket,准备通信地址,建立连接
+OSSend									发送数据,发送的数据是HPC_ECPT_HEAD
+OSRecv									接受数据,接收到HPC_ECPT_RET_HEAD后要与HPC_ECPT_HEAD里的byStart数组进行校验对比,若不一样,显示start code error
+HPC_EncryptSetKey						加密授权
+HPC_Init								初始化任务,初始化HMS task
+HPC_CreateHandle						创建任务句柄
+HPC_SetCallBack							设置数据回调函数
+InitParam,HPC_SetConfig					设置配置参数
+输入数据								fopen打开文件,读取海康头40个字节,设置头数据HPC_STREAM_PACKET,HPC_InputData
+循环输入数据							buffer_size一般为512*1024,若读到结尾,则设置HPC_STREAM_PACKET类型为尾数据,size=0...,若没有读到结尾,则设置HPC_STREAM_PACKET为正常数据类型,并设置其中的一些参数
+HPC_DestroyHandle						销毁任务
+HPC_Fini								反初始化
+
+高性能视频流程,这种是cpp流程
+ComponentAdapter::IAnalyzer *pAnalyzer = ComponentAdapter::CreateAnalyzerComponent();		创建分析组件
+pAnalyzer->Authorize																		获取授权
+pAnalyzer->Initialize																		初始化任务
+pAnalyzer->SetConfig																		设置参数
+输入数据																					fopen打开文件,读取海康头40个字节,设置头数据HPC_STREAM_PACKET,pAnalyzer->Process
+循环输入数据							buffer_size一般为512*1024,若读到结尾,则设置HPC_STREAM_PACKET类型为尾数据,size=0...,若没有读到结尾,则设置HPC_STREAM_PACKET为正常数据类型,并设置其中的一些参数
+ComponentAdapter::DestroyAnalyzerComponent(pAnalyzer);										销毁任务
+
+demo视频流程
+HPC_EncryptGetKey						获取加密密钥,放入HPC_ECPT_HEAD.byData前32位中
+手动填写后面32位明文     				放入明文到HPC_ECPT_HEAD后32位中
+填写HPC_ECPT_HEAD结构的一些信息			nSize填htonl(sizeof(HPC_EncryptGetKey)),nSegLen填htonl(32),byDept 1,ncmd htonl(0x10000001),byStart[0,1,2,3]不确定是否每次填0x48,0x56,0x43,0x41
+OSCreateSocket							创建连接,包含创建socket,准备通信地址,建立连接
+OSSend									发送数据,发送的数据是HPC_ECPT_HEAD
+OSRecv									接受数据,接收到HPC_ECPT_RET_HEAD后要与HPC_ECPT_HEAD里的byStart数组进行校验对比,若不一样,显示start code error
+HPC_EncryptSetKey						加密授权
+HMSTask_Init							初始化任务
+HMSTask_Create							创建任务
+HMSTask_SetCallBack						设置数据回调函数
+HMSTask_SetCallBack						设置消息回调函数
+HMSTask_SetConfig						设置配置参数
+HMSTask_Destroy							销毁任务
+HMSTask_Fini							反初始化
+
+解码失败原因
+1. 未设置硬解
+2. 未初始化解码，例如媒体头没打编码或打错，或没有input就get等
+3. 未设置表面模式，例如在帧模式下调getsurface
+
+刀锋:
+ip:8443			视频云结构服务器界面
+ip:18013		调度界面
+ip:19013		云分析的控制台
+调度日志：      /home/ssd/log/Scheduler
+					ivms_analyzedFailedImages.log
+					ivms-ws.log
+					ivms-sdk.log
+
+集群助手日志：  /home/ssd/log/Asst	
+					multicastLog.log 调度下派给计算节点的IP、自学习端口等信息
+					
+计算节点日志：  /home/ssd/log/NodeCMS
+					ComputeNode_Error.log   	  节点日志        
+					MsgHandler_Error.log          数据发送日志
+					Task_Info.log                 任务日志
+					Task_Error.log                任务日志
+					default						  高密度日志
+
+计算单元日志：  /home/ssd/share
+					*.log.0						  计算单元日志,*表示tx1编号(1-16)
+					
+分析出错过程,拿任务id去default高密度日志中查询,submi node编号减去140即tx1编号
+
+命令:
+	jps						当18013调度界面无法打开时,使用此命令检查SchedulerServer 和 IvmsSchedulerDog进程是否在
+	ps -ef|grep NodeCMS		计算节点不在线时,检查NodeCMS进程是否还在,还可以观察ComputeNode_Error.log是否不停写日志,还可检查19013界面分组是否正确
+	resetNode				重启所有tx1
+	
+root默认密码				hikc45b6
+tx1默认用户名和密码			root/123456
+
+10.16.136.222	port:17192
+
+decode				解码
+frcnn				目标检测
+targetproc			扣图
+vfb					正背向
+lpr					车牌
+kvd					关键点检测
+attr				分析品牌,颜色,建模,其它等属性
+pdvs				车牌结果检测,天窗站人检测,车窗检测等
+
+multi_vehicle		//这个字段决定大数据发给云分析 targetNum 是0 还是1,1是多车  0是一车（默认没配为0）,
+
+ 为什么会积压来不及分析？分析原因有四：
+1、 之前云分析确实卡死过，会导致无法分析建模，这些数据就会积压下来；
+2、 现场刀锋是4颗芯片，最弱性能的型号，一天分析量不大，如果过车数据大于分析性能就会积压；
+3、 现场过车量不均匀，凌晨没什么过车数据，刀锋可能就空闲着。上下班高峰期过车量大，刀锋分析不过来，也会积压。
+4、 现场这种应用模式，卡警下发二次分析和以图搜图任务是两个单独的线程。二次分析任务刀锋下载了一次图片，分析并且建模一次；以图搜图任务又下载了一次图片，建模了一次，相当于有重复工作了两遍，性能不能按照理论值来算，基本上是要在理论值上减半的。
+
+WAIT                      = 1,              // 等待
+RUNNING                   = 2,              // 正在执行
+ERROR                     = 3,              // 错误
+COMPLETED                 = 4,              // 已完成
+STOPING                   = 5,              // 正在停止
+STOPED                    = 6,              // 已停止
+
+由于刀锋是用在TX1上的 TX1这种ARM+GPU的平台 按最新的规范 主版本定义为7  所以后续lpr库TX1版本号都是 7.x.xx 中间的x代表系统 0 win32 1 win64 2 L32 3 L64
+
+图片路径 目标个数 0 frcnn左上角x坐标 frcnn左上角y坐标 frcnn右下角x坐标 frcnn右下角y坐标 车牌\品牌\子品牌 正背向 havePlate/noPlate 车辆类型 车辆颜色 主驾驶遮阳板检测结果 副驾驶遮阳板检测结果 主驾驶的安全带检测结果 副驾驶的安全带检测结果 打电话检测结果 挂件检测结果 危险品标志检测结果 temunknow 黄标车检测结果 车辆天窗站人检测状态 临牌状态..(若有多个目标,则接下去输出 0 frcnn左上角x坐标...) 
+
+图片名称 车辆数量 0 车辆位置坐标 "车牌\主品牌\子品牌" 正背向 有无车牌 车辆类型 车辆颜色 正遮阳板 副遮阳板 正安全带 副安全带 打电话 挂件 危险品标志 temunknow 黄标车检测 天窗站人 临牌检测  摆件检测 纸巾盒检测 副驾驶怀抱婴儿检测 贴标状态 贴标数量  出入证状态 出入证数量  渣土车 行李架 车身喷字 备胎 天窗 副驾驶有人 三轮车类别
+
+图片默认下载3次,1.2s,1.2s,stream_save.xml里配置的秒数
+
+CUDA_VISIBLE_DEVICES='0' sudo ./Demo	指定哪块p4
+
+hlog不截断日志,log4c会截断日志
+
+2050406错误,是超时错误
+
+0,2,4,6关键点是车窗位置
+
+dmidecode会访问/dev/mem,导致无法容器化
+
+监听线程会接收2个命令类型,登入和创建命令处理长连接
+	CMD_LOGIN           = 1,    ///< 登入命令
+    CMD_CREATESOCKET    = 2,    ///< 创建连接
+    CMD_HEARTBEAT       = 3,    ///< 心跳
+    CMD_MSGCALLBK       = 4,    ///< 消息回调
+    CMD_RETCALLBK       = 5,    ///< 结果回调
+    CMD_ADDTASK         = 6,    ///< 创建任务
+    CMD_DELTASK         = 7,    ///< 删除任务
+    CMD_SETNODEINFO     = 8,    ///< 设置节点信
+    CMD_GETABILITY      = 9,    ///< 获取节点能力
+    CMD_SETCONFIG       = 10,   ///< 设置任务参数
+    CMD_GETCONFIG       = 11,   ///< 获取任务参数
+    CMD_GETTASKINFO     = 12,   ///< 获取任务信息
+    CMD_SETBLACKLIST    = 13,   ///< 设置黑名单库
+    CMD_GETNODEINFO     = 14,   ///< 获取节点信息
+    CMD_DELTASKTASK     = 15    ///< 删除所有任务
+登入连接的socket用来做心跳
+
+Hik_meeting密码:	HIKhik1234567
+
+soapui地址:http://10.7.52.85:18010/?wsdl
+
+/usr/local/tomcat7/webapps/ROOT 
+
+抓包到的url与填写到soapui的url的区别
+http://10.7.36.222:8080/kms/services/rest/dataInfoService/downloadFile?id=00000001/temp001/001_597461_171675&token=7a57a5a7ffffffffc1a0316369671314
+http://10.7.36.222:8080/kms/services/rest/dataInfoService/downloadFile?id=00000001/temp001/001_597461_171675&amp;token=7a57a5a7ffffffffc1a0316369671314
+
+psql -U postgres  然后\c ivms_scheduler  进入调度数据库
+\d 	查看有哪些表
+select * from temp_job_info where jobid='temp_ad50b4027f9348ec9c3ddefa77dc0328';	查看一个任务粗略信息
+select * from job_data where jobdataid ='temp_ad50b4027f9348ec9c3ddefa77dc0328';    查看一个任务详细信息
+
+pubyjygxn7 初始密码BpH4GA#q 请联系it热线89998555加域

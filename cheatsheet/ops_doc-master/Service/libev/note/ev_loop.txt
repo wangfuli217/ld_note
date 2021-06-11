@@ -1,0 +1,190 @@
+
+
+* 简介
+*struct ev_loop* 结构体是 libev 中的最重要的结构体。
+
+* 成员
+由于libev中使用了大量的宏定义，在结构体中也不例外，这里我们先看一下原
+始文件中的具体定义，然后再对比宏，看一下扩展后的结构体。不单可以了解
+*struct ev_loop* 结构体，同时可以了解libev中的一些宏定义，为后续代码阅
+读做准备。
+
+** 声明
+原始结构体定义ev.c文件中
+#+BEGIN_SRC C
+#if EV_MULTIPLICITY
+struct ev_loop
+{
+  ev_tstamp ev_rt_now;
+  #define ev_rt_now ((loop)->ev_rt_now)
+  #define VAR(name,decl) decl;
+   #include "ev_vars.h"
+  #undef VAR
+};
+#include "ev_wrap.h"
+
+static struct ev_loop default_loop_struct;
+struct ev_loop *ev_default_loop_ptr=0;
+
+#else
+...
+#endif
+#+END_SRC
+   
+其中，*ev_vars.h* 头文件中定义了结构体的成员变量。*ev_wrap.h* 头文件定
+义了一些列的宏定义用来简化ev_loop中成员的访问。
+
+*** ev_vars.h 中辅助宏说明
+
+这里会展开所有的宏定义，得到最后的定义变量。
+
+#+BEGIN_SRC C
+#define VARx(type,name) VAR(name, type name) 
+#+END_SRC
+*VARx* 宏用来进行第二次宏封装，用来将定义类型-变量名，转为变量名-声明
+语句。例如，VARx(int,count) -> VAR(count, int count) -> int count; 语
+义上为count具有int count的声明语句。
+
+*** ev_vars.h 中变量定义
+#+CAPTION: ev_vars.h 定义的变量
+| 原始语句                                                                   | 展开结果                                                                | 变量含义                                        |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| 公共成员变量                                                               |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(ev_tstamp, now_floor)                                                 | ev_tstamp now_floor;                                                    | 最后一次刷新rt_time的时间                       |
+| VARx(ev_tstamp, mn_now)                                                    | ev_tstamp mn_now;                                                       | monotonic表示的当前时间                         |
+| VARx(ev_tstamp, rtmn_diff)                                                 | ev_tstamp rtmn_diff;                                                    | realtime和monotonic time的差值                  |
+| VARx(W*, rfeeds)                                                           | ev_watcher **rfeeds;                                                    |                                                 |
+| VARx(int, rfeedmax)                                                        | int rfeedmax;                                                           |                                                 |
+| VARx(int, rfeedcnt)                                                        | int rfeedcnt;                                                           |                                                 |
+| VAR (pendings, ANPENDING *pendings[NUMPRI])                                | ANPENDING *pendngs[NUMPRI]                                              | 就绪的事件等待链表指针数组，按优先级组成链表    |
+| VAR (pendingmax, int pendingmax[NUMPRI])                                   | int pendingmax[NUMPRI]                                                  | 每个等待链表的等待最大长度                      |
+| VAR (pendingcnt, int pendingmax[NUNPRI])                                   | int pendingcnt[NUMPRI]                                                  | 实际的等待事件个数                              |
+| VARx(int, pendingpri)                                                      | int pendingpri;                                                         | 等待事件的最高优先级                            |
+| VARx(ev_prepare, pending_w)                                                | ev_prepare pending_w;                                                   | 默认等待监视器                                  |
+| VARx(ev_tstamp, io_blocktime)                                              | ev_tstamp io_blocktime;                                                 | IO阻塞等待时间                                  |
+| VARx(ev_tstamp, timeout_blocktime)                                         | ev_tstamp timeout_blocktime;                                            | 超时阻塞时间                                    |
+| VARx(int, backend)                                                         | int backend;                                                            | 后端位值                                        |
+| VARx(int, activecnt)                                                       | int activecnt;                                                          | 活跃时间个数 (refcount)                         |
+| VARx(EV_ATOMIC_T, loop_done)                                               | sig_atomic_t loop_done;                                                 | ev_break触发的信号                              |
+| VARx(int, backend_fd)                                                      | int backend_fd;                                                         | 后端文件描述符                                  |
+| VARx(ev_tstamp, backend_mintime)                                           | ev_tstamp backend_mintime;                                              |                                                 |
+| VAR (backend_modify, void(*backend_modify)(EV_P_ int fd,int oev, int nev)) | void (*backend_modify)(struct ev_loop *loop, int fd, int oev, int nev); | 后端modify回调函数                              |
+| VAR (backend_poll  , void(*backend_poll  )(EV_P_ ev_tstamp timeout))       | void (*backend_poll)(struct ev_loop *loop, ev_tstamp timeout);          | 后端poll回调函数                                |
+| VARx(ANFD *, anfds)                                                        | ANFD *anfds;                                                            |                                                 |
+| VARx(int, anfdmax)                                                         | int anfdmax;                                                            |                                                 |
+| VAR (evpipe, int evpipe [ 2 ])                                             | int evpipe[ 2 ];                                                        | ev进行通信的通道                                |
+| VARx(ev_io, pipe_w)                                                        | ev_io pipe_w;                                                           | evpipe监听器                                    |
+| VARx(EV_ATOMIC_T, pipe_write_wanted)                                       | sig_atomic_t pipe_write_wanted                                          | evpipe写事件数量                                |
+| VARx(EV_ATOMIC_T, pipe_write_skipped)                                      | sig_atomic_t pipe_write_skipped                                         | evpipe忽略写事件数量                            |
+| VARx(pid_t, curpid)                                                        | pid_t curpid;                                                           | 记录当前fork之前进程的PID，用来确认是否是父进程 |
+| VARx(char, postfork)                                                       | char postfork;                                                          | 是否需要fork之后重新初始化libev内核             |
+| VARx(int *, fdchanges)                                                     | int *fdchanges;                                                         |                                                 |
+| VARx(int, fdchangemax)                                                     | int fdchangemax;                                                        |                                                 |
+| VARx(int, fdchangecnt)                                                     | int fdchangecnt;                                                        |                                                 |
+| VARx(ANHE *, timers)                                                       | ANHE *timers;                                                           | HEAP元素                                        |
+| VARx(int, timermax)                                                        | int timermax;                                                           |                                                 |
+| VARx(int, timercnt)                                                        | int timercnt;                                                           |                                                 |
+| VARx(struct ev_prepare **, prepares)                                       | struct ev_prepare **prepares;                                           |                                                 |
+| VARx(int, preparemax)                                                      | int preparemax;                                                         |                                                 |
+| VARx(int, preparecnt)                                                      | int preparecnt;                                                         |                                                 |
+| VARx(struct ev_check **, checks)                                           | struct ev_check **checks;                                               |                                                 |
+| VARx(int, checkmax)                                                        | int checkmax;                                                           |                                                 |
+| VARx(int, checkcnt)                                                        | int checkcnt;                                                           |                                                 |
+| VARx(unsigned int, origflags)                                              | unsigned int origflags;                                                 |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| 定义了EV_USE_SELECT，即使用select作为后端多路复用                          |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(void *, vec_ri)                                                       | void *vec_ri;                                                           |                                                 |
+| VARx(void *, vec_ro)                                                       | void *vec_ro;                                                           |                                                 |
+| VARx(void *, vec_wi)                                                       | void *vec_wi;                                                           |                                                 |
+| VARx(void *, vec_wo)                                                       | void *vec_wo;                                                           |                                                 |
+| VARx(void *, vec_max)                                                      | void *vec_max;                                                          |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| EV_USE_POLL，使用poll作为后端                                              |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(struct pollfd *, polls)                                               | struct pollfd *polls;                                                   | poll的数据结构                                  |
+| VARx(int, pollmax)                                                         | int pollmax;                                                            |                                                 |
+| VARx(int, pollcnt)                                                         | int pollcnt;                                                            |                                                 |
+| VARx(int *, pollidxs)                                                      | int *pollidxs;                                                          |                                                 |
+| VARx(int, pollidxmax)                                                      | int pollidxmax;                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| 定义了EV_USE_EPOLL,即使用epoll作为后端                                     |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(struct epoll_event *, epoll_events)                                   | struct epoll_event *epoll_events                                        |                                                 |
+| VARx(int, epoll_eventmax)                                                  | int epoll_eventmax;                                                     |                                                 |
+| VARx(int *, epoll_eperms)                                                  | int *epoll_eperms;                                                      |                                                 |
+| VARx(int, epoll_epermcnt)                                                  | int epoll_epermcnt;                                                     |                                                 |
+| VARx(int, epoll_epermmax)                                                  | int epoll_epermmax;                                                     |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| 定义了EV_USE_KQUEUE,即使用kqueue作为后端                                   |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(pid_t, kqueue_fd_pid)                                                 | pid_t kqueue_fd_pid;                                                    |                                                 |
+| VARx(struct kevent *, kqueue_changes)                                      | struct kevent *kqueue_changes;                                          |                                                 |
+| VARx(int, kqueue_changemax)                                                | int kqueue_changemax;                                                   |                                                 |
+| VARx(int, kqueue_changecnt)                                                | int kqueue_changecnt;                                                   |                                                 |
+| VARx(struct kevent *, kqueue_events)                                       | struct kevent *kqueue_events;                                           |                                                 |
+| VARx(int, kqueue_eventmax)                                                 | int kqueue_eventmax;                                                    |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| 定义了EV_PERIODIC_ENABLE                                                   |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(ANHE *, periodics)                                                    | ANHE *periodics;                                                        |                                                 |
+| VARx(int, periodicmax)                                                     | int periodicmax;                                                        |                                                 |
+| VARx(int, periodiccnt)                                                     | int periodiccnt;                                                        |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| 定义了EV_IDLE_ENABLE                                                       |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VAR (idles, ev_idle **idles [NUMPRI])                                      | ev_idle **idles [NUMPRI];                                               |                                                 |
+| VAR (idlemx, int idlemax [NUMPRI])                                         | int idlemax [NUMPRI];                                                   |                                                 |
+| VAR (idlecnt, int idlecnt [NUMPRI])                                        | int idlecnt [NUMPRI];                                                   |                                                 |
+| VARx (int, idleall)                                                        | int idleall;                                                            |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| 定义了EV_FORK_ENTABLE                                                      |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(struct ev_fork **, forks)                                             | struct ev_fork **forks;                                                 |                                                 |
+| VARx(int, forkmax)                                                         | int forkmax;                                                            |                                                 |
+| VARx(int, forkcnt)                                                         | int forkcnt;                                                            |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| 定义了EV_CLEANUP_ENATBLE                                                   |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(struct ev_cleanup **cleanups)                                         | ev_cleanup **cleanups;                                                  |                                                 |
+| VARx(int, cleanupmax)                                                      | int cleanupmax;                                                         |                                                 |
+| VARx(int, cleanupcnt)                                                      | int cleanupcnt;                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| 定义了EV_ASYNC_ENATBLE                                                     |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(EV_ATOMIC_T, async_pending)                                           | sig_atomic_t async_pending;                                             |                                                 |
+| VARx(struct ev_async **, asyncs)                                           | struct ev_async **asyncs;                                               |                                                 |
+| VARx(int, asyncmax)                                                        | int asyncmax;                                                           |                                                 |
+| VARx(int, asynccnt)                                                        | int asynccnt;                                                           |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| EV_USE_INOTIFY                                                             |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(int, fs_fd)                                                           | int fs_fd;                                                              |                                                 |
+| VARx(ev_io, fs_w)                                                          | ev_io fs_w;                                                             |                                                 |
+| VARx(char, fs_2625)                                                        | char fs_2625;                                                           | 是否运行在linux2.6.25之后                       |
+| VAR (fs_hash, ANFS fs_hash [EV_INOTIFY_HASHSIZE])                          | ANFS fs_hash [EV_INOTIFY_HASHZIE]                                       |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| EV_USE_SIGNALFD                                                            |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(EV_ATOMIC_T, sig_pending)                                             | sig_atomic_t sig_pending;                                               |                                                 |
+| VARx(int, sigfd)                                                           | int sigfd;                                                              |                                                 |
+| VARx(ev_io, sigfd_w)                                                       | ev_io sigfd_w;                                                          |                                                 |
+| VARx(sigset_t, sigfd_set)                                                  | sigset_t sigfd_set;                                                     |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| EV_FEATURE_API                                                             |                                                                         |                                                 |
+|----------------------------------------------------------------------------+-------------------------------------------------------------------------+-------------------------------------------------|
+| VARx(unsigned int, loop_count)                                             | unsigned int loop_count;                                                | 记录轮询次数                                    |
+| VARx(unsigned int, loop_depth)                                             | unsigned int loop_depth;                                                | #ev_run enters - #en_run leavs                  |
+| VARx(void *, userdata)                                                     | void *userdata;                                                         |                                                 |
+| VAR (release_cb, void (*release_cb)(EV_P) EV_THROW)                        | void (*release_cb)(struct ev_loop *loop) throw()                        |                                                 |
+| VAR (acquire_cb, void (*acquire_cb)(EV_P) EV_THROW)                        | void (*acquire_cb)(struct ev_loop *loop) throw()                        |                                                 |
+| VAR (invoke_cb,  ev_loop_callback invoke_cb)                               | void (*invoke_cb) (struct ev_loop *loop)                                |                                                 |
+
+
+
+* 有关函数
+** ev_default_loop
+初始化函数，用来初始化一个循环内核引擎。
+#+BEGIN_SRC C
+

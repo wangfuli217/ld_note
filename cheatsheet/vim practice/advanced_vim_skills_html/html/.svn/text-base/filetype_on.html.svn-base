@@ -1,0 +1,90 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>第 10 章 开启文件类型检测</title><link rel="stylesheet" href="http://easwy.com/blog/uploads/css/style.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.73.2"><link rel="start" href="index.html" title="vim使用进阶"><link rel="up" href="index.html" title="vim使用进阶"><link rel="prev" href="use_lookupfile_plugin.html" title="第 9 章 使用lookupfile插件"><link rel="next" href="syntax_on.html" title="第 11 章 乱花渐欲迷人眼 - 语法高亮"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">第 10 章 开启文件类型检测</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="use_lookupfile_plugin.html">上一页</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="syntax_on.html">下一页</a></td></tr></table><hr></div><div class="chapter" lang="zh-CN"><div class="titlepage"><div><div><h2 class="title"><a name="filetype_on"></a>第 10 章 开启文件类型检测</h2></div></div></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p>
+    本节所用命令的帮助入口：
+  </p><pre class="programlisting">
+:help filetype
+:help setfiletype
+:help modeline
+:help 'modelines'
+:help 'shiftwidth'
+:help 'expandtab'
+:help autocmd </pre><p>
+    打开文件类型检测功能很简单，在你的vimrc中加入下面一句话就可以了：
+  </p><pre class="programlisting">
+filetype plugin indent on </pre><p>
+    如果你用的是vim自带的示例vimrc，那么你已经打开了文件类型检测功能。或者，你也可以输入"<span class="command"><strong>:filetype</strong></span>"命令查看你的文件类型检测功能有没有打开。
+  </p><p>
+    这条命令究竟做了什么呢？我们在下面详细介绍。
+  </p><p>
+    其实，上面这一条命令，可以分为三条命令：
+  </p><pre class="programlisting">
+filetype on
+filetype plugin on
+filetype indent on </pre><p>
+    我们逐条介绍这三条命令。
+  </p><p>
+    "<span class="command"><strong>filetype on</strong></span>"命令打开文件类型检测功能，它相当于文件类型检测功能的开关。在执行"<span class="command"><strong>filetype on</strong></span>"命令时，vim实际上执行的是$vimRUNTIME/filetype.vim脚本。这个脚本使用了自动命令(autocmd)来根据文件名来判断文件的类型，如果无法根据文件名来判断出文件类型，它又会调用$vimRUNTIME/scripts.vim来根据文件的内容设置文件类型。有兴趣可以读一下这两个脚本，以获得更深的认识。
+  </p><p>
+    在上述步骤完成后，绝大多数已知类型的文件，都能被正确检测出文件类型。如果文件的类型未能被正确的检测出来，就需要手工设置文件类型，这可以通过"<span class="command"><strong>set filetype</strong></span>"完成，例如，如果你把main.c改名为main.c.bak1，那么它就无法被正确检测出文件类型。通过下面的Ex命令，就可以把它的文件类型设为c：
+  </p><pre class="programlisting">
+:set filetype=c </pre><p>
+    或者，你可以在文件中加入一个模式行，来指明这个文件的类型。vim在打开文件时，会在文件首、尾的若干行（行数由'<span class="emphasis"><em>modelines</em></span>'选项决定，缺省为5行）检测具有vim特殊标记的行，称为模式行。如果检测到，就使用模式行中定义的选项值，来修改该缓冲区的选项。你可以留意一下vim的帮助页，每个文件的最后一行都是这样的模式行。
+  </p><p>
+    针对上例，我们可以在main.c.bak1的第一行或最后一行加上下面的内容，要指定这个文件的类型：
+  </p><pre class="programlisting">
+/* vim: ft=c */ </pre><p>
+    这句话使用"<span class="emphasis"><em>/* */</em></span>"注释起来了，因此不会影响编译。"<span class="emphasis"><em>ft</em></span>"是"<span class="emphasis"><em>filetype</em></span>"的缩写，vim中很多命令、选项都有缩写形式，以方便使用。注意"<span class="emphasis"><em>/*</em></span>"与"<span class="emphasis"><em>vim:</em></span>"间的空格。在"<span class="emphasis"><em>*/"</em></span>与"<span class="emphasis"><em>ft=c</em></span>"间，也需要有至少一个空格，这是模式行格式的要求，更多信息参阅"<span class="command"><strong>:help modeline</strong></span>"。
+  </p><p>
+    检测出文件的类型有什么作用呢？我们知道，不同类型的文件具有不同的格式，vim通过对文件类型的识别，可以为不同类型的文件，设置不同的选项值、定义不同键绑定等。例如，对于c类型的文件，它就和bash脚本有不同的注释格式、不同的缩进格式、不同的关键字等。vim在设置文件类型后，会触发FileType事件，执行FileType相关的自动命令，对不同类型的文件区别对待。
+  </p><p>
+    上面提到的"<span class="command"><strong>filetype plugin on</strong></span>"，允许vim加载文件类型插件。当这个选项打开时，vim会根据检测到的文件类型，在runtimepath中搜索该类型的所有插件，并执行它们。
+  </p><p>
+    "<span class="command"><strong>filetype plugin on</strong></span>"命令，实际上是执行$vimRUNTIME/ftplugin.vim脚本，有兴趣可以读一下这个脚本。这个脚本中会设置自动命令，在runtimepath中搜索文件类型插件。
+  </p><p>
+    runtimepath的定义在不同的系统上不一样，对UNIX系统来说，这些路径包括：$HOME/.vim、$vim/vimfiles、$vimRUNTIME、$vim/vimfiles/after、$HOME/.vim/after。
+  </p><p>
+    举一个例子，当我们对一个c类型的文件打开"filetype plugin on"时，它会在上述这几个目录的ftplugin子目录中搜索所有名为c.vim、c_*.vim，和c/*.vim的脚本，并执行它们。在搜索时，它按目录在runtimepath中出现的顺序进行搜索。缺省的，它会执行$vimRUNTIME/ftplugin/c.vim，在这个脚本里，会设置c语言的注释格式、智能补全函数等等。
+  </p><p>
+    "<span class="command"><strong>filetype indent on</strong></span>"允许vim为不同类型的文件定义不同的缩进格式。这条命令也是通过一个脚本来完成加载：$vimRUNTIME/indent.vim。和"<span class="command"><strong>filetype plugin on</strong></span>"类似，它也通过设置自动命令，在runtimepath的indent子目录中搜索缩进设置。对c类型的文件来说，它只是打开了cindent选项。
+  </p><p>
+    我们了解了文件类型检测的用途及它是如何工作的之后，就可以根据自己的需要，来对特定的文件类型进行特殊设置。
+  </p><p>
+    例如，我们在<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-lookupfile-plugin/">上篇文章</a>中介绍过lookupfile插件，在它打开一个缓冲区时，会把缓冲区的filetype设置为lookupfile，我们可以利用这一点，在这个缓冲区里进行一些特殊的配置。例如，我们创建一个名为lookupfile.vim的文件，其内容为：
+  </p><pre class="programlisting">
+" close lookupfile window by two &lt;Esc&gt;
+nnoremap &lt;buffer&gt; &lt;Esc&gt;&lt;Esc&gt; &lt;C-W&gt;q
+inoremap &lt;buffer&gt; &lt;Esc&gt;&lt;Esc&gt; &lt;Esc&gt;&lt;C-W&gt;q </pre><p>
+    它定义了两个局部于缓冲区的键绑定，无论在normal模式还是插入模式，只要连按两次ESC，就关闭当前缓冲区。
+  </p><p>
+    把这个文件保存到你的runtimepath所指向任一目录的ftplugin子目录中（一般是放在~/.vim/ftplugin目录中）。你在下次打开lookupfile窗口时，试试连按两次ESC，是不是lookupfile窗口就关闭了？这样设置，非常适合vim中按ESC取消命令的习惯，效率也高。
+  </p><p>
+    如果你对vim缺省文件类型插件的设置不太满意，那么可以把这个全局插件拷贝到$HOME/.vim/plugin目录中，然后更改其中的设置。你可以留意一下vim缺省的文件类型插件，它们的头部都有这样的代码：
+  </p><pre class="programlisting">
+" Only do this when not done yet for this buffer
+if exists("b:did_ftplugin")
+  finish
+endif </pre><p>
+    这类似于C语言头文件中的"<span class="emphasis"><em>#ifndef XXX | #define XXX</em></span>"的语句，可以防止该插件被执行多次。因此，把这个插件拷贝到$HOME/.vim/plugin中（这个目录在runtimepath中排在最前面），它将先于vim的缺省插件被加载；而它加载后，vim的缺省文件类型插件就不会再被加载了。这就达到了我们修改设置的目的。
+  </p><p>
+    不过我们通常不用这种方法。如果这样做，一旦vim的缺省插件做了改变，我们也要更新我们改过的插件才行。我们可以在载入全局插件以后否决一些设置。在Unix 上，我们可以把我们的设置放在~/.vim/after/ftplugin/目录中，这个目录中的脚本会在vim的缺省脚本后执行。这样就可以修改配置，或增加我们自己的定义。
+  </p><p>
+    举个例子，在多人一起开发项目时，为了使代码风格尽量保持一致，一般不允许在代码使用TAB符，而以4个空格代之。我们可以编辑一个文件，包含下面的内容：
+  </p><pre class="programlisting">
+set shiftwidth=4
+set expandtab </pre><p>
+    把这个文件保存为~/.vim/after/ftplugin/c.vim。这样，每次在编辑c文件时，它的自动缩进为4个空格；当你在插入模式下使用CTRL-D、CTRL-T缩进时，它也会调整4个空格的缩进；当你按TAB键时，它将会插入8个空格......如果你想上面的设置对h文件也生效的话，需要把它另存一份：~/.vim/after/ftplugin/cpp.vim，因为h文件的文件类型被设为cpp。
+  </p><p>
+    我们知道，vim在设置文件类型时，会触发FileType自动命令，因此，上面的例子可以用下面的自动命令来实现：
+  </p><pre class="programlisting">
+autocmd FileType c,cpp set shiftwidth=4 | set expandtab </pre><p>
+    把这个命令放在你的vimrc中，可以起到和上例同样的效果。
+  </p><p>
+    vim的语法高亮功能，也要用到文件类型，来对不同的关键字进行染色。这我们将在<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-syntax-on-colorscheme/">下一篇</a>文章中介绍。
+  </p><p>
+    <span class="bold"><strong>[参考文档]</strong></span>
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      vim手册
+    </li><li><a class="link" href="http://vimcdoc.sourceforge.net/">vim中文手册</a></li></ul></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p><span class="bold"><strong>原创文章，转载请注明：</strong></span>转载自<a class="link" href="http://easwy.com/blog/">Easwy的博客</a> [  <a class="link" href="http://easwy.com/blog/">http://easwy.com/blog/</a> ]</p><p><span class="bold"><strong>　　　　本文链接地址:</strong></span> <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-filetype-on/">http://easwy.com/blog/archives/advanced-vim-skills-filetype-on/</a></p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="use_lookupfile_plugin.html">上一页</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="syntax_on.html">下一页</a></td></tr><tr><td width="40%" align="left" valign="top">第 9 章 使用lookupfile插件 </td><td width="20%" align="center"><a accesskey="h" href="index.html">起始页</a></td><td width="40%" align="right" valign="top"> 第 11 章 乱花渐欲迷人眼 - 语法高亮</td></tr></table></div></body></html>

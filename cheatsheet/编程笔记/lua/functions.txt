@@ -1,0 +1,365 @@
+1.函数定义
+    1. 标准形式：f = function(<参数>) <函数体> end  
+    2. 语法糖形式：function f(<参数>) <函数体> end
+    
+    1. 在声明Lua函数时，可以直接给出所谓的函数名，如：
+       function foo(x) return 2 * x end
+    2. 我们同样可以使用下面这种更为简化的方式声明Lua中的函数，如：
+       foo = function(x) return 2 * x end
+    
+    函数有两种用途：1.完成指定的任务，这种情况下函数作为调用语句使用；
+                    2.计算并返回值，这种情况下函数作为赋值语句的表达式使用。
+
+2.函数调用
+    1. 一般形式：函数名(<参数>)，圆括号一般是必须的
+    2. 省略圆括号()的情况：如果函数只有一个参数，并且该参数的类型为字符串常量或table的构造器，那么圆括号可以省略，
+         如print "Hello World"和f {x = 20, y = 20}。
+    3. 实参数量：当实参数量与形参数量不一致时，采用"多余舍弃，不足则形参为nil"原则
+
+    4. Lua为面对对象式的调用也提供了一种特殊的语法--冒号操作符。表达式o.foo(o,x)的另一种写法是o:foo(x)。
+       冒号操作符使调用o.foo时将o隐含的作为函数的第一个参数。
+    Lua中函数的声明方式如下：
+    function add(a)
+        local sum = 0
+        for i, v in ipairs(a) do
+            sum = sum + v
+        end
+        return sum
+    end
+    在以上声明中，包含了函数名(add)，参数列表(a)，以及函数体。
+    需要说明的是，Lua中实参和形参的数量可以不一致，一旦出现这种情况，Lua的处理规则等同于多重赋值，
+    5. 多重赋值
+        即实参多于形参，多出的部分被忽略，如果相反，没有被初始化的形参的缺省值为nil。
+    
+3.多重返回值
+    1. 含义：一个函数返回多个结果（值），即在return r1,r2,r3...
+    2. 返回值情况
+    　　①不返回值：函数调用作为单独一条语句。例如：f()
+    　　②返回第一个值：函数调用作为表达式的一部分（与③对立），或将函数放入一对圆括号中（例如：(f())。
+    　　③返回所有值（或尽可能多的值）：函数调用是 一系列表达式 中的最后一个元素（或仅有一个元素），
+         只要不是最后一个元素就最多返回一个值。
+    　　  "一系列表达式"的4种形式：1.多重赋值，2.函数调用时传入的实参列表，3.table的构造式，4.return语句
+    3. 注意：return 语句后面的类容不需要圆括号，否则会出现不同行为而得不到想要的结果，return(f(x))也不会得到f(x)的返回值。
+    # start end
+    s,e = string.find("Hello Lua users","Lua")
+    print("The begin index is " .. s .. ", the end index is " .. e .. ".");
+    
+    # max min
+    function maximum(a)
+        local mi = 1
+        local m = a[mi]
+        for i, val in ipairs(a) do
+            if val > m then
+                mi,m = i,val
+            end
+        end
+        return m,mi
+    end
+    print(maximum{8,10,23,12,5})
+
+    4. Lua会调整一个函数的返回值数量以适应不同的调用情况。
+     4.1 若将函数调用作为一条单独语句时，Lua会丢弃函数的所有返回值。
+     4.2 若将函数作为表达式的一部分来调用时，Lua只保留函数的第一个返回值。
+     4.3 只有当一个函数调用是一系列表达式中的最后一个元素时，才能获得所有返回值。
+    这里先给出三个样例函数
+    function foo0() end
+    function foo1() return "a" end
+    function foo2() return "a","b" end
+    1. 函数调用时最后的(或仅有的)一个表达式，Lua会保留其尽可能多的返回值，用于匹配赋值变量。
+        x,y = foo2()        x = "a", y = "b"             1.多重赋值
+        x = foo2()          x = "a", 返回值"b"被忽略     
+        x,y,z = 10,foo2()   x = 10, y = "a", z = "b"     1.多重赋值
+    2. 如果一个函数没有返回值或者没有足够多的返回值，那么Lua会用nil来填补。
+        x,y = foo0()    x = nil, y = nil                 1.多重赋值
+        x,y = foo1()    x = "a", y = nil                 1.多重赋值
+        x,y,z = foo2()  x = "a", y = "b", z = nil        1.多重赋值
+    3. 如果一个函数调用不是一系列表达式的最后一个元素，那么将只产生一个值。
+        x,y = foo2(),20     x = "a", y = 20              1.多重赋值
+        x,y = foo0(),20,30  x = nil, y = 20, 30被忽略。  1.多重赋值
+    4. 当一个函数调用左右另一个函数调用的最后一个实参时，第一个函数的所有返回值都将作为实参传入第二个函数。
+        print(foo0())                                    2.函数调用时传入的实参列表
+        print(foo1())       a                            2.函数调用时传入的实参列表
+        print(foo2())       a    b                       2.函数调用时传入的实参列表
+        print(foo2(),1)     a    1                       2.函数调用时传入的实参列表
+    5. table构造器可以完整的接收一个函数调用的所有结果，即不会有任何数量方面的调整。
+        t = {foo0()}    t = {} --空table                 3.table的构造式
+        t = {foo1()}    t = {"a"}                        3.table的构造式
+        t = {foo2()}    t = {"a", "b"}                   3.table的构造式
+    6. 如果函数调用不是作为最后一个元素，那么只返回函数的第一个结果值。
+        t = { foo0(), foo2(), 4}    t[1] = nil, t[2] = "a", t[3] = 4   3.table的构造式
+    7. 如果函数调用放入圆括号中，那么Lua将只返回该函数的第一个结果值。
+        print((foo2())) a
+        一个return语句如果使用圆括号将返回值括起来也将导致返回一个值。
+    8. unpack
+        /> lua
+        > print(unpack{10,20,30})
+        10  20  30
+        > a,b = unpack{10,20,30}
+        > print(a,b)
+        10  20
+        > string.find(unpack{"hello","ll"})  --等同于string.find("hello","ll")
+    在Lua中unpack函数是用C语言实现的。为了便于理解，下面给出在Lua中通过递归实现一样的效果，如：
+    function unpack(t,i)
+        i = i or 1
+        if t[i] then
+            return t[i], unpack(t,i + 1)
+        end
+    end
+    
+    f(unpack(a))
+    unpack返回a所有的元素作为f()的参数
+
+4.变长参数
+    1. 函数形式：f(<固定参数列表>,...)，三个点(...)表示函数可接受不同数量的实参，固定参数列表一定要在变长参数前面。
+      1.1  想从...中获取特定的项可以使用 select() 函数，该函数可指定从第几位开始获取入参，而且还可以接收"#"作为参数，获取可变参数的长度
+        f=function(...) print(select("#", ...)) print(select(3, ...)) end 
+        f(1, 2, 3, 4, 5) -- 5 3
+      1.2 … 还可以被打包(packed)进一个 table：
+        f=function(...) tbl={...} print(tbl[2]) end
+        f("a", "b", "c") -- b
+    
+    2. 访问方式：当访问变长参数(...)时，仍要用到三个点(...)，此时作为表达式来使用，表达式"..."的行为类似一个具有多重返回值的函数。
+    　　　　　　例如：多重赋值：local a,b,c = ...，table构造式：{...}作为table使用，遍历table即可访问参数
+    3. select函数：
+      3.1. select("#",...)：返回变长参数的总数，包括中间nil的个数，
+      3.2. select(n,...)：返回第n个实参的值
+         
+      Lua中的函数可以接受不同数量的实参，其声明和使用方式如下：
+      function add(...)
+          local s = 0
+          for i, v in ipairs{...} do
+              s = s + v
+          end
+          return s
+      end
+      print(add(3,4,5,6,7))    --输出结果为：25
+
+      print(string.find("hello hello", " hel")) --> 6  9
+      print(select(1, string.find("hello hello", " hel"))) --> 6
+      print(select(2, string.find("hello hello", " hel"))) --> 9
+
+      有时候需要将函数的可变参数传递给另外的函数调用，可以使用前面我们说过的unpack(arg)返回arg表所有的可变参数，
+      Lua提供了一个文本格式化的函数string.format（类似C语言的sprintf函数）：
+      function fwrite(fmt, ...)
+          return io.write(string.format(fmt, unpack(arg)))
+      end
+
+    4. 解释一下，函数声明中的(...)表示该函数可以接受不同数量的参数。
+       当这个函数被调用时，所有的参数都被汇聚在一起，函数中访问它时，仍需用3个点(...)。
+       但不同的是，此时这3个点将作为表达式来使用，如{...}表示一个由所有变参构成的数组。
+       在含有变长参数的函数中个，同样可以带有固定参数，但是固定参数一定要在变长参数之前声明，如：
+    function test(arg1,arg2,...)
+        ...
+    end
+    
+    5. 关于Lua的变长参数最后需要说明的是，由于变长参数中可能包含nil值，因此再使用类似获取table元素数量(#)的
+    方式获取变参的数量就会出现问题。如果要想始终获得正确的参数数量，可以使用Lua提供的select函数，如：
+
+    for i = 1, select('#',...) do  --这里'#'值表示让select返回变参的数量(其中包括nil)。
+        local arg = select(i, ...) --这里的i表示获取第i个变参，1为第一个。
+        --do something
+    end
+    
+    6. print demo
+    printResult = ""
+    function print(...)
+        for i,v in ipairs(arg) do
+            printResult = printResult .. tostring(v) .. "\t"
+        end
+        printResult = printResult .. "\n"
+    end
+    
+    7. 可变参数调用
+    function g (a, b, ...) end
+    CALL              PARAMETERS
+    g(3)              a=3, b=nil, arg={n=0}
+    g(3, 4)           a=3, b=4, arg={n=0}
+    g(3, 4, 5, 8)     a=3, b=4, arg={5, 8; n=2}
+         
+5.具名实参
+    含义：指定参数的名称。即函数接受一个table作为参数，函数会调用table中指定的字段
+    在函数调用时，Lua的传参规则和C语言相同，并不真正支持具名实参。但是我们可以通过table来模拟，比如：
+    function rename(old,new)
+        ...
+    end
+    这里我们可以让上面的rename函数只接收一个参数，即table类型的参数，与此同时，该table对象将含有old和new两个key。如：
+    function rename(arg)
+        local old = arg.old
+        local new = arg.new
+        ...
+    end
+    这种修改方式有些类似于JavaBean，即将多个参数合并为一个JavaBean。然而在使用时，Lua的table存在一个天然的优势，
+    5.1. 即如果函数只有一个参数且为string或table类型，在调用该函数时，可以不用加圆括号，如：
+    rename {old = "oldfile.txt", new = "newfile.txt"}
+    
+    5.2. 通过table特性返回函数内容
+    针对你的需求 其实你这样操作就好了:
+    args = {}
+    function mutou(args)
+      args.name = ""
+      args.age = ""
+    end
+     
+    print(args.name,args.age)
+
+6.常用函数
+　　1. unpack(array)：接受一个数组作为参数，从下标1开始返回数组中的元素，包括中间为nil的元素。
+
+二、深入函数
+1.深层含义
+  函数是"第一类值"：函数和其他传统类型的值具有相同的权利。例如：存储到变量或table，即赋值，作为实参传递给函数，作为其他函数的返回值。
+  函数具有特定的"词法域"：一个函数可以嵌套在另一个函数中，内部函数可以访问（并保存，即closure）外部函数的变量。
+  函数是"匿名的"：函数可以没有名称，一般情况下，讨论函数时实际上是讨论一个持有某函数的变量，函数变量和其他变量一样，可以有多种方式操作它。
+  函数定义是一条语句：这条语句创建了一种类型为"函数"的值，并赋给一个变量。
+
+  Lua中的函数是带有词法定界（lexical scoping）的第一类值（first-class values）。
+  第一类值指：在Lua中函数和其他值（数值、字符串）一样，函数可以被存放在变量中，
+              也可以存放在表中，可以作为函数的参数，还可以作为函数的返回值。
+  词法定界指：嵌套的函数可以访问他外部函数中的变量。这一特性给Lua提供了强大的编程能力。
+
+  函数定义实际上是一个赋值语句，将类型为function的变量赋给一个变量。
+  我们使用function (x) ... end来定义一个函数和使用{}创建一个表一样。
+
+函数定义方式：
+    1.1 function foo(x) return 2 * x end     -- 具名函数
+    1.2 foo = function(x) return 2 * x end   -- 具名函数
+    1.3 function(x) return 2 * x end         -- 匿名函数
+        可以将表达式"function(x) <body> end"视为一种函数的构造式，就想table的{}一样。
+    我们将这种函数构造式的结果称为一个"匿名函数"。
+    下面的示例显示了匿名函数的方便性，它的使用方式有些类似于Java中的匿名类，如：
+    table.sort(test_table,function(a,b) return (a.name > b.name) end)
+    
+    匿名函数内部grades不是全局变量也不是局部变量:外部的局部变量(external local variable)或者upvalue。
+    
+2.闭合函数（closure）
+　　1. 定义：closure = 函数f + 函数f所需访问的所有"非局部的变量"(即外部函数的变量)。如果没有变量，则closure = 函数f，即函数是一个特殊的closure。
+　　2. 形式：function F(x)  ... return function ...end  end 
+　　3. 作用：可保存外部函数的变量的状态，是外部函数中的局部变量具有"全局变量"的功能
+
+    技术上来讲，闭包指值而不是指函数，函数仅仅是闭包的一个原型声明；
+    闭包在上下文环境中提供很有用的功能，
+    闭包在完全不同的上下文中也是很有用途的。
+    
+    因为函数被存储在普通的变量内我们可以很方便的重定义或者预定义函数。
+    通常当你需要原始函数有一个新的实现时可以重定义函数。例如你可以重定义sin使其接受一个度数而不是弧度作为参数：
+    oldSin = math.sin
+    math.sin = function (x)
+        return oldSin(x*math.pi/180)
+    end
+
+    1.1. 若将一个函数写在另一个函数之内，那么这个位于内部的函数便可以访问外部函数中的局部变量，见如下示例：
+    function newCounter() 
+        local i = 0
+        return function() --匿名函数
+            i = i + 1
+            return i
+        end
+    end
+    c1 = newCounter()
+    print("The return value of first call is " .. c1())     -- 1
+    print("The return value of second call is " .. c1())    -- 2
+    1.2 我们将newCounter()函数称为闭包函数。其函数体内的局部变量i被称为"非局部变量"，
+        和普通局部变量不同的是该变量被newCounter函数体内的匿名函数访问并操作。
+        再有就是在函数newCounter返回后，其值仍然被保留并可用于下一次计算。
+    c1 = newCounter()
+    c2 = newCounter()
+    print("The return value of first call with c1 is " .. c1())    -- 1
+    print("The return value of first call with c2 is " .. c2())    -- 1
+    print("The return value of second call with c1 is " .. c1())   -- 2
+    1.3 由此可以推出，Lua每次在给新的闭包变量赋值时，都会让不同的闭包变量拥有独立的"非局部变量"。
+    
+    do
+        --这里将原有的文件打开函数赋值给"私有变量"oldOpen，该变量在块外无法访问。
+        local oldOpen = io.open
+        --新增一个匿名函数，用于判断本次文件打开操作的合法性。
+        local access_OK = function(filename,mode) <检查访问权限> end
+        --将原有的io.open函数变量指向新的函数，同时在新函数中调用老函数以完成真正的打开操作。
+        io.open = function(filename,mode)
+            if access_OK(filename,mode) then
+                return oldOpen(filename,mode)
+            else
+                return nil,"Access denied"
+            end
+        end
+    end
+    上面的这个例子有些类似于设计模式中装饰者模式。对io.open函数进行了一次封装，封装后使得io.open能处理一些异常情况!
+    
+3.非全局函数
+    事实上，Lua库中大多数table都带有函数，如io.read、math.sin等。这种写法有些类似于C++中的结构体。如：
+    Lib = {}
+    Lib.add = function(x,y) return x + y end
+    Lib.sub = function(x,y) return x - y end
+    或者是在table的构造式中直接初始化，如：
+    Lib = { add = function(x,y) return x + y end,
+               sub = function(x,y) return x - y end
+             }
+    除此之外，Lua还提供另外一种语法来定义此类函数，如：
+    Lib = {}
+    function Lib.add(x,y) return x + y end
+    function Lib.sub(x,y) return x - y end
+    对于Lua中的局部函数，其语义在理解上也是非常简单的。由于Lua中都是以程序块作为执行单元，
+    因此程序块内的局部函数在程序块外是无法访问的，如：
+    do
+        local f = function(x,y) return x + y end
+        --do something with f.
+        f(4,5)
+    end  
+
+    对于这种局部函数，Lua还提供另外一种更为简洁的定义方式，如：
+    local function f(x,y) return x + y end
+    该写法等价于：
+    local f
+    f = function(x,y) return x + y end
+    
+  有一点需要注意的是在声明递归局部函数的方式：
+    local fact = function (n)
+        if n == 0 then
+           return 1
+        else
+           return n*fact(n-1)   -- buggy
+        end
+    end
+  上面这种方式导致Lua编译时遇到fact(n-1)并不知道他是局部函数fact，Lua会去查找是否有这样的全局函数fact。
+  为了解决这个问题我们必须在定义函数以前先声明：
+    local fact
+    
+    fact = function (n)
+        if n == 0 then
+           return 1
+        else
+           return n*fact(n-1)
+        end
+    end
+
+4.正确的尾调用： LUA栈优化策略
+    在Lua中支持这样一种函数调用的优化，即"尾调用消除"。我们可以将这种函数调用方式视为goto语句，如：
+    function f(x) return g(x) end
+        由于g(x)函数是f(x)函数的最后一条语句，在函数g返回之后，f()函数将没有任何指令需要被执行，因此在函数g()返回时，
+    可以直接返回到f()函数的调用点。
+        由此可见，Lua解释器一旦发现g()函数是f()函数的尾调用，那么在调用g()时将不会产生因函数调用而引起的栈开销。
+    这里需要强调的是，尾调用函数一定是其调用函数的最后一条语句，否则Lua不会进行优化。
+    
+    由于尾调用不需要使用栈空间，那么尾调用递归的层次可以无限制的。例如下面调用不论n为何值不会导致栈溢出。
+    function foo (n)
+        if n > 0 then return foo(n - 1) end
+    end
+    可以将尾调用理解成一种goto，在状态机的编程领域尾调用是非常有用的。状态机的应用要求函数记住每一个状态，
+    改变状态只需要goto(or call)一个特定的函数。
+    
+        然而事实上，我们在很多看似是尾调用的场景中，实际上并不是真正的尾调用，如：
+    function f(x) g(x) end          --没有return语句的明确提示
+    function f(x) return g(x) + 1   --在g()函数返回之后仍需执行一次加一的指令。
+    function f(x) return x or g(x)  --如果g()函数返回多个值，该操作会强制要求g()函数只返回一个值。
+    function f(x) return (g(x))     --原因同上。
+        在Lua中，只有"return <func>(<args>)"形式才是标准的尾调用，至于参数中(args)是否包含表达式，
+    由于表达式的执行是在函数调用之前完成的，因此不会影响该函数成为尾调用函数。
+
+    实例： 
+    这里还有一些例子来说明什么是尾调用、什么不是尾调用(就不翻译了)：
+    return f(arg) -- tail call
+    return t.f(a+b, t.x) -- tail call
+    return 1, f() -- not a tail call, the function's results are not the only thing returned
+    return f(), 1 -- not a tail call, the function's results are not the only thing returned
+    return (f()) -- not a tail call, the function's possible multiple return values need to be cut down to 1 after it returns
+    return f() + 5 -- not a tail call, the function's return value needs to be added to 5 after it returns
+    return f().x -- not a tail call, the function's return value needs to be used in a table index expression after it returns

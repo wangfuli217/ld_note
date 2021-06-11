@@ -1,0 +1,223 @@
+https://qtguide.ustclug.org/
+
+
+1. 属性系统
+----------------------
+Qt 元对象系统最主要的功能是实现信号和槽机制，当然也有其他功能，就是支持属性系统。
+    有些高级语言通过编译器的 __property 或者 [property] 等关键字实现属性系统，用于提供对成员变量的访问权限，
+Qt 则通过自己的元对象系统支持属性访问，Qt 是基于标准 C++ 的，不需要底层编译器支持属性，Qt 本身提供了通用的
+跨平台的属性系统。
+
+1.1 属性系统简介
+---------------------- normalpros
+    为了保持类的封装特性，通常成员变量需要保持私有状态，而为了与其他对象协作，就需要提供相应的 get/set 函数。
+如果成员变量的数值发生了变化，通常也需要提供通知（NOTIFY）信息告知相关对象，Qt 里的通知一般都是使用信号触发。
+set 函数可以作为槽函数，方便接收相关对象的信号以实现自动调整，比如上一节标签控件的 setText 槽函数。
+set 函数会导致成员变量数值变化，为了通知相关对象，set 函数里通常会 emit 该成员变量发生变化的信号。
+
+    属性系统也是通过元对象系统实现的，它也是需要直接或间接从 QObject 类继承，并在类的声明里需要 Q_OBJECT 宏。
+
+下面介绍简化版的属性声明，第一类是不指明与属性相关的私有成员变量，这时必须至少提供该属性的读函数：
+Q_PROPERTY(type name
+           READ getFunction
+           [WRITE setFunction]
+           [RESET resetFunction]
+           [NOTIFY notifySignal] )
+Q_PROPERTY()宏就是属性的声明：
+  type 是指属性的类型，可以是 C++ 标准类型、类名、结构体、枚举等，name 就是属性的名字。
+  READ 标出该属性的读函数 getFunction，Qt 属性的读函数通常省略 get 三个字母。
+  WRITE 标出该属性的写函数 setFunction，中括号表示可选，写函数不是必须的。
+  RESET 标出该属性的重置函数 resetFunction，重置函数将属性设为某个默认值，中括号表示可选，重置函数不是必须的。
+  NOTIFY 标出该属性变化时发出的通知信号 notifySignal，中括号表示可选，这个信号不是必须的。
+
+#ifndef WIDGET_H
+#define WIDGET_H
+#include <QWidget>
+namespace Ui {
+class Widget;
+}
+class Widget : public QWidget
+{
+    Q_OBJECT
+public:
+    explicit Widget(QWidget *parent = 0);
+    ~Widget();
+    //声明属性
+    //不直接标出成员变量的形式
+    Q_PROPERTY(QString nickName READ nickName WRITE setNickName NOTIFY nickNameChanged)
+    //直接标出成员变量的形式
+    Q_PROPERTY(int count MEMBER m_count READ count WRITE setCount NOTIFY countChanged)
+    //标出成员变量，可以省略读写函数
+    Q_PROPERTY(double value MEMBER m_value NOTIFY valueChanged)
+    //nickName读函数声明
+    const QString& nickName();
+    //count读函数
+    int count();
+    //value属性声明时，指出了成员变量并省略了读写函数，它的读写代码由moc工具自动生成
+    //value数值被修改时，valueChanged信号会自动触发
+    //自动生成的读写代码只有简单的读写功能，不能做数值有效性检查
+signals:
+    //三个属性数值变化时发信号
+    void nickNameChanged(const QString& strNewName);
+    void countChanged(int nNewCount);
+    void valueChanged(double dblNewValue);
+public slots:
+    //写函数通常可以作为槽函数，方便与其他信号关联，自动调整数值
+    //nickName写函数声明
+    void setNickName(const QString& strNewName);
+    //count写函数声明
+    void setCount(int nNewCount);
+    //value写代码由 moc 自动生成，没有写函数
+private:
+    Ui::Widget *ui;
+    //三个私有变量，对应是三个属性
+    QString m_nickName;
+    int m_count;
+    double m_value;
+};
+#endif // WIDGET_H
+
+第三个属性是 value ，这是属性声明的极简形式，读写函数都省略了，属性读写的代码由 moc 工具自动生成。
+    moc 工具自动生成的读写代码仅仅是代码片段，没有函数的，自然没有相关的槽函数，
+所以如果希望把写函数作为槽函数来用，就得用类似 count 属性的声明，并自己编读写函数的实体代码。
+
+#include "widget.h"
+#include "ui_widget.h"
+Widget::Widget(QWidget *parent) :
+    QWidget(parent),
+    ui(new Ui::Widget)
+{
+    ui->setupUi(this);
+}
+Widget::~Widget()
+{
+    delete ui;
+}
+//读函数定义
+//读nickName数值
+const QString& Widget::nickName()
+{
+    return m_nickName;
+}
+//读count数值
+int Widget::count()
+{
+    return m_count;
+}
+//写函数，在数值发生变化是才发信号
+void Widget::setNickName(const QString &strNewName)
+{
+    if(strNewName == m_nickName)
+    {
+        //数值没变化，直接返回
+        return;
+    }
+    //修改数值并触发信号
+    m_nickName = strNewName;
+    emit nickNameChanged(strNewName);
+}
+void Widget::setCount(int nNewCount)
+{
+    if(nNewCount == m_count)
+    {
+        //数值没变化，直接返回
+        return;
+    }
+    //修改数值并触发信号
+    m_count = nNewCount;
+    emit countChanged(nNewCount);
+}
+
+窗口类 Widget 的代码就是上面那么多。如何使用这些属性呢？我们可以编辑 main.cpp ，尝试修改和读取这些属性：
+#include "widget.h"
+#include <QApplication>
+#include <QDebug>
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+    Widget w;
+    //属性读写
+    //通过写函数、读函数
+    w.setNickName( "Wid" );
+    qDebug()<<w.nickName();
+    w.setCount(100);
+    qDebug()<<w.count();
+    //通过 setProperty() 函数 和 property() 函数
+    w.setProperty("value", 2.3456);
+    qDebug()<<fixed<<w.property("value").toDouble();
+    //显示窗体
+    w.show();
+    return a.exec();
+}
+
+"Wid" 
+100 
+Widget::setProperty: Property "value" invalid, read-only or does not exist
+Widget::property: Property "value" invalid or does not exist
+0.000000 
+
+https://github.com/lauer3912/LoveYourBooks/blob/0a770c513b45aa6b0f5e150009499f198bceb46f/C-Books/Qt-Up/src/qt_skills/qt-core/qobject_rw_properties.md
+
+
+#include <QWidget>
+
+namespace Ui {
+class Widget;
+}
+
+class Widget : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit Widget(QWidget *parent = 0);
+    ~Widget();
+
+    //类的附加信息
+    Q_CLASSINFO("Version", "1.0.0")
+    Q_CLASSINFO("Author", "Winland")
+    Q_CLASSINFO("Site", "https://lug.ustc.edu.cn/sites/qtguide/")
+
+private:
+    Ui::Widget *ui;
+};
+
+
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+    Widget w;
+    //获取类的附加信息
+    const QMetaObject *pMO = w.metaObject();
+    //多态性，替换上面一句
+    //QObject *pObj = &w;
+    //const QMetaObject *pMO = pObj->metaObject();
+
+    //附加信息个数
+    int nInfoCount = pMO->classInfoCount();
+    //打印所有的附加信息
+    for(int i=0; i<nInfoCount; i++)
+    {
+        QMetaClassInfo info = pMO->classInfo(i);
+        qDebug()<<info.name()<<"\t"<<info.value();
+    }
+    /*
+Version 	 1.0.0 
+Author 	 Winland 
+Site 	 https://lug.ustc.edu.cn/sites/qtguide/ 
+    */
+
+    //基本信息
+    qDebug()<<"Class Name: "<<pMO->className();    // Class Name:  Widget 
+    qDebug()<<"Object Name: "<<w.objectName();     // Object Name:  "Widget"
+    //判断是否为基类                               // 
+    qDebug()<<w.inherits("QWidget");               // true 
+    qDebug()<<w.inherits("nothing");               // false
+
+    //显示窗口
+    w.show();
+
+    return a.exec();
+}
+
+

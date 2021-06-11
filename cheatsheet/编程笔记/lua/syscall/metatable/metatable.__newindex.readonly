@@ -1,0 +1,15 @@
+-- 1) 只需要跟踪所有对table的更新操作并触发一个错误即可
+function readOnly(t)
+  local proxy = {}
+  local mt = {
+    __index = t, 
+    __newindex = function(t, k, v)
+      error("attempt to update a read-only table", 2)
+    end
+  }
+  setmetatable(proxy, mt)
+  return proxy
+end 
+-- 这样就可以使用readOnly来创建一个只读的table了
+t = readOnly({1, 2, 3, 4})
+t[1] = 33 --> 触发只读错误

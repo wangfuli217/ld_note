@@ -1,0 +1,153 @@
+CROSS_COMPILE = ${TARGET}-
+AS          = ${CROSS_COMPILE}as
+AR          = ${CROSS_COMPILE}ar
+CC          = ${CROSS_COMPILE}cc
+CPP         = ${CC} -E
+LD          = ${CROSS_COMPILE}ld
+NM          = ${CROSS_COMPILE}nm
+OBJCOPY     = ${CROSS_COMPILE}objcopy
+OBJDUMP     = ${CROSS_COMPILE}objdump
+RANLIB      = ${CROSS_COMPILE}ranlib
+SIZE        = ${CROSS_COMPILE}size
+STRINGS     = ${CROSS_COMPILE}strings
+STRIP       = ${CROSS_COMPILE}strip
+
+export AS AR CC CPP LD NM OBJCOPY OBJDUMP RANLIB SIZE STRINGS STRIP
+
+RTUD_VERSION = 1
+RTUD_PATCHLEVEL = 0
+RTUD_SUBLEVEL = 1
+RTUD_EXTRAVERSION =
+RTUD_NAME = wangfuli
+
+HOST_VERSION = 1
+HOST_PATCHLEVEL = 0
+HOST_SUBLEVEL = 1
+HOST_EXTRAVERSION =
+HOST_NAME = wangfuli
+
+SLOT_VERSION = 1
+SLOT_PATCHLEVEL = 0
+SLOT_SUBLEVEL = 1
+SLOT_EXTRAVERSION =
+SLOT_NAME = wangfuli
+
+OTDR_VERSION = 1
+OTDR_PATCHLEVEL = 0
+OTDR_SUBLEVEL = 1
+OTDR_EXTRAVERSION =
+OTDR_NAME = wangfuli
+
+
+COMPNOY = www.xianleidi.com
+BUILD_DATE = $(shell date +%Y-%m-%d_%X)
+
+DEBUG=y
+
+ifeq ($(DEBUG),y)
+  DEBFLAGS = -DRTUD_DEBUG -g
+else
+  DEBFLAGS = 
+endif
+
+ARCH=X86_64
+
+ifeq ($(ARCH),ARM)
+  ARCHFLAGS = -D__ARM__
+endif
+ifeq ($(ARCH),I386)
+  ARCHFLAGS = -D__I386__
+endif
+ifeq ($(ARCH),X86_64)
+  ARCHFLAGS = -D__X86_64__
+endif
+
+# otdr_proto.c 
+# gcc otdr_proto.c strerr.c -o otdr_proto -lpthread
+
+# 构建时需要用到的设定值
+# 
+CFLAGS      = -g  -Wall ${DEBFLAGS} ${ARCHFLAGS}  -Wextra -Wshadow -D_GNU_SOURCE
+HEADER_OPS  =
+LDFLAGS     = -lpthread -ldl
+
+# 安装时需要用到的变量
+EXEC_RTU   = rtud
+INSTALL     = install
+INSTALL_DIR = ${PRJROOT}/rootfs/bin
+
+EXEC_OTDR   = otdrd
+EXEC_SLOT   = slotd
+EXEC_HOST   = hostd
+EXEC_MCUD   = mcud
+EXEC_SORD   = sord
+
+
+RTUD_RELEASE = "4i \#define RTUDRELEASE \"${EXEC_RTU} version : ${RTUD_VERSION}.${RTUD_PATCHLEVEL}.${RTUD_SUBLEVEL} ${RTUD_EXTRAVERSION} ${RTUD_NAME}@${COMPNOY} build at ${BUILD_DATE}\""
+OTDR_RELEASE = "4i \#define OTDRRELEASE \"${EXEC_OTDR} version : ${OTDR_VERSION}.${OTDR_PATCHLEVEL}.${OTDR_SUBLEVEL} ${OTDR_EXTRAVERSION} ${RTUD_NAME}@${COMPNOY} build at ${BUILD_DATE}\""
+SLOT_RELEASE = "4i \#define SLOTRELEASE \"${EXEC_SLOT} version : ${SLOT_VERSION}.${SLOT_PATCHLEVEL}.${SLOT_SUBLEVEL} ${SLOT_EXTRAVERSION} ${RTUD_NAME}@${COMPNOY} build at ${BUILD_DATE}\""
+HOST_RELEASE = "4i \#define HOSTRELEASE \"${EXEC_HOST} version : ${HOST_VERSION}.${HOST_PATCHLEVEL}.${HOST_SUBLEVEL} ${HOST_EXTRAVERSION} ${RTUD_NAME}@${COMPNOY} build at ${BUILD_DATE}\""
+SORD_RELEASE = "4i \#define SORDRELEASE \"${EXEC_SORD} version : ${RTUD_VERSION}.${RTUD_PATCHLEVEL}.${RTUD_SUBLEVEL} ${RTUD_EXTRAVERSION} ${RTUD_NAME}@${COMPNOY} build at ${BUILD_DATE}\""
+
+
+# 构建时需要用到的文件
+RTU_OBJS    = cfg.o fibre_config.o main.o otdr_proto.o pcqueue.o rtu_report.o slogger.o strerr.o ttyS.o otdr_cache.o\
+clocks.o host_proto.o ldproxy.o otdr_main.o otdr_task.o rtu_config.o rtu_tty.o sockets.o tty_proto.o utils.o host.o rtu_monitor.o curvedata.o
+
+OTDR_OBJS = otdrd.o otdr_proto.o strerr.o cfg.o sockets.o slogger.o utils.o clocks.o linenoise.o
+
+SLOT_OBJS = slotd.o tty_proto.o strerr.o cfg.o ttyS.o slogger.o utils.o clocks.o sockets.o linenoise.o
+
+HOST_OBJS = hostd.o tty_proto.o strerr.o cfg.o ttyS.o slogger.o utils.o clocks.o sockets.o host.o otdr_proto.o otdr_sor.o linenoise.o
+
+MCUD_OBJS = mcud.o strerr.o utils.o
+
+SORD_OBJS = sord.o strerr.o utils.o otdr_sor.o slogger.o cfg.o linenoise.o
+
+$(shell sed -i "/RTUDRELEASE/d" config.h)
+$(shell sed -i "/OTDRRELEASE/d" config.h) 
+$(shell sed -i "/SLOTRELEASE/d" config.h)
+$(shell sed -i "/HOSTRELEASE/d" config.h)
+$(shell sed -i "/SORDRELEASE/d" config.h)
+
+$(shell sed -i ${RTUD_RELEASE} config.h)
+$(shell sed -i ${OTDR_RELEASE} config.h)
+$(shell sed -i ${SLOT_RELEASE} config.h)
+$(shell sed -i ${HOST_RELEASE} config.h)
+$(shell sed -i ${SORD_RELEASE} config.h) 
+
+
+
+# 构建时用到的规则
+all:rtud otdrd slotd hostd mcud sord
+
+.c.o:
+	${CC} ${CFLAGS} ${HEADER_OPS} -c $< ${LDFLAGS} 
+    
+rtud:${RTU_OBJS}
+	${CC} -o  ${EXEC_RTU} ${RTU_OBJS} ${LDFLAGS} 
+otdrd:${OTDR_OBJS}
+	${CC} -o  ${EXEC_OTDR} ${OTDR_OBJS} ${LDFLAGS} 
+
+slotd:${SLOT_OBJS}
+	${CC} -o  ${EXEC_SLOT} ${SLOT_OBJS} ${LDFLAGS} 
+
+hostd:${HOST_OBJS}
+	${CC} -o  ${EXEC_HOST} ${HOST_OBJS} ${LDFLAGS} 
+
+mcud:${MCUD_OBJS}
+	${CC} -o  ${EXEC_MCUD} ${MCUD_OBJS} ${LDFLAGS} 
+    
+sord:${SORD_OBJS}
+	${CC} -o  ${EXEC_SORD} ${SORD_OBJS} ${LDFLAGS} 
+    
+.PHONY : clean 
+.PHONY : install
+     
+install:
+
+clean:
+	-rm -f *.o ${EXEC_RTU} ${EXEC_OTDR} ${EXEC_SLOT} ${EXEC_HOST} ${EXEC_MCUD} ${EXEC_SORD}
+
+distclean:
+

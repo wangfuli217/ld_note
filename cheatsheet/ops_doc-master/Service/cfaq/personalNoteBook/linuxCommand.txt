@@ -1,0 +1,541 @@
+
+http://www.cnblogs.com/bananaaa/p/7774467.html   Linux最常用150个命令汇总
+https://linux.die.net/man/   : linux man page, search linux command
+《快乐的Linux命令行》涵盖了大部分命令行工具和Shell编程
+    《Linux命令行与shell脚本编程大全（第3版）》 如果你想精通 shell 编程，那么这本书就是为你准备的
+    《鸟哥的Linux私房菜》
+
+find -follow //列出目录和子目录的所有文件
+tree dir //列出目录和子目录的所有文件（tree form） , tree需要安装
+
+linux 下载 remote files under ftp server :
+1)ftp 10.56.6.5  根据提示输入 username/pwd 登陆成功会提示ftp>Logged on，Remote system type is UNIX， 敲人help可显示所有的ftp命令；
+2)cd /xx/xxx/logdir
+3)prompt  关闭交互式模式，这样下载多个文件时不需要逐个确认
+3)mget *.LOG 批量下载所有的log到当前目录
+
+WinSCP :windows下安装，在windows&linux间双向传输文件的工具，类似的工具：vsftpd(linux)
+
+fg:把后台进程转换为前台；
+uname -r 查看内核版本
+ps -u 查看当前用户的进程
+
+cat /proc/version //查看linux version kernel.
+
+export https_proxy=10.144.1.10:8080 设置代理
+wget --no-check-certificate https://xxx 解决wget下载时certificate报错；
+
+使用 man ascii 来查看 ASCII 表；
+双系统操作：
+windows系统要挂载centos-linux系统的目录，前提是：1.在linux开通samba服务，2.双系统组成局域网，设置IP地址，windows能ping通linux(192.168.56.1+192.168.56.101)，3.然后在windows通过Map Network drive（\\192.168.56.101\linuxDir，账号密码验证）;
+比如在windows中映射hzlin10的/home/lianzeng: 在MapNetworkDrive的Folder中输入： \\hzlin10.china.nsn-net.net\lianzeng
+比如映射hzlinb15的/var/fpwork/lianzeng ：输入 \\hzlinb15.china.nsn-net.net\fpwork-user
+linux系统要访问windows系统，只要在linux系统进行mnt挂载；
+ifconfig:show the ip on linux OS;
+
+////////////////////设置挂载(windows:hostDir--->linux:shareDir):
+create hostDir in host, VirtulBox--共享文件夹：添加hostDir并设置为固定分配;
+sudo mkdir /mnt/shareDir
+sudo mount -t vboxsf hostDir /mnt/shareDir/ 每次vbox开机需要运行这行才能在vm下看到hostDir下的东西；
+
+卸载挂载点命令：umount -f /mnt/share
+
+//////////////////////find+exec; find+xargs; 批处理结果
+find . -name "filename" -exec vim {} \;  查找文件并用vim打开，如果找不到文件则执行失败，注意后面的 {} \; 一个都不能少
+vim $(find . -name "file.h")   查找文件并用vim打开，如果找不到则打开空文件
+find . -name "*.lcf" -path "skipdir" -prune 在当前目录及子目录查找.lcf文件，但剔除skipdir目录；
+find . -name "*.mk" | xargs grep -nH MacPsRrm
+find . -name "*.mk" -exec grep -nH MacPsRrms {} \;
+find .  -name "*.h" -o -name "*.c" -o -name "*.hpp" -o -name "*.cpp" > cscope.files
+filepath=$(find ./ -name "CUlLoadMeasureForBbpool.hpp") && cd $(dirname $filepath) 查找文件并进入该文件所在目录
+var=$(command) //将命令的执行结果赋值给变量var
+    ${}一般用于变量的提取和替换；
+
+${filepath%/*}  //提取filepath变量的路径，命令实质是：去掉变量filepath从右边算起的第一个'/'字符及其右边的内容;
+${var#*.} 提取文件名后缀，命令实质是：去掉变量var从左边算起的第一个'.'字符及其左边的内容
+#：表示从左边算起第一个
+%：表示从右边算起第一个
+*： 表示删除指定位置右边（左边）的内容
+///////////////////////////////////系统调试
+了解 strace 和 ltrace。这两个命令可以让你查看进程的系统调用，这有助于你分析进程的hang在哪了，怎么crash和failed的。你还可以用其来做性能profile，使用 -c 选项，你可以使用-p选项来attach上任意一个进程。
+学会到 /proc 目录中查看信息。这是一个Linux内核运行时记录的整个操作系统的运行统计和信息，比如： /proc/cpuinfo, /proc/xxx/cwd, /proc/xxx/exe, /proc/xxx/fd/, /proc/xxx/smaps.
+如果你调试某个东西为什么出错时，sar命令会有用。它可以让你看看 CPU, 内存, 网络, 等的统计信息；
+使用 dmesg 来查看一些硬件或驱动程序的信息或问题。
+/////////////////////////////////////linux网络管理工具(ping/traceroute/netstat/dstat/iostat/ifconfig/dig/top/htop/iotop/iftop)
+ip address //show ip address,如果"ip address" "ifconfig" 不能用，就用env，然后看SSH_CONNECTION=10.140.28.41 61739 10.159.215.231 22
+time make ut //统计make ut消耗的时间
+mtr – traceroute 2.0，其是把 traceroute 和 ping 集成在一块的一个小工具 用于诊断网络,
+mtr : 会比使用 traceroute 要更容易定位一个网络问题;
+wireshark 或 tshark: 抓网络包
+netstat -lntp来看看有侦听在网络某端口的进程。当然，也可以使用 lsof;
+curl
+pstree -p 可以帮你显示进程树
+man 7 signal 来查看各种信号
+//////////////////////////////////////////解释器(如果把解释器加入到$PATH后，可直接执行脚本，不显示调用解释器)
+Perl(.pl): perl script.pl [inputfile] [outputfile]
+grep: 擅长字符串查找，举例: find ./ -name "*.mk" | xargs grep -nH MacPsRrm 在所有的.mk文件里面查找字符串MacPsRrm；
+sed: 擅长字符串替换
+    sed -i 's/foo\(.*baz\)/bar\1/' file  : Replace foo with bar in file only if there is a baz later on the same line;
+    sed -i "s/old/new/g" //把old替换为new,其中-i表示改写文件(如果没有-i,那么只输出结果不改写原文件)，s表示替换，g表示全部替换，双引号相比单引号的好处是可以在双引号内使用\转义符；
+
+awk: 适用于抽取列信息,把文件逐行读入，以空格为分隔符进行切片，再逐个处理；(gawk,nawk,awk)
+awk '{pattern + action}' {inputfile}
+awk -f awk-script inputfile
+eg: last -n 5 | awk '{print $1}' 显示最近登录的5个账号, $0表示所有列，$1表示第1列，空格分隔符；
+eg: cat /etc/passwd | awk -F ':' '{print $1}' 其中，-F ':' 指定列分隔符为冒号
+Python(.py): python script.py [inputfile] [outputfile]
+bash(.sh): bash script.sh ;  man bash  查看bash的快捷键；
+Ruby(.rb):把ruby.bin放入$PATH，就可以直接执行.rb脚本了；
+////////////////////////////////////////////////////
+lscpu 查看当前机器的cpu数量
+top 查看当前机器的load负荷
+ps -ef : 查看所有的进程ID信息
+kill processID: 终止进程
+&  :& 放在命令后面表示让进程后台运行， 例如 gitk &
+ssh user@host //ssh协议登陆到远程主机，需要输入密码；
+ssh host //要求本机用户名和远程主机的用户名一致，才可以省略user@
+ssh -p 2222 user@host //指定端口，默认是22
+ssh-keygen 在$HOME/.ssh/目录下，会新生成两个文件： id_rsa.pub 和 id_rsa,前者是你的公钥(提供给服务器用的)，后者是你的私钥。
+ssh-copy-id user@host :用户将自己的公钥(id_rsa.pub)储存在远程主机上(authorized_keys).有可能需要重启远程主机的ssh服务才生效
+ssh user@host 'mkdir -p .ssh && cat >>.ssh/authorized_keys'<~/.ssh/id_rsa.pub //效果等同于ssh-copy-id user@host;
+///////////////////////////////////
+id lianzeng//show id/group info for lianzeng
+useradd -g groupA lianzeng //添加新用户到groupA,若未用-g参数指定用户组，则系统默认会自动创建一个与用户帐号同名的私有用户组;
+usermod -u 500 lianzeng //修改lianzeng's id = 500
+usermod -a -G groupA lianzeng //添加已知用户lianzeng到groupA,保留lianzeng之前的group，如果没有-a就是更改用户所在组；
+userdel [-r] 用户名 //-r用于彻底删除用户数据
+passwd lianzeng //change pwd for lianzeng
+groupmod -g newGID groupName //重设用户组的GID=newGID
+groupadd [-r] newGroupName //若命令带有-r参数，则创建系统用户组，该类用户组的GID值小于500；若没有-r参数，则创建普通用户组，其GID值大于或等于500.
+cat /etc/passwd  //最后几行就是新增用户；
+
+su root //切换到root账号
+curl是在命令行方式下的文件传输工具（download file from url）：
+curl -o ./download-msg http://hztddgit.china.nsn-net.net/gerrit/tools/hooks/commit-msg
+////////////////////////////
+centerOS:alt+F2打开运行对话框 输入gnome-terminal 打开terminal;
+linux命令行下快捷键：
+Ctrl+a： 光标回到命令行首。 （a：ahead）
+Ctrl+e： 光标回到命令行尾。 （e：end）
+Ctrl+w: 删除光标处以前的字符
+Ctrl+k： 删除光标处以后的字符
+Ctrl+u： 删除光标处以前的字符
+Ctrl+y： 粘贴Ctrl+u，Ctrl+k，Ctrl+w删除的文本。
+Ctrl+s: 使终端输出暂停，可以使快速输出的终端屏幕停下来。
+Ctrl+q： 恢复屏显，退出Ctrl+s 引起的暂停。
+Ctrl+c： 中断终端正在执行的命令。
+Tab键：  命令、文件名等自动补全。
+
+////////////////////////////////////////////////////////
+du -a mydir | sort -n -r | head -n 10 //find out top 10 largest filefolder under mydir
+du -hsx *| sort -rh | head -10 //more human readable output,find out top 10 largest filefolder under current folder
+find  .  -printf  '%s %p\n'  | sort -nr  | head -10  //find largest file in current dir;
+scp： 网络拷贝命令，当文件数目很多时，比rsync更好用，用法： scp [参数] [原路径] [目标路径]
+    scp local_file remote_ip:remote_folder
+    scp -r local_folder remote_ip:remote_folder     
+    scp local_file remote_username@remote_ip:remote_folder 从本地到服务器，默认用ssh登陆     
+    scp remote_username@remote_ip:remote_file  local_file 从服务器拷贝到本地；
+WinSCP 软件可以在windows和linux之间传递文件；   
+for i in ci_*.log; do grep error $i | grep -v lom; fi done
+grep 'find many string in same line' -R  . ;  或者  grep "find many string in same line " -R  . ;   单引号，双引号都可以，字符串之间可以有空格，在当前目录递归查找包含字符串的文件
+grep assert -r codeDir | wc -l | tee result.txt  查找代码中有多少地方使用了assert并把结果记录到文件；cat file | wc -l  统计文件有多少行
+grep str build.log //从log里面查找包含text的行并显示出来；
+grep uePsIndex=404 *.LOG >> result.log 重定向>>是追加，>是覆盖;
+find ./ -name "*str*" 在当前目录和子目录查找文件名包含str的文件，如果找到，则列出这个文件的路径，找不到的话什么都不显示；注意通配符和双引号；
+ls | grep str  在当前目录查找 文件名包含str的文件，如果找到，会显示结果；找不到的话什么都不显示；这里的符号(|)用来分隔两个pipe命令；
+nm CUserStorageBase.o | grep AddUe 在指定文件CUserStorageBase.o中查找字符串AddUe,如果找到，会显示结果；找不到的话什么都不显示；
+nm testobj.o/.so | grep funcInterst | c++filt //c++filt用于翻译成C++的符号形式；
+ldd binfile //可以查看这个bin所依赖的so的详细信息
+cat tst | grep error  显示tst文件中包含error的那些行，cat只能打开text文档,不能打开.o文件；
+cat *.ini | grep error
+cat txt | grep 'crnti:11111' > temp.txt
+cat file 只读打开
+cat >file 写入并覆盖原文件内容
+cat >>file 写入在文件末尾追加，ctrl+D 结束输入；
+cat file1 >>file2 把file1内容追加到file2末尾
+tail test.txt 只显示末尾几行
+head test.txt 只显示开头几行
+
+ll *str* 列出当前目录文件名中包含str的所有文件，这时不能加双引号；
+find ./ -name '*.mk' -exec grep -rnH 'CGT' {} \;   在当前目录下的所有.mk文件里面包含CGT的的文件及所在行；
+改密码: passwd
+显示当前登录账号： id
+ftp 登录， quit 退出；
+whoami //show current user
+//////////////////////////////////////////////////////http://www.cnblogs.com/peida/archive/2012/10/23/2734829.html 每天一个LINUX命令
+  RM        删除文件
+  AR        libMacTddPs.a (121 objects(s)) 压缩多个文件为一个文件，可用于创建静态库文件； 
+  LS        libssComm.so  查看当前目录文件是否存在，如果不存在会返回错误
+  MV        libMacTddPs.a 移动文件或者将文件改名
+  LN        libMacTddPs.a 在另一个位置建立该文件的快捷方式；
+  EXTR DBG  libssComm.so -> libssComm.so.debug 提取调试信息
+  STRIP     ： 用来去除目标文件中的一些符号表、调试信息，以减小程序的大小；
+  LD        PsPsDspNyCpu2_tdd.out 链接输出可执行文件.out，ld是linux下的链接器；
+  CC        VersionCpu1_tdd.obj   编译输出.obj文件，cc是编译器
+  UPD       VersionCpu3_tdd.c  从svn服务器更新文件？ 非linux命令
+  CHK       VersionCpu3_tdd.c 检查文件是否有修改？ 非linux命令
+
+////////////////////////////////////////////////vi/vim
+vi 打开文件
+i 进入编辑模式，下方显示insert
+esc 退出编辑模式到一般模式
+:从一般模式进入命令行模式
+:wq 保存修改并关闭vi
+：q!放弃修改且关闭vi
+gg 移动到文件第1行，在一般模式下使用
+/hello 查找字符串hello
+n/N 分别向上、下查找
+
+//////////////////////////////////////////////////////////////////
+0)常见的Linux distribution有：1）使用RPM方式安装软件： RedHat,Fedora,SuSE,CentOS; 2)使用dpkg方式安装软件: Debian,Ubuntu,B2D; 前者适合初学；
+
+1) source FileName
+作用:执行FileName中的命令。  注：该命令通常用命令“.”来替代，效果等同于  . FileName
+注意：source命令与shell scripts的区别是，source在当前bash环境下执行命令，而scripts是启动一个子shell来执行命令。
+这样如果把设置环境变量（或alias等等）的命令写进scripts中，就只会影响子shell,无法改变当前的BASH,所以通过文件设置环境变量时，要用source 命令。
+
+2)Linux下路径/目录： tab键可以自动补齐
+  /表示绝对路径的起始，也就是所有用户的根目录，如pwd显示当前目录为/home/lianzeng；/在路径中也表示隔离符；
+  cd ~lianzeng 表示切换到lianzeng用户的根目录，结果为/home/lianzeng
+  cd ~ 等同于cd   表示回到当前用户的根目录，如/home/lianzeng
+  .表示当前目录
+  ..表示上级目录
+  HOME 表示当前用户的主目录，如echo $HOME 结果为 /home/lianzeng
+  whereis bcompare//find bin path 查看某个命令是否存在
+  cd 切换目录， 
+  cd - 切换到刚才那个目录
+  pwd 显示当前路径:print work directory
+  mkdir 创建目录 rmdir 删除空目录， rm -rf 强制删除非空目录
+  find . -type f -printf "%T@ %p\n" | sort -nr | cut -d\  -f2-   列出目录下的所有文件；
+  mkdir -p dirA/dirB/dirC 递归创建目录，如果dirA已经存在，则只在dirA下面创建dirB/dirC
+  mkdir -vp dirA/{dirB,dirC,dirD/{dirE,dirF}} 递归创建目录，-v打印目录信息
+  echo $PATH  显示PATH变量的内容（所有的执行文件路径）
+  ls -l 等同于 ll  查看文件详细信息(不显示隐藏文件),如果是链接文件，显示真实路径；
+  ls -a 显示隐藏文件(.**)文件
+  less 分页显示结果，  eg: git log | less 这时用/keyword 定位；
+  man grep | less 这样可以快速搜索具体的选项
+  cp -r  srcDir DestDir拷贝目录及子目录,r是递归的意思 -f 强制覆盖
+  rm linkflie 删除链接文件，注意不是rm linkfile/
+  rsync -av  source Destination --exclude *.svn  拷贝文件夹排除.svn;
+  rsync -rvLE --exclude=.svn lianzeng@hzling17:src  dst   //网络拷贝
+  rm -rf 删除目录及子目录,f是强制的意思
+  rm libssCom* 删除libssCom开头的所有文件
+  mv     移动文件、目录或者重命名
+  cat  打开文件   /str  在当前打开的文件中查找字符串， n继续往下查找
+
+  sudo ln -s dst newlink 创建软链接（symbol link），让newlink指向dst ,这样就可以不修改.bashrc的情况下在任意位置执行bin, 只要在$PATH的某个路径下建立软链接文件linkbin即可，成功后可以通过which linkbin找到。这个命令也可以用来创建folder的快捷方式；
+  ll file可以查看文件是否为link, 
+
+  locate/which/whereis 查找命令的路径，  locate在全文件系统寻找, which只在$PATH变量的路径下寻找, whereis 搜索范围比which要大，
+  type 显示命令别名type ll : ll is aliased to `ls -l --color=auto'
+
+
+  ulimit -a 查看当前用户的受限信息；
+  clear  清除屏幕信息
+  压缩: zip -r knife.zip srcdir 压缩目录及子目录
+  压缩1:tar zcvf FileDir.tgz FileDirList(多个子目录用空格隔开)     
+  解压1:tar zxvf FileDir.tgz    注释：.tgz=.tar.gz ;-z使用gzip压缩(去掉z则表示只打包不压缩)，-v(view)显示压缩的文件；-c压缩;-x解压缩；
+  压缩2:tar zcvf FileName.tar.tgz FileName 
+  解压2:tar zxvf FileName.tar.tgz
+  压缩3(排除某个子目录): tar zcvf FileDir.tgz --exclude=FileDir/SubFileDir FileDir
+  压缩文件夹： gzip  file //output file.gz
+                      gzip -d file.gz //decompress
+           unzip file.zip  解压.zip文件
+  eg: tar zcvf PsScheduler.tgz --exclude=*.svn*  PsScheduler/DL PsScheduler/MSG PsScheduler/PsCommon PsScheduler/PsPrivate
+  eg: tar -zcvf dsp_cp.tar.gz dsprtsw.bin PsScheduler --exclude .svn
+
+rar 默认没有安装，tar不能解压rar
+解压：rar x FileName.rar
+压缩：rar a FileName.rar DirName
+
+  md5sum LteMacClient //查看文件的校验和，可以通过md5sum来比较文件是否更新过;
+
+3)正则表达式：  1）用来处理字符串的；2）通过一些特殊符号的辅助可以轻易查找替换删除字符串；3）是一种表示法，只要工具程序支持(如 grep/vim/sed/awk)就可以使用:
+   借助工具reg101(https://regex101.com/), 再加上wikipedia就可以写正则表达式了；
+^ 表示一行的开头。如： /^#/  以#开头的匹配。
+$ 表示一行的结尾。如： /}$/  以}结尾的匹配。
+\< 表示词首。 如 \<abc  表示以 abc 为首的单詞。
+\> 表示词尾。 如 abc\> 表示以 abc 結尾的单詞。
+. 表示任何单个字符
+.* 表示存在若干个字符
+re.match(".*\.zip$",inputFile)
+[ ] 字符集合。 如：[abc]表示匹配a或b或c，还有[a-zA-Z]表示匹配所有的26个字符。如果其中有^表示反，如[^a]表示非a的字符
+Regex 101：一款在线的正则表达式辅助工具，可以帮助理解正则表达式的含义，方便调试正则表达式以及做一些简单的尝试;（来自stackoverflow问题：Learning Regular Expressions）
+
+4）PATH :  环境变量(全大写)，当我们在执行一个命令时，系统会根据当前的PATH变量去各个目录下查找对应的命令，找到第1个就执行；
+  如果PATH里面没有包含命令的目录，可以添加,eg： PATH="$PATH":/root
+  [lianzeng@hzling37 ~]$ echo $PATH 下面的显示了当前用户的PATH变量:是分隔符, 不同权限用户$PATH设置不同；用户能使用的命令是根据$PATH设定的目录去找的；
+  /home/hztdltemac/gdb/bin:/home/hztdltemac/git/bin:/opt/beyondcompare/linux64/ix86/beyondcompare_3.3.5/bin:/usr/lib64/qt-3.3/bin:/usr/kerberos/sbin:/usr/kerberos/bin:/opt/EE_LinSEE/bin/:/usr/local/bin:/bin:/usr/bin:/usr/X11R6/bin:/opt/bin:/opt/UsageModel:/home/lianzeng/bin
+  当然，也可以直接用绝对路径来执行命令:   /bin/ls
+  env , export , set 都可以查询当前的环境变量(eg:https_proxy), set 还能查询自定义变量和 bash 内部的变量;
+  命令提示符($)和续行符(>)是在环境变量$PS1,$PS2中设置的；
+  $本身同时也是个环境变量，表示当前shell的PID，用 echo $$可以知道；
+  环境变量=全局变量，自定义变量=局部变量；
+5)ll 结果解析， 第1个字符d表示目录（List是个目录），-表示文件（libssComm1.so是个文件），l表示快捷方式link，
+    rwx是文件所有者的权限，接下来的r-x是用户所在组tdlte的权限，接下来的r-x是others的权限；
+     rwx表示read/write/excute,如果没有对应的权限就用-代替，但顺序只能是rwx;如果文件后面是->说明是个快捷方式，指向真正的文件；
+ drwxr-xr-x 4 lianzeng tdlte 4096 Sep  3 13:42 List 
+ -rwxr-xr-x 1 lianzeng tdlte 5788036 Sep  3 13:44 libssComm1.so
+
+6）权限(7=4r+2w+1x) linux下的文件是否能被执行由x这个权限决定，与文件名或扩展名没任何关系（这点和windows不同），文件具有x权限表示具有执行的权限，但能否执行成功取决于文件内容；
+   目录具有x权限表示用户可以进入该目录(cd )并执行该目录下命令的权限；
+   一个文件要可以执行需要满足2个条件：权限为x  +  内容可执行
+  chmod -r 777 file //777分别对应owner/group/other的权限，这里都包含了rwx,-r表示递归修改
+  chmod +x file   
+  chmod -R 777 dir
+7）文件扩展名，利于file命令可以查询文件的类型
+  *.sh 脚本文件，批处理文件
+  *.tar *.tar.gz *.zip *.tgz 压缩文件
+  file CasesListUL_RL35.ini的查询结果是CasesListUL_RL35.ini: ASCII text
+  file MultiTest.sh的查询结果是MultiTest.sh: Bourne-Again shell script text executable
+
+8)man 显示某个命令的帮助 ，如 man bash , man gdb, 进入帮助后，用/keyword 快速查找；
+  python --help 也可以显示帮助
+9)shell: 基于命令行式的软件，如 bash;
+ 9)    file xxx:   查看文件属性
+10)bash: (=Bourne Again Shell),Linux下的默认shell工具，bash内置了很多命令，如 cd/unmask
+       具备的功能：命令记忆(history)，命令补全(TAB键),
+       程序脚本(shell script) 可以支持交互式和批处理；
+       命令别名(alias): 例如 alias lm = 'ls -al' 就相当于新定义了一个命令lm;  alias ll='ls -l --color=auto'
+       通配符: 例如 ls Cases* 会列出当前目录下以Cases开头的所有文件；
+    在命令行下敲人 bash 可进入子进程（当前进程暂时处于休眠态）， exit 退出子进程并唤醒当前进程；
+    子进程只能看见父进程的环境变量，看不见父进展的自定义变量；
+    . FileName 等同于 source FileName ，执行文件FileName;
+
+history | grep PsPs : 在历时命令里面查找PsPs相关的命令；
+
+11)命令行使用： \后面紧接回车(\具有转义特殊字符的功能)，表示在下一行可以继续输入命令，系统在下行会自动显示>字符
+[lianzeng@hzling37 MacLinuxRtm]$ cp CasesListUL_RL35.ini \
+> CasesList.ini DestDir
+多个命令用;隔开，可一起执行，如: mkdir t2;mkdir t3;mkdir t4
+
+12）变量的显示与设置:在变量名前面加上$符号， echo $PATH 或者 echo ${PATH} 如果变量不存在，则不会显示任何结果，
+   全大写一般是系统默认变量，
+   var=${var}new   效果同上面； 但不能写成 var=$varnew 否则会认为varnew是一个变量
+   var=$(cmd) 调用另一个命令(cmd)的结果，
+   var=`cmd`  命令(cmd)的结果赋给var，
+   myvar="liang" 自定义变量myvar并赋值(注意定义变量时前面没有$,引用的时候需要),且等号两边不能有空格，如果字符串中有空格，则必须用""括起来，如下
+   myvar="new var $myvar"  用echo显示结果为new var liang,注意这里必须是"" 如果用单引号，则显示结果为 new var $myvar
+   unset myvar 取消变量
+
+13)变量的删除，替换
+  ${变量#关键字} 把符合的最短字符串删除，从前往后扫描
+  ${变量##关键字}  把符合的最长字符串删除，从前往后扫描
+  ${变量%关键字}  把符合的最短字符串删除，从后往前扫描
+  ${变量%%关键字}  把符合的最长字符串删除，从后往前扫描
+  ${变量/旧字符串/新字符串} 替换第1个旧字符串
+  ${变量//旧字符串/新字符串} 替换全部旧字符串
+  var=${str:-expr} 如果变量str不存在或者为空字符，那var=expr,否则var=$str
+
+14)命令别名(自定义命令):
+   alias rm='rm -i'   如果添加到 ~/.bashrc 里面，那每次都会生效；
+   unalias rm
+   alias dir='ls -l'
+   alias cls='clear'
+15)快捷键:
+   ctrl+U  将本行命令删除
+   ctrl+C  终止目前的命令
+   ctrl+S/Q 暂停/恢复屏幕输出
+
+16)特殊符号及多个命令执行
+   # 表示注释，经常用在script中；
+   |  用来分隔两个pipe命令；
+   .  执行文件的命令，等同于source
+   ~  用户的根目录
+   $  变量前导符
+   cmd1&&cmd2    如果cmd1执行ok,则继续执行cmd2,否则不执行；
+   cmd1||cmd2    如果cmd1执行失败,则执行cmd2,否则不执行;
+ eg:  cmd || echo "failed"
+   ls ./tst && echo "exist" || echo "not exist"
+
+
+17)数据流重定向( > 和 2>  还有 tee )：把屏幕的数据保存到某个文件，屏幕就不会输出了；
+   >  重定向到文件（覆盖），如果不存在，则新建；
+   >> 重定向到文件（追加），如果不存在，则新建；
+  &>  或者 2>&1 将屏幕的所有信息重定向到文件（覆盖），如果文件不存在，则新建, 2>&1 一般放在命令的最后面；
+  make ut &> tst 将屏幕信息输出到tst
+  make ut | tee tst 将屏幕信息输出到tst文件(覆盖)，同时也在屏幕输出；
+  make ut 2>&1 | tee utmake.log 将屏幕信息输出到utmake.log文件(覆盖)，同时也在屏幕输出；
+  eg: make  ptPsExDspNyBinAll  -j42 > ci.log 2>&1 | tee
+
+17)通过 <(some command) 可以把某命令当成一个文件:
+  diff /etc/hosts <(ssh somehost && cat /etc/hosts) 比较一个本地文件和远程文件
+
+18)管道命令(|): 符号 | 是管道命令的分隔符，表示将前面命令的屏幕输出作为后面命令的输入
+  cat tst | grep 'error'  显示tst文件中包含error的那些行
+  for i in ci_*; do grep error $i |grep -v lom; done
+
+19)批量删除某个用户的文件，选择用户为"lianzeng"的文件，并抽取第9列（空格分隔），第9列是文件名，然后输入给rm命令，其中(xargs)表示批量处理；
+ ls -ltr | grep lianzeng | awk '{print $9}' 
+ ls -ltr | grep lianzeng | awk '{print $9}' | xargs rm -r
+ find ./ -name "*.mk" | xargs grep -nH MacPsRrm
+
+20)export 命令: 设置或显示环境变量,在shell中执行程序时，shell会提供一组环境变量。export可新增，修改或删除环境变量，供后续执行的程序使用。
+               export的效力是临时的，仅及于该次登录操作;如果想一直生效，可以修改home目录下的.bashrc文件；
+               eg: export LD_LIBRARY_PATH=lteDo/gtest_sm3/lib/gtest/debug/:$LD_LIBRARY_PATH
+               export PATH=/build/ltesdkroot/Tools/Tools/python/python-3.3.2/bin:$PATH
+               PATH=/mac/common/bin:/mac/common/lib/ruby/bin:$PATH 在~/.bashrc中添加信息到$PATH然后source .bashrc     
+21):w!sudo tee % 修改vim文件后强制以sudo权限保存；
+21)sudo yum install lcov;  在centos系统安装ut覆盖率检测工具(lcov)；
+   sudo apt-get install lcov; 在ubuntu系统安装ut覆盖率检测工具(lcov)；
+   sudo apt-get install cmake; 安装
+   sudo apt-get remove cmake; 卸载
+22)sudo!! 以root权限执行上一条命令，!!表示上一条命令；   
+   在linux下，通过配置一般用户也可以获取root权限，不需要知道root密码：
+   添加用户username到root权限,visudo,找到root ALL=(ALL) ALL这一行，在后面再加上一行就可以了：username ALL=(root) ALL; 
+
+22)要让virtualbox-ubuntu能够上网，必须要在virtualbox设置网络的连接方式为：桥接网卡，然后可以wget下载.deb软件包，不过还是不能上google;   
+23)sudo dpkg -i xxx.deb   安装软件包-i:install ,也可以直接双击安装；
+24)sudo apt-get update 更新本地的软件的数据库信息(source.list)，但是并不会自动升级软件，仅仅是更新信息，和官方同步，是为了后面执行install命令可以获取到最新的软件版本
+  而且，还需要uncomment文件"/etc/apt/source.list"的最后2行，然后执行 "sudo apt-get update" to update the source.list;
+  eg: sudo apt-get update&&sudo apt-get install foo  升级foo到最新版本
+
+25).给 apt-get 命令设置http代理：Configure the proxy for apt-get command in /etc/apt/apt.conf.d/proxy  省得每次都手动设置代理
+Acquire::http::Proxy "[http://your_account:your_password@cnbeprx-fiesprx.glb.nsn-net.net:8080]"; 
+
+26).wget 下载工具
+export https_proxy=10.144.1.10:8080
+export http_proxy=http://lianzeng:yourPassword@cnbeprx-fiesprx.glb.nsn-net.net:8080  设置公司的代理，否则virtualbox-ubuntu连不上网
+wget xxxxx -e use_proxy=yes -e http_proxy=10.144.1.10:8080  单独给wget命令设置代理；
+wget http://www.scootersoftware.com/bcompare-3.3.13.18981_i386.deb   下载安装包（后缀是.deb）
+wget http://ullteb09.emea.nsn-net.net:8080/job/MACPS%Kep%20\(Stable\)/1986/artifact/save/targetlogs/LTE3128.log 对于()需要加\转义
+sudo dpkg -i xxxx.deb  安装软件包
+////////////////////////////////////////////////////env 显示当前的环境变量， set 命令显示的更全更多, export 也可以查看；
+[lianzeng@hzling32 PsScheduler]$ env
+HOSTNAME=hzling32.china.nsn-net.net  当前连接的主机名
+SSH_CONNECTION=10.140.30.208 60351 10.159.215.231 22 服务器IP(10.159.215.231)
+PATH=...
+https_proxy=10.144.1.10:8080 //用于linsee访问github
+DISPLAY=localhost:10.0 //用于Xming
+///////////////////////////////////////////////////////
+ssh user@host 'mkdir -p .ssh && cat >> .ssh/authorized_keys' < ~/.ssh/id_rsa.pub
+这条命令由多个语句组成，依次分解开来看：（1）"$ ssh user@host"，表示登录远程主机；（2）单引号中的mkdir .ssh && cat >> .ssh/authorized_keys，表示登录后在远程shell上执行的命令：（3）"$ mkdir -p .ssh"的作用是，如果用户主目录中的.ssh目录不存在，就创建一个；（4）'cat >> .ssh/authorized_keys' < ~/.ssh/id_rsa.pub的作用是，将本地的公钥文件~/.ssh/id_rsa.pub，重定向追加到远程文件authorized_keys的末尾。
+//////////////////////////////////grep 命令参数("man grep" for help; man grep | less) 查找字符串时区分大小写
+-c 仅仅显示匹配的行数
+－n: 显示匹配行及行号；
+－v: 过滤字符串；
+-r: 递归搜索
+-i: 不区分大小写，默认情况区分大小写；
+T:  输出格式对齐
+grep -nH string *.rtm 针对当前目录下的rtm文件，查找包含关键字的那些行；
+grep WRN\/TDDPS *.LOG 在所有log中查找WRN/TDDPS
+grep "TAT expiration uePsIndex=400" *.LOG 查找多个连续字符串用双引号
+grep Period file | grep -v Period=0 //找出Period>0的行；
+grep info d*  显示所有以d开头的文件中包含test的行，有一点要注意，必需提供一个文件过滤方式(eg: *.log)；
+grep ‘test’ aa bb cc 显示在aa，bb，cc文件中匹配test的行；
+grep -i pattern files ：不区分大小写。默认情况区分大小写，
+grep -l pattern files ：只列出匹配的文件名，
+grep -w pattern files ：只匹配整个单词，而不是字符串的一部分(如匹配’magic’，而不是’magical’)；
+grep pattern file >out.txt
+grep 'pattern1\|pattern2' files ：显示匹配 pattern1 或 pattern2 的行，注意用\| 且不能有空格,区分大小写
+grep pattern1 files | grep pattern2 ：显示匹配 pattern1 且 pattern2 的行
+grep ‘\<man’ files : 匹配man开头的， 比如’manic’和’man’，但不是’Batman’，
+grep ‘\<man\>’ 只匹配’man’，而不是’Batman’或’manic’等其他的字符串。
+grep -nr PS_CellSetupReq ./* 是可以的
+grep dl/sch/catm MPdcchSender.cpp  在文件里面搜索dl/sch/catm
+grep -iE 'ERR\/LFS\/LinuxSyslog.*ERR'  *.log > AaErrorReports.txt
+
+find ./ -name "*.h" | xargs grep -nH PS_SetBbPoolParametersReq
+////////////////////////////////////////////////////////////////////////////////////$PATH
+Linsee:
+/home/hztdltemac/lcov-1.10/bin/:/home/hztdltemac/gdb/bin:/mac/common/bin:/mac/common/lib/ruby/bin:/home/hztdltemac/git/bin:/opt/beyondcompare/linux64/ix86/beyondcompare_3.3.5/bin:/usr/lib64/qt-3.3/bin:/opt/EE_LinSEE/bin/:/opt/APTOdevel/bin:/usr/local/bin:/bin:/usr/bin:/usr/X11R6/bin:/opt/bin:/opt/UsageModel:/home/lianzeng/bin
+CentOS:
+/mac/common/lib/ruby-1.9.3/bin:/mac/common/bin:/usr/lib64/qt-3.3/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/home/lianzeng/bin
+
+////////////////////////shell script（对空格敏感）
+chmod +x myscript.sh 让脚本可执行
+./myscript.sh 系统会创建一个子shell并且在子shell中执行脚本，
+source myscript.sh 在当前shell中执行脚本
+
+/////////touch/cat/vi 新建文件区别
+touch a.txt 如果文件不存在，则建立空文件（但不进入编辑态），如果已经存在，则更新文件的时间为当前时间，一般用于触发make重新编译（文件内容不会修改），这个命令不能用来修改文件内容；
+cat a.txt 如果文件不存在，报错,如果存在，则显示文件内容，但不进入编辑；
+cat >a.txt 如果文件不存在，则新建并进入编辑(ctrl+D 保存退出)，如果已经存在，则覆盖文件内容；
+cat >>a.txt 如果文件不存在，则新建并进入编辑(ctrl+D 保存退出)，如果已经存在，则在文件末尾追加内容；
+vi a.txt 如果文件不存在，则新建文件并进入编辑（但如果没有输入内容，那:q退出时文件不会建立），如果已经存在，则进入编辑；
+/////////////
+read: 获取输入，用于交互式shell脚本；
+myfunction(){} 定义函数 ，  myfunction 调用函数
+if [expression] fi 条件
+for file in `ls`   循环
+///////////////////////////bash shell script example(打印用 echo $variable)
+在bash 脚本中，subshells (写在圆括号里的命令) 是一个很方便的方式来组合一些命令；
+#!/bin/bash
+set -e    设置后，在执行过程中如果有错误，立即结束;
+set -x    设置debug输出
+for file in `ls syslog_*.log.zip`  注意这里是反单引号,循环5次: for i in {1..5};do mycmd;done
+do
+  unzip $file
+done
+或者：
+for i in ci_*; do mace.sh --logcheck $i; done    上一条命令执行结果($?)通过 echo $? 来查看，0表示成功；
+///////////////////////////example
+ ./lianzen.sh a.txt b.txt 脚本可接收输入参数，获取参数的变量【 $0 代表脚本名，$1 代表第一个参数，$2 代表第二个参数，$# 表示输入参数个数】
+
+ ///////////////////////////linux下根目录的含义：
+  /etc 系统配置文件
+  /opt 第三方软件,optional
+  /dev 包含了各种设备，linux中所有的设备都是以文件的形式存在，访问这个目录下的文件就等于访问设备
+  /mnt 暂时挂载某些额外的设备
+  /lib 系统函数库
+  /root 系统管理员目录，一般用户无权限访问
+  /tmp 临时存储区
+  /proc 虚拟文件系统，里面的东西都在内存中，不占硬盘空间
+  /sys 同/proc
+  /sbin 重要的系统执行文件
+  /bin 重要执行文件，如chmod,mv,mkdir,cp,bash
+  /usr 注意usr=unix software resource,不是user的缩写，包含软件开发相关的东西；
+  /var 系统或软件运行过程中产生的文件；
+///////////////////////////////////(lscpu) 查看arch/core/cpu数量，cache大小，大小端字节序，线程数
+[lianzeng@hzlinb15 ~]$ lscpu
+Architecture:          x86_64
+CPU op-mode(s):        32-bit, 64-bit  可选工作模式
+Byte Order:            Little Endian       , Host都是小端
+CPU(s):                24     core数量
+Thread(s) per core:    2    每个core有2个寄存器组和执行单元，所以可以并发跑2个线程
+Core(s) per socket:    6    每张网卡可以支持6个core
+cpu Socket(s):             2  
+L1d cache:             32K   数据缓存
+L1i cache:             32K   指令instruction 缓存, cpu只能从L1 cache获取数据，每层cache的cache line size 不同
+L2 cache:              256K  每个core有自己的L1,L2 cache
+L3 cache:              12288K, core之间共享的
+NUMA node0 CPU(s):     1,3,5,7,9,11,13,15,17,19,21,23   这是cluster ?
+NUMA node1 CPU(s):     0,2,4,6,8,10,12,14,16,18,20,22
+product K2 result:
+root@fspj-5a:/proc >lscpu
+Architecture:          armv7l
+Byte Order:            Little Endian
+CPU(s):                4
+On-line CPU(s) list:   0-3
+Thread(s) per core:    1
+Core(s) per socket:    4
+Socket(s):             1
+Model name:            ARMv7 Processor rev 4 (v7l)
+
+////////////////////////////////////////////////////////////
+mount remote.host.com:/some/where  /local/dir  网络盘映射到本地(先建立/local/dir),要root权限
+sshfs remote.host.com:/some/where  /local/dir
+mount | grep lianzeng 查询当前用户的目录(/home/lianzeng)的网络盘源地址
+hzlinn10.china.nsn-net.net:/vol/hzlinn10_home/home/lianzeng on /home/lianzeng type nfs (rw,soft,intr,retry=1,wsize=32768,rsize=32768,intr,sloppy,addr=10.159.194.128)
+/////////////////Linux服务器监控命令
+htop 交互式进程查看器，安装:sudo apt-get install htop
+iotop 简单的I/O监控器，查看每个进程线程的信息，可与 tcpdump 配合使用；
+apachetop 显示web服务器关于http请求的信息
+glances 显示Load,CPU,Memory,Disk I/O,Swap,Network,Process
+////////////////////////////////////////////////////////////最简单的办法在ubuntu安装软件包：
+1）如果ubuntu可以上网，那么：
+wget http://www.scootersoftware.com/xxx.deb   
+sudo dpkg -i xxx.deb 安装软件包
+2）如果ubuntu不能上网，那么：
+先通过浏览器把.deb下载下来，然后拷贝到ubuntu上，再安装
+sudo dpkg -i bcompare-3.3.13.18981_i386.deb 安装软件包
+///////////////////////////////////////////////////////////Ubuntu源码安装cmake工具方法（http://askubuntu.com/questions/610291/how-to-install-cmake-3-2-on-ubuntu-14-04）
+sudo apt-get install build-essential 这步之前先要给 apt-get 设置http代理,参考上面，这步是配置编译环境
+wget http://www.cmake.org/files/v3.2/cmake-3.2.2.tar.gz  其中wget是linux下的http下载工具，这步是下载源码
+tar xf cmake-3.2.2.tar.gz
+cd cmake-3.2.2
+./configure   生成makefile,可以输入参数来屏蔽某些找不到的库 ./configure --without-libxxx
+make    编译生成程序安装包，接下来有2种方式：
+1)sudo make install 这种方式直接根据makefile的install命令执行
+2)sudo apt-get install checkinstall 这种方式的好处是可以生成.deb安装包，然后可以在其它ubuntu机器上安装；
+  sudo checkinstall 

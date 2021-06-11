@@ -1,0 +1,38 @@
+--[[
+  原型：rawget(table, index)
+  解释：根据参数table和index获得真正的值table[index]，也就是说根本不会调用到元表，其中参数table必须是一个表，
+        而参数index可以使是任何值。
+        
+        成功返回相应的值，当索引不存在时返回nil
+
+   1. 通过rawget不使用__index给定的值
+   2. 通过setmetatable(tab,nil) 删除元表，然后再获取值
+--]]
+
+--  定义一个table
+local tab = {
+    66,
+    11,
+    h = 25,
+    w = 32,
+}
+
+--  定义元表
+local mt = {x = 77, y = 78, h = 9}
+
+
+-- 先打印没有元表的情况
+print("\nno metatable tab.h =", tab.h)
+print("\nno metatable tab.x =", tab.x)
+
+-- 设置元表
+setmetatable(tab, {__index = mt})
+
+-- 打印有元表的情况
+print("\nhave metatable tab.h =", tab.h)
+print("\nhave metatable tab.x =", tab.x)
+
+-- 打印不使用元表的情况
+print("\nnot use metatable tab.h =", rawget(tab, "h"))
+print("\nnot use metatable tab.x =", rawget(tab, "x"))
+

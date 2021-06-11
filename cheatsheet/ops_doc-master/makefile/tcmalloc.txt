@@ -1,0 +1,50 @@
+编程和思考 -- 公众号
+    gcc运行时库(libc)中使用的堆内存管理库叫ptmalloc，是个效率极高的堆内存管理库。
+
+    强中更有强中手。google针对多线程程序的堆内存管理，开发了一个库叫tcmalloc，这个库性能更好。
+而且在内存问题的调试上，做得更加出色，配合google开发的一系列工具，可以方便的定位泄露、效率低下等常见内存使用问题。
+tcmalloc主体是一个动态链接库(so)，链接该so，即可替换libc库中的malloc/free等函数，接管堆内存的管理。
+---------------------------------------
+
+1. 编译安装tcmalloc
+tcmalloc是gperftools工具套件的一个组成部分。
+gperftools的源码可以从https://github.com/gperftools/gperftools下载。
+
+gperftools依赖libunwind。
+libunwind的源码可以从https://github.com/libunwind/libunwind下载。
+
+这两者的安装方法都是在project根目录执行：
+$./configure && make && make install
+---------------------------------------
+
+2. 让待调试程序链接libtcmalloc.so库
+链接tcmalloc的常规做法：
+    在编译链接的时候加上-ltcmalloc选项；
+    通过LD_PRELOAD预加载tcmalloc；
+如：
+$export LD_PRELOAD=/usr/local/lib/libtcmalloc.so
+或者在执行待调试程序(比如./taskflowd)时链接libtcmalloc.so
+$LD_PRELOAD=/usr/local/lib/libtcmalloc.so ./taskflowd
+
+---------------------------------------
+3. 设置环境变量
+运行待调试程序之前，有几个环境变量需要设置
+$export PPROF_PATH=/usr/local/bin/pprof
+$export HEAPCHECK=normal
+$export HEAPPROFILE=/root/meta/pack/LINUX/bin/taskflowd
+PPROF_PATH如果未设置，tcmalloc报告内存泄露时无法正确显示符号名。
+HEAPCHECK设置检查强度，有minimal/normal/strict/draconian四种取值。
+开启这些开关后，tcmalloc运行过程会输出内存泄露信息，并且将统计数据保存到文件中。
+文件的路径前缀为HEAPPROFILE设置的值。
+
+---------------------------------------
+4. 执行链接了libtcmalloc.so的待调试程序
+如果有内存泄露，在待调试程序退出时，tcmalloc会输出泄露
+
+LD_PRELOAD=/usr/local/lib/libtcmalloc.so HEAPCHECK=strict PPROF_PATH=/usr/local/bin/pprof /root/meta/pack/LINUX/bin/taskflowd
+
+---------------------------------------
+5. 使用pprof工具可以生成易于查看的统计报告
+pprof /root/meta/pack/LINUX/bin/taskflowd "/tmp/taskflowd.5517._main_-end.heap" --text
+
+

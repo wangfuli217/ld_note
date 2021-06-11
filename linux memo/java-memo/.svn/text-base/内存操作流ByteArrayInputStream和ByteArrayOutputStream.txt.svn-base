@@ -1,0 +1,46 @@
+ByteArrayInputStream和ByteArrayOutputStream
+
+之前的程序中，输出输入都是从文件中来的，当然，也可以将输出的位置设置在内存之上。此时就要使用ByteArrayInputStream、ByteArrayOutputStream来完成输入、输出的功能了。
+ByteArrayInputStream的主要功能是完成将内容写入到内存之中，而ByteArrayOutputStream的主要功能是将内存中的数据输出。
+此时操作的时候就应该以内存为操作点。
+
+
+构造方法：
+public ByteArrayInputStream(byte[] buf) 
+  创建一个ByteArrayInputStream，使用buf作为缓冲区数组，实际上内存的输入就是在构造方法上将数据传入到内存之中。
+ByteArrayOutputStream：输出就是从内存中写出数据。
+利用public void write(int b) 利用它完成一个大小写字母转换的程序，实例如下：
+
+总结：
+
+1、内存操作流的操作对象一定是以内存为准，不要以程序为准
+2、实际上此时可以通过向上转型的关系为OutputStream或InputStream实例化
+
+import java.io.* ;
+public class ByteArrayDemo01{
+	public static void main(String args[]) throws Exception{
+		String str = "HELLOWORLD" ;		// 定义一个字符串，全部由大写字母组成
+		InputStream bis = null ;	// 内存输入流
+		OutputStream bos = null ;	// 内存输出流
+		bis = new ByteArrayInputStream(str.getBytes()) ;	// 向内存中输入内容
+		bos = new ByteArrayOutputStream() ;	// 准备从内存ByteArrayInputStream中读取内容
+		int temp = 0 ;
+		while((temp=bis.read())!=-1){
+			char c = (char) temp ;	// 读取的数字变为字符
+			bos.write(Character.toLowerCase(c)) ;	// 将字符变为小写
+		}
+		// 所有的数据就全部都在ByteArrayOutputStream中
+		String newStr = bos.toString() ;	// 取出内容
+		try{
+			bis.close() ;
+			bos.close() ;
+		}catch(IOException e){
+			e.printStackTrace() ;
+		}
+		System.out.println(newStr) ;
+	}
+};
+
+实际上，以上的操作可以很好的体现对象的多态性，通过实例化其子类的不同，完成的功能也不同，也就相当于输出的位置也不同，如果是文件则使用FileXxx，如果是内存，则使用ByteArrayXxx
+内存输入听说在后面JAVA开发中也是经常要使用到的，需要重点掌握。
+

@@ -1,0 +1,97 @@
+命令行参数详解：
+
+memcached是使用getopt和getsubopt解析命令行参数的，下面给出的这些命令行选项与这两个解析函数有关：
+凡是选项后面有冒号的就表示这个选项必须要有一个参数；没有冒号的就没有参数；memcached没有使用双冒号的选项。
+关于getopt和getsubopt的具体使用可以参考《getopt和getsubopt命令行解析函数》。
+
+"A"     
+是否运行客户端使用shutdown命令。默认是不允许的。该选项将允许。
+客户端的shutdown命令会将memcached进程杀死。该选项会将settings.shutdown_command赋值为false
+"a:"    
+unix socket的权限位信息(访问掩码)。该选项的参数赋值给settings.access
+"U:"   
+大写U。memcached监听的UDP端口值，默认端口为11211。该选项的参数赋值给settings.udpport
+"p:"  
+小写p，memcached监听的tcp端口。默认端口为11211, 该选项的参数赋值给settings.port
+"s:"
+小写S。unix socket监听的socket路径。该选项的参数赋值给settings.socketpath
+"m:"
+小写m。memcached能够使用的最大内存值，默认是64MB。参数单位为MB。该参数赋值给settings.maxbytes
+"M"
+大写M。默认情况下，当memcached的内存使用完后，将进行LRU机制淘汰item以腾出空间。
+如果使用本选项那么将关闭LRU功能。当然关闭LRU不代表不能存储新数据。
+如果memcached里面存有过期失效的item，那么就可以存储新数据。否则将无法存储。该选项将settings.evict_to_free赋值为0。
+"c:" 
+小写c。最多允许多少个客户端同时在线(这个值不等价于listen函数的第二个参数)，该选项和后面的b选项有所不同。
+默认值为1024个。该选项参数赋值给settings.maxconns。
+"h"
+显示帮助信息
+"i"
+显示memcached和libevent的版权信息
+"k"
+小写k。将memcached使用到的内存锁定在内存中，不准OS把memcached的内存移动到虚拟内存。
+因为当OS把memcached的内存移动到虚拟内存可能会导致错误，降低memcached的响应时间
+"v"
+小写v。输出memcached运行时的一些信息。-v -vv -vvv输出的信息依次增加。该选项会增加settings.verbose的值
+"l:"
+小写l。memcached绑定的ip地址。如果不设置这个选项，那么memcached将使用INADDR_ANY。
+如果想指定多个IP地址，那么该选项的参数可以由多个ip组成，ip之间用逗号分隔。
+也可以多次使用这个选项，此时端口应该尾随ip而不是单独用-p选项指定。
+例如-l 127.0.0.1:8888,192.168.1.112:9999 或者 -l 127.0.0.1:8888 -l 192.168.1.112:9999该选项参数将赋值给settings.inter
+
+"d"
+以守护进程的形式运行memcached
+"r"
+将core文件大小设置为不受限制
+"R:"
+  worker线程连续为某个客户端执行命令的最大命令数。该选项的参数赋值给settings.reqs_per_event
+"u:"
+  小写u。当以root用户启动memcached的时候需要指定memcached的所属用户，其他用户启动memcached不需要此选项
+"P:"
+  大写p。该选项指明memcached的pid保存文件。要和-d选项配合使用。注意运行的用户是否有权限写对应的文件
+"f:"
+    item的扩容因子。默认值为1.25。该选项的参数值可以是小数但必须大于1.0。该选项参数将赋值给settings.factor
+"n:"
+   设置最小的item能存储多少字节的数据。该选项参数赋值给settings.chunk_size
+"t:"
+    该选项的参数用于指定worker线程的个数，不建议超过64个。如果不设置该选项默认有4个线程。该参数会赋值给settings.num_threads
+"D:"
+  参数字符作为前缀和ID的分隔符。使用了该选项才会自动收集状态信息。
+也可以在启动memcached后，客户端使用stats detail on命令开启，此时默认的分隔符为冒号":"。
+该选项参数会赋值为settings.prefix_delimiter，并将settings.detail_enabled赋值为1
+"L"    如果OS允许的话，那么向OS申请更大的内存页。OS的默认内存页为4KB。大的内存页可以有效降低页表的大小，提高效率。此选项会使得memcached预先先OS全部所需的申请内存。当然这些内存尽量是用大内存页分配的
+"C:"  
+大写C。memcached默认是使用CAS的，本选项是禁用CAS。本选项会将settings.use_cas赋值为false
+"b:"   
+listen函数的第二个参数。该选项的参数赋值给settings.backlog。如果不设置该选项，那么默认为1024。该选项和前面的c选项有所不同
+"B:"  memcached支持文本协议和二进制协议。该选项的参数用于指定使用的协议。默认情况下是根据客户端的命令而自动判断(也叫协商)，参数只能取auto、binary、ascii这三个字符串值。将参数将赋值给settings.binding_protocol
+"I:"   
+大写i。slab分配器中，每一个页的大小。这个参数是一个数值表示页的大小。
+默认单位是B也可以在数值后面带K或者M(大小写都行)，表示KB和MB。
+页的大小小于1KB或者大于128MB都是不允许的。不推荐使用该选项。本选项参数会赋值给settings.item_size_max
+"S"   
+大写S。打开sasl安全协议。会将settings.sasl赋值为true
+"F"   
+禁止客户端的flush_all命令。默认是允许客户端的flush_all命令的。该选项将settings.flush_enabled赋值为false
+"o:"
+小写o。有下面几个子选项可以设置。这个选项是用来优化的
+maxconns_fast:   
+如果连接数超过了最大同时在线数(由-c选项指定)，立即关闭新连接上的客户端。该选项将settings.maxconns_fast赋值为true
+whashpower:
+哈希表的长度是2^n。可以通过选项hashpower设置指数n的初始值。如果不设置将取默认值16。
+该选项必须有参数，参数取值范围只能为[12, 64]。本选项参数值赋值给settings.hashpower_init
+slab_reassign:   
+该选项没有参。用于调节不同类型的item所占的内存。不同类型是指大小不同。某一类item已经很少使用了，但仍占用着内存。
+可以通过开启slab_reassign调度内存，减少这一类item的内存。如果使用了本选项，settings.slab_reassign赋值为true
+slab_automove:   依赖于slab_reassign。用于主动检测是否需要进行内存调度。该选项的参数是可选的。参数的取值范围只能为0、1、2。参数2是不建议的。本选项参数赋值给settings.slab_automove。如果本选项没有参数，那么settings.slab_automove赋值为1
+hash_algorithm:  
+ 用于指定哈希算法。该选项必须带有参数。并且参数只能是字符串jenkins或者murmur3
+tail_repair_time:   
+用于检测是否有item被已死线程所引用。一般不会出现这种情况，所以默认不开启这种检测。
+如果需要开启这种检测，那么需要使用本选项。本选项需要一个参数，参数值必须不小于10。该参数赋值给settings.tail_repair_time
+lru_crawler:  
+ 本选项用于启动LRU爬虫线程。该选项不需要参数。本选项会导致settings.lru_crawler赋值为true
+lru_crawler_sleep: 
+ LRU爬虫线程工作时的休眠间隔。本选项需要一个参数作为休眠时间，单位为微秒，取值范围是[0, 1000000]。该参数赋值给settings.lru_crawler_sleep
+lru_crawler_tocrawl:   
+LRU爬虫检查每条LRU队列中的多少个item。该选项带有一个参数。参数会赋值给settings.lru_crawler_tocrawl

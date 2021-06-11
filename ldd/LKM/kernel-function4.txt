@@ -1,0 +1,149 @@
+UART：Universal Asynchronous Receiver Transmitter 通用异步收发器
+16550或者8450芯片 
+驱动程序8250c驱动程序
+1：关注UART或者其他底层串行硬件特征的底层驱动程序
+2：和底层驱动程序接口的tty驱动程序层。tty驱动程序将上层驱动程序和形形色色的硬件进行隔离
+3：加工用于和tty驱动程序交换数据的线路规程。线路规程勾勒串行层的行为，有助于复用底层的代码来之不同的技术。
+
+usb:/drivers/usb
+usbserial:drivers/usb/serial/usb-serial.c
+adapter:drivers/usb/serail/keyspan.c
+最后，需要用N_TTY线路规程处理终端IO。
+
+
+线路规程
+N_TTY      /dev/ttySX
+N_IRDA     /dev/ircommX
+N_PPP      /dev/ppp0
+
+uart驱动程序
+include/linux/serial_core.h
+1)特定UART相关的驱动程序结构：struct uart_driver
+2)struct uart_port uart驱动程序拥有的每个端口都存在uart_port结构的一个实例。
+3)struct uart_ops 这个结构是每个uart驱动程序必须支持的物理硬件上可完成的操作的入口函数的超集。
+
+uart驱动程序为了将自身和内核联系起来，必须完成两个重要的步骤：
+1）通过调用uart_register_driver(struct uart_driver*)；向串口核心注册
+2）调用uart_add_one_port(struct uart_driver *, struct uart_port *)注册其支持的每个端口，
+如果串行硬件支持热插拔，那么探测到设备后，从入口点想内核注册。
+
+CPLD与FPGA？
+CPLD通过提供了3个寄存器接口以支持访问每个USB-串行端口转换器，这就创建了两个虚拟的UART。
+状态寄存器    检查发送FIFIO是否满或接受FIFO是否空的位
+读数据寄存器  从USB_UART读一个字节
+写数据寄存器  写一个字节到USB_UART
+每个写一个字符到USB_UART，程序需要循环检查状态寄存器。当芯片内部的发送FIFO有空间时，状态寄存器复位，就可以向写数据寄存器写入字节。
+为了读取一个字节，程序将等待知道状态寄存器的响应位显示接收FIFO中有数据，然后从度数据寄存器读取数据。
+drivers/usb/serial/ftdi_sio.c 创建并管理对应于USB-串行端口的/dev/ttyUSBX设备节点，可以运行基于这些设备节点的终端仿真器minicom，一伙的
+控制台或调试终端。在手机一端，必须为USB-UART实现UART驱动程序，此驱动程序创建并负责链路设备端通信的/dev/ttyUUX节点。
+
+1）平台设备：特定架构的安装程序使用platform_device_register或者期简化形式platform_device_register_simple()添加平台设备。
+也可以用platform_add_devices()一次添加多个平台设备，定义于include/linux/platform_device.h的platform_deice结构体代表一个平台设备；
+平台驱动程序：平台驱动程序使用platform_driver_register将自身注册进平台中，platform_driver结构亦定义于include/linux/platform_device.h中
+代表平台驱动程序。
+关于平台设备和平台驱动程序更详细的文件参考documentation/driver-model/plattform.txt
+
+模块插入 ： usb_uart_init uart_register_driver usb_uart_probe usb_add_one_port usb_uart_config_port request_mem_region
+模块卸载 ： usb_uart_exit usb_unregister_driver usb_uart_remove uart_remove_one_port usb_uart_release_port release_mem_region
+打开/dev/ttyUUX usb_uart_Startup request_irq
+关闭/dev/ttyUUX usb_uart_shutdown free_irq
+
+
+########################  RS485  ############################
+为了可靠通信而使用RS-485的情况，因为RS-485使用查分信号。RS-485是半双工的UART操作。
+从发送FIFO发送数据至电缆之前，UART设备驱动程序需要禁用接收器，激活发送器，这一操作可以通过设置相应GPIO引脚的点评来实现，而为了从电缆上获取数据并传输至
+接收FIFO，UART驱动程序需要完成相反的操作。
+必须在串行层中恰当的地方激活/禁用RS-485的接收器/发送器。如果太早地禁用了发送器，他可能没有足够的时间清空发送FIFO中的最后几个字节数据，这将导致发送数据丢失，
+相反，如果禁用发送发送器太晚，就会阻止此段时间的数据接收，这将导致接收数据丢失。
+
+RS-485不支持使用RTS和CTS的硬流控。
+include/linux/tty.h struct tty_struct包含了打开tty相关的所有状态信息。
+tty_struct中内嵌的struct tty_flip_buff或flip缓冲区，这是数据收集和处理机制的中枢。
+定义于include/linux/tty_driver.h文件中的struct tty_driver规定了tty驱动程序和高层之间的编程接口。
+像uart驱动程序一样，tty驱动程序也需要完成两个步骤才能向内核注册自身。
+1）通过调用uart_register_driver(struct uart_driver*)；向串口核心注册
+2）调用一下代码注册它支持的每个单独的tty:
+tty_register_device(struct tty_driver * driver, unsigned index, struct device * device)
+
+例子：drivers/net/bluetooth/rfcomm/tty.c
+      drivers/char/vt.c
+      drivers/char/pty.c
+      drivers/serial/serial_core.c
+      
+########################  线路规程  ############################
+N_TTY		0
+N_SLIP		1
+N_MOUSE		2
+N_PPP		3
+N_STRIP		4
+N_AX25		5
+N_X25		6	
+N_6PACK		7
+N_MASC		8	
+N_R3964		9	
+N_PROFIBUS_FDL	
+N_IRDA		11	
+N_SMSBLOCK	12	
+N_HDLC		13	
+N_SYNC_PPP	14	
+N_HCI		15	
+N_GIGASET_M101	16
+N_SLCAN		17	
+N_PPS		18	
+
+include/linux/tty.h 可以使用
+/proc/tty/ldiscs文件 已使用
+
+
+uart_driver             include/linux/serial_core.h         代表底层的UART驱动程序
+uart_port               include/linux/serial_core.h         代表一个UART端口
+uart_ops                include/linux/serial_core.h         UART驱动程序支持的入口函数
+platform_device         include/linux/platform_device.h     代表平台设备
+platform_driver         include/linux/platform_device.h     代表一个平台驱动程序
+tty_struct              include/linux/tty.h                 tty的状态信息
+tty_bufhead,tty_buffer  include/linux/tty.h                 这两个结构体实现了和tty相关的flip缓冲区
+tty_driver              include/linux/tty_driver.h          tty驱动程序和高层之间的编程接口
+tty_ldisc               include/linux/tty_ldisc.h           线路规程支持的入口函数
+
+
+uart_register_driver             drivers/serial/sderial_core.c   向串行核心注册UART驱动程序
+uart_add_one_port                drivers/serial/sderial_core.c   注册UART驱动程序支持的UART
+uart_unregister_driver           drivers/serial/sderial_core.c   从串口核心移除UART驱动程序
+platform_device_register         drivers/base/platform.c         注册平台设备
+platform_device_register_simple  drivers/base/platform.c         
+platform_add_devices             drivers/base/platform.c         
+platform_device_unregister       drivers/base/platform.c         卸载平台设备
+platform_driver_register         drivers/base/platform.c         注册/卸载平台驱动程序
+platform_driver_unregister       drivers/base/platform.c         
+                                                                 
+tty_insert_flip_char             include/linux/tty_flip.h       向tty flip缓冲区添加一个字符 
+tty_flip_buffer_push             drivers/char/tty_io.c          排队一个将flip缓冲区推向线路规程的请求 
+                                                                 
+tty_register_driver              drivers/char/tty_io.c           向串行核心注册tty驱动程序
+tty_unregister_driver            drivers/char/tty_io.c           从串行核心注销tty驱动程序
+tty_register_ldisc               drivers/char/tty_io.c           通过注册指定的入口函数，创建线路规程
+tty_unregister_ldisc             drivers/char/tty_io.c           从串行核心移除线路规程
+
+
+
+########################  platform_driver_register()与platform_device_register()  ############################
+ 
+   设备与驱动的两种绑定方式：在设备注册时进行绑定及在驱动注册时进行绑定。 以一个USB设备为例，有两种情形：
+(1)先插上USB设备并挂到总线中，然后在安装USB驱动程序过程中从总线上遍历各个设备，看驱动程序是否与其相匹配，如果匹配就将两者邦定。
+这就是platform_driver_register()函数.  设备发现驱动发现链
+(2)先安装USB驱动程序，然后当有USB设备插入时，那么就遍历总线上的各个驱动，看两者是否匹配，如果匹配就将其绑定。
+这就是platform_device_register()函数.  驱动发现设备发现链.
+
+
+
+
+串行核心位于drivers/serial文件中，tty实现和底层的驱动程序分散在内核源代码树中。例如：驱动程序文件分别位于4个不同的目录中
+/drivers/serial drivers/char drivers/usb/serial driver/net/irda.
+drivers/serial 目录包含UART驱动程序
+drivers/serial/imx.c是实际的、底层的UART驱动程序。它是飞思卡尔的i.MX系列嵌入式控制器的UART。
+
+Linux支持的线路规程列表可以参看include/linux/tty.h文件。
+如果想了解网络线路规程，可以阅读PPP drivers/net/ppp_async.c
+                                蓝牙 drivers/bluetooth/hci_ldisc.c
+								红外 drivers/net/irda/irtty-sir.c
+								SLIP drivers/net/slip.c

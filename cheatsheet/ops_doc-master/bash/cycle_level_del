@@ -1,0 +1,20 @@
+#!/bin/sh
+
+DELETE_LEVEL=2  # G
+
+cd /storage/sdcard/rec/rec0
+
+while 1 do;
+
+  availK=$(df | awk '/sdcard/{print $4}') # K
+  availG=$(expr $avail / 1048576)         # G
+
+  if [ "$availG" -lt "$DELETE_LEVEL" ] ; then
+    filename=$(ls -alr | sed -n '1p' | awk '{ print $NF }')
+    [ -z "$filename" ] && break
+    rm "$filename"
+  else
+    break
+  fi
+
+done

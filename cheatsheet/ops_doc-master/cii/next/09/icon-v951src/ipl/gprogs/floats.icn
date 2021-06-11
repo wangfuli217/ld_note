@@ -1,0 +1,77 @@
+############################################################################
+#
+#	File:     floats.icn
+#
+#	Subject:  Program to count floats
+#
+#	Author:   Ralph E. Griswold
+#
+#	Date:     July 15, 2002
+#
+############################################################################
+#
+#  This file is in the public domain.
+#
+############################################################################
+#
+#  This program analyzes the floats in a drawdown as a BLP or row file
+#  from standard input.
+#
+############################################################################
+#
+#  Links:  pattread, patxform
+#
+############################################################################
+
+link pattread
+link patxform
+
+procedure main()
+   local front, back, black, white
+
+   front := pattread()
+   
+   back := pinvert(front)
+
+   analyze("Front weft floats", front, "0")
+
+   front := protate(front)
+
+   analyze("Front warp floats", front, "1")
+   analyze("Back weft floats", back, "0")
+
+   back := protate(back)
+
+   analyze("Back warp floats", back, "1")
+
+end
+
+procedure analyze(caption, rows, color)
+   local counts, length, row
+
+   counts := table(0)
+
+   every row := !rows do {
+         row ? {
+            while tab(upto(color)) do {
+               length := *tab(many(color))
+            if length > 2 then counts[length] +:= 1
+            }
+         }
+      }
+
+   if *counts = 0 then return
+
+   write(caption)
+
+   counts := sort(counts, 3)
+
+   write()
+
+   while write("\t", get(counts), "\t", get(counts))
+
+   write()
+
+   return
+
+end

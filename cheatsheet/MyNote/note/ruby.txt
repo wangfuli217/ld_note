@@ -1,0 +1,196 @@
+ruby是一门面向对象的编程语言
+irb     	#交互式ruby的缩写
+
+在ruby中一切都是对象,想看某个变量或值的对象时,只需 变量/值.class,例 1.class =>Fixnum,class方法是ruby默认提供给每个对象的方法
+当ruby看到没有明显指定类或对象的代码时,就在默认的,预定义的类和模块中查找,例 puts 就是来自kernel模块的方法
+
+比较运算:
+x <=> y		#如果x==y则返回0,如果x更大则返回1,y更大返回-1,其他比较符和c一样
+
+循环:
+	times do puts "Test" end    			例  5.times do puts "Test" end
+	times {puts "Test"}						例  5.time {puts "Test"}
+	1.upto(5) {...code to loop here...}		迭代方法,例 1.upto(5) {|number| puts number},将参数传递到无名代码块,还有1.downto(-1)...,0.step(50,5)	表示从0步进到50,步长5
+	"xyz".scan(/./) { |letter| puts letter} 迭代字符串,第一个"/./"为正则表达式,正则表达式会在//之间
+	在string.match()方法中,match会将提供给它的任何字符串都作为正则表达式,因此可以省略//
+	
+10/3=3,10.0/3=3.3333,若要变量实现完全除法,可以使用x.to_f/y.to_f,to_i方法转成整数
+
+字符串:
+x=%q{This is a test				#将字面字符串包含在程序中,分隔符{}可以使用任意字符,但一旦使用字符串就不应再包含分隔符,否则可能会出错
+	of the multi
+	line capabillties}
+here document,<<标记了字面字符串的开始,后面跟所选择的分界符,字符串从下一行开始,再次遇到分界符结束,采用这种方法,不怕选错分隔符,只要有足够创意即可
+例:
+	x=<<END_MY_STRING_PLEASE
+	This is a test
+	of the multi
+	line capabillties
+	END_MY_STRING_PLEASE
+"+"可以将两个字符串相加			例:"abc"+"def"会得到abcdef
+"*"可以复制字符串				例"abc"*5会得到abcabcabcabcabc
+?A或'A'[0]可以得到A的ascii码值  例:puts ?A,只在ruby1.8以前中支持,1.9以后可以使用puts "A".ord
+120.chr可以得到120的ascii		例:puts 120.chr
+
+"Test".capitalize		#单词首字母大写
+"Test".downcase			#全转小写
+"Test".upcase			#全转大写
+"Test".chop				#移除字符串最后一个字符
+"Test".hash				#返回一个基于字符串长度和内容的哈希
+"Test".next				#最后一个字符+1后的ascii码,如果是z,则进位
+"Test".reverse			#整个字符串反转
+"Test".sum				#检验和,返回每个字符ascii码值的和
+"Test".swapcase			#返回字符串的副本,所有大写转小写,所有小写转大写
+"Test".scan(/\w/)		#如果不使用代码块进行处理,那么返回的就是一个数组[T,e,s,t],可以配正则表达式,按句子切分
+在ruby中,基本任何类都有inspect方法,它给出对象的文本化
+
+将表达式结果插入字符串中,称为插写,方法为将表达式放入#{}中	例:#{x}+#{y}=#{x+y}
+
+数组
+x=[1,2,3,4]	x[2]=3,索引从0开始
+x=[],x<<"word",<<将"word"放入数组末尾,x.pop可以弹出数组最末尾一个元素
+x.length,x.size			#可以获得数组元素个数
+x.empty					#检查数组是否为空
+x.join(',')				#可接受一个可选参数用来放在每个元素之间	
+x.each {...}			#数组迭代,可以使用each方法,collect可以对数组进行实时转换
+x.include(4)			#检查数组中是否有某个元素
+x.first/last			#访问数组中第一个元素和最后一个元素,如果指定参数,则得到从数组开始或最后的第n个元素
+x.reverse				#每个元素反转
+两个数组相加可以得到一个更长的数组,数组相减会删除两个数组中都有的元素		
+
+散列表:
+x={'cat'=>'feline animal','dog'=>'canine animal'}
+和数组一样,可以使用x['cat']方式来访问
+x.each	{|key,value| puts "#{key} equals #{value}"}			#散列表迭代,由于散列表中的每个元素都用键,所以迭代的顺序是不固定的
+x.keys					#可以查看散列表所有的键,values查看所有值,返回数组
+x.delete("cat")			#删除散列表中键为"cat"的元素,x.delete_if {|key,value| value<100},有条件的删除某些元素
+
+if ... elseif ... else ... end				#如果符合条件,就执行代码
+unless ... elseif ... else ... end			#如果不符合条件,就执行代码
+?:											#三元运算符,和c中一样
+case 表达式									#选择表达式
+	when	1
+		...
+	when	2
+		...
+	else
+		...
+	end
+	
+where 表达式			#符合表达式循环
+	...
+end
+
+until 表达式			#不符合表达式循环
+	...
+end
+
+方法(函数)
+	def each_vowel(&code_block)		#若参数名前有宏符号(&),表示该参数是代码块
+		%w{a e i o u}.each {|vowel| code_block.call(vowel)}		#调用code_block的call方法,对每个元音字母执行代码块
+	end
+	each_vowel {|vowel| puts vowel}
+	def each_vowel
+		%w{a e i o u}.each {|vowel| yield vowel}				#和上面函数等价,yield会自动检测传递进来的代码块,并将控制权移交给代码块
+	end
+一次只能传递一个代码块,任何方法都不能接受两个或多个代码块作为参数
+	x=lambda { |a| puts a}		#将代码块存储在变量中,调用时可以使用x.call(100)
+	
+类:
+	class 类名 < 继承的父类名(只能继承一个)
+		private	(只能类里访问)
+			...
+		public
+			...
+	end
+可以把private,public,protected当成命令使用,如 private :this_is_private
+类可以嵌套,他在外部使用时例:Draing:Line
+在子类方法中使用super会调用父类同名函数
+在ruby中可以重写标准类,例下面即重写了String的length方法,那么所有String.length返回的都是20
+module	StringClass				#模块可用来解决命名空间的问题,访问模块里的内容只需StringClass::String,引用类用::,引用其他的用.
+	class String
+		attr_accessor :name		#attr_accessor的作用相当于可以在外部访问name变量或给name变量赋值
+		def length
+			20
+		end
+	end
+end
+类名.new	实例化一个类
+可以使用include 模块名将模块内容放入当前作用域
+
+initialize是ruby程序的一个特别方法,当类使用new方法实例化一个新对象时,ruby会调用这个对象的initialize,并将传给new的参数传递给initizlize方法
+	
+	
+Time类(内部机制使用微秒保存时间)
+Time.now		#当前时间
+Time.local(year,month,day,hour,min,sec,msec)		#根据本地时区创建Time对象,从month开始的参数都是可选的
+Time.gm/utc(year,month,day,hour,min,sec,msec)		#根据GMT/UTC来创建Time对象
+Time.to_i		#转成1970年1月1日0时0分0秒来的秒数,也可以转回来,Time.at就行
+Time.hour	#表示24小时格式的数字
+Time.min	#整点之后经过的分钟数
+Time.sec	#整分钟之后经过的秒数
+Time.usec	#整秒之后经过的微秒数(一秒钟有一百万微秒)
+Time.day	#日期是该月的第几天
+Time.mday	#与day方法同义,被视为"月份"天数
+Time.wday	#按周计的天数(星期天是0,星期六是6)
+Time.yday	#按年计的天数
+Time.month	#日期的月份数值
+Time.year	#日期关联的年份
+Time.zone	#返回时间关联的时区名
+Time.utc	#返回true或false,是否在utc/gmt时区
+Time.gmt	#和上面同义
+
+defined?()		#判断某个变量是否存在
+respond_to?()	#判断对象是否能响应指定方法
+
+范围: 1..3表示1到3,'A'..'Z'表示字符A到Z
+
+符号:	
+	例: :good 与 :bad都是符号,符号不包含值或对象,不像变量那样,而是用作代码中固定的名字
+	
+在ruby中,不必使用return来从方法中返回值,方法中最后一个表达式的值,将默认作为方法的返回值
+
+在变量名前加$即可定义全局变量,使用时也要加$
+变量加前没加符号即为局部变量
+对象变量作用,关联与当前对象,在同一个对象的任何其他方法中都可以访问,在变量名前加@
+类变量作用于整个类中,而不是处于该类的特定对象中,类变量以2个@开头,即@@
+
+类方法由self.前缀标识,self表示当前类,还可以使用类名.当前缀,没有前缀的方法,自动成为实例方法
+
+继承
+	ruby只支持单个类的继承
+	
+methods,任何对象的methods方法都返回该对象可用方法的数组
+instance_variables,任何对象的instance_variables方法都返回该对象实例所关联的实例变量(而非类变量)
+
+反射是指计算机程序在运行和使用中,检视,分析并修改自身的过程
+
+模块:
+Enumerable模块包含了collect,detect,select,max,min...待方法,若想在自己类中使用,可以include此模块
+Comparable模块提供了<,<=,==,>=,>,between?,<=>...等方法
+
+Struct可以构建快捷简单的数据类,如:
+Person=Struct.new(:name,:gender,:age)
+fred=Person.new("Fred","male",50)
+
+require可以包含其他文件,如文件名为1.rb,则可以require '1'
+用load命令可以实现相同效果,例load 1,区别是require同一个文件多次的话,这个文件只会被包含一次,用load的话会在每次载入时重新处理
+
+Ruby把被包含文件的搜索路径(目录列表)保存在名为$:的特殊变量中,可以在irb中使用$:.each{ |d| puts d},要增加额外目录,可以使用$:.push '路径',或用unshfit加到开头
+
+net/http	超文本相关库
+ostruct		里的OpenStruct可以在运行时创建相关类,和属性,例:person=OpenStruct.new,person.name="Fred",person.age=50
+
+RubyGems是ruby的包
+gem命令可以打包库
+
+gem list	显示已安装的gems清单,还可显示远程gsm服务上的可用包,加上参数--remote
+gem query --remote --name-matches class		搜索名字包含class的包
+gem install	包名		安装某个包
+gem update				更新所有gem包
+gem	uninstalll 包名		卸载某个包
+
+rdoc 文件名				可生成这个文件的文档,如果不带文件名,那么将处理当前目录及其子目录所有子文件
+
+require 'rubygems'
+require 'RedCloth'		当先载入了RubyGems程序库后,RubyGems会覆写require方法,使得require可以载入gem包

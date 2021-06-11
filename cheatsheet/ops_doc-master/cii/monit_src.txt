@@ -1,0 +1,282 @@
+set_sandbox(){ 沙盒
+1. 环境变量只保留TZ和PATH两个； putenv
+2. 保证0,1,2文件描述符被打开    fstat(0|1|2, &st) && open("/dev/null",O_RDWR)
+3. 保证大于2的文件描述符被关闭。close(i>2) i=max_descriptors = getdtablesize();
+}
+set_environment(){
+1. getpwuid() 获取用户自身的 用户名和家目录
+2. 获取monit运行的目录
+3. umask(0) 保存当前mask值，设置当前mask值等于0
+}
+
+spawn(){
+1. access 确定程序文件存在性
+2. pthread_sigmask(SIG_BLOCK, &mask, &save); 屏蔽所有信号，SIGCHLD外
+3. set_monit_environment 设置环境变量
+4. fork(); 创建子进程
+5. umask(Run.umask); 恢复umask
+6. setgid(C->gid) 组id设置
+7. setuid(C->uid) 用户id设置
+8. close(i[0-2])  open("/dev/null", O_RDWR)  后端进程
+9. 关闭所有fd (fd)
+10. setsid(); 创建新会话
+11. fork();  创建新进程
+12. pthread_sigmask(SIG_SETMASK, &mask, NULL); 恢复信号屏蔽
+13. (void) execv(C->arg[0], C->arg); 执行新进程
+14. (waitpid(pid, &stat_loc, 0) != pid)  父进程等待子进程结束
+15. pthread_sigmask(SIG_SETMASK, &save, NULL); 恢复信号掩码
+}
+flex(){ bsion
+src/y.tab.c src/tokens.h : src/p.y
+    $(YACC) $(YACCFLAGS) -o src/y.tab.c $<
+    -mv src/y.tab.h src/tokens.h
+src/tokens.h : src/y.tab.c
+src/lex.yy.c : src/l.l
+    $(FLEX) $(FLEXFLAGS) -o $@ $<
+
+make src/lex.yy.c
+# /usr/bin/flex -i -osrc/lex.y.c src/l.l
+make src/y.tab.c 
+# bison -y -dvt -o src/y.tab.c src/p.y
+}
+
+log(){ LOG log_mutex=PTHREAD_MUTEX_INITIALIZER
+syslog  openlog(prog, LOG_PID, Run.facility); 
+LOG_LOCAL0,LOG_LOCAL1,LOG_LOCAL2,LOG_LOCAL3,LOG_LOCAL4,LOG_LOCAL5,LOG_LOCAL6,LOG_LOCAL7,LOG_DAEMON,LOG_USER
+LOG     fopen(Run.files.log, "a+") && setvbuf(LOG, NULL, _IONBF, 0);
+}
+Run(
+Run.controlfile = -c 配置文件
+Run.isdaemon      -d 后台运行
+Run.polltime      -d 检查周期
+Run.mygroup       -g 进程组
+Run.logfile       -l 日志文件 syslog
+Run.use_syslog    -l syslog 使用系统日志系统
+Run.dolog         -l file   使用文件保存日志  Run.files.log
+Run.pidfile       -p file   文件保存进程pid   Run.files.pid
+Run.statefile     -s file   状态文件位置？    Run.files.state
+Run.init          -I        前台执行          Run.flags |= Run_Foreground
+Run.testing       -t        检查配置文件
+Run.debug         -v        输出调试信息      Run.debug++;
+                  -H file   文件的md5和sha1码； stdin为FILE, fopen也为FILE。0为输入文件描述符，open也为输入文件描述符
+                  -V 
+Built without ssl, with ipv6, with compression, without pam and with large files
+      是否支持ssl  是否支持ipv6  是否支持压缩   是否支持pam     是否支持大文件
+
+Run.Env.home 家目录
+Run.Env.user 用户名
+Run.Env.cwd  命令执行目录
+Run.umask    进程mask值
+
+Run.stopped = TRUE  SIGTERM     do_destroy  
+Run.stopped = TRUE  SIGINT      do_destroy  
+Run.dowakeup = TRUE SIGUSR1     do_wakeup   
+Run.doreload = TRUE SIGHUP      do_reload
+
+Run.mutex synchronize handling of global service data
+heartbeatMutex  Initialize heartbeat mutex
+heartbeatCond   Initialize heartbeat condition
+
+preparse() # src/y.tab.c
+Run.limits.sendExpectBuffer  = LIMIT_SENDEXPECTBUFFER;
+Run.limits.fileContentBuffer = LIMIT_FILECONTENTBUFFER;
+Run.limits.httpContentBuffer = LIMIT_HTTPCONTENTBUFFER;
+Run.limits.programOutput     = LIMIT_PROGRAMOUTPUT;
+Run.limits.networkTimeout    = LIMIT_NETWORKTIMEOUT;
+Run.limits.programTimeout    = LIMIT_PROGRAMTIMEOUT;
+Run.limits.stopTimeout       = LIMIT_STOPTIMEOUT;
+Run.limits.startTimeout      = LIMIT_STARTTIMEOUT;
+Run.limits.restartTimeout    = LIMIT_RESTARTTIMEOUT;
+Run.onreboot                 = Onreboot_Start;
+Run.mmonitcredentials        = NULL;
+Run.httpd.flags              = Httpd_Disabled | Httpd_Signature;
+Run.httpd.credentials        = NULL;
+memset(&(Run.httpd.socket), 0, sizeof(Run.httpd.socket));
+Run.mailserver_timeout       = SMTP_TIMEOUT;
+Run.eventlist_dir            = NULL;
+Run.eventlist_slots          = -1;
+Run.system                   = NULL;
+Run.mmonits                  = NULL;
+Run.maillist                 = NULL;
+Run.mailservers              = NULL;
+Run.MailFormat.from          = NULL;
+Run.MailFormat.replyto       = NULL;
+Run.MailFormat.subject       = NULL;
+Run.MailFormat.message       = NULL;
+depend_list                  = NULL;
+Run.flags |= Run_HandlerInit | Run_MmonitCredentials;
+)
+
+
+ProcessTree(){
+SystemInfo_T 系统层面统计
+systeminfo.collected  收集时间 gettimeofday
+systeminfo.uname      uname struct utsname结构体
+systeminfo.cpu.usage.user = -1.;    cpu 用户态
+systeminfo.cpu.usage.system = -1.;  cpu 内核态
+systeminfo.cpu.usage.wait = -1.     cpu io阻塞
+systeminfo.cpu.count                cpu 个数
+systeminfo.memory.size              /proc/meminfo
+systeminfo.booted                   /proc/stat
+}
+
+Service_T(){
+/** Common parameters */
+
+State_Type (*check)(struct Service_T *);
+State_Type(){
+State_Succeeded  = 0x0,
+State_Failed     = 0x1,
+State_Changed    = 0x2,
+State_ChangedNot = 0x4,
+State_Init       = 0x8,
+State_None       = State_Init // Alias
+}
+
+Service_Type(){ type
+Service_Filesystem = 0,
+Service_Directory,
+Service_File,
+Service_Process,
+Service_Host,
+Service_System,
+Service_Fifo,
+Service_Program,
+Service_Net,
+Service_Last = Service_Net
+}
+
+Monitor_State(){ monitor
+Monitor_Not     = 0x0,
+Monitor_Yes     = 0x1,
+Monitor_Init    = 0x2,
+Monitor_Waiting = 0x4
+}
+
+Monitor_Mode(){ monitor
+Monitor_Active = 0,
+Monitor_Passive
+}
+
+Onreboot_Type(){ onreboot
+Onreboot_Start = 0,
+Onreboot_Nostart,
+Onreboot_Laststate
+}
+
+Action_Type(){ doaction
+Action_Ignored = 0,
+Action_Alert,
+Action_Restart,
+Action_Stop,
+Action_Exec,
+Action_Unmonitor,
+Action_Start,
+Action_Monitor
+}
+
+Every_T(){
+Every_Type(){ type
+Every_Cycle = 0,
+Every_SkipCycles,
+Every_Cron,
+Every_NotInCro
+}
+last_run
+spec
+}
+
+command_t(){ start stop restart
+*arg[ARGMAX]
+length
+has_uid
+has_gid
+uid
+gid
+timeout
+}
+
+Program_T(){ program
+Process_T P;
+Command_T C;
+command_t args;
+StringBuffer_T lastOutput;
+StringBuffer_T inprogressOutput;
+
+}
+
+Mail_T(){ maillist
+char *to;
+}
+/** Test rules and event handlers */
+ActionRate_T
+Checksum_T
+FileSystem_T
+Icmp_T
+Perm_T
+Port_T
+Port_T
+Resource_T
+Size_T
+Uptime_T
+Match_T
+Match_T
+Timestamp_T
+Pid_T
+Status_T
+FsFlag_T
+NonExist_T
+Uid_T
+Gid_T
+SecurityAttribute_T
+LinkStatus_T
+LinkSpeed_T
+LinkSaturation_T
+Bandwidth_T
+
+/** General event handlers */
+/** Internal monit events */
+/** Runtime parameters */
+/** Events */
+/** Context specific parameters */
+/** For internal use */
+}
+
+EventAction_T(){
+Action_T(){ failed success
+Action_Type(){ id
+Action_Ignored = 0,
+Action_Alert,
+Action_Restart,
+Action_Stop,
+Action_Exec,
+Action_Unmonitor,
+Action_Start,
+Action_Monitor
+}
+count;
+cycles;
+repeat;
+command_t exec;
+
+}
+}
+
+proc(){
+1. 扫描方法
+ptr = strstr(buf, MEMTOTAL)
+sscanf(ptr+strlen(MEMTOTAL), "%ld", &systeminfo.mem_kbyte_max) == -1 异常返回
+
+2. 扫描方法
+sscanf(line, "MemTotal: %"PRIu64, &systeminfo.memory.size) == 1 正常返回
+}
+C99(){
+char *File_getRealPath(const char *path, char *resolved)
+File_getRealPath(optarg, (char[PATH_MAX]){}); 
+
+const char *Dir_cwd(char *result, int length)
+Dir_cwd((char[STRLEN]){}, STRLEN)
+
+}
+
+

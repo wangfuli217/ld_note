@@ -1,0 +1,90 @@
+1. 调用C函数
+  扩展Lua的基本方法之一就是为应用程序注册新的C函数到Lua中去。
+  1.1 如何实现一个简单的函数返回给定数值的sin值。
+  1.1.1 @ 构建过程
+    static int l_sin (lua_State *L) {
+        double d = luaL_checknumber(L, 1); -- /* get argument */
+        lua_pushnumber(L, sin(d));         -- /* push result */
+        return 1;  /* number of results */ -- /* number of results */
+    }
+  任何在Lua中注册的函数必须有同样的原型，这个原型声明定义就是lua.h中的lua_CFunction：
+  typedef int (*lua_CFunction) (lua_State *L); -- 从C的角度来看，一个C函数接受单一的参数Lua state，返回一个表示返回值个数的数字。
+  所以，函数在将返回值入栈之前不需要清理栈，函数返回之后，Lua自动的清除栈中返回结果。
+  1.1.2 @ 注册过程
+  想在Lua使用这个函数，还必须首先注册这个函数。
+  lua_pushcfunction(l, l_sin);
+  lua_setglobal(l, "mysin");
+  使用lua_pushcfunction来完成这个任务：他获取指向C函数的指针，并在Lua中创建一个function类型的值来表示这个函数。
+  一个quick-and-dirty的解决方案是将这段代码直接放到lua.c文件中，并在调用lua_open后面适当的位置加上下面两行。
+  
+  根据上面的定义，如果你调用mysin('a'),会得到如下信息：
+  bad argument #1 to 'mysin' (number expected, got string)
+  注意看看luaL_checknumber是如何自动使用：参数number（1），函数名（"mysin"），期望的参数类型（"number"），实际的参数类型（"string"）来拼接最终的错误信息的。
+
+  #include <dirent.h>
+  #include <errno.h>
+  
+  static int l_dir (lua_State *L) {
+      DIR *dir;
+      struct dirent *entry;
+      int i;
+      const char *path = luaL_checkstring(L, 1);
+  
+      /* open directory */
+      dir = opendir(path);
+      if (dir == NULL) {   /* error opening the directory? */
+         lua_pushnil(L);   /* return nil and ... */
+         lua_pushstring(L, strerror(errno)); /* error message */
+         return 2;  /* number of results */
+      }
+      /* create result table */
+      lua_newtable(L);
+      i = 1;
+      while ((entry = readdir(dir)) != NULL) {
+         lua_pushnumber(L, i++);            /* push key */
+         lua_pushstring(L, entry->d_name);  /* push value */
+         lua_settable(L, -3);
+      }
+      closedir(dir);
+      return 1;         /* table is already on top */
+  }
+2. 函数库
+  一个Lua库实际上是一个定义了一系列Lua函数的chunk，并将这些函数保存在适当的地方，通常作为table的域来保存。
+  除了定义C函数之外，还必须定义一个特殊的用来和Lua库的主chunk通信的特殊函数。一旦调用，这个函数就会注册库中所有的C函数，并将他们保存到适当的位置。
+  像一个Lua主chunk一样，她也会初始化其他一些在库中需要初始化的东西。
+
+  通常C库都有一个外部（public/extern）的用来打开库的函数。其他的函数可能都是私有的，在C中被声明为static。
+  
+  luaL_openlib函数接受一个C函数的列表和他们对应的函数名，并且作为一个库在一个table中注册所有这些函数。
+  2.1 首先，我们必须定义库函数：
+  static int l_dir (lua_State *L) {
+    ...    /* as before */
+  }
+  2.2 第二步，我们声明一个数组，保存所有的函数和他们对应的名字。这个数组的元素类型为luaL_reg：是一个带有两个域的结构体，一个字符串和一个函数指针。
+  static const struct luaL_reg mylib [] = {
+    {"dir", l_dir},
+    {NULL, NULL}  /* sentinel */
+  };
+  2.3 第三步，我们使用luaL_openlib声明主函数
+  int luaopen_mylib (lua_State *L) {
+    luaL_openlib(L, "mylib", mylib, 0);
+    return 1;
+  }
+  luaL_openlib的第二个参数是库的名称。
+  这个函数按照指定的名字创建(或者reuse)一个表，并使用数组mylib中的name-function对填充这个表。
+  2.4 你必须用你的代码创建动态连接库（windows下.dll文件，linux下.so文件）。到这一步，你就可以在Lua中直接使用loadlib加载你刚才定义的函数库了，下面这个调用：
+  mylib = loadlib("fullname-of-your-library", "luaopen_mylib")
+  将luaopen_mylib函数转换成Lua中的一个C函数，并将这个函数赋值给mylib）。然后，调用mylib()，将运行luaopen_mylib打开你定义的函数库。
+
+
+  
+  luaL_openlib还允许我们为库中所有的函数注册公共的upvalues。
+  luaL_openlib返回的时候，将保存库的表放到栈内。luaL_openlib函数返回1，返回这个值给Lua。
+  
+  
+
+
+  
+  
+  如果程序导致内存不足，最好的处理方式是立即终止程序。
+  一旦C函数被注册之后，Lua调用这个函数并不依赖于函数名，包的位置，或者调用函数的可见的规则。

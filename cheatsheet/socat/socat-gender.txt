@@ -1,0 +1,26 @@
+EXAMPLE FOR TCP `GENDER CHANGER� USING SOCAT
+
+See http://www.csnc.ch/static/download/publications/TCP-IP_GenderChanger_CSNC_V1.0.pdf
+for a description of the problem.
+
+Hosts:
+   a server, blocked by a firewall
+   a client outside the firewall ("outside-host")
+   a firewall that allows arbitrary TCP connections from server to outside,
+      port 80
+
+1) Start the double client on the inside server
+// every 10 seconds, it tries to establish a connection to the outside host.
+// whenever it succeeds, it forks a sub process that connect to the internal
+// service and starts to transfer data
+$ socat -d -d -d -t5 tcp:outside-host:80,forever,intervall=10,fork tcp:localhost:80
+
+2) Start double server on the outside client
+// wait for a connection from a local client. whenever it accepted it, forks
+// a subprocess that tries to bind to the socket where the inside double 
+// client tries to connect (might need to wait for a previous process to 
+// release the port) 
+# socat -d -d -d tcp-l:80,reuseaddr,bind=127.0.0.1,fork tcp-l:80,bind=outside-host,reuseaddr,retry=10
+
+3) Connect with outside client
+$ mozilla http://127.0.0.1/

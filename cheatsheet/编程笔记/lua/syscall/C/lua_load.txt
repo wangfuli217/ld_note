@@ -1,0 +1,33 @@
+#if 0
+lua_load
+[-0, +1, –]
+int lua_load (lua_State *L,
+              lua_Reader reader,
+              void *data,
+              const char *chunkname,
+              const char *mode);
+              
+加载一段 Lua 代码块，但不运行它。 
+如果没有错误，lua_load 把一个编译好的代码块作为一个 Lua 函数压到栈顶。 否则，压入错误消息。
+
+lua_load 的返回值可以是：
+  LUA_OK: 没有错误；
+  LUA_ERRSYNTAX: 在预编译时碰到语法错误；
+  LUA_ERRMEM: 内存分配错误；
+  LUA_ERRGCMM: 在运行 __gc 元方法时出错了。(这个错误和代码块加载过程无关，它是由垃圾收集器引发的)
+lua_load 函数使用一个用户提供的 reader 函数来读取代码块(参见 lua_Reader)。 data 参数会被传入 reader 函数。
+chunkname 这个参数可以赋予代码块一个名字， 这个名字被用于出错信息和调试信息（参见 §4.9）。
+lua_load 会自动检测代码块是文本的还是二进制的， 然后做对应的加载操作(参见程序 luac)。 字符串 mode 的作用和函数 load 一致。 它还可以是 NULL 等价于字符串 "bt"。
+lua_load 的内部会使用栈， 因此 reader 函数必须永远在每次返回时保留栈的原样。
+    如果返回的函数有上值， 第一个上值会被设置为 保存在注册表 LUA_RIDX_GLOBALS 索引处的全局环境。 
+在加载主代码块时，这个上值是 _ENV 变量。 其它上值均被初始化为 nil。
+#endif
+
+#if 0
+load: 一般很少使用load
+理解： load是loadfile 和 loadstring的原始函数，接受一个"读取器函数"，并在内部调用
+它读取程序块，读取器函数可分几次返回一个程序块，load会反复调用它直到返回nil为止。
+load不会引发错误，但程序块中有错误的时候会返回nil及错误消息
+
+应用： 当程序块不在文件中，或程序块过大而无法载入到内存时才使用load
+#endif

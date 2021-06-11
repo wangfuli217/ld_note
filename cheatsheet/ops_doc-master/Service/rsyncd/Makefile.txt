@@ -1,0 +1,64 @@
+### rsync deployment ### 1
+
+.PHONY: put rsync rsync-this rsync-r
+put:	# put used to be the main deployment target; it is now deprecated.
+	@echo deprecated:  use deploy, push, or rsync; false
+
+# rsync does a full recursive rsync with --delete and --cvs-exclude
+#	.git and {Master,Premaster,Tracks} are also excluded
+rsync:
+	rsync -aC -z -v $(EXCLUDES) --delete $(RSYNC_FLAGS) 	\
+	      ./ $(HOST):$(DOTDOT)/$(MYNAME)
+
+# rsync-this syncs just the current directory, with no deletion.
+rsync-this:
+	rsync -lptC -z -v $(EXCLUDES) $(RSYNC_FLAGS) 		\
+	      ./ $(HOST):$(DOTDOT)/$(MYNAME)
+
+# rsync-r syncs recursively only the (files and) subdirectories in
+#	RSYNC_THESE, which should be defined in config.make
+ifdef RSYNC_THESE
+rsync-r:
+	@echo recursive rsync of $(RSYNC_THESE):
+	rsync -aC -z -v $(EXCLUDES) $(RSYNC_FLAGS) 		\
+	      $(RSYNC_THESE) $(HOST):$(DOTDOT)/$(MYNAME)
+else
+rsync-r:
+	@echo rsync-r is a no-op unless RSYNC_THESE is defined.
+endif
+
+### rsync deployment ### 2
+
+get-bin-scripts:
+	rsync -av -e "$(SSH)" $(HOST):/home/ubuntu/bin ./
+
+put-bin-scripts:
+	rsync -av -e "$(SSH)" ./bin/ $(HOST):/home/ubuntu/bin/
+
+put-vim-config:
+	rsync -av -e "$(SSH)" ~/$$(readlink ~/.vimrc) $(HOST):/home/ubuntu/.vimrc && \
+	rsync -av -e "$(SSH)" ~/.vim/ $(HOST):/home/ubuntu/.vim/
+
+
+put-ssh-config:
+	rsync -av -e "$(SSH)" ~/.ssh/deploy.d/ $(HOST):/home/ubuntu/.ssh/deploy.d &&\
+printf "Please insert\n\nInclude deploy.d/*.conf\n\ninto your ~/.ssh/config"
+
+
+### rsync deployment ### 3
+DIR:=$(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
+
+IMG_REMOTE=/mnt/hubic/default/Data/rtw/img/
+IMG_LOCAL=$(DIR)/../jekyll/img/
+SERVER=lab0.net
+SERVER_USER=ununhexium
+
+RSYNC_OPT=--no-perms --no-owner --no-group --verbose --recursive --update
+
+get-img:
+	rsync $(RSYNC_OPT) $(IMG_REMOTE) $(IMG_LOCAL)
+
+put-img:
+	rsync $(RSYNC_OPT) $(IMG_LOCAL) $(IMG_REMOTE)
+
+img: get-img

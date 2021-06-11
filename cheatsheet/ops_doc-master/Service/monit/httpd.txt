@@ -1,0 +1,31 @@
+check process httpd with pidfile /var/run/httpd.pid
+	group www
+	start program = "/etc/rc.d/init.d/httpd start"
+	stop  program = "/etc/rc.d/init.d/httpd stop"
+	if failed host 127.0.0.1 port 80
+		protocol HTTP request /
+	then restart
+#	if failed host 192.168.1.1 port 443 type TCPSSL
+#	certmd5 12-34-56-78-90-AB-CD-EF-12-34-56-78-90-AB-CD-EF
+#	protocol HTTP request /monit/token  then restart
+	if 5 restarts within 5 cycles then timeout
+#	alert root@localhost
+#	alert 123456@sms on { timeout }
+	depends on apache_bin
+	depends on apache_rc
+
+check file apache_bin with path /usr/sbin/httpd
+	group www
+	if failed checksum then unmonitor
+	if failed permission 755 then unmonitor
+	if failed uid root then unmonitor
+	if failed gid root then unmonitor
+#	alert root@localhost
+
+check file apache_rc with path /etc/rc.d/init.d/httpd
+	group www
+	if failed checksum then unmonitor
+	if failed permission 754 then unmonitor
+	if failed uid root then unmonitor
+	if failed gid root then unmonitor
+# alert root@localhost

@@ -1,0 +1,36 @@
+--[[
+原型：io.popen ([prog [, mode]])
+解释：在额外的进程中启动程序prog，并返回用于prog的文件句柄。
+      通俗的来说就是使用这个函数可以调用一个命令(程序)，并且返回一个和这个程序相关的文件描述符，
+      一般是这个被调用函数的输出结果，这个文件打开模式由参数mode确定，有取值"r"和"w"两种，分别表示以读、写方式打开，
+      默认是以读的方式。
+--]]
+
+-- 打开文件（这个文件保存的是命令dir的结果）
+local myfile = io.popen("ls", "r")
+if nil == myfile then
+    print("open file for dir fail")
+end
+
+print("\n======commond dir result:")
+-- 读取文件内容
+for cnt in myfile:lines() do
+    print(cnt)
+end
+
+-- 关闭文件
+myfile:close()
+
+
+local secondfile = io.popen("ifconfig")
+if nil == secondfile then
+    print("open file for ifconfig fail")
+end
+
+print("\n======commond ipconfig result:")
+-- 读取文件内容
+local content = secondfile:read("*a")
+print(content)
+
+-- 关闭文件
+secondfile:close()

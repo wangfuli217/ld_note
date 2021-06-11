@@ -1,0 +1,221 @@
+QLabel 类代表标签，它是一个用于显示文本或图像的窗口部件。
+
+widgets\widgets\lineedits\Window.cpp  setEchoMode
+                                      setValidator
+                                      setAlignment
+                                      setInputMask
+                                      setReadOnly
+
+
+QLabel提供了一个文本或图像的显示，没有提供用户交互功能。
+
+一个QLabel可以包含以下任意内容类型：
+内容       设置
+纯文本     使用setText()设置一个QString
+富文本     使用setText()设置一个富文本的QString
+图像       使用setPixmap()设置一个图像
+动画       使用setMovie()设置一个动画
+数字       使用setNum()设置int或double，并转换为纯文本。
+Nothing    空的纯文本，默认的，使用clear()设置
+
+https://blog.csdn.net/qq_37233607/article/details/78160822  # QLabel显示图片和动画实例
+1.void setText(QString);            //设置label框内的文本.
+2.void hide();                      //隐藏label框.
+3.void setBuddy(QWidget*);          //把另一个部件设为label框的伙伴，方便快捷使用.
+4.void clear();                     //清空label框内所有内容.
+5.void setPixmap(QPixmap(QString)); //设置图片.
+6.void setMovie(QMovie*);           //设置电影.
+7.void setScaledContents(bool);     //设置是否按比例填充满整个label框(非常重要)
+8.void setToolTip(QString);         //设置信息提示,鼠标放在label框上面会自动跳出文字.
+9.void setToolTipDuration(int);     //设置信息提示的持续时间，单位是毫秒.
+10.void setAlignment(Qt::Alignment); //设置label框的对齐格式.
+11.void setStyleSheet(QString);     //设置label框的样式.
+
+
+//设置两个label框的内容位于中间. 
+ui.movieLabel->setAlignment(Qt::AlignCenter | Qt::AlignHCenter); 
+ui.pictureLabel->setAlignment(Qt::AlignCenter | Qt::AlignHCenter);
+
+//设置两个label框自动填充. 
+ui.movieLabel->setScaledContents(true); 
+ui.pictureLabel->setScaledContents(true);
+
+QLabel *pLabel = new QLabel(this);     
+pLabel->setText("Hello World");        设置文本
+pLabel->setStyleSheet("color: white"); 设置样式
+setAlignment(Qt::AlignCenter);         居中对齐
+setStyleSheet("qproperty-alignment: 'AlignBottom | AlignRight';"); 使用样式表来控制(水平居右、垂直居下)
+setWordWrap(true);                     自动换行
+strText = strHeightText.arg(150).arg(strText); 设置行高
+
+// 垂直显示
+QString strText = QStringLiteral("一去二三里，烟村四五家。"); 
+pLabel->setText(strText.split("", QString::SkipEmptyParts).join("\n")); 
+pLabel->setAlignment(Qt::AlignCenter);
+
+// 图像
+QPixmap pixmap(":/Images/logo"); 
+pLabel->setPixmap(pixmap); 
+pLabel->setFixedSize(100, 100); 
+pLabel->setScaledContents(true);
+
+// 动画
+start()可以进行播放与stop()则可以停止，也可以通过调用setSpeed()来设置动画的播放速度。
+QMovie *pMovie = new QMovie(":/Images/movie"); 
+pLabel->setMovie(pMovie); 
+pLabel->setFixedSize(135, 200); 
+pLabel->setScaledContents(true); 
+pMovie->start();
+
+// 数字
+pLabel->setNum(66.6);
+
+// 超链接
+方法1：
+比较简单，直接调用setOpenExternalLinks(true)即可。
+pLabel->setText(QString("<a href = \"%1\">%2</a>").arg("http://blog.csdn.net/liang19890820").arg(QStringLiteral("一去丶二三里")));
+pLabel->setOpenExternalLinks(true);
+
+方法2：
+声明一个槽openUrl，将其与linkActivated信号关联。
+pLabel->setText(QString("<a href = \"%1\">%2</a>").arg("http://blog.csdn.net/liang19890820").arg(QStringLiteral("一去丶二三里")));
+connect(pLabel, SIGNAL(linkActivated(QString)), this, SLOT(openUrl(QString)));
+
+void MainWindow::openUrl(const QString &link)
+{
+    QDesktopServices::openUrl(QUrl(link));
+}
+
+
+// 省略
+QString strText = QStringLiteral("一去二三里，烟村四五家。亭台六七座，八九十枝花。"); 
+QString strElidedText = pLabel->fontMetrics().elidedText(strText, Qt::ElideRight, 200, Qt::TextShowMnemonic); 
+pLabel->setText(strElidedText);
+
+
+1. 构造
+QLabel 类支持以下构造函数：
+QLabel(QWidget *parent = 0, Qt::WindowFlags f = 0);
+QLabel(const QString &text, QWidget *parent = 0, Qt::WindowFlags f= 0);
+其中第二个构造函数能够同时通过参数 text 给出要显示的文本，因此是最常用的构造方式。
+
+2. 属性
+QLabel 对象的显示内容可以通过属性获取或修改，相关成员函数如下：
+QString text() const;                       // 获取显示的文本
+void settext(const QString &text);          // 设置显示的文本，这是一个槽
+const QPixmap *pixmap() const;              // 获取显示的图像
+void setPixmap(const QPixmap &pixmap);      // 设置显示的图像，这时一个槽
+void setNum(int num);                       // 设置显示的文本为代表整数 num 的字符串，这是一个槽
+void setNum(double num);                    // 设置显示的文本为代表浮点数 num 的字符串，这时一个槽
+
+其中进行设置的函数同时也都是槽。新设置的内容将取代原来的内容。
+
+用以下的成员函数则可以清空显示内容：       
+void clear();    // 清空显示内容
+
+alignment 属性代表内容的对齐方式，相关函数成员如下：
+    Qt::Alignment alignment() const;    // 获取对齐方式
+    void setAlignment(Qt::Alignment align);    // 设置对齐方式
+这里的 Qt::Alignment 类型有以下取值。
+1）Qt::AlignLeft:：水平方向靠左。
+2）Qt::AlignRight：水平方向靠右。
+3）Qt::AlignHCenter：水平方向居中。
+4）Qt::AlignJustify：水平方向调整间距两端对齐。
+5）Qt::AlignTop：垂直方向靠上。
+6）Qt::AlignButton：垂直方向靠下。
+7）Qt::AlignVCenter：垂直方向居中。
+8）Qt::AlignCenter：等价于 Qt::AlignHCenter | Qt::AlignVCenter。
+
+    其中一个水平方向的取值和一个垂直方向的取值可以用 “按位或” 的方式组合起来以同时
+指定两个方向的对齐方式。默认的对齐方式为水平靠左、垂直居中。
+
+indent 属性代表文本的缩进值，相关的成员函数如下：
+int indent() const;            // 获取文本缩进值
+void setIndex(int indent);     //设置文本缩进值
+
+margin 属性代表显示内容的边距，相关的成员函数如下：
+int margin() const;                // 获取边距
+void setMargin(int margin);        // 设置边距
+
+
+wordWrap 属性代表显示的文本是否允许换行，相关的成员函数如下：
+bool wordWrap() const;         // 判断是否允许换行
+void setWordWrap(bool on);     // 设置是否允许换行
+
+scaledContents 属性表示显示图像时是否允许缩放，相关的成员函数如下：
+bool hasScaledContenes() const;    // 判断是否允许图像缩放
+void setScaledContents(bool on);    // 设置是否允许图像缩放
+
+
+1. 显示文字
+ui->labelText->setText("jianghuiwen");
+
+2. 显示图片
+ui->labelImage->setPixmap(QPixmap("资源文件的路径"));
+ui->labelImage->setScaledContents(true);        //让图片自动适应label的大小
+
+3. 显示gif动画
+#include<QMovie>
+QMovie *mymovie = new QMovie("gif文件的路径");
+ui->labelImage->setMovie(mymovie);
+mymovie->start();
+ui->labeLgif->setScaledContents()
+
+
+4. 显示网址(可以显示HTML格式的字符串)
+QLabel *label = new QLabel(this);
+ui->labelurl ->setText("jianghuiwen");
+ui->labelurl ->setText("
+                <h1><a href=\"https://baidu.com\">百度一下</a></h1>;
+                ")
+label->setOpenExternalLinks(true);  
+
+================================================================================
+https://zhuanlan.zhihu.com/p/29250898
+
+QLabel 标签控件
+标签控件可以用来显示文本，富文本，图片，动态图。
+    QLabel通常用作交互式窗口的标签。QLabel提供了一个有用的机制来添加一个助记符，它将把键盘焦点设置
+在另一个控件上(称为QLabel的“伙伴”)，这通过调用setBuddy()实现。
+
+1 alignment：文字对齐方式。
+这个属性已经在前面很多控件讲过了，这里就不赘述了。
+默认为水平靠左，垂直居中。
+
+2 hasSelectedText, selectedText：被选中的文字。
+
+3 indent：缩进像素。
+默认情况下，缩进是- 1。
+
+4 margin：边距。
+
+5 openExternalLinks：是否可以打开链接。
+如果设置为true，将会调用QDesktopServices::openUrl()来打开链接。
+如果设置为false，则会发出linkActivated信号。
+
+6 pixmap：图片。
+
+7 scaledContents：是否填充空间。
+当启用后，如果标签显示一个图片，它将缩放图片以填充可用空间。
+默认为false。
+
+8 text：文本。
+文本将被解释为纯文本或富文本，这取决于文本格式设置。默认设置是Qt::AutoText。
+如果已经设置了好友，则从新文本中更新快捷键。
+
+9 textFormat：文本格式。
+    Qt::PlainText：被解释为纯文本。
+    Qt::RichText：被解释为富文本（html）
+    Qt::AutoText：如果可以被解释成富文本，则解释为富文本，否则为纯文本。
+
+10 textInteractionFlags：用户与标签的交互标识。
+    Qt::NoTextInteraction：不与用户交互。
+    Qt::TextSelectableByMouse：可以用鼠标选择，并使用上下文菜单或标准键盘快捷方式将其复制到剪贴板。
+    Qt::TextSelectableByKeyboard：将显示一个文本光标，可以用键盘上的光标键选择文本。
+    Qt::LinksAccessibleByMouse：链接可以被高亮显示并被鼠标激活。
+    Qt::LinksAccessibleByKeyboard：链接用tab选中，然后激活进入。
+    Qt::TextEditable：文本是完全可编辑的。
+    Qt::TextEditorInteraction：TextSelectableByMouse | TextSelectableByKeyboard | TextEditableQt::TextBrowserInteraction：TextSelectableByMouse | LinksAccessibleByMouse | LinksAccessibleByKeyboard
+
+11 wordWrap：是否可换行，默认为false
+

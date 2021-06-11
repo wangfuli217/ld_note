@@ -1,0 +1,1252 @@
+https://htmlpreview.github.io/?https://raw.githubusercontent.com/openwrt/luci/master/documentation/api/modules/nixio.README.html
+
+nixio(整体注册函数集){
+void nixio_open_file(lua_State *L);
+void nixio_open_socket(lua_State *L);
+void nixio_open_sockopt(lua_State *L);
+void nixio_open_bind(lua_State *L);
+void nixio_open_address(lua_State *L);
+void nixio_open_poll(lua_State *L);
+void nixio_open_io(lua_State *L);
+void nixio_open_splice(lua_State *L);
+void nixio_open_process(lua_State *L);
+void nixio_open_syslog(lua_State *L);
+void nixio_open_bit(lua_State *L);
+void nixio_open_bin(lua_State *L);
+void nixio_open_fs(lua_State *L);
+void nixio_open_user(lua_State *L);
+}
+
+for k,v in pairs(nixio.meta_socket) do print(k,v) end  for k,v in pairs(nixio.meta_socket.__index) do print(k,v) end
+
+for k,v in pairs(nixio.meta_file) do print(k,v) end    for k,v in pairs(nixio.meta_file.__index) do print(k,v) end
+fd, code, msg = nixio.open("debug.lua", "r")
+for k,v in pairs(getmetatable(fd)) do print(k,v) end
+print(getmetatable(fd), getmetatable(fd).__index)
+print()
+
+for k,v in pairs(fd:stat()) do print(k,v) end 
+for k,v in pairs(nixio.fs.stat("debug.lua")) do print(k,v) end 
+for k,v in pairs(nixio.fs.lstat("debug.lua")) do print(k,v) end 
+
+print(nixio.fs.utimes("debug.lua"))
+print(nixio.fs.utimes("debug.lua", 1451733224, 1451733224))
+print(nixio.fs.utimes("debug.lua", 1451733225))
+nixio.stdin
+nixio.stdout
+nixio.stderr
+
+print(string.format("%x", nixio.bit.bor(0x1000,0x2000))
+print(string.format("%x", nixio.bit.bor(0x1000,0x2000,0x4000)))
+
+print(string.format("%x", nixio.bit.band(0x1000,0x3000)))
+print(string.format("%x", nixio.bit.band(0x1000,0x3000,0x4000)))
+
+print(string.format("%x", nixio.bit.bxor(0x1000,0x2000)))
+print(string.format("%x", nixio.bit.bxor(0x1000,0x2000,0x4000)))
+
+print(string.format("%f", nixio.bit.bnot(0x1000)))  print(nixio.bit.bnot(0x1000))
+print(string.format("%f", nixio.bit.bswap(0x1000))) print(nixio.bit.bswap(0x1000)) -- 1000100000
+
+print(nixio.bit.cast(nixio.bit.bnot(0x1000)))
+print(nixio.bit.cast(nixio.bit.bswap(0x1000)))
+
+for k,v in pairs(package) do print(k,v) end
+for k,v in pairs(package.loaded) do print(k,v) end
+for k,v in pairs(package.loaded.nixio) do print(k,v) end
+for k,v in pairs(getmetatable(package.loaded.nixio)) do print(k,v) end
+for k,v in pairs(nixio.const) do print(k,v) end
+for k,v in pairs(nixio.const_sock) do print(k,v) end
+
+for k,v in pairs(_G) do print(k,v) end
+for k,v in pairs(nixio) do print(k,v) end
+print(getmetatable(nixio))
+print(nixio.socket)
+print(nixio.meta_socket, nixio)
+
+for k,v in pairs(nixio) do print(k,v) end
+nixio(bind){
+  + bind(host, port, family, socktype) Create a new socket and bind it to a network address.
+  # host: Hostname or IP-Address (optional, default: all addresses)
+  # port: Port or service description
+  # family: Address family ["any", "inet", "inet6"]
+  # socktype: Socket Type ["stream", "dgram"]
+  $ Socket Object
+  
+  This functions calls getaddrinfo(), socket(), setsockopt() and bind() but NOT listen().
+  The reuseaddr-option is automatically set before binding.
+}
+nixio(chdir){
+  + chdir (path) : Change the working directory.
+  # path: New working directory
+  $ true
+  
+  print(nixio.chdir("/"))
+  print(nixio.chdir("/etc"))
+}
+nixio(closelog){
+  + closelog ()	(POSIX) Close the connection to the system logger.
+}
+nixio(connect){
+  + connect (host, port, family, socktype)	Create a new socket and connect to a network address.
+  # host: Hostname or IP-Address (optional, default: localhost)
+  # port: Port or service description
+  # family: Address family ["any", "inet", "inet6"]
+  # socktype: Socket Type ["stream", "dgram"]
+  $ Socket Object
+  
+  This functions calls getaddrinfo(), socket() and connect().
+}
+nixio(crypt){
+  + crypt (key, salt) : (POSIX) Encrypt a user password.
+  # key: Key
+  # salt: Salt
+  $ password hash
+ 
+ pwdp = nixio.getsp(username).pwdp
+ print(pwdp)
+ print(nixio.crypt('123456', pwdp))
+}
+nixio(dup){
+  + dup (oldfd, newfd)	Duplicate a file descriptor.
+  # oldfd: Old descriptor [File Object, Socket Object (POSIX only)]
+  # newfd: New descriptor to serve as copy (optional)
+  $ File Object of new descriptor
+  
+  This funcation calls dup2() if newfd is set, otherwise dup().
+}
+nixio(errno){
+  + errno ()	Get the last system error code.
+  $ Error code
+  
+   print(nixio.errno())
+}
+nixio(strerror){
+  + strerror (errno)	Get the error message for the corresponding error code.
+  # errno: System error code
+  $ Error message
+  
+  luci.util.perror(nixio.strerror(2))
+}
+
+nixio(exec){
+  + exec (executable, ...)	Execute a file to replace the current process.
+  # executable: Executable
+  # ...: Parameters
+  
+  The name of the executable is automatically passed as argv[0]
+  This function does not return on success.
+}
+nixio(exece){
+  + exece (executable, arguments, environment)	Execute a file with a custom environment to replace the current process.
+  # executable: Executable
+  # arguments: Argument Table
+  # environment: Environment Table (optional)
+  
+  The name of the executable is automatically passed as argv[0]
+  This function does not return on success.
+}
+nixio(execp){
+  + execp (executable, ...)	Invoke the shell and execute a file to replace the current process.
+  # executable: Executable
+  # ...: Parameters
+
+  The name of the executable is automatically passed as argv[0]
+  This function does not return on success.
+  
+  nixio.execp("/bin/ls", "/bin/ls", "al")
+}
+nixio(fork){
+  + fork () : (POSIX) Clone the current process.
+  $ the child process id for the parent process, 0 for the child process
+}
+nixio(getaddrinfo){
+  + getaddrinfo (host, family, service) : Look up a hostname and service via DNS.
+  # host: hostname to lookup (optional)
+  # family: address family ["any", "inet", "inet6"]
+  # service: service name or port (optional)
+  $ able containing one or more tables containing:
+    family = ["inet", "inet6"]
+    socktype = ["stream", "dgram", "raw"]
+    address = Resolved IP-Address
+    port = Resolved Port (if service was given)
+    
+    luci.util.dumptable(nixio.getaddrinfo("www.baidu.com", "inet", 80))
+}
+nixio(getcwd){
+  + getcwd () : Get the current working directory.
+  $ workign directory
+  
+  print(nixio.getcwd())
+}
+nixio(getenv){
+  + getenv (variable) : Get the current environment table or a specific environment variable.
+  # variable: Variable (optional)
+  $ environment table or single environment variable
+  
+  luci.util.dumptable(nixio.getenv())
+  print(nixio.getenv('PATH'))
+}
+nixio(getgid){
+  + getgid () : (POSIX) Get the group id of the current process.
+  $ process group id
+  
+  print(nixio.getgid())
+}
+nixio(getgr){
+  + getgr (group) : (POSIX) Get all or a specific user group.
+  # group: Group ID or groupname (optional)
+  $ Table containing:
+    name = Group Name
+    gid = Group ID
+    passwd = Password
+    mem = {Member #1, Member #2, ...}
+  
+  data = nixio.getgr()          -- all
+  data = nixio.getgr('root')    -- specific
+  luci.util.dumptable(data)     
+}
+nixio(getifaddrs){
+  + getifaddrs () : (Linux, BSD) Get a list of available network interfaces and their addresses.
+  $ Table containing one or more tables containing:
+    name = Interface Name
+    family = ["inet", "inet6", "packet"]
+    addr = Interface Address (IPv4, IPv6, MAC, ...)
+    broadaddr = Broadcast Address
+    dstaddr = Destination Address (Point-to-Point)
+    netmask = Netmask (if available)
+    prefix = Prefix (if available)
+    flags = Table of interface flags (up, multicast, loopback, ...)
+    data = Statistics (Linux, "packet"-family)
+    hatype = Hardware Type Identifier (Linix, "packet"-family)
+    ifindex = Interface Index (Linux, "packet"-family)
+    
+  data = nixio.getifaddrs() -- all
+  luci.util.dumptable(data)
+}
+nixio(getnameinfo){
+  + getnameinfo (ipaddr) : Reverse look up an IP-Address via DNS.
+  # ipaddr: IPv4 or IPv6-Address
+  $ FQDN
+  print(nixio.getnameinfo('192.168.111.1')) -- TAU1000.lan
+}
+nixio(getpid){
+  + getpid () : Get the ID of the current process.
+  $ process id
+  print(nixio.getpid())
+}
+nixio(getppid){
+  + getppid () : (POSIX) Get the parent process id of the current process.
+  $ parent process id
+  print(nixio.getppid())
+}
+nixio(getproto){
+  + getproto (proto) : Get all or a specifc proto entry.
+  # proto: protocol number or name to lookup (optional)
+  $ Table (or if no parameter is given, a table of tables) containing the following fields:
+    name = Protocol Name
+    proto = Protocol Number
+    aliases = Table of alias names
+    
+    data = nixio.getproto()
+    data = nixio.getproto('ip')
+    data = nixio.getproto(6)
+    luci.util.dumptable(data)
+}
+nixio(getprotobyname){ /etc/protocols
+  + getprotobyname (name) : Get protocol entry by name.
+  # name: protocol name to lookup
+  $ Table containing the following fields:
+    name = Protocol Name
+    proto = Protocol Number
+    aliases = Table of alias names
+    
+    data = nixio.getprotobyname('ip')
+    data = nixio.getprotobyname('tcp')
+    luci.util.dumptable(data)
+}
+nixio(getprotobynumber){ /etc/protocols
+  + getprotobynumber(proto) : Get protocol entry by number.
+  # proto: protocol number to lookup
+  $ Table containing the following fields:
+    name = Protocol Name
+    proto = Protocol Number
+    aliases = Table of alias names
+    
+    data = nixio.getprotobynumber(6)
+    data = nixio.getprotobynumber(17)
+    luci.util.dumptable(data)
+}
+nixio(getpw){
+  + getpw (user) : (POSIX) Get all or a specific user account.
+  
+  data = nixio.getpw()        -- all
+  luci.util.dumptable(data)
+  
+  data = nixio.getpw('root')  -- specific
+  luci.util.dumptable(data)
+}
+nixio(getsp){
+  + getsp (user) : (Linux, Solaris) Get all or a specific shadow password entry.
+  
+  data = nixio.getsp()          -- all
+  luci.util.dumptable(data)
+  
+  data = nixio.getsp('root')    -- specific
+  luci.util.dumptable(data)
+}
+nixio(getuid){
+  + getuid () (POSIX) Get the user id of the current process.
+  
+  print(nixio.getuid())
+}
+nixio(kill){
+  + kill (target, signal) : (POSIX) Send a signal to one or more processes.
+  # target: Target process of process group.
+  # signal: Signal to send
+  $ true
+  print(nixio.kill(4672, 10))       -- ok
+  print(nixio.kill(4672, 'USR1'))   --  bad argument #2 to 'kill' (integer expected, got string)
+  print(nixio.kill('dnsmasq', 10))  --  bad argument #1 to 'kill' (integer expected, got string)
+}
+
+nice(){
+  + nice (nice) : (POSIX) Change priority of current process.
+  # nice: Nice Value
+  $ true
+  
+  ADJUST 缺省为 10: 范围从-20(最高级)到19(最低级).
+  print(nixio.nice(-19))  -- -19
+  cat /proc/[pid]/stat    -- 确认修改
+  print(nixio.nice(-17))  -- -20
+  cat /proc/[pid]/stat    -- 确认修改
+}
+
+open的mode类型是数值类型的，输入给open函数前需要使用open_flags进行转换
+nixio(open){
+  + open (path, flags, mode) : Open a file.
+  # path: Filesystem path to open
+  # flags: Flag string or number (see open_flags). ["r", "r+", "w", "w+", "a", "a+"]
+  # mode: File mode for newly created files (see chmod, umask).
+  $ File Object
+  
+  Although this function also supports the traditional fopen() file flags it does not create a file stream but uses the open() syscall.
+}
+nixio(open_flags){
+  + open_flags (flag1, ...)	Generate flags for a call to open().
+  # flag1: First Flag ["append", "creat", "excl", "nonblock", "ndelay", "sync", "trunc", "rdonly", "wronly", "rdwr"]
+  # ...: More Flags [-"-]
+  $ flag to be used as second parameter to open
+  
+  This function cannot fail and will never return nil.
+  The "nonblock" and "ndelay" flags are aliases.
+  The "nonblock", "ndelay" and "sync" flags are no-ops on Windows.
+}
+nixio(openlog){
+  + openlog (ident, flag1, ...)	(POSIX) Open a connection to the system logger.
+  # ident: Identifier
+  # flag1: Flag 1 ["cons", "nowait", "pid", "perror", "ndelay", "odelay"]
+  # ...: More flags [-"-]
+  
+  nixio.openlog("lucid", "pid", "perror")
+}
+nixio(pipe){
+  + pipe ()	Create a pipe.
+  Return values:
+    File Object of the read end
+    File Object of the write end
+}
+
+休眠指定时间
+nixio(nanosleep){
+  + nanosleep (seconds, nanoseconds) : Sleep for a specified amount of time.
+  # seconds: Seconds to wait (optional)
+  # nanoseconds: Nanoseconds to wait (optional)
+  $ true
+  
+  Not all systems support nanosecond precision but you can expect to have at least maillisecond precision.
+  This function is not signal-protected and may fail with EINTR.
+  
+  nixio.nanosleep(5, 10)
+  nixio.nanosleep(0, 100000000000)
+  nixio.nanosleep(5, 0)
+}
+nixio(gettimeofday){
+获取当前秒和毫秒
+}
+
+poll的events输入和revents的输出都是数值类型，输入前通过poll_flags转换；输入后通过poll_flags转换
+nixio(poll){  poll({{fd = socket, events = FLAGS}, ...}, timeout)
+  + poll (fds, timeout) : Wait for some event on a file descriptor.
+    poll() sets the revents-field of the tables provided by fds to a bitfield indicating the events that occurred.
+  # fds: Table containing one or more tables containing
+      fd = I/O Descriptor [Socket Object, File Object (POSIX)]
+      events = events to wait for (bitfield generated with poll_flags)
+  # timeout: Timeout in milliseconds
+  $ number of ready IO descriptors
+  $ the fds-table with revents-fields set
+  
+  1. This function works in-place on the provided table and only writes the revents field, you can use other fields on your demand.
+  2. All metamethods on the tables provided as fds are ignored.
+  3. The revents-fields are not reset when the call times out. You have to check the first return value to be 0 to handle this case.
+  4. If you want to wait on a TLS-Socket you have to use the underlying socket instead.
+  5. On Windows poll is emulated through select(), can only be used on socket descriptors and cannot take more than 64 descriptors per call.
+  6. This function is not signal-protected and may fail with EINTR.
+}
+nixio(poll_flags){
+  + poll_flags (mode1, ...) : Generate events-bitfield or parse revents-bitfield for poll.
+  # mode1: revents-Flag bitfield returned from poll to parse OR ["in", "out", "err", "pri" (POSIX), "hup" (POSIX), "nval" (POSIX)]
+  # ...: More mode strings for generating the flag [-"-]
+  $ table with boolean fields reflecting the mode parameter OR bitfield to use for the events-Flag field
+  
+}
+nixio(sendfile){
+  + sendfile (socket, file, length)	(POSIX) Send data from a file to a socket in kernel-space.
+  # socket: Socket Object
+  # file: File Object
+  # length: Amount of data to send (in Bytes).
+  $ bytes sent
+}
+nixio(setenv){
+  + setenv (variable, value)	Set or unset a environment variable.
+  # variable: Variable
+  # value: Value (optional)
+  $ true
+  
+  The environment variable will be unset if value is omitted.
+}
+nixio(setgid){
+  + setgid (gid)	(POSIX) Set the group id of the current process.
+  # gid: New Group ID
+  $ true
+}
+nixio(setlogmask){
+  + setlogmask (priority) : (POSIX) Set the logmask of the system logger for current process.
+  # priority: Priority ["emerg", "alert", "crit", "err", "warning", "notice", "info", "debug"]
+  
+  nixio.setlogmask("warning")
+}
+nixio(setsid){
+  + setsid ()	(POSIX) Create a new session and set the process group ID.
+  $ session id
+  
+  print(nixio.setsid()) -- nil     1       Operation not permitted
+}
+nixio(setuid){
+  + setuid (gid) : (POSIX) Set the user id of the current process.
+  # gid: New User ID
+  $ true
+}
+nixio(signal){
+  + signal (signal, handler) : Ignore or use set the default handler for a signal.
+  # signal: Signal
+  # handler: ["ign", "dfl"]
+  $ true
+}
+nixio(socket){
+  + socket (domain, type) Create a new socket.
+  # domain: Domain ["inet", "inet6", "unix"]
+  # type: Type ["stream", "dgram", "raw"]
+  $ Socket Object
+}
+nixio(splice){
+  + splice (fdin, fdout, length, flags)	(Linux) Send data from / to a pipe in kernel-space.
+  # fdin: Input I/O descriptor
+  # fdout: Output I/O descriptor
+  # length: Amount of data to send (in Bytes).
+  # flags: (optional, bitfield generated by splice_flags)
+  $ bytes sent
+}
+nixio(splice_flags){
+  + splice_flags (flag1, ...)	(Linux) Generate a flag bitfield for a call to splice.
+  # flag1: First Flag	["move", "nonblock", "more"]
+  # ...: More flags	[-"-]
+  $ Flag bitfield
+}
+
+nixio(sysinfo){
+  + sysinfo ()	(Linux) Get overall system statistics.
+  Table containing:
+    uptime = system uptime in seconds
+    loads = {loadavg1, loadavg5, loadavg15}
+    totalram = total RAM
+    freeram = free RAM
+    sharedram = shared RAM
+    bufferram = buffered RAM
+    totalswap = total SWAP
+    freeswap = free SWAP
+    procs = number of running processes
+    
+  luci.util.dumptable(nixio.sysinfo())
+}
+nixio(syslog){
+  + syslog (priority)	(POSIX) Write a message to the system logger.
+  # priority: Priority ["emerg", "alert", "crit", "err", "warning", "notice", "info", "debug"]
+  
+  nixio.syslog("err", "hello world")
+  nixio.syslog("warning", "hello world")
+}
+nixio(times){
+  + times () : (POSIX) Get process times.
+  # Table containing:
+    utime = user time
+    utime = system time
+    cutime = children user time
+    cstime = children system time
+    
+  luci.util.dumptable(nixio.times())
+}
+nixio(tls){
+  + tls (mode) : Create a new TLS context.
+  # mode: TLS-Mode ["client", "server"]
+  $ TLSContext Object
+}
+nixio(umask){
+  + umask (mask) : Sets the file mode creation mask.
+  # mask: New creation mask (see chmod for format specifications)
+  $ the old umask as decimal mode number
+  $ the old umask as mode string
+}
+nixio(uname){
+  + uname () : (POSIX) Get information about current system and kernel.
+  # Table containing:
+    sysname = operating system
+    nodename = network name (usually hostname)
+    release = OS release
+    version = OS version
+    machine = hardware identifier
+    
+  luci.util.dumptable(nixio.uname())
+}
+
+nixio(waitpid){
+  + waitpid (pid, flag1, ...) : (POSIX) Wait for a process to change state.
+  # pid: Process ID	(optional, default: any childprocess)
+  # flag1: Flag	(optional) ["nohang", "untraced", "continued"]
+  # ...: More Flags [-"-]
+  
+  $ process id of child or 0 if no child has changed state
+  $ ["exited", "signaled", "stopped"]
+  $ [exit code, terminate signal, stop signal]
+}
+
+bin(b64decode){
+  + b64decode (buffer) : Base64 decode a given buffer.
+  # buffer: Base 64 Encoded data
+  $ binary data
+}
+bin(b64encode){
+  + b64encode (buffer) : Base64 encode a given buffer.
+  # buffer: Buffer
+  $ base64 encoded buffer
+  
+  print(nixio.bin.b64encode("beijingxian"))
+  data = nixio.bin.b64encode("beijingxian")
+  print(nixio.bin.b64decode(data))
+}
+bin(crc32){
+  + crc32 (buffer, initial) : Calculate the CRC32 value of a buffer.
+  # buffer: Buffer
+  # initial: Initial CRC32 value (optional)
+  $ crc32 value
+  
+  data = 'beijingxian'
+  print(nixio.bin.crc32(data, 10))
+}
+bin(hexlify){
+  + hexlify (buffer): Return a hexadecimal ASCII represantation of the content of a buffer.
+  # buffer: Buffer
+  # Return value:
+  $ representation using characters [0-9a-f]
+  
+  data = 'beijingxian'
+  print(nixio.bin.hexlify(data))
+  hexstr = nixio.bin.hexlify(data)
+  print(nixio.bin.unhexlify(hexstr))
+}
+bin(unhexlify){
+  + unhexlify (hexvalue) : Return a binary buffer from a hexadecimal ASCII representation.
+  # hexvalue: representation using characters [0-9a-f]
+  $ binary data
+}
+
+fs(access){
+  + access (path, mode1, ...) Check user permission on a file.
+  # path: Path
+  # mode1: First Mode to check ["f", "r", "w", "x"]
+  # ...: More Modes to check	[-"-]
+  $ true
+}
+fs(basename){
+  + basename (path) : Strip the directory part from a path.
+  # path: Path
+  $ basename
+  
+  This function cannot fail and will never return nil.
+}
+fs(chmod){
+  + chmod (path, mode) : Change the file mode.
+  # path: Path
+  # mode: File mode	[decimal mode number, "[-r][-w][-xsS][-r][-w][-xsS][-r][-w][-xtT]"]
+  $ true
+}
+fs(chown){
+  + chown (path, user, group) : (POSIX) Change owner and group of a file.
+  # path: Path
+  # user: User ID or Username	(optional)
+  # group: Group ID or Groupname	(optional)
+  $ true
+}
+fs(copy){
+  + copy (src, dest): Copy a file, directory or symlink non-recursively preserving file mode, timestamps, owner and group.
+  # src: Source path
+  # dest: Destination path
+  $ true
+  
+  The destination must always be a full destination path 
+  e.g. do not omit the basename even if source and destination basename are equal.
+}
+fs(copyr){
+  + copyr (src, dest) : Copy a file, directory or symlink recursively preserving file mode, timestamps, owner and group.
+  # src: Source path
+  # dest: Destination path
+  $ true
+  
+  The destination must always be a full destination path 
+  e.g. do not omit the basename even if source and destination basename are equal.
+}
+fs(datacopy){
+  + datacopy (src, dest, limit) : Copy data between files.
+  # src: Source file path
+  # dest: Destination file path
+  # limit: Maximum bytes to copy (optional)
+  $ true
+}
+fs(dir){ // 返回一个闭包函数，递归获取指定目录下文件名
+  + dir (path) : Iterate over the entries of a directory.
+  # path: Path
+  $ directory iterator returning one entry per call
+  
+  for k,v in nixio.fs.dir("/") do
+    print(k,v)
+  end
+}
+fs(glob){
+  + glob (pattern) : (POSIX) Find pathnames matching a pattern.
+  # pattern: Pattern
+  $ path iterator
+  $ number of matches
+  
+  for k,v in nixio.fs.glob("/*") do print(k,v) end
+  
+  for k,v in nixio.fs.glob("/us*") do
+    print(k,v)
+  end
+}
+fs(lchown){
+  + lchown (path, user, group): (POSIX) Change owner and group of a file and do not resolve if target is a symlink.
+  # path: Path
+  # user: User ID or Username	(optional)
+  # group: Group ID or Groupname	(optional)
+  $ true
+}
+fs(link){
+  + link (oldpath, newpath) : Create a hard link.
+  # oldpath: Path
+  # newpath: Path
+  $ true
+  This function calls link() on POSIX and CreateHardLink() on Windows.
+}
+fs(lstat){
+  + lstat (path, field):Get file status and attributes and do not resolve if target is a symlink.
+  # path: Path
+  # field: Only return a specific field, not the whole table (optional)
+  $ Table containing attributes (see stat for a detailed description)
+}
+fs(mkdir){
+  + mkdir (path, mode) : Create a new directory.
+  # path: Path
+  # mode: File mode	[decimal mode number, "[-r][-w][-xsS][-r][-w][-xsS][-r][-w][-xtT]"]
+  $ true
+}
+fs(mkdirr){
+  + mkdirr (dest, mode) : Create a directory and all needed parent directories recursively.
+  # dest: Destination path
+  # mode: File mode	[decimal mode number, "[-r][-w][-xsS][-r][-w][-xsS][-r][-w][-xtT]"]
+  $ true
+}
+fs(mkfifo){
+  + mkfifo (path, mode) : (POSIX) Create a FIFO (named pipe).
+  # path: Path
+  # mode: File mode	[decimal mode number, "[-r][-w][-xsS][-r][-w][-xsS][-r][-w][-xtT]"]
+  $ true
+}
+fs(move){
+  + move (src, dest) : Rename a file, directory or symlink non-recursively across filesystems.
+  # src: Source path
+  # dest: Destination path
+  $ true
+  The destination must always be a full destination path 
+  e.g. do not omit the basename even if source and destination basename are equal.
+}
+fs(mover){
+  + mover (src, dest) : Rename a file, directory or symlink recursively across filesystems.
+  # src: Source path
+  # dest: Destination path
+  $ true
+  The destination must always be a full destination path 
+  e.g. do not omit the basename even if source and destination basename are equal.
+}
+fs(readfile){
+  + readfile (path, limit):Read the contents of a file into a buffer.
+  # path: Path
+  # limit: Maximum bytes to read (optional)
+  $ file contents
+}
+fs(readlink){
+  + readlink (path):(POSIX) Read the target of a symbolic link.
+  # path: Path
+  $ target path
+}
+fs(realpath){
+  + realpath (path):Return the cannonicalized absolute pathname.
+  # path: Path
+  $ absolute path
+}
+fs(remove){
+  + remove (path)  Remove a file or directory.
+  # path: Path
+  $ true
+}
+fs(rename){
+  + rename (src, dest):Renames a file or directory.
+  # src: Source path
+  # dest: Destination path
+  $ true
+  It is normally not possible to rename files across filesystems.
+}
+fs(rmdir){
+  + rmdir (path) : Remove an empty directory.
+  # path: Path
+  $ true
+}
+fs(stat){
+  + stat (path, field) : Get file status and attributes.
+  # path: Path
+  # field: Only return a specific field, not the whole table (optional)
+  Table containing:
+    atime = Last access timestamp
+    blksize = Blocksize (POSIX only)
+    blocks = Blocks used (POSIX only)
+    ctime = Creation timestamp
+    dev = Device ID
+    gid = Group ID
+    ino = Inode
+    modedec = Mode converted into a decimal number
+    modestr = Mode as string as returned by ls -l
+    mtime = Last modification timestamp
+    nlink = Number of links
+    rdev = Device ID (if special file)
+    size = Size in bytes
+    type = ["reg", "dir", "chr", "blk", "fifo", "lnk", "sock"]
+    uid = User ID
+}
+fs(statvfs){
+  + statvfs (path):(POSIX) Get filesystem statistics.
+  # path: Path to any file within the filesystem.
+  Table containing:
+    bavail = available blocks
+    bfree = free blocks
+    blocks = number of fragments
+    frsize = fragment size
+    favail = available inodes
+    ffree = free inodes
+    files = inodes
+    flag = flags
+    fsid = filesystem ID
+    namemax = maximum filename length
+}
+fs(symlink){
+  + symlink (oldpath, newpath) : (POSIX) Create a symbolic link.
+  # oldpath: Path
+  # newpath: Path
+  $ true
+}
+fs(unlink){
+  + unlink (path) : Delete a name and - if no links are left - the associated file.
+  # path: Path
+  $ true
+}
+fs(utimes){
+  + utimes (path, actime, mtime): Change file last access and last modification time.
+  # path: Path
+  # actime: Last access timestamp	(optional, default: current time)
+  # mtime: Last modification timestamp (optional, default: actime)
+  $ true
+}
+fs(writefile){
+  + writefile (path, data) : Write a buffer into a file truncating the file first.
+  # path: Path
+  # data: Data to write
+  $ true
+}
+
+File(close){
+  + File:close ()	Close the file descriptor.
+  $ true
+}
+File(fileno){
+  + File:fileno ()	Get the number of the filedescriptor.
+  $ file descriptor number
+}
+File(lock){
+  + File:lock (command, length)	Apply or test a lock on the file.
+  # command: Locking Command ["lock", "tlock", "ulock", "test"]
+  # length: Amount of Bytes to lock from current offset (optional)
+  $ true
+  1. This function calls lockf() on POSIX and _locking() on Windows.
+  2. The "lock" command is blocking, "tlock" is non-blocking, "ulock" unlocks and "test" only tests for the lock.
+  3. The "test" command is not available on Windows.
+  4. Locks are by default advisory on POSIX, but mandatory on Windows.
+}
+File(read){
+  + File:read (length)	Read from a file descriptor.
+  # length: Amount of data to read (in Bytes).
+  $ buffer containing data successfully read
+  Warning: It is not guaranteed that all requested data is read at once especially when dealing with pipes. You have to check the return value - the length of the buffer actually read - or use the safe IO functions in the high-level IO utility module.
+  The length of the return buffer is limited by the (compile time) nixio buffersize which is nixio.const.buffersize (8192 by default). Any read request greater than that will be safely truncated to this value.
+}
+File(seek){
+  + File:seek (offset, whence)	Reposition read / write offset of the file descriptor.
+  # offset: File Offset
+  # whence: Starting point ["set", "cur", "end"]
+  $ new (absolute) offset position
+}
+File(setblocking){
+  + File:setblocking (blocking)	(POSIX) Set the blocking mode of the file descriptor.
+  # blocking: (boolean)
+  $ true
+}
+File(stat){
+  + File:stat (field)	Get file status and attributes.
+  # field: Only return a specific field, not the whole table (optional)
+  Table containing:
+    atime = Last access timestamp
+    blksize = Blocksize (POSIX only)
+    blocks = Blocks used (POSIX only)
+    ctime = Creation timestamp
+    dev = Device ID
+    gid = Group ID
+    ino = Inode
+    modedec = Mode converted into a decimal number
+    modestr = Mode as string as returned by ls -l
+    mtime = Last modification timestamp
+    nlink = Number of links
+    rdev = Device ID (if special file)
+    size = Size in bytes
+    type = ["reg", "dir", "chr", "blk", "fifo", "lnk", "sock"]
+    uid = User ID
+}
+File(sync){
+  + File:sync (data_only)	Synchronizes the file with the storage device.
+  # data_only: Do not synchronize the metadata. (optional, boolean)
+  $ true
+  
+  This function calls fsync() when data_only equals false otherwise fdatasync(), on Windows _commit() is used instead.
+fdatasync() is only supported by Linux and Solaris. For other systems the data_only parameter is ignored and fsync() is always called.
+}
+File(tell){
+   + File:tell ()	Return the current read / write offset of the file descriptor.
+   # This function calls lseek() with offset 0 from the current position.
+   $ offset position
+}
+File(write){
+  + File:write (buffer, offset, length)	Write to the file descriptor.
+  # buffer: Buffer holding the data to be written.
+  # offset: Offset to start reading the buffer from. (optional)
+  # length: Length of chunk to read from the buffer. (optional)
+  $ number of bytes written
+}
+
+Socket(accept){
+  + Socket:accept ()	Accept a connection on the socket.
+  $ Socket Object
+  $ Peer IP-Address
+  $ Peer Port
+}
+Socket(bind){
+  + Socket:bind (host, port)	Bind the socket to a network address.
+  # host: Host (optional, default: all addresses)
+  # port: Port or service description
+  $ true
+  1. This function calls getaddrinfo() and bind() but NOT listen().
+  2. If host is a domain name it will be looked up and bind() tries the IP-Addresses in the order returned by the DNS resolver until the bind succeeds.
+  3. UNIX sockets ignore the port, and interpret host as a socket path.
+}
+
+Socket(connect){
+  + Socket:connect (host, port)	Connect the socket to a network address.
+  # host: Hostname or IP-Address (optional, default: localhost)
+  # port: Port or service description
+  $ true
+  This function calls getaddrinfo() and connect().
+  If host is a domain name it will be looked up and connect() tries the IP-Addresses in the order returned by the DNS resolver until the connect succeeds.
+  UNIX sockets ignore the port, and interpret host as a socket path.
+}
+Socket(fileno){
+  + Socket:fileno ()	Get the number of the filedescriptor.
+  $ file descriptor number
+}
+Socket(getopt){
+  + Socket:getopt (level, option)	Get a socket option.
+  # level: Level ["socket", "tcp", "ip", "ipv6"]
+  # option: Option	["keepalive", "reuseaddr", "sndbuf", "rcvbuf", "priority", "broadcast", "linger", "sndtimeo", "rcvtimeo", "dontroute", "bindtodevice", "error", "oobinline", "cork" (TCP), "nodelay" (TCP), "mtu" (IP, IPv6), "hdrincl" (IP), "multicast_ttl" (IP), "multicast_loop" (IP, IPv6), "multicast_if" (IP, IPv6), "v6only" (IPv6), "multicast_hops" (IPv6), "add_membership" (IP, IPv6), "drop_membership" (IP, IPv6)]
+  $ Value
+}
+Socket(getpeername){
+  + Socket:getpeername ()	Get the peer address of a socket.
+  $ IP-Address
+  $ Port
+}
+Socket(getsockname){
+  + Socket:getsockname ()	Get the local address of a socket.
+  $ IP-Address
+  $ Port
+}
+Socket(listen){
+  + Socket:listen (backlog)	Listen for connections on the socket.
+  # backlog: Length of queue for pending connections
+  $ true
+}
+Socket(read|recv){
+  + Socket:read  (length)	Receive a message on the socket (This is an alias for recv).
+  # length: Amount of data to read (in Bytes).
+  $ buffer containing data successfully read
+}
+Socket(recvfrom){
+  + Socket:recvfrom (length)	Receive a message on the socket including the senders source address.
+  # length: Amount of data to read (in Bytes).
+  $ buffer containing data successfully read
+  $ host	IP-Address of the sender
+  $ port	Port of the sender
+  
+  Warning: It is not guaranteed that all requested data is read at once. You have to check the return value - the length of the buffer actually read - or use the safe IO functions in the high-level IO utility module.
+  The length of the return buffer is limited by the (compile time) nixio buffersize which is nixio.const.buffersize (8192 by default). Any read request greater than that will be safely truncated to this value.
+}
+
+Socket(send){
+  + Socket:send (buffer, offset, length)	Send a message on the socket.
+  # buffer: Buffer holding the data to be written.
+  # offset: Offset to start reading the buffer from. (optional)
+  # length: Length of chunk to read from the buffer. (optional)
+  $ number of bytes written
+}
+Socket(sendto){
+  + Socket:sendto (buffer, host, port, offset, length)	Send a message on the socket specifying the destination.
+  # buffer: Buffer holding the data to be written.
+  # host: Target IP-Address
+  # port: Target Port
+  # offset: Offset to start reading the buffer from. (optional)
+  # length: Length of chunk to read from the buffer. (optional)
+  $ number of bytes written
+}
+Socket(write){
+  + Socket:write (buffer, offset, length)	Send a message on the socket (This is an alias for send).
+  # buffer: Buffer holding the data to be written.
+  # offset: Offset to start reading the buffer from. (optional)
+  # length: Length of chunk to read from the buffer. (optional)
+  $ number of bytes written
+}
+Socket(close){
+  + Socket:close ()	Close the socket.
+  $ true
+}
+Socket(shutdown){
+  + Socket:shutdown (how)	Shut down part of a full-duplex connection.
+  # how: (optional, default: rdwr) ["rdwr", "rd", "wr"]
+  $ true
+}
+
+Socket(setblocking){
+  + Socket:setblocking (blocking)	Set the blocking mode of the socket.
+  # blocking: (boolean)
+  $ true
+}
+Socket(setopt){
+  + Socket:setopt (level, option, value)	Set a socket option.
+  # level: Level ["socket", "tcp", "ip", "ipv6"]
+  # option: Option	["keepalive", "reuseaddr", "sndbuf", "rcvbuf", "priority", "broadcast", "linger", "sndtimeo", "rcvtimeo", "dontroute", "bindtodevice", "error", "oobinline", "cork" (TCP), "nodelay" (TCP), "mtu" (IP, IPv6), "hdrincl" (IP), "multicast_ttl" (IP), "multicast_loop" (IP, IPv6), "multicast_if" (IP, IPv6), "v6only" (IPv6), "multicast_hops" (IPv6), "add_membership" (IP, IPv6), "drop_membership" (IP, IPv6)]
+  # value: Value
+  $ true
+}
+
+
+README(Errorhandling){
+
+}
+README(Functions){
+
+}
+README(Platforms){
+
+}
+README(TLS-Crypto){
+
+}
+
+
+nixio(luaL_reg:nixio.c){
+
+static const luaL_reg nixio_reg[] = {
+	{"errno",		nixio_errno},
+	{"strerror",	nixio_strerror},
+	{NULL,			NULL}
+};
+}
+nixio(luaL_reg:poll.c){
+
+static const luaL_reg R[] = {
+	{"gettimeofday", nixio_gettimeofday},
+	{"nanosleep",	nixio_nanosleep},
+	{"poll",		nixio_poll},
+	{"poll_flags",	nixio_poll_flags},
+	{NULL,			NULL}
+};
+}
+nixio(luaL_reg:socket.c){
+
+static const luaL_reg R[] = {
+	{"socket",		nixio_socket},
+	{NULL,			NULL}
+};
+static const luaL_reg M[] = {
+	{"close",		nixio_sock_close},
+	{"shutdown",	nixio_sock_shutdown},
+	{"__gc",		nixio_sock__gc},
+	{"__tostring",	nixio_sock__tostring},
+	{NULL,			NULL}
+};
+}
+
+nixio(luaL_reg:io.c){
+static const luaL_reg M[] = {
+	{"send",	nixio_sock_send},
+	{"sendto",	nixio_sock_sendto},
+	{"recv",	nixio_sock_recv},
+	{"recvfrom",nixio_sock_recvfrom},
+	{"write",	nixio_sock_send},
+	{"read",	nixio_sock_recv},
+	{NULL,			NULL}
+};
+}
+
+nixio(luaL_reg:sockopt.c){
+
+static const luaL_reg M[] = {
+	{"setblocking", nixio_sock_setblocking},
+	{"getsockopt",	nixio_sock_getsockopt},
+	{"setsockopt",	nixio_sock_setsockopt},
+	{"getopt",		nixio_sock_getsockopt},
+	{"setopt",		nixio_sock_setsockopt},
+	{"fileno",		nixio_sock_fileno},
+	{NULL,			NULL}
+};
+}
+nixio(luaL_reg:file.c){
+/* method table */
+static const luaL_reg M[] = {
+	{"write",		nixio_file_write},
+	{"read",		nixio_file_read},
+	{"tell",		nixio_file_tell},
+	{"seek",		nixio_file_seek},
+	{"stat",		nixio_file_stat},
+	{"sync",		nixio_file_sync},
+	{"lock",		nixio_file_lock},
+	{"close",		nixio_file_close},
+	{"__gc",		nixio_file__gc},
+	{"__tostring",	nixio_file__tostring},
+	{NULL,			NULL}
+};
+
+/* module table */
+static const luaL_reg R[] = {
+	{"dup",			nixio_dup},
+	{"open",		nixio_open},
+	{"open_flags",	nixio_open_flags},
+	{"pipe",		nixio_pipe},
+	{NULL,			NULL}
+};
+}
+
+nixio(luaL_reg:fs.c){
+
+/* module table */
+static const luaL_reg R[] = {
+#ifndef __WINNT__
+	{"glob",		nixio_glob},
+	{"mkfifo",		nixio_mkfifo},
+	{"symlink",		nixio_symlink},
+	{"readlink",	nixio_readlink},
+	{"chown",		nixio_chown},
+	{"lchown",		nixio_lchown},
+	{"statvfs",		nixio_statvfs},
+#endif
+	{"chmod",		nixio_chmod},
+	{"access",		nixio_access},
+	{"basename",	nixio_basename},
+	{"dir",			nixio_dir},
+	{"dirname",		nixio_dirname},
+	{"realpath",	nixio_realpath},
+	{"mkdir",		nixio_mkdir},
+	{"rmdir",		nixio_rmdir},
+	{"link",		nixio_link},
+	{"unlink",		nixio_unlink},
+	{"utimes",		nixio_utimes},
+	{"rename",		nixio_rename},
+	{"remove",		nixio_remove},
+	{"stat",		nixio_stat},
+	{"lstat",		nixio_lstat},
+	{NULL,			NULL}
+};
+}
+
+nixio(luaL_reg:bind.c){
+
+/* module table */
+static const luaL_reg R[] = {
+	{"bind",		nixio_bind},
+	{"connect",		nixio_connect},
+	{NULL,			NULL}
+};
+
+/* object table */
+static const luaL_reg M[] = {
+	{"bind",		nixio_sock_bind},
+	{"connect",		nixio_sock_connect},
+	{"listen",		nixio_sock_listen},
+	{"accept",		nixio_sock_accept},
+	{NULL,			NULL}
+};
+}
+
+nixio(luaL_reg:process.c){
+
+/* module table */
+static const luaL_reg R[] = {
+#ifdef __linux__
+	{"sysinfo",		nixio_sysinfo},
+#endif
+#ifndef __WINNT__
+	{"fork",		nixio_fork},
+	{"kill",		nixio_kill},
+	{"nice",		nixio_nice},
+	{"getppid",		nixio_getppid},
+	{"getuid",		nixio_getuid},
+	{"getgid",		nixio_getgid},
+	{"setuid",		nixio_setuid},
+	{"setgid",		nixio_setgid},
+	{"setsid",		nixio_setsid},
+	{"wait",		nixio_wait},
+	{"waitpid",		nixio_wait},
+	{"times",		nixio_times},
+	{"uname",		nixio_uname},
+#endif
+	{"gettime",		nixio_gettime},
+	{"chdir",		nixio_chdir},
+	{"signal",		nixio_signal},
+	{"getpid",		nixio_getpid},
+	{"getenv",		nixio_getenv},
+	{"setenv",		nixio_setenv},
+	{"putenv",		nixio_setenv},
+	{"exec",		nixio_exec},
+	{"execp",		nixio_execp},
+	{"exece",		nixio_exece},
+	{"getcwd",		nixio_getcwd},
+	{"umask",		nixio_umask},
+	{NULL,			NULL}
+};
+}
+nixio(luaL_reg:splice.c){
+
+static const luaL_reg R[] = {
+#ifdef _GNU_SOURCE
+#ifdef SPLICE_F_MOVE
+	{"splice",			nixio_splice},
+	{"splice_flags",	nixio_splice_flags},
+#endif
+#endif
+	{"sendfile",		nixio_sendfile},
+	{NULL,			NULL}
+};
+}
+nixio(luaL_reg:syslog.c){
+
+/* module table */
+static const luaL_reg R[] = {
+	{"openlog",		nixio_openlog},
+	{"syslog",		nixio_syslog},
+	{"setlogmask",	nixio_setlogmask},
+	{"closelog",	nixio_closelog},
+	{NULL,			NULL}
+};
+}
+
+nixio(luaL_reg:address.c){
+/* module table */
+static const luaL_reg R[] = {
+#if defined(__linux__) || defined(BSD)
+	{"getifaddrs",	nixio_getifaddrs},
+#endif
+	{"getaddrinfo",	nixio_getaddrinfo},
+	{"getnameinfo",	nixio_getnameinfo},
+	{NULL,			NULL}
+};
+
+/* object table */
+static const luaL_reg M[] = {
+	{"getsockname",	nixio_sock_getsockname},
+	{"getpeername",	nixio_sock_getpeername},
+	{NULL,			NULL}
+};
+}
+nixio(luaL_reg:binary.c){
+static const luaL_reg R[] = {
+	{"hexlify",		nixio_bin_hexlify},
+	{"unhexlify",	nixio_bin_unhexlify},
+	{"crc32",		nixio_bin_crc32},
+	{"b64encode",	nixio_bin_b64encode},
+	{"b64decode",	nixio_bin_b64decode},
+	{NULL,			NULL}
+};
+}
+
+nixio(luaL_reg:bit.c){
+static const luaL_reg R[] = {
+	{"bor",			nixio_bit_or},     # |=
+	{"set",			nixio_bit_or},     # |=
+	{"band",		nixio_bit_and},    # &=
+	{"bxor",		nixio_bit_xor},    # ^=
+	{"unset",		nixio_bit_unset},  # &= ~
+	{"bnot",		nixio_bit_not},    # %f
+	{"rshift",		nixio_bit_shr},    # >>
+	{"arshift",		nixio_bit_ashr},   # >>
+	{"lshift",		nixio_bit_shl},    # <<
+	{"div",			nixio_bit_div},    # 连续除
+	{"check",		nixio_bit_check},  # (oper & oper2) == oper2
+	{"cast",		nixio_bit_cast},   # 
+	{"tobit",		nixio_bit_cast},   # 
+	{"bswap",		nixio_bit_swap},   # 
+	{NULL,			NULL}
+};
+}
+nixio(luaL_reg:user.c){
+static const luaL_reg R[] = {
+	{"crypt",		nixio_crypt},
+	{"getgr",		nixio_getgr},
+	{"getpw",		nixio_getpw},
+#ifndef BSD
+	{"getsp",		nixio_getsp},
+#endif
+	{NULL,			NULL}
+};
+}

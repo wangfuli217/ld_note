@@ -1,0 +1,130 @@
+函数 (处理命令行选项参数,可以指定长选项,短选项也是支持的).
+
+#include <unistd.h>
+#include <getopt.h> /*getopt_long函数所在头文件*/
+int getopt_long(int argc, char *const argv[], const char *optstring,
+        const struct option *longopts, int *longindex);
+/*
+    para1:main()函数传递过来的参数的个数(e.g.argc).
+    para2:main()函数传递过来的参数的字符串指针数组(e.g.argv).
+    para3:短选项字符串,告知getopt_long()可以处理哪个命令行选项以及选项是否需要参数.
+        char *optstring = "ab:c::";
+        1.单个字符a -->表示命令行选项a没有参数.
+            格式为: ./a.out -a即可,不带命令行选项的参数
+        2.单个字符加冒号b: -->表示命令行选项b必须带参数.
+            格式为: ./a.out -b 100或者./a.out -b100.其后面带一个命令行选项参数"100".
+            像格式:./a.out -b=100是错的.
+        3.单个字符加2个冒号c:: -->表示命令行选项c可以带也可以不带参数.
+            格式为: ./a.out -c200. --->必须是这种格式,其他格式是错误的.
+    para4:指定长选项的名称和属性.为一个指针(即数组),可填充多种长选项.
+        struct option {
+            const char *name; /*长选项的命令行选项.e.g.该值如果等于"algo",则在命令行中输入:
+                                ./a.out --algo  -->长选项应该使用"--"来指定.*/
+            int has_arg;
+            /*
+                指明长选项的命令行选项是否需要带参数.取值如下:
+                no_argument:表明长选项不带参数.e.g. --name, --help.后面没有参数信息
+                required_argument:表明长选项必须带参数.e.g.--name defy(后面带一个defy的参数)
+                optional_argument:表明长选项的参数是可选的.e.g.--name或--name defy(可带可不带).
+            */
+            int *flag;  /*flag=NULL时,返回val(后一个成员执行的值).一般为NULL.*/
+            int val;    /*执行函数找到选项时的返回值.e.g.'a',当找到algo时返回a.*/
+        };
+        实例:
+        const struct option loogopts[] = {
+            { .name = "algo", .has_arg = required_argument, .flag = NULL, .val = 'a'},
+            { .name = "key_type", .has_arg = optional_argument, .flag = NULL, .val = 'k'},
+            { .name = "times", .has_arg = optional_argument, .flag = NULL, .val = 't'},
+            { .name = "help", .has_arg = no_argument, .flag = NULL, .val = 'h'},
+        };
+    para5:如果longindex非空,匹配到的longopts的下标值会保存到该变量中.一般可能不需要保存.
+    
+    retval:
+        1.如果选项成功找到,则返回选项字母(e.g.命令行指定了"-a",该函数会返回字母"a".);
+        2.如果所有命令行选项解析完毕,返回"-1";
+        3.如果遇到命令行选项字符不在optstring中,返回字符"?";
+        4.如果遇到丢失命令行选项的参数,返回值依赖于optstring中的第一个字符,
+            如果optstring中的第一个字符为":",则直接返回":";否则返回"?"并提示错误信息.
+*/
+
+实例
+
+#include <stdio.h>
+#include <unistd.h>
+#include <getopt.h>
+
+int main(int argc, char *argv[])
+{
+	int opt;
+	int option_index = 0;
+	char *short_options = "r:o::n";
+	const struct option long_options[] = {
+		{ .name = "regarg", .has_arg = required_argument, .flag = NULL, .val = 'r'},
+		{ .name = "optarg", .has_arg = optional_argument, .flag = NULL, .val = 'o'},
+		{ .name = "noarg", .has_arg = no_argument, .flag = NULL, .val = 'n'},
+	};
+	/*
+		也可以:
+	const struct option long_options[] = {
+		{"regarg", required_argument, NULL, 'r'},
+		{"optarg", optional_argument, NULL, 'o'},
+		{"noarg", no_argument, NULL, 'n'},
+	};
+	*/
+	while ((opt = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1) {
+		printf("opt = %c\t\t", opt); //打印出选项的返回值
+		printf("optarg = %s\t\t", optarg); //打印出当前命令行选项所带的参数
+		printf("optind = %d\t\t", optind); //打印出下一个命令行选项的索引值
+		printf("argv[optind] = %s\t\t", argv[optind]); //打印出下一个命令行选项
+		printf("option_index = %d\n", option_index); //保存当前long_options的下标值.
+	}
+}
+//测试:
+1)./a.out --regarg 100 --optarg=200 --noarg	
+	//长选项的可选命令行选项输入形式"--xxx=100",必选选项输入形式"--regarg 100或--regarg=100"
+	opt = r		optarg =100		optind = 3   argv[optind] = --optarg=200  option_index = 0
+	opt = o		optarg =200		optind = 4   argv[optind] = --noarg        option_index = 1
+	opt = n		optarg =(null)	optind = 5    argv[optind] =(null)          option_index = 2
+2)./a.out --regarg 100 --optarg --noarg //可选命令不带参数
+	opt = r optarg =100     optind = 3     argv[optind] = --optarg option_index = 0
+	opt = o optarg =(null) optind = 4      argv[optind] =--noarg   option_index = 1
+	opt = n optarg =(null) optind = 5      argv[optind] =(null)     option_index = 2
+3)./a.out --regarg 100 --optarg 200 --noarg //可选选项命令输入错误(应该为"--optarg=200")
+	//不会直接报错,但是参数不会正确解析出来.
+    
+//
+int getopt(int argc, char * const argv[],const char *optstring);  -v
+
+int getopt_long(int argc, char * const argv[], const char *optstring, const struct option *longopts, int *longindex); --v
+longopts：表示长选项结构体。
+struct option {
+const char  *name;
+int         has_arg;
+int         *flag;
+int         val;
+};
+  (1)name:表示选项的名称,比如daemon,dir,out等。
+  (2)has_arg:表示选项后面是否携带参数。该参数有三个不同值，如下：
+           a: no_argument(或者是0)时 ——参数后面不跟参数值，eg: --version,--help
+           b: required_argument(或者是1)时 ——参数输入格式为：--参数 值 或者 --参数=值。eg:--dir=/home
+           c: optional_argument(或者是2)时  ——参数输入格式只能为：--参数=值
+  (3)flag:这个参数有两个意思，空或者非空。
+           a:如果参数为空NULL，那么当选中某个长选项的时候，getopt_long将返回val值。
+                   eg，可执行程序 --help，getopt_long的返回值为h.             
+           b:如果参数不为空，那么当选中某个长选项的时候，getopt_long将返回0，并且将flag指针参数指向val值。
+                   eg: 可执行程序 --http-proxy=127.0.0.1:80 那么getopt_long返回值为0，并且lopt值为1。
+  (4)val：表示指定函数找到该选项时的返回值，或者当flag非空时指定flag指向的数据的值val。
+longindex：longindex非空，它指向的变量将记录当前找到参数符合longopts里的第几个元素的描述，即是longopts的下标值。
+全局变量：
+（1）optarg：表示当前选项对应的参数值。
+（2）optind：表示的是下一个将被处理到的参数在argv中的下标值。
+（3）opterr：如果opterr = 0，在getopt、getopt_long、getopt_long_only遇到错误将不会输出错误信息到标准输出流。opterr在非0时，向屏幕输出错误。
+        （4）optopt：表示没有被未标识的选项。
+返回值：
+（1）如果短选项找到，那么将返回短选项对应的字符。
+（2）如果长选项找到，如果flag为NULL，返回val。如果flag不为空，返回0
+（3）如果遇到一个选项没有在短字符、长字符里面。或者在长字符里面存在二义性的，返回“？”（4）如果解析完所有字符没有找到（一般是输入命令参数格式错误，eg： 连斜杠都没有加的选项），返回“-1”
+（5）如果选项需要参数，忘了添加参数。返回值取决于optstring，如果其第一个字符是“：”，则返回“：”，否则返回“？”。
+注意：
+ （1）longopts的最后一个元素必须是全0填充，否则会报段错误
+（2）短选项中每个选项都是唯一的。而长选项如果简写，也需要保持唯一性。

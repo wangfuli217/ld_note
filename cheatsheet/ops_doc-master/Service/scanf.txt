@@ -1,0 +1,319 @@
+scanf() 失败情况: 1. 从输入缓冲区读取失败，2. 对format中指示符指示类型解释失败。
+注意: scanf()不是以行单位对输入内容进行解释，而是对连续字符流进行解释(换行符也视为一个字符)。
+实例: scanf()连续的从流读入字符，并且对和格式说明符"%d"相匹配的部分进行变换处理，如输入"123\n"时，
+从流中取得123部分的内容，并对它进行处理，换行符依旧会残留在流中，后续如果存在getchar()就会
+吞食这个留下的换行符。
+此外，当scanf()变换失败的时候，将导致失败的部分遗留在流中。在读入过程中有几个对象被成功地变换，
+则scanf()的返回值就为几。为了避免后续字符的遗留影响后面的输入时，可使用如下方式：
+char buf[256];
+int hoge;
+fgets(buf, sizeof(buf), stdin);
+sscanf(buf, "%d", &hoge);
+    空白字符:
+    空白字符会使scanf()函数在读操作中略去输入中的一个或多个空白字符，空白符可以
+是space,tab,newline等等，直到第一个非空白符出现为止。
+    非空白字符:
+一个非空白字符会使scanf()函数在读入时剔除掉与这个非空白字符相同的字符。
+    %: %%  读%符号; %%代表转义的 %字符
+    
+conversion specification: 表示形式 '%' 或者 "%n$"，不要在format中交叉使用，%ns字符串指示符除外。
+        %ns字符串指示符 可以包括: %% and %*.
+*       这是一个可选的星号，表示数据是从流 stream 中读取的，但是可以被忽视，即它不存储在对应的参数中。
+        赋值抑制指示符. 不需要对应的类型指针。不计入返回值
+a       字符串指示符，减轻用户分配内存的压力，由scanf分配内存空间，用户释放内存空间。仅GNU C99支持
+整数数字 最大字段宽度。读取结束在 到达最大长度和不能匹配字符被发现。 空白字符不计入 最大字符宽度。字符串结束符'\n'不计入 最大字符宽度。
+         这指定了在当前读取操作中读取的最大字符数。
+type modifier character : 类型修订字符。 内存地址使用 ld 指示符
+conversion specifier    : 转化类型指示符。
+
+Conversions:
+h                 d, i, o, u, x, X, or n             a short int or unsigned short int
+hh                d, i, o, u, x, X, or n             a signed char or unsigned char
+j                 d, i, o, u, x, X, or n              intmax_t or a uintmax_t
+l                 d, i, o, u, x, X, or n             a long int or unsigned long int
+                  e f or g                           double # ll 等价L
+                  c or s                             a wide character or wide-character string 
+L                 d, i, o, u, or x                   a long long int or unsigned long long int
+                  e f or g                           long double # q 等价L
+t                 d, i, o, u, x, X, or n             ptrdiff_t
+z                 d, i, o, u, x, X, or n             size_t
+
+格式字符           说明
+%d                 signed decimal integer
+%D                 等价ld
+%i                 signed integer (0x or 0X十六进制 0八进制 否则十进制)
+%o                 unsigned int   (0八进制)
+%x                 unsigned int   (0x 十六进制)
+%X                 unsigned int   (0X 十六进制)
+%u                 unsigned int   (十进制)
+
+%c                 读入一个字符 
+%s                 读入一个字符串 (在最大长度或者空白处停止匹配)
+
+%f                 float 
+%F                 同上 
+%e                 同上 
+%E                 同上 
+%g                 同上 
+%G                 同上 
+%a                 读入一个浮点值(仅C99有效) 
+%A                 同上 
+
+%p                 void*  读入一个指针 
+%n                 至此已读入值的等价字符数 
+
+%[]                扫描字符集合 (集合匹配)
+%%                 读%符号 
+
+char *p;
+int n;
+
+errno = 0;
+n = scanf("%a[a-z]", &p);
+if (n == 1) {
+    printf("read: %s\n", p);
+    free(p);
+} else if (errno != 0) {
+    perror("scanf");
+} else {
+    fprintf(stderr, "No matching characters\n"):
+}
+
+
+# test
+#include <stdio.h>
+int main(void){
+    int a,b,c;
+
+    scanf("%d%d%d",&a,&b,&c);
+    printf("%d,%d,%d
+",a,b,c);
+    return 0;
+}  
+运行时按如下方式输入三个值：
+3□4□5 ↙（输入a,b,c的值）
+3，4，5 （printf输出的a，b，c的值）
+（1） &a、&b、&c中的&是地址运算符，分别获得这三个变量的内存地址。
+（2） "%d%d%d"是按十进值格式输入三个数值。输入时，在两个数据之间可以用一个或多个空格、tab键、回车键分隔。
+   以下是合法输入方式：
+   ① 3□□4□□□□5↙
+   ② 3↙
+      4□5↙
+   ③ 3（tab键）4↙
+      5↙
+      
+      
+#include <stdio.h>
+int main(void){
+    int a,b,c;
+    scanf("%d,%d,%d",&a,&b,&c);
+    printf("%d,%d,%d
+",a,b,c);
+    return 0;
+}
+运行时按如下方式输入三个值：
+3,4,5 ↙（输入a,b,c的值）
+或者
+3,□4,□5 ↙（输入a,b,c的值）
+3,□□□4,□5 ↙（输入a,b,c的值）
+......
+都是合法的，但是","一定要跟在数字后面，如：
+3□，4,□5 ↙就非法了，程序出错。（解决方法与原因后面讲）
+
+再如：
+1、sacnf()中的变量必须使用地址。
+    int a, b;
+scanf("%d%d",a,b); //错误
+scanf("%d%d",&a,&b);
+2、scanf()的格式控制串可以使用其它非空白字符，但在输入时必须输入这些字符。
+例：
+scanf("%d,%d",&a,&b);
+输入： 3，4 ↙（逗号与"%d,%d"中的逗号对应）
+scanf("a=%d,b=%d",&a,&b);
+输入： a=3，b=4 ↙（"a=","b=",逗号与"%d,%d"中的"a=","b="及逗号对应）
+
+3、在用"%c"输入时，空格和“转义字符”均作为有效字符。
+例：
+scanf("%c%c%c",&c1,&c2,&c3);
+输入：a□b□c↙
+结果：a→c1，□→c2，b→c3 (其余被丢弃)
+
+3、在用"%c"输入时，空格和“转义字符”均作为有效字符。
+例：
+scanf("%c%c%c",&c1,&c2,&c3);
+输入：a□b□c↙
+结果：a→c1，□→c2，b→c3 (其余被丢弃)
+
+
+scanf()函数接收输入数据时，遇以下情况结束一个数据的输入：（不是结束该scanf函数，scanf函数仅在每一个数据域均有数据，并按回车后结束）。
+        ① 遇空格、“回车”、“跳格”键。
+        ② 遇宽度结束。
+        ③ 遇非法输入。
+问题二：scanf()函数不能正确接受有空格的字符串？如: I love you!
+
+#include <stdio.h>
+int main(void){
+    char str[80];
+   
+    scanf("%s",str);
+    printf("%s",str);
+    return 0;
+}
+输入：I live you!
+输出：I
+       scanf()函数接收输入数据时，遇以下情况结束一个数据的输入：（不是结束该scanf函数，scanf函数仅在每一个数据域均有数据，并按回车后结束）。
+        ① 遇空格、“回车”、“跳格”键。
+        ② 遇宽度结束。
+        ③ 遇非法输入。
+所以，上述程序并不能达到预期目的，scanf()扫描到"I"后面的空格就认为对str的赋值结束，并忽略后面的"love you!".这里要注意是"love you!"还在键盘缓冲区（关于这个问题，网上我所见的说法都是如此，但是，我经过调试发现，其实这时缓冲区字符串首尾指针已经相等了，也就是说缓冲区清空了，scanf()函数应该只是扫描stdin流，这个残存信息是在stdin中)。我们改动一下上面的程序来验证一下：
+
+#include <stdio.h>
+int main(void){
+    char string[50];
+   
+     /*scanf("%s",string);不能接收空格符*/
+     scanf("%[^/n]",string);
+     printf("%s
+",string);
+     return 0;
+}
+
+键盘缓冲区残余信息问题
+
+#include <stdio.h>
+int main()
+{
+    int a;
+    char c;
+    do
+    {
+        scanf("%d",&a);
+        scanf("%c",&c);
+        printf("a=%d     c=%c
+",a,c);
+        /*printf("c=%d
+",c);*/
+    }while(c!='N');
+}
+   scanf("%c",&c);这句不能正常接收字符,什么原因呢？我们用printf("c=%d
+",c);将C用int表示出来，
+   启用printf("c=%d
+",c);这一句，看看scanf()函数赋给C到底是什么，结果是 c=10 ,ASCII值为10是什么？
+   换行即
+.对了，我们每击打一下"Enter"键，向键盘缓冲区发去一个“回车”(/r),一个“换行"(/n),
+   在这里/r被scanf()函数处理掉了（姑且这么认为吧^_^），而/n被scanf()函数“错误”地赋给了c.
+解决办法：可以在两个scanf()函数之后加个fflush(stdin);，还有加getch(); getchar();也可以，
+但是要视具体scanf()语句加那个，这里就不分析了，读者自己去摸索吧。
+
+
+函数名: fflush
+功 能: 清除一个流
+用 法: int fflush(FILE *stream);
+#include <stdio.h>
+int main()
+{
+    int a;
+    char c;
+    do
+    {
+        scanf("%d",&a);
+        fflush(stdin);
+        scanf("%c",&c);
+        fflush(stdin);
+        printf("a=%d     c=%c
+",a,c);
+    }while(c!='N');
+}     
+这里再给一个用“空格符”来处理缓冲区残余信息的示例：
+
+这里再给一个用“空格符”来处理缓冲区残余信息的示例：
+运行出错的程序：
+#include <stdio.h>
+int main()
+{
+    int i;
+    char j;
+    for(i = 0;i < 10;i++)
+    {
+        scanf("%c",&j);/*这里%前没有空格*/
+    }
+}
+使用了空格控制符后：
+#include <stdio.h>
+int main()
+{
+    int i;
+    char j;
+    for(i = 0;i < 10;i++)
+    {
+        scanf(" %c",&j);/*注意这里%前有个空格*/
+    }
+}
+    可以运行看看两个程序有什么不同。
+
+问题四   如何处理scanf()函数误输入造成程序死锁或出错？
+#include <stdio.h>
+int main()
+{
+int a,b,c; /*计算a+b*/
+scanf("%d,%d",&a,&b);
+c=a+b;
+printf("%d+%d=%d",a,b,c);
+}
+如上程序，如果正确输入a,b的值，那么没什么问题，但是，你不能保证使用者每一次都能正确输入，一旦输入了错误的类型，你的程序不是死锁，就是得到一个错误的结果,呵呵，这可能所有人都遇到过的问题吧？
+解决方法：scanf()函数执行成功时的返回值是成功读取的变量数,也就是说，你这个scanf()函数有几个变量，如果scanf()函数全部正常读取，它就返回几。但这里还要注意另一个问题，如果输入了非法数据，键盘缓冲区就可能还个有残余信息问题。
+正确的例程：
+#include <stdio.h>
+int main()
+{
+int a,b,c; /*计算a+b*/
+
+while(scanf("%d,%d",&a,&b)!=2)fflush(stdin);
+c=a+b;
+printf("%d+%d=%d",a,b,c);
+}
+
+1. 空白问题
+scanf( "%d/n ",&a);//这里多了一个回车符/n 
+结果要输入两个数程序才结束，而不是预期的一个。why？
+原因：用空白符结尾时，scanf会跳过空白符去读下一个字符，所以你必须再输入一个数。这里的空白符包括
+空格，制表符，换行符，回车符和换页符。所以如果你用scanf( "%d ",&a)也会出现同样的问题。
+解决方法：这种错误大多是输入的时候不小心，多注意一点就好了。这种问题也不好检查，编译没有问题，
+一个空格也不容易看出来。当你的程序出现上面的问题时，自己对照检查一下就可以了。
+
+2. 缓冲区问题
+for(int i = 0; i < n; i++)
+    c[i] = scanf("%c",&c[i]);
+如果输入:
+a
+b
+c
+那么循环就会“提前”结束了.
+原因：输入a和第一个回车后，a和这个回车符都留在缓冲区中。第一个scanf读取了a，但是输入缓冲区里面
+还留有一个/n，第二个scanf读取这个/n。然后输入b和第二个回车，同样的，第三个scanf读取了b，第四个
+scanf读取了第二个回车符。第五个读取了c。所以五个scanf都执行了，并没有提前结束。只不过有的scanf
+读取到了回车符而已。
+
+fflush(stdin);//刷新缓冲区 
+
+3. scanf()函数的参数输入类型不匹配问题
+#include <stdio.h>
+main()
+{
+int a=123;
+char c= 't ';
+printf( "input/n ");
+scanf( "%d%c ",&a,&c);
+scanf( "%d%c ",&a,&c);
+scanf( "%d%c ",&a,&c);
+printf( "%d/n%c/n ",a,c);
+return 0;
+}
+当输入a 回车 后，会直接跳过下面２个scanf语句，直接输出为
+123
+t
+原因：对于scanf( "%d%c ",&a,&c)，scanf语句执行时，首先试图从缓冲区中读入一个%d类型的数据，如果和
+第一个参数匹配，则继续从缓冲区中读取数据和第二个参数进行匹配，依次进行下去，直到匹配完所有的参
+数；如果其中有一个参数不匹配，那就从这个地方跳出，忽略这个scanf后面所有的参数，而去执行下一条语
+句。
+

@@ -1,0 +1,175 @@
+https://github.com/gnsyxiang/gcc-compile-links
+
+
+一、基本选项
+GCC是开源软件中的一个顶级的C编译器
+gcc -Wall -o hello hello.c
+-W是打开警告选项
+-all打开所有
+-v显示详细信息
+-c只编译产生目标文件，不产生可执行文件，就是产生.o文件
+
+GCC不存在链接次序的问题，但最好遵守定义在后、调用在前的规则
+
+有效的管理庞大的项目，有make
+
+
+二、链接外部库
+标准库：
+gcc -Wall main.c /usr/lib/libm.a -o calc
+gcc -Wall main.c -lm -o calc
+
+-lm相当于libm.a (仅对标准库)
+
+-I选项指明了在哪个目录下搜索头文件
+gcc -Wall -I/opt/mysoft/include -o main
+
+-L指定了搜索的库文件目录
+
+指定环境变量
+
+如果既定义了-I,-L和环境变量，则优先找-I和-L，如果没有找到，就去找环境变量，如果环境变量还没有找到，则去找系统路径
+
+推荐-I,-L这种方法
+
+三、创建自己的库
+ar 命令：把一堆的目标文件.o合成一个库文件
+ar cr libName.a file1.o file2.o ... filen.o
+查看一库里有多少个目标文件
+ar t libName.a
+
+gcc -Wall -c main.c libFunc.a -o hello
+-c main.c 和 libFunc.a的顺序不能交换
+
+
+gcc -Wall main.c -L. -lfunc -o hello
+gcc -Wall main.c -L/home/baiyun/study/mysoft -lfunc -o hello
+
+四、动态库和静态库
+.lib .a
+.dll .so
+
+用ldd a.out来查看 a.out需要哪些动态库
+
+
+
+五、C语言标准
+gcc如果不加选项，则使用 GNU标准编译，加-ansi，-std，最新版是-std=c99
+
+gcc -Wall -ansi -D_GNU_SOURCE pi.c -o pp
+使用标准C来编译 ，但链接时候使用GNU的库
+
+-ansi -pedantic两个参数连用，就严格按照标准C来调用
+
+
+六、-Wall选项
+-Wall是以下的集合
+'-Wcomment' （用来检测注释是否嵌套了）
+'-Wformat'  （用来检测printf和scanf中传的值的类型是否正确）
+'-Wunused'   (用来检测是否声明一个变量但没有被使用)
+'-Wimplicit' （用来检测是否一个使用了一个没有被声明的函数）
+'-Wreturn-type' （用来检测一个函数声明有返回值，但是实现中却没有返回值）
+'-W'
+'-Wcnversion'
+'-Wshadow'
+'-Wcast-qual'
+'-Wwrite-strings'
+'-Wtraditional'
+
+七、预处理
+gcc -Wall -DTEST main.c -o ouput
+-D后面跟预处理定义的宏
+
+要想给预定义宏加值，则用如下：
+gcc -Wall -DNUM=123 main.c o ouput
+gcc -Wall -DNUM="1 + 2" main.c o ouput
+如果不给宏设值，则默认值是1
+
+如果不想编译，只需要看预处理的过程，则用-E参数（以下两种都 可以）
+gcc -E test.c
+gcc -Wall -c -save-temps test.c  产生.i和.s文件 ，.s文件是汇编语言，.i文件是预处理结果，.i文件是C语言的预处理结果，.ii是 C++的预处理结果
+
+查看GCC里面的预定义宏
+cpp -dM /dev/null
+
+八、编译的功能Debug
+-g 指令使得编译器把一些额外的调试信息存放到可执行文件和目标文件中，这些信息使得我们能把机器码信息和源程序信息联系在一起。GCC的调试器是GDB
+
+分析Coredump文件
+gdb a.out core.2297
+
+
+九、编译优化
+一个编译器能够产生不同平台上的可执行文件。
+1、在源码层次进行优化，不需要对于机器码的任何知识
+    (1)、公用子表达式消除（CSE），重用已经计算出的变量
+    (2)、内嵌函数(FL)
+    (3)、循环优化开关 gcc -Wall -O3 -funroll-loops test.c -o test
+2、机器码层次优化
+3、优化等级：
+    gcc -OLEVEL
+    LEVEL = 0 - 3
+    0表示不优化
+    等级越高，优化的强度越大
+
+十、优化和调试
+通常优化和调试是矛盾的，GCC中允许同时使用优化和-g，允许同时优化和调试
+
+十一、编译C++程序
+GNU的C++编译器实际上就是一个真正的C++编译器，把C++直接编译成汇编语言，再转换成机器码。其实的编译器则是先把C++语言转成C语言，再转成汇编然后再转成机器码。所以GCC编译器产生的C++程序的性能更高。编译C++的过程和编译C的过程是一样的，但是使用的是g++命令，
+gcc 和 g++的大部分命令都相同。
+C++的目标文件必须用g++来链接，因为g++会查找C++的标准库
+
+十二、编译是怎么样工作的
+编译过程是由多个阶段组成的，每个阶段使用的工具不一样，它包含很多工具，称为工具链。
+包含下面过程 :
+1、预处理
+2、将源程序编译成汇编语言
+3、把汇编语言源程序编译成最终机器码，产生目标文件
+4、创建最终可执行文件
+
+1、cpp hello.c -o hello.i 预处理，生成 hello.i文件
+2、gcc -Wall -S hello.i   编译成汇编语言，生成hello.s文件 （用-S参数表示编译成汇编语言的源程序）
+3、as hello.s -o hello.o 生成目标文件
+4、gcc hello.o 生成可执行文件     
+
+十三、两个和编译相关的工具
+1、优化器gprof
+gcc -Wall -pg main.c -o pro
+-pg参数把GCC的一些测试代码插入到可执行文件中，可以计算函数执行的时间和次数
+程序运行完成，会生成一个gmon.out的文件 ，使用gprof gmon.out来查看其中的信息
+
+
+2、覆盖测试工具 gcov
+可以发现程序中哪些代码从来没有被调用到
+gcc -Wall -fprofile-arcs -ftest-coverage cov.c
+生成cov.gcno
+运行程序后，生成cov.gcda
+
+使用gcov cov.c来检查
+生成 cov.c.gcov
+
+
+静态库链接时搜索路径顺序
+    ld会去找GCC 命令中的参数-L
+    再找gcc 的环境变量LIBRARY_PATH
+    再找内定目录 /lib /usr/lib /usr/local/lib 这是当初compile gcc 时写在程序内的
+
+动态链接时,执行时搜索路径顺序
+    编译目标代码时指定的动态库搜索路径
+    环境变量LD_LIBRARY_PATH 指定的动态库搜索路径
+    配置文件/etc/ld.so.conf 中指定的动态库搜索路径
+    默认的动态库搜索路径/lib
+    默认的动态库搜索路径/usr/lib
+
+有关环境变量
+LIBRARY_PATH环境变量：指定程序静态链接库文件搜索路径 LD_LIBRARY_PATH环境变量：指定程序动态链接库文件搜索路径
+
+
+编译成可执行文件
+首先我们要进行编译 test.c 为目标文件，这个时候需要执行
+    gcc –c –I /usr/dev/mysql/include test.c –o test.o
+链接
+最后我们把所有目标文件链接成可执行文件:
+    gcc –L /usr/dev/mysql/lib –lmysqlclient test.o –o test
+

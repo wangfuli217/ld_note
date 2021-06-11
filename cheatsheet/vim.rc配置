@@ -1,0 +1,425 @@
+vim.rc配置
+
+参考了大量的博文，暂时完成了自己需要的部分。
+
+这是我见过最全的vim总结的网站，只看这个就可以把我这篇pass掉了 - 戳我 对markdown语法也不了解，暂时按照这个用着。下文偷懒了，全部用pre标签，可能会有部分符号不能表示，无视掉吧。
+
+发现有不少东西不能显示，如果遇到这种情况请在代码里面下载下来，vim_config的文件，这个里面是没有问题的
+
+0. 快捷键备忘
+        这部分可以直接跳过，这里有不少自己配置的东西，看完后文再来看这个。
+    %     跳转到配对的括号去
+    [[    跳转到代码块的开头去(但要求代码块中'{'必须单独占一行)
+    ]]    则为下一行
+    gD    跳转到局部变量的定义处
+    ''    跳转到光标上次停靠的地方, 是两个', 而不是一个"
+    mx    设置书签,x 只能是 a-z 的 26 个字母
+    `x    跳转到书签处("`"是 1 左边的键)
+    >     增加缩进,"x>"表示增加以下 x 行的缩进
+    <     减少缩进,"x ctags插件，跳到函数定义处
+
+    //Ctags, Cscope
+    $ ctags -R
+    :set tags=./tags
+    $ cscope -Rbq
+    :cs add ./cscope.out ./
+
+    //MiniBufExplorer
+    :cw
+    :cn      切换到下一个结果
+    :cp      切换到上一个结果
+
+    //seventh pluge 代码折叠 (fold)
+    za      打开/关闭当前折叠
+    zM      关闭所有折叠
+    zR      打开所有折叠
+    zA      循环地打开/关闭当前折叠
+    zo      打开当前折叠
+    zc      关闭当前折叠
+
+    fh      开源证书说明
+    fj      函数定义
+    fk      文件头说明
+
+    //变量标记和检查－mark.vim
+    normal和visual模式都可以用这两个
+    ,hl 标记
+    ,hr 正则
+    ,hh 反标记
+    ,# ,*
+
+    //jsbeauty
+    \ff
+
+    //spidermonkey
+    !js %
+
+    //NERD_commenter：注释代码用的
+    \ca 在可选的注释方式之间切换，比如C/C++ 的块注释/* */和行注释//
+    \cc 注释当前行
+    \cs 以"性感"的方式注释
+    \cA 在当前行尾添加注释符，并进入Insert模式
+    \cu 取消注释
+    \cm 添加块注释
+
+    //surround：快速替换、清除包围符号、标签。
+    http://www.vim.org/scripts/script.php?script_id=1697
+    "  Old text                  Command     New text ~
+    "  "Hello *world!"           ds"         Hello world!
+    "  [123+4*56]/2              cs])        (123+456)/2
+    "  "Look ma, I'm *HTML!"     cs""      "Look ma, I'm HTML!"
+    "  if *x>3 {                 ysW(        if ( x>3 ) {
+    "  my $str = *whee!;         vlllls'     my $str = 'whee!';
+    "  "Hello *world!"           ds"         Hello world!
+    "  (123+4*56)/2              ds)         123+456/2
+    "  
+Yo!*
+           dst         Yo!
+    "  Hello w*orld!             ysiw)       Hello (world)!
+
+第一阶段：先来最简单的默认配置
+
+    set encoding=utf-8
+    set fileencodings=utf-8,shift-jis,cp936,latin1
+    set nocompatible " 关闭VI兼容模式
+
+    " 缩进设置
+    set tabstop=4
+    set softtabstop=4
+    set shiftwidth=4
+    set autoindent
+    set cindent
+
+    set nu " 显示行号
+    colo django " 主题配色
+    set autochdir "自动切换工作目录
+    syntax on " 语法高亮
+    filetype plugin indent on "开启插件
+    set so=4 " 设置光标距离上下边界的距离
+    set hidden " 允许在有未保存的修改时切换缓冲区
+    set ruler " 开启右下角光标位置显示
+    set showcmd " 在窗口右下角显示完整命令已输入部分
+    set cursorline " 高亮光标所在行
+    set ignorecase " 忽略大小写匹配
+    set incsearch " 开启输入时的搜索
+    set magic " 用于模式匹配的，建议开启
+    set hlsearch " 搜索关键词高亮
+    set cmdheight=1 " 设置命令行高度
+    setlocal noswapfile " 关闭临时文件
+    set wildmenu " 启用文本模式的菜单
+
+    " GUI设置（关闭菜单栏和工具栏）
+    "set guioptions-=T
+    "set guioptions-=m
+
+    " 状态栏设置
+    " set laststatus=2
+    set statusline=%F%m%r%h%w\ [FORMAT=%{&ff}]\ [TYPE=%Y]\ [ASCII=\%03.3b]\ [HEX=\%02.2B]\ [POS=%04l,%04v][%p%%]\ [LEN=%L]
+
+    a.路径 /usr/share/vim/vim72
+    b.主题
+
+
+第二阶段
+除 Ctags,Cscope 要安装外，其它的都是直接扔到plugin里面去
+
+1、Ctags 查看变量定义，函数定义，宏定义
+    http://ctags.sourceforge.net
+
+    ./configure
+    make
+    make check
+    make install
+    sudo make install
+    make clean
+
+    在代码文件夹中：ctags -R
+    //ctags -R --fields=+lS     （后期补充）
+    在文件中执行：set tags=./tags
+    此时按下, 光标会自动跳到 setmouse()函数的定义处
+    有一个小瑕疵, 你修改程序后, 比如增加了函数定义, 删除了变量定义, tags 文件
+
+2、Taglist 查看当前文件中的所有宏，变量名，函数名，
+    http://www.vim.org/scripts/script.php?script_id=273
+
+    在.vimrc中
+        let Tlist_Show_One_File=1
+        let Tlist_Exit_OnlyWindow=1
+    输入:Tlist
+    在后文会与其它快捷键合并
+
+3、WinManager 文件浏览器和窗口管理器
+    http://www.vim.org/scripts/script.php?script_id=95
+
+    .vimrc中添加:
+    let g:winManagerWindowLayout='FileExplorer|TagList'
+    nmap wm :WMToggle
+    在 normal 状态下输入"wm"
+    其实我对文件管理的要求不高，所以索性将fileexplorer去掉了
+
+4、Cscope 超过频的 ctags
+    http://cscope.sourceforge.net
+    这个比较难，我现在都么有弄懂
+    在项目目录下运行：
+        $ cscope -Rbq
+    vim打开main文件，导入刚才的cscope文件
+        :cs add /home/kelu/workspace/tmp/chap11/cscope.out /home/kelu/workspace/tmp/chap11
+
+    查找：
+        :cs find g vim_strsave
+        :cs find c vim_strsave
+        :cw 打开QuickFix窗口进行查看
+    0 或 s    查找本 C 符号(可以跳过注释)
+    1 或 g    查找本定义
+    2 或 d    查找本函数调用的函数
+    3 或 c    查找调用本函数的函数
+    4 或 t    查找本字符串
+    6 或 e    查找本 egrep 模式
+    7 或 f    查找本文件
+    8 或 i    查找包含本文件的文件
+
+    可以绑定这么长的快捷键
+    nmap s :cs find s =expand("")
+    nmap g :cs find g =expand("")
+    nmap c :cs find c =expand("")
+    nmap t :cs find t =expand("")
+    nmap e :cs find e =expand("")
+    nmap f :cs find f =expand("")
+    nmap i :cs find i =expand("")
+    nmap d :cs find d =expand("")
+
+
+
+5、 QuickFix 显示查询、编译、错误各种东西的窗口
+    :cw
+    :cn // 切换到下一个结果
+    :cp // 切换到上一个结果
+
+
+6、MiniBufExplorer 一个窗口内多个内嵌窗口的切换
+    http://www.vim.org/scripts/script.php?script_id=159
+
+    let g:miniBufExplMapCTabSwitchBufs = 1
+    let g:miniBufExplMapWindowNavVim = 1
+    let g:miniBufExplMapWindowNavArrows = 1
+    ctrl+hjik
+    ctrl+shift+tab
+
+7. 切换h\c文件
+    http://www.vim.org/scripts/script.php?script_id=31
+
+    :A 在新 Buffer 中切换到 c\h 文件
+    :AS 横向分割窗口并打开 c\h 文件
+    :AV 纵向分割窗口并打开 c\h 文件
+    :AT 新建一个标签页并打开 c\h 文件
+
+6.6? 快速查找Grep
+    http://www.vim.org/scripts/script.php?script_id=311
+
+    没装
+
+8、自动补全
+    你还需要在~/.vimrc 文件中增加下面两句:
+    filetype plugin indent on
+    set completeopt=longest,menu
+
+8、加速你的补全 -- 插件: SuperTab
+    http://www.vim.org/scripts/script.php?script_id=1643
+
+    .vimrc中添加
+    let g:SuperTabRetainCompletionType=2
+    let g:SuperTabDefaultCompletionType=""
+
+    用了其它的补全工具的缘故，目前我的感受不深。其实这个补全其实已经够用了。
+
+9、seventh pluge 代码折叠 (fold)
+    set foldmethod=syntax
+    set foldlevel=100 " 启动 vim 时不要自动折叠代码
+    za 打开/关闭当前折叠
+    zM 关闭所有折叠
+    zR打开所有折叠
+
+    zA 循环地打开/关闭当前折叠
+    zo 打开当前折叠
+    zc 关闭当前折叠
+
+
+10、 DoxygenToolkit:它会根据配置自动生成注释，主要是license注释、文件注释、函数及类注释
+    http://www.vim.org/scripts/script.php?script_id=987
+
+    a.并将其解压到$home/.vim/目录下
+    b.修改.vimrc的配置，加入自己对Doxygen的配置
+        map fk : DoxAuthor
+        let g:DoxygenToolkit_authorName="kelvinblood, kelvinbloodzz@gmail.com"
+        map fj : Dox
+        let g:DoxygenToolkit_briefTag_pre="@Synopsis  "
+        let g:DoxygenToolkit_paramTag_pre="@Param "
+        let g:DoxygenToolkit_returnTag="@Returns   "
+        map fh : DoxLic
+        let s:licenseTag = " Copyright (C) 2012 Kelvin Blood \ \ This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.  \ \ This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details. \  \ You should have received a copy of the GNU General Public License along with this program.  If not, see ."
+        let g:DoxygenToolkit_licenseTag = s:licenseTag
+        let g:DoxygenToolkit_briefTag_funcName="yes"
+
+    c.此时已安装完成，运行vim 在命令行输入 : DoxAuthor 即可看到效果
+        DoxAuthor:将文件名，作者，时间等关键字自动填好
+        DoxLic:license注释
+        Dox：函数及类注释
+
+11、语法高亮－javascript.vim
+    http://www.vim.org/scripts/script.php?script_id=1491
+
+    该插件安装在~/.vim/syntax/目录下。
+    下载后按需要设置折叠层数 setlocal foldlevel=1。
+
+    vimrc中添加
+    " 打开javascript折叠
+    let b:javascript_fold=1
+    " 打开javascript对dom、html和css的支持
+    let javascript_enable_domhtmlcss=1
+
+
+12、变量标记和检查－mark.vim
+    http://www.vim.org/scripts/script.php?script_id=1238
+
+    在对变量进行检查和跟踪的时候会很有用，同时还可以防止变量名拼写错误。打开／关闭变量标记的默认快捷键是/m。也可以使用v选中一段进行标记。
+
+    .vimrc中加入
+    nmap  ,hl MarkSet
+    vmap  ,hl MarkSet
+    nmap  ,hh MarkClear
+    vmap  ,hh MarkClear
+    nmap  ,hr MarkRegex
+    vmap  ,hr MarkRegex
+
+    ,hl
+    ,hh
+    ,hr
+
+    可以在高亮的字上使用,# ,*进行上下搜索
+
+13、jsbeauty
+    简单的将js代码变得整齐而有序~
+    这时打开一个js文件，我们就可以按下 ff，来查看效果啦，一般来说，如果没有重新设置过的话，就是\键。
+
+14、vim配置及自动补全插件neocomplcache
+    使用缓存，自动补全时效率高、生成的关键词列表准确等优点。最后在vim中启用，在.vimrc中添加：
+    let g:neocomplcache_enable_at_startup=1
+
+15、何利用VIM记晨间日记
+    http://www.vim.org/scripts/download_script.php?src_id=11795）
+    a.准备好模板文件
+        /home/kelu/.vim/templates
+    b.修改_vimrc
+        autocmd BufNewFile *.cal read ~/.vim/templates/calendar_morning_diary.tpl | normal ggdd
+    c.在命令模式下，输入:Calendar
+
+16、添加字典
+    .vimrc中加入，放入下面的路径。我也是在网上大概搜了一个字典的
+    autocmd FileType javascript set dictionary=~/.vim/dict/javascript.dict "添加字典
+
+17、jsLint
+    http://www.javascriptlint.com/download.htm
+    http://www.vim.org/scripts/script.php?script_id=2578#0.1
+
+    又是一个需要安装的东西。 这个工具的代码基于Douglas Crockford’s的jslint，在代码检查方面很强大，可以说非常苛刻。 如果从头开始写代码，建议经常用它来检查代码，能明显提高代码的质量。
+    make -f Makefile.ref all
+    cd Linux_All_DBG.OBJ/
+    jsl -help:conf > jsl.conf       //生成默认配置文件
+    sudo cp jsl jscpucfg jsl.conf /usr/games/
+    //懒得设置系统路径了而已，发现 games里面文件最少，就放里面了
+
+    .vimrc中加入
+    let g:jslint_command = 'jsl'
+    " 指定 jsLint 的启动参数，可以指定相应的配置文件
+    let g:jslint_command_options = '-nofilelisting -nocontext -nosummary -nologo -process'
+    最后输入jsl就可以进行命令操作了
+
+    "map  :call JsonLint()
+    "这样同时按 Ctrl + S、Ctrl + J 就可以检查 Javascript 语法有无问题了。
+    例子：
+    var Data = ['blue', 'red', 'tellow', 'white', 'black'];
+
+    for(var i = 0; i < 5; i++ ){
+        print(Data[i]);
+    }
+
+
+18、运行代码片段－spidermonkey
+    sudo apt-get install spidermonkey-bin
+
+    SpiderMonkey是由C语言操作的JavaScript引擎，它支持JS1.4和ECMAScript-262规范。该引擎分析、编译和执行脚本，根据JS数据类型和对象的需要进行内存分配及释放操作。利用该引擎可以让你的应用程序具有解释JavaScript脚本的能力，目前已有若干个项目都采用了SpiderMonkey引擎，像K-3D、WebCrossing、WebMerger等。K-3D是用C++实现的3D建模与仿真系统，该系统内嵌SpiderMonkey引擎来提供自定义脚本（用户创建脚本生成像齿轮一样具有重复特性的复杂形体），也可用来驱动交互式的教学系统（用户可以使用一段JS脚本程序记录其交互过程，如移动鼠标、选择菜单、点击鼠标等）。WebCrossing利用SpiderMonkey实现了服务器端的脚本环境，提供了完全的Web-server脚本环境，服务器端的实现允许你在内置的、面向对象的数据库中创建永久对象，这样即可根据自己的需要扩展服务器环境。
+    http://www.ibm.com/developerworks/cn/linux/shell/js/js_engine/index.html
+    输入!js %即可执行当前文件的代码。也可以选中一段代码然后执行:’!js
+    ，后面跟上文件名，这样会插入执行结果到当前文件。
+
+19.matchit 使%不仅能够匹配简单的<>()，还能匹配之类标签的功能
+    http://www.vim.org/scripts/script.php?script_id=39
+
+    " % 正向匹配      g% 反向匹配
+    " [% 定位块首     ]% 定位块尾
+
+20.zencoding 大名鼎鼎的zencoding来了～～！！
+    http://github.com/mattn/zencoding-vim
+
+21. auto_mkdir 自动创建目录插件，功能简单但很实用
+    http://www.vim.org/scripts/script.php?script_id=3352
+
+22.css CSS颜色预览
+    .vim/after/syntax
+
+23.NERD_commenter：注释代码用的
+    http://www.vim.org/scripts/script.php?script_id=1218
+    " ca 在可选的注释方式之间切换，比如C/C++ 的块注释/* */和行注释//
+    " cc 注释当前行
+    " cs 以"性感"的方式注释
+    " cA 在当前行尾添加注释符，并进入Insert模式
+    " cu 取消注释
+    " cm 添加块注释
+
+24.surround：快速替换、清除包围符号、标签。
+    http://www.vim.org/scripts/script.php?script_id=1697
+    "  Old text                  Command     New text ~
+    "  "Hello *world!"           ds"         Hello world!
+    "  [123+4*56]/2              cs])        (123+456)/2
+    "  "Look ma, I'm *HTML!"     cs""      "Look ma, I'm HTML!"
+    "  if *x>3 {                 ysW(        if ( x>3 ) {
+    "  my $str = *whee!;         vlllls'     my $str = 'whee!';
+    "  "Hello *world!"           ds"         Hello world!
+    "  (123+4*56)/2              ds)         123+456/2
+    "  
+Yo!*
+           dst         Yo!
+    "  Hello w*orld!             ysiw)       Hello (world)!
+
+25.Tabular 可以指定某个符号对齐
+    http://vimcasts.org/episodes/aligning-text-with-tabular-vim/
+
+    .vimrc中加入
+          nmap a= :Tabularize /=
+          vmap a= :Tabularize /=a" :Tabularize /:\zs
+          vmap a" :Tabularize /:\zs>
+          nmap a: :Tabularize /:
+          vmap a: :Tabularize /:
+    \a=
+    \a:
+
+
+26.snipmate 代码段补全
+    http://www.vim.org/scripts/script.php?script_id=2540
+
+    打开plugin/snipmate.vim文件，找到TriggerSnippet函数，注释掉如下几行：
+    if exists(‘SuperTabKey’)
+    call feedkeys(SuperTabKey)
+    return "
+    endif
+    然后还要将下面那行的 return "\" 改为 return "\"
+
+    虽然没有完成预定的想法，把热键改为空格键，但是，竟然成功的把优先级给弄掉了，这个成为最高优先级了，happy^_^。
+    表示似乎还是有问题，我现在不管了，把它拿掉了  by2012-5-19
+
+27.OOP javascript indentation js代码排版
+    http://vim.sourceforge.net/scripts/script.php?script_id=1936
+
+    用过不少js的排版vim，都是各种不爽，vim经常会自作聪明的把输入冒号以后vim会非常自作聪明地把冒号以及其前面的内容移到首列去的问题.
+    这个插件还不错，至少没这方面的问题
+    ""

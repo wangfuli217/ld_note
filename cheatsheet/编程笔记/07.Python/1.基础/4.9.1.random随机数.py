@@ -1,0 +1,1 @@
+https://github.com/cheng403003167/selfpythonmodel/wiki/%E9%9A%8F%E6%9C%BA%E6%95%B0-random

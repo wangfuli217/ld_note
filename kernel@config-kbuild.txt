@@ -1,0 +1,160 @@
+在Kconfig文件中：
+--------
+config A
+    depends on B
+    select C
+它的含义是：CONFIG_A配置与否，取决于CONFIG_B是否配置。一旦CONFIG_A配置了，CONFIG_C也自动配置了。
+
+对于每一种体系结构，都有一个kernel主配置文件：arch/<arch>/Kconfig。当执行make config/menuconfig/xconfig命令时，
+如果当前kernel根目录下没有.config文件，则会读取Kconfig文件。
+
+-------------------------------------------------------------------------------
+1. 系统调用（system call）可以访问userspace，而硬件中断（hardware interrupt）则不能。
+2. Interrupt handler会复用当前被中断task的kernel stack，它并不是一个真正的task，也不拥有task_struct。因此一旦被调度出去，就无法再被调度回来继续执行。所以interrupt handler不允许被抢占。
+
+"mode switch"和"context switch"
+--------
+"mode switch"是一个运行的task从user-mode切换到kernel-mode，或者切换回来。而"context switch"一定发生在kernel mode，进行task的切换。
+每个user task有一个user-mode stack和一个kernel-mode stack，当从user-mode切换到kernel-mode时，寄存器的值要保存到kernel-mode stack，
+反之，从kernel-mode切换回user-mode时，要把寄存器的值恢复出来。
+进行"context switch"时，scheduler将当前kernel-mode stack中的值保存在task_struct中，并把下一个将要运行task的task_struct值恢复到
+kernel-mode stack中。这样，从kernel-mode返回到user-mode，就会运行另外一个task。
+
+ERESTARTSYS和EINTR
+即如果可以把用户看到的设备状态完全回滚到执行驱动代码之前，则返回ERESTARTSYS，否则返回EINTR。因为EINTR错误可以使系统调用失败，
+并且返回错误码为EINTR给应用程序。而ERESTARTSYS有可能会让kernel重新发起操作，而不会惊动应用程序。
+
+
+version(){
+<linux/version.h>是由顶级目录下的Makefile生成的：
+
+......
+define filechk_version.h
+    (echo \#define LINUX_VERSION_CODE $(shell                         \
+    expr $(VERSION) \* 65536 + 0$(PATCHLEVEL) \* 256 + 0$(SUBLEVEL)); \
+    echo '#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))';)
+endef
+
+$(version_h): $(srctree)/Makefile FORCE
+    $(call filechk,version.h)
+    $(Q)rm -f $(old_version_h)
+......
+
+-------------------------------------------------------------------------------
+它包含了LINUX_VERSION_CODE和KERNEL_VERSION这两个macro定义。以下面这个版本为例：
+
+......
+#define LINUX_VERSION_CODE 199680
+#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
+......
+199680对应3.12.0版本。
+
+}
+
+
+
+debugfs(){
+debugfs是一个用于调试目的，简单的，基于内存的文件系统。kernel的信息可以输出到debugfs中，这样方便user space程序查看和使用。
+
+为了使用debugfs功能，编译kernel时需要把CONFIG_DEBUG_FS置成yes。
+
+典型的挂载debugfs文件系统命令：
+
+mount -t debugfs none /sys/kernel/debug
+由于没有具体设备，所以设备的位置使用了none
+}
+
+ko(".ko"和".o"文件区别){
+    假设你编写的模块文件是mod.c，编译会生成mod.o文件。kernel编译系统还会自动生成一个mod_kmod.c文件（包含需要的kernel数据结构），
+编译这个文件生成另一个object文件。
+把mod_kmod.c所新生成的object文件和之前的mod.o文件链接生成最后的mod.ko文件。也就是可以被kernel加载运行的模块文件。
+}
+
+current(){
+kernel代码中有一个current变量，它是一个指针，用来指向执行当前这段kernel代码的进程。举个例子，当一个进程执行open系统调用时，
+在kernel中，就可以用current来访问这个进程。current定义在<asm/current.h>中，以X86平台为例：
+
+#ifndef __ASSEMBLY__
+struct task_struct;
+
+DECLARE_PER_CPU(struct task_struct *, current_task);
+
+static __always_inline struct task_struct *get_current(void)
+{
+    return this_cpu_read_stable(current_task);
+}
+
+#define current get_current()
+#endif /* __ASSEMBLY__ */
+可以看到currrent变量实际上是一个指向struct task_struct的指针，而struct task_struct则保存了关于进程的信息。
+
+}
+
+Kdump(){
+先介绍两个术语：
+a）Standard（production）kernel：正常使用的kernel；
+b）Crash（capture）kernel：用来收集crash dump的kernel。
+
+Kdump有两个重要的组件：Kdump和Kexec：
+a）Kexec：
+是一种fastboot mechanism。Kexec允许不通过BIOS，而是从运行的kernel中启动另一个kernel，这样做速度很快,可以节省大量时间。
+b）Kdump：
+是一种新的，可靠的crash dumping mechanism。Crash dump是从新启动的kernel中去捕获，而不是从已经crashed kernel中。
+当系统crash后，Kdump使用Kexec启动第二个kernel（Crash kernel），而第一个kernel（Standard kernel）会保留一部分内存
+供第二个kernel使用。由于Kexec没有通过BIOS启动第二个kernel，因此第一个kernel的内存得到保护，也就是最终的kernel 
+crash dump。
+
+}
+
+install(如何删除内核？){
+（1）在/boot文件夹下删除相关文件：
+
+/boot/vmlinuz*KERNEL-VERSION*
+/boot/initrd*KERNEL-VERSION*
+/boot/System-map*KERNEL-VERSION*
+/boot/config-*KERNEL-VERSION*（如果存在）
+（2）删除和这个kernel相关的module文件夹。默认是在/lib/modules这个目录下：
+
+/lib/modules/*KERNEL-VERSION*/
+（3）修改grub启动文件：删除相应的menuentry，并记得修改default值。
+}
+
+memory(Linux中有以下几种内存地址类型){
+（1）User virtual addresses：
+用户空间程序（user-space program）所看到和使用的地址。这些都是虚拟地址（virtual address），需要经过转化后，
+才能变成实际的内存物理地址。每个进程都拥有自己的虚拟地址空间。
+
+（2）Physical addresses：
+实际的内存物理地址，也即是CPU用来访问物理内存的地址。
+
+（3）Bus addresses：
+总线地址。外围设备所看到的物理内存地址。通常情况下，这个地址就是实际的内存物理地址。但是如果系统支持IOMMU的话，
+总线地址和实际的内存物理地址之间需要做一个映射。
+
+（4）Kernel logic addresses：
+内核逻辑地址。内核逻辑地址会部分或全部地映射到物理内存地址，所以看起来就像实际的物理内存地址一样，并且这种映射是线性的，
+一对一的。在许多体系结构上，内核逻辑地址和物理内存地址只差一个常量偏移。内核虚拟地址的值通常存储在指针类型或unsigned 
+long类型的变量里。kmalloc函数返回的就是内核逻辑地址。
+
+（5）Kernel virtual addresses：
+内核虚拟地址。内核虚拟地址同内核逻辑地址相似的地方是都是把内核地址空间和实际物理内存的地址空间做映射，不同之处在于
+内核虚拟地址不要求这种映射是线性的，一对一的。内核逻辑地址都是内核虚拟地址，但是反过来则不成立。内核虚拟地址的值
+通常存储在指针类型变量里。vmalloc和kmap返回的都是内核虚拟地址。
+
+__pa（定义在<asm/page.h>）宏用来把内核逻辑地址映射为实际的内存物理地址；__va则用来把实际的内存物理地址映射为内核逻辑地址
+（仅限于low memory）。
+
+}
+
+
+console("/dev/tty"，"/dev/console"和"/dev/tty0"的区别){
+    早些时候，/dev/console是系统管理员控制台，而TTYs则代表用户连接服务器的串行设备。
+ 而现在，/dev/console和/dev/tty0均指当前的显示设备，并且通常情况下是一样的。你可以
+ 修改/dev/console所关联的设备。举个例子，在grub.conf中加入console=ttyS0。则现在，
+ /dev/tty0所关联的是显示器，而dev/console则关联/dev/ttyS0。
+
+    /dev/tty是当前进程控制的tty设备，而tty0则是当前的控制台。当你在一个终端执行
+“sleep 5; echo tty0 > /dev/tty0”命令后，切换到其它终端，则tty0会在你切换后的终端显示。
+而执行“sleep 5; echo tty > /dev/tty”命令后，无论切换到那个终端，tty始终会在输入命令的终端显示。
+
+}

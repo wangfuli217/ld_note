@@ -1,0 +1,43 @@
+memcached全面剖析–2. 理解memcached的内存存储
+
+memcached默认情况下采用了名为Slab Allocator的机制分配、管理内存。
+在该机制出现以前，内存的分配是通过对所有记录简单地进行malloc和free来进行的。
+但是，这种方式会导致内存碎片，加重操作系统内存管理器的负担，最坏的情况下， 会导致操作系统比memcached进程本身还慢。Slab Allocator就是为解决该问题而诞生的。
+
+Slab Allocator的基本原理是按照预先规定的大小，将分配的内存分割成特定长度的块， 以完全解决内存碎片问题。
+Slab Allocation的原理相当简单。 将分配的内存分割成各种尺寸的块（chunk）， 并把尺寸相同的块分成组（chunk的集合）
+Slab allocator还有重复使用已分配的内存的目的。 也就是说，分配到的内存不会释放，而是重复利用。
+
+Slab Allocation的主要术语
+Page
+分配给Slab的内存空间，默认是1MB。分配给Slab之后根据slab的大小切分成chunk。
+Chunk
+用于缓存记录的内存空间。
+Slab Class
+特定大小的chunk的组。
+
+在Slab中缓存记录的原理
+下面说明memcached如何针对客户端发送的数据选择slab并缓存到chunk中。
+memcached根据收到的数据的大小，选择最适合数据大小的slab（图2）。 
+memcached中保存着slab内空闲chunk的列表，根据该列表选择chunk， 然后将数据缓存于其中。
+
+Slab Allocator的缺点
+Slab Allocator解决了当初的内存碎片问题，但新的机制也给memcached带来了新的问题。
+这个问题就是，由于分配的是特定长度的内存，因此无法有效利用分配的内存。 例如，将100字节的数据缓存到128字节的chunk中，剩余的28字节就浪费了（图3）。
+
+
+使用Growth Factor进行调优
+memcached -p 11211 -m 64m -vv -f 2 -u root
+slab class   1: chunk size        96 perslab   10922
+slab class   2: chunk size       192 perslab    5461
+slab class   3: chunk size       384 perslab    2730
+slab class   4: chunk size       768 perslab    1365
+slab class   5: chunk size      1536 perslab     682
+重新计算一下数据的预期平均长度，调整growth factor， 以获得最恰当的设置。
+内存是珍贵的资源，浪费就太可惜了
+
+查看memcached的内部状态
+telnet 127.0.0.1 11211
+stats
+或者
+linux 命令:memstat --servers=127.0.0.1:11211

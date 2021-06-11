@@ -1,0 +1,19 @@
+$ clang++ simple_race.cc -fsanitize=thread -fPIE -pie -g
+$ ./a.out 
+==================
+WARNING: ThreadSanitizer: data race (pid=26327)
+  Write of size 4 at 0x7f89554701d0 by thread T1:
+    #0 Thread1(void*) simple_race.cc:8 (exe+0x000000006e66)
+
+  Previous write of size 4 at 0x7f89554701d0 by thread T2:
+    #0 Thread2(void*) simple_race.cc:13 (exe+0x000000006ed6)
+
+  Thread T1 (tid=26328, running) created at:
+    #0 pthread_create tsan_interceptors.cc:683 (exe+0x00000001108b)
+    #1 main simple_race.cc:19 (exe+0x000000006f39)
+
+  Thread T2 (tid=26329, running) created at:
+    #0 pthread_create tsan_interceptors.cc:683 (exe+0x00000001108b)
+    #1 main simple_race.cc:20 (exe+0x000000006f63)
+==================
+ThreadSanitizer: reported 1 warnings

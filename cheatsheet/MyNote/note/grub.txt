@@ -1,0 +1,100 @@
+
+grup-install  [--root-directory=DIR] INSTALL_DEVICE  例grub-install /dev/sda
+	--root-directory=DIR 那个DIR为实际的目录,使用grup-install预设会将grub所有的档案都复制到/boot/grub/*当中,但如果想要复制到其它目录与装置去,就得用这个参数
+
+grub	进入grub shell
+	root (hdx,x)	选择含有/boot目录的那个partition代号
+	用 find /boot/grub/stagel  看看能否找到安装信息档案
+	用 find /boot/vmlinuz	   看看能否找到kernel file
+	用 setup (hdx,x)或setup (hdx)将grub安装在super block或MBR
+	用 quit离开grub shell
+
+开机过程中按下	
+	e:	进入grub shell
+	o:	在游标所在行底下再新增一行
+	d:	将游标所在行删除
+	b:	boot,可以用当前行开机
+	
+grub与grub2的区别
+	1.配置文件的名称改变了。在grub中，配置文件为grub.conf或menu.lst(grub.conf的一个软链接)，在grub2中改名为grub.cfg。一般位于/boot/grub或/boot/grub2文件夹下
+	
+	2.grub2增添了许多语法，更接近于脚本语言了，例如支持变量、条件判断、循环。
+	
+	3.grub2中，设备名称从1开始，而在grub中是从0开始的。
+	
+	4.grub2使用img文件，不再使用grub中的stage1、stage1.5和stage2。
+	
+	5.支持图形界面配置grub，但要安装grub-customizer包，epel源提供该包。
+	
+	6.在已进入操作系统环境下，不再提供grub命令，也就是不能进入grub交互式界面，只有在开机时才能进入，算是一大缺憾。
+	
+	7.在grub2中没有了好用的find命令，算是另一大缺憾。
+	
+命名习惯和文件路径表示方式
+	(fd0)           ：表示第一块软盘
+	(hd0,msdos2)    ：表示第一块硬盘的第二个mbr分区。grub2中分区从1开始编号，传统的grub是从0开始编号的
+	(hd0,msdos5)    ：表示第一块硬盘的第一个逻辑分区
+	(hd0,gpt1)      ：表示第一块硬盘的第一个gpt分区
+	/boot/vmlinuz   ：相对路径，基于根目录，表示根目录下的boot目录下的vmlinuz，
+					：如果设置了根目录变量root为(hd0,msdos1)，则表示(hd0,msdos1)/boot/vmlinuz
+	(hd0,msdos1)/boot/vmlinuz：绝对路径，表示第一硬盘第一分区的boot目录下的vmlinuz文件
+	
+grub2支持两种方式引导操作系统：
+	直接引导：(direct-load)直接通过默认的grub2 boot loader来引导写在默认配置文件中的操作系统
+	链式引导：(chain-load)使用默认grub2 boot loader链式引导另一个boot loader，该boot loader将引导对应的操作系统
+	一般只使用第一种方式，只有想引导grub默认不支持的操作系统时才会使用第二种方式。
+	
+grub2程序和传统grub程序安装后的文件分布
+	在传统grub软件安装完后，在/usr/share/grub/RELEASE/目录下会生成一些stage文件。
+	在grub2软件安装完后，会在/usr/lib/grub/i386-pc/目录下生成很多模块文件和img文件，还包括一些lst列表文件。
+	
+boot loader和grub的关系
+	当使用grub来管理启动菜单时，那么boot loader都是grub程序安装的。
+	传统的grub将stage1转换后的内容安装到MBR(VBR或EBR)中的boot loader部分，将stage1_5转换后的内容安装在紧跟在MBR后的扇区中，将stage2转换后的内容安装在/boot分区中。
+	grub2将boot.img转换后的内容安装到MBR(VBR或EBR)中的boot loader部分，将diskboot.img和kernel.img结合成为core.img，同时还会嵌入一些模块或加载模块的代码到core.img中，然后将core.img转换后的内容安装到磁盘的指定位置处。
+	
+MBR
+	MBR格式的分区表用于PC BIOS平台，这种格式允许四个主分区和额外的逻辑分区。使用这种格式的分区表，有两种方式安装GURB：
+	
+	嵌入到MBR和第一个分区中间的空间，这部分就是大众所称的"boot track","MBR gap"或"embedding area"，它们大致需要31kB的空间；
+	将core.img安装到某个文件系统中，然后使用分区的第一个扇区(严格地说不是第一个扇区，而是第一个block)存储启动它的代码。
+	这两种方法有不同的问题。
+	
+	使用嵌入的方式安装grub，就没有保留的空闲空间来保证安全性，例如有些专门的软件就是使用这段空间来实现许可限制的；另外分区的时候，虽然会在MBR和第一个分区中间留下空闲空间，但可能留下的空间会比这更小。
+	
+	方法二安装grub到文件系统，但这样的grub是脆弱的。例如，文件系统的某些特性需要做尾部包装，甚至某些fsck检测，它们可能会移动这些block。
+	
+	GRUB开发团队建议将GRUB嵌入到MBR和第一个分区之间，除非有特殊需求，但仍必须要保证第一个分区至少是从第31kB(第63个扇区)之后才开始创建的。
+	
+	现在的磁盘设备，一般都会有分区边界对齐的性能优化提醒，所以第一个分区可能会自动从第1MB处开始创建。	
+	
+在传统的grub上，可以直接在bash下敲入grub命令进入命令交互模式，但grub2只能在系统启动前进入grub交互命令行。
+
+grub2的默认配置文件为/boot/grub2/grub.cfg，该配置文件的写法弹性非常大，但绝大多数需要修改该配置文件时，都只需修改其中一小部分内容就可以达成目标。
+
+grub2-mkconfig程序可用来生成符合绝大多数情况的grub.cfg文件，默认它会自动尝试探测有效的操作系统内核，并生成对应的操作系统菜单项。使用方法非常简单，只需一个选项"-o"指定输出文件即可。
+	grub2-mkconfig -o /boot/grub2/grub.cfg
+	
+grub2-mkconfig是根据/etc/default/grub文件来创建配置文件的.该文件中定义的是grub的全局宏，修改内置的宏可以快速生成grub配置文件
+在/etc/default/grub中，使用"key=vaule"的格式，key全部为大小字母，如果vaule部分包含了空格或其他特殊字符，则需要使用引号包围。
+	GRUB_DEFAULT		默认的菜单项，默认值为0。其值可为数值N，表示从0开始计算的第N项是默认菜单，也可以指定对应的title表示该项为默认的菜单项。使用数值比较好，因为使用的title可能包含了容易改变的设备名
+						如果GRUB_DEFAULT的值设置为"saved"，则表示默认的菜单项是"GRUB_SAVEDEFAULT"或"grub-set-default"所指定的菜单项。
+	GRUB_SAVEDEFAULT 	默认该key的值未设置。如果该key的值设置为true时，如果选定了某菜单项，则该菜单项将被认为是新的默认菜单项。该key只有在设置了"GRUB_DEFAULT=saved"时才有效
+	GRUB_TIMEOUT		在开机选择菜单项的超时时间，超过该时间将使用默认的菜单项来引导对应的操作系统。默认值为5秒。等待过程中，按下任意按键都可以中断等待
+						设置为0时，将不列出菜单直接使用默认的菜单项引导与之对应的操作系统，设置为"-1"时将永久等待选择。
+						是否显示菜单，和"GRUB_TIMEOUT_STYLE"的设置有关。
+	GRUB_TIMEOUT_STYLE	如果该key未设置值或者设置的值为"menu"，则列出启动菜单项，并等待"GRUB_TIMEOUT"指定的超时时间
+						如果设置为"countdown"和"hidden"，则不显示启动菜单项，而是直接等待"GRUB_TIMEOUT"指定的超时时间，如果超时了则启动默认菜单项并引导对应的操作系统。在等待过程中，按下"ESC"键可以列出启动菜单。设置为countdown和hidden的区别是countdown会显示超时时间的剩余时间，而hidden则完全隐藏超时时间。
+	GRUB_DISTRIBUTOR	设置发行版的标识名称，一般该名称用来作为菜单的一部分，以便区分不同的操作系统。
+	GRUB_CMDLINE_LINUX	添加到菜单中的内核启动参数
+	GRUB_CMDLINE_LINUX_DEFAULT  除非"GRUB_DISABLE_RECOVERY"设置为"true"，否则该key指定的默认内核启动参数将生成两份，一份是用于默认启动参数，一份用于恢复模式(recovery mode)的启动参数
+								该key生成的默认内核启动参数将添加在"GRUB_CMDLINE_LINUX"所指定的启动参数之后。
+	GRUB_DISABLE_RECOVERY	该项设置为true时，将不会生成恢复模式的菜单项。
+	GRUB_DISABLE_LINUX_UUID	默认情况下，grub2-mkconfig在生产菜单项的时候将使用uuid来标识Linux 内核的根文件系统，即"root=UUID=..."
+	GRUB_BACKGROUND			设置背景图片，背景图片必须是grub可读的，图片文件名后缀必须是".png"、".tga"、".jpg"、".jpeg"，在需要的时候，grub会按比例缩小图片的大小以适配屏幕大小。
+	GRUB_THEME				设置grub菜单的主题。
+	GRUB_GFXPAYLOAD_LINUX	设置为"text"时，将强制使用文本模式启动Linux。在某些情况下，可能不支持图形模式。
+	GRUB_DISABLE_OS_PROBER	默认情况下，grub2-mkconfig会尝试使用os-prober程序(如果已经安装的话，默认应该都装了)探测其他可用的操作系统内核，并为其生成对应的启动菜单项。设置为"true"将禁用自动探测功能。
+	GRUB_DISABLE_SUBMENU	默认情况下，grub2-mkconfig如果发现有多个同版本的或低版本的内核时，将只为最高版本的内核生成顶级菜单，其他所有的低版本内核菜单都放入子菜单中，设置为"y"将全部生成为顶级菜单。
+	GRUB_HIDDEN_TIMEOUT(已废弃，但为了向后兼容，仍有效)  使用"GRUB_TIMEOUT_STYLE={countdown|hidden}"替代该项
+	GRUB_HIDDEN_TIMEOUT_QUIET(已废弃，但为了向后兼容，仍有效)	配合GRUB_HIDDEN_TIMEOUT使用，可以使用GRUB_TIMEOUT_STYLE=countdown来替代这两项。

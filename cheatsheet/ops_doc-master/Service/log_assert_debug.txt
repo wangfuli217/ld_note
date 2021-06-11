@@ -1,0 +1,1195 @@
+log_i_format_strftime(){ cat - << 'log_i_format_strftime'
+                    char: "%c", \
+           signed char: "%hhd", \
+         unsigned char: "%hhu", \
+          signed short: "%hd", \
+        unsigned short: "%hu", \
+            signed int: "%d", \
+          unsigned int: "%u", \
+              long int: "%ld", \
+     unsigned long int: "%lu", \
+         long long int: "%lld", \
+unsigned long long int: "%llu", \
+                 _Bool: "%d", \
+                 float: "%g", \
+                double: "%g", \
+           long double: "%Lg", \
+       _Complex double: "%g + %gi", \
+                char *: "%s", \
+                void *: "%p", \
+    char[sizeof(arg)]: "%s", \
+timestamp:
+#define TIMEFORMAT         "%Z %b %e %T"        // monit log        CST May  6 14:28:16
+DATEFMT             "%a, %d %b %Y %H:%M:%S GMT" // RFC1123          Mon, 06 May 2019 14:28:44 GMT
+                    "%d %b %Y %H:%M:%S",        // Program          06 May 2019 14:29:06
+                    "%d %b %Y %H:%M:%S."        // redis            06 May 2019 14:29:23.
+                    "%d %b %H:%M:%S"            // test localtime   06 May 14:30:08
+                    %a %b %e %H:%M:%S %Z %Y     // date default     Mon May  6 15:06:20 CST 2019
+log_i_format_strftime
+}
+cat - << 'log_i_idea'
+assertion 是指在开发期间使用的，让程序在运行时进行自检的代码。 -> 把断言看做程序的注释
+    -> format: 一个断言通常有两个参数：一个描述假设为真时的布尔表达式，和一个断言为假时需要显示的信息。
+    输入参数或输出参数的取值处于预期的范围内；
+    -> 子程序开始或者结束执行时文件或流是否处于打开或者关闭的状态；
+    -> 子程序开始或者结束执行时，文件或流的读写位置处于开头还是结尾；
+    -> 文件或流已用只读，只写或可读写方式打开；
+
+    vs -> 用错误处理代码来处理预期会发生的状况，用断言来处理绝对不应该发生的状况。
+          断言是用来检查永远不应该发生的情况，而错误处理代码 error-handling code 是用来检查不太可能经常发生的非正常情况，
+    这些情况是能在写代码时就预料到的，且在产品代码中也要处理这些情况。
+    -> 错误处理通常用来检查有害的输入数据，而断言是用于检查代码中的bug。
+    -> 错误处理代码检查来源不可信的数据，断言检查来源可信的数据。
+    -> 断言是防错机制，而错误处理代码是纠错机制。
+log_i_idea
+
+log_i_idea(){ cat - << 'log_i_idea'
+强制逻辑处理:   无条件判断直接崩溃，标明逻辑走到此处即错误。常在switch最后default，或者if(test) abort | else abort。
+                libuv函数逻辑不应退出而退出abort; # 无 __FILE__,__LINE__  多实现if(test) abort          少见default abort
+                redis提供了redisPanic             # 有__FILE__,__LINE__   多实现if(test) do else abort  多见default abort
+                libubox 直接调用abort退出，见 ustream.c 
+软强制逻辑处理: 打印函数调用栈，可用来 1. 调试代码 2. 追踪进程执行异常 3. 追踪进程崩溃异常
+                monit中LogEmergency, LogAlert, LogCritical调用过backtrace之后继续执行;    # 无 __FILE__,__LINE__, 
+                     LogError输出要输出的信息和backtrace,                                 # 系统调用未达到 目的
+                     LogCritical用于ASSERT，在输出错误信息和backtrace之后，调用abort      # 函数输入未达到 目的
+                redis中watchdog功能，监控redis服务器eventloop中那些调用会导致长时间阻塞。 # 无 __FILE__,__LINE__, 
+                moosefs也有backtrace功能，但是只用于调试，调试结束就被注掉。仅见于 hddspacemgr.c 中。 # 无 __FILE__,__LINE__, 看做普通打印
+                redis中进程接收到SIGSEGV，SIGBUS，SIGFPE，SIGILL信号时也会调用backtrace。 # 无 __FILE__,__LINE__, 有信号值和pc值
+强制判断处理:   条件不满足就退出。1，入口条件不满足就退出， 2. 函数返回值不满足退出， 3. 函数返回值错误后，errno不满足退出
+                1. monit中ASSERT，入口参数判断：模块接口或者内部关键函数入口参数判断。数据结构关联性，如父节点
+                1. redis中assert，上下文状态判断：当前状态下能否继续执行后续代码
+                1. moosefs中massert提供额外信息,一个是sassert不提供额外信息。
+                2. moosefs中zassert, passert特定系统调用 pthread和free, mmap，eassert普通系统函数判断。
+                
+                3. libuv中abort， 系统调用不满足调用
+需要关注的点：  1. 信号异常需要打印信号，         提供? signal  提供? pc
+                2. 阻塞导致异常打印阻塞时长。     提供? timeout
+                3. 系统调用或者条件不满足的异常， 提供? __FILE__，? 提供errno值
+                4. 调试时，backtrace打印          提供? backtrace
+                5. 如果将文件作为输出目标，需要关注 fflush 和 setvbuf(LOG, NULL, _IONBF, 0);
+                
+                
+__FILE__, __LINE__, __FUNC__ 在宏中作为函数参数提供。 
+errno 通过strerror() 输出字符 或者 char *strerror_r() 更好
+va_copy | va_start | va_list | va_arg | va_end 需要细细品味
+__VA_ARGS__  Str_join(dest, n, ...) _Str_join((dest), (n), ##__VA_ARGS__, 0)
+             sd_err("failed, " fmt ", %s", ##__VA_ARGS__, zerror(__rc));
+__attribute__
+gcc -D_DEBUG
+
+wrapper # assert 另一种方式
+#define wrapper(F) do { \
+        int status = (F); if (! (status == 0 || status==ETIMEDOUT)) \
+        THROW(AssertException, "%s -- %s", #F, System_getError(status)); \
+} while (0)
+#define Thread_create(thread, threadFunc, threadArgs) \
+        wrapper(pthread_create(&thread, NULL, threadFunc, (void*)threadArgs))
+
+key: 知识点 
+#e ##arg ##__VA_ARGS__ __FILE__ __LINE__ __func__ 
+字符串自动连接: "DEBUG %s:%d > " fmt "\n"
+va_list va_start va_copy va_arg va_end 
+__attribute__ gcc -D_DEBUG 
+vsyslog vprintf vfprintf 
+setvbuf(g_slot_proto_log_fp, NULL, _IONBF, 0); 自定义输出流
+level 等级
+log_i_idea
+}
+
+log_i_implement(){ cat - << 'log_i_implement'
+方法1： 提供va_list类型API函数   va_list制定了格式化方式，可由不同功能模块封装调用。可以返回字符串，也可以直接输出。
+    va_list 函数一般不做为 模块外部 接口，而作为模块内部接口。除非该接口 作为注册回调接口 -- 以便其他库输出错误日志到指定文件中。
+    va_list 直接调用 vfprintf vprintf vsyslog，
+            间接调用 va_list ap_copy; va_copy(ap_copy, ap); log(const char *s, va_list ap) va_end(ap_copy); 在log中调用 vprintf vprintf vsyslog
+    注意: 考虑是否使用 va_copy 函数。
+    
+    注册回调接口: vLogAbortHandler 和 vLogError
+    Bootstrap_setAbortHandler(vLogAbortHandler);
+    Bootstrap_setErrorHandler(vLogError);
+    
+    间接调用
+    void vLogEmergency(const char *s, va_list ap) 调用 void log_log(int priority, const char *s, va_list ap) 
+    
+    直接调用
+    void log_log(int priority, const char *s, va_list ap) 
+
+方法2： 提供...    类型API函数   可以返回char * 或者 sds, StringBuffer等等，但是，大多数情况下没有返回值(void)
+    ... 常常调用 va_list 接口实现。可以 自定义 va_list 相关函数，也可以调用 vfprintf vprintf 等函数。
+    ... 函数一般作为 模块外部 接口，
+    注意: 必定使用va_start, 不能确定是否使用 va_copy
+    
+    字符串连接
+    char *Str_cat(const char *s, ...) 调用 char *Str_vcat(const char *s, va_list ap)
+    数据格式化
+    void LogInfo(const char *s, ...)       void vLogInfo(const char *s, va_list ap)
+    
+方法3： 提供const char *msg函数
+    体现流功能，不体现格式功能，和 va_list 类型接口一样，作为注册回调接口 -- 以便其他库输出错误日志到指定文件中。
+    
+方式4: define
+   4.1 函数名级别 
+   DEBUG LogDebug
+   4.2 流级别
+   mfs_syslog(priority,msg) 
+    syslog((priority),"%s",(msg)); 
+    fprintf(stderr,"%s\n",(msg)); 
+   mfs_arg_syslog(priority,format, ...) 
+    syslog((priority),(format), __VA_ARGS__);
+    fprintf(stderr,format "\n", __VA_ARGS__); 
+    注意: __VA_ARGS__还是 ##__VA_ARGS__
+          __VA_ARGS__
+          redisDebug(fmt, ...)            printf("DEBUG %s:%d > " fmt "\n", __FILE__, __LINE__, __VA_ARGS__)
+          ##__VA_ARGS__
+          FAIL(msg, ...)                  RedisModule_Log(ctx, "warning", "Failed NOTIFY Test. Reason: " #msg, ##__VA_ARGS__);
+    注意: C语言字符串自动连接: 
+          redisDebug(fmt, ...)            printf("DEBUG %s:%d > " fmt "\n", __FILE__, __LINE__, __VA_ARGS__)
+          宏参数自动连接:  
+          rtu_debugex(mod, fmt, args...)  log_writeex(RTU_INFO, mod, __func__, __LINE__, fmt, ##args)
+   4.3 参数级别
+    非标准格式 ##args
+    rtu_emerg(fmt, args...) -> log_write(RTU_EMERG, __func__, __LINE__, fmt, ##args)
+    标准格式 __VA_ARGS__
+    # proto_host_err_tracing(format, ...) -> 
+        if(g_host_proto_err_log_fp != NULL)
+        {
+            struct tm *_bdate;
+            char _bdatestring[50]; 
+            const time_t _timep = main_time(); 
+            _bdate = localtime((time_t *) &_timep);
+            strftime(_bdatestring, 50, "%a %d %b %Y %T", _bdate); 
+            fprintf(g_host_proto_err_log_fp,format " @ %s\n", __VA_ARGS__, _bdatestring); 
+            fflush(g_host_proto_err_log_fp);
+        }
+    注意: #e 字符串化
+    massert(e,msg) ((e) ? (void)0 : (fprintf(stderr,"%s:%u - failed assertion '%s' : %s\n",__FILE__,__LINE__,#e,(msg))
+   4.4 concatenate 连接
+   Str_join(dest, n, ...) _Str_join((dest), (n), ##__VA_ARGS__, 0)
+   char *_Str_join(char *dest, int n, ...);
+log_i_implement
+}
+
+log_i_printf__attribute__(){ cat - << 'log_i_printf__attribute__'
+GCC 编译器在汇编过程中，调用 C 语言函数时，传递参数有两种方法：
+1. 通过寄存器(默认)
+2. 通过堆栈(使用 asmlinkage 宏)
+可变参数列表必须保存在栈中
+#define asmlinkage __attribute__((regparm(0)))
+asmlinkage int printk(const char *fmt, ...)
+1. 告诉 GCC 编译器该函数使用0个寄存器参数，即不需要通过任何寄存器来传递参数，参数只是通过堆栈来传递
+2. 可变参数列表必须保存在栈中, 因为遍历各个可变参数时要按地址访问
+
+[redis]
+  void  LogDebug(const char *, ...) __attribute__((format (printf, 1, 2)));
+  void addReplyStatusFormat(redisClient *c, const char *fmt, ...)__attribute__((format(printf, 2, 3)));
+  void redisLog(int level, const char *fmt, ...)__attribute__((format(printf, 2, 3)));
+  sds sdscatprintf(sds s, const char *fmt, ...)__attribute__((format(printf, 2, 3)));
+[monit]
+  void Command_vSetEnv(T C, const char *name, const char *value, ...) __attribute__((format (printf, 3, 4)));
+  void Event_post(Service_T service, long id, State_Type state, EventAction_T action, char *s, ...) __attribute__((format (printf, 5, 6)));
+  static void __attribute__((format (printf, 3, 4))) _LogWarningOrError(int attempt, int maxAttempts, const char *s, ...) {...}
+  int OutputStream_print(T S, const char *s, ...) __attribute__((format (printf, 2, 3)));
+  void send_error(HttpRequest, HttpResponse, int status, const char *message, ...) __attribute__((format (printf, 4, 5)));
+  void set_header(HttpResponse res, const char *name, const char *value, ...) __attribute__((format (printf, 3, 4)));
+  int Socket_print(T S, const char *m, ...) __attribute__((format (printf, 2, 3)));
+  void System_abort(const char *e, ...) __attribute__((format (printf, 1, 2)));
+  void System_error(const char *e, ...) __attribute__((format (printf, 1, 2)));
+
+[busybox]
+#define messageD(...) do { if (DEBUG_INIT) message(__VA_ARGS__); } while (0)
+static void message(int where, const char *fmt, ...) __attribute__ ((format(printf, 2, 3)));
+
+static int out1fmt(const char *, ...) __attribute__((__format__(__printf__,1,2)));
+static int fmtstr(char *, size_t, const char *, ...) __attribute__((__format__(__printf__,3,4)));
+
+char *xasprintf(const char *format, ...) __attribute__ ((format (printf, 1, 2))) FAST_FUNC;
+extern void bb_error_msg(const char *s, ...) __attribute__ ((format (printf, 1, 2))) FAST_FUNC;
+extern void bb_error_msg_and_die(const char *s, ...) __attribute__ ((noreturn, format (printf, 1, 2))) FAST_FUNC;
+extern void bb_perror_msg(const char *s, ...) __attribute__ ((format (printf, 1, 2))) FAST_FUNC;
+extern void bb_perror_msg_and_die(const char *s, ...) __attribute__ ((noreturn, format (printf, 1, 2))) FAST_FUNC;
+extern void bb_simple_perror_msg_and_die(const char *s) __attribute__ ((noreturn)) FAST_FUNC;
+extern void bb_herror_msg(const char *s, ...) __attribute__ ((format (printf, 1, 2))) FAST_FUNC;
+extern void bb_herror_msg_and_die(const char *s, ...) __attribute__ ((noreturn, format (printf, 1, 2))) FAST_FUNC;
+extern void bb_info_msg(const char *s, ...) __attribute__ ((format (printf, 1, 2))) FAST_FUNC;
+log_i_printf__attribute__
+}
+ 
+log_i_windows(){cat - << 'log_i_windows'
+[windows] ASSERT()、VERIFY()、TRACE()
+调试宏：ASSERT()、VERIFY()、TRACE() 
+   这三个宏在Debug环境下特别有效，常用于代码的跟踪调试。它们是否起作用取决于是否定义了预定义了宏 _DEBUG
+   ASSERT ASSERT(booleanExpression) 
+   说明： 计算变量的值。如果结构的值为0，那么此宏便打印一个诊断消息并且程序运行失败。
+                        如果条件为非0，那么什么也不做。诊断消息的形式为： assertion failed in file in line 
+   其中name是元文件名，num是源文件中运行失败的中断号。 
+   在Release 版中，ASSERT不计算表达式的值也就不中断程序。
+   
+   如果必须计算此表达式的值且不管环境如何那么用VERIFY代替ASSERT。 这个宏通常原来判断程序中是否出现了明显非法的数据，
+   如果出现了终止程序以免导致严重后果，同时也便于查找错误。
+   ASSERT_VAILD 
+   # ASSERT_VAILD(pObject) 
+   说明： 用于检测关于对象的内部状态的有效性。ASSERT_VALID调用此对象的AssertValid成员函数(把它们作为自己的变量来传递)。
+   在 Release版中ASSERT_VALID什么也不做。
+   在DEBUG版中，他检查指针，以不同于NULL的方式进行检查，并调用对象自己的 AssertValid成员函数。
+   如果这些检测中有任何一个失败的话，那么他会以与ASSERT相同的方法显示一个警告的消息。
+   
+   # VERIFY VERIFY(booleanExpression) 
+   说明： 在 MFC的DEBUG版中，VERIFY宏计算它的变量值。如果结果为0，那么宏打印一个诊断消息并中止程序。
+   如果条件不为0，那么什么工作也不作。诊断有如下形式：
+   assertion failed in file in line 其中name是源文件的名字，num是在源文件中失败的中止行号。
+   在 MFC的Release版中，VERIFY计算表达式值但不打印或中止程序。例如：如果表达式是个函数调用，那么调用成功。
+   
+   # TRACE TRACE(exp) 说明： 把一个格式化字符串送到转储设备，
+   例如，文件或调试监视器，功能上和printf相似，可以说就是调试环境下printf的一个拷贝。
+   TRACE宏是一个 在程序运行时跟踪变量值的方便形式。在DEBUG环境中，TRACE宏输出到afxDump。
+   在Release版中他不做任何工作。另外还有一组可以带参数的相似的宏：TRACE0、TRACE1、TRACE2和TRACE3。
+   # 提供格式如： TRACE0(exp) 
+   #              TRACE1(exp,param1) 
+   #              TRACE2(exp,param1,param2) 
+   #              TRACE3(exp,param1,param2,param3) 与TRACE相似，但它把跟踪字符串放在代码段中，而不是DGROUP，
+   因此使用少的DGROUP空间。这些宏的用法和printf类似
+log_i_windows
+}
+
+log_i_moosefs(){cat - << 'log_i_moosefs'
+[moosefs]
+# massert(e,msg)  message assert (multi judge then it is difficult to understand)
+# sassert(e)      simple assert (macro and status judge)
+# passert(ptr)    pointer assert (malloc strdup)
+# eassert(e)      extra errno assert (pipe write && read)
+# zassert(e)      zero errno assert (pthread_xxx)
+
+# mfs_syslog(priority,msg) 
+# mfs_arg_syslog(priority,format, ...) 
+# mfs_errlog(priority,msg)
+# mfs_arg_errlog(priority,format, ...)
+# mfs_errlog_silent(priority,msg) 
+# mfs_arg_errlog_silent(priority,format, ...)
+
+log_i_moosefs
+}
+
+log_i_monit(){cat - << 'log_i_monit'
+[monit]
+#define DEBUG LogDebug
+#define ASSERT(e) do { if (!(e)) { LogCritical("AssertException: " #e \
+" at %s:%d\naborting..\n", __FILE__, __LINE__); abort(); } } while (0)
+
+void LogEmergency(const char *s, ...)
+void vLogEmergency(const char *s, va_list ap)
+void LogAlert(const char *s, ...)
+void vLogAlert(const char *s, va_list ap)
+void LogCritical(const char *s, ...)
+void vLogCritical(const char *s, va_list ap)
+void vLogAbortHandler(const char *s, va_list ap)
+void LogError(const char *s, ...)
+void vLogError(const char *s, va_list ap)
+void LogWarning(const char *s, ...)
+void vLogWarning(const char *s, va_list ap)
+void LogNotice(const char *s, ...)
+void vLogNotice(const char *s, va_list ap)
+void LogInfo(const char *s, ...) 
+void vLogInfo(const char *s, va_list ap)
+void LogDebug(const char *s, ...)
+void vLogDebug(const char *s, va_list ap) 
+log_i_monit
+}
+
+
+log_i_redis(){ cat - << 'log_i_redis'
+[redis]
+#define redisAssertWithInfo(_c,_o,_e) ((_e)?(void)0 : (_redisAssertWithInfo(_c,_o,#_e,__FILE__,__LINE__),_exit(1)))
+#define redisAssert(_e) ((_e)?(void)0 : (_redisAssert(#_e,__FILE__,__LINE__),_exit(1)))
+#define redisPanic(_e) _redisPanic(#_e,__FILE__,__LINE__),_exit(1)
+
+void redisLogRaw(int level, const char *msg)
+void redisLog(int level, const char *fmt, ...) 
+void redisLogHexDump(int level, char *descr, void *value, size_t len) 
+
+[libuv]
+强力abort 
+log_i_redis
+}
+
+log_i__FILE__(){ cat - << 'log_FILE'
+记录错误发生的位置
+[monit] 用于断言和意外
+#define assert(e) ((void)((e)||(Exception_throw(&(AssertException), __func__, __FILE__, __LINE__, #e),0)))
+#define THROW(e, cause, ...) \
+    Exception_throw(&(e), __func__, __FILE__, __LINE__, cause, ##__VA_ARGS__, 0)
+#define ALLOC(n) Mem_alloc((n), __func__, __FILE__, __LINE__)
+#define CALLOC(c, n) Mem_calloc((c), (n), __func__, __FILE__, __LINE__)
+#define FREE(p) ((void)(Mem_free((p), __func__, __FILE__, __LINE__), (p) = 0))
+#define RESIZE(p, n) ((p) = Mem_resize((p), (n), __func__, __FILE__, __LINE__))
+#define ASSERT(e) do { if (!(e)) { LogCritical("AssertException: " #e  at %s:%d\naborting..\n", __FILE__, __LINE__); abort(); } } while (0)
+    
+[redis] 用于断言
+#define uassert(msg) (fprintf(stderr,"%s:%u - unexpected event: %s\n",__FILE__,(unsigned)__LINE__,(msg)),syslog(LOG_ERR,"%s:%u unexpected event: %s",__FILE__,(unsigned)__LINE__,(msg)),abort())
+#define massert(e,msg)
+#define sassert(e)
+#define passert(ptr)
+#define eassert(e)
+#define zassert(e)
+
+[redis] 用于断言
+#define serverAssertWithInfo(_c,_o,_e) ((_e)?(void)0 : (_serverAssertWithInfo(_c,_o,#_e,__FILE__,__LINE__),_exit(1))) # Client Object 出错
+#define serverAssert(_e) ((_e)?(void)0 : (_serverAssert(#_e,__FILE__,__LINE__),_exit(1)))                             # 逻辑判断 能表示错误
+#define serverPanic(...) _serverPanic(__FILE__,__LINE__,__VA_ARGS__),_exit(1)                                         # 逻辑判断 无法表示，通过语言表示
+log_FILE
+}
+
+log_i__VA_ARGS__(){  cat - << 'log_i__VA_ARGS__'
+    将宏函数中的... 转化为 
+[redis] fatal错误 和 测试 断言 测试
+#define FAIL(msg, ...)                                                                       \
+    {                                                                                        \
+        RedisModule_Log(ctx, "warning", "Failed NOTIFY Test. Reason: " #msg, ##__VA_ARGS__); \
+        goto err;                                                                            \
+    }
+    
+    (RedisModule_Log)(RedisModuleCtx *ctx, const char *level, const char *fmt, ...);
+    
+FAIL("Got reply '%.*s'. expected '2'", sz, rep);
+FAIL("Wrong or no reply for nosuchkey");
+
+#define T(name,...) \
+    do { \
+        RedisModule_Log(ctx,"warning","Testing %s", name); \
+        reply = RedisModule_Call(ctx,name,__VA_ARGS__); \
+    } while (0);
+T("dbsize","");
+
+#define serverPanic(...) _serverPanic(__FILE__,__LINE__,__VA_ARGS__),_exit(1)
+#define debug(f, ...) { if (DEBUG) printf(f, __VA_ARGS__); }
+#define TEST_DESC(name, ...) printf("test — " name "\n", __VA_ARGS__);
+#define rdbExitReportCorruptRDB(...) rdbCheckThenExit(__LINE__,__VA_ARGS__)
+
+[monit] 字符串
+#define Str_join(dest, n, ...) _Str_join((dest), (n), ##__VA_ARGS__, 0)
+
+[moosefs] 用于字符串输出
+#define bprintf(...) { if (leng<size) leng+=snprintf(buff+leng,size-leng,__VA_ARGS__); }
+
+#define nbd_start_err_msg(format, ...) {\
+        syslog(LOG_ERR,(format), __VA_ARGS__); \
+    snprintf(errmsg,NBD_ERR_SIZE,(format), __VA_ARGS__); \
+}
+
+slogger.h 文件
+
+[busybox]
+#define debug_printf(...)        do {} while (0)
+Hush.c (shell):#define debug_printf_clean(...) fprintf(stderr, __VA_ARGS__)
+
+Init.c (init):#define messageD(...) do { if (DEBUG_INIT) message(__VA_ARGS__); } while (0)
+
+Pscan.c (networking):#define DMSG(...) bb_error_msg(__VA_ARGS__)
+Pscan.c (networking):#define DERR(...) bb_perror_msg(__VA_ARGS__)
+log_i__VA_ARGS__
+}
+
+log_i_errno(){  cat - << 'log_i_errno'
+    函数返回值处理必要考虑步骤: 返回值，错误码
+[moosefs]
+#define ERRNO_ERROR (errno!=EAGAIN && errno!=EWOULDBLOCK)                                                         # 非阻塞类型接口遇到错误
+#define mfs_arg_errlog_silent(priority,format, ...) syslog((priority),format ": %s", __VA_ARGS__ , strerr(errno)) # log暗含错误
+#define mfs_errlog_silent(priority,msg) syslog((priority),"%s: %s", msg, strerr(errno));                          # log暗含错误
+errno = EIO;                                                            # 给外在函数告知错误
+strerr(errno)                                                           # 从errno到string
+if ((cfgfd = open(cfgfile,O_RDONLY))<0 && errno==ENOENT)                # 系统函数调用错误原因排除
+
+
+[redis]
+anetSetError(err, "fcntl(F_GETFL): %s", strerror(errno)); # 系统函数调用错误原因
+switch(errno) {                                           # 不同错误，不表示值
+case EBUSY: return "Duplicated master name.";
+case ENOENT: return "Can't resolve master instance hostname.";
+case EINVAL: return "Invalid port number";
+}
+if (nread == -1 && errno != EAGAIN && errno != EINTR)     # 系统调用错误，且错误不可恢复 (包括非阻塞性和阻塞性)
+if (errno != EAGAIN && errno != EINTR)                    # 系统调用错误，且错误不可恢复 (包括非阻塞性和阻塞性)
+            
+[monit]
+if (n == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) # 非阻塞类型接口遇到错误
+else if (! (errno == EAGAIN || errno == EWOULDBLOCK))     # 前面需要 return!=-1 做条件
+while (r == -1 && errno == EINTR);                        # 阻塞型 send recv waitpid poll close read write sendto recvfrom 
+if (ERRNO_ERROR && errno!=EINTR)                          # 系统调用错误，且错误不可恢复 (包括非阻塞性和阻塞性)
+if (getpgid(s->inf.process->pid) > -1 || errno == EPERM)  # 权限不足
+log_i_errno
+}
+
+
+ # \crosstool\cheatsheet\ops_doc-master\Service\cfaq\key_Symbol.c    说明程序
+ # \crosstool\cheatsheet\ops_doc-master\Service\cfaq\key_Symbol.txt  说明文档
+log_i_vararg(){ cat - << 'log_i_vararg'
+[gcc && c99 宏]
+#ifdef DEBUG
+#define dbgprint(format,args...) \ 
+fprintf(stderr, format, ##args)
+#else
+#define dbgprint(format,args...)
+#endif
+
+#define _vprintf2(format, args...) printf(format, args)   // c99 gcc
+#define _mprintf(format, args...) printf(format, ##args)
+#define _mprintf_3(format, ...) printf(format, ##__VA_ARGS__) //添加##允许变参为空的调用
+
+[宏] C99
+#define debug(...)    printf(__VA_ARGS__)
+Debug("Y = %d\n", y); printf("Y = %d\n", y);
+
+[宏] C99
+#define dgbmsg(fmt,...) printf(fmt,__VA_ARGS__)
+#define _vprintf(format, ...) printf(format, __VA_ARGS__) // c99 __VA_ARGS__
+
+[宏]
+可变参数的宏里的’##’操作说明带有可变参数的宏
+#define debug(format, ...) fprintf (stderr, format, __VA_ARGS__)
+这里，’…’指可变参数。这类宏在被调用时，它(这里指’…’)被表示成零个或多个符号，包括里面的逗号，一直到到右括弧结束为止。
+当被调用时，在宏体(macro body)中，那些符号序列集合将代替里面的__VA_ARGS__标识符。
+GCC始终支持复杂的宏，它使用一种不同的语法从而可以使你可以给可变参数一个名字，如同其它参数一样。
+#define debug(format, args...) fprintf (stderr, format, args)
+
+GNU CPP还有两种更复杂的宏扩展，支持上面两种格式的定义格式。
+在标准C里，你不能省略可变参数，但是你却可以给它传递一个空的参数。例如，下面的宏调用在ISO C里是非法的，因为字符串后面没有逗号:
+debug (“A message”)
+GNU CPP在这种情况下可以让你完全的忽略可变参数。在上面的例子中，编译器仍然会有问题(complain)，因为宏展开后，里面的字符串后面会有个多余的逗号。
+为了解决这个问题，CPP使用一个特殊的’##’操作。书写格式为:
+#define debug(format, ...) fprintf (stderr, format, ## __VA_ARGS__)
+这里，如果可变参数被忽略或为空，’##’操作将使预处理器(preprocessor)去除掉它前面的那个逗号。如果你在宏调用时，确实提供了一些可变参数，GNU CPP也会工作正常，它会把这些可变参数放到逗号的后面。象其它的pasted macro参数一样，这些参数不是宏的扩展。
+
+[宏] -- moosefs
+#define mfs_arg_syslog(priority,format, ...) {\
+    syslog((priority),(format), __VA_ARGS__); \
+    fprintf(stderr,format "\n", __VA_ARGS__); \
+}
+利用__VA_ARGS__实现可变参数到可变参数的传递, 不含额外参数
+
+[宏] -- redis
+#define redisDebug(fmt, ...) \
+    printf("DEBUG %s:%d > " fmt "\n", __FILE__, __LINE__, __VA_ARGS__)                               
+#define redisDebugMark() \
+    printf("-- MARK %s:%d --\n", __FILE__, __LINE__) 
+利用__VA_ARGS__实现可变参数到可变参数的传递, 暗含额外参数
+
+[宏] -- monit
+#define DEBUG LogDebug 
+void LogDebug(const char *s, ...) 
+
+[C函数调用]
+void LogEmergency(const char *s, ...)  可变参数 到 固定参数
+依赖 va_copy 迭代器：crosstool\cheatsheet\ops_doc-mstaer\Service\IO处理参考说明.sh
+即：通过va_list va_start va_arg va_end va_copy实现可定位的，实现 参数类型不指定 和 参数个数不指定 的处理。
+log_i_vararg
+}
+
+log_i_va_arg(){  cat - << 'log_i_va_arg'
+    stdarg.h
++ void va_start(va_list ap, argN); -> 面向 "..." 类型函数调用 LogError(const char *s, ...) 
+va_start 在 "..." 中必须存在，
++ void va_copy(va_list dest, va_list src); 1. 计算缓冲区大小再格式化数据到缓冲区。 
+                                           2. 不改变src指针，不影响上层调用ap指针 -> 面向 va_list 类型vLogAbortHandler(const char *s, va_list ap)
+va_copy 在 va_list 中可以存在
+
++ type va_arg(va_list ap, type);
+在自定义格式化和指定string格式 两种情况必须存在
+
+void va_end(va_list ap); 必须存在
+
+1. 自定义格式化      sds sdscatfmt(sds s, char const *fmt, ...)
+2. 指定string格式    char *_Str_join(char *dest, int n, ...)
+                     或者 _buildArgs(T C, const char *path, const char *x, va_list ap)
+3. 系统定义格式化    vLogAbortHandler(const char *s, va_list ap)  
+                     或者 LogError(const char *s, ...) 
+
+1. 方式
+面向 "..." 类型函数调用 
+void va_start(va_list ap, argN);
+type va_arg(va_list ap, type); 
+void va_end(va_list ap);
+
+char *_Str_join(char *dest, int n, ...)      参数为指定格式(monit)  for (; x; x = va_arg(ap_copy, char *))
+sds sdscatfmt(sds s, char const *fmt, ...)   自定义格式，fmt中指定额外格式(redis) switch(*f)
+
+2. 方式
+面向 "..." 类型函数调用 LogError(const char *s, ...) 
+void va_start(va_list ap, argN);
+log_log(LOG_EMERG, s, ap); -> 调用 vprintf vsyslog等
+void va_end(va_list ap);
+
+3. 方式
+面向 va_list 类型 vLogAbortHandler(const char *s, va_list ap)
+va_list ap_copy;
++ va_copy(ap_copy, ap);
+log_log(LOG_ALERT, s, ap); -> 调用 vprintf vsyslog等
+va_end(ap_copy);
+
+4. 方式
+面向 va_list 类型 
+va_list ap_copy;
++ va_copy(ap_copy, ap);
+for (; x; x = va_arg(ap_copy, char *)) -> for (; x; x = va_arg(ap_copy, char *))
+    do(x);
+va_end(ap_copy);
+log_i_va_arg
+}
+
+log_i_va_list(){ cat - << 'log_i_va_list'
+1. 回调函数 使用ap
+void(*_AbortHandler)(const char *error, va_list ap) = NULL;
+void(*_ErrorHandler)(const char *error, va_list ap) = NULL;
+void Bootstrap_setAbortHandler(void(*abortHandler)(const char *error, va_list ap))
+void Bootstrap_setErrorHandler(void(*errorHandler)(const char *error, va_list ap))
+
+2. 回调函数 直接msg
+typedef void (*event_log_cb)(int severity, const char *msg);
+void event_set_log_callback(event_log_cb cb);
+
+3. API函数: 格式化参数
+int evutil_vsnprintf(char *bug, size_t buflen, const char *format, va_list ap); # 返回格式化buff长度
+int evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap); 
+int evbuffer_add_printf(struct evbuffer *buf, const char *fmt, ...)
+
+4. API函数：日志函数
+void  LogDebug(const char *, ...) __attribute__((format (printf, 1, 2)));
+void  vLogDebug(const char *, va_list ap);
+
+5. redis 部分
+5.1 日志输出: 不关注输出值
+void serverLog(int level, const char *fmt, ...) 上层调用
+void serverLogRaw(int level, const char *msg)   底层输出
+void RM_LogRaw(RedisModule *module, const char *levelstr, const char *fmt, va_list ap) 
+5.2 输出内容长度
+int redisvFormatCommand(char **target, const char *format, va_list ap);
+int redisvAppendCommand(redisContext *c, const char *format, va_list ap);
+5.3 输出内容即格式化后所的内容
+sds sdscatvprintf(sds s, const char *fmt, va_list ap);
+robj **moduleCreateArgvFromUserFormat(const char *cmdname, const char *fmt, int *argcp, int *flags, va_list ap)
+void *redisvCommand(redisContext *c, const char *format, va_list ap);
+
+方法1： 提供va_list类型API函数   va_list制定了格式化方式，可由不同功能模块封装调用。可以返回字符串，也可以直接输出。
+方法2： 提供...    类型API函数   可以返回char * 或者 sds, StringBuffer等等，但是，大多数情况下没有返回值(void)
+方法3： 提供const char *msg函数  
+log_i_va_list
+}
+
+#define redisPanic(_e) _redisPanic(#_e,__FILE__,__LINE__),_exit(1)
+
+ifassert(){
+moosefs.c massert
+
+#define ASSERT(e) do { if (!(e)) { LogCritical("AssertException: " #e \
+" at %s:%d\naborting..\n", __FILE__, __LINE__); abort(); } } while (0)
+
+}
+
+question(){
+moosefs.c massert
+
+#define redisAssertWithInfo(_c,_o,_e) ((_e)?(void)0 : (_redisAssertWithInfo(_c,_o,#_e,__FILE__,__LINE__),_exit(1)))
+#define redisAssert(_e) ((_e)?(void)0 : (_redisAssert(#_e,__FILE__,__LINE__),_exit(1)))
+
+}
+
+总结了以下几个原因：
+1)，空的宏定义避免warning:
+#define foo() do{}while(0)
+2)，存在一个独立的block，可以用来进行变量定义，进行比较复杂的实现。
+3)，如果出现在判断语句过后的宏，这样可以保证作为一个整体来是实现：
+#define foo(x)
+action1();
+action2();
+在以下情况下：
+if(NULL == pPointer)
+    foo();
+就会出现action2必然被执行的情况，而这显然不是程序设计的目的。
+4)，以上的第3种情况用单独的{}也可以实现，但是为什么一定要一个do{}while(0)呢，看以下代码：
+#define switch(x,y) {int tmp; tmp=x;x=y;y=tmp;}
+if(x>y)
+   switch(x,y);
+else        //error, parse error before else
+   otheraction();
+在把宏引入代码中，会多出一个分号，从而会报错。
+使用do{...}while(0) 把它包裹起来，成为一个独立的语法单元，从而不会与上下文发生混淆。
+同时因为绝大多数的编译器都能够识别do{...}while(0)这种无用的循环并进行优化，所以使用这种方法也不会导致程序的性能降低。
+   
+dowhile(){
+1. 参数化(强调功能) 代码替换
+#define _EL_ADD_READ(ctx) do { \
+        if ((ctx)->ev.addRead) (ctx)->ev.addRead((ctx)->ev.data); \
+    } while(0)
+
+2. 参数化(类型与参数) 代码替换
+#define INTEGER_WIDTH_TEST(fmt, type) do {                                                \
+    type value = 123;                                                                     \
+    test("Format command with printf-delegation (" #type "): ");                          \
+    len = redisFormatCommand(&cmd,"key:%08" fmt " str:%s", value, "hello");               \
+    test_cond(strncmp(cmd,"*2\r\n$12\r\nkey:00000123\r\n$9\r\nstr:hello\r\n",len) == 0 && \
+        len == 4+5+(12+2)+4+(9+2));                                                       \
+    free(cmd);                                                                            \
+} while(0)
+
+3. 参数化(unittest) 代码替换
+int __failed_tests = 0;
+int __test_num = 0;
+#define test_cond(descr,_c) do { \
+    __test_num++; printf("%d - %s: ", __test_num, descr); \
+    if(_c) printf("PASSED\n"); else {printf("FAILED\n"); __failed_tests++;} \
+} while(0);
+#define test_report() do { \
+    printf("%d tests, %d passed, %d failed\n", __test_num, \
+                    __test_num-__failed_tests, __failed_tests); \
+    if (__failed_tests) { \
+        printf("=== WARNING === We have failed tests here...\n"); \
+        exit(1); \
+    } \
+} while(0);
+
+4. 自定义类型不同操作
+#define config_get_string_field(_name,_var) do { \
+    if (stringmatch(pattern,_name,0)) { \
+        addReplyBulkCString(c,_name); \
+        addReplyBulkCString(c,_var ? _var : ""); \
+        matches++; \
+    } \
+} while(0);
+
+#define config_get_bool_field(_name,_var) do { \
+    if (stringmatch(pattern,_name,0)) { \
+        addReplyBulkCString(c,_name); \
+        addReplyBulkCString(c,_var ? "yes" : "no"); \
+        matches++; \
+    } \
+} while(0);
+
+#define config_get_numerical_field(_name,_var) do { \
+    if (stringmatch(pattern,_name,0)) { \
+        ll2string(buf,sizeof(buf),_var); \
+        addReplyBulkCString(c,_name); \
+        addReplyBulkCString(c,buf); \
+        matches++; \
+    } \
+} while(0);
+
+}
+
+log_i_DEBUG(){ cat - <<'log_i_DEBUG'
+
+#ifdef LOG_TEST_DEBUG
+    /* OMCI调试日志宏 */
+    //以10进制格式日志整型变量
+    #define PRINT_DEC(x)          printf(#x" = %d\n", x)
+    #define PRINT_DEC2(x,y)       printf(#x" = %d\n", y)
+    //以16进制格式日志整型变量
+    #define PRINT_HEX(x)          printf(#x" = 0x%-X\n", x)
+    #define PRINT_HEX2(x,y)       printf(#x" = 0x%-X\n", y)
+    //以字符串格式日志字符串变量
+    #define PRINT_STR(x)          printf(#x" = %s\n", x)
+    #define PRINT_STR2(x,y)       printf(#x" = %s\n", y)
+
+    //日志提示信息
+    #define PROMPT(info)          printf("%s\n", info)
+
+    //调试定位信息打印宏
+    #define  TP                   printf("%-4u - [%s<%s>]\n", __LINE__, __FILE__, __FUNCTION__);
+
+    //调试跟踪宏，在待日志信息前附加日志文件名、行数、函数名等信息
+    #define TRACE(fmt, args...)\
+    do{\
+        printf("[%s(%d)<%s>]", __FILE__, __LINE__, __FUNCTION__);\
+        printf((fmt), ##args);\
+    }while(0)
+#else
+    #define PRINT_DEC(x)
+    #define PRINT_DEC2(x,y)
+
+    #define PRINT_HEX(x)
+    #define PRINT_HEX2(x,y)
+
+    #define PRINT_STR(x)
+    #define PRINT_STR2(x,y)
+
+    #define PROMPT(info)
+
+    #define  TP
+
+    #define TRACE(fmt, args...)
+#endif
+log_i_DEBUG
+}
+
+log_i_Exception(){ cat - <<'log_i_Exception'
+    审慎明智地使用时，它可以降低复杂度；而草率粗心地使用时，只会让代码变得几乎无法理解 -- 代码大全
+        异常是把代码中的错误或异常事件传递给调用代码的一种特殊的手段。
+        如果在一个子程序中遇到了预料之外的情况，但不知道该如何处理的话，它就可以抛出一个异常。
+        用异常来清理一段代码中存在的杂乱逻辑
+        抛出的异常也是程序接口的一部分，和其他具体的数据类型一样。
+        
+    1. 用异常通知程序的其他部分，发生了不可忽略的错误。
+    2. 只有真正例外的情况下才抛出异常。异常和断言相似，都用来处理那些不仅罕见甚至永远不该发生的情况。
+    3. 不能用异常来推卸责任。如果某种错误可以在局部处理，就应该在局部处理掉。
+    4. 避免在构造函数和析构函数中抛出异常，除非你在同一地方将其捕获。
+    5. 避免使用空的catch语句。如果遇到某个较低层次上的异常确实无法表现为调用方抽象层次上的异常，那么必须写清楚为什么采用空的catch语句。
+    
+    考虑异常的替代方案。
+    
+    
+    
+# IOException
+调用read函数读取失败；  Socket_print(...) < 0
+调用write函数写入失败； Socket_readLine(...)=0   length != MEMCACHELEN请求返回长度不等于预期长度
+
+# AssertException
+1. 配置错误 或者 参数错误 File_exist(path)  File_isDirectory(path) File_isExecutable(path) File_getRealPath(...) 
+                          File_isFile() File_isReadable()
+                          
+2. 系统调用错误 open getpwuid_r getifaddrs fopen或fscanf  sysctl pthread_attr_init pthread_attr_destroy pthread_create
+                gettimeofday 
+
+# MemoryException
+Mem_alloc
+Mem_calloc
+Mem_resize
+
+# NumberFormatException 
+Str_parseInt
+Str_parseLLong 
+Str_parseDouble
+
+# ProtocolException
+从socket中接收到数据格式不符合协议， sscanf()结果不对
+或者数据内容不符合预期。             status != 200      strncasecmp比较不相等   regexec   default
+                                     Str_startsWith(buf, ok)
+                                     
+
+异常处理模式 : 1. 减少资源管理过程中goto语句；资源释放在FINALLY 部分进行。
+               2. 将函数调用过程中返回值判断省掉，使得多个函数作为一个处理块。不必处理函数之间依赖关系: 减少if嵌套。
+               3. 使得处理过程中有一个上下文，保存异常信息，便于调试
+
+# alert.c # 存在资源释放，异常存在时，足以影响后续处理，因此会 backtrace
+TRY
+ 正常流程
+ELSE
+ 异常流程 # LogError("%s\n", Exception_frame.message);
+FINALLY
+ 资源释放
+END_TRY
+
+# client.c # 没有资源释放问题，异常存在，足以影响后续处理，因此会 backtrace
+TRY
+ 正常流程
+ELSE
+ 异常流程 # LogError("%s\n", Exception_frame.message);
+END_TRY
+
+#control.c # 没有资源释放问题，异常存在，但是，影响不足以影响后续执行
+TRY
+ 正常流程
+ELSE
+ 异常流程 # snprintf(msg, msglen, "Program %s failed: %s", c->arg[0], Exception_frame.message);
+END_TRY
+
+# http.c  不关注异常，失败后直接释放资源即可
+TRY
+ 正常流程
+FINALLY
+ 释放资源
+END_TRY
+
+# mysql.c # 发生异常退出，让更高层处理
+TRY
+ 正常流程
+ELSE
+ 异常流程 # snprintf(msg, msglen, "Program %s failed: %s", c->arg[0], Exception_frame.message);
+ RETHROW;
+END_TRY
+
+# smtp.c 发送接收重试
+_send(...)
+TRY
+ _receive(...)
+ELSE
+ _send(...)
+ _receive(...)
+END
+
+# socket.c 对于协议处理过程中 ProtocolException和IOException 不予处理
+TRY
+{
+    p->protocol->check(S);
+}
+FINALLY
+{
+    Socket_free(&S);
+}
+END_TRY;
+log_i_Exception
+}
+
+log_i_backtrace(){ cat - <<'log_i_backtrace'
+
+#include <execinfo.h>
+int backtrace(void **buffer, int size);
+char **backtrace_symbols(void *const *buffer, int size);
+void backtrace_symbols_fd(void *const *buffer, int size, int fd);
+    backtrace: 返回函数调用链每个函数的地址，不包含函数名；
+    backtrace_symbols: 将backtrace返回的结果解析为函数名和偏移量，注意返回的数组的最外层维是malloc分配的，
+需要用户手动释放。这也导致该函数不适用于在信号处理句柄中使用；
+    backtrace_symbols_fd: 效果类似于backtrace_symbols，但会将结果写入参数fd所指定的文件描述符；
+
+gcc -g -Wall -rdynamic test_backtrace.c -o Test
+
+# 注意事项
+    编译时如果不加入链接参数-rdynamic，那么最终输出的函数调用链每个节点只有偏移量，
+而没有函数名称。这一点在man 3 backtrace中de1NOTES部分中有提到。
+    注意：-rdynamic参数可能导致部分副作用，需要谨慎使用。
+    backtrace输出的数组中索引为0的项永远是backtrace函数自身，因此可以忽略，也就是
+在传递该数组给backtrace_symbols和backtrace_symbols_fd时，传递buf + 1和长度size - 1。
+
+    backtrace和backtrace_symbols都不是异步信号安全的，换言之它们不应被用于信号处理句柄中； 
+backtrace_symbols_fd虽然是异步信号安全的，但是它需要以backtrace的返回结果作为输入参数，
+并不能单独使用； 上述分析意味着本文中例子给出的代码并不适合对安全有严格要求的生产系统。
+但对于一些调试场景，该方法具有一定的实用价值。
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <execinfo.h>
+#include <signal.h>
+#include <errno.h>
+
+// 由于信号处理句柄中无法使用格式化输出函数, 因此预定义一个信号详细信息列表
+static char m_sig_msgs[32][128];
+static int m_msg_len[32];
+
+void sig_hdr(int sig_num, siginfo_t *info, void *ucontext)
+{
+    // 注意信号处理句柄中唯一可用的I/O函数是write和read
+    write(STDERR_FILENO, "recv signal: ", 13);
+    write(STDERR_FILENO, m_sig_msgs[info->si_signo], m_msg_len[info->si_signo]);
+    write(STDERR_FILENO, "\n", 1);
+    void *buf[128];
+
+    // 1.backtrace
+    int size = backtrace(buf, 128);
+    if (size >= 128) {
+        char msg[] = "Warning: backtrace maybe truncated.\n";
+        write(STDERR_FILENO, msg, sizeof(msg));
+    }
+
+    // 2.backtrace_symbols_fd
+    // 由于backtrace返回的数组的第一项永远是backtrace函数自身产生的堆栈, 因此可以忽略数组第一项
+    backtrace_symbols_fd(buf + 1, size - 1, STDERR_FILENO);
+
+    // 3.exit
+    exit(EXIT_FAILURE);
+}
+
+void crash()
+{
+    char *p  =NULL;
+    *p = 0; // 引发SIGESEG
+}
+
+void func4()
+{
+    printf("start %s+++++\n", __FUNCTION__);
+    crash();
+    printf("finish %s-----\n", __FUNCTION__);
+}
+
+
+void func3()
+{
+    printf("start %s+++++\n", __FUNCTION__);
+    func4();
+    printf("finish %s-----\n", __FUNCTION__);
+}
+
+
+void func2()
+{
+    printf("start %s+++++\n", __FUNCTION__);
+    func3();
+    printf("finish %s-----\n", __FUNCTION__);
+}
+
+
+void func1()
+{
+    printf("start %s+++++\n", __FUNCTION__);
+    func2();
+    printf("finish %s-----\n", __FUNCTION__);
+}
+
+int main()
+{
+    // 初始化信号详细信息描述列表
+    int i = 0;
+    for (i = 0; i < 32; ++i) {
+        int sp_res = snprintf(m_sig_msgs[i], 128, "%d(%s)", i, strsignal(i));
+        if (sp_res >= 128) {
+            fprintf(stderr, "sig %d describe overflow\n", i);
+        }
+        m_msg_len[i] = sp_res;
+    }
+
+    // 设置信号处理句柄
+    struct sigaction sigact;
+    sigact.sa_sigaction = sig_hdr;
+    sigact.sa_flags = SA_RESTART | SA_SIGINFO;
+    if (sigaction(SIGSEGV, &sigact, (struct sigaction *)NULL) != 0) {
+        int err = errno;
+        fprintf(stderr, "sigaction() failed, detail: %s, error.\n", strerror(err));
+        exit(EXIT_FAILURE);
+    }
+
+    // 引发异常中断
+    func1();
+
+    return 0;
+} 
+
+# 文件：build.sh
+#!/bin/bash
+set -ex
+gcc -g -Wall -rdynamic test.c -o Test
+
+进一步分析：
+可以使用Linux提供的addr2line将堆栈内存地址转化为函数源文件和行号：
+$ addr2line -e <可执行文件名> <内存地址>
+例如：
+$ addr2line -e Test 0x400d27
+/home/zanghu/code_box/c_code/test_addr2line/test.c:39
+}
+
+strerror(){
+#include <string.h>
+char *strerror(int errnum);
+int strerror_r(int errnum, char *buf, size_t buflen);
+           /* XSI-compliant */
+char *strerror_r(int errnum, char *buf, size_t buflen);
+          /* GNU-specific */
+
+moosefs 中 也是有一个函数，strerr_init和const char* strerr(int error)，实现了线程安全和线程不安全的 errno 错误输出函数。
+log_i_backtrace
+}
+
+log_i_err(){ cat - << 'log_i_err'
+    man err
+#include <err.h>
+void err(int eval, const char *fmt, ...);
+void errx(int eval, const char *fmt, ...);
+void warn(const char *fmt, ...);
+void warnx(const char *fmt, ...);
+#include <stdarg.h>
+void verr(int eval, const char *fmt, va_list args);
+void verrx(int eval, const char *fmt, va_list args);
+void vwarn(const char *fmt, va_list args);
+void vwarnx(const char *fmt, va_list args);
+
+err() warn() 输出到标准错误输出
+err(), verr(), warn(), and vwarn() 追加 strerror(errno)
+errx() and warnx() 不追加 strerror(errno)
+err(), verr(), errx(), and verrx() 值eval为exit(eval);
+log_i_err
+}
+
+log_i_dmesg(){ cat - << log_i_dmesg
+该命令可以查看发生段错误的程序的名称、出错时间和出错时的指令内存地址。
+进一步，可以将出错时的内存地址通过addr2line命令转化为源码中的位置。
+log_i_dmesg
+}
+
+log_i_addr2line(){ cat - << log_i_addr2line
+    addr2line工具是一个可以将指令的地址和可执行影响转换为文件名、函数名和源代码行数的工具。
+这在内核执行过程中出现崩溃时，可用于快速定位出出错的位置，进而找出代码的bug。
+add2line一般需要配合其他命令或者工具使用，目前已知的比较典型的几个场景是：
+    与dmesg命令结合，根据dmesg显示的程序异常终止时的内存地址，定位所执行的源码的位置；
+    与backtrace、backtrace_symbols_fd函数结合，根据异常发生时堆栈信息，定位所执行的源码的位置。
+    
+#include <stdio.h>  
+int func(int a, int b)  
+{  
+  return a / b;  
+}  
+  
+int main()  
+{  
+  int x = 10;  
+  int y = 0;  
+  printf("%d / %d = %d\n", x, y, func(x, y));  
+  return 0;  
+}  
+使用
+$ gcc -o test1 -g test1.c
+编译程序，test1.c是程序文件名。执行程序，结果程序异常中断。查看系统dmesg信息，发现系统日志的错误信息：
+[54106.016179] test1[8352] trap divide error ip:400506 sp:7fff2add87e0 error:0 in test1[400000+1000]
+这条信息里的ip字段后面的数字就是test1程序出错时所程序执行的位置。使用addr2line就可以将400506转换成出错程序的位置：
+$ addr2line -e test1 400506
+/home/hanfoo/code/test/addr2line/test1.c:5
+这里的test1.c:5指的就是test1.c的第5行
+return a / b;  
+也正是这里出现的错误。addr2line帮助我们解决了问题。
+log_i_addr2line
+}
+
+log_i_debug_printf(){ cat - <<'log_i_debug_printf'
+------ debug printf(stderr) ---- 
+#ifndef __debug_h__
+#define __debug_h__
+
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+
+#ifdef NDEBUG
+#define debug(M, ...)
+#else
+#define debug(M, ...) fprintf(stderr, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#endif
+
+#define clean_errno() (errno == 0 ? "None" : strerror(errno))
+
+#define log_err(M, ...) fprintf(stderr, "[ERROR] (%s:%d: errno: %s) " M "\n", __FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
+#define log_warn(M, ...) fprintf(stderr, "[WARN] (%s:%d: errno: %s) " M "\n", __FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
+#define log_info(M, ...) fprintf(stderr, "[INFO] (%s:%d: errno: %s) " M "\n", __FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
+
+#define check(A, M, ...) if(!(A)) { log_err(M, ##__VA_ARGS__); errno=0; goto error; }
+#define sentinel(M, ...) { log_err(M, ##__VA_ARGS__); errno=0; goto error; }
+
+#define check_mem(A) check((A), "Out of memory.")
+#define check_debug(A, M, ...) if(!(A)) { debug(M, ##__VA_ARGS__); errno=0; goto error; }
+
+#endif
+
+------ assert -----
+static int __assert_bail = 0;
+static int __assert_failures = 0;
+
+/*
+ * Bail at first failing assertion
+ */
+
+#define assert_bail() __assert_bail = !__assert_bail;
+
+/*
+ * Get the number of failed assertions
+ */
+
+#define assert_failures() __assert_failures
+
+/*
+ * Reset the number of failed assertions
+ */
+
+#define assert_reset() ({ \
+  __assert_failures = 0; \
+})
+
+// dont clobber assert
+#ifndef assert
+#  define assert assert_ok
+#endif
+
+/*
+ * Assert that `expr` evaluates to something truthy
+ */
+
+#define assert_ok(expr) ({ \
+  if (!(expr)) {\
+    __assert_failures++; \
+    fprintf(stderr, \
+      "Assertion error: %s (%s:%d)\n", \
+      #expr, __FILE__, __LINE__); \
+    if (__assert_bail) abort(); \
+  } \
+})
+
+/*
+ * Assert that `expr` is NULL
+ */
+
+#define assert_null(expr) ({ \
+  if ((expr) != NULL) {\
+    __assert_failures++; \
+    fprintf(stderr, \
+      "Assertion error: %s is NULL (%s:%d)\n", \
+      #expr, __FILE__, __LINE__); \
+    if (__assert_bail) abort(); \
+  } \
+})
+
+/*
+ * Assert that `expr` is not NULL
+ */
+
+#define assert_not_null(expr) ({ \
+  if ((expr) == NULL) {\
+    __assert_failures++; \
+    fprintf(stderr, \
+      "Assertion error: %s is not NULL (%s:%d)\n", \
+      #expr, __FILE__, __LINE__); \
+    if (__assert_bail) abort(); \
+  } \
+})
+
+/*
+ * Assert that `a` is equal to `b`
+ */
+
+#define assert_equal(a, b) ({ \
+  if (a != b) {\
+    __assert_failures++; \
+    fprintf(stderr, \
+      "Assertion error: %d == %d (%s:%d)\n", \
+      a, b, __FILE__, __LINE__); \
+    if (__assert_bail) abort(); \
+  } \
+})
+
+/*
+ * Assert that `a` is not equal to `b`
+ */
+
+#define assert_not_equal(a, b) ({ \
+  if (a == b) {\
+    __assert_failures++; \
+    fprintf(stderr, \
+      "Assertion error: %d != %d (%s:%d)\n", \
+      a, b, __FILE__, __LINE__); \
+    if (__assert_bail) abort(); \
+  } \
+})
+
+/*
+ * Assert that `a` is equal to `b`
+ */
+
+#define assert_str_equal(a, b) ({ \
+  if (0 != strcmp(a, b))  {\
+    __assert_failures++; \
+    fprintf(stderr, \
+      "Assertion error: \"%s\" == \"%s\" (%s:%d)\n", \
+      a, b, __FILE__, __LINE__); \
+    if (__assert_bail) abort(); \
+  } \
+})
+
+/*
+ * Assert that `a` is not equal to `b`
+ */
+
+#define assert_str_not_equal(a, b) ({ \
+  if (0 == strcmp(a, b)) {\
+    __assert_failures++; \
+    fprintf(stderr, \
+      "Assertion error: \"%s\" != \"%s\" (%s:%d)\n", \
+      a, b, __FILE__, __LINE__); \
+    if (__assert_bail) abort(); \
+  } \
+})
+
+log_i_debug_printf
+}

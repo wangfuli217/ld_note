@@ -1,0 +1,110 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>第 7 章 使用taglist插件</title><link rel="stylesheet" href="http://easwy.com/blog/uploads/css/style.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.73.2"><link rel="start" href="index.html" title="vim使用进阶"><link rel="up" href="index.html" title="vim使用进阶"><link rel="prev" href="use_tag_file.html" title="第 6 章 使用标签(tag)文件"><link rel="next" href="file_buf_explorer.html" title="第 8 章 文件浏览和缓冲区浏览"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">第 7 章 使用taglist插件</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="use_tag_file.html">上一页</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="file_buf_explorer.html">下一页</a></td></tr></table><hr></div><div class="chapter" lang="zh-CN"><div class="titlepage"><div><div><h2 class="title"><a name="use_taglist_plugin"></a>第 7 章 使用taglist插件</h2></div></div></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p>
+    本节所用命令的帮助入口：
+  </p><pre class="programlisting">
+:help helptags
+:help taglist.txt </pre><p>
+    <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-use-ctags-tag-file/">上篇文章</a>介绍了在vim中如何使用tag文件，本文主要介绍如何使用taglist插件(plugin)。
+  </p><p>
+    想必用过Source Insight的人都记得这样一个功能：SI能够把当前文件中的宏、全局变量、函数等tag显示在Symbol窗口，用鼠标点上述tag，就跳到该tag定义的位置；可以按字母序、该tag所属的类或scope，以及该tag在文件中出现的位置进行排序；如果切换到另外一个文件，Symbol窗口更新显示这个文件中的tag。
+  </p><p>
+    在vim中的taglist插件所实现的就是上述类似的功能，有些功能比SI弱，有些功能比SI更强。而且，taglist插件还在不断完善中！
+  </p><p>
+    要使用taglist plugin，必须满足：
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      打开vim的文件类型自动检测功能：<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-filetype-on/">filetype on</a></li><li>
+      系统中装了<a class="link" href="http://ctags.sourceforge.net/">Exuberant ctags</a>工具，并且taglist plugin能够找到此工具（因为taglist需要调用它来生成tag文件）
+    </li><li>
+      你的vim支持system()调用
+    </li></ul></div><p>
+    在文章<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-introduce-vimrc/">vimrc初步</a>中，我们使用了vim自带的示例vimrc，这个vimrc中已经打开了文件类型检测功能；在<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-use-ctags-tag-file/">上篇文章</a>中，我们也已用到了Exuberant ctags；system()调用在一般的vim版本都会支持(suse Linux发行版中出于安全考虑，关闭了此功能)，所以我们已经满足了这三个条件。
+  </p><p>
+    现在我们到<a class="link" href="http://www.vim.org/scripts/script.php?script_id=273">http://www.vim.org/scripts/script.php?script_id=273</a>下载最新版本的taglist plugin，目前版本是4.3。
+  </p><p>
+    下载后，把该文件在~/.vim/目录中解压缩，这会在你的~/.vim/plugin和~/.vim/doc目录中各放入一个文件：
+  </p><pre class="programlisting">
+plugin/taglist.vim – taglist插件
+doc/taglist.txt    - taglist帮助文件 </pre><p>
+    <span class="bold"><strong>注：</strong></span>windows用户需要把这个插件解压在你的$vim/vimfiles或$HOME/vimfiles目录。
+  </p><p>
+    使用下面的命令生成帮助标签（下面的操作在vim中进行）：
+  </p><pre class="programlisting">
+:helptags ~/.vim/doc </pre><p>
+    生成帮助标签后，你就可以用下面的命令查看taglist的帮助了：
+  </p><pre class="programlisting">
+:help taglist.txt </pre><p>
+    Taglist提供了相当多的功能，我的vimrc中这样配置：
+  </p><pre class="programlisting">
+""""""""""""""""""""""""""""""
+" Tag list (ctags)
+""""""""""""""""""""""""""""""
+if MySys() == "windows"                "设定windows系统中ctags程序的位置
+let Tlist_Ctags_Cmd = 'ctags'
+elseif MySys() == "linux"              "设定linux系统中ctags程序的位置
+let Tlist_Ctags_Cmd = '/usr/bin/ctags'
+endif
+let Tlist_Show_One_File = 1            "不同时显示多个文件的tag，只显示当前文件的
+let Tlist_Exit_OnlyWindow = 1          "如果taglist窗口是最后一个窗口，则退出vim
+let Tlist_Use_Right_Window = 1         "在右侧窗口中显示taglist窗口 </pre><p>
+    这样配置后，当你输入"<span class="command"><strong>:TlistOpen</strong></span>"时，显示如下窗口：
+  </p><div class="informalfigure"><a name="taglist_window"></a><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/02/taglist-300x227.jpg" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/02/taglist.jpg">点击查看大图</a></div></div><p>
+    在屏幕右侧出现的就是taglist窗口，你从中可以看到在main.c文件中定义的所有tag：宏、定义、变量、函数等；你也可以双击某个tag，跳到该tag定义的位置；你还可以把某一类的tag折叠起来（使用了vim的<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-advanced-move-method/">折行</a>功能），方便查看，就像上图中macro和variable那样。更多的功能，请查看taglist的帮助页，本文也会介绍一些常用功能。
+  </p><p>
+    下面介绍常用的taglist配置选项，你可以根据自己的习惯进行配置：
+  </p><div class="itemizedlist"><ul type="disc"><li><span class="emphasis"><em>Tlist_Ctags_Cmd</em></span>选项用于指定你的Exuberant ctags程序的位置，如果它没在你PATH变量所定义的路径中，需要使用此选项设置一下；
+    </li><li>
+如果你不想同时显示多个文件中的tag，设置<span class="emphasis"><em>Tlist_Show_One_File</em></span>为1。缺省为显示多个文件中的tag；
+    </li><li>
+设置<span class="emphasis"><em>Tlist_Sort_Type</em></span>为"<span class="bold"><strong>name</strong></span>"可以使taglist以tag名字进行排序，缺省是按tag在文件中出现的顺序进行排序。按tag出现的范围（即所属的namespace或class）排序，已经加入taglist的TODO List，但尚未支持；
+    </li><li>
+如果你在想taglist窗口是最后一个窗口时退出vim，设置<span class="emphasis"><em>Tlist_Exit_OnlyWindow</em></span>为1；
+    </li><li>
+如果你想taglist窗口出现在右侧，设置<span class="emphasis"><em>Tlist_Use_Right_Window</em></span>为1。缺省显示在左侧。
+    </li><li>
+在gvim中，如果你想显示taglist菜单，设置<span class="emphasis"><em>Tlist_Show_Menu</em></span>为1。你可以使用<span class="emphasis"><em>Tlist_Max_Submenu_Items</em></span>和<span class="emphasis"><em>Tlist_Max_Tag_Length</em></span>来控制菜单条目数和所显示tag名字的长度；
+    </li><li>
+缺省情况下，在双击一个tag时，才会跳到该tag定义的位置，如果你想单击tag就跳转，设置<span class="emphasis"><em>Tlist_Use_SingleClick</em></span>为1；
+    </li><li>
+如果你想在启动vim后，自动打开taglist窗口，设置<span class="emphasis"><em>Tlist_Auto_Open</em></span>为1；
+    </li><li>
+如果你希望在选择了tag后自动关闭taglist窗口，设置<span class="emphasis"><em>Tlist_Close_On_Select</em></span>为1；
+    </li><li>
+当同时显示多个文件中的tag时，设置<span class="emphasis"><em>Tlist_File_Fold_Auto_Close</em></span>为1，可使taglist只显示当前文件tag，其它文件的tag都被折叠起来。
+    </li><li>
+在使用<span class="command"><strong>:TlistToggle</strong></span>打开taglist窗口时，如果希望输入焦点在taglist窗口中，设置<span class="emphasis"><em>Tlist_GainFocus_On_ToggleOpen</em></span>为1；
+    </li><li>
+如果希望taglist始终解析文件中的tag，不管taglist窗口有没有打开，设置<span class="emphasis"><em>Tlist_Process_File_Always</em></span>为1；
+    </li><li><span class="emphasis"><em>Tlist_WinHeight</em></span>和<span class="emphasis"><em>Tlist_WinWidth</em></span>可以设置taglist窗口的高度和宽度。<span class="emphasis"><em>Tlist_Use_Horiz_Window</em></span>为1设置taglist窗口横向显示；
+    </li></ul></div><p>
+    在taglist窗口中，可以使用下面的快捷键：
+  </p><pre class="programlisting">
+&lt;CR&gt;          跳到光标下tag所定义的位置，用鼠标双击此tag功能也一样
+o             在一个新打开的窗口中显示光标下tag
+&lt;Space&gt;       显示光标下tag的原型定义
+u             更新taglist窗口中的tag
+s             更改排序方式，在按名字排序和按出现顺序排序间切换
+x             taglist窗口放大和缩小，方便查看较长的tag
++             打开一个折叠，同zo
+-             将tag折叠起来，同zc
+*             打开所有的折叠，同zR
+=             将所有tag折叠起来，同zM
+[[            跳到前一个文件
+]]            跳到后一个文件
+q             关闭taglist窗口
+&lt;F1&gt;          显示帮助 </pre><p>
+    可以用":<span class="command"><strong>TlistOpen</strong></span>"打开taglist窗口，用"<span class="command"><strong>:TlistClose</strong></span>"关闭taglist窗口。或者使用"<span class="command"><strong>:TlistToggle</strong></span>"在打开和关闭间切换。在我的vimrc中定义了下面的映射，使用&lt;F9&gt;键就可以打开/关闭taglist窗口：
+  </p><pre class="programlisting">
+map &lt;silent&gt; &lt;F9&gt; :TlistToogle&lt;cr&gt; </pre><p>
+    Taglist插件还提供了很多命令，你甚至可以用这些命令创建一个taglist的会话，然后在下次进入vim时加载此会话。
+  </p><p>
+    Taglist插件还可以与winmanager插件协同使用，这将在<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-netrw-bufexplorer-winmanager-plugin/">下篇文章</a>中介绍。
+  </p><p>
+    <span class="bold"><strong>[参考文档]</strong></span>
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      vim手册
+    </li><li><a class="link" href="http://vimcdoc.sourceforge.net/">vim中文手册</a></li><li>
+      taglist手册
+    </li></ul></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p><span class="bold"><strong>原创文章，转载请注明：</strong></span>转载自<a class="link" href="http://easwy.com/blog/">Easwy的博客</a> [  <a class="link" href="http://easwy.com/blog/">http://easwy.com/blog/</a> ]</p><p><span class="bold"><strong>　　　　本文链接地址:</strong></span> <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-taglist-plugin/">http://easwy.com/blog/archives/advanced-vim-skills-taglist-plugin/</a></p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="use_tag_file.html">上一页</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="file_buf_explorer.html">下一页</a></td></tr><tr><td width="40%" align="left" valign="top">第 6 章 使用标签(tag)文件 </td><td width="20%" align="center"><a accesskey="h" href="index.html">起始页</a></td><td width="40%" align="right" valign="top"> 第 8 章 文件浏览和缓冲区浏览</td></tr></table></div></body></html>

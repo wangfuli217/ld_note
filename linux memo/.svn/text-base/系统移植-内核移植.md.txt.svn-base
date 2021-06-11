@@ -1,0 +1,51 @@
+samsung exyons4412 启动流程
+    irom--soc->samsung固化的地址
+    iram--soc-->256k
+    Dram-->片上外设--内存
+    norflash --> 读快 -->启动u-boot
+    noneflash --> 写快 --> 启动u-boot
+    EMMC--> 包括noneflash和读写noneflash的控制器
+    SDMMC --> sd卡
+
+irom - 概述
+
+bl1 bl2
+1. irom（片内外设）只读的存储器，加载bl1的镜像，检查bl1镜像的完整性，解码bl1（bl1加密的） 2. pc的地址指向bl1 bl1检查bl2的镜像的完整性 如果bl1效验bl2的镜像成功，跳转到bl2 3. 为了检查bl1镜像和bl2镜像的完整性，irom代码为bl1和bl2提供库函数
+
+irom启动代码 1. irom提供最基本的运行环境 2. irom会从启动设备读取bl1 3. irom检查bl1镜像的完整性
+
+irom（bl0）作用 1. 关闭看门狗 2. 关中断和关MMU 3. 关闭 D-cache 关I-cache 4. Flush TLB’s and Inalidate caches 5. 启动bl1，检查bl1镜像的完整性
+
+bl2的作用 1. 拷贝bl3到dram中的完整性，检查bl2镜像的完整性 2. 初始化时钟，初始化dram，
+如何制作exynos4412 sd启动盘
+
+    uboot-fs4412.bin 包括 bl1 bl2 uboot.bin trustzone
+
+1. 对sd卡进行分区 --> 把sd卡的每个block清0，然后向第二个block写入uboot-fs4412.bin
+2. 对sd卡的block清0 --> sudo dd if=dev/zero -n 指定清空大小 of=/dev/sdb
+
+sudo hexdump 文件名 -n
+
+**### U-boot启动流程**
+`arch/arm/cpu/armv7/start.S`
+1. 初始化异常向量表
+2. 设置svc模式，关中断
+3. 关MMU
+4. 时钟的初始化
+5. 内存的初始化
+6. 串口的初始化
+7. 拷贝uboot发哦ram中运行
+8. bss段的初始化
+
+> 说明 Uboot的第一阶段已经执行结束（汇编），跳转到第二阶段（c代码）
+
+内核
+
+移植内核
+sudo apt-get install libncurses5-dev
+sudo apt-get install uboot-mkimage
+    1. 清楚编译 --> make mrproper
+    2. 添加交叉编译器 --> vi Makefile --\*197
+    3. 拷贝默认的配置选项 --> cp arch/arm/configs/exynos_defconfig .config
+    4. 打开配置菜单 --> make menuconfig
+    5. 编译 --> make uImage -j8

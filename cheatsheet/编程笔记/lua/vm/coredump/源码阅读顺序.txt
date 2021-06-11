@@ -1,0 +1,38 @@
+https://github.com/find/find.github.com luanote
+
+https://github.com/ds84182/LuaVM        VM
+
+https://github.com/middlefeng/LuaVMRead Good
+
+https://github.com/phenix3443/notebook  一般
+
+https://github.com/lichuang 书作者很一般
+
+某天在 reddit 上面看到 LuaJIT 作者推荐的 Lua源码阅读顺序 ：
+  lmathlib.c, lstrlib.c: get familiar with the external C API. Don't bother with the pattern matcher though. Just the easy functions.
+  lapi.c: Check how the API is implemented internally. Only skim this to get a feeling for the code. Cross-reference to lua.h and luaconf.h as needed.
+  lobject.h: tagged values and object representation. skim through this first. you'll want to keep a window with this file open all the time.
+  lstate.h: state objects. ditto.
+  lopcodes.h: bytecode instruction format and opcode definitions. easy.
+  lvm.c: scroll down to luaV_execute, the main interpreter loop. see how all of the instructions are implemented. skip the details for now. reread later.
+  ldo.c: calls, stacks, exceptions, coroutines. tough read.
+  lstring.c: string interning. cute, huh?
+  ltable.c: hash tables and arrays. tricky code.
+  ltm.c: metamethod handling, reread all of lvm.c now.
+  You may want to reread lapi.c now.
+  ldebug.c: surprise waiting for you. abstract interpretation is used to find object names for tracebacks. does bytecode verification, too.
+  lparser.c, lcode.c: recursive descent parser, targetting a register-based VM. start from chunk() and work your way through. read the expression parser and the code generator parts last.
+  lgc.c: incremental garbage collector. take your time.
+  Read all the other files as you see references to them. Don't let your stack get too deep though.
+        
+        
+http://www.lua.org/manual/5.2/manual.html
+http://lua-users.org/wiki/LuaSource
+http://www.lua.org/source/5.2/
+
+lapi.c
+在 lapi.c 中，最重要的函数可以说是 index2addr 了吧：
+当 index > 0 时                           在当前 function 的栈空间找对应的 TValue
+当 LUA_REGISTRYINDEX < index <= 0 时      在当前 function 的栈空间逆向找对应的 TValue
+当 index == LUA_REGISTRYINDEX 时          返回 registry
+否则( index < LUA_REGISTRYINDEX 时 )      查找 upvalue

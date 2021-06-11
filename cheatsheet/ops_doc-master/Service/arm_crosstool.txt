@@ -1,0 +1,82 @@
+### https://blog.csdn.net/pengfei240/article/details/52912833
+
+分类和说明 ### https://www.veryarm.com/knowledge
+从授权上，分为免费授权版和付费授权版。
+免费版目前有三大主流工具商提供，第一是GNU（提供源码，自行编译制作），第二是 Codesourcery，第三是Linora。
+收费版有ARM原厂提供的armcc、IAR提供的编译器等等，因为这些价格都比较昂贵，不适合学习用户使用，所以不做讲述。
+    arm-none-linux-gnueabi-gcc：是 Codesourcery 公司（目前已经被Mentor收购）基于GCC推出的的ARM交叉编译工具。可用于交叉编译ARM（32位）系统中所有环节的代码，包括裸机程序、u-boot、Linux kernel、filesystem和App应用程序。
+    arm-linux-gnueabihf-gcc：是由 Linaro 公司基于GCC推出的的ARM交叉编译工具。可用于交叉编译ARM（32位）系统中所有环节的代码，包括裸机程序、u-boot、Linux kernel、filesystem和App应用程序。
+    aarch64-linux-gnu-gcc：是由 Linaro 公司基于GCC推出的的ARM交叉编译工具。可用于交叉编译ARMv8 64位目标中的裸机程序、u-boot、Linux kernel、filesystem和App应用程序。
+    arm-none-elf-gcc：是 Codesourcery 公司（目前已经被Mentor收购）基于GCC推出的的ARM交叉编译工具。可用于交叉编译ARM MCU（32位）芯片，如ARM7、ARM9、Cortex-M/R芯片程序。
+    arm-none-eabi-gcc：是 GNU 推出的的ARM交叉编译工具。可用于交叉编译ARM MCU（32位）芯片，如ARM7、ARM9、Cortex-M/R芯片程序。
+
+ 交叉编译器下载
+    arm-none-linux-gnueabi-gcc下载：http://www.veryarm.com/arm-none-linux-gnueabi-gcc
+    arm-linux-gnueabihf-gcc下载：http://www.veryarm.com/arm-linux-gnueabihf-gcc
+    aarch64-linux-gnu-gcc下载：http://www.veryarm.com/aarch64-linux-gnu-gcc
+    arm-none-elf-gcc下载：http://www.veryarm.com/arm-none-elf-gcc
+    arm-none-eabi-gcc下载：http://www.veryarm.com/arm-none-eabi-gcc
+    
+https://www.veryarm.com/arm-none-linux-gnueabi-gcc # 交叉编译工具下载链接
+
+
+命名规则
+交叉编译工具链的命名规则为：arch [-vendor] [-os] [-(gnu)eabi]
+    arch - 体系架构，如ARM，MIPS
+    vendor - 工具链提供商
+    os - 目标操作系统
+    eabi - 嵌入式应用二进制接口（Embedded Application Binary Interface）
+
+根据对操作系统的支持与否，ARM GCC可分为支持和不支持操作系统，如
+    arm-none-eabi：这个是没有操作系统的，自然不可能支持那些跟操作系统关系密切的函数，比如fork(2)。他使用的是newlib这个专用于嵌入式系统的C库。
+    arm-none-linux-eabi：用于Linux的，使用Glibc
+
+ 
+ 实例
+1、arm-none-eabi-gcc
+（ARM architecture，no vendor，not target an operating system，complies with the ARM EABI）
+用于编译 ARM 架构的裸机系统（包括 ARM Linux 的 boot、kernel，不适用编译 Linux 应用 Application），一般适合 ARM7、Cortex-M 和 Cortex-R 内核的芯片使用，所以不支持那些跟操作系统关系密切的函数，比如fork(2)，他使用的是 newlib 这个专用于嵌入式系统的C库。
+2、arm-none-linux-gnueabi-gcc
+(ARM architecture, no vendor, creates binaries that run on the Linux operating system, and uses the GNU EABI)
+主要用于基于ARM架构的Linux系统，可用于编译 ARM 架构的 u-boot、Linux内核、linux应用等。arm-none-linux-gnueabi基于GCC，使用Glibc库，经过 Codesourcery 公司优化过推出的编译器。arm-none-linux-gnueabi-xxx 交叉编译工具的浮点运算非常优秀。一般ARM9、ARM11、Cortex-A 内核，带有 Linux 操作系统的会用到。
+3、arm-eabi-gcc
+Android ARM 编译器。
+4、armcc
+ARM 公司推出的编译工具，功能和 arm-none-eabi 类似，可以编译裸机程序（u-boot、kernel），但是不能编译 Linux 应用程序。armcc一般和ARM开发工具一起，Keil MDK、ADS、RVDS和DS-5中的编译器都是armcc，所以 armcc 编译器都是收费的（爱国版除外，呵呵~~）。
+5、arm-none-uclinuxeabi-gcc 和 arm-none-symbianelf-gcc
+arm-none-uclinuxeabi 用于uCLinux，使用Glibc。
+arm-none-symbianelf 用于symbian，没用过，不知道C库是什么 。
+
+
+########## arm-linux-gnueabi-gcc 和 arm-linux-gnueabihf-gcc
+两个交叉编译器分别适用于 armel 和 armhf 两个不同的架构，armel 和 armhf 这两种架构在对待浮点运算采取了不同的策略（有 fpu 的 arm 才能支持这两种浮点运算策略）。
+
+其实这两个交叉编译器只不过是 gcc 的选项 -mfloat-abi 的默认值不同。gcc 的选项 -mfloat-abi 有三种值 soft、softfp、hard（其中后两者都要求 arm 里有 fpu 浮点运算单元，soft 与后两者是兼容的，但 softfp 和 hard 两种模式互不兼容）：
+soft： 不用fpu进行浮点计算，即使有fpu浮点运算单元也不用，而是使用软件模式。
+softfp： armel架构（对应的编译器为 arm-linux-gnueabi-gcc ）采用的默认值，用fpu计算，但是传参数用普通寄存器传，这样中断的时候，只需要保存普通寄存器，中断负荷小，但是参数需要转换成浮点的再计算。
+hard： armhf架构（对应的编译器 arm-linux-gnueabihf-gcc ）采用的默认值，用fpu计算，传参数也用fpu中的浮点寄存器传，省去了转换，性能最好，但是中断负荷高。
+
+把以下测试使用的C文件内容保存成 mfloat.c：
+#include <stdio.h>
+int main(void)
+{
+    double a,b,c;
+    a = 23.543;
+    b = 323.234;
+    c = b/a;
+    printf(“the 13/2 = %f\n”, c);
+    printf(“hello world !\n”);
+    return 0;
+}
+
+1、使用 arm-linux-gnueabihf-gcc 编译，使用“-v”选项以获取更详细的信息：
+# arm-linux-gnueabihf-gcc -v mfloat.c
+COLLECT_GCC_OPTIONS=’-v’ ‘-march=armv7-a’ ‘-mfloat-abi=hard’ ‘-mfpu=vfpv3-d16′ ‘-mthumb’
+-mfloat-abi=hard
+
+可看出使用hard硬件浮点模式。
+
+2、使用 arm-linux-gnueabi-gcc 编译：
+# arm-linux-gnueabi-gcc -v mfloat.c
+COLLECT_GCC_OPTIONS=’-v’ ‘-march=armv7-a’ ‘-mfloat-abi=softfp’ ‘-mfpu=vfpv3-d16′ ‘-mthumb’
+-mfloat-abi=softfp

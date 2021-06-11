@@ -1,0 +1,170 @@
+http://blog.csdn.net/zhangge3663/article/details/49312787  --不错
+http://blog.csdn.net/zhangge3663/article/details/49314063
+
+https://segmentfault.com/a/1190000013038095                Demo 相似说明
+http://blog.csdn.net/qq_21949217/article/details/44340261  CBI和view，cbi，control对应路径说明
+
+https://github.com/seamustuohy/luci_tutorials              -- 不错 & 还有两个有意思的LUA工程
+
+M(Model): 模型层，路径是/usr/lib/lua/luci/model/。这个是数据处理的具体代码的层。该层中有一个cbi文件夹，那里面是预定义的一些的逻辑文件。
+          模型层是已经生成的web控件（lua脚本）
+    代码库路径: feeds/luci/applications/luci-myapp/luasrc/model/cbi/myapp.lua
+    设备上路径: /usr/lib/lua/luci/model/cbi/myapp.lua
+    -- 用以实现将CBI实例转换成HTML格式内容
+    /usr/lib/lua/luci/cbi.lua            -- CBI代码 分析模块           后台LUA解释器实现解析
+    /usr/lib/lua/luci/cbi/datatypes.lua  -- CBI代码 数据类型分析模块； 前台Javascript代码实现
+    -- 不同CBI实现HTML格式内容
+    通过LUA代码实现，OpenWRT提供了一系列API，见 http://luci.subsignal.org/api/luci/
+    
+V（View）: 视图层，路径是/usr/lib/lua/luci/view/。这个很容易理解，就是存放视图文件的地方。LUCI里的视图文件是.htm文件。
+           视图层是对外部提供的一些web界面
+    代码库路径: feeds/luci/applications/luci-myapp/luasrc/view/myview.htm
+    设备上路径: /usr/lib/lua/luci/view
+    定义自己的html模板
+    原有模板路径: feeds/luci/modules/base/luasrc/view/cbi/目录
+
+C（Controller）: 控制层，路径是/usr/lib/lua/luci/controller/admin/。这个层最主要的功能是设定路由；它还有一个功能跟模型层一致——处理数据。
+                 控制层控制模型层和视图层的显示方式
+    代码库路径: feeds/luci/applications/luci-myapp/luasrc/controller/myapp.lua
+    设备上路径: /usr/lib/lua/luci/controller/myapp.lua
+    
+源码中添加LuCI页面
+    openwrt/feeds/luci/applications
+                  |------------------luci-myapplication
+                                              |---------luasrc
+                                              |             |----controller
+                                              |             |         |------myapp
+                                              |             |----model
+                                              |             |       |--cbi
+                                              |             |            |---myapp-mymodule
+                                              |             |----view 
+                                              |                    |---------myapp-mymodule
+                                              |---Makefile
+    ./scripts/feeds update luci
+    ./scripts/feeds install -a -p luci
+    make menuconfig
+
+    
+根目录: /usr/lib/lua/luci                                                         -- LUCI后台代码路径
+资源文件存放目录: /www/luci-static/                                               -- 
+                  /www/luci-static/resources/ {images, js, css, and html assets}  -- RESOURCES
+                  /www/luci-static/commotion/ {the current active theme}          -- 
+                  -- 更改为 luci配置文件 core 'main' ++ option mediaurlbase '/luci-static/material'
+
+The LuCI config file
+    config core 'main'
+        option lang 'auto'
+        option resourcebase '/luci-static/resources'
+        option mediaurlbase '/luci-static/material'
+    config extern 'flash_keep'  -- sysupgrade 升级时保留的内容
+    config internal 'languages' -- 支持的语言
+    config internal 'sauth'     -- 会话 -- 会话内容放到了 ubus系统中了。 ubus call session list
+    config internal 'ccache'    -- LuCI module caching
+    config internal 'themes'    -- 系统支持的主题 如option Bootstrap '/luci-static/bootstrap'
+    
+-------------------------------------------------------------------------------
+步骤
+    1. 建立一个配置文件 /etc/config/配置文件
+    2. 定义控制层       /usr/lib/lua/luci/controller/
+    3. 定义模型层       /usr/lib/lua/luci/model/cbi/
+
+http://www.cnblogs.com/x_wukong/p/4515357.html 此页面
+1.2. 界面显示
+    网页请求格式基本都如下所示：http://10.10.82.238/cgi-bin/luci，说明处理都在服务器的默认网站下的
+/cgi-bin/luci文件进行处理。
+
+1.2.1.  /www/cgi-bin/luci
+    luci.dispatcher.indexcache = "/tmp/luci-indexcache"--缓存文件位置"/tmp/luci-indexcache"
+    luci.sgi.cgi.run()--cgi程序接下来执行程序，Luci的默认路径是/usr/lib/lua/luci，所以luci.sgi.cgi.run()
+是运行/usr/lib/lua/luci/sgi/cgi.lua文件中的run函数。
+
+1.2.2. /usr/lib/lua/luci/sgi/cgi.lua
+
+local r = luci.http.Request(…)  --把web请求放于r中（包括环境变量，web请求，出错处理接口）
+local x = coroutine.create(luci.dispatcher.httpdispatch) --创建一个协同程序
+local res, id, data1, data2 = coroutine.resume(x, r)--运行上面创建的协同程序，
+即运行httpdispatch，参数为上面local r里的变量。
+if active then
+    if id == 1 then
+        io.write("Status: " .. tostring(data1) .. " " .. data2 .. "\r\n")
+    elseif id == 2 then
+        hcache = hcache .. data1 .. ": " .. data2 .. "\r\n"—准备header
+    elseif id == 3 then--写header、blank
+        io.write(hcache)—默认到stdout
+        io.write("\r\n")
+    elseif id == 4 then
+        io.write(tostring(data1 or ""))--写body
+    elseif id == 5 then
+        io.flush()
+        io.close()--EOF
+        active = false
+    elseif id == 6 then
+        data1:copyz(nixio.stdout, data2)
+        data1:close()
+        
+1.2.3.  /usr/lib/lua/luci/dispatcher.lua
+httpdispatch：解析请求，获得请求节点，并调用dispatch处理请求节点，如：
+Request :http://10.10.82.238/cgi-bin/luci/;stok=e10fa5c70fbb55d478eb8b8a2eaabc6f/admin/network/firewall/      
+get: admin network firewall
+
+dispatch：四个部分处理请求
+
+A.节点树node-tree创立
+    if not c then
+        c = createtree()
+B.需要显示的部分
+    if (c and c.index) or not track.notemplate then
+C.认证
+    if track.sysauth then
+D.显示/处理
+    ok, err = util.copcall(target, c.target, unpack(args))
+    
+1.2.4. 请求页面network
+http://10.10.82.238/cgi-bin/luci/;stok=4b77c83a89c7b9cd8f4dcc0fcbc28024/admin/network/
+
+1.2.3中D显示部分与entry()函数（形如entry(path,target,title,order)）有关，其中定义的target方法或者
+    target部分。在以上http请求中会根据请求路径去访问到/usr/lib/lua/luci/controller/admin/network.lua，
+调用顺序如下：
+ok, err = util.copcall(target, unpack(args))-- dispatcher.luaà
+page.target = firstchild() -- network.luaà
+function firstchild()-- dispatcher.luaà
+_firstchild()-- dispatcher.luaàdispatch(path)-- 自动链接到它的第一个子节点，
+在network.lua中定义order，Interfaces是10，为第一个子节点：
+page = entry({"admin", "network", "network"}, arcombine(cbi("admin_network/network"), cbi("admin_network/ifaces")), _("Interfaces"), 10)
+--通过cbi方法处理admin_network/ifaces.lua和admin_network/network.lua，生成html文件
+
+2. 页面响应
+2.1. Web请求
+
+当点击页面"Save & Apply"按钮时，浏览器会把每一个有name的web元素的对应值下传，下传form表格如下：
+-----------------------------151563007122428
+ Content-Disposition: form-data; name="cbi.submit" 1
+-----------------------------151563007122428
+Content-Disposition: form-data; name="cbi.cbe.firewall.cfg02e63d.syn_flood" 1 -----------------------------151563007122428
+Content-Disposition: form-data; name="cbi.cbe.firewall.cfg02e63d.drop_invalid" 1
+……
+……
+-----------------------------151563007122428
+Content-Disposition: form-data; name="cbi.apply" Save & Apply -----------------------------151563007122428—
+
+2.2. 处理
+服务器处理过程和页面生成基本类似，也调用到/usr/lib/lua/luci/dispatcher.lua并走到显示/处理部分，后继处理如下：
+ok, err = util.copcall(target, c.target, unpack(args)) à（target在luci/controller/firewall中被赋值为arcombine(cbi("firewall/zones"), cbi("firewall/zone-details"))，即两个cbi函数的集合）
+function cbi(model, config) à
+local function _cbi(self, ...) à
+local cstate = res:parse()à
+function Map.parse(self, readinput, ...) à
+Node.parse(self, ...)
+Node.parse会调用Map中的每一个子元素自身的处理
+
+EX：
+如调用Flag的处理：function Flag.parse(self, section)，他会通过遍历处理from传下来的每一个Flag，并通过本身的write/remove来启用和禁用这个选项。
+当form保存下来cbid.firewall.cfg02e63d.syn_flood这个Network/Firewall/General Setting下的Flag标签的值时，处理函数就会调用Flag.parse处理：调用self:formvalue来匹配标签值，然后调用model/cbi/firewall/zones.lua的write或者remove来禁用或者启用这个选项所控制的开关。
+由于Flag = class(AbstractValue)，继承于AbstractValue类，所以其write/remove是调用的AbstractValue类的write/remove方法。
+AbstractValue.write调用self.map:set即function Map.set(self, section, option, value)，Map.set 再调用self.uci:set(self.config, section, option, value)来设置对应config文件，然后Map.parse 会调用self.uci:commit(config)对已修改的config逐一提交。
+生效的两种方式
+1、按照固定格式设置对应选项，系统自动调用来使各个参数生效，self.uci:apply(self.parsechain) （应用刚设置的config设置服务）àfunction Cursor.apply(self, configlist, command) àreturn { "/sbin/luci-reload", unpack(configlist) }；
+2、self:_run_hooks("on_apply", "on_after_apply")，自己在对应的.lua文件中写m.on_apply来启动或者处理方式。
+
+
+

@@ -1,0 +1,470 @@
+# http://blog.csdn.net/linweig/article/details/5761624
+
+内核编译链接过程是依靠vmlinux.lds文件，以arm为例vmlinux.lds文件位于kernel/arch/arm/vmlinux.lds，
+vmlinux-armv.lds的生成过程在kernel/arch/arm/Makefile中
+
+ifeq ($(CONFIG_CPU_32),y)
+PROCESSOR     = armv
+TEXTADDR     = 0xC0008000
+LDSCRIPT     = arch/arm/vmlinux-armv.lds.in
+endif
+
+arch/arm/vmlinux.lds: $(LDSCRIPT) dummy
+    @sed 's/TEXTADDR/$(TEXTADDR)/;s/DATAADDR/$(DATAADDR)/' $(LDSCRIPT) >$@
+
+查看arch/arm/vmlinux.lds 中
+
+OUTPUT_ARCH(arm)
+ENTRY(stext)
+SECTIONS
+{
+    . = 0xC0008000;
+    .init : {            /* Init code and data        */
+        _stext = .;
+        __init_begin = .;
+            *(.text.init)
+        __proc_info_begin = .;
+            *(.proc.info)
+        __proc_info_end = .;
+        __arch_info_begin = .;
+            *(.arch.info)
+        __arch_info_end = .;
+        __tagtable_begin = .;
+            *(.taglist)
+        __tagtable_end = .;
+            *(.data.init)
+        . = ALIGN(16);
+        __setup_start = .;
+            *(.setup.init)
+        __setup_end = .;
+        __initcall_start = .;
+            *(.initcall.init)
+        __initcall_end = .;
+        . = ALIGN(4096);
+        __init_end = .;
+    }
+
+    /DISCARD/ : {            /* Exit code and data        */
+        *(.text.exit)
+        *(.data.exit)
+        *(.exitcall.exit)
+    }
+
+    .text : {            /* Real text segment        */
+        _text = .;        /* Text and read-only data    */
+            *(.text)
+            *(.fixup)
+            *(.gnu.warning)
+            *(.rodata)
+            *(.rodata.*)
+            *(.glue_7)
+            *(.glue_7t)
+        *(.got)            /* Global offset table        */
+
+        _etext = .;        /* End of text section        */
+    }
+
+    .kstrtab : { *(.kstrtab) }
+
+    . = ALIGN(16);
+    __ex_table : {            /* Exception table        */
+        __start___ex_table = .;
+            *(__ex_table)
+        __stop___ex_table = .;
+    }
+
+    __ksymtab : {            /* Kernel symbol table        */
+        __start___ksymtab = .;
+            *(__ksymtab)
+        __stop___ksymtab = .;
+    }
+
+    . = ALIGN(8192);
+
+    .data : {
+        /*
+         * first, the init task union, aligned
+         * to an 8192 byte boundary.
+         */
+        *(.init.task)
+
+        /*
+         * then the cacheline aligned data
+         */
+        . = ALIGN(32);
+        *(.data.cacheline_aligned)
+
+        /*
+         * and the usual data section
+         */
+        *(.data)
+        CONSTRUCTORS
+
+        _edata = .;
+    }
+
+    .bss : {
+        __bss_start = .;    /* BSS                */
+        *(.bss)
+        *(COMMON)
+        _end = . ;
+    }
+                    /* Stabs debugging sections.    */
+    .stab 0 : { *(.stab) }
+    .stabstr 0 : { *(.stabstr) }
+    .stab.excl 0 : { *(.stab.excl) }
+    .stab.exclstr 0 : { *(.stab.exclstr) }
+    .stab.index 0 : { *(.stab.index) }
+    .stab.indexstr 0 : { *(.stab.indexstr) }
+    .comment 0 : { *(.comment) }
+}
+
+arch/arm/Makefile中：
+
+vmlinux: arch/arm/vmlinux.lds
+
+arch/arm/vmlinux.lds: $(LDSCRIPT) dummy
+    @sed 's/TEXTADDR/$(TEXTADDR)/;s/DATAADDR/$(DATAADDR)/' $(LDSCRIPT) >$@
+
+
+MAKEBOOT     = $(MAKE) -C arch/$(ARCH)/boot
+
+bzImage zImage zinstall Image bootpImage install: vmlinux
+    @$(MAKEBOOT) $@
+
+
+
+但在kernel/arch/arm/boot/Makefile
+
+ifeq ($(CONFIG_ARCH_S3C2410),y)
+ZTEXTADDR     = 0x30008000
+ZRELADDR     = 0x30008000
+endif
+
+zImage:    $(CONFIGURE) compressed/vmlinux
+    $(OBJCOPY) -O binary -R .note -R .comment -S compressed/vmlinux $@
+
+compressed/vmlinux: $(TOPDIR)/vmlinux dep
+    @$(MAKE) -C compressed vmlinux
+
+在compressed目录下的Makefile中
+
+ZLDFLAGS     = -p -X -T vmlinux.lds
+
+SEDFLAGS    = s/TEXT_START/$(ZTEXTADDR)/;s/LOAD_ADDR/$(ZRELADDR)/;s/BSS_START/$(ZBSSADDR)/
+
+all:        vmlinux
+
+vmlinux:    $(HEAD) $(OBJS) piggy.o vmlinux.lds
+        $(LD) $(ZLDFLAGS) $(HEAD) $(OBJS) piggy.o $(LIBGCC) -o vmlinux
+
+
+vmlinux.lds:    vmlinux.lds.in Makefile $(TOPDIR)/arch/$(ARCH)/boot/Makefile $(TOPDIR)/.config
+        @sed "$(SEDFLAGS)" < vmlinux.lds.in > $@
+
+
+
+vmlinux-armv.lds.in文件的内容：
+OUTPUT_ARCH(arm)
+ENTRY(_start)
+SECTIONS
+{
+  . = LOAD_ADDR;
+  _load_addr = .;
+
+  . = TEXT_START;
+  _text = .;
+
+  .text : {
+    _start = .;
+    *(.start)
+    *(.text)
+    *(.fixup)
+    *(.gnu.warning)
+    *(.rodata)
+    *(.rodata.*)
+    *(.glue_7)
+    *(.glue_7t)
+    input_data = .;
+    piggy.o
+    input_data_end = .;
+    . = ALIGN(4);
+  }
+
+  _etext = .;
+
+  _got_start = .;
+  .got            : { *(.got) }
+  _got_end = .;
+  .got.plt        : { *(.got.plt) }
+  .data            : { *(.data) }
+  _edata = .;
+
+  . = BSS_START;
+  __bss_start = .;
+  .bss            : { *(.bss) }
+  _end = .;
+
+  .stack (NOLOAD)    : { *(.stack) }
+
+  .stab 0        : { *(.stab) }
+  .stabstr 0        : { *(.stabstr) }
+  .stab.excl 0        : { *(.stab.excl) }
+  .stab.exclstr 0    : { *(.stab.exclstr) }
+  .stab.index 0        : { *(.stab.index) }
+  .stab.indexstr 0    : { *(.stab.indexstr) }
+  .comment 0        : { *(.comment) }
+}
+
+vmlinux.lds内容为
+
+OUTPUT_ARCH(arm)
+ENTRY(_start)
+SECTIONS
+{
+  . = 0x30008000;
+  _load_addr = .;
+
+  . = 0;
+  _text = .;
+
+  .text : {
+    _start = .;
+    *(.start)
+    *(.text)
+    *(.fixup)
+    *(.gnu.warning)
+    *(.rodata)
+    *(.rodata.*)
+    *(.glue_7)
+    *(.glue_7t)
+    input_data = .;
+    piggy.o
+    input_data_end = .;
+    . = ALIGN(4);
+  }
+
+  _etext = .;
+
+  _got_start = .;
+  .got            : { *(.got) }
+  _got_end = .;
+  .got.plt        : { *(.got.plt) }
+  .data            : { *(.data) }
+  _edata = .;
+
+  . = ALIGN(4);
+  __bss_start = .;
+  .bss            : { *(.bss) }
+  _end = .;
+
+  .stack (NOLOAD)    : { *(.stack) }
+
+  .stab 0        : { *(.stab) }
+  .stabstr 0        : { *(.stabstr) }
+  .stab.excl 0        : { *(.stab.excl) }
+  .stab.exclstr 0    : { *(.stab.exclstr) }
+  .stab.index 0        : { *(.stab.index) }
+  .stab.indexstr 0    : { *(.stab.indexstr) }
+  .comment 0        : { *(.comment) }
+}
+
+一般情况下都在生成vmlinux后，再对内核进行压缩成为zImage，压缩的目录是kernel/arch/arm/boot。
+下载到flash中的是压缩后的zImage文件，zImage是由压缩后的vmlinux和解压缩程序组成，如下图所示：
+            |-----------------|/    |-----------------|
+            |                 | /   |                 |
+            |                 |  /  | decompress code |
+            |     vmlinux     |   / |-----------------|    zImage
+            |                 |    /|                 |
+            |                 |     |                 |
+            |                 |     |                 |   
+            |                 |     |                 |
+            |                 |    /|-----------------|
+            |                 |   /
+            |                 |  /
+            |                 | /
+            |-----------------|/
+           
+zImage链接脚本也叫做vmlinux.lds，位于kernel/arch/arm/boot/compressed。
+是由同一目录下的vmlinux.lds.in文件生成的
+
+在kernel/arch/arm/boot/Makefile文件中定义了：
+
+
+ifeq ($(CONFIG_ARCH_S3C2410),y)
+ZTEXTADDR     = 0x30008000
+ZRELADDR     = 0x30008000
+endif
+
+
+ZTEXTADDR就是解压缩代码的ram偏移地址，ZRELADDR是内核ram启动的偏移地址，这里看到指定ZTEXTADDR的地址为30008000，
+
+ 
+以上就是我对内核启动地址的分析，总结一下内核启动地址的设置：
+
+设置kernel/arch/arm/boot/Makefile文件中的
+
+ifeq ($(CONFIG_ARCH_S3C2410),y)
+ZTEXTADDR     = 0x30008000         
+ZRELADDR     = 0x30008000
+endif
+# We now have a PIC decompressor implementation.  Decompressors running
+# from RAM should not define ZTEXTADDR.  Decompressors running directly
+# from ROM or Flash must define ZTEXTADDR (preferably via the config)
+#
+
+
+查看2410的datasheet ,发现内存映射的基址是0x3000 0000 ,那么  0x30008000又是如何来的呢？
+
+
+在内核文档kernel/Document/arm/Booting 文件中有：
+
+Calling the kernel image
+
+Existing boot loaders: MANDATORY
+New boot loaders: MANDATORY
+
+There are two options for calling the kernel zImage. If the zImage is stored in flash, and is linked correctly to be run from flash, then it is legal for the boot loader to call the zImage in flash directly.
+
+The zImage may also be placed in system RAM (at any location) and called there. Note that the kernel uses 16K of RAM below the image to store page tables. The recommended placement is 32KiB into RAM.
+
+ 看来在image下面用了32K(0x8000)的空间存放内核页表，
+0x30008000就是2410的内核在RAM中的启动地址,这个地址就是这么来的。
+
+
+
+关于内核解压缩的过程分析
+
+内核压缩和解压缩代码都在目录kernel/arch/arm/boot/compressed，
+
+编译完成后将产生vmlinux、head.o、misc.o、head-s3c2410.o、piggy.o这几个文件，
+
+head.o是内核的头部文件，负责初始设置；
+
+misc.o将主要负责内核的解压工作，它在head.o之后；
+
+head-s3c2410.o文件主要针对的初始化，将在链接时与head.o合并；
+
+piggy.o是一个中间文件，其实是一个压缩的内核(kernel/vmlinux)，只不过没有和初始化文件及解压文件链接而已；
+
+vmlinux是没有(zImage是压缩过的内核)压缩过的内核，就是由piggy.o、head.o、misc.o、head-s3c2410.o组成的。
+
+在BootLoader完成系统的引导以后并将Linux内核调入内存之后，调用bootLinux()，
+这个函数将跳转到kernel的起始位置。
+
+如果kernel没有压缩，就可以启动了。
+如果kernel压缩过，则要进行解压，在压缩过的kernel头部有解压程序。
+压缩过得kernel入口第一个文件源码位置在arch/arm/boot/compressed/head.S。
+
+它将调用函数decompress_kernel()，这个函数在文件arch/arm/boot/compressed/misc.c中，
+decompress_kernel()又调用proc_decomp_setup(),arch_decomp_setup()进行设置，
+然后使用在打印出信息“Uncompressing Linux...”后，调用gunzip()。将内核放于指定的位置。
+
+以下分析head.S文件：
+(1)对于各种Arm CPU的DEBUG输出设定，通过定义宏来统一操作。
+(2)设置kernel开始和结束地址，保存architecture ID。
+(3)如果在ARM2以上的CPU中，用的是普通用户模式，则升到超级用户模式，然后关中断。
+(4)分析LC0结构delta offset，判断是否需要重载内核地址(r0存入偏移量，判断r0是否为零)。
+
+   这里是否需要重载内核地址，我以为主要分析arch/arm/boot/Makefile、arch/arm/boot/compressed/Makefile
+   和arch/arm/boot/compressed/vmlinux.lds.in三个文件，主要看vmlinux.lds.in链接文件的主要段的位置，
+
+   LOAD_ADDR(_load_addr)＝0x30008000，而对于TEXT_START(_text、_start)的位置只设为0，BSS_START(__bss_start)＝ALIGN(4)。
+
+
+   对于这样的结果依赖于，对内核解压的运行方式，也就是说，内核解压前是在内存(RAM)中还是在FLASH上，
+
+
+   因为这里，我们的BOOTLOADER将压缩内核(zImage)移到了RAM的0x30008000位置，我们的压缩内核是在内存(RAM)从0x30008000地址开始顺序排列，
+   因此我们的r0获得的偏移量是载入地址(0x30008000)。
+接下来的工作是要把内核镜像的相对地址转化为内存的物理地址，即重载内核地址。
+(5)需要重载内核地址，将r0的偏移量加到BSS region和GOT table中。
+(6)清空bss堆栈空间r2－r3。
+
+(7)建立C程序运行需要的缓存，并赋于64K的栈空间。
+
+(8)这时r2是缓存的结束地址，r4是kernel的最后执行地址，r5是kernel境象文件的开始地址。检查是否地址有冲突。
+
+   将r5等于r2，使decompress后的kernel地址就在64K的栈之后。
+
+(9)调用文件misc.c的函数decompress_kernel()，解压内核于缓存结束的地方(r2地址之后)。此时各寄存器值有如下变化：
+
+   r0为解压后kernel的大小
+   r4为kernel执行时的地址
+   r5为解压后kernel的起始地址
+   r6为CPU类型值(processor ID)
+   r7为系统类型值(architecture ID)
+
+(10)将reloc_start代码拷贝之kernel之后(r5+r0之后)，首先清除缓存，而后执行reloc_start。
+(11)reloc_start将r5开始的kernel重载于r4地址处。
+(12)清除cache内容，关闭cache，将r7中architecture ID赋于r1，执行r4开始的kernel代码。
+
+下面简单介绍一下解压缩过程，也就是函数decompress_kernel实现的功能：
+解压缩代码位于kernel/lib/inflate.c，inflate.c是从gzip源程序中分离出来的。包含了一些对全局数据的直接引用。
+在使用时需要直接嵌入到代码中。gzip压缩文件时总是在前32K字节的范围内寻找重复的字符串进行编码，
+在解压时需要一个至少为32K字节的解压缓冲区，它定义为window[WSIZE]。inflate.c使用get_byte()读取输入文件，
+它被定义成宏来提高效率。输入缓冲区指针必须定义为inptr，inflate.c中对之有减量操作。inflate.c调用flush_window()
+来输出window缓冲区中的解压出的字节串，每次输出长度用outcnt变量表示。在flush_window()中，还必
+须对输出字节串计算CRC并且刷新crc变量。在调用gunzip()开始解压之前，调用makecrc()初始化CRC计算表。
+最后gunzip()返回0表示解压成功。
+
+我们在内核启动的开始都会看到这样的输出：
+Uncompressing Linux...done, booting the kernel.
+
+
+这也是由decompress_kernel函数内部输出的，它调用了puts()输出字符串，
+puts是在kernel/include/asm-arm/arch-s3c2410/uncompress.h中实现的。
+
+执行完解压过程，再返回到head.S中，启动内核：
+call_kernel:    bl  cache_clean_flush
+         bl  cache_off
+         mov r0, #0
+         mov r1, r7          @ restore architecture number
+         mov pc, r4          @ call kernel
+        
+下面就开始真正的内核了。
+
+
+linux2.6 启动传递命令行分析
+内核在启动时可以传递一个字符串命令行，来控制内核启动的过程，例如：
+"console=ttyS2,115200mem=64M@0xA0000000"
+这里指定了控制台是串口2，波特率是115200，内存大小是64M，物理基地址是0xA0000000。
+另外我们可以在内核中定义一些全局变量，使用这些全局变量控制内核的配置，例如usb驱动中定义了
+static int nousb; /* Disable USB when built into kernel image */
+这个变量为1，则整个usb驱动不初始化，如果想将其置1，可在字符串命令行中添加nousb=1。
+在操作该变量之前，还要让系统知道该变量，方法是：
+__module_param_call("",nousb,param_set_bool,param_get_bool,&nousb,0444);
+__module_param_call这个宏定义在kernel/include/linux/moduleparam.h
+原型如下：
+#define __module_param_call(prefix, name, set, get, arg, perm)  /
+ static char __param_str_##name[] = prefix #name;  /
+ static struct kernel_param const __param_##name   /
+ __attribute_used__      /
+    __attribute__ ((unused,__section__ ("__param"),aligned(sizeof(void *)))) /
+ = { __param_str_##name, perm, set, get, arg }
+ 
+它定义了一个kernel_param类型的变量，这个变量被放到了段__param，
+kernel_param结构体的定义是：
+struct kernel_param {
+ const char *name;
+ unsigned int perm;
+ param_set_fn set;
+ param_get_fn get;
+ void *arg;
+};
+__param这个段的声明有些平台是在arch/../../vmlinux.lds.S，而大多数平台是放到
+kernel/include/asm-generic/vmlinux.lds.h中，定义如下：
+ __param : AT(ADDR(__param) - LOAD_OFFSET) {   /
+  VMLINUX_SYMBOL(__start___param) = .;   /
+  *(__param)      /
+  VMLINUX_SYMBOL(__stop___param) = .;   /
+ }
+内核启动时就会对字符串命令进行解析，在kernel/init/main.c中，内核启动函数start_kernel中
+对外部数组进行了声明：
+extern struct kernel_param __start___param[], __stop___param[];
+然后调用函数parse_args对数组进行解析：
+ parse_args("Booting kernel", command_line, __start___param,
+     __stop___param - __start___param,
+     &unknown_bootoption);
+其中command_line就是要解析的字符串命令行，unknown_bootoption是函数指针，它用来获取指定参数的=右边的值。
+parse_args就会在数组中找到和nousb名称一样的kernel_param变量，并调用它的set函数对其进行付值。

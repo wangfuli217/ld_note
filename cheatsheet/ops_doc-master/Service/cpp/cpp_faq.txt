@@ -1,0 +1,179 @@
+3.看《The C++ Programming Language》和《Inside The C++ Object Model》
+
+faq(编写代码的标准){
+1. 看 Sutter 和 Alexandrescu 合著的《C++ 代码编写标准（C++ Coding Standards）》
+2. 看 JSF 航空器 C++ 代码编写标准。 我认为这是一套关于编写对安全性和性能要求苛刻的代码的优秀规则。
+3. 不要使用 C 语言代码编写标准(即使已将其修改为 C++ 版)，也不要使用 10 年前的 C++ 代码编写标准(即使在那时来说是很优秀的标准)
+}
+
+faq(C++ 的对象在内存中的存放形式是怎么样的){
+《带评注的 C++ 参考手册》
+基本上，C++ 简单地通过连接各个子对象来构建对象。例如：
+    struct A { int a,b; };
+在内存中的表现就是两个 int 型变量彼此相邻。又如：
+    struct B : A { int c; };
+在内存中的表现是类型为 A 的对象和 int 型变量彼此相邻，c 跟在 A 型对象的后面；也就是说，a 和 b 彼此相邻，b 和 c 彼此相邻。
+    虚函数通常是通过在含有虚函数的类的每个对象中加入一个指针（vptr）来实现的。这个指针指向一个相应的函数表（vtbl）。
+每个类都有其独 特的 vtbl，所有属于同一个类的对象共享同一个 vtbl。 
+}
+faq(为什么"this"不是引用？){
+    因为“this”被引入 C++（事实上那时还是带类的 C）的时候，还没有引用（reference）这个概念。
+同样地，我遵循 Simula 的用法而选择了“this”这个词，而不是（后来）Smalltalk 的“self”。
+}
+faq(为什么对象退出作用域时没有调用析构函数？){
+在同一个域中使用 new 创建对象，然后使用 delete 来将之析构不但难看，而且容易出错，更是效率低下。例如：
+void fct() // ugly, error-prone, and inefficient{
+        X* p = new X;
+        // use p
+        delete p;
+}
+}
+faq("友元"违反了封装吗？){
+    不，并非如此。和成员函数类似，"友元"是一种显式地授予访问权限的机制。你不能(于一个符合标准的程序)
+在不修改源代码的情况下授予你访问类的权限。例如：
+class X {
+        int i;
+public:
+        void m(); // grant X::m() access
+        friend void f(X&); // grant f(X&) access
+        // ...
+};
+void X::m() { i++; /* X::m() can access X::i */ }
+void f(X& x) { x.i++; /* f(X&) can access X::i */ }
+想了解 C++ 的(数据)保护模型，可参考 D&E 章节 2.10 以及 TC++PL 章节 11.5、15.3，以及 C.11。
+}
+faq(为什么我的构造函数不太对劲？){
+class Handle { // 类内部存在new和malloc的，最好不支持 "复制构造函数和赋值运算符"
+private:
+    string name;
+    X* p;
+public:
+    Handle(string n) :name(n), p(0) { /* acquire X called "name" and let p point to it */ }
+    ~Handle() { delete p; /* release X called "name" */ }
+    // ...
+};
+
+void f(const string& hh){
+    Handle h1(hh);
+    Handle h1 = h2; // 会引起灾难！
+    // ...
+}
+// 添加到私有部分处
+Handle(const Handle&); // 阻止复制
+Handle& operator=(const Handle&);
+// 只需要一个参数的类，构造函数设置为explicit类型。
+explicit Point(int xx = 0, int yy = 0) :x(xx), y(yy) { }
+在此，默认复制构造函数使得 h2.name==h1.name 并且 h2.p==h2.p。这将导致一场灾难：当函数 f() 运行结束时，会调用 h1 和 h2 的析构函数，这就导致 h1.p 和 h2.p 所指向的对象被 delete 了两次。
+}
+faq(什么是纯虚函数？){
+    纯虚函数是指不必在基类中定义，但必须在派生类中被覆盖(override)的函数。
+通过新奇的“=0”语法可将虚函数声明为纯虚函数。例如：
+class Base {
+public:
+    void f1();                         // 不是虚函数
+    virtual void f2();         // 是虚函数，但不是纯虚函数
+    virtual void f3() = 0;  // 纯虚函数
+};
+}
+faq(模板templates本应被设计为"泛型generics"那样吗？){
+    非也。generics 其实是为抽象类而设的语法；亦即，利用 generics（无论是 Java generics 或 C# generics），
+你从此不再需要定义精确的接口，但相对地，你也要为此付出诸如虚函数调用以及/或者动态类型转换的花销。
+    Templates 通过其各种特性的组合（整型模板参数（integer template arguments）、特化（specialization）、
+同等对待内建/用户定义类型等），可支持泛型编程（generic programming）、模板元编程（template metaprogramming）等。
+Templates 带来的灵活性、通用性，以及性能都是“generics”不能比美的。STL 就是最好的例子。
+    不过，Templates 带来灵便的同时，亦带来了一些不尽人意的后果——错误检查滞后、出错信息非常糟糕。
+目前，可通过 constraints classes 间接解决这个问题。
+}
+faq(为何 C++ 不提供多态的容器){
+C++ 标准库提供了一套非常好用的、静态类型安全的、高效的容器。例如 vector、list，以及 map：
+vector<int> vi(10);
+vector<Shape*> vs;
+list<string> lst;
+list<double> l2
+map<string,Record*> tbl;
+map< Key,vector<Record*> > t2;
+
+    所有优秀的 C++ 教材都有对这些容器的描述。应该优先使用标准容器，而非数组和“自制的”容器，
+除非你有很充分的不使用 STL 的理由。
+    这些容器都是单态的；亦即，它们的元素是同一类型的。如果你希望某个容器能保存多种类型的元素，
+必须使用联合体或者在容器里保存指向多态类型的指针（这个方法通常更好）。一个经典的例子是：
+    vector<Shape*> vi; // 该 vector 保存指向 Shape 的指针
+在此，vi 的元素可以是从 Shape 派生出来的任何类型（的指针）。亦即，既可以说 vi 是单态的，因为
+其所有元素都是 Shape（精确地说是指向 Shape 的指针），也可以说它是多态的，因为它可以保存多种
+类型的 Shape，例如 Circles、Triangles 等等。
+    所以，可以说，所有容器（无论任何语言）都是单态的，因为为了使用它们，必须有一个可供用户用来
+访问其中所有元素的公共接口。提供多态容器的语言，其实无 非是容器里的元素都提供了一个标准的接口。
+例如，Java collection 提供的容器保存的是 Object 类型（的引用），可用（公共的）Object 接口来获取
+元素的真正类型。
+    C++ 标准库提供单态的容器，因为大多数情况下，它们常用且易用，并能提供尽可能好的编译时错误信息，
+而且没有不必要的运行时开销。
+}
+faq(如何使用异常？){
+C++ 里，异常用于发出一种信号，表示发生了“本地”处理不了的错误，比如构造函数里某个获取资源的操作失败了。例如：
+class Vector {
+    int sz;
+    int* elem;
+    class Range_error { };
+public:
+    Vector(int s) : sz(s) { if (sz < 0) throw Range_error(); /* ... */ }
+    // ...
+};
+
+    不要简单地将异常当作又一种从函数中返回一个值的方法。大多数用户以为异常处理代码等同于错误处理代码
+（因为 C++ 语言的定义怂恿他们这么想），他们的代码优化方式也反映了这种想当然的“以为”。
+一种关键的技术被称之为资源获取即初始化（有时被简称为 RAII），该技术使用带有析构函数的类来使资源管理有序化。例如：
+
+void fct(string s){
+    File_handle f(s,"r"); // File_handle 的构造函数打开名为 s 的文件
+    // 使用 f
+} // File_handle 的析构函数在此关闭文件
+
+就算 fct() 中“使用 f”的那部分代码抛出了异常，析构函数仍然会被执行，所以文件会被正常关闭。下面这种常见的不安全的用法则恰恰相反：
+void old_fct(const char* s){
+    FILE* f = fopen(s,"r"); // 打开名为 s 的文件
+    // 使用 f
+    fclose(f); // 关闭文件
+}
+    如果 old_fct 中“使用 f”的那部分代码抛出了异常（或者简单地返回了），那么文件就没有被关闭。
+在 C 程序里，longjmp() 是又一种危险。
+}
+faq(可以在构造函数里抛出异常吗？析构函数里呢？){
+可以：当你不能正常地初始化（构造）对象时，你应该在构造函数里抛出异常。没有任何其它方法比抛出异常退出构造函数更合适了。
+不然：你可以在析构函数里抛出异常，但这个异常必须不能越过析构函数；如果因为抛出异常而退出了析构函数，任何糟糕的情况都可能发生，因为这违反了标准库及 C++ 语言本身的基本规则。不要这么做。
+}
+faq(static_cast 有什么好处){
+    总的来说，应该尽量避免类型转换（dynamic_cast 除外）。使用类型转换常常会引起类型错误或者数值截断。
+甚至于看起来"无辜"的类型转换也有可能变成很严重的问题，如果在开发或者维护期间，其中一个相关的类型改变了的话。
+例如，下面这个是什么意思：
+    x = (T)y;
+
+我们不得而知。这取决于类型 T 以及 x 和 y 的类型。T 可能是类的名字、typedef 或者模板参数。可能 x 和 y 都是标量变量，
+而 (T) 代表值的转换。也可能 x 是 y 的派生类的对象，而 (T) 是一个向下转换（downcast）。还可能 x 和 y 是不相关类型的
+指针。由于 C 风格的类型转换 (T) 可用于表述很多逻辑上不同的操作，所以编译器很难捕捉误用。同样的道理，程序员不可能
+精确地知道类型转换到底做了什么。有些菜鸟程序员认为这是一个有利条件，但假若他们错误地判断了形势，将会导致许多细微的
+错误。
+
+"新风格的类型转换"因此应运而生，它给予了程序员更清晰地表达他们的真实意图的机会，也使得编译器能捕捉到更多错误。例如：
+    int a = 7;
+    double* p1 = (double*) &a; // ok（但指向的并非 double 类型的对象）
+    double* p2 = static_cast<double *>(&a); // 错误
+    double* p2 = reinterpret_cast<double *>(&a); // ok：我真的想这么干
+
+    const int c = 7;
+    int* q1 = &c; // 错误
+    int* q2 = (int*)&c; // ok（但 *q2=2; 仍然是不合法的代码，而且有可能失败）
+    int* q3 = static_cast<int *>(&c); // 错误：static_cast 不能去除 const 属性
+    int* q4 = const_cast<int *>(&c); // 我的确想这么干
+
+static_cast 所允许的转换都比需要使用 reinterpret_cast 才能进行的转换更安全，更不易出错。大体上，可以直接使用
+static_cast 转换后的值，而无需将其再转换成原来的类型。而由 reinterpret_cast 得到的值却总是应该被转换成原来的
+类型后才使用，这样才能确保可移植性。
+
+引入新风格类型转换的第二个原因是，C 风格的类型转换在程序中难以被发现。例如，在普通的编辑器或者文字处理软件里，
+你不能方便地查找类型转换。C 风格类型转换的这一隐秘性实在是糟透了，因为类型转换潜在着极其高的破坏性。丑陋的操作
+应该使用丑陋的语法形式。这个事实也是选择新风格类型转换语法的部分依据。更深一层的原因是，让新风格的类型转换语法
+和模板语法一致，这样程序员就能编写自己的类型转换，尤其是带运行时检查的类型转换。
+
+或许，因为 static_cast 很难看，而且也相对难拼，所以你更可能会充分考虑后才决定是否使用它？这很好，因为现代 C++ 里，
+类型转换真的是最容易避免的。
+}

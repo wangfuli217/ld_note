@@ -1,0 +1,329 @@
+  Lua不仅可以是一个独立运行的程序包也可以是一个用来嵌入其他应用的程序库。
+  Lua解释器是一个使用Lua标准库实现的独立的解释器，
+  解释器负责程序和使用者的接口：从使用者那里获取文件或者字符串，并传给Lua标准库，Lua标准库负责最终的代码运行。
+
+  API的应用的例子：Lua独立的解释器(lua.c)提供了应用代码的例子。
+  标准库(lmathlib.c、lstrlib.c等等)提供了程序库代码的例子。
+  
+1. CAPI : C API是一个C代码与Lua进行交互的函数集。他有以下部分组成：
+  读写Lua全局变量的函数，
+  调用Lua函数的函数，
+  运行Lua代码片断的函数，
+  注册C函数然后可以在Lua中被调用的函数，
+2. CAPI注意
+  2.1 当使用C进行程序设计的时候，我们必须注意，类型检查，错误处理，内存分配都很多问题。
+      API中的大部分函数并不检查他们参数的正确性；你需要在调用函数之前负责确保参数是有效的。
+  
+  2.2 对细节的全部控制的能力：错误处理，缓冲大小，和类似的问题。
+    在C和Lua之间通信关键内容在于一个虚拟的栈。几乎所有的API调用都是对栈上的值进行操作，
+  所有C与Lua之间的数据交换也都通过这个栈来完成。另外，你也可以使用栈来保存临时变量。
+  栈的使用解决了C和Lua之间两个不协调的问题：
+    第一，Lua会自动进行垃圾收集，而C要求显示的分配存储单元，两者引起的矛盾。
+    第二，Lua中的动态类型和C中的静态类型不一致引起的混乱。
+    
+    Lua以一个严格的LIFO规则(后进先出；也就是说，始终存取栈顶)来操作栈。当你调用Lua时，它只会改变栈顶部分。
+  你的Ｃ代码却有更多的自由；更明确的来讲，你可以查询栈上的任何元素，甚至是在任何一个位置插入和删除元素。
+    
+    如果你用C方式来编译它，但用在C++中，那么你需要象下面这样来包含lua.h头文件。
+    extern "C" {
+        #include <lua.h>
+    }
+    一个常用的技巧是建立一个包含上面代码的lua.hpp头文件，并将这个新的头文件包含进你的C++程序。
+
+3. lua.h：定义了Lua提供的基础函数。 -- 所有在lua.h中被定义的都有一个lua_前缀。
+     创建一个新的Lua环境的函数(如lua_open)，
+     调用Lua函数(如lua_pcall)的函数，
+     读取/写入Lua环境的全局变量的函数，
+     注册可以被Lua代码调用的新函数的函数
+     
+     Lua库没有定义任何全局变量。它所有的状态保存在动态结构lua_State中，而且指向这个结构的指针作为所有Lua函数的一个参数。
+   这样的实现方式使得Lua能够重入且为在多线程中的使用作好准备。
+
+4. lauxlib.h定义了辅助库(auxlib)提供的函数
+    辅助库利用lua.h中提供的基础函数提供了更高层次上的抽象；
+    所有Lua标准库都使用了auxlib。基础API致力于economy and orthogonality，相反auxlib致力于实现一般任务的实用性。
+    auxlib没有存取Lua内部的权限。它完成它所有的工作都是通过正式的基本API。
+    
+    luaL_loadbuffer:编译Lua代码.如果没有错误，这个调用返回零并把编译之后的chunk压入栈。之后，
+    lua_pcall将会把chunk从栈中弹出并在保护模式下运行它。
+    
+    在有错误的情况下，这两个函数都将一条错误消息压入栈；我们可以用lua_tostring来得到这条信息、输出它，
+    用lua_pop将它从栈中删除。
+
+5. lualib.h定义了打开这些库的函数。
+     调用luaopen_io，以创建io table并注册I/O函数(io.read,io.write等等)到Lua环境中。
+    luaopen_base(L);         /* opens the basic library */
+    luaopen_table(L);        /* opens the table library */
+    luaopen_io(L);           /* opens the I/O library */
+    luaopen_string(L);       /* opens the string lib. */
+    luaopen_math(L);         /* opens the math lib. */
+    
+6. 栈
+  6.1 压入元素 lua_pushXXX
+    它将每种可以用C来描述的Lua类型压栈：
+    空值(nil)用lua_pushnil，
+    数值型(double)用lua_pushnumber，
+    布尔型(在C中用整数表示)用lua_pushboolean，
+    任意的字符串(char*类型，允许包含'\0'字符)用lua_pushlstring，
+    C语言风格(以'\0'结束)的字符串(const char*)用lua_pushstring：
+    void lua_pushnil (lua_State *L);
+    void lua_pushboolean (lua_State *L, int bool);
+    void lua_pushnumber (lua_State *L, double n);
+    void lua_pushlstring (lua_State *L, const char *s,size_t length);
+    void lua_pushstring (lua_State *L, const char *s);
+    同样也有将C函数和userdata值压入栈的函数，
+      Lua从来不保持一个指向外部字符串(或任何其它对象，除了C函数——它总是静态指针)的指针。
+    对于它保持的所有字符串，Lua要么做一份内部的拷贝要么重新利用已经存在的字符串。因此，
+    一旦这些函数返回之后你可以自由的修改或是释放你的缓冲区。
+
+      记住，你现在是C程序员；Lua不会宠着你。当Lua在起始以及在Lua调用C的时候，栈上至少有20个空闲的记录
+    lua.h中的LUA_MINSTACK宏定义了这个常量。
+      int lua_checkstack (lua_State *L, int sz);
+    它检测栈上是否有足够你需要的空间
+
+  6.2 查询元素 lua_isXXX lua_toXXX
+    API用索引来访问栈中的元素。在栈中的第一个元素(也就是第一个被压入栈的)有索引1，下一个有索引2，以此类推。
+    我们也可以用栈顶作为参照来存取元素，利用负索引。在这种情况下，-1指出栈顶元素(也就是最后被压入的)，-2指出它的前一个元素，以此类推。
+    例如，调用lua_tostring(L, -1)以字符串的形式返回栈顶的值。我们下面将看到，在某些场合使用正索引访问栈比较方便，另外一些情况下，使用负索引访问栈更方便。
+
+      API提供了一套lua_is*函数来检查一个元素是否是一个指定的类型，*可以是任何Lua类型。
+    因此有lua_isnumber,lua_isstring,lua_istable以及类似的函数。所有这些函数都有同样的原型：
+      int lua_is... (lua_State *L, int index);
+      lua_isnumber和lua_isstring函数不检查这个值是否是指定的类型，而是看它是否能被转换成指定的那种类型。
+    例如，任何数字类型都满足lua_isstring。
+      lua_type:LUA_TNIL、LUA_TBOOLEAN、LUA_TNUMBER、LUA_TSTRING、LUA_TTABLE、LUA_TFUNCTION、LUA_TUSERDATA以及LUA_TTHREAD
+      
+      为了从栈中获得值，这里有lua_to*函数：
+        int           lua_toboolean (lua_State *L, int index);
+        double        lua_tonumber (lua_State *L, int index);
+        const char *  lua_tostring (lua_State *L, int index);
+        size_t        lua_strlen (lua_State *L, int index);
+    即使给定的元素的类型不正确，调用上面这些函数也没有什么问题。
+    类型不正确:lua_toboolean、lua_tonumber和lua_strlen返回0。
+    类型不正确:其他函数返回NULL。
+               返回的0或NULL是没有什么用处的
+
+    其他函数需要调用lua_is*，测试返回结果是否为NULL即可。
+
+    对于其他函数而言，我们一般不需要使用对应的lua_is*函数：我们只需要调用lua_is*，测试返回结果是否为NULL即可。
+
+        Lua_tostring函数返回一个指向字符串的内部拷贝的指针。你不能修改它(使你想起那里有一个const)。
+    只要这个指针对应的值还在栈内，Lua会保证这个指针一直有效。当一个C函数返回后，Lua会清理他的栈，
+    所以，有一个原则：永远不要将指向Lua字符串的指针保存到访问他们的外部函数中。
+    
+    Lua_string返回的字符串结尾总会有一个字符结束标志0，但是字符串中间也可能包含0，
+    lua_strlen返回字符串的实际长度。
+
+  6.3 其他堆栈操作
+    堆栈维护工作：
+    int  lua_gettop (lua_State *L);
+    void lua_settop (lua_State *L, int index);
+    void lua_pushvalue (lua_State *L, int index);
+    void lua_remove (lua_State *L, int index);
+    void lua_insert (lua_State *L, int index);
+    void lua_replace (lua_State *L, int index);
+    函数lua_gettop返回堆栈中的元素个数，它也是栈顶元素的索引。注意一个负数索引-x对应于正数索引gettop-x+1。
+      lua_settop设置栈顶(也就是堆栈中的元素个数)为一个指定的值。如果开始的栈顶高于新的栈顶，顶部的值被丢弃。
+    否则，为了得到指定的大小这个函数压入相应个数的空值(nil)到栈上。特别的，lua_settop(L,0)清空堆栈。
+    你也可以用负数索引作为调用lua_settop的参数；那将会设置栈顶到指定的索引。利用这种技巧，API提供了下面这个宏，它从堆栈中弹出n个元素：
+    利用这种技巧，API提供了下面这个宏，它从堆栈中弹出n个元素：
+        #define lua_pop(L,n)  lua_settop(L, -(n)-1)
+    lua_pushvalue压入堆栈上指定索引的一个抟贝到栈顶；
+    lua_remove移除指定索引位置的元素，并将其上面所有的元素下移来填补这个位置的空白；
+    lua_insert移动栈顶元素到指定索引的位置，并将这个索引位置上面的元素全部上移至栈顶被移动留下的空隔；
+    lua_replace从栈顶弹出元素值并将其设置到指定索引位置，没有任何移动操作。
+    
+    注意到下面的操作对堆栈没有任何影响：
+    lua_settop(L, -1);   /* set top to its current value */
+    lua_insert(L, -1);   /* move top element to the top */
+
+     1  2  3  4  5  lua_settop
+    -5 -4 -3 -2 -1  lua_settop
+
+7. 错误处理
+  不是所有的API函数都会抛出异常，lua_open、lua_close、lua_pcall和lua_load都是安全的，
+  大多数其他函数只能在内存分配失败的情况下抛出异常：luaL_loadfile如果没有足够内存来拷贝指定的文件将会失败。
+  有些程序当碰到内存不足时，他们可能需要忽略异常不做任何处理。对这些程序而言，如果Lua导致内存不足，panic是没有问题的。
+
+  运行在保护模式下。即使在内存分配失败的情况下，lua_pcall也返回一个错误代码，使得lua解释器处于和谐的（consistent）状态。
+  如果你也想保护所有你的与Lua交互的C代码，你可以使用lua_cpcall
+  
+  Lua是安全的语言，也就是说，不管你写什么样的代码，也不管代码如何错误，你都可以根据Lua本身知道程序的行为。
+  错误也会根据Lua被发现和解释。
+  
+  C语言中很多错误的程序的行为只能依据硬件或者由程序计数器给出的错误出现的位置被解释。
+
+  不论什么时候，C函数发现错误只要简单的调用lua_error或luaL_error。
+  Lua_error函数会清理所有在Lua中需要被清理的，然后和错误信息一起回到最初的执行lua_pcall的地方。
+
+  
+8. 扩展你的程序
+
+  8.1 作为配置语言是LUA的一个重要应用 -- 获取lua脚本中基本全局变量number string
+  ---------- 配置文件
+  width = 200
+  height = 300
+  ---------- 配置文件解析部分
+  #include <lua.h>
+  #include <lauxlib.h>
+  #include <lualib.h>
+  
+  void load (char *filename, int *width, int *height) {
+      lua_State *L = lua_open();
+      luaopen_base(L);
+      luaopen_io(L);
+      luaopen_string(L);
+      luaopen_math(L);
+  
+      if (luaL_loadfile(L, filename) || lua_pcall(L, 0, 0, 0))
+         error(L, "cannot run configuration file: %s",
+             lua_tostring(L, -1));
+  
+      lua_getglobal(L, "width");  -- 变量width的index值是-2
+      lua_getglobal(L, "height"); -- 变量height的index值是-1
+      if (!lua_isnumber(L, -2))
+         error(L, "'width' should be a number\n");
+      if (!lua_isnumber(L, -1))
+         error(L, "'height' should be a number\n");
+      *width = (int)lua_tonumber(L, -2);
+      *height = (int)lua_tonumber(L, -1);
+  
+      lua_close(L);
+  }
+  
+  ---------- 配置文件扩展
+  if getenv("DISPLAY") == ":0.0" then
+      width = 300; height = 300
+  else
+      width = 200; height = 200
+  end
+
+  8.2 表操作 (1. 获取lua脚本中全局变量表, 2. 设置lua脚本中全局变量表)
+  BLUE = {r=0, g=0, b=1}
+  background = BLUE
+
+  lua_getglobal(L, "background");
+  if (!lua_istable(L, -1))
+      error(L, "`background' is not a valid color table");
+  
+  red = getfield("r");
+  green = getfield("g");
+  blue = getfield("b");
+
+  #define MAX_COLOR       255
+  
+  /* assume that table is on the stack top */
+  int getfield (const char *key) {
+      int result;
+      lua_pushstring(L, key);
+      lua_gettable(L, -2);  /* get background[key] */
+  
+      if (!lua_isnumber(L, -1))
+         error(L, "invalid component in background color");
+         
+      result = (int)lua_tonumber(L, -1) * MAX_COLOR;
+      lua_pop(L, 1);  /* remove number */
+      return result;
+  }
+  可能存在很多个getfield的版本，key的类型，value的类型，错误处理等都不尽相同。
+  Lua API只提供了一个lua_gettable函数，他接受table在栈中的位置为参数，将对应key值出栈，返回与key对应的value。
+  getfield函数假定table在栈顶，因此，lua_pushstring将key入栈之后，table在-2的位置。返回之前，getfield会将栈恢复到调用前的状态。
+
+  为了可以设置table域的值，我们定义个辅助函数setfield；这个函数将field的索引和field的值入栈，然后调用lua_settable：
+  /* assume that table is at the top */
+  void setfield (const char *index, int value) {
+      lua_pushstring(L, index);
+      lua_pushnumber(L, (double)value/MAX_COLOR);
+      lua_settable(L, -3);
+  }
+  lua_settable在不同的参数类型情况下都可以使用，他从栈中获取所有的参数。
+  lua_settable以table在栈中的索引作为参数，并将栈中的key和value出栈，用这两个值修改table。
+  setfield函数假定调用之前table是在栈顶位置(索引为-1)。将index和value入栈之后，table索引变为-3。
+
+  
+  Setcolor函数定义一个单一的颜色，首先创建一个table，然后设置对应的域，然后将这个table赋值给对应的全局变量：
+  void setcolor (struct ColorTable *ct) {
+      lua_newtable(L);            /* creates a table */
+      setfield("r", ct->red);     /* table.r = ct->r */
+      setfield("g", ct->green);   /* table.g = ct->g */
+      setfield("b", ct->blue);    /* table.b = ct->b */
+      lua_setglobal(ct->name);    /* 'name' = table */
+  }
+  lua_newtable函数创建一个新的空table然后将其入栈，调用setfield设置table的域，最后lua_setglobal将table出栈并将其赋给一个全局变量名。
+
+  有了前面这些函数，下面的循环注册所有的颜色到应用程序中的全局变量：
+    int i = 0;
+    while (colortable[i].name != NULL)
+        setcolor(&colortable[i++]);
+    记住：应用程序必须在运行用户脚本之前，执行这个循环。
+
+  ---------------- background = "BLUE"
+  当他得到变量background的值之后，必须判断这个值的类型，是table还是string：
+  lua_getglobal(L, "background");
+  if (lua_isstring(L, -1)) {
+      const char *name = lua_tostring(L, -1);
+      int i = 0;
+      while (colortable[i].name != NULL &&
+         strcmp(colorname, colortable[i].name) != 0)
+         i++;
+      if (colortable[i].name == NULL)  /* string not found? */
+         error(L, "invalid color name (%s)", colorname);
+      else {  /* use colortable[i] */
+         red = colortable[i].red;
+         green = colortable[i].green;
+         blue = colortable[i].blue;
+      }
+  } else if (lua_istable(L, -1)) {
+      red = getfield("r");
+      green = getfield("g");
+      blue = getfield("b");
+  } else
+      error(L, "invalid value for `background'");
+  8.3 调用Lua函数
+  Lua作为配置文件的一个最大的长处在于它可以定义个被应用调用的函数。比如，你可以写一个应用程序来绘制一个函数的图像，使用Lua来定义这个函数。
+
+  使用API调用函数的方法是很简单的：
+  首先，将被调用的函数入栈；
+  第二，依次将所有参数入栈；
+  第三，使用lua_pcall调用函数；
+  最后，从栈中获取函数执行返回的结果。
+  function f (x, y)
+    return (x^2 * math.sin(y))/(1 - x)
+  end
+
+  /* call a function 'f' defined in Lua */
+  double f (double x, double y) {
+      double z;
+      /* push functions and arguments */
+      lua_getglobal(L, "f");   /* function to be called */
+      lua_pushnumber(L, x);    /* push 1st argument */
+      lua_pushnumber(L, y);    /* push 2nd argument */
+  
+      /* do the call (2 arguments, 1 result) */
+      if (lua_pcall(L, 2, 1, 0) != 0) --可以调用lua_pcall时指定参数的个数和返回结果的个数。
+         error(L, "error running function `f': %s",
+             lua_tostring(L, -1));
+  
+      /* retrieve result */
+      if (!lua_isnumber(L, -1))
+         error(L, "function 'f' must return a number");
+      z = lua_tonumber(L, -1);
+      lua_pop(L, 1);  /* pop returned value */
+      return z;
+  }
+  正常返回值：
+  和Lua中赋值操作一样，lua_pcall会根据你的要求调整返回结果的个数，多余的丢弃，少的用nil补足。
+  在将结果入栈之前，lua_pcall会将栈内的函数和参数移除。
+  如果函数返回多个结果，第一个结果被第一个入栈，因此如果有n个返回结果，第一个返回结果在栈中的位置为-n，最后一个返回结果在栈中的位置为-1。
+  错误返回值：
+  如果lua_pcall运行时出现错误，lua_pcall会返回一个非0的结果。另外，他将错误信息入栈（仍然会先将函数和参数从栈中移除）。
+  在将错误信息入栈之前，如果指定了错误处理函数，lua_pcall毁掉用错误处理函数。
+    使用lua_pcall的最后一个参数来指定错误处理函数，0代表没有错误处理函数，也就是说最终的错误信息就是原始的错误信息。
+  否则，那个参数应该是一个错误函数被加载的时候在栈中的索引，注意，在这种情况下，错误处理函数必须要在被调用函数和其参数入栈之前入栈。
+
+  对于一般错误，lua_pcall返回错误代码LUA_ERRRUN。
+  有两种特殊情况，会返回特殊的错误代码，因为他们从来不会调用错误处理函数。
+    内存分配错误，对于这种错误，lua_pcall总是返回LUA_ERRMEM。
+    当Lua正在运行错误处理函数时发生错误，这种情况下，再次调用错误处理函数没有意义，所以lua_pcall立即返回错误代码LUA_ERRERR。
+
+  

@@ -1,0 +1,179 @@
+﻿Java Ant
+
+1.  什么是 ant
+    ant是构建工具
+
+2.  什么是构建
+    概念到处可查到, 形象来说, 你要把代码从某个地方拿来, 编译, 再拷贝到某个地方去等等操作, 当然不仅与此, 但是主要用来干这个
+
+3.  ant 的好处
+    跨平台   --因为ant是使用java实现的, 所以它跨平台
+    使用简单--与ant的兄弟make比起来
+    语法清晰--同样是和make相比
+    功能强大--ant能做的事情很多, 可能你用了很久, 你仍然不知道它能有多少功能。当你自己开发一些ant插件的时候, 你会发现它更多的功能。
+
+4.  ant 的兄弟 make
+    ant 做的很多事情, 大部分是曾经有一个叫 make 的所做的, 不过对象不同, make 更多应用于c/c++ ,ant 更多应用于 Java。
+
+
+一. 构建 ant 环境
+    要使用ant首先要构建一个 ant 环境, 步骤很简单：
+    1) 安装 jdk, 设置 JAVA_HOME ,PATH ,CLASS_PATH (这些应该是看这篇文章的人应该知道的)
+    2) 下载 ant 地址 http://ant.apache.org/ 找一个你喜欢的版本, 或者干脆最新的版本
+    3) 解压 ant 你得到的是一个压缩包, 解压缩它, 并把它放在一个尽量简单的目录, 例如 D:\ant-1.8 虽然你不一 定要这么做, 但这么做是有好处的。
+    4) 设置 ANT_HOME, PATH中添加ANT_HOME目录下的bin目录(我设置的: ANT_HOME:D:\apache-ant-1.8.2,PATH:%ANT_HOME%\bin)
+    5) 测试一下你的设置,开始-->运行-->cmd进入命令行-->键入 ant 回车,如果看到
+        Buildfile: build.xml does not exist!
+        Build failed
+        那么恭喜你你已经完成ant的设置
+
+
+二. 体验ant
+    就像每个语言都有HelloWorld一样, 一个最简单的应用能让人感受一下Ant
+    1. 首先你要知道你要干什么, 我现在想做的事情是：
+        编写一些程序
+        编译它们
+        把它打包成jar包
+        把他们放在应该放置的地方
+        运行它们
+
+        这里为了简单起见只写一个程序, 就是HelloWorld.java程序代码如下：
+        package test.ant;
+        public class HelloWorld {
+            public static void main(String[] args) {
+               System.out.println("Hello world1");
+            }
+        };
+
+    2. 为了达到上边的目的, 你可以手动的用javac 、copy 、jar、java来完成,
+        但是考虑一下如果你有成百上千个类, 在多次调试, 部署的时候, 一次次的javac 、copy、jar、java那将是一份辛苦的工作。
+        现在看看ant怎么优雅的完成它们。
+        要运行ant需要有一个 build.xml 虽然不一定要叫这个名字, 但是建议你这么做
+
+    3. 执行 ant
+        新建一个 src 的文件夹, 然后把 HelloWorld.java 按照包目录放进去
+        做好 build.xml 文件,最好将这些放到一个文件夹中,在cmd中进入该文件夹,
+        在命令行下键入ant ,你会发现一个个任务都完成了。每次更改完代码只需要再次键入ant
+        有的时候我们可能并不想运行程序, 只想执行这些步骤中的某一两个步骤, 例如我只想重新部署而不想运行, 键入
+        ant build
+        ant中的每一个任务都可以这样调用ant + target name
+        好了, 这样一个简单的ant任务完成了。
+
+
+
+三. 什么时候使用ant
+    也许你感觉ant真好,但并不是在任何情况下都是最好的选择
+    例如windows上有更多更简单, 更容易使用的工具, 比如 eclipse+myeclipse eclipse+wtp等等, 无论是编译, 部署, 运行使用起来比 ant 更容易, 方便
+
+    但有些情况则是ant发挥的好地方:
+    1. 服务器上部署的时候
+        当你的程序开发完成, 部署人员要部署在服务器上的时候, 总不能因为因为安装一个程序就配置一个eclipse+myeclipse吧
+        ant在这个时候是个很好的选择, 因为它小巧, 容易配置, 你带着你写好的build.xml到任何一台服务器上, 只需要做简单的修改(一些设定, 例如目录), 然后一两个命令完成, 这难道不是一件美好的事情吗。
+
+    2. 跨平台使用
+        很多时候是这样的, 程序开发是在windows下, 但是程序要在linux或者unix上运行,在linux或者在unix(特别是unix上)部署是个麻烦的事情
+        这个时候ant的特点又出来了, 因为ant是跨平台的, 你在build.xml可以在大多数操作系统上使用, 基本不需要修改。
+
+    3. 当服务器维护者不懂编程的时候
+        很多人都有过这样的经历, 使用你们程序的人, 并不懂得写程序。
+        你得程序因为版本更新, 因为修正bug需要一次又一次得重新部署。这个时候你会发现教一个人是如此得困难。
+        但是有ant后, 你只需要告诉他, 输入ant xxx等一两个命令, 一切ok.
+
+	例如: 在对应的项目下(跟 build.xml 同一目录下),运行命令行:
+		ant clean & ant hot_deploy & PAUSE
+		rem 上面命令行, 先执行 build 里面的 clean target, 再执行 hot_deploy target
+
+
+四. 提高
+    如果你想完成任务, 并提高自己, 有很多办法：
+    1. 很多开源的程序都带有build.xml, 看看它们如何写的
+    2. ant的document, 里边详细列写了ant的各种默认命令, 及其丰富
+    3. google, 永远不要忘记它
+
+    ok,在这之后随着你写的ant build越来越多, 你知道的命令就越多, ant在你的手里也就越来越强大了。
+    这个是一个慢慢积累的过程。
+
+
+五. 日常使用
+    在eclipse里边先天支持ant, 所以你可以在eclipse里边直接写build.xml
+    因为eclipse提供了提示功能, 自动补充功能, 它能让你事半功倍。
+    使用方法, 只需要建立一个工程, 然后建立一个叫 build.xml 的文件。然后就可以在里边写你的 ant build 了
+    但是时刻记住 http://www.apache.org/ 永远能找到你需要的东西
+
+
+Ant的数据类型
+    在构建文件中为了标识文件或文件组, 经常需要使用数据类型。数据类型包含在 org.apache.tool.ant.types包中。简单介绍构建文件中一些常用的数据类型。
+    下面的数据类型可以在<property></property>节点下进行注册, 然后进行使用。
+
+    1. argument 类型
+        由Ant构建文件调用的程序, 可以通过<arg>元素向其传递命令行参数
+		如apply,exec和java任务均可接受嵌套<arg>元素, 可以为各自的过程调用指定参数。
+		以下是<arg>的所有属性:
+            values: 是一个命令参数,如果参数有空格,但又想将它作为单独一个值,则使用此属性。
+            file: 表示一个参数的文件名。在构建文件中, 此文件名相对于当前的工作目录。
+            line: 表示用空格分隔的多个参数列表。
+            path: 表示路径。
+
+    2.ervironment 类型
+        由Ant构建文件调用的外部命令或程序, <env>元素制定了哪些环境变量要传递给正在执行的系统命令
+		<env>元素可以接受以下属性:
+            file: 表示环境变量值得文件名。此文件名要被转换位一个绝对路径。
+            path: 表示环境变量的路径。Ant会将它转换为一个本地约定。
+            value: 表示环境变量的一个直接变量。
+            key: 表示环境变量名。
+        注意: file path 或 value只能取一个。
+
+    3.filelist 类型
+        Filelist 是一个支持命名的文件列表的数据类型, 包含在一个filelist类型中的文件不一定是存在的文件。
+		以下是其所有的属性:
+            dir: 是用于计算绝对文件名的目录。
+            files: 是用逗号分隔的文件名列表。
+            refid: 是对某处定义的一个<filelist>的引用。
+            注意: dir 和 files 都是必要的, 除非指定了refid(这种情况下, dir和files都不允许使用)。
+
+    4.fileset 类型
+        Fileset 数据类型定义了一组文件, 并通常表示为<fileset>元素。
+		不过, 许多ant任务构建成了隐式的fileset,这说明他们支持所有的fileset属性和嵌套元素。
+		以下为fileset 的属性列表:
+            dir: 表示fileset 的基目录。
+            casesensitive: 值如果为false, 那么匹配文件名时, fileset不是区分大小写的, 其默认值为true.
+            defaultexcludes: 用来确定是否使用默认的排除模式, 默认为true。
+            excludes: 是用逗号分隔的需要派出的文件模式列表。
+            excludesfile: 表示每行包含一个排除模式的文件的文件名。
+            includes: 是用逗号分隔的, 需要包含的文件模式列表。
+            includesfile: 表示每行包括一个包含模式的文件名。
+
+    5.patternset 类型
+        Fileset 是对文件的分组, 而patternset是对模式的分组, 他们是紧密相关的概念。
+		<patternset>支持4个属性:
+        includes excludex includexfile 和 excludesfile, 与fileset相同。
+        Patternset 还允许以下嵌套元素: include,exclude,includefile 和 excludesfile.
+
+    6.filterset 类型
+        Filterset定义了一组过滤器, 这些过滤器将在文件移动或复制时完成文件的文本替换。
+		主要属性如下：
+            begintoken: 表示嵌套过滤器所搜索的记号, 这是标识其开始的字符串。
+            endtoken: 表示嵌套过滤器所搜索的记号这是标识其结束的字符串。
+            id: 是过滤器的唯一标志符。
+            refid: 是对构建文件中某处定义一个过滤器的引用。
+
+    7.Path 类型
+        Path元素用来表示一个类路径, 不过它还可以用于表示其他的路径。
+        在用作多个属性时, 路径中的各项用分号或冒号隔开。
+        在构建的时候, 此分隔符将代替当前平台中所有的路径分隔符
+		其拥有的属性如下：
+            location: 表示一个文件或目录。Ant在内部将此扩展为一个绝对路径。
+            refid: 是对当前构建文件中某处定义的一个path的引用。
+            path: 表示一个文件或路径名列表。
+
+    8.mapper类型
+        Mapper类型定义了一组输入文件和一组输出文件间的关系,
+		其属性如下：
+            classname: 表示实现mapper类的类名。当内置mapper不满足要求时, 用于创建定制mapper.
+            classpath: 表示查找一个定制mapper时所用的类型路径。
+            classpathref: 是对某处定义的一个类路径的引用。
+            from: 属性的含义取决于所用的mapper.
+            to: 属性的含义取决于所用的mapper.
+            type: 属性的取值为 identity, flatten glob merge regexp 其中之一, 它定义了要是用的内置 mapper 的类型。
+
+

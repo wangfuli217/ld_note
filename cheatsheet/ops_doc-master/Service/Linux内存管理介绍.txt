@@ -1,0 +1,731 @@
+Linux内存管理介绍及典型案例
+
+目录
+1 基本概念
+1.1 虚拟内存空间管理示意图（重点理解）
+1.2 虚拟内存（重点理解）
+1.3 SWAP
+1.4 页表（重点理解）
+1.5 Translation Lookaside Buffer (TLB)与缺页中断（初学了解即可）
+1.6 进程的内存结构
+1.7 共享内存（重点理解）
+1.1 程序段与lib（初学了解即可）
+1.2 内存碎片（初学了解即可）
+1.3 Slab内存（初学了解即可）
+1.4 大页（重点理解）
+1.5 内存黑洞 （初学了解即可）
+1.6 AnonPages（初学了解即可）
+2 基本命令与文件
+2.1 free（重点理解）
+2.2 pmap（初学了解即可）
+2.3 Vmstat（初学了解即可）
+2.4 ps
+2.5 atop（重点理解）
+2.6 /proc
+2.6.1 /proc/meminfo（重点理解）
+2.6.2 /proc/slabinfo
+2.6.3 /proc/buddyinfo
+2.6.4 /proc/vmallocinfo
+2.6.5 /proc/sys/vm/drop_caches（强制释放内存，慎用）
+2.6.6 /proc/swaps
+2.6.7 /proc//status（重点理解）
+2.6.8 /proc//statm
+2.6.9 /proc//smaps（重点理解）
+2.6.10 /proc//maps
+3 典型故障
+3.1 Free不足发生SWAP交换（未确认根因）
+3.2 Oracle进程未启用大页导致页表过大
+3.3 /dev/shm中残留文件导致内存不足
+3.4 NBU备份操作系统时导致内存不足
+1 基本概念
+1.1 虚拟内存空间管理示意图（重点理解）
+1.2 虚拟内存（重点理解）
+
+为了使程序、数据、堆栈的总大小可以超过可用物理内存的大小，操作系统把程序当前使用的那些部分加载到物理内存里，而不使用的部分则暂不加载。应用分配内存时，系统只是分配一个虚拟的地址空间，并不直接分配物理内存；当有实际的内存访问时，系统才会将虚拟地址映射到物理内存的一个地址上。
+
+整个系统的虚拟内存大小可以通过/proc/meminfo中的VmallocTotal来查看，每个进程的虚拟内存大小可以通过ps aux中的SZ来查看，pmap也可以查看。
+1.3 SWAP
+
+使用的物理内存会保存到磁盘中，这一部分被称作SWAP。虚拟内存地址空间：物理内存+SWAP+未分配空间。
+1.4 页表（重点理解）
+
+Linux虚拟内存管理过程中，会把物理内存映射为虚拟内存，维护这个映射关系的就是Page Table这个表，每个PTE（Page table entry）的大小为8字节。每个进程都有一个页表，页表负责将虚拟内存地址转换成物理内存地址，所以虚拟内存中未分配部分是没有页表项的。因为SWAP是从物理内存交换到磁盘上的，所以SWAP也有对应的页表项。在页表中，在物理内存的页表项标记为valid（1），在SWAP中的页表项标记为invalid（0）
+
+每个页（4k）需要使用一个页表项(PTE)来管理，所以一个进程对应的页表大小为
+（物理内存+SWAP）/4k*8字节
+
+整个系统的页表可以通过查询/proc/meminfo来查询，每个进程的页表大小可以查看/proc//status中的VmPTE大小
+1.5 Translation Lookaside Buffer (TLB)与缺页中断（初学了解即可）
+
+CPU的内存管理单元（memory management unit MMU，也称为存储器管理单元，是硬件设备，它被保存在主存main memory的两级页表控制）会缓存最近用过的页表，这个页表的缓存叫做Translation Lookaside Buffer (TLB)。如果没有TLB，每次访问内存需要访问页表内存和数据内存，会产生两次读内存操作。
+
+大概过程如下（不包含异常场景，如内存访问越界或者无法分配）
+1）当CPU将需要将虚拟内存地址映射成物理地址时，会先检查TLB，如果找到对应的记录(TLB hit)，返回物理内存地址。（TLB中缓存的页表对应的页都在物理内存中，没有在swap中对应的页表项）TLB hit以后还会检查数据是否在CPU的cache中，如果没有在cache中，需要从内存中将数据读到CPU的cache中，然后再使用；
+2）如果TLB中没有记录（TLB miss），会在page table中查找；
+3）如果page table中有记录且未在swap中，更新TLB以后访问物理内存；
+4）如果page table中无记录或者内存在SWAP中，此时会产生缺页中断；
+5）如果page table中无记录，则调用do_no_page()新申请内存，并建立映射；
+6）如果page table中有记录但是内存在swap中，则调用do_swap_page()，从交换设备换入此页面。
+“tlb miss page fault”的图片搜索结果 https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Page_table_actions.svg/625px-Page_table_actions.svg.png
+https://www.cs.auckland.ac.nz/~jmor159/363/html/fig/mem_op.gif
+
+缺页中断可分为主缺页中断（Major Page Fault）和次缺页中断（Minor Page Fault），要从磁盘读取数据而产生的中断是主缺页中断；数据已经被读入内存并被缓存起来，从内存缓存区中而不是直接从硬盘中读取数据而产生的中断是次缺页中断。
+1.6 进程的内存结构
+
+注意：操作系统版本不一样，可能分布不一样
+http://img.blog.csdn.net/20140904215636015?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvemhhbmd6aGVianV0/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/Center
+程序段(Text):程序代码在内存中的映射，存放函数体的二进制代码。
+初始化过的数据(Data):在程序运行初已经对变量进行初始化的数据。
+未初始化过的数据(BSS):在程序运行初未对变量进行初始化的数据。
+栈 (Stack):存储局部、临时变量，函数调用时，存储函数的返回指针，用于控制函数的调用和返回。在程序块开始时自动分配内存,结束时自动释放内存，其操作方式类似于数据结构中的栈。
+堆 (Heap):存储动态内存分配,需要程序员手工分配,手工释放.注意它与数据结构中的堆是两回事，分配方式类似于链表。
+1.7 共享内存（重点理解）
+
+程序可以申请共享内存(shared memory)，共享内存多个进程都可以访问。
+除了共享内存，程序使用的动态链接库（library）及程序自己的程序段也是可以共享的。
+共享情况下，每个进程使用这些共享的内存，都会生成页表项
+共享内存：
+
+[oracle@host2 ~]:ora11g> ipcs -m
+
+------ Shared Memory Segments --------
+key        shmid      owner      perms      bytes      nattch     status      
+0x00000000 196611     oracle     640        16777216   24                      
+0x00000000 229380     oracle     640        1660944384 24                      
+0x8945ce40 262149     oracle     640        2097152    24                      
+0x00000000 589830     oracle     640        16777216   40                      
+0x00000000 622599     oracle     640        1660944384 40                      
+0x15dd8db4 655368     oracle     640        2097152    40     
+
+/proc/meminfo中的Shmem统计的内容包括：shared memory和tmpfs。
+shared memory又包括：
+
+    SysV shared memory [shmget etc.]
+    POSIX shared memory [shm_open etc.]
+    shared anonymous mmap [ mmap(…MAP_ANONYMOUS|MAP_SHARED…)]
+
+因为shared memory在内核中都是基于tmpfs实现的，参见：
+https://www.kernel.org/doc/Documentation/filesystems/tmpfs.txt
+也就是说它们被视为基于tmpfs文件系统的内存页，既然基于文件系统，就不算匿名页，所以不被计入/proc/meminfo中的AnonPages，而是被统计进了：
+1）Cached (i.e. page cache)
+2）Mapped (当shmem被attached时候)
+然而它们背后并不存在真正的硬盘文件，一旦内存不足的时候，它们是需要交换区才能swap-out的，所以在LRU lists里，它们被放在：
+1）Inactive(anon) 或 Active(anon)
+注：虽然它们在LRU中被放进了anon list，但是不会被计入 AnonPages。这是shared memory & tmpfs比较拧巴的一个地方，需要特别注意。
+2）unevictable （如果被locked的话）
+注意：
+当shmget/shm_open/mmap创建共享内存时，物理内存尚未分配，要直到真正访问时才分配。/proc/meminfo中的 Shmem 统计的是已经分配的大小，而不是创建时申请的大小。
+1.1 程序段与lib（初学了解即可）
+
+进程共享library
+https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter9/9_03_SharedLibrary.jpg
+1.2 内存碎片（初学了解即可）
+
+/proc/buddyinfo是linuxbuddy系统管理物理内存的debug信息。在Linux中使用buddy算法解决物理内存的外碎片问题，其把所有空闲的内存，以2的幂次方的形式，分成11个块链表，分别对应为1、2、4、8、16、32、64、128、256、512、1024个页块。而Linux支持NUMA技术，对于NUMA设备，NUMA系统的结点通常是由一组CPU和本地内存组成，每一个节点都有相应的本地内存，因此buddyinfo 中的Node0表示节点ID；而每一个节点下的内存设备，又可以划分为多个内存区域（zone），因此下面的显示中，对于Node0的内存，又划分类DMA、Normal、HighMem区域。而后面则是表示空闲的区域。
+此处以Normal区域进行分析，第二列值为100，表示当前系统中normal区域，可用的连续两页的内存大小为1002PAGE_SIZE；第三列值为52，表示当前系统中normal区域，可用的连续四页的内存大小为522^2PAGE_SIZE
+
+[oracle@host2 ~]:ora11g> cat /proc/buddyinfo
+Node 0, zone      DMA      0      1      0      1      2      1      1      0      1      1      3 
+Node 0, zone    DMA32      9      6      4      6      7      6      2      4      6      4    836 
+Node 0, zone   Normal   1613    303    328    300    400     27     19     11      4      3    342 
+
+小的内存页越多，说明碎片越多。
+1.3 Slab内存（初学了解即可）
+
+以页为最小单位分配内存对于内核管理系统物理内存来说的确比较方便，但内核自身最常使用 的内存却往往是很小（远远小于一页）的内存块——比如存放文件描述符、进程描述符、虚拟内存区域描述符等行为所需的内存都不足一页。这些用来存放描述符的 内存相比页面而言，就好比是面包屑与面包。一个整页中可以聚集多个这种这些小块内存；而且这些小块内存块也和面包屑一样频繁地生成/销毁。
+为了满足内核对这种小内存块的需要，Linux系统采用了一种被称为slab分配器的技术。Slab分配器的实现相当复杂，但原理不难，其核心思想就是“存储池”的运用。内存片段(小块内存)被看作对象，当被使用完后，并不直接释放而是被缓存到“存储池”里，留做下次使用，这无疑避免了频繁创建与销毁对象所带来的额外负载。SLAB分配器使得一个页面内众多小块内存可独立被分配使用，避免了内部分片，节约了空闲内存 。
+
+Linux内存管理层次关系图：
+1.4 大页（重点理解）
+
+4KB 大小的页面在“分页机制”提出的时候是合理的，因为当时的内存大小不过几十兆字节，然而当物理内存容量增长到几 G 甚至几十 G 的时候，操作系统仍然以 4KB 大小为页面的基本单位，是否依然合理呢？
+在 Linux 操作系统上运行内存需求量较大的应用程序时，由于其采用的默认页面大小为 4KB，因而将会产生较多 TLB Miss 和缺页中断，从而大大影响应用程序的性能。当操作系统以 2MB 甚至更大作为分页的单位时，将会大大减少 TLB Miss 和缺页中断的数量，显著提高应用程序的性能。这也正是 Linux 内核引入大页面支持的直接原因。好处是很明显的，假设应用程序需要 2MB 的内存，如果操作系统以 4KB 作为分页的单位，则需要 512 个页面，进而在 TLB 中需要 512 个表项，同时也需要 512 个页表项，操作系统需要经历至少 512 次 TLB Miss 和 512 次缺页中断才能将 2MB 应用程序空间全部映射到物理内存；然而，当操作系统采用 2MB 作为分页的基本单位时，只需要一次 TLB Miss 和一次缺页中断，就可以为 2MB 的应用程序空间建立虚实映射，并在运行过程中无需再经历 TLB Miss 和缺页中断（假设未发生 TLB 项替换和 Swap）。
+另外对于Oracle等使用共享内存的应用，如果共享内存很大，并发进程又很多的时候，会产生放大效应，如Oracle共享内存大小为10G，每个进程都已经映射了所有的共享内存，这时一个Oracle进程中共享内存对应的页表大小为
+10G/4k8字节=20M
+如果有500个进程，这500个进程共享内存对应的页表则为20M500=10G，一般Oracle进程共享内存设置为物理内存的40%~60%。10G共享内存+10G页表=20G，对于一个24G物理内存的服务器，此时内存基本上就用光了，所以对于Oracle数据库，对于24G以上的服务器，如果页表过大，需要使用大页。
+
+在linux操作系统中，大页通过设置内核参数vm.nr_hugepages(大页个数，默认大页单位是2M，如果要分配2048M大页，则vm.nr_hugepages设置为1000)启用，一旦启用，不管是否有进程使用，系统都已经分配出去，查看大页可以看/proc/meminfo中hugepage。
+
+关于Oracle启用大页整改，参考如下，有详细的设置大页方法
+A&S235-20170413关于Linux平台运行Oracle需要开启hugepage的整改公告
+http://support.huawei.com/carrier/docview!docview?nid=SC2000006918&path=PBI1-7275733/PBI1-8132342/PBI1-8132344/PBI1-68785
+1.5 内存黑洞 （初学了解即可）
+
+追踪Linux系统的内存使用一直是个难题，很多人试着把能想到的各种内存消耗都加在一起，kernel text、kernel modules、buffer、cache、slab、page table、process RSS…等等，却总是与物理内存的大小对不上，这是为什么呢？因为Linux kernel并没有滴水不漏地统计所有的内存分配，kernel动态分配的内存中就有一部分没有计入/proc/meminfo中。
+
+我们知道，Kernel的动态内存分配通过以下几种接口：
+alloc_pages/__get_free_page: 以页为单位分配
+vmalloc: 以字节为单位分配虚拟地址连续的内存块
+slab allocator
+kmalloc: 以字节为单位分配物理地址连续的内存块，它是以slab为基础的，使用slab层的general caches — 大小为2^n，名称是kmalloc-32、kmalloc-64等（在老kernel上的名称是size-32、size-64等）。
+通过slab层分配的内存会被精确统计，可以参见/proc/meminfo中的slab/SReclaimable/SUnreclaim；
+通过vmalloc分配的内存也有统计，参见/proc/meminfo中的VmallocUsed 和 /proc/vmallocinfo（下节中还有详述）；
+
+而通过alloc_pages分配的内存不会自动统计，除非调用alloc_pages的内核模块或驱动程序主动进行统计，否则我们只能看到free memory减少了，但从/proc/meminfo中看不出它们具体用到哪里去了。比如在VMware guest上有一个常见问题，就是VMWare ESX宿主机会通过guest上的Balloon driver(vmware_balloon module)占用guest的内存，有时占用得太多会导致guest无内存可用，这时去检查guest的/proc/meminfo只看见MemFree很少、但看不出内存的去向，原因就是Balloon driver通过alloc_pages分配内存，没有在/proc/meminfo中留下统计值，所以很难追踪。
+1.6 AnonPages（初学了解即可）
+
+用户进程的内存页分为两种：file-backed pages（与文件对应的内存页），和anonymous pages（匿名页）。Anonymous pages(匿名页)的数量统计在/proc/meminfo的AnonPages中。
+
+以下是几个事实，有助于了解Anonymous Pages：
+
+1）所有page cache里的页面(Cached)都是file-backed pages，不是Anonymous Pages。
+注：shared memory 不属于 AnonPages，而是属于Cached，因为shared memory基于tmpfs，所以被视为file-backed、在page cache里，上一节解释过。
+2）mmap private anonymous pages属于AnonPages(Anonymous Pages)，而mmap shared anonymous pages属于Cached(file-backed pages)，因为shared anonymous mmap也是基于tmpfs的
+3）Anonymous Pages是与用户进程共存的，一旦进程退出，则Anonymous pages也释放，不像page cache即使文件与进程不关联了还可以缓存。
+AnonPages统计值中包含了Transparent HugePages (THP)对应的 AnonHugePages 。
+2 基本命令与文件
+2.1 free（重点理解）
+
+如下显示free是显示的当前内存的使用,-m的意思是MB来显示内容.我们来一起看看.
+
+[oracle@host2 ~]:ora11g> free -m
+             total       used       free     shared    buffers     cached
+Mem:         32089      27277       4811          0        171      25507
+-/+ buffers/cache:       1599      30489
+Swap:         4093          0       4093
+
+第一部分Mem行:
+total 内存总数: 23641M (表示物理内存24G)
+used 已经使用的内存数: 9942M
+free 空闲的内存数: 13698M
+shared 当前已经废弃不用，总是0
+buffers Buffer 设备数据缓存内存数: 491M
+cached Page 文件数据的缓存内存数:3007M
+关系：total(23641M) = used(9942M) + free(13698M)
+
+第二部分(-/+ buffers/cache):
+(-buffers/cache) used内存数：286M (指的第一部分Mem行中的used - buffers - cached)
+(+buffers/cache) free内存数: 715M (指的第一部分Mem行中的free + buffers + cached)
+
+Linux为了提高磁盘和内存存取效率, 除了对dentry进行缓存(用于VFS,加速文件路 径名到inode的转换), 还采取了两种主要Cache方式：Buffer Cache和Page Cache。前者针对磁盘块的读写，后者针对文件inode的读写。这些Cache能有效缩短了 I/O系统调用(比如read,write,getdents)的时间。
+
+page cache和buffer cache最大的差别在于：page cache是对文件数据的缓存；buffer cache是对设备数据的缓存。两者在实现上差别不是很大，都是采用radix树进行管理。
+2.2 pmap（初学了解即可）
+
+查看进程的内存分布情况
+名称：
+pmap - report memory map of a process(查看进程的内存映像信息)
+用法
+pmap [ -x | -d ] [ -q ] pids...
+pmap -V
+选项含义
+-x extended Show the extended format. 显示扩展格式,suse linux无此参数
+-d device Show the device format. 显示设备格式
+-q quiet Do not display some header/footer lines. 不显示头尾行
+-V show version Displays version of program. 显示版本
+
+VSS- Virtual Set Size 虚拟耗用内存（包含共享库占用的内存）
+RSS- Resident Set Size 实际使用物理内存（包含共享库占用的内存）
+PSS- Proportional Set Size 实际使用的物理内存（比例分配共享库占用的内存），计算Oracle数据库使用的实际物理内存建议使用这列
+USS- Unique Set Size 进程独自占用的物理内存（不包含共享库占用的内存），suse linux无此列
+一般来说内存占用大小有如下规律：VSS >= RSS >= PSS >= USS
+Dirty: 脏页的字节数（包括共享和私有的）（KB）
+SWAP：swap使用情况
+PERM：权限，r = read w = write x = execute s = shared p = private (copy on write)
+
+VSS (reported as VSZ from ps) is the total accessible address space of a process.This size also includes memory that may not be resident in RAM like mallocs that have been allocated but not written to. VSS is of very little use for determing real memory usage of a process.
+
+RSS is the total memory actually held in RAM for a process. RSS can be misleading, because it reports the total all of the shared libraries that the process uses, even though a shared library is only loaded into memory once regardless of how many processes use it. RSS is not an accurate representation of the memory usage for a single process.
+
+PSS differs from RSS in that it reports the proportional size of its shared libraries, i.e. if three processes all use a shared library that has 30 pages, that library will only contribute 10 pages to the PSS that is reported for each of the three processes. PSS is a very useful number because when the PSS for all processes in the system are summed together, that is a good representation for the total memory usage in the system. When a process is killed, the shared libraries that contributed to its PSS will be proportionally distributed to the PSS totals for the remaining processes still using that library. In this way PSS can be slightly misleading, because when a process is killed, PSS does not accurately represent the memory returned to the overall system.
+
+USS is the total private memory for a process, i.e. that memory that is completely unique to that process.USS is an extremely useful number because it indicates the true incremental cost of running a particular process. When a process is killed, the USS is the total memory that is actually returned to the system. USS is the best number to watch when initially suspicious of memory leaksin a process.
+http://www.software-architect.net/fileadmin/user_upload/blog/pmap.png
+2.3 Vmstat（初学了解即可）
+
+Vmstat 2 10
+每隔2s取一次数据，重复10次
+
+[oracle@host2 ~]:ora11g> vmstat 2 10
+procs -----------memory---------- ---swap-- -----io---- -system-- -----cpu------
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 0  0      0 4925428 175108 26120388    0    0     0     3    1    0  0  0 100  0  0
+ 1  0      0 4925428 175108 26120408    0    0     0     0 2094 4114  0  0 100  0  0
+ 0  0      0 4930752 175108 26120420    0    0     0    32 2109 4123  0  0 100  0  0
+ 0  0      0 4931188 175108 26120420    0    0     0    65 2201 4194  0  0 100  0  0
+ 0  0      0 4931220 175108 26120388    0    0     0     0 2064 4101  0  0 100  0  0
+ 0  0      0 4931220 175108 26120388    0    0     0    40 2096 4131  0  0 100  0  0
+ 1  0      0 4931252 175108 26120352    0    0     0    32 2174 4115  0  0 100  0  0
+ 0  0      0 4931220 175108 26120348    0    0     0     0 2056 4095  0  0 100  0  0
+ 0  0      0 4931904 175108 26120304    0    0     0    32 2293 4175  0  0 100  0  0
+ 0  0      0 4931912 175108 26120304    0    0     0    33 2086 4128  0  0 100  0  0
+
+r 表示运行队列(就是说多少个进程真的分配到CPU)，我测试的服务器目前CPU比较空闲，没什么程序在跑，当这个值超过了CPU数目，就会出现CPU瓶颈了。这个也和top的负载有关系，一般负载超过了3就比较高，超过了5就高，超过了10就不正常了，服务器的状态很危险。top的负载类似每秒的运行队列。如果运行队列过大，表示你的CPU很繁忙，一般会造成CPU使用率很高。
+b 表示阻塞的进程。如果长时间出现b>0，说明系统runq过高，CPU过忙。此字段对应的就是RUNQ，非常重要的概念。
+swpd 虚拟内存已使用的大小，如果大于0，表示你的机器物理内存不足了，如果不是程序内存泄露的原因，那么你该升级内存了或者把耗内存的任务迁移到其他机器。
+free 同free命令
+buff 同free命令
+cache 同free命令
+si 每秒从磁盘读入虚拟内存的大小，如果这个值大于0，表示物理内存不够用或者内存泄露了，要查找耗内存进程解决掉。我的机器内存充裕，一切正常。
+so 每秒虚拟内存写入磁盘的大小，如果这个值大于0，同上。
+bi 块设备每秒接收的块数量，这里的块设备是指系统上所有的磁盘和其他块设备，默认块大小是1024byte，我本机上没什么IO操作，所以一直是0，但是我曾在处理拷贝大量数据(2-3T)的机器上看过可以达到140000/s，磁盘写入速度差不多140M每秒
+bo 块设备每秒发送的块数量，例如我们读取文件，bo就要大于0。bi和bo一般都要接近0，不然就是IO过于频繁，需要调整。
+in 每秒CPU的中断次数，包括时间中断
+cs 每秒上下文切换次数，例如我们调用系统函数，就要进行上下文切换，线程的切换，也要进程上下文切换，这个值要越小越好，太大了，要考虑调低线程或者进程的数目,例如在apache和nginx这种web服务器中，我们一般做性能测试时会进行几千并发甚至几万并发的测试，选择web服务器的进程可以由进程或者线程的峰值一直下调，压测，直到cs到一个比较小的值，这个进程和线程数就是比较合适的值了。系统调用也是，每次调用系统函数，我们的代码就会进入内核空间，导致上下文切换，这个是很耗资源，也要尽量避免频繁调用系统函数。上下文切换次数过多表示你的CPU大部分浪费在上下文切换，导致CPU干正经事的时间少了，CPU没有充分利用，是不可取的。
+us 用户CPU时间。
+sy 系统CPU时间，如果太高，表示系统调用时间长，例如是IO操作频繁。
+id 空闲 CPU时间，一般来说，id + us + sy = 100,一般我认为id是空闲CPU使用率，us是用户CPU使用率，sy是系统CPU使用率。
+wa 等待IO CPU时间。
+2.4 ps
+
+[oracle@host2 ~]:ora11g> ps aux|head -5
+USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
+root 1 0.0 0.0 25280 1204 ? Ss Apr04 1:46 init [5]
+root 2 0.0 0.0 0 0 ? S Apr04 0:00 [kthreadd]
+root 3 0.0 0.0 0 0 ? S Apr04 8:09 [ksoftirqd/0]
+root 5 0.0 0.0 0 0 ? S Apr04 0:00 [kworker/u:0]
+
+sz：进程映像所占用的物理页面数量，也就是以物理页面为单位表示的虚拟内存大小；
+rss：进程当前所占用的物理内存大小，单位为kB；
+vsz：进程的虚拟内存大小，单位为kB
+2.5 atop（重点理解）
+
+MEM行：同free输出的第一行
+SWAP：同free输出的第三行
+Vmcom：已经提交的虚拟内存空间大小
+Vmlim：提交虚拟内存空间的最大限制，默认为swap分区大小乘以一半的内存大小
+PAG：
+Scan: scanned pages (`scan') due to the fact that free memory drops below a particular threshold
+Stall：The number times that the kernel tries to reclaim pages due to an urgent need
+swin、swout：换入和换出内存页数
+进程信息：（按m以后会按内存排序）
+MINFLT：次缺页中断
+MAJFLT：主缺页中断
+VGROW：进程自上一采样周期到当前虚拟内存增长大小，此字段一般用来看找内存突然上涨的进程
+RGROW：进程自上一采样周期到当前物理内存增长大小，此字段一般用来看找内存突然上涨的进程
+2.6 /proc
+
+/proc下面记录了各个进程和整个系统的各种运行信息，可以通过man proc来查看具体信息（注意选5）
+[oracle@host2 ~]:ora11g> man proc
+Man: find all matching manual pages
+
+    proc (n)
+    proc (5)
+    Man: What manual page do you want?
+    Man: 5
+
+内存相关的主要文件如下
+2.6.1 /proc/meminfo（重点理解）
+
+# cat meminfo
+MemTotal: 49354936 kB 物理内存大小
+MemFree: 32365572 kB 空闲内存大小
+Buffers: 428204 kB buffer内存
+Cached: 1822192 kB cache内存
+SwapCached: 0 kB 被高速缓冲存储器（cache memory）用的交换空间的大小 已经被交换出来的内存，但仍然被存放在swapfile中。用来在需要的时候很快的被替换而不需要再次打开I/O端口。
+Active: 8021940 kB The total amount of buffer or page cache memory, that is in active use. This is memory that has been recently used and is usually not reclaimed for other purposes. This value is the sum of memory claimed by anonymous pages (listed as Active(anon)) and file-backed pages (listed as Active(file))
+Inactive: 1324228 kB The total amount of buffer or page cache memory, that are free and available. This is memory that has not been recently used and can be reclaimed for other purposes. This value is the sum of memory claimed by anonymous pages (listed as Inactive(anon)) and file-backed pages (listed as Inactive(file)).
+Active(anon): 7099616 kB
+Inactive(anon): 3684 kB
+Active(file): 922324 kB
+Inactive(file): 1320544 kB
+Unevictable: 6421728 kB The amount of memory discovered by the pageout code, that is not evictable because it is locked into memory by user programs.
+Mlocked: 54668 kB The total amount of memory that is not evictable because it is locked into memory by user programs.
+SwapTotal: 0 kB SWAP内存大小
+SwapFree: 0 kB SWAP空闲大小
+Dirty: 604 kB Amount of memory that will be written to disk
+Writeback: 0 kB Amount of memory that currently is written to disk
+AnonPages: 13530664 kB The total amount of memory used by pages that are not backed by files and are mapped into userspace page tables.
+Mapped: 63372 kB Memory claimed with the mmap system call
+Shmem: 1896 kB 共享内存大小
+Slab: 548208 kB Kernel data structure cache
+SReclaimable: 447044 kB Reclaimable slab caches (inode, dentry, etc.)
+SUnreclaim: 101164 kB The part of Slab that cannot be reclaimed even when lacking memory.
+KernelStack: 14328 kB The amount of memory used by the kernel stack allocations done for each task in the system.
+PageTables: 90788 kB 页表大小
+NFS_Unstable: 0 kB The amount of NFS pages sent to the server but not yet committed to the stable storage.
+Bounce: 0 kB The amount of memory used for the block device "bounce buffers".
+WritebackTmp: 0 kB The amount of memory used by FUSE for temporary writeback buffers.
+CommitLimit: 24677468 kB The total amount of memory currently available to be allocated on the system based on the overcommit ratio (vm.overcommit_ratio). This limit is only adhered to if strict overcommit accounting is enabled (mode 2 in vm.overcommit_memory).
+Committed_AS: 18677832 kB An approximation of the total amount of memory (RAM plus swap) the current workload needs in the worst case
+VmallocTotal: 34359738367 kB The total amount of memory of total allocated virtual address space.
+VmallocUsed: 394832 kB The total amount of memory of used virtual address space.
+VmallocChunk: 34334126736 kB The largest contiguous block of memory, in kilobytes, of available virtual address space.
+HardwareCorrupted: 0 kB 当系统检测到内存的硬件故障时，会把有问题的页面删除掉，不再使用
+AnonHugePages: 8577024 kB The total amount of memory used by huge pages that are not backed by files and are mapped into userspace page tables.
+HugePages_Total: 0 大页总数
+HugePages_Free: 0
+HugePages_Rsvd: 0 The number of unused huge pages reserved for hugetlbfs.
+HugePages_Surp: 0 The number of surplus huge pages.
+Hugepagesize: 2048 kB 大页单位
+DirectMap4k: 159296 kB The amount of memory mapped into kernel address space with 4 kB page mappings.
+DirectMap2M: 6123520 kB The amount of memory mapped into kernel address space with 2 MB page mappings.
+DirectMap1G: 44040192 kB
+
+其他suse linux中没有的：
+MemAvailable
+有些应用程序会根据系统的可用内存大小自动调整内存申请的多少，所以需要一个记录当前可用内存数量的统计值，MemFree并不适用，因为MemFree不能代表全部可用的内存，系统中有些内存虽然已被使用但是可以回收的，比如cache/buffer、slab都有一部分可以回收，所以这部分可回收的内存加上MemFree才是系统可用的内存，即MemAvailable。/proc/meminfo中的MemAvailable是内核使用特定的算法估算出来的，要注意这是一个估计值，并不精确。
+
+更详细参考：
+/PROC/MEMINFO之谜
+http://linuxperf.com/?p=142
+2.6.2 /proc/slabinfo
+
+Slab内存
+
+[oracle@host2 ~]:ora11g> cat   /proc/slabinfo |more
+slabinfo - version: 2.1
+# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : sl
+abdata <active_slabs> <num_slabs> <sharedavail>
+fuse_request           0      0    608    6    1 : tunables   54   27    8 : slabdata      0      0      0
+fuse_inode             0      0    768    5    1 : tunables   54   27    8 : slabdata      0      0      0
+xfs_buf             1571   1590    384   10    1 : tunables   54   27    8 : slabdata    159    159      0
+fstrm_item             0      0     24  144    1 : tunables  120   60    8 : slabdata      0      0      0
+xfs_mru_cache_elem      0      0     32  112    1 : tunables  120   60    8 : slabdata      0      0      0
+xfs_ili             2321   2340    216   18    1 : tunables  120   60    8 : slabdata    130    130      0
+xfs_inode          21561  21568   1024    4    1 : tunables   54   27    8 : slabdata   5392   5392      0
+xfs_efi_item           0      0    400   10    1 : tunables   54   27    8 : slabdata      0      0      0
+xfs_efd_item           0      0    400   10    1 : tunables   54   27    8 : slabdata      0      0      0
+xfs_buf_item           0      0    224   17    1 : tunables  120   60    8 : slabdata      0      0      0
+xfs_log_item_desc      1    112     32  112    1 : tunables  120   60    8 : slabdata      1      1      0
+xfs_trans              0      0    280   14    1 : tunables   54   27    8 : slabdata      0      0      0
+xfs_ifork              0      0     64   59    1 : tunables  120   60    8 : slabdata      0      0      0
+xfs_dabuf              0      0     24  144    1 : tunables  120   60    8 : slabdata      0      0      0
+xfs_da_state           0      0    488    8    1 : tunables   54   27    8 : slabdata      0      0      0
+
+2.6.3 /proc/buddyinfo
+
+查看内存分布，主要用来检查是否碎片过多
+
+[oracle@host2 ~]:ora11g> cat  /proc/buddyinfo
+Node 0, zone      DMA      0      1      0      1      2      1      1      0      1      1      3 
+Node 0, zone    DMA32      9      6      4      6      7      6      2      4      6      4    836 
+Node 0, zone   Normal   1497    200    328    267    372     27     19     11      4      3    342  
+小的内存页越多，说明碎片越多。
+
+2.6.4 /proc/vmallocinfo
+
+/proc/vmallocinfo中能看到vmalloc来自哪个调用者(caller)，那是vmalloc()记录下来的，相应的源代码可见：
+mm/vmalloc.c: vmalloc > __vmalloc_node_flags > __vmalloc_node > __vmalloc_node_range > __get_vm_area_node > setup_vmalloc_vm
+通过vmalloc分配了多少内存，可以统计/proc/vmallocinfo中的vmalloc记录，例如：
+
+# grep vmalloc /proc/vmallocinfo | awk '{total+=$2}; END {print total}'
+23375872
+
+一些driver以及网络模块和文件系统模块可能会调用vmalloc，加载内核模块(kernel module)时也会用到，可参见 kernel/module.c。
+
+host2:~ # more    /proc/vmallocinfo
+0xffffc90000000000-0xffffc90000041000  266240 legacy_kdb_init+0x115/0x19a pages=64 vmalloc N0=64
+0xffffc90000041000-0xffffc90002042000 33558528 alloc_large_system_hash+0x20b/0x286 pages=8192 vmalloc vpages N0=8192
+0xffffc90002042000-0xffffc90002053000   69632 alloc_large_system_hash+0x20b/0x286 pages=16 vmalloc N0=16
+0xffffc90002053000-0xffffc90003054000 16781312 alloc_large_system_hash+0x20b/0x286 pages=4096 vmalloc vpages N0=4096
+0xffffc90003054000-0xffffc9000305d000   36864 alloc_large_system_hash+0x20b/0x286 pages=8 vmalloc N0=8
+0xffffc9000305d000-0xffffc90003061000   16384 mem_cgroup_create+0x15/0x4a0 pages=3 vmalloc N0=3
+0xffffc90003062000-0xffffc90003064000    8192 acpi_os_map_memory+0x11e/0x198 phys=fc00b000 ioremap
+0xffffc90003064000-0xffffc90003066000    8192 init_hypercall_stubs+0x177/0x240 [xen_platform_pci] pages=1 vmalloc N0=1
+0xffffc90003066000-0xffffc90003068000    8192 acpi_os_map_memory+0x11e/0x198 phys=fc000000 ioremap
+0xffffc90003068000-0xffffc9000306b000   12288 acpi_os_map_memory+0x11e/0x198 phys=fc00a000 ioremap
+0xffffc9000306b000-0xffffc9000306e000   12288 alloc_large_system_hash+0x20b/0x286 pages=2 vmalloc N0=2
+
+2.6.5 /proc/sys/vm/drop_caches（强制释放内存，慎用）
+
+blade11:~ # cat /proc/sys/vm/drop_caches
+0
+ 
+To free pagecache:
+echo 1 > /proc/sys/vm/drop_caches
+To free dentries and inodes:
+echo 2 > /proc/sys/vm/drop_caches
+To free pagecache, dentries and inodes:
+echo 3 > /proc/sys/vm/drop_caches
+
+This is a non-destructive operation and will only free things that are completely unused. Dirty objects will continue to be in use until written out to disk and are not freeable. If you run "sync" first to flush them out to disk, these drop operations will tend to free more memory.
+
+强制释放内存仅做应急操作，尽量不要操作。
+2.6.6 /proc/swaps
+
+host2:~ # cat /proc/swaps
+Filename                                Type            Size    Used    Priority
+/dev/xvda1                              partition       4192252 0       -1
+
+检查swap空间 ，也可以用swapon -s查看
+2.6.7 /proc//status（重点理解）
+
+进程基本情况，包括内存使用情况。注意：无法看到swap使用的情况
+
+host2:~ # cat  /proc/1/status    
+Name:   init
+State:  S (sleeping)
+Tgid:   1
+Pid:    1
+PPid:   0
+TracerPid:      0
+Uid:    0       0       0       0
+Gid:    0       0       0       0
+FDSize: 256
+Groups:
+VmPeak:    25480 kB
+VmSize:    25280 kB
+VmLck:         0 kB
+VmPin:         0 kB
+VmHWM:      1204 kB
+VmRSS:      1204 kB
+VmData:      212 kB
+VmStk:       136 kB
+VmExe:        36 kB
+VmLib:      2288 kB
+VmPTE:        68 kB
+VmSwap:        0 kB
+Threads:        1
+SigQ:   0/256631
+SigPnd: 0000000000000000
+ShdPnd: 0000000000000000
+SigBlk: 0000000000000000
+SigIgn: fffffffe57f0d8fc
+SigCgt: 00000001a80b2603
+CapInh: 0000000000000000
+CapPrm: ffffffffffffffff
+CapEff: ffffffffffffffff
+CapBnd: ffffffffffffffff
+Cpus_allowed:   ffffffff,ffffffff,ffffffff,ffffffff
+Cpus_allowed_list:      0-127
+Mems_allowed:   00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001
+Mems_allowed_list:      0
+voluntary_ctxt_switches:        1886565
+nonvoluntary_ctxt_switches:     9772
+
+TracerPid 接收跟踪该进程信息的进程的ID号
+FDSize 文件描述符的最大个数，file->fds
+VmPeak: Peak virtual memory size
+VmSize: Virtual memory size.
+VmLck: 任务已经锁住的物理内存的大小。锁住的物理内存不能交换到硬盘 (locked_vm)
+VmHWM: 程序得到分配到物理内存的峰值
+VmRSS: 程序现在使用的物理内存.
+VmData(KB) 程序数据段的大小（所占虚拟内存的大小），存放初始化了的数据； (total_vm-shared_vm-stack_vm)
+VmStk(KB) 任务在用户态的栈的大小 (stack_vm)
+VmExe(KB) 程序所拥有的可执行虚拟内存的大小，代码段，不包括任务使用的库 (end_code-start_code)
+VmLib(KB) 被映像到任务的虚拟内存空间的库的大小 (exec_lib)
+VmPTE 该进程的所有页表的大小，单位：kb (since Linux 2.6.10).
+
+注意，VmData，VmStk，VmExe和VmLib之和并不等于VmSize。这是因为共享库函数的数 据段没有计算进去（VmData仅包含a.out程序的数据段，不包括共享库函数的数据段， 也不包括通过mmap映射的区域。VmLib仅包括共享库的代码段，不包括共享库的数据 段）。
+
+Threads 共享使用该信号描述符的任务的个数，在POSIX多线程序应用程序中，线程组中的所有线程使用同一个信号描述符。
+SigQ 待处理信号的个数
+SigPnd 屏蔽位，存储了该线程的待处理信号
+ShdPnd 屏蔽位，存储了该线程组的待处理信号
+SigBlk 存放被阻塞的信号
+SigIgn 存放被忽略的信号
+SigCgt 存放被俘获到的信号
+CapInh Inheritable，能被当前进程执行的程序的继承的能力
+CapPrm Permitted，进程能够使用的能力，可以包含CapEff中没有的能力，这些能力是被进程自己临时放弃的，CapEff是CapPrm的一个子集，进程放弃没有必要的能力有利于提高安全性
+CapEff Effective，进程的有效能力
+CapBnd：Capability Bounding set (since kernel 2.6.26, see capabilities(7)).
+Cpus_allowed: Mask of CPUs on which this process may run (since Linux 2.6.24, see cpuset(7)).
+Cpus_allowed_list: Same as previous, but in "list format" (since Linux 2.6.26, see cpuset(7)).
+Mems_allowed: Mask of memory nodes allowed to this process (since Linux 2.6.24, see cpuset(7)).
+Mems_allowed_list: Same as previous, but in "list format" (since Linux 2.6.26, see cpuset(7)).
+voluntary_context_switches, nonvoluntary_context_switches: Number of voluntary and involuntary context switches (since Linux 2.6.23).
+2.6.8 /proc//statm
+
+host2:~ # cat /proc/95992/statm
+472595 262467 259744 47477 0 2577 0
+
+进程内存使用情况，单位是页，按顺序如下
+Size：同/proc/[pid]/status中的Vmsize
+Resident：同VmRSS in /proc/[pid]/status
+Share：shared pages (from shared mappings)
+Text：程序段
+Lib：library (unused in Linux 2.6)
+Data：data + stack
+Dt：dirty pages (unused in Linux 2.6)
+2.6.9 /proc//smaps（重点理解）
+
+host2:~ # cat /proc/95992/smaps|more
+00400000-0bd75000 r-xp 00000000 ca:02 878479                             /app/oracle/ora11g/bin/oracle
+Size:             189908 kB
+Rss:               12372 kB
+Pss:                 352 kB
+Shared_Clean:      12348 kB
+Shared_Dirty:          0 kB
+Private_Clean:        24 kB
+Private_Dirty:         0 kB
+Referenced:        12372 kB
+Anonymous:             0 kB
+AnonHugePages:         0 kB
+Swap:                  0 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Locked:                0 kB
+0bf75000-0bf7d000 r--p 0b975000 ca:02 878479                             /app/oracle/ora11g/bin/oracle
+Size:                 32 kB
+Rss:                  32 kB
+Pss:                  32 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:         0 kB
+Private_Dirty:        32 kB
+Referenced:           32 kB
+Anonymous:            32 kB
+AnonHugePages:         0 kB
+Swap:                  0 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Locked:                0 kB
+
+查看进程每个文件内存使用详细情况，可以用来查进程使用的swap空间大小
+2.6.10 /proc//maps
+
+同pmap结果
+3 典型故障
+3.1 Free不足发生SWAP交换（未确认根因）
+
+检查后未发现有异常进程，进一步检查发现发生swap交换时，atop中有六七千进程，但是atop #proc字段只有3000左右，大量进程名称带<>说明改采样周期内执行结束
+3.2 Oracle进程未启用大页导致页表过大
+
+主机物理内存256G，数据库SGA+PGA用了130G左右(40%~60%)，这个大小是正常的
+
+数据库session数1000多，大内存+高session可能会有操作系统页表过大的问题
+
+/proc/meminfo中显示页表已经51G
+PageTables: 51973296 kB
+
+Awr报告显示负荷都差不多，主要是session数增加了50左右，session越多，oracle使用的页表就越大
+3.3 /dev/shm中残留文件导致内存不足
+
+[Issue Verify]
+OS: suse 11 linux x86-64
+DB: oracle 11.2.0.3.0
+server: ATAE Vmware virual machine
+
+KRAKENDB22:/proc # dmidecode |grep Product
+Product Name: VMware Virtual Platform
+Product Name: 440BX Desktop Reference Platform
+
+problem summary:High Usage of physical memory and High Usage of Swap for VMSDB3
+problem details:
+top - 11:39:20 up 101 days, 16:39, 1 user, load
+average: 0.23, 0.13, 0.08
+Tasks: 439 total, 2 running, 437 sleeping, 0 stopped, 0 zombie
+Cpu(s): 5.7%us, 3.1%sy, 0.0%ni, 89.5%id, 1.2%wa, 0.2%hi, 0.3%si, 0.0%st
+Mem: 48270M total, 39360M used, 8909M free, 202M buffers
+Swap: 16378M total, 11914M used, 4464M free, 33320M cached
+
+[Issue Analyze]
+
+    free –m, atop , /proc/meminfo all shows much swap used but memory still have much free space.
+
+KRAKENDB25:/proc # free -m
+             total       used       free     shared    buffers     cached
+Mem:         48270      38051      10218          0        202      32020
+-/+ buffers/cache:       5827      **42442   -> free memory**
+Swap:        16378      **11914**       4464
+
+Cat /proc/meminfo
+MemTotal: 49428944 kB
+MemFree: 10365748 kB
+Buffers: 208952 kB
+Cached: 32436288 kB
+SwapCached: 16308 kB
+Active: 27620648 kB
+Inactive: 6640536 kB
+Active(anon): 26416884 kB
+Inactive(anon): 2576316 kB
+Active(file): 1203764 kB
+Inactive(file): 4064220 kB
+Unevictable: 950812 kB
+Mlocked: 23860 kB
+SwapTotal: 16771852 kB
+SwapFree: 4571732 kB
+Dirty: 592 kB
+Writeback: 0 kB
+AnonPages: 2561952 kB
+Mapped: 16889380 kB
+Shmem: 27370376 kB
+Slab: 468768 kB
+SReclaimable: 367700 kB
+SUnreclaim: 101068 kB
+KernelStack: 7176 kB
+PageTables: 2642764 kB -> page table not high
+NFS_Unstable: 0 kB
+Bounce: 0 kB
+WritebackTmp: 0 kB
+CommitLimit: 41486324 kB
+Committed_AS: 43341768 kB
+VmallocTotal: 34359738367 kB
+VmallocUsed: 397900 kB
+VmallocChunk: 34324815544 kB
+HardwareCorrupted: 0 kB
+HugePages_Total: 0
+HugePages_Free: 0
+HugePages_Rsvd: 0
+HugePages_Surp: 0
+Hugepagesize: 2048 kB
+DirectMap4k: 10240 kB
+DirectMap2M: 50321408 kB
+
+    check /proc/ and found some processes use swap but total size is only 362448 KB, while top shows about 11G swap used
+
+KRAKENDB25:~ # grep -i swap /proc/*/status
+/proc/100/status:Name:  kswapd1
+/proc/101/status:Name:  kswapd2
+/proc/99/status:Name:   kswapd0
+
+grep -i swap /proc/*/smaps | grep -v "0 kB"
+行标签 	求和项:size 	CMD
+/proc/3499/smaps 	202876 	/opt/hacs/jre1.7.0_51/bin/java
+/proc/14712/smaps 	15212 	/opt/oracrs/product/11gR2/grid/binohasd.bin reboot
+/proc/19272/smaps 	11816 	/opt/oracrs/product/11gR2/grid/binevmd.bin
+/proc/19254/smaps 	11324 	/opt/oracrs/product/11gR2/grid/binoraagent.bin
+/proc/20701/smaps 	10720 	/opt/oracrs/product/11gR2/grid/binocssd.bin
+/proc/12264/smaps 	8156 	/usr/openv/netbackup/bin/nbsl
+/proc/12094/smaps 	7424 	/usr/openv/netbackup/bin/nbrmms
+… 		
+Total 	362448 KB 	
+
+KRAKENDB25:/var/log # ps -ef | grep 3499
+root      3499     1  2 Jun19 ?        2-22:52:19 /opt/hacs/jre1.7.0_51/bin/java -Djava.util.logging.config.file=/opt/hacs/OpenAS_Tomcat7/conf/logging.properties -DCATALINA_STARTUP_CHECKER_FLAG=/opt/hacs/OpenAS_Tomcat7/temp1a0b/HwEoLrLlOd.tcatpid -Dname=CSMTtomcat -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Dopenas.catalina.out.log.file.control=off -Dopenas.accesslog.control=on -Dopenas.tomcat.flow.control=false -Dopenas.tomcat.flow.control.socket.reuseaddr=true -Dopenas.tomcat.flow.control.reject.timeout=1000 -server -XX:+UseParallelGC -XX:ParallelGCThreads=8 -XX:+UseAdaptiveSizePolicy -Xms1024m -Xmx1024m -XX:NewRatio=4 -XX:PermSize=128m -XX:MaxPermSize=256m -Djava.security.egd=file:/dev/./urandom -Dsun.rmi.dgc.server.gcInterval=0x7FFFFFFFFFFFFFE -Dsun.rmi.dgc.client.gcInterval=0x7FFFFFFFFFFFFFE -Dopenas.log.close.interval=3600000 -Dopenas.log.debug.level=error -Djava.endorsed.dirs=/opt/hacs/OpenAS_Tomcat7/endorsed -classpath /opt/hacs/OpenAS_Tomcat7/bin/bootstrap.jar:/opt/hacs/OpenAS_Tomcat7/bin/tomcat-juli.jar -Dcatalina.base=/opt/hacs/OpenAS_Tomcat7 -Dcatalina.home=/opt/hacs/OpenAS_Tomcat7 -Djava.io.tmpdir=/opt/hacs/OpenAS_Tomcat7/temp org.apache.catalina.startup.Bootstrap start
+
+    df –h shows /dev/shm uses about 37G, this is shared memory. But acutally oracle SGA is only 18G.
+
+# /bin/df -h
+Filesystem            Size  Used Avail Use% Mounted on
+rootfs                9.9G  3.7G  5.7G  40% /
+udev                   24G  172K   24G   1% /dev
+**tmpfs                  48G   37G   11G  78% /dev/shm**
+/dev/sda1             9.9G  3.7G  5.7G  40% /
+/dev/sda7             9.9G  6.1G  3.3G  66% /dump
+/dev/sda5              22G   13G  8.3G  60% /home
+/dev/sda6              20G   15G  4.4G  77% /opt
+/dev/sda8             9.9G  5.9G  3.6G  63% /usr
+/dev/sda9             9.9G  2.8G  6.6G  30% /var
+**shmfs                  48G   37G   11G  78% /dev/shm**
+/dev/mapper/openv_vg-openv_lv
+                       10G  6.2G  3.9G  62% /usr/openv
+cobalt23:/software    300G  193G  108G  65% /software
+/dev/mapper/vg_ebs-lv_ebs
+                      4.0T  931G  3.1T  23% /opt/ebs
+
+	user 	/dev/shm files:bytes
+	grid 	348127232
+	oracle 	38788923392
+	root 	66544
+	Total 	39137117168
+
+Oracle awr report
+Memory Statistics
+||Begin|End|
+|:--|:--|:--|
+|Host Mem (MB):|48270.5|48270.5|
+|SGA use (MB):? -> this is shared memory|18432|18432|
+|PGA use (MB):|551.2|547|
+|% Host Mem used for SGA+PGA:|39.33|39.32|
+
+    ls -l /dev/shm
+    shows many shm_xxxx modified date are Sep 6 and others are today Sep 29. These files are actually shared memory segments. Some segments not freed when last time oracle instance shutdown down. As this is about 37G, it will use much memory , so swap is used.
+
+-rw-r----- 1 oracle oinstall 67108864 Sep  6 05:10 ora_vmsdb_23166986_25
+-rw-r----- 1 oracle oinstall 67108864 Sep  6 05:10 ora_vmsdb_23166986_26
+-rw-r----- 1 oracle oinstall 67108864 Sep  6 05:10 ora_vmsdb_23166986_27
+-rw-r----- 1 oracle oinstall 67108864 Sep  6 05:10 ora_vmsdb_23166986_28
+-rw-r----- 1 oracle oinstall 67108864 Sep  6 05:10 ora_vmsdb_23166986_29
+-rw-r----- 1 oracle oinstall 67108864 Jul  8 10:17 ora_vmsdb_23166986_3
+-rw-r----- 1 oracle oinstall 67108864 Jul  8 10:17 ora_vmsdb_23166986_4
+-rw-r----- 1 oracle oinstall 67108864 Jul  8 10:17 ora_vmsdb_23166986_5
+-rw-r----- 1 oracle oinstall 67108864 Jul  8 10:17 ora_vmsdb_23166986_6
+-rw-r----- 1 oracle oinstall 67108864 Sep  6 05:10 ora_vmsdb_23166986_7
+-rw-r----- 1 oracle oinstall 67108864 Sep  6 04:00 ora_vmsdb_23166986_8
+-rw-r----- 1 oracle oinstall 67108864 Sep  6 02:48 ora_vmsdb_23166986_9
+-rw-r----- 1 oracle oinstall 67108864 Jul  8 10:17 ora_vmsdb_23199755_0
+-rw-r----- 1 oracle oinstall 67108864 Sep 29 17:14 ora_vmsdb_257654787_0
+-rw-r----- 1 oracle oinstall 67108864 Sep 29 17:15 ora_vmsdb_257654787_1
+-rw-r----- 1 oracle oinstall 67108864 Sep 29 17:15 ora_vmsdb_257687556_0

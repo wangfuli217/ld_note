@@ -1,0 +1,65 @@
+#if 0
+
+    lua_newstate : [-0, +0, –]
+lua_State *lua_newstate (lua_Alloc f, void *ud);
+创建一个运行在新的独立的状态机中的线程。 如果无法创建线程或状态机(由于内存有限)则返回 NULL。 
+    参数 f 是一个分配器函数； Lua 将通过这个函数做状态机内所有的内存分配操作。
+    第二个参数 ud ，这个指针将在每次调用分配器时被转入。
+
+    luaL_newstate : [-0, +0, –]
+lua_State *luaL_newstate (void);
+创建一个新的 Lua 状态机。 它以一个基于标准 C 的 realloc 函数实现的内存分配器 调用 lua_newstate 。 
+并把可打印一些出错信息到标准错误输出的 panic 函数设置好，用于处理致命错误。
+返回新的状态机。 如果内存分配失败，则返回 NULL 。
+
+    void lua_close (lua_State *L);
+销毁指定 Lua 状态机中的所有对象(如果有垃圾收集相关的元方法的话，会调用它们)， 并且释放状态机中使用的所有动态内存。
+在一些平台上，你可以不必调用这个函数，因为当宿主程序结束的时候，所有的资源就自然被释放掉了。 
+另一方面，长期运行的程序，比如一个后台程序或是一个网站服务器，会创建出多个 Lua 状态机。那么就应该在不需要时赶紧关闭它们。
+
+#endif
+
+#if 0
+lua_Alloc :  除了系统最核心的功能, 其他的东西能用插件的形式暴露给用户, 使其可配置可扩展.
+typedef void * (*lua_Alloc) (void *ud,      // lua_newstate所提供的用户数据
+                             void *ptr,     // 正要被(重)分配或者释放的块的地址
+                             size_t osize,  // 原始块的大小
+                             size_t nsize); // 请求的块大小
+Lua 状态机中使用的内存分配器函数的类型。 内存分配函数必须提供一个功能类似于 realloc 但又不完全相同的函数。
+    它的参数有 ud ，一个由 lua_newstate 传给它的指针；                   
+    ptr ，一个指向已分配出来/将被重新分配/要释放的内存块指针；
+    osize ，内存块原来的尺寸或是关于什么将被分配出来的代码；
+    nsize ，新内存块的尺寸。
+    
+如果 ptr 不是 NULL， osize 是 ptr 指向的内存块的尺寸， 即这个内存块当初被分配或重分配的尺寸。
+如果 ptr 是 NULL，   osize 是 Lua 即将分配对象类型的编码。 当(且仅当)Lua 创建一个对应类型的新对象时，
+osize 是 LUA_TSTRING，LUA_TTABLE，LUA_TFUNCTION， LUA_TUSERDATA，或 LUA_TTHREAD 中的一个。 
+若 osize 是其它类型，Lua 将为其它东西分配内存。
+
+Lua 假定分配器函数会遵循以下行为：
+当 nsize 是零时，   分配器必须和 free 行为类似并返回 NULL。
+当 nsize 不是零时， 分配器必须和 realloc 行为类似。 如果分配器无法完成请求，返回 NULL。 Lua 假定在 osize >= nsize 成立的条件下， 分配器绝不会失败。
+如果ptr是NULL并且nsize为零，则两条规则都适用：最终结果是分配什么都不做，返回NULL.
+
+这里有一个简单的分配器函数的实现。 这个实现被放在补充库中，供 luaL_newstate 使用。
+     static void *l_alloc (void *ud, void *ptr, size_t osize,
+                                                size_t nsize) {
+       (void)ud;  (void)osize;  /* not used */
+       if (nsize == 0) {
+         free(ptr);
+         return NULL;
+       }
+       else
+         return realloc(ptr, nsize);
+     }
+注意，标准 C 能确保 free(NULL) 没有副作用， 且 realloc(NULL,size) 等价于 malloc(size)。这段代码假定 realloc 在缩小块长度时不会失败。
+
+
+    lua_getallocf : [-0, +0, –]
+lua_Alloc lua_getallocf (lua_State *L, void **ud);
+返回给定状态机的内存分配器函数。 如果 ud 不是 NULL ， Lua 把设置内存分配函数时设置的那个指针置入 *ud 。
+
+    lua_setallocf : [-0, +0, –]
+void lua_setallocf (lua_State *L, lua_Alloc f, void *ud);
+把指定状态机的分配器函数换成带上用户数据 ud 的 f 。
+#endif

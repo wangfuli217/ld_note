@@ -1,0 +1,111 @@
+编程和思考 -- 公众号
+http://www.valgrind.org/downloads/valgrind-3.11.0.tar.bz2
+http://valgrind.org/downloads/current.html
+
+valgrind支持很多工具：
+  memcheck（内存错误检测）,
+  callgrind（函数调用关系、热点分析）,
+  cachegrind(CPU 缓存利用率分析),
+  helgrind（线程问题分析）,
+  massif（堆栈分析器）,
+
+valgrind的主要功能：
+  使用未初始化的内存(Use of uninitialised memory)
+  使用已经释放了的内存(Reading/writing memory after it has been free’d)
+  使用超过malloc分配的内存空间(Reading/writing off the end of malloc’d blocks)
+  对堆栈的非法访问(Reading/writing inappropriate areas on the stack)
+  申请的空间是否有释放(Memory leaks — where pointers to malloc’d blocks are lost forever)
+  malloc/free/new/delete申请和释放内存的匹配(Mismatched use of malloc/new/new [] vs free/delete/delete [])
+  src和dst的重叠(Overlapping src and dst pointers in memcpy() and related functions)
+
+---------------------------------------
+2. 编译安装valgrind
+./configure && make && make install
+
+---------------------------------------
+1. 检查内存泄露及溢出错误
+valgrind –tool=memcheck –v –leak-check=full –trace-children=yes –track-fds=yes <cmd line>
+    
+2. 检查热点
+valgrind –tool=callgrind <cmd line>
+
+3. 检查多线程并发问题
+valgrind –tool=helgrind <cmd line>
+
+---------------------------------------
+1. valgrind使用参数
+--log-fd=N          默认情况下，输出信息是到标准错误stderr，也可以通过—log-fd=8，输出到描述符为8的文件
+--log-file=filename 将输出的信息写入到filename.PID的文件里，PID是运行程序的进行ID。
+                    可以通过—log-file-exactly=filename指定就输出到filename文件。
+--log-file-qualifier=<VAR> 取得环境变量的值来做为输出信息的文件名。如—log-file-qualifier=$FILENAME。
+--log-socket=IP:PORT       也可以把输出信息发送到网络中指定的IP:PORT去
+--error-limit=no           对错误报告的个数据进行限制，默认情况不做限制
+--tool=<toolname> [default: memcheck] —tool=memcheck：要求用memcheck这个工具对程序进行分析
+--leak-ckeck=yes            要求对leak给出详细信息
+--trace-children=<yes|no> [default: no] 跟踪到子进程里去，默认请况不跟踪
+--xml=<yes|no> [default: no]            将信息以xml格式输出，只有memcheck可用
+--gen-suppressions=<yes|no|all> [default: no] 如果为yes，valgrind会在每发现一个错误便停下让用户做选择是继续还是退出。
+
+更多选项请参看： http://www.valgrind.org/docs/manual/manual-core.html
+可以把一些默认选项编辑在 ~/.valgrindrc文件里，这样就无需每次输入冗长的选项参数了。
+
+---------------------------------------
+2. 用valgrind查找内存泄漏
+检查内存泄露，我们必须带上这个参数：
+--leak-check=<no|summary|yes|full> [default: summary]
+    leak是指存在一块没有被引用的内存空间，或没有被释放的内存空间。
+    如果为summary，只反馈一些总结信息，告诉你有多少个malloc，多少个free等；
+    如果为full，将输出所有的leaks，也就是定位到每一个leak的malloc/free。
+    
+--show-reachable=<yes|no> [default: no]
+    如果为no，只输出没有引用的内存leaks，或指向malloc返回的内存块中部某处的leaks
+    
+--leak-resolution=<low|med|high> [default: low]
+    在进行泄漏检查时，确定memcheck如何分辨调用栈的异同。
+      当设置为low时，只有前两个条目需要匹配。
+      当设置为med时，四个条目必须匹配。
+      当设置为high时，所有的条目都需要匹配。
+    对于一些深层的泄露问题，可能需要使用--leak-resolution=high搭配--num-callers=40
+(或者更大一点)。但是请注意，这可能产生大量信息，这也是为什么默认值是4个调用者和低分辨率匹配的原因。
+    注意，leak-resolution=设置并不影响memcheck的查找能力，它只改变了结果的呈现方式。
+
+--freelist-vol=<number> [default: 5000000]
+    当free/delete之后并不将释放的内存设置成可以代realloc用，而是放入一个`空闲队列中，
+    如果队列中的内存块大于时才允许用于realloc
+    
+--workaround-gcc296-bugs=<yes|no> [default: no]
+    当这个选项打开时，假定读写栈指针以下的一小段距离是gcc 2.96的bug，并且不报告为错误。距离默认为256字节。
+
+--partial-loads-ok=<yes|no> [default: no]
+    控制memcheck如何处理从地址读取时的字长和字对齐，其中一些字节是可以寻址的，一些是不可以寻址的。
+    当设置为yes时，这样的读取并不抛出一个寻址错误。而是将从非法地址读取的V字节显示为未定义，访问合法地址仍然是像平常一样映射到内存。
+    设置为no时，从部分错误的地址读取与从完全错误的地址读取同样处理：抛出一个非法地址错误，结果的V字节显示为合法数据。
+    
+--undef-value-errors=<yes|no> [default: yes]
+    如果为yes，memcheck将对无定义值错进行检查
+    
+---------------------------------------
+a. 正常编译目标程序 (如 g++ -g -o valgrind_tst main.cpp)，官方推荐加上 -g 选项；
+b. valgrind --tool=memcheck --leak-check=full --log- file=memchk.log valgrind_tst [Your progame option];
+c. --tool=memcheck 表示使用工具集中的内存检测，其他选项参考 valgrind -h;
+d. 特别的 --trace-children = yes 开启这个选项将使 valgrind 追踪到子进程，但据说不是很好用，所以我一般将服务设置为前台运行，如果你的后台服务（daemon 进程）无法设置前台运行，可以尝试这个选项；
+
+LEAK SUMMERY
+definitely lost: 确定有内存泄漏，表示在程序退出时，该内存无法回收，也没指针指向该内存(首地址)；
+indirectly lost: 间接内存泄漏，比如结构体中定义的指针指向的内存无法回收；
+possibly lost： 可能出现内存泄漏，比如程序退出时，没有指针指向一块内存的首地址了，但由其他某个指针能推算出首地址；
+still reachable: 程序没主动释放内存，在退出时候该内存仍能访问到，比如全局 new 的对象没 delete，由于操作系统会回收，所以此类问题可忽略;
+
+---------------------------------------
+性能检测(调优)：
+a. 正常编译目标程序同上；
+b. valgrind --tool=callgrind -v Your_Programme [Your_Programe_Option];
+c. --tool=callgrind 表示使用调用检测工具，同样，建议在前台运行；
+d. 由于 callgrind 的原理是时间点采样，所以被测程序最好在合适的压力下运行合适长的时间；
+e. 查看结果，运行完后，将输出 callgrind.out.PID 文件，该文件可被 gprof2dot 等工具解析转化为 dot，
+   再由 dot 转化为图片输出，也可以直接用 callgrind_annotate 直接解析打印，但最方便的是使用图形工具解析，
+   如 windows 上的 qcachegrind;
+   
+   
+   
+

@@ -1,0 +1,766 @@
+https://github.com/openwrt/luci/wiki/CBI
+
+lua -l luci.cbi -e 'for k,v in pairs(luci.cbi.Flag) do print(k,'\t',v) end'
+
+http://luci.subsignal.org/trac/wiki/Documentation/DevelopmentEnvironmentHowTo -- {The LuCI development Environment}
+
+http://luci.subsignal.org/trac/wiki/Documentation/DevelopmentEnvironmentHowTo -- {host development}
+
+
+https://github.com/seamustuohy/luci_tutorials/blob/master/04-model-cbi.md
+
+处理cbi代码的两个模块luci.cbi和luci.i18n。
+
+https://segmentfault.com/a/1190000013074761 实例关键代码
+<< /etc/config/network
+    config interface testnets
+        option ifname 'testnets'
+        option type 'test'
+        option ipaddr '192.168.1.1'
+        option net '192.168.251.1'
+++ luci/controller/admin/net.lua里编写路由：
+module("luci.controller.admin.net", package.seeall)
+local log = require "luci.log"
+
+function index()
+    entry({"admin", "testnet", "form"}, template("test/form"), translate("Form"), 12)
+    entry({"admin", "testnet", "control"}, call("form"), nil)
+end
+
+function form()
+    local cbi = require 'luci.model.uci'
+    local h = require 'luci.http'
+    local dsp = require 'luci.dispatcher'
+
+    local ifname = h.formvalue("ifname")
+    local in_type = h.formvalue("type")
+    local in_ipaddr = h.formvalue("ipaddr")
+    local in_net = h.formvalue("net")
+    cursor = cbi.cursor()
+    log.print(ifname,in_type,in_ipaddr, in_net)
+    cursor:delete("network", "testnets")       
+    cursor:section("network", "interface", "testnets", {      
+        ifname = ifname,
+        type = in_type,
+        ipaddr = in_ipaddr,
+        net = in_net
+    })
+    cursor:save("network")      
+    cursor:commit("network")      
+    h.redirect(dsp.build_url("/admin/testnet/form"))
+end
+    
+++ luci/view/test/form.htm -- template("test/form)
+<%+header%>                                                                                              
+<%                                                                                                       
+    local cbi = require 'luci.model.uci'                                                                 
+    local ifname = cbi.cursor():get("network", "testnets", "ifname")                                     
+    local type = cbi.cursor():get("network", "testnets", "type")                                         
+    local ipaddr = cbi.cursor():get("network", "testnets", "ipaddr")                                     
+    local net = cbi.cursor():get("network", "testnets", "net")      
+    -- 表单里的action使用的luci自带的路径生成函数url(),写法与控制器里的entry()函数的第一个参数写法一致；
+%>                                                                                                       
+<form action="<%=url("admin", "testnet", "control")%>" method="post">                                    
+<div><label>Ifname: </label><span><input type="text" name="ifname" value="<%=ifname%>"/></span></div>    
+<div><label>Type: </label><span><input type="text" name="type" value="<%=type%>"/></span></div> 
+<div><label>ipaddr: </label><span><input type="text" name="ipaddr" value="<%=ipaddr%>"/></span></div>
+<div><label>Net: </label><span><input type="text" name="net" value="<%=net%>"/></span></div>
+<input type="submit" value="......" />
+</form>
+<%+footer%>
+
+https://segmentfault.com/a/1190000013038095 实例关键代码
+<< /etc/config/network
+    config interface testnets
+        option ifname 'testnets'
+        option type 'test'
+        option ipaddr '192.168.1.1'
+        option net '192.168.251.1'
+++ /usr/lib/lua/luci/controller/admin/testnet.lua  -- chmod 0777 testnet.lua
+    module("luci.controller.admin.testnet")
+    function index()
+        entry({"admin", "testnet"}, cbi("admin_test/net"), translate("Test Net"), 10)
+    end
+    
+    function test()
+        return 'This is a test function.'
+    end
+++ /usr/lib/lua/luci/model/cbi/admin_test/net.lua  -- chmod 0777 net.lua
+    m = Map("network", translate("Test Net"))
+    
+    s = m:section(NamedSection, "testnets", "interface", translate("Net Configuration")
+    s.addremove = true
+    s.anonymouse = true
+    
+    ifname = s:option(Value, "ifname", translate("Ifname: "))
+    ifname.datatype = 'string'
+    
+    itype = s:option(Value, "type", translate("Type: "))
+    itype.datatype = 'string'
+    
+    ipaddr = s:option(Value, "ipaddr", translate("Ipaddr: "))
+    ipaddr.datatype = 'ipaddr'
+    
+    net = s:option(Value, "net", translate("Net:"))
+    net.datatype = 'ipaddr'
+    
+    return m
+------------------------------------------------------------------------- 例子说明
+entry(path, target[[, title][, order]]) -- 函数用于注册一个节点
+    path: 即路由规则，格式是{"admin","testnet","index"[[,"..."][,"..."]]}基本上可以无限延伸，但一般
+          不建议这么干，到五六层已经很深了，再潜就不好了。
+    target: 即页面指向，格式是cbi("admin_test/net")。这里的cbi的函数指的是调用/luci/model/cbi/里的
+            admin_test/里的net.lua文件。它还有其他的使用方法：
+        cbi("...")：调用/luci/model/cbi/文件夹中的指定lua文件，这里指向的文件相当于指向一个处理函数。
+                    使用的是LUCI自带逻辑的处理方法，本文就是使用这种方法来生成的页面。
+        cbi("adblock/overview_tab", {hideresetbtn=true, hidesavebtn=true}) -- 可以通过表进行传值
+            on_success_to  
+            on_changed_to  
+            on_valid_to    
+            noheader       不显示header
+            nofooter       不显示footer
+            autoapply      页面打开后自动apply
+            hideresetbtn   footer中不显示reset
+            hideapplybtn   footer中不显示apply
+            hidesavebtn    footer中不显示save
+            skip           在footer中增加skip按钮
+            Entry({"admin", "system", "system"}, cbi("admin_system/system"), _("System"), 1)
+        template("...")：调用/luci/view/文件夹里指定的.htm视图文件。这个方法是直接调用视图。在视图里
+                         我们也可以嵌入代码读取配置。
+                 1. 所有数据均来自服务器内部状态；即使客户端重新获取，也只是重新获得服务器内部状态。
+            entry({"admin", "status", "overview"}, template("admin_status/index"), _("Overview"), 1)
+        alias("..."): 这个是重定向函数， 一般用于顶级菜单上，使其重定向到指定的子菜单。
+            Entry({"admin", "system"}, alias("admin", "system", "system"), _("System"), 30).index = true
+        call("..."): 这个函数的作用是将该路由指向控制下的某个函数，一般用于处理数据，作用与指向模型层
+                    的cbi("...")函数类似，只是一个指向到其他文件，一个仍是存在于控制层文件内。
+             1. 接受页面传递过来的参数，不同的参数处理不一样；见iptables
+             2. 执行lua代码，展示lua代码执行的结果 见：dmesg和syslog
+             共同点是：关键内容都在/luci/view/内模板；
+             不同点是：一个接受客户端发送过来的参数；一个接受服务端的参数；
+             entry({"admin", "logout"}, call("action_logout"), _("Logout"), 90)
+        post("..."): 这个函数在openwrt里的其他模块有使用过，本人研究了一下，其作用于call方法类似，
+                    但在使用的时候似乎没有成功，若是有成功使用过的猿友，欢迎交流探讨。
+                   ----  通过前台javascript发送post请求给后台处理，然后刷新页面。
+        firstchild() entry({"admin", "services"}, firstchild(), _("Services"), 40).index = true
+        form: -> SimpleForm - A Simple non-UCI form
+        entry({"admin", "system", "startup"},form("admin_system/startup"),_("Startup"), 45)
+        arcombine:
+        page = entry({"admin", "network", "network"}, arcombine(cbi("admin_network/network"), cbi("admin_network/ifaces")), _("Interfaces"), 10).leaf = true
+        正常情况下，network页面为显示页面，而ifaces.lua页面为配置页面。主要差别在
+        ifaces.lua首先被调用，判断进行页面显示还是进行其他类型操作。即后续还有参数，动态生成页面方式。
+        http://192.168.111.1/cgi-bin/luci/;stok=1c0f72c49dc5ac1d262fb788d4fc9002/admin/network/network      -- cbi("admin_network/network")
+        http://192.168.111.1/cgi-bin/luci/;stok=1c0f72c49dc5ac1d262fb788d4fc9002/admin/network/network/lan  -- cbi("admin_network/ifaces")
+    title: 即标题展示，这个是设置在菜单里显示的内容项。格式有_("Test Net")或translate("Test Net")，
+           前一个使用我也没有成功（有点摸不清楚），后一个是调用translate('...')函数，用于与后期的语言包
+           进行适配。该项可以用nil代替，表示为不在菜单栏显示。
+    order: 这个是排序，为子菜单进行排序，序号以1开始，最大不限。该项也可以忽略，表示为不在菜单栏显示。
+           entry({"admin", "testnet"}, cbi("admin_test/net"), nil) -- 隐藏此配置或显示项
+    
+    1. Enabling / Disabling Authentication
+        x = entry({"myApp"}, template("myApp/overview"), "myApp", 1)
+        x.dependant = false
+        x.sysauth = "root"
+        x.sysauth_authenticator = "htmlauth"
+    2. To make your site the index, use:
+        local root = node()
+        root.target = alias("myApp")
+        root.index = true
+
+    firstchild和alisa链接到原有的node上；而form,call,cbi和template则指向处理函数,最终生成完整的http-response报文。
+    生成的http-response报文会通过io.write()写在stdout上，然后发送给client。
+    luci.http.redirect()
+    luci.template.render()
+    
+luci.cbi.Map
+luci.cbi | luci.i18n 
+    所有的模块必须放回一个luci.cbi.Map模块，也就是说事实上要完成LuCI对config文件的配置，
+其它的元素都行必须嵌在这个map中。
+
+
+名称            描述                                                        继承自                                 模板
+NamedSection    A fixed configuration section defined by its name           NamedSection = class(AbstractSection)  cbi/nsection
+TypedSection    A (set of) configuration section(s) defined by the type     TypedSection = class(AbstractSection)  cbi/tsection
+Node            Node pseudo abstract class                                  Node = class()                         cbi/node
+Template        A simple template element                                   Template = class(Node)
+Map             A map describing a configuration file                       Map = class(Node)                      cbi/map
+Compound        Container                                                   Compound = class(Node)                 cbi/compound
+Delegator       Node controller                                             Delegator = class(Node)                cbi/delegator
+SimpleForm      A Simple non-UCI form                                       SimpleForm = class(Node)               cbi/simpleform
+Form                                                                        Form = class(SimpleForm)
+AbstractSection                                                             AbstractSection = class(Node)
+SimpleSection                                                               SimpleSection = class(AbstractSection)  cbi/nullsection
+Table                                                                       Table = class(AbstractSection)          cbi/tblsection
+AbstractValue   An abstract Value Type                                      AbstractValue = class(Node)
+Value           A one-line value                                            Value = class(AbstractValue)            cbi/value
+DummyValue      This does nothing except being there                        DummyValue = class(AbstractValue)       cbi/dvalue
+Flag            A flag being enabled or disabled                            Flag = class(AbstractValue)             cbi/fvalue
+ListValue       A one-line value predefined in a list                       ListValue = class(AbstractValue)        cbi/lvalue
+MultiValue      Multiple delimited values                                   MultiValue = class(AbstractValue)       cbi/mvalue
+StaticList                                                                  StaticList = class(MultiValue)  
+DynamicList                                                                 DynamicList = class(AbstractValue)      cbi/dynlist
+TextValue       A multi-line value                                          TextValue = class(AbstractValue)        cbi/tvalue
+Button                                                                      Button = class(AbstractValue)           cbi/button
+FileUpload                                                                  FileUpload = class(AbstractValue)       cbi/upload
+FileBrowser                                                                 FileBrowser = class(AbstractValue)      cbi/browser
+Page            A simple node                                               Page = class(Node)
+
+
+class Map (config, title, description)             # config -> /etc/config/Map.config title ->UI description->UI
+                                                   # config interface '3g'
+class NamedSection(name, type, title, description) # name -> '3g' type -> interface   title ->UI description->UI
+# NamedSection 对应/etc/config/Map.config中的唯一个节
+
+class TypedSection(type, title, description)       # type -> interface                title ->UI description->UI
+# TypedSection 对应/etc/config/Map.config中的多个节
+.extedit      -- 编辑section
+s.create()    -- 新建section
+s.remove()    -- 删除section
+TypedSection类型，具有多实例的Section存在编辑，新建和删除几个功能。
+
+class Value (option, title, description)              # 最常用的一个元素，就是普通的input text类型的。
+Value为可以被修改的字符串和数值
+
+class ListValue(option, title, description)            # 毫无疑问这是一个下拉框
+ListValue对应DROP ACCEPT REJECT之类的枚举值，或者IPv4|IPv6之类的枚举值
+v=s:option(ListValue, "input", translate("Input")),
+v:value("REJECT", translate("reject"))
+
+class Flag (option, title, description)               # 这是一个check，即一个选择框，可以勾选或者not
+Flag对应Enable和Disable，以及1或0之类的开关值。
+
+class MultiValue? (option, title, description)        # 多个选择框
+class DummyValue(option, title, description)          # 这个啥都没有，就只输出文字
+    1. CBI: A simple dummy section header without making a new section (aka using the nullsection template)
+        dv = s:option(DummyValue, "_dummy", translate("Section title?"), translate("I say things about stuff."))
+        dv.template = "cbi/nullsection"
+
+non-UCI -> DynamicList StaticList Button TextValue 
+class TextValue(option, title, description) # 这个就是平常的memo了，即一个文字输入区域了。
+    TextValue - A multi-line value 
+    rows: Rows 
+    template 
+  TextValue = class(AbstractValue)
+
+    
+class Button (option, title, description) # 按钮，点击就可以提交表单，可以检测该元素来执行不同动作。
+    inputstyle
+    rmempty
+    template
+  Button = class(AbstractValue)
+
+class StaticList? (option, title, description) # MultiValue
+class DynamicList? (option, title, description) # 用户自定义的元素。
+
+FileUpload
+    template
+    upload_fields
+    formcreated
+    formvalue
+    remobe
+  FileUpload = class(AbstractValue)
+
+FileBrowser
+    template
+  FileBrowser = class(AbstractValue)
+
+CBI类说明
+class Map(config, title, description) -- 根实例，返回该实例
+    参数说明:
+        config: /etc/config/目录下的UCI文件名
+        title: 页面显示名称            -- 视其为主标题
+        description: 页面显示详细描述  -- 视其为副标题
+    
+    方法说明: 1. 将UCI配置文件解析成HTML表单 2. 将HTML表单解析成对应的UCI配置文件 
+              3. Map对象对应一个提交表单，必须返回Map实例；可以同时返回对个Map实例。
+              4. CBI去修改UCI配置文件的值，CBI是通过web控件选择值去修改UCI文件。,
+    :section(sectionclass, ...)
+    ---- _dummy ----
+    s = m:section(TypedSection, "_dummy", "")     -- 该section并不与任何/etc/config中的配置文件建立映射关系
+    s2 = m2:section(TypedSection, "_dummy", translate("SSH-Keys"), 
+    function s.cfgsections() -- 根据section获取值的时候的sections类型
+        return { "_pass" }
+    end
+    local v1 = pw1:formvalue("_pass")
+    local v2 = pw2:formvalue("_pass")
+    
+    1. 如何根据section的某个option的值过滤section显示如否
+        For example: to be able to display interfaces based on the "proto" option
+        m = map ("network", "title", "description")
+        s = m:section(TypedSection, "interface", "")
+        function s.filter(self, section) -- -> function s:filter(value) 形式不一样，功能一样
+            return self.map:get(section, "proto") ~= "gre"    <---- here is the magic
+        end
+
+---- MAP
+    m = Map("network", translate("Test Net"))：这一句是连接配置文件，是以LUCI机制的必不可少的语句。
+    第一个参数是配置文件的名称 -> /etc/config/network
+    第二个参数页面的大标题。   -> title       UI
+    第三个参数页面的描述。     -> description UI
+    
+---- SECTION -- 以section的name名连接到指定的section
+    s = m:section(NamedSection, "testnets", "interface", translate("Net Configuration")：
+        这一句是以section的name名连接到指定的section。
+    第一个参数是指定存取section的方法，本文用的是以section的name名进行查找的方式NamedSecton。其他还有几种方式：
+        TypedName: 根据section的type来进行存取
+        SimpleSection：（这个没用过，就不多说了）
+        Table：以表格的形式体现section
+        Tab：以标签的形式体现section
+    第二个参数是section的名字    /etc/config/对应配置文件中
+    第三个参数是section的类型    /etc/config/对应配置文件中
+    第四个参数是模块标题的名称   页面显示内容
+    
+    s.addremove = false：/etc/config/NamedSection.testnet节能否被删除掉。通常NamedSection.addremove为false。
+    s.anonymous = true：这一句是不显示section的名字在页面上。还可以加上s.template = 'admin_test/net'
+    这样的语句
+    s.dynamic  = false 
+    s.optional = true   是否强制用于必须输入
+    
+Map:section(NamedSection, ''name'', ''type'', ''title'', ''description'') 
+class NamedSection(name, type, title, description)
+    参数说明:
+        name: UCI section名字, config type "section"
+        type: UCI section类型, config "type" section
+        title: 页面显示名称
+        description: 页面显示详细描述 
+    对象属性:
+    .addremove = false
+        此section是否允许删除或创建
+        为true时，页面会显示删除和创建按钮
+    .anonymous = true
+        页面不显示此secion名字
+    方法说明:
+    :option(optionclass, ...)
+
+例子： https://192.168.101.1/cgi-bin/luci/admin/network/network         -- web
+       network.lua (luci\model\cbi\admin_network)	4221	2017-08-01  -- src
+
+---- SECTION -- 以section的type名连接到指定的section
+    /etc/config/ipsec配置文件如下
+    config policy tunnel
+        option name 'test'
+        option enable '1'
+    
+    创建UCI配置文件ipsec对应的map对象    
+    m = Map("ipsec", translate("IPSec")) -- "ipsec" <--> /etc/config/"ipsec"
+    
+    创建UCI type对象
+    s = m:section(TypedSection, "policy", translate("Polciy")) -- "policy" <--> config "policy" tunnel
+    s.template = "cbi/tblsection" -- 使用列表模板
+    s.anonymous = true            -- 不显示section名称; 多用于TypedSection方式
+
+    创建UCI name对象
+    s = m:section(NamedSection, "tunnel", "policy", "translate("Policy")) -- "tunnel" <--> config policy "tunnel"
+                                                                          -- "policy" <--> config "policy" tunnel
+ 
+Map:section(TypedSection, ''type'', ''title'', ''description'') 
+class TypedSection(type, title, description)
+    参数说明:
+        type: UCI section类型, config "type" section
+        title: 页面显示名称
+        description: 页面显示详细描述 
+    对象属性:
+    .addremove -- 此section是否允许删除或创建
+    .addremove = false --  不允许用户创建和移除interfaces章节
+    .addremove = true  --  为true时，页面会显示删除和创建按钮
+  
+    .anonymous = true
+        页面不显示此secion名字
+     .optional = true
+     
+     :depends (key, value)
+     .filter (self, section)  -- filter只适用于TypedSection类型
+         function s:filter(value) 
+             return value ~= "loopback" and value -- 过滤掉loopback 
+         end
+     
+    .extedit = luci.dspatcher.build_url("url") -- 编辑
+        设置此section编辑页面URL, 页面显示编辑按钮
+        s.extedit   = ds.build_url("admin/network/firewall/rules/%s")
+        Rules.lua (luci\model\cbi\firewall)	6975	2017-08-01
+        
+     s.create(self)           -- 新建
+     s.remove(self, section)  -- 删除
+        
+    .template = "cbi/template"
+        设置此section页面模板
+    方法说明:
+    :option(optionclass, ...)
+
+-- TypedSection 
+    s = m:section(TypedSection, "interface", translate("Net Configuration")
+
+-- SimpleSection 
+    s = m:section(SimpleSection, "interface", translate("Net Configuration")
+
+    m:section(SimpleSection).template = "admin_network/iface_overview"      -- template 
+    例子： https://192.168.101.1/cgi-bin/luci/admin/network/network         -- web
+           network.lua (luci\model\cbi\admin_network)	4221	2017-08-01  -- src
+       
+-- Table s = m:section(TypedSection, "interface", translate("Net Configuration")--也可以用NamedSection 
+    s.Table(Table, "Table Title")
+         
+-- Tab s = m:section(TypedSection, "interface", translate("Net Configuration")--也可以用NamedSection 
+    s.Table(Tab, "Tab Title")
+
+class Value(option, title, description)
+页面将创建文件输入框
+    参数说明:
+        option: UCI option名称, option enable '1'
+        title: 页面显示名称
+        description: 页面显示详细描述 
+    属性说明:
+    .defalut = nil     缺省值
+    .maxlength = nil   option值最大长度
+    .rmempty = true    option值为空时不写入UCI文件
+    .rmempty = false;  当用户输入一个空值时从配置文件中移除该选项
+    .size = nil        页面表单对应位置大小
+    .optional = false  是否为可选，为true可强制页面输入；该选项不是可选值
+    .datatype = nil    指定option值类型，用于输入合法性检查
+    .template = nil    页面模板
+    .password = false  密码输入框
+    方法说明:
+    1. :depends(key, value)             当key值等于value时，页面才显示
+    2. function o.validate(self, value) 重构option合法性检查方法，可自己控制option值
+    3. function o.formvalue(self, key)  重构option从表单获取值方法
+        当表单值为空时返回-，在合法性检验时判断如果value等于-即表示页面没有输入值
+        function o.formvalue(...)         -- 重构formvalue
+            return Value.formvalue(...) or "-" 
+        end
+        function o.validate(self, value)  -- 重构validate
+            if value == "-" then
+                return nil, translate("required fields have no value!")
+            end
+            return value
+        end
+    4. functin o.write(self, section, value) 重构option写入UCI文件方法
+    在用户输入的值后追加内容s:
+    function o.write(self, section, value) -- 重构write
+        Value.write(self, section, value .. "s")
+    end
+    5. function o.cfgvalue(self, section)    重构option值输出到页面方法
+    页面只显示UCI option值开始为数字部分内容:
+    function o.cfgvalue(self, section)     -- 重构cfgvalue
+        local v = Value.cfgvalue(self, section) 
+        if v then
+            return string.sub(v, string.find(v, "%d+"))
+        else 
+            return nil
+        end
+    end
+    6. :value (key, value = key) 将text转变成成组合框，或者选择框
+    
+    net = s:option(Value, "net", translate("Net:"))：这一句是连接具体的option。
+        第一个参数是显示类型。常用的显示类型有：
+            Value（普通文本框）
+            ListValue（下拉列表）
+            Flag（复选框）
+            MultiValue（文本域）
+            DummyValue（纯文本）
+            TextValue（多行input）
+            Button（按钮）
+            StaticList（静态列表）
+            DynamicList（动态列表）
+        第二个参数是option的名称
+        第三个参数是显示项的说明
+    net.datatype = 'ipaddr'：这一句是指定option的类型。这里的是ip地址类型，其他还有很多类型：
+        neg、list、bool（布尔类型）、uinteger、integer（整型）、ufloat、float（浮点型）、ipaddr（IP地址）、
+        ip4addr（IP4型IP地址）、ip4prefix（IP4前缀）、ip6addr、ip6prefix、port、portrange、macaddr、
+        hostname、host、network、wpakey、wepkey、string、directory、file、device、uciname、range、min、
+        max、rangelength、minlength、maxlength、phonedigit
+
+class ListValue(option, title, description)
+页面将创建列表框
+    参数说明:
+    option: UCI option名称, option action 'drop'
+    title: 页面显示名称
+    description: 页面显示详细描述 
+
+    属性说明:同class Value
+    方法说明:同class Value
+    
+    :value(ucivalue, showkey)
+    设置下拉列表显示与值对应关系
+    o = s:option(ListValue, "enable", translate("Enable"))
+    o:value("1", translate("Enable"))
+    o:value("0", translate("Disable"))
+
+        
+class Flag(option, title, description)
+    页面将创建单选框
+    参数说明:
+        option: UCI option名称, option enable '0'
+        title: 页面显示名称
+        description: 页面显示详细描述 
+    属性说明:同class Value
+    方法说明:同class Value
+    
+class Button(option, title, description)
+    页面将创建按钮
+    参数说明:
+        option: UCI option名称, option enable '0'
+        title: 页面显示名称
+        description: 页面显示详细描述 
+    属性说明: 同class Value
+    .inputstyle = nil
+        按钮样式, apply, reset,
+    方法说明: 同class Value
+    
+
+validate
+  1. To Validate a field/option
+    NOTE: boolean options don't call a validate function
+    m = Map(...)
+    s = m:section(...)
+    o = option(...)
+    
+    function o.validate(self, value)
+        if value < min then return nil end
+        if value > max then return nil end
+        return value
+    end
+    
+  2. To Validate a section
+    Try something like that:
+    m = Map(...)
+    s = m:section(...)
+    function s.validate(self, sectionid)
+        local field, obj
+        local values = { }
+        for field, obj in pairs(self.fields) do
+            local fieldval = obj:formvalue(sectionid)
+            if not values[fieldval] then
+                values[fieldval] = true
+            else
+                return nil -- raise error
+            end
+        end
+    
+        return sectionid -- signal success
+    end
+  3. To Validate a whole page
+    With that in mind, you can hijack the Map's .parse function to implement some kind of globalvalidation:
+    
+    local utl = require "luci.util"
+    
+    m = Map("config", ...)
+    
+    function m.parse(self, ...) -- NB: "..." actually means ellipsis here
+    
+        -- call the original parse implementation
+        Map.parse(self, ...)
+    
+        -- do custom processing
+        local sobj
+    
+        for _, sobj in ipairs(self.children) do
+    
+            local sids
+    
+            -- check section type
+            if utl.instanceof(sobj, NamedSection) then
+    
+            -- this is a named section,
+            -- the uci id of this section is
+            -- stored in sobj.section
+            sids = { sobj.section }
+    
+        elseif utl.instanceof(sobj, TypedSection) then
+    
+            -- this is a typed section,
+            -- it may map to multiple uci ids
+            sids = sobj:cfgsections()
+    
+        end
+    
+        -- now validate the fields within this section
+        -- for each associated config section
+        local sid, fld
+    
+        for _, sid in ipairs(sids) do
+    
+            for _, fld in ipairs(sobj.children) do
+    
+                -- get the value for a specific field in
+                -- a specific section
+                local val = fld:formvalue(sid)
+    
+                -- do some custom checks on val,
+                -- e.g. compare against :cfgvalue(),
+                -- some global structure etc.
+                if not is_valid(val, other_stuff) then
+    
+                    -- failed, flag map (self == m)
+                    self.save = false
+    
+                    -- create field error for
+                    -- template highlight
+                    fld.error = {
+                        [sid] = "Error foobar"
+                    }
+                end
+            end
+        end
+    end
+    
+    end
+  
+Save & Apply Hooks
+  这些函数是可以被重构的
+    LuCI Trunk and the 0.9 branch offer hooks for that:
+    on_init Before rendering the model
+    on_parse Before writing the config
+    on_before_commit Before writing the config
+    on_after_commit After writing the config
+    on_before_apply Before restarting services
+    on_after_apply After restarting services
+    on_cancel When the form was cancelled
+    Use them like this:
+        m = Map("foo", ...)
+        m.on_after_commit = function(self)
+            -- all written config names are in self.parsechain
+            local file
+            for _, file in ipairs(self.parsechain) do
+                -- copy "file" ...
+            done
+        end
+        
+Schema
+    option type
+        one of { "enum", "lazylist", "list", "reference", "variable" }
+    option datatype
+        one of {"Integer", "Boolean", "String"}
+        
+Getting Anonymous UCI Config Data
+    When accessing "anonymous" sections via LUA do the following:
+    
+    local hostname
+    luci.model.uci.cursor():foreach("system", "system", function(s) hostname = s.hostname end)
+    print(hostname)
+    
+    Since this is often needed, they added a shortcut doing exactly that:
+    
+    local hostname = luci.model.uci.cursor():get_first("system", "system", "hostname")
+    print(hostname)
+    
+    x =uci.cursor()
+    a =x:get("test", "abc", "test_var")
+    print(a)
+    d =x:get_all("test", "abc")
+    print(d)
+    print(d["test_var"])
+    print(d["test_var2"])
+    
+config  'test' 'abc'
+        option 'test_var' 'value'
+        option 'test_var2' 'value22'
+
+Using a template to create custom fields
+  Create a new view e.g. luasrc/view/cbi_timeval.htm like this
+    <%+cbi/valueheader%>
+    <input type="text" class="cbi-input-text" onchange="cbi_d_update(this.id)"<%= attr("name", cbid .. ".hour") .. attr("id", cbid ..".hour") .. attr("value", (self:cfgvalue(section) or ""):match("(%d%d):%d%d")) %> />
+    :
+    <input type="text" class="cbi-input-text" onchange="cbi_d_update(this.id)"<%= attr("name", cbid .. ".min") .. attr("id", cbid ..".min") .. attr("value", (self:cfgvalue(section) or ""):match("%d%d:(%d%d)")) %> />
+    <%+cbi/valuefooter%>
+
+  Important are the includes at the beggining and the end, and that the id, name and value attributes are correct. The rest can be adapted.
+  (self:cfgvalue(section) or ""):match(".*:?(.*)") will only match the part of the config value behind the : whereas (self:cfgvalue(section) or ""):match("(.*):?.*") will only match the first part of the real config value.
+  In your Model do something like this.
+
+    somename = s:option(Value, "option", "name") -- or whatever creating a Value
+    somename.template = "cbi_timeval"            -- Template name from above
+    somename.formvalue = function(self, section) -- This will assemble the parts
+        local hour = self.map:formvalue(self:cbid(section) .. ".hour")
+        local min = self.map:formvalue(self:cbid(section) .. ".min")
+        if hour and min and #hour > 0 and #min > 0 then
+            return hour .. ":" .. min
+        else
+            return nil
+        end
+    end
+    
+Modifying cbi map buttons
+    The options are: skip, autoapply, hidesavebtn, hideresetbtn, and hideapplybtn
+        skip: If true ADD the skip button.
+        autoapply: if true (and hideapplybtn not true) HIDE submit button.
+        hideapplybtn: if true (and autoapply not true) HIDE submit button.
+        hidesavebtn: If true HIDE the save button
+        hideresetbtn: if true HIDE the reset button.
+    
+    These options are set as bool values in a table. This table is passed as the second value of the cbi call.
+        entry({"admin", "my_page"}, cbi("admin/my_page", {skip=true,
+        autoapply=false}), translate("My Page"), 15)
+
+Save vs Save & Apply
+        Save pushes the change to /etc/config /* and Save & Apply does the same plus 
+    it calls corresponding init scripts defined in /etc/config/ucitrack .
+        Q If my custom page only needs to write to /etc/config/myapp.lua but not reboot the router, 
+    how do I get ONLY a Save button?
+        A Change the cbi() invocation in your controller to something like this:
+        cbi("my/form", {autoapply=true})
+        
+        
+Run a Script from a Button
+    This bit of code needs "s" to be a section from either a SimpleForm or a Map
+    btn = s:option(Button, "_btn", translate("Click this to run a script"))
+    function btn.write()
+        luci.sys.call("/usr/bin/script.sh")
+    end
+    
+CBI Form Values
+    FORM_NODATA
+    FORM_PROCEED = 0
+    FORM_VALID = 1
+    FORM_DONE = 1
+    FORM_INVALID = -1
+    FORM_CHANGED = 2
+    FORM_SKIP = 4
+    
+CBI: Applying Values
+
+CBI: Map attributres
+    m = Map("network", "title", "description" {attribute=true})
+    apply_on_parse
+    commit_handler
+    
+Parsing CBI Values
+
+内建函数和标识
+    1、 包含Lua代码: 
+        <% code %> -- 执行代码
+    2、 输出变量和函数值：
+        <% write (value) %> -- 写value的值
+        <%=value%>          -- 写value的值
+                            
+    3、 包含模板
+        <% include (templatename) %> -- 包含文件
+        <%+templatename%>            -- 包含文件
+
+    4、 转换：
+        <%=translate("Text to translate") %> -- 翻译
+        <%:Text to translate%>                -- 翻译
+
+    5、 注释：
+        <%# comment %>                        -- 注释
+        
+内建常量
+    Name            Value
+    REQUEST_URI   The current URL (without server part) -- '/cgi-bin/luci/admin/status/overview'
+                                                        -- XHR.poll(5, '/cgi-bin/luci/admin/status/overview', { status: 1 },
+                                                        -- XHR.poll(5, '<%=REQUEST_URI%>', { status: 1 },)
+                                                        
+    controller    Path to the Luci main dispatcher      -- /cgi-bin/luci
+                                                        -- <a href="/cgi-bin/luci//admin/">
+                                                        -- <a href="<%=controller%>/<%=r%>/">
+                                                        -- <form method="get" action="/cgi-bin/luci//splash/activate">
+                                                        -- <form method="get" action="<%=controller%>/splash/activate">
+    resource      Path to the resource directory        --  /luci-static/resources
+                                                        --  src="/luci-static/resources/cbi.js?v=git-17.205.18138-17de308"
+                                                        --  src="<%=resource%>/cbi.js?v=git-17.205.18138-17de308"
+    media         Path to the active theme directory    --  /luci-static/bootstrap
+                                                        --  luci\view\themes\material\Footer.htm
+                                                            luci\view\themes\bootstrap\Header.htm 
+                                                            href="/luci-static/bootstrap/cascade.css?v=git-17.205.18138-17de308"
+                                                            href="<%=media%>/cascade.css?v=git-17.205.18138-17de308"
+
+
+    

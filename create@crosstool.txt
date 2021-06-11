@@ -1,0 +1,174 @@
+############ 1交叉编译环境的建立步骤
+-----------------------------------------------------------------------------------------------
+mkdir /usr/local/arm/           #建立工作目录
+mkdir /usr/local/arm/src/       #建立安装文件目录
+mkdir /usr/local/arm/sysroot/   #建立系统根目录
+mkdir /usr/local/arm/bin/       #建立生成工具存放的目录
+mkdir /usr/local/arm/build/     #建立编译目录
+export HOST=i686-pc-linux-gnu   #建立HOST环境变量
+export TARGET=arm-linux-gnueabi #建立TARGET环境变量
+export PREFIX=/usr/local/arm/   #设置TARGET环境变量
+export SYSROOT=/usr/local/arm/sysroot/    #设置SYSROOT环境变量
+export PATH=${PATH}:${PREFIX}/bin    #添加生成工具目录到PATH中
+
+binutils-2.23.tar.bz2
+linux-2.6.33.tar.bz2
+gcc-4.6.0.tar.bz2
+glibc-2.17.tar.gz
+glibc-linuxthreads-2.3.6.tar.gz
+将以上源码放到/usr/local/arm/src/目录里面
+
+#binutils
+tar xvf binutils-2.23.tar.bz2
+mkdir -p /usr/local/arm/build/binutils-2.23
+cd /usr/local/arm/build/binutils-2.23
+../../src/binutils-2.23/configure --prefix=${PREFIX} --target=${TARGET} --with-sysroot=${SYSROOT} 2>&1 | tee configure.out
+make 2>&1 | tee configure.out
+make install 2>&1 | tee configure.out
+
+SYSROOT为系统根目录，生成相应的库放在${SYSROOT}/lib目录下，可执行文件放在${SYSROOT}/sbin下，配置文件放在${SYSROOT}/etc下，
+用户文件放在${SYSROOT}/usr下。
+安装成功以后会在/usr/local/arm/bin目录下生成
+arm-linux-addr2line arm-linux-c++filt   arm-linux-nm    arm-linux-ranlib
+arm-linux-strings   arm-linux-ar        arm-linux-gprof arm-linux-objcopy 
+arm-linux-objdump   arm-linux-ld        arm-linux-size  arm-linux-as
+arm-linux-strip     arm-linux-readelf
+c++filt :连接器使用它来过滤C++和Java符合，防止发生重载函数冲突。
+ranlib  :产生归档文件索引，并将其保存到这个归档文件中，在索引中列出了归档文件各成员所定义的可重分配目标文件。
+libiberty:包含许多GNU程序都会用到的函数，这些程序有getopt obstack strerror strtol和strtoul等
+libopcode:用来处理opcodes的库，在生成一些应用程序的时候会用到它
+
+#Linux
+tar xvfj linux-2.6.33.tar.bz2
+make ARCH=arm CROSS_COMPILE=arm-linux- menuconfig
+make include/linux/version.h
+mkdir -p ${SYSROOT}/usr/include/
+cp -a ${PREFIX}/src/linux-2.6.33/include/linux ${SYSROOT}/usr/include/linux
+cp -a ${PREFIX}/src/linux-2.6.33/arch/arm/include/asm ${SYSROOT}/usr/include/asm
+cp -a ${PREFIX}/src/linux-2.6.33/include/asm-generic ${SYSROOT}/usr/include/asm-generic
+##make ARCH=arm CROSS_COMPILE=arm-linux- menuconfig时，主要是为了选择一个对应CPU的类型，
+选择System Type -> system type(ARM Ltd Versatile family) -> (X) Samsung S3C2410,S3C2412,S3C2413,S3C2440,S3C2442,S3C2443。
+
+#glibc 头文件安装 glibc是gnu c库，它是编译Linux系统程序的重要组成部分，在安装gnu c库前需要先安装其头文件。
+tar xvfz glibc-2.17.tar.gz
+cd glibc-2.17
+tar xvfz glibc-linuxthreads-2.3.6.tar.gz
+cd ..
+mkdir -p /usr/local/arm/build/glibc-2.17-headers
+cd /usr/local/arm/build/glibc-2.17-headers
+../../src/glibc-2.17/configure --prefix=usr --host=${TARGET} --enable-add-ons --with-headers=${SYSROOT}/usr/include 2>&1 | tee configure.out
+make cross-compiling=yes install_root=${SYSROOT} install-headers 2>&1 | tee configure.out
+touch ${SYSROOT}/usr/include/gnu/stubs.h
+touch ${SYSROOT}/usr/include/bits/stdio_lim.h
+
+#gcc > 安装gcc第一个阶段，安装gcc共分为两个阶段，第一个阶段是为了安装ARM交叉编译工具没有支持libc库的头文件。
+#gcc step 1
+tar xvfz gcc-4.6.0.tar.bz2
+mkdir -p /usr/local/arm/build/gcc-4.6.0/
+cd /usr/local/arm/build/gcc-4.6.0/
+../../src/gcc-4.6.0/configure --prefix=${PREFIX} --target=${TARGET} --enable-languages=c --with-sysroot=${SYSROOT} 2>&1 | tee configure.out
+make 2>&1 | tee configure.out
+make install 2>&1 | tee configure.out
+
+#gcc step 2 > 安装了glibc后才能对gcc进行完全安装
+mkdir -p /usr/local/arm/build/glibc-2.17/ 
+cd /usr/local/arm/build/glibc-2.17/ 
+BUILD_CC=gcc CC=${TARGET}-gcc AR=${TARGET}-ar RANLIB=${TARGET}-ranlib AS=${TARGET}-as LD=${TARGET}-ld ../../src/glibc-2.17/configure 
+--prefix=/usr --build=i386-redhat-linux --host=arm-unknown-linux-gnu --target=arm-unknown-linux-gnu --without-thread --enable-add-ons=linuxthreads
+--with-headers=${SYSROOT}/usr/include/ 2>&1 | tee configure.out
+make 2>&1 | tee configure.out
+make install 2>&1 | tee configure.out
+
+#完全安装gcc
+mkdir -p /usr/local/arm/build/gcc-4.6.0/
+cd /usr/local/arm/build/gcc-4.6.0/
+../../src/gcc-4.6.0/configure --prefix=${PREFIX} --target=${TARGET} --enable-languages=c --with-sysroot=${SYSROOT} 2>&1 | tee configure.out
+make 2>&1 | tee configure.out
+make install 2>&1 | tee configure.out
+
+编译完成后会在/usr/local/arm/bin目录下增加交叉编译工具，
+
+############ 2交叉编译环境的建立步骤
+-----------------------------------------------------------------------------------------------
+unset LANG
+export HOST=i686-pc-linux-gnu  ##echo $MATCHTYPE
+export BUILD=$HOST
+export TARGET=i686-none-linux-gnu ##arm-linux-gnueabi
+export CROSS_TOOL=/vita/cross-tool/
+export CROSS_GCC_TMP=/vita/cross-tool-tmp
+export SYSROOT=/vita/sysroot
+export PATH=${PATH}:/${CROSS_TOOL}/bin:/${CROSS_GCC_TMP}/bin
+mkdir ${BUILD}/source/  ##源代码所在目录
+
+#binutils
+mkdir binutils-build
+cd binutils-build
+../binutils-2.23/configure --prefix=${CROSS_TOOL} --target=${TARGET} --with-sysroot=${SYSROOT} 
+make
+make install
+
+${CROSS_TOOL}/i686-none-linux-gnu/lib/ldscripts ##链接脚本
+${CROSS_TOOL}/i686-none-linux-gnu/bin目录下安装了一些二进制工具。其与${CROSS_TOOL}/bin目录下工具完全相同，只是名字不同而已。
+
+#gcc
+tar xvf ../source/gcc-4.7.2.tar.bz2 
+tar xvf ../source/gmp-5.0.5.tar.bz2 && mv gmp-5.0.5 gcc-4.7.2/gmp
+tar xvf ../source/mpfr-3.1.1.tar.bz2 && mv mpfr-5.0.5 gcc-4.7.2/mpfr
+tar xvf ../source/mpc-1.0.1.tar.bz2 && mv mpc-5.0.5 gcc-4.7.2/mpc
+mkdir gcc-build && cd gcc-build
+../gcc-4.7.2/configure --prefix=$CROESS_GCC_TMP --target=$TARGET --with-sysroot=$SYSROOT --with-newlib --enable-languages=c 
+--with-mpfr-include=/vita/build/gcc-4.7.2/mpfr/src --with-mpfr-lib=/vita/build/gcc-4.7.2/mpfr/src/.lib 
+--disable-shared --disable-threads --disable-decimal-float --disable-libquadmath --disable-libmudflap --disable-libgomp
+--disable-nls --disable-libssp
+make 
+make install
+ln -s libgcc.a lib/gcc/i686-none-linux-gnu/4.7.2/libgcc_eh.a ##在/vita/cross-tool-tmp目录下
+
+#linux
+tar xvf linux-3.7.4.tar.xz
+make mrproper
+make ARCH=i386 headers_check
+make ARCH=i386 INSTALL_HDR_PATH=$SYSROOT/usr headers_install
+
+#编译glibc
+tar xvf ../source/glibc-ports-2.15.tar.gz
+tar xvf ../source/glibc-2.15.tar.xz
+mv glibc-ports-2.15 ./glibc-2.15/port
+cd glibc-2.15
+patch -p1 < ../../source/glibc-2.15-cpuid.patch
+patch -p1 < ../../source/glibc-2.15-s_frexp.patch
+mkdir glibc-build
+cd glibc-build
+../glibc-2.15/configure --prefix=/usr --host=${TARGET} --enable-kernel=3.7.4 --enable-add-ons --with-headers=${SYSROOT}/usr/include 
+libc_cv_forced_unwind=yes libc_cv_c_cleanup=yes libc_cv_ctors_headers=yes
+make 
+make install_root=${SYSROOT} install
+
+#gcc交叉编译工具构建
+cd gcc-build
+rm -rf *
+../gcc-4.7.2/configure --prefix=$CROESS_TOOL --target=$TARGET --with-sysroot=$SYSROOT --enable-languages=c,c++ 
+--with-mpfr-include=/vita/build/gcc-4.7.2/mpfr/src --with-mpfr-lib=/vita/build/gcc-4.7.2/mpfr/src/.lib 
+--enable-threads=posix
+make
+make install
+
+
+############ 3交叉编译环境的建立步骤
+-----------------------------------------------------------------------------------------------
+一、下载源代码 下载包括binutils、gcc、glibc及linux内核的源代码（需要注意的是，glibc和内核源代码的版本必须与目标机上实际使用的版本保持一致），并设定shell变量PREFIX指定可执行程序的安装路径。
+二、编译binutils 首先运行configure文件，并使用--prefix=$PREFIX参数指定安装路径，使用--target=arm-linux参数指定目标机类型，然后执行make install。
+三、配置linux内核头文件
+首先执行make mrproper进行清理工作，然后执行make config ARCH=arm（或make menuconfig/xconfig ARCH=arm）进行配置（注意，一定要在命令行中使用ARCH=arm指定cpu架构，因为缺省架构为主机的cpu架构），这一步需要根据目标机的实际情况进行详细的配置，笔者进行的实验中目标机为HP的ipaq-hp3630 PDA，因而设置system type为SA11X0，SA11X0 Implementations中选择Compaq iPAQ H3600/H3700。
+配置完成之后，需要将内核头文件拷贝到安装目录： cp -dR include/asm-arm $PREFIX/arm-linux/include/asm cp -dR include/linux $PREFIX/arm-linux/include/linux
+四、第一次编译gcc
+首先运行configure文件，使用--prefix=$PREFIX参数指定安装路径，使用--target=arm-linux参数指定目标机类型，并使用--disable-threads、--disable-shared、--enable-languages=c参数，然后执行make install。这一步将生成一个最简的gcc。由于编译整个gcc是需要目标机的glibc库的，它现在还不存在，因此需要首先生成一个最简的gcc，它只需要具备编译目标机glibc库的能力即可。
+五、交叉编译glibc
+这一步骤生成的代码是针对目标机cpu的，因此它属于一个交叉编译过程。该过程要用到linux内核头文件，默认路径为$PREFIX/arm-linux/sys-linux，因而需要在$PREFIX/arm-linux中建立一个名为sys-linux的软连接，使其内核头文件所在的include目录；或者，也可以在接下来要执行的configure命令中使用--with-headers参数指定linux内核头文件的实际路径。
+configure的运行参数设置如下（因为是交叉编译，所以要将编译器变量CC设为arm-linux-gcc）： CC=arm-linux-gcc ./configure --prefix=$PREFIX/arm-linux --host=arm-linux --enable-add-ons 最后，按以上配置执行configure和make install，glibc的交叉编译过程就算完成了，这里需要指出的是，glibc的安装路径设置为$PREFIXARCH=arm/arm-linux，如果此处设置不当，第二次编译gcc时可能找不到glibc的头文件和库。
+六、第二次编译gcc
+运行configure，参数设置为--prefix=$PREFIX --target=arm-linux --enable-languages=c,c++。
+运行make install。
+到此为止整个交叉编译环境就完全生成了。
+几点注意事项
+第一点、在第一次编译gcc的时候可能会出现找不到stdio.h的错误，解决办法是修改gcc/config/arm/t-linux文件，在TARGET_LIBGCC2_CFLAGS变量的设定中增加-Dinhibit_libc和-D__gthr_posix_h。

@@ -1,0 +1,73 @@
+https://segmentfault.com/a/1190000011866929
+
+配置编译
+执行make menuconfig进入配置界面，进行如下设置：
+Network --->
+     <M> samba36-server................. Samba 3.6 SMB/CIFS server
+     (-1)  Maximum level of compiled-in debug messages (NEW)
+
+若需要web页面控制，则按如下配置：
+LuCI --->
+    3. Applications  --->
+        <M> luci-app-samba............ Network Shares - Samba SMB/CIFS module
+
+执行make -j8 V=99进行编译。
+安装配置
+
+安装samba服务：
+
+# opkg install /mnt/nfs/samba36-server_3.6.25-5_ramips_24kec.ipk 
+Installing samba36-server (3.6.25-5) to root...
+Configuring samba36-server.
+
+修改模板文件/etc/samba/smb.conf.template：
+
+unix charset = utf-8
+#invalid users = root
+
+配置共享目录，修改/etc/config/samba文件：
+
+config sambashare
+        option name 'samba'    // 需要用户名和密码访问共享文件夹
+        option path '/mnt'
+        option users 'root'    // 可useradd其它用户
+        option read_only 'no'
+        option guest_ok 'no'
+        option create_mask '0755'
+        option dir_mask '0755'
+
+config sambashare
+        option name 'samba2'  // 游客可访问共享文件夹
+        option path '/tmp'
+        option read_only 'no'
+        option guest_ok 'yes'
+        option create_mask '0755'
+        option dir_mask '0755'
+
+执行smbpasswd -a root设置共享用户密码。
+
+# cat /etc/samba/smb.conf
+[samba]
+        path = /mnt
+        valid users = root
+        read only = no
+        guest ok = no
+        create mask = 0755
+
+[samba2]
+        path = /tmp
+        read only = no
+        guest ok = yes
+        create mask = 0755
+        directory mask = 0755
+
+若/etc/samba/smbpasswd不存在，则先创建一个。配置好之后，执行/etc/init.d/samba restart命令重启服务。
+Ubuntu上测试
+
+通过mount命令挂载：
+
+$ sudo mount -t cifs -o username=root,password=123456 //192.168.0.102/samba /opt/samba
+
+出现mount: //192.168.0.102/samba is not a valid block device错误，则执行以下命令解决：
+
+$ sudo apt install cifs-utils

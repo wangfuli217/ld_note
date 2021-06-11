@@ -1,0 +1,1144 @@
+https://blog.csdn.net/sirouni2003/article/details/400672
+使用bison可以生成解释器,编译器,协议实现等多种程序.
+
+1. Bison简介-Introduction
+    Bison是一种通用目的的分析器生成器. 它将LALR(1)上下文无关文法的描述转化成分析
+该文法的C程序. 一旦你精通Bison, 你可以用它生成从简单的桌面计算器到复杂的程序设计
+语言等等许多语言的分析器.
+    
+    Bison向上兼容Yacc:所有书写正确的Yacc语法都应该可以不加更改地与Bison一起工作.
+ 熟悉Yacc的人能毫不费力地使用Bison. 你应该熟练地掌握C程序设计语言,这样你才能使用
+Bison和理解这个手册.
+    
+    我们会在这个教程的最初几章解释BIson的基本概念,并且展示三个详细解释的例子, 这
+些例子将在教程的最后被构建. 如果你对Bison或者Yacc一无所知, 你应该首先阅读这些章
+节. 接下来的参阅章节详细地阐述了Bison的各个方面.
+    
+    Bison主要由Rovert Corbett编写.Richard Stallman使它与Yacc兼容. Carnegie Mello
+n大学的Wilfred Hansen为Bison添加了 多字符字符串文字(multi-character string liter
+als)和其它一些特性.
+
+2. 使用Bison的条件-Conditions for Using Bison
+    为了允许非自由程序(nonfree programs)使用Bison生成的LALR分析器C代码, 
+我们在Bison版本1.24的时已经修改了yyparse的发布条款(distribution terms for 
+yyparse). 在这之前,这些分析器只能用于自由软件(free software)的程序.
+
+    其它GNU编程工具,例如GNU C编译器从未有过类似的要求. 
+它们总能用于非自由软件的发布. Bison与它们不同的原因并不是出于特殊策略的决定, 
+而是由于应用通用许可证(General Public License)到所有的Bison源代码造成的结果.
+
+    Bison工具的输出-也就是Bison分析器文件(the Bison parser 
+file)包括大小不固定的Bison代码片段. 
+这些代码片段来源于yyparse函数.(你的语法的动作被Bison插入到这个函数的某个位置, 
+但是函数的其余部分并未更改).当我们应用GPL条款到yyparse的代码的时候, 
+它产生的效果就是Bison的输出只能到自由软件.
+
+    我们并未更改条款使出于对那些希望是软件私有化的人的同情. 
+所有的软件都应该是自由软件.但是我们的结论是: 
+使Bison只能用于自由软件,这对鼓励人们使其它软件变为自由软件作用甚微. 
+所以我们决定将使用Bison的条件与使用其它GNU工具的条件相一致. 
+(注:即和GCC一样可以用于非自由软件).
+
+1.1 语言与上下文无关文法-Languages and Context-Free Grammars
+
+    为了使Bison能分析语言,这种语言必须由上下文无关文法(context-free 
+grammar)描述. 也就是说,你必须指出一个或者多个语法组(syntactic 
+groupings)以及从语法组的部分构它的建整体的规则. 
+例如,在C语言中,有一种我们称之为'表达式(expression)'的语法组. 
+一个生成表达式的规则可能是"一个表达式由一个减号和另一个表达式构成". 
+另外一个规则可能是"一个表达式可以是一个整数". 
+就象你看到的一样,规则经常是递归定义的,但是必须有一个结束递归的规则.
+
+    用于表示这些规则的最普遍的系统是Backus-Naur 范式(Backus-Naur 
+Form)或者"BNF". 发明这种语言的目的是用来阐述Algol 60. 
+任何用BNF表示的文法都是一种上下文无关文法. Bison要求它的的输入必须用BNF表示.
+
+    上下文无关文法有许多重要的子集.尽管Bison可以处理几乎所有的上下文无关文法, 
+但Bison针对LALR(1) 文法(LALR(1) grammars)做了优化. 
+简而言之,在这些文法中(注:指LALR(1)),我们可以告之如何分析仅代有一个超前扫描记号的
+输入字符串的任意部分. 严格的说,这是一个LR(1)文法的描述. 
+LALR(1)包括了与多难以分析的额外限制. 
+幸运的是,在实际中,我们很难找到一个是LR(1)文法而不是LALR(1)文法的例子. 
+参阅神秘的归约/归约冲突-Mysterious Reduce/Reduce Conflicts,以获取更多信息.
+
+    LALR(1)文法分析器具有确定性(deterministic), 
+这就意味着应用于输入的下一个文法规则取决于之前的输入和确定的部分剩余输入(我们称
+之为一个超前扫描记号(look-ahead). 
+一个上下文无关文法可能是有歧义的(ambiguous),即可能可以应用多种规则来获取某些输入
+. 即使非歧义性文法也可能使不确定(non-deterministic)的, 
+即没有总能足以决定下一个应用的文法规则的确定的超前扫描记号。 
+使用孰知的GLR技术,Bison的GLR就可以分析这些更为普通的上下文无关文法. 
+当任意给定字符串的可能的分析是确定的情况下,Bison可以处理任意上下文无关文法.
+
+    在正式的语言语法规则中,每一种语法单元或组合被称之为符号(symbol). 
+那些可以通过语法规则被分解成更小的结构的符号叫做非终结符(nonterminal symbols). 
+那些不能被再分的符号叫做终结符(terminal symbols)或者记号类型(token types). 
+我们把同终结符相对应的输入片段叫做记号(token), 
+把同单个非终结符相对应的输入片段叫做组(grouping).
+
+    我们可以使用C语言做为例子来解释什么是符号,以及终结符和非终结符的含义. 
+C语言的记号包括标识符,常量(数字或者字符串)以及各种关键字,数学操作符和标点符号. 
+所以C语言语法的终结符包括'identifier','number','string',加上每个关键字的符号,操
+作符或者标点符号. 
+例如:'if','return','const','static','int','char','plus-sign','open-brace','close
+-brace','comma'以及更多. 
+(这些记号可以再分为字符,但是这些是词法学而不是语法学的事情)
+
+    这是一个如何将C函数分解成记号的例子:
+int             /* 关键字 'int' */
+square (int x)  /* identifier, open-paren, 关键字 'int', identifier, close-paren */
+{               /* open-brace */
+  return x * x; /* 关键字 'return', identifier, asterisk, identifier, semicolon */
+}               /* close-brace */
+
+    C语言的语法组包括表达式,语句,声明和函数定义. 
+这些由C语言语法中的非终结符'expression','statement','declaration'和'funcation 
+definition'表示. 
+完整的语法还使用了许多额外的语言结构,每种结构都有自己的非终结符来表示上述四种的
+含义. 上面的例子是一个函数的定义,它包括了一个声明和一个语句. 
+每一个'x'一个表达式,而且'x * X'也是一个表达式.
+
+    每一个非终结符必须有一个描述如何由更简单结构组成这个非终结符的语法规则. 
+例如,一种C的语句是return语句的非正式表达将由如下的语法规则描述:
+    一种语句可以由一个'return'关键字,一个'expression'可以由一个'semicolon'组成.
+
+    还有许多其它对应'statement'的规则,每一种规则对应一种C语句.
+
+    我们必须注意到一种特殊的非终结符,这种非终结符定义了语言的一个完整表述. 
+我们称之为开始符号(start symbol). 在编译器中,这意味着一个完整的输入程序. 
+在C语言中,非终结符'sequence of definitions and declarations'扮演了这个角色.
+
+    
+    例如,'1+2'是以个有效的C表达式--一个有效的C程序的部分--但它不能做为一个C程序的全
+部(entire). 在C语言的上下文无关文法中,这遵循了'expression'不是开始符号的事实.
+
+    Bison分析器读取一个记号序列做为它的输入并使用语法规则将记号组合. 
+如果输入是有效的,最终的结果是将整个的输入序列分析整理到开始符号. 
+如果我们使用C语言的语法,整个的输入必须是一个'sequence of definitions and 
+declarations', 否则分析器会报告一个语法错误.
+
+1.2 从正规文法转换到Bison的输入-From Formal Rules to Bison Input
+    正规文法是一种数学结构.为了定义Bison要分析的语言, 
+你必须用Bison语法编写一个表达该语言的文件,即一个Bison 语法(Bison grammar)文件. 
+参阅 Bison的语法文件-Bison Grammar Files.
+
+    
+就象C语言中的标识符一样,在Bison的输入中,一个正规文法的非终结符由一个标识符表示. 
+根据惯例,非终结符应该用小写子母表示,例如expr,stmt或者declaration.
+
+    在Bison中,终结符也被称为符号类型(token type). 
+符号类型也可以由类似C语言标识符来表示. 
+根据惯例,这些标识符因改用大写子母表示以区分它和非终结符. 
+例如,INTEGER,INDENTIFIER,IF或者RETURN. 
+一个表示某语言的特定关键字的终结符应该由紧随该关键字之后的它的大写表示来命名. 
+终结符error保留用作错误恢复之用. 参阅 符号-Symbols.
+
+    一个终结符也可以由一个像C中的字符常量一样的一个字符来表示. 
+当一个记号就是一个字符(括号,加号等等)的时候,你可以这样做: 
+使用同一个字符做为那个记号的终结符.
+
+    第三种表示终结符的方法是使用包含一些字符的C字符串常量. 
+获取更多这方面的信息可以参阅 符号-Symbols.
+
+    语法规则在Bison语法中也有相应的表示.例如,下面有一个C语言return语句的规则. 
+在引号中的分号,是一个字符记号,它是用来表示C语言部分语法的. 
+没有在引号中的分号和冒号是Bison用来表示每一条规则的标点符号.
+    stmt: RETURN expr ';' 
+    ;
+
+1.3 语义值-Semantic Values
+    正规文法仅仅靠类别来选择记号:例如,如果一个规则提到了终结符'integer 
+constant', 这就意味着任何整数常量在那个位置上都是语法有效的. 
+常量的精确值与如何分析输入不相关:如果'x+4'符合语法,那么'x+1'或者'x+3989'也符合语
+法.
+
+    但是,当分析输入时,它的精确值是非常重要的,通过精确值可以了解输入的含义. 
+如果一个编译器不能区别程序中的4,1和3989等常量,毫无疑问,这个编译器是没有用的! 
+因此,每一个Bison语法的记号既含有一个符号类别也有一个语义值(semantic value). 
+获取这方面的更多信息,参阅 定义语言的语义-Defining Language Semantics.
+
+    符号类型是在语法中定义的终结符,例如INTEGER,IDENTIFIRE或者','. 
+它告诉你决定记号可能有效出现的位置以及如何将它组合成其它记号的信息. 
+语法规则只知道符号的类型,其它的什么都不知道.
+
+    语义值包括了记号的所有剩余信息.例如整数的数值,标识符的名称. 
+(一个如','的记号只是一个标点,并不需要语义值.)
+
+    例如,一个分类为INTEGER的记号包含语义值4. 
+另一个也被分类为INTEGER的记号的语义值却是3989. 
+当一个语法规则表明INTEGER是允许的,任意的这些记号都是可接受的,因为它们都是INTEGER
+. 当一个分析器接受了记号,它会跟踪这个记号的语义值.
+
+    每一个语法组和它的非终结符也可已有语义值. 
+一个很典型的例子,在计算器中,一个表达式含有一个数值做为它的语义值, 
+在程序语言编译器中.一个典型的表达式含有一个用于描述它含义的树型结构做为语义值.
+
+1.4 语义动作
+    为了更加实用,一个程序不仅仅要分析输入而且必须做的更多. 
+它应该可以在输入的基础上产生一些输出. 
+在Bison语法中,一个语法规则可以有一个包括多个C语句的动作(action). 
+分析器每次识别一个规则的匹配,相应的动作就会被执行. 获取这方面的更多信息,参阅 
+动作-Actions.
+
+    大多数时候,动作的目的是从部分结构的语义值计算整个结构的语义值. 
+例如,加入我们有一个规则表明一个表达式可以由两个表达式相加而成. 
+当分析器识别了一个加法和,每一个子表达式都有一个描述其如何构建的语义值. 
+这个规的动做就是为了新识别的大表达式建立一个类似的语义值.
+
+    例如,这里的一个规则表明一个表达式可由两个表达式相加而成.
+    expr: expr '+' expr   { $$ = $1 + $3; }
+        ;
+这个动作表明了如何从子表达式的语义值产生加法和表达式的语义值.
+
+1.6 位置-Locations
+    许多应用程序,如解释器和编译器,需要产生一些有用信息或者出错的信息. 
+为了达到这个目的,我们必须追踪每个语法结构的原文位置(textual 
+location)或位置(location). Bison提供了追踪这些位置的机制.
+
+    每一个记号有一个语义值.类似地,每个记号也有一个位置, 
+对于所有记号和组来说,它们的位置的类型是相同的. 
+此外,输出的分析器也带有默认的存储位置的数据结构 
+(获取更多信息,参阅位置-Locations一章).
+
+    像语义值一样,位置可以在动作中使用特定的一套结构来访问. 
+在上面个的例子中,这个组的的位置是$$,而子表达式的位置是$1和$3.
+
+    当一个规则被匹配,一个默认的动作用于计算左侧的语义值(参阅动作-Actions一章). 
+类似地,另外一个默认的动作用于计算位置. 
+然而,这个默认动作对于对于大多数情况已经足够永, 
+即经常没有必要为每个规则描述@$应该是如何形成的. 
+当为一个给定的组建立一个新的位置的时候, 
+输出的分析器的默认行为是取第一个符号的开头和最后一个符号的末尾.
+
+ 1.7 Bison的输出:分析器文件-Bison Output: the Parser File
+
+    当你运行Bison的时候,你需要给Bison一个语法文件做为其输入. 
+Bison的输出是一个分析这个语法文件描述的语言的C源代码文件. 
+这个文件叫做Bison分析器(Bison parse). 
+我们要记住Bison工具和Bison分析器是两个明显不同的程序: 
+Bison工具是一个以Bison分析器为输出的程序. 这个Bison分析器应是你程序的一部分.
+
+    Bison分析器的工作是依照语法规则组合记号--例如,将标识符和操作符构建成表达式. 
+在组合的过程中它还要执行相应的语法规定的动作.
+
+    记号是来源于称为词法分析器(lexical analyzer)的程序. 
+你必须以某种形式提供词法分析器(如用C编写). 
+Bison分析器每当需要一个新的记号的时候就会调用词法分析器. 
+Bison分析器并不之道记号"中"有什么东西(即使它们的语义值可能反映这个). 
+典型的词法分析器靠分析字符来产生记号,但是Bison并不依靠这个. 获取更多细节,参阅 
+词法分析函数yylex-The Lexical Analyzer Function yylex.
+
+    Bison分析器文件是定义了名为yyparse并且实现了那个语法的函数的C代码. 
+这个函数并不能成为一个完成的C程序:你必须提供额外的一些函数. 
+其中之一是词法分析器.另外的一个是一个分析器报告错误时调用的错误报告函数. 
+另外,一个完整的C程序必须以名为main的函数开头; 
+你必须提供这个函数.并且安排它调用yyparse. 否则分析器永远都不会运行. 参阅 
+分析器C语言接口-Parser C-Language Interface.
+
+    除了你编写的动作中的记号类型名称和符号以外 
+,所有Bison分析器文件自己定义的符号都以'yy'或者'YY'开头. 
+这些符号包括了接口函数例如词法分析函数yylex,错误报告函数yyerror 
+和分析器函数yyparse. 这些符号也包括了许多内部目的的标识符. 
+所以你要在Bison语法文件中避免使用除了本手册定义的以外的以'yy'或者'YY'开头的C标识
+符.
+
+    在一些情况下,Bison分析器文件包含系统头文件. 
+在这中情况下,你的代码注意被这些文件保留的标识符. 
+在意些非GNU系统,<alloca.h>,<stddef.h>以及<stdlib.h> 
+被包含在内用于声明内存分配器及相关类型. 
+如果你定义YYDEBUG为非零值,其它的系统头文件也可能被包括进内. 
+(参阅跟踪你的分析器-Tracing Your Parser一章)
+
+1.8 使用Bison的流程-Stages in Using Bison
+实际使用Bison设计语言的流程,从语法描述到编写一个编译器或者解释器,有三个步骤:
+
+    以Bison可识别的格式正式地描述语法.(参阅Bison语法文件一章) 
+对每一个语法规则,描述当这个规则被识别时相应的执行动作. 动作由C语句序列描述.
+    编写一个词法分析器处理输入并将记号传递给语法分析器. 
+词法分析器既可是手工编写的C代码(参阅词法分析函数yylex一章), 
+也可以由lex产生,但是lex的使用并未在这个手册中讨论.
+    编写一个调用Bison产生的分析器的控制函数.
+    编写错误报告函数. 
+
+将这些源代码转换成可执行程序,你需要按以下步骤进行.
+    按语法运行Bison产生分析器.
+    同其它源代码一样编译Bison输出的代码.
+    链接目标文件以产生最终的产品
+
+1.9 Bison语法文件的整体布局-The Overall Layout of a Bison Grammar
+
+Bison工具的输入文件是以个Bison语法文件(Bison grammar file). 
+通常的Bison语法文件格式如下:
+%{
+1. 序言 (Prologue)
+声明全局标识符，定义数据类型、变量和宏，包含头文件，等。
+%}
+2. 声明 (declarations)
+声明终结符，非终结符，运算符的优先级，符号语义值的各种类型。
+%%
+3. 文法 (Grammar rules)
+定义每一非终结符的文法规则。
+%%
+4. 结言 (Epilogue)
+定义序言中声明的函数，以及剩余的所有程序。如 yylex(), yyerror(), main(), 等。
+
+
+
+2.1.1 rpclac的声明部分-Declarations for rpcalc
+这就是逆波兰记号计算器的C和Bison声明部分. 像C语言一样,注释部分在'/*…*/'中.
+/* Reverse polish notation calculator.  */
+/* 逆波兰记号计算器 */
+
+%{
+  #define YYSTYPE double
+  #include <math.h>
+
+  int yylex (void);
+  void yyerror (char const *);
+%}
+
+%token NUM
+
+%% /* Grammar rules and actions follow.  */
+
+声明部分包括了两个预处理指令和两个前置声明.
+
+    #define指令定义了YYSTYPE宏, 它指明了记号和组(参阅语义值的数据类型-Data 
+Types of Semantic Values一章)语义值的C数据类型. 
+Bison分析器会使用任何YYSTYPE定义的数据类型; 如果你没有定义它,int则是默认的类型. 
+因为我们指明了double,所以每个记号和表达式已经关联了一个浮点数值.
+
+    #include用来声明幂函数pow.
+
+    由于C语言要求函数必须在使用之前声明, 所以前置声明yylex和yyerror是必须的. 
+这些函数将在epilogue部分定义,但是分析器会调用它们, 
+所以它们必须在prologue部分声明.
+
+    第二部分-Bison declarations,提供了有关记号类型的信息(参阅Bison 
+Declarations部分-The Bison Declarations Section一章). 
+每一个不只一个字符组成的终结符必须在这里声明.(通常没有必要声明单一字符.) 
+在这个例子中,所有的算术操作符都是单一字符的, 
+所以我们在这里仅需要声明的终结符是NUM--数字常量的记号类型.
+
+2.1.2 rpcalc的语法规则-Grammar Rules for rpcalc
+这就是逆波兰记号计算器的语法规则:
+input:    /* empty */
+        | input line
+;
+
+line:     '/n'
+        | exp '/n'      { printf ("/t%.10g/n", $1); }
+;
+
+exp:      NUM           { $$ = $1;           }
+        | exp exp '+'   { $$ = $1 + $2;      }
+        | exp exp '-'   { $$ = $1 - $2;      }
+        | exp exp '*'   { $$ = $1 * $2;      }
+        | exp exp '/'   { $$ = $1 / $2;      }
+         /* Exponentiation */
+        | exp exp '^'   { $$ = pow ($1, $2); }
+         /* Unary minus    */
+        | exp 'n'       { $$ = -$1;          }
+;
+%%
+
+    在这里定义的rpcalc"语言"的组是:表达式(名称是exp), 
+输入行(line),整个的输入脚本(input). 这些非终结符每个都有多个可选择的规则. 
+这些规则由'|'连接而成. 我们可以把'|'读做"或者". 接下来的部分解释了规则的含义.
+
+    语法的语义由当组组被识别时执行的动作决定. 动作由在大括号中C代码组成. 
+参阅动作-Actions一章.
+
+    你必须用C语言来指定这些动作, 但是Bison也提供了在规则之间传递语义值的方法. 
+在每个动作中,伪变量$$代表着将要构建的组的语义值. 赋值给$$是大多数动作的工作. 
+规则的组成部分的语义值由$1,$2等等指定.
+
+2.1.2.1 解释input-Explanation of input
+考虑input的定义:
+input:    /* empty */
+        | input line
+;
+    这个定义可以被解释为:"一个完整的输入己可能是一个空字符串, 
+也可能是一个完整输入后紧跟一个输入行". 
+我们应该注意到"完整输入"定义在它自己的条款中. 
+由于input总是出现在符号序列的最左端, 我们称这种定义为左递归(left recursive). 
+(参阅 递归规则-Recursive Rule.)
+
+    第一个可选择的规则为空是由于在冒号和第一个'|'之间没有任何符号; 
+这意味着input可以匹配一个空字符串的输入(没有符号). 
+我们这样编写规则是因为在你启动计算器后,在右端输入Ctrl-d是合法的. 
+把空规则放在最开始并伴随注释'/* empty */'是使用惯例.
+
+    第二个可选的规则(input line)处理了所有非平凡的输入. 
+它的含义是"在读取任意个数的line后,如果可能的化读取更多的line." 
+作递归使得这个规则进入循环. 
+由于第一个可选的规则与空输入匹配,循环可能被执行零次或多次.
+
+    分析器函数yyparse继续处理输入直到发现一个语法错误或者 
+词法分析器表明没有更多的输入记号为止; 我们会安排后者在输入结束的时候发生
+
+2.1.2.2 解释line-Explanation of line
+现在我们考虑line的定义:
+line:     '\n'
+        | exp '\n'  { printf ("/t%.10g/n", $1); }
+;
+
+    第一个选择是一个换行符号; 这意味着rpcalc接受一个空白行(并且忽略它,因为没有相关的动作). 
+第二个选择是一个表达式后紧跟着一个换行符. 这个选择使得rpcalc变得实用. 
+$1的值是exp组的语义值, 这是因为exp是诸多选择中的第一个符号. 
+这个值就是用户需要的计算结果. 相关的动作打印了这个这个值.
+
+    这个动作非同寻常,因为它并没有向$$赋值. 这样做的结果就是与line相关联的语义值
+并未被初始化(它的值是不可预期的). 如果那个值被使用的话,这会成为一个bug,但是我们
+并未使用它. rpcalc一旦已经打印了用户输入行的值,就不再需要那个值了
+
+2.1.2.3 解释expr-Explanation of expr
+    exp组有很多规则,每一个都是一种表达式. 第一个规则处理最简单的表达式:仅仅是数字的表达式.
+第二个处理看起来像两个表达式后紧跟一个假发符号的加法表达式. 第三个处理减法等等.
+exp:      NUM
+        | exp exp '+'     { $$ = $1 + $2;    }
+        | exp exp '-'     { $$ = $1 - $2;    }
+        …
+        ;
+
+我们已经使用'|'将exp的规则连接起来. 但是我们也可以将它们分开来写:
+exp:      NUM ;
+exp:      exp exp '+'     { $$ = $1 + $2;    } ;
+exp:      exp exp '-'     { $$ = $1 - $2;    } ;
+        …
+
+    大部分规则都有从其部分值来计算表达式值的动作. 
+例如,在加法的规则中,$1指的是第一个部件exp, 而$2指的是第二个部件. 
+第三个部件'+'并没有相关联的语义值. 但是如果它有语义值的话,你可以用$3来代表. 
+当yyparse使用这个规则识别了一个加法和表达式, 
+两个自表达式值的相加而得到了整个表达是的值. 参阅 动作-Actions.
+
+    你不必为每一个规则都指定动作. 当一个规则没有动作时,Bison会默认地将$1的值复制给$$. 
+这就是在第一规则被(使用NUM的规则)识别时发生的事情.
+
+    在这里展示的是推荐的惯用格式, 但是Bison并没有要求一定要这么做. 
+你可以增加或者更改任意你想要的数量的空白. 例如,这个:
+    exp : NUM | exp exp '+' {$$ = $1 + $2; } | … ;
+
+与这个的意义相同
+exp:      NUM
+        | exp exp '+'    { $$ = $1 + $2; }
+        | …
+;
+然而,后一种写法明显更可读.
+
+2.1.3 rpcalc的词法分析器-The rpcalc Lexical Analyzer
+符号类型码0在输入结束的时候被返回. (Bison将任何不正确的值识别为输入结束)
+
+是词法分析器的代码:
+/* 词法分析起在栈上返回一个双精度浮点数(注:指yylval)并且返回记号NUM,
+   或者返回不是数字的字符的数字码.它跳过所有的空白和制表符,
+   并且返回0作为输入的结束. */
+#include <ctype.h>
+
+int
+yylex (void)
+{
+  int c;
+
+  /* Skip white space.  */
+  /* 处理空白. */
+  while ((c = getchar ()) == ' ' || c == '/t')
+    ;
+  /* Process numbers.  */
+  /* 处理数字 */
+  if (c == '.' || isdigit (c))
+    {
+      ungetc (c, stdin);
+      scanf ("%lf", &yylval);
+      return NUM;
+    }
+  /* Return end-of-input.  */
+  /* 返回输入结束 */
+  if (c == EOF)
+    return 0;
+  /* Return a single char.  */
+  /* 返回一个单一字符 */
+  return c;
+}
+
+2.1.4 控制函数-The Controlling Function
+为了保证这个例子的精巧,控制函数也保持了最小化。 它仅仅要求调用yyparse来开始分析的处理.
+int
+main (void)
+{
+  return yyparse ();
+}
+
+2.1.5 错误报告的规则-The Error Reporting Routine
+    当yyparse侦测到语法错误的时候, 
+它会调用错误报告函数yyerror来打印一个错误信息(经常但不总是"syntax error"). 
+yyparse需要程序员来提供yyerror(参阅分析器C语言接口-Parser C-Language 
+Interface一章), 所我我们使用这样的定义:
+    #include <stdio.h>
+
+    /* Called by yyparse on error.  */
+    void
+    yyerror (char const *s)
+    {
+      fprintf (stderr, "%s/n", s);
+    }
+    在yyerror返回之后, 如果语法包括了适当的错误规则(参阅错误恢复-Error 
+Recovery一章) Bison分析器可以从错误中恢复并且继续分析. 否则,yyparse返回非零值. 
+我们在这个例子中并没有编写任何错误规则, 所以任何无效的输入会导致计算器程序退出. 
+这种做法显然对于这正的计算器是不够用的, 但是足够用于这个例子.
+
+2.2 中缀符号计算器:calc-Infix Notation Calculator: calc
+    现在我们可以通过修改rpcalc使其处理中缀操作符. 中缀操作符涉及到了操作符优先级
+的概念以及任意深度的括号嵌套. 这里是'calc.y',一个中缀桌面计算器的代码.
+
+
+
+/* Infix notation calculator.  */
+/* 中缀符号计算器 */
+
+%{
+  #define YYSTYPE double
+  #include <math.h>
+
+  #include <stdio.h>
+  int yylex (void);
+  void yyerror (char const *);
+%}
+
+/* Bison declarations.  */
+%token NUM
+%left '-' '+'
+%left '*' '/'
+%left NEG     /* negation--unary minus */ /* 负号 */
+%right '^'    /* exponentiation */ /* 幂运算 */
+
+%% /* The grammar follows.  */ /*　下面是语法 */
+input:    /* empty */
+        | input line
+;
+
+line:     '/n'
+        | exp '/n'  { printf ("/t%.10g/n", $1); }
+;
+
+exp:      NUM                { $$ = $1;         }
+        | exp '+' exp        { $$ = $1 + $3;    }
+        | exp '-' exp        { $$ = $1 - $3;    }
+        | exp '*' exp        { $$ = $1 * $3;    }
+        | exp '/' exp        { $$ = $1 / $3;    }
+        | '-' exp  %prec NEG { $$ = -$2;        }
+        | exp '^' exp        { $$ = pow ($1, $3); }
+        | '(' exp ')'        { $$ = $2;         }
+;
+%%
+
+yylex,yyerror和main可以与上一个例子一样.
+这段代码展示了两个重要的新特征.
+    在第二部分中(Bison declarations), %left声明了记号类型并且指明它们是左结合操作符. 
+%left和%right(右结合)的声明代替了%token. %token是用来声明没有结合性的记号类型的.
+    操作符优先级是由声明所在行的顺序决定的. 行号越大的操作符(在一页或者屏幕底端)
+具有越高的优先级. 因此,幂运算具有最高优先级,负号(NEG)其次, 接这是'*'和'/'等等.
+    另外一个重要的特征是在语法部分的负号操作符中使用了%prec. 语法中的%prec只是简单的
+告诉Bison规则'| '-' exp'与NEG有相同的优先级--在前述的优先级规则中.
+
+2.3 简单的错误恢复-Simple Error Recovery
+    直到这一章之前,这个手册并未提及错误恢复(error recovery)的内容-- 
+即在分析器侦测到错误之后如何继续分析. 所有我们需要做的事情就是编写yyerror函数. 
+我们可以回忆一下以前的例子, yyparse在调用yyerror后返回. 
+这就意味着任一个错误的输入会导致计算机程序的退出. 
+现在我们就展示如何改正这个不足.
+
+    Bison语言自己包括了可以插入到语法规则中去的保留字error. 
+在这个例子中,它被添加到line的一个可选的规则中.
+        
+
+    line:     '/n'
+            | exp '/n'   { printf ("/t%.10g/n", $1); }
+            | error '/n' { yyerrok;                  }
+    ;
+
+    这个添加的规则允许在语法错误发生的时候有简单的错误恢复动作. 
+如果一个读入一个无法求值的表达式, 
+这个错误会被识别成line的第三个规则并且分析会继续执行. 
+(yyerror函数仍会被调用来打印它的信息). 
+执行这个动作的语句yyerrok是一个被Bison自动定义的宏. 
+它的含义是错误恢复已经完成(参阅错误恢复-Error Recovery一章). 
+我们应当注意到yyerror和yyerrok的区别, 它们的印刷都没有错误.
+
+2.4 带有位置追踪的计算器:ltcalc-Location Tracking Calculator: ltcalc
+2.4.1 ltcalc的Declarations-Declarations for ltcalc
+位置追踪计算器的C和Bison声明部分与中缀符号计算器的声明部分相同.
+/* Location tracking calculator.  */
+/* 位置追踪计算器 */
+
+%{
+  #define YYSTYPE int
+  #include <math.h>
+  int yylex (void);
+  void yyerror (char const *);
+%}
+
+/* Bison declarations.  */
+/* Bison 声明 */
+%token NUM
+
+%left '-' '+'
+%left '*' '/'
+%left NEG
+%right '^'
+
+%% /* The grammar follows.  */ /* 下面是语法 */
+注意到并没有位置的特别声明. 并不需要定义一个存储位置的数据类型: 我们使用Bison提供的默认的类型
+这种数据类型是带有四个整数域的结构体: first_line,first_column,last_line和last_column. 
+
+2.4.2 ltcalc的语法规则-Grammar Rules for ltcalc
+是否处理位置对于你的语言的语法明没有影响. 因此,这个语言的语法规则与前一个例子的非常接近; 我们仅仅修改它们以获取新的信息.
+在这里,我们使用位置来报告除数为0并且对错误的表达式或子表达式进行定位.
+input   : /* empty */
+        | input line
+;
+
+line    : '/n'
+        | exp '/n' { printf ("%d/n", $1); }
+;
+
+exp     : NUM           { $$ = $1; }
+        | exp '+' exp   { $$ = $1 + $3; }
+        | exp '-' exp   { $$ = $1 - $3; }
+        | exp '*' exp   { $$ = $1 * $3; }
+        | exp '/' exp
+            {
+              if ($3)
+                $$ = $1 / $3;
+              else
+                {
+                  $$ = 1;
+                  fprintf (stderr, "%d.%d-%d.%d: division by zero",
+                           @3.first_line, @3.first_column,
+                           @3.last_line, @3.last_column);
+                }
+            }
+        | '-' exp %preg NEG     { $$ = -$2; }
+        | exp '^' exp           { $$ = pow ($1, $3); }
+        | '(' exp ')'           { $$ = $2; }
+
+这段代码展示了如何对规则部件使用伪变量@n 以及对组使用伪变量@$在语义动作中确定位置.
+
+2.5 多功能计算器:mfcalc-Multi-Function Calculator: mfcalc
+3.2 符号,终结符和非终结符-Symbols, Terminal and Nonterminal
+3.3 描述语法规则的语法-Syntax of Grammar Rules
+一个Bison语法规则通常有如下的下形式:
+result: components…
+        ;
+reault所在是这个规则描述的非终结符而components 是被这个规则组合在一起的多种终结符和非终结符.(参阅符号-Symbols一章)
+例如:
+
+exp:      exp '+' exp
+        ;
+表明两组exp类型和一个'+'记号在中间, 可以结合成一个更大的exp类型组.
+规则中的空白只用来分隔符号.你可以在你希望的地方添加额外的空白.
+决定规则的语义的动作可以分散在部件中.一个动组看起来是这样:
+{C statements}
+通常只有一个动作跟随着部件. 参阅 动作-Actions.
+result的多种规则可以分别书写或者由垂直条'|'按如下的方法连接起来:
+在这种方式下依然有我们之特考虑的特殊规则.
+如果一个规则的components为空,它意味着result可以匹配空字符串. 例如,这就是一个定一个由逗号分隔的0个或多个exp组:
+expseq:   /* empty */ /* 空 */
+        | expseq1
+        ;
+
+expseq1:  exp
+        | expseq1 ',' exp
+        ;
+我们通常对每个没有部件的规则加上一个'/* empty */'的注释.
+
+3.5.1 语义值的数据类型-Data Types of Semantic Values
+    在一个简单的程序中,对所有的语言结构的语义值使用同一个数据类型就足够用了. 在RPN和
+中缀计算器的例子中的确是这样.(参阅逆波兰记号计算器-Reverse Polish Notation Calculator一章).
+Bison默认是对于所有语义值使用int类型. 如果要指明其它的类型,可以像这样将YYSTYPE定义成一个宏:
+#define YYSTYPE double
+这个宏定义比喻在语法文件的Prologue部分.
+
+3.5.2 多种值类型-More Than One Value Type
+    在大多数程序中,你需要对不同种类的记号和组使用不同的数据类型. 
+例如,一个数字常量可能需要类型int或long int, 而一个字符常量可能许需要类型char *, 
+并且一个标识符需要一个指向符号表项的指针做为其语义值的类型.
+
+    为了在一个分析器中使用多种语义值类型, Bison要求你做两件事情:
+
+        使用Bison声明%union指明全部可能的数据类型集. (参阅值类型集-The 
+Collections of Value Types一章).
+        从这些类型中为每个符号(终结符或者非终结符)选择一个做为其语义值类型. 
+要做到这些,可以对记号使用Bison声明%token(参阅符号类型的名称-Token Type 
+Names一章); 并且对组使用Bison声明%type(参阅非终结符-Nonterminal Symbols一章)
+
+
+3.5.4 动作中值的数据类型-Data Types of Values in Actions
+    如果你为语义值只选择了一种数据类型, 那么$$和$n结构总是那种类型.
+    如果你已经使用了%union指定了多种数据类型, 
+那么你必须从这些类型中为每一个可以有语义值的终结符或非终结符声明一种. 
+之后当你每次使用$$或者$n的时时侯, 它的数据类型由它引用的符号的类型决定. 
+在这个例子中:
+    exp:    …
+            | exp '+' exp
+                { $$ = $1 + $3; }
+    $1和$3引用了exp的实例, 所以它们都有为非终结符exp声明的数据类型. 
+如果使用了$2,它就会拥有为终结符'+'声明数据类型, 无论它可能是什么.
+    另外,在你引用数值的时候, 在引用的开始'$'之后插入'<type>', 
+你还可以指定数据类型, 例如,如果你已经定义了这里展示的数据类型:
+    %union {
+      int itype;
+      double dtype;
+    }
+    那么你可以用$<itype>1作为一个整数来引用规则的第一个子单元, 
+或者用$<dtype>1作为一个双精度数来引用.
+
+
+3.7.10 Bison声明总结-Bison Declaration Summary
+
+这是一个用来定义语法的声明的总结:
+
+指令: %union
+
+    声明了语义值可能拥有的数据类型集. (参阅值类型集-The Collection of Value 
+Types一章). 
+
+指令: %token
+
+    声明一个未指定优先级和结合性的终结符(符号类型名称) (参阅符号类型名称-Token 
+Type Names一章). 
+
+指令: %right
+
+    声明一个右结合的终结符(符号类型名称) (参阅操作符优先级-Operator 
+Precedence一章). 
+
+指令: %left
+
+    声明一个左结合的终结符(符号类型名称) (参阅操作符优先级-Operator 
+Precedence一章). 
+
+指令: %nonassoc
+
+    声明一个没有结合性的终结符(符号类型名称). (参阅操作符优先级-Operator 
+Precedence一章). 按结合性的方法使用它是一个语法错误. 
+
+指令: %type
+    声明非终结符的语义值类型. (参阅非终结符-Nonterminal Symbols一章). 
+
+指令: %start
+    指明了语法的开始符号 (参阅开始符号-The Start-Symbol一章). 
+
+指令: %expect
+    声明了预期的移进/归约冲突的个数. (参阅消除冲突警告-Suppressing Conflict 
+Warnings一章). 
+为了改变bison的行为,使用如下指令
+指令: %debug
+    在分析器文件中,如果YYDEBUG未定义,将其定义为1, 以便调式机制被编译. 
+
+参阅 追踪你的分析器.
+指令: %defines
+    编写一个包括记号类型定义和其它声明的宏定义头文件. 
+如果分析器输出文件是'name.c', 那么这个头文件就是'name.h'.
+
+    除非YYSTYPE已经被定义成了一个宏, 否则输出头文件会声明YYSTYPE. 
+因此,如果你使用了需要其它定义的%union部件 (参阅 多种值类型-More Than One Value 
+Type,) 或者你已经定义了宏YYSTYPE (参阅语义值的数据类型-Data Types of Semantic 
+Values一章), 你需要安排这些定义使它们在所有模块的前页, 
+例如,把它们放入一个你的分析器和任何其它模块都包含的头文件中.
+
+    除非你的分析器是一个纯分析器, 否则输出的头文件将yylval声明为一个外部变量. 
+参阅 一个纯(可重入)分析器-A Pure (Reentrant) Parser.
+    如果你也使用了位置, 
+输出头文件使用声明与YYSTYPE和yylval类似的协议声明YYLTYPE和yylloc. 参阅 
+追踪位置-Semantic Values of Tokens.
+    如果你希望将yylex的定义放在一个另外的源文件中的话, 
+这个输出的头文件是通常必须的, 因为yylex需要引用头文件中提供的声明和记号类型码. 
+参阅 记号的语义值-Semantic Values of Tokens. 
+
+指令: %destructor
+    指明了分析器如何回收同丢弃的符号相关联的内存. 参阅 释放丢弃的符号-Freeing 
+Discarded Symbols. 
+
+指令: %file-prefix="prefix"
+    指定一个所有Bison输出文件的前缀,就好像输入文件名为'prefix.y'. 
+
+指令: %locations
+    产生处理位置的代码(参阅使用动作的特殊特征-Special Features for Use in 
+Actions一章). 一旦语法使用了'@n'记号,这种模式就会被激活. 
+但是如果你的语法没有用到它,使用'%locations'可以获得更精确的语法错误信息. 
+
+指令: %name-prefix="prefix"
+    重命名分析器使用的外部符号以便它们以prefix开始,而不是'yy'. 
+符号被重命名的精确列表是: yyparse, yylex, yyerror, yynerrs, yylval, yylloc, 
+yychar, yydebug, 和可能使用的 yylloc. 例如, 如果你使用'%name-prefix="c_"', 
+名称就会变为 c_parse, c_lex等等. 参阅 同一个程序中的多个分析器-Multiple Parsers 
+in the Same Program. 
+指令: %no-parser
+    在分析器文件中不包含任何C代码,仅仅声称表格. 
+分析器文件仅仅包括#define指令和静态变量声明.
+    这个选项也告诉Bison将语法动作的C代码以switch语句的形式 
+写入一个名为'filename.act'的文件. 
+指令: %no-lines
+    在分析器文件中不生成任何#line预处理指令. 
+Bison通常将这些指令写入分析器文件以便 
+C编译器和调式器(debugger)可以将错误和目标代码与你的源文件(语法文件)关联起来. 
+这个指令使它们关联错误到分析器文件并将它视为一个独立的源文件. 
+指令: %output="filename"
+    将分析器文件指定为filename. 
+指令: %pure-parser
+    请求一个纯(可重入)分析器程序(参阅一个纯(可重入)分析器-A Pure (Reentrant) 
+Parser一章). 
+指令: %token-table
+    在分析器文件中生成一个记号名称数组. 数组的名称是yytname; 
+yytname[i]是Bison内部数字码为i的记号的名称. 
+前三个yytname的元素与预定义记号"$end","error", 和"$undefined"相对应; 
+在这几个符号之后便是语法文件中定义的符号.
+    对于单字符记号和文字串记号, 表格中的名称包含单引号或者双引号字符: 
+例如,"'+'"是一个单字符记号而 "/"<=/""是一个文字串记号. 
+字符串记号的所有字符一字不差地出现在符号表中; 即使双引号字符也不跳过. 
+例如,如果记号包含了三个字符'*"*',在yytname的字符串为'"*"*"'. 
+(在C语言中,那应被写成"/"*/"*/"").
+    当你指定了%token-table,Bison也生成了YYNTOKENS, YYNNTS, and YYNRULES, 
+和YYNSTATES的宏定义:
+    YYNTOKENS
+        最高记号数字加1 
+    YYNNTS
+        非终结符的数量 
+    YYNRULES
+        语法规则的数量 
+    YYNSTATES
+        分析器状态的数量(参阅分析器状态-Parser States一章). 
+
+指令: %verbose
+向一个额外的输出文件写入包括分析器状态和对在那个状态的每一种超前扫描记号做了些什
+么的详细描述. 参阅 理解你的分析器-Understanding You Parser,以获取更多信息. 
+
+指令: %yacc
+    假定给定了'--yacc'选项,也就是模拟Yacc,包括它的命名惯例. 参阅 
+Bison选项-Bison Options,获得更多信息.
+
+
+4.1 分析器函数yyparse-The Parser Function yyparse
+    你通过调用函数yyparse开始进行分析. 这个函数读入记号,执行动作, 并且最后如果它
+遇到输入结束或者不能恢复的错误就会返回. 你也可以编写一个让yyparse立即返回不再读入的动作.
+Function: int yyparse (void)
+    如果分析成功,yyparse返回值为0(当遇到输入结束的时候).
+    如果分析失败,返回值则为1.(当遭遇语法错误的时候). 
+在动作中,你可以使用这些宏使yyparse立即返回:
+
+Macro: YYACCEPT
+    立即返回0(来报告分析成功). 
+
+Macro: YYABORT
+    立即返回1(来报告分析失败).
+    
+4.2 词法分析器函数yylex-The Lexical Analyzer Function yylex
+    词法分析器(lexical analyzer)函数,yylex, 
+从输入流中识别记号并将它们返回给分析器(注:语法分析器). 
+Bison并不自动生成这个函数; 你必须编写它以备yyparse调用. 
+这个函数有时候也被成为词法扫描器.
+
+    在简单的程序中,yylex经常定义在Bison语法文件的末尾. 
+如果yylex定义在另外的文件中, 你需要安排符号类型宏定义在那里是可见的. 
+为了做到这一点,在运行Bison的时候使用'-d'选项以便它 
+将这些宏定义写入到另外的名为'name.tab.h'的头文件中. 
+你可以将它包含在需要它的其它源文件中.
+
+4.2.1 yylex的调用惯例-Calling Convention for yylex
+yylex的返回值必须是它刚刚发现的记号类型的正值数字码; 0或负值代表着输入的结束.
+
+4.2.2 记号的语义值-Semantic Values of Tokens
+
+    在一个普通的(不可重入)的分析器中, 记号的语义值必须被存放在全局变量yylval中. 
+当你只使用一种语义值数据类型时, yylval就是那个类型. 因此,如果类型为int(默认的), 
+你可以这样编写你的yylex:
+      yylval = value;  /* Put value onto Bison stack.  */ /* 将值放入Bison栈中 */
+      return INT;      /* Return the type of the token.  */ /* 返回记号类型 */
+    当你使用多种数据类型时, yylval的类型是一个由%union声明组成的联合体. 
+(参阅值类型集-The Collections of Value Types一章). 
+所以,当你存储一个记号的语义值的时候, 你必须使用恰当的联合体成员. 
+如果%union声明是这样的:
+    %union {
+      int intval;
+      double val;
+      symrec *tptr;
+    }
+    那么yylex中的代码应该是这样:
+      yylval.intval = value; /* Put value onto Bison stack.  */ /* 将值放入Bison栈中. */
+      return INT;            /* Return the type of the token.  */ /* 返回记号的类型 */
+
+4.3 错误报告函数yyerror-The Error Reporting Function yyerror
+    Bison分析器侦测到一个语法错误(syntax error) 或者一个分析错误(parse error) 
+每当它读入了一个不能满足任何规则的记号. 一个语法动作也可以使用宏YYERROR显式地声明一个错误
+
+
+4.4 在动作中使用的特殊特征-Special Features for Use in Actions
+这里是在动作中使用的Bison结构,变量和红的列表.
+变量: $$
+    像一个变量一样工作,这个变量包含了由当前规则构成的组的语义值. 参阅 
+动作-Actions. 
+
+变量: $n
+    像一个变量一样工作,这个变量包含了当前动作第n个部件的语义值. 参阅 
+动作-Actions. 
+
+变量: $<typealt>$
+    类似$$但是指明了%union声明中的typealt选项. 参阅 动作中值的数据类型-Data 
+Types of Values in Actions. 
+
+变量: $<typealt>n
+    类似$n但是指明%union声明中的typealt选项. 参阅 动作中值的数据类型-Data Types 
+of Values in Actions. 
+
+宏: YYABORT;
+    立即从yyparse返回,表明分析失败. 参阅 分析器函数yyparse-The Parser Function 
+yyparse. 
+
+宏: YYACCEPT;
+    立即从yyparse返回,表明分析成功. 参阅 分析器函数yyparse-The Parser Function 
+yyparse. 
+
+宏: YYBACKUP (token, value);
+    移出一个记号. 
+这个宏仅仅在一个只归约单一值的规则中使用,并且只在没有超前扫描记号的时候被允许使
+用. 这个宏也不允许在GLR分析器中使用. 
+这个宏建立一个超前带有记号类型token和语义值value的超前扫描记号; 
+然后丢弃将要被这个规则归约的值.
+    如果这个宏在无效的情况下使用, 例如当已经存在超前扫描记号的情况下使用, 
+那么它会报告一个带有消息'cannot back up'的语法错误 
+并且执行一个普通的错误恢复程序.
+    在上述任一种情况下,动作的其余部分不会被执行. 
+
+宏: YYEMPTY
+    当没有超前扫描记号的时候,值被存放在yychar中. 
+
+宏: YYERROR;
+    立即导致一个语法错误. 
+这个语句启动错误恢复就像分析器自己已经侦测到一个错误一样; 
+然而,它并不调用yyerror并且不打印任何消息. 如果你要打印一个错误消息, 
+在'YYERROR;'语句之前显式地调用yyerror. 参阅 错误恢复-Error Recovery. 
+
+宏: YYRECOVERING
+    当分析器从语法错误中恢复的时候,这个表达式的值为1. 其余时候值为0. 参阅 
+错误恢复-Error Recovery. 
+
+变量: yychar
+    包含当前超前扫描记号的变量. 
+(在一个纯分析器中,这实际上是一个yyparse中的局部变量). 
+当没有超前扫描记号的时候,这个变量存储YYEMPTY的值. 参阅 超前扫描记号-Look-Ahead 
+Tokens. 
+
+宏: yyclearin;
+    丢弃当前的超前扫描记号. 它主要用于错误恢复规则. 参阅 错误恢复-Error 
+Recovery. 
+
+宏: yyerrok;
+    对后来的语法错误立即恢复产生错误消息. 它主要用于错误恢复规则. 参阅 
+错误恢复-Error Recovery. 
+
+值: @$
+    像一个包含文字位置信息的结构一样工作. 这个位置是由当前规则构成的组的位置. 
+参阅 追踪位置-Tracking Locations.
+
+值: @n
+    像一个包含文字位置信息的结构一样工作. 
+这个位置是由当前规则的第n个部件的位置. 参阅 追踪位置-Tracking Locations
+
+8.1 理解你的分析器-Understanding Your Parser
+    如同本文档其它部分描述的 (参阅Bison分析器算法-The Bison Parser 
+Algorithm一章), Bison分析器是移进/归约自动机(shift/reduce automata). 
+在一些情况下(比你希望的要更频繁), 
+调整或者简单的修正一个分析器需要考虑这个自动机. 
+Bions提供了它(自动机)的两种表示方法,文本的或者图形的(作为一个VCG文件).
+
+    当指定选项'--report'或者'--verbose'时Bison生成文本文件, 参阅 
+调用Bison-Invoking Bison. 
+它的名称由移除分析器输出文件名'.tab.c'或者'.c'而添加'.output'取代. 
+因此,如果输入文件是'foo.y', 那么默认的分析器文件为'foo.tab.c'. 
+结果,冗长(verbose)输出文件为'foo.output'.
+
+8.2 跟踪你的分析器-Tracing Your Parser
+    如果Bison语法编译正确但是在运行的时候并未达到你想要的目的, 
+yydeug分析器追踪特性可以帮你指明原因.
+    有多种方法激活追踪机制的编译:
+    宏 YYDEBUG
+        当你编译分析器的时候,将宏YYDEBUG定义成非零指. 这种方式与POSIX Yacc兼容. 
+你可以使用'-DYYDEBUG=1'作为一个编译器选项或者你可以将'define YYDEBUG 1' 
+放入语法文件的Prologue部分.(参阅Prologue部分- The Prologue一章).
+    选项 '-t', '--debug'
+        当你运行Bison(参阅调用Bison-Invoking Bison一章)时, 使用'-t'选项. 
+这也与POSIX兼容.
+    指令 '%debug'
+        加入%debug指令(参阅Bison声明总结-Bison Declaration Summary一章). 
+这是一个Bison扩展,当Bison为不使用预处理器的语言输出分析器的时候很实用. 
+除非你要考虑POSIX可移植性问题, 否则这是一个很好的解决方案. 
+    我们建议你应该总是激活调式选项以便随时进行调试.
+    追踪机制使用YYFPRINTF (stderr, format, args)形式的宏调用输出信息. 
+在这里format和args是普通的printf的格式和参数. 
+如果你定义YYDEBUG为一个非零值但是没有定义YYFPRINTF, 
+<stdio.h>自动被加入并且YYPRINTF被定义为fprintf.
+    一旦你使用了追踪机制编译程序, 
+请求一个追踪的方法是在变量yydebug中存储一个非零值. 
+你可以考编写C代码(也许在main中)做到这一点, 你也可以使用C调试器来改变这个值.
+
+9.1 Bison选项-Bison Options
+
+Bison既支持传统的单字母选项也支持可记忆长选项名称. 
+用'--'取代'-'来指明常长项名称. Bison允许选项名称缩写只要它们是唯一的. 
+当长选项带有一个参如,如'--file-prefix', 用'='连接选项名称和参数.
+
+这里有一个Bison可以是用的选项清单, 按照短选项字母顺序排列. 
+在它之后是一个常选项的交叉键.
+
+操作模式:
+
+'-h'
+'--help'
+
+    打印一个Bison命令行选项的总结并退出.
+'-V'
+'--version'
+
+    打印Bison的版本号并退出.
+'-y'
+'--yacc'
+
+    与'-o y.tab.c'等价; 分析器输出文件名为'y.tab.c', 
+并且其它输出称为'y.output'和'y.tab.h'. 
+这个选项的目的是模拟Yacc的输出文件命名惯例. 因此,如下的shell脚本可以替代Yacc, 
+并且Bison发行版包含一个这种为POSIX兼容的脚本.
+     
+
+    #! /bin/sh
+    bison -y "$@"
+
+调整分析器:
+
+'-S file'
+'--skeleton=file'
+
+    指明要使用的骨架(skeleton). 除非你正在开发Bison否你很可能不需要这个选项.
+'-t'
+'--debug'
+
+    在分析器文件中,定义宏YYDEBUG为1,如果还没有定义它, 以便调试机制被编译. 参阅 
+追踪你的分析器-Tracing Your Parser.
+'--locations'
+
+    %locations的伪装.参阅 声明总结-Decl Summary.
+'-p prefix'
+'--name-prefix=prefix'
+
+    %name-prefix="prefix"的伪装. 参阅 声明总结-Decl Summary.
+'-l'
+'--no-lines'
+
+    在分析器文件中不放入任何的#line预处理器命令. 
+Bison通常将它们放入分析器文件以便C编译起和调试器将错误关联到你的源文件, 
+语法文件. 这个选项会关联错误到分析器文件,将它视为一个独立的源文件.
+'-n'
+'--no-parser'
+
+    %no-parser的伪装. 参阅 声明总结-Decl Summary.
+'-k'
+'--token-table'
+
+    %token-table的伪装. 参阅 声明总结-Decl Summary. 
+
+调整输出:
+
+'-d'
+'--defines'
+
+    
+伪装%defines,例如,向一个额外的文件写入语法中记号类型名称的宏定义和一些其它的声明
+. 参阅 声明总结-Decl Summary.
+'--defines=defines-file'
+
+    与上述相同,但是保存到文件defines-file.
+'-b file-prefix'
+'--file-prefix=prefix'
+
+    %verbose的伪装,例如,指明所有Bison输出文件的前缀. 参阅 声明总结-Decl Summary.
+'-r things'
+'--report=things'
+
+    向一个额外的输出文件写入如下things的详细描述清,并由逗号分隔:
+
+    state
+
+        语法,冲突(解决的和未解决的)以及LALR自动机.
+    look-ahead
+
+        包含state并且增加每个规则的超前扫描记号集自动机的描述.
+    itemset
+
+        包含state并且增加每个状态的全部项目集的自动机而不仅仅是它核心的自动机. 
+
+    例如,在下面的语法中
+'-v'
+'--verbose'
+
+    %verbose的伪装,例如,向额外的输出文件写入语法和分析器的详细描述. 参阅 
+声明总结-Decl Summary.
+'-o filename'
+'--output=filename'
+
+    为分析器文件指明filename.
+
+    其它输出文件的名称像'-v'和'-d'选项的描述一样由filename构成.
+'-g'
+
+    输出一个由Bison计算的LALR(1)语法自动机的VCG定义. 如果语法文件是'foo.y', 
+VCG输出文件将会是'foo.vcg'.
+'--graph=graph-file'
+
+    -graph的行为和'-g'的行为一样. 
+唯一的区别在于它含有一个指明输出图形文件的可选参数.
+
+9.3 Yacc库-Yacc Library
+Yacc库包含yyerror和main函数的默认实现. 
+通常情况下,这些默认实现没有什么用处,但是POSIX要求它们. 
+要使用Yacc库,使用选项'-ly'链接你的程序. 
+注意到Bison实现的Yacc库在GNU通用许可证下发行. (参阅GNU GENERAL PUBLIC 
+LICENSE一章).
+如果你使用Yacc库的yyerror函数, 你应该如下地声明yyerror:
+int yyerror (char const *);
+
+Bison忽略yyerror返回的int值. 如果你使用Yacc库的main函数, 
+你的yyparse函数应该有如下原型:
+int yyparse(void);
+0: success
+1: tokens error
+2: memory exhaustion
+
+YYACCEPT : 0
+YYABOERT : 1
+
+void yyerror (char const *s)
+
+#‘%define api.push-pull push’ or ‘%define api.push-pull both’
+int yypush_parse (yypstate *yyps)
+int yypull_parse (yypstate *yyps)
+yypstate* yypstate_new (void)
+void yypstate_delete (yypstate *yyps)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

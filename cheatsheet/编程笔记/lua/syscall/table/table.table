@@ -1,0 +1,107 @@
+-- 1. 构造器表达式创建表
+a = {}          -- 创建一个table对象，并将它的引用存储到a
+k = "x"
+a[k] = 10       -- 创建了新条目，key = "x", value = 10
+a[20] = "great" -- 新条目，key = 20， value = "great"
+print(a["x"])
+k = 20
+print(a[k]) -- 打印great
+a["x"] = a["x"] + 1
+print(a["x"])  -- 打印11
+
+-- 2. 表永远是匿名的
+a = {}
+a['x'] = 10
+b = a          -- 'b'和'a'引用同一张表
+print(b['x'])  -- 10
+b['x'] = 20
+print(a['x'])  -- 20
+a = nil        -- 只有b仍然指向表
+b = nil        -- 没有指向表的引用了
+
+-- 3. 同一个表中存储的值可以具有不同的类型索引，并可以按需增长以容纳新的元素
+a = {}
+for i =1, 1000 do a[i] = i*2 end
+print(a[9])        -- 18
+a["x"] = 10        
+print(a["x"])      -- 10
+print(a["y"])      -- nil 与全局变量具有相同的规则，不存在引用时为nil
+
+-- 4. 把表作结构体使用 --> a.x    表实际上是由固定的、预先定义的键组合成的集合
+                       --> a["x"] 表可以使用任意字符串作为键，并且出于某种原因我们操作的是指定的键
+a = {}              -- 空白表
+a.x = 10            -- 等价于a["x"] = 10
+print(a.x)          -- 等价于a["x"]
+print(a.y)          -- 等价于a["y"]
+
+-- 4.1 a.x和a[x]
+a = {}
+a = 'y'
+a[x] = 10              -- 把10放在字段"y"中
+print(a[x])   --> 10   -- 字段"y"的值
+print(a.x)    --> nil  -- 字段"x"的值(未定义)
+print(a.y)    --> 10   -- 字段"y"的值
+
+-- 4.2 表的键差异性
+i = 10; j = "10"; k = "+10"
+a = {}
+a[i] = "number key"
+a[j] = "string key"
+a[k] = "another string key"
+print(a[i])             -- 数值类型的键
+print(a[j])             -- 字符串类型的键
+print(a[k])             -- 另一个字符串类型的键
+print(a[tonumber[j]])   -- 数值类型的键
+print(a[tonumber[k]])   -- 数值类型的键
+
+-- 4.3 整数和浮点
+a = {}
+a[2.0] = 10
+a[2.1] = 20
+print(a[2])       -- 10
+print(a[2.1])     -- 20
+
+-- 5. 表的构造器
+days = {"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"}
+-- days = {[1] = "Sunday", [2] = "Monday", [3] = "Tuesday", [4] = "Wednesday", [5] = "Thurday", [6] = "Friday", [7] = "Saturday"}
+print(days[4])    -- Wednesday
+
+a = {x = 10, y = 20}
+-- a = {}; a.x = 10; a.y = 20
+
+-- 5.1 随时增加和删除表元素
+w = {x=0, y= 0, label = "console"}
+x = {math.sin(0), math.sin(1),math.sin(2)}
+w[1] = "another field"   -- 把键1增加到表'w'中
+x.f = w                  -- 把键"f"增加到表'x'中
+print(w["x"])            -- 0
+print(w[1])              -- another field
+print(x.f[1])            -- another field
+w.x = nil                -- 删除字段'x'
+
+-- 5.2 混用记录式(record-style)和列表式
+polyline = {color = "blue", thickness = 2, npoints = 4, 
+    {x = 0, y = 0},    -- polyline[1]
+    {x = 10, y = 0},   -- polyline[2]
+    {x = -10, y = 1},  -- polyline[3]
+    {x = 0, y = 1}     -- polyline[4]
+    }                  
+print(polyline[2].x)   -- -10
+print(polyline[4].y)   -- 1
+
+-- 6. 数组的长度
+a = {}
+for i = 1,10 do a[i] = i end
+
+for i = 1,#a do print(a[i]) end
+print(a[#a])      -- 输出序列'a'的最后一个值
+a[#a] = nil       -- 移除最后一个值
+a[#a + 1]         -- 把'v'加到序列的最后
+
+-- 访问表的成员:通过“.”或者“[]”运算符来访问表的成员。
+
+---- 表项的键和值
+-- 任何类型的变量,除了nil,都可以做为表项的键。从简单的数值、字符串到复杂的函数、表等等都可以;
+-- 同样,任何类型的变量,除了nil,都可以作为表项的值。给一个表项的值赋nil意味着从表中删除这一项,
+-- 比如令a.b=nil,则把表a中键为“b”的项删除。
+-- 如果访问一个不存在的表项,其值也是nil,比如有c =a.b,但表a中没有键为“b”的项,则c等于nil。 

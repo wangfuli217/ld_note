@@ -1,0 +1,86 @@
+    缺点：1. 获取字符串长度需要搜索字符串，查找标志字符串结尾的0字符。
+          2. str接口中的函数和标准库中的一些函数假定字符串是可以修改的，因此函数或者调用者
+             必须为结果分配空间，在不修改字符串的应用程序中，许多这种分配是不必要的。
+             
+    长度可以在常数时间内计算得到，因为相关信息保存在字符串中，而仅在必要时才分配内存。
+    Text提供的字符串是不可改变的，即它们无法直接修改，而且其中可能包含嵌入的0字符串。
+   
+   在描述符和C风格字符串之间进行转换。
+   typedef struct T { int len; const char *str;} T;
+   typedef struct Text_save_T *Text_save_T;
+    T是一个描述符，客户程序可以读取描述符的字段，但向描述符的字段写入数据则是未检查的运行时错误
+   Text函数可以按值接收并返回描述符，向任何Text函数传递的描述符，如果其字段str=NULL或len<0,则为
+   已检查的运行时错误。
+    Text为其提供的不可变的字符串管理内存，向串空间写入数据，或通过外部手段释放其中的内存，均为未检查的运行时错误。
+   串空间中的字符串可以包含0字符，因此其中的字符串不是以0字符结尾的。
+    一些Text函数可以接受位置作为参数，位置标识了字符之间的点，参见str接口。在下文的描述中，s[i:j]表示s中位置i和j之间的子串。
+    
+   4. 文本集
+   const T text_cset;     256个全集文本
+   const T text_ascii;    ASCII集文本
+   const T text_ucase;    大写集文本
+   const T text_lcase;    小写集文本
+   const T text_digits;   数字集文本
+   const T text_null;     空集文本
+   上述是一些已经初始化的静态描述符。
+   
+   5. 文本简单处理函数
+   T text_sub(T text, ssize_t i, ssize_t j); 返回s[i:j]
+   T text_dup(T text, int n); 返回s的n个副本连接形成的字符串。如果n<0，则为已检查的运行时错误
+   T text_cat(T text1, T text2); 返回text1连接text2得到的字符串
+   T text_reverse(T text); 返回s的一个副本，其中的各个字符已经反向
+   T text_map(T text, const T *from, const T *to); 返回根据from和to映射s中的所得到的字符串，参见str_map。
+   如果from和to均为NULL，则使用此前设定的from和to值。如果只有from和to二者之一为NULL，或from->len!=to->len，则为已检查的运行时错误。
+   
+   ssize_t text_pos(T text, ssize_t i);               返回对应于s[i:i]的整数位置，从该值减去1，即可得到字符s[i:i+1]的索引值。
+   int     text_cmp(T s1, T s2)                       如果s1<s2, s1=s2, s1>s2，分别返回<0 =0 >0的int值
+   
+   6. 文本输出格式化函数
+   void text_fmt(int code, va_list *app,
+                 int put(int c, void*cl), void *cl,
+                 unsigned char flags[], int width, int precision) 这是一个fmt转换函数。它消耗掉一个指向描述符的指针，并按照printf
+   %s限定符的风格，格式化该字符串。描述符指针，app或flags是NULL，则造成已检查的运行时错误。
+                
+   
+   1. 字符串和Text对象之间转换
+   T       text_put(const char *str);                 将0结尾字符串str复制到串空间中，并返回对应新字符串的描述符
+   char   *text_get(char *str, ssize_t size, T text); 将text描述的字符串复制到str[0..size-2]中，附加一个0字符，并返回str.
+                                                      如果size小于s.len+1，则造成已检查的运行时错误。
+                                                      如果str是NULL，text_get将忽略size，调用mem_alloc来分配s.len+1个字节，将s.str复制到新分配的空间中。
+   T       text_box(const char *str, ssize_t len);    为常数字符串或客户程序自行分配的字符串建立描述符。将str和len"装箱"到一个描述符中并返回描述符。
+   
+   2. text接口功能函数
+   ssize_t text_chr(T text, ssize_t i, ssize_t j, int c);  参见str_chr
+   ssize_t text_rchr(T text, ssize_t i, ssize_t j, int c); 参见str_rchr
+   ssize_t text_upto(T text, ssize_t i, ssize_t j, T set);  参见str_upto
+   ssize_t text_rupto(T text, ssize_t i, ssize_t j, T set); 参见str_rupto
+   ssize_t text_any(T text, ssize_t i, T set); 如果s[i:i+1]字符出现在set中，则返回s中该字符之后的正数位置，否则返回0
+   ssize_t text_many(T text, ssize_t i, ssize_t j, T set);   参见str_many
+   ssize_t text_rmany(T text, ssize_t i, ssize_t j, T set);  参见str_rmany
+   
+   ssize_t text_find(T text, ssize_t i, ssize_t j, T str);    参见str_find
+   ssize_t text_rfind(T text, ssize_t i, ssize_t j, T str);   参见str_rfind
+   ssize_t text_match(T text, ssize_t i, ssize_t j, T str);   参见str_match
+   ssize_t text_rmatch(T text, ssize_t i, ssize_t j, T str);  参见str_rmatch
+   
+   3. 待分析
+   text_save_t text_save(void); 返回一个不透明指针，其编码了当前串空间顶部的位置。
+   void        text_restore(text_save_t *save); 释放save创建以来分配的那部分串空间。如果save=NULL,则为已检查的运行时错误
+   如果在调用text_restore之后，使用表示高于save位置的恰text_save_t值，则为未检查的运行时错误。
+   
+   
+monit:
+T StringBuffer_new(const char *s); # 创建一个以s开头的字符串缓冲区
+T StringBuffer_create(int hint);   # 创建一个长度为hint的字符串缓冲区
+void StringBuffer_free(T *S);      # 释放字符缓冲区
+T StringBuffer_append(T S, const char *s, ...)  # 追加一个多个字符串
+T StringBuffer_trim(T S); # 删除开头和结尾的[ \\t\\r\\n]
+const char *StringBuffer_toString(T S);         # 返回代表T代表的字符串
+T StringBuffer_delete(T S, int index); # 然后index位置后所有字符
+int StringBuffer_indexOf(T S, const char *s);  返回s在T中的位置
+int StringBuffer_lastIndexOf(T S, const char *s); 返回s在T中的位置
+int StringBuffer_length(T S);
+T StringBuffer_clear(T S);
+const char *StringBuffer_substring(T S, int index); # 
+int StringBuffer_replace(T S, const char *a, const char *b); # 替换
+const void *StringBuffer_toCompressed(T S, int level, size_t *length)  # 使用zlib压缩字符 -> gzip

@@ -1,0 +1,168 @@
+对Tcl程序的源文件被命名为扩展名为".tcl"
+
+http://www.tcl.tk/software/tcltk/download.htmll
+sudo apt-get install tcl tk
+yum install tcl tk
+
+#!/usr/bin/tclsh
+puts "Hello World!" 
+
+tclsh helloWorld.tcl
+特殊变量            描述
+argc                指命令行参数的个数。                         $argc  
+argv                指包含命令行参数的列表。                     $argv  
+argv0               是指被解释的文件或由调用脚本的名称的文件名。 $argv0 
+env                 用于表示是环境变量数组元素。                 $env(PATH)
+errorCode           为最后的Tcl错误的错误代码。
+errorInfo           为最后Tcl错误的堆栈跟踪信息。
+tcl_interactive     分别将其设置为1和0交互和非交互模式之间切换。 $tcl_interactive
+tcl_library         用于设置的标准Tcl库的位置。                  $tcl_library
+tcl_pkgPath         提供一般都安装包的目录列表。                 $tcl_pkgPath
+tcl_patchLevel      指的是Tcl解释目前的补丁级别。                $tcl_patchLevel
+tcl_platform        用于表示使用对象，包括byteOrder, machine, osVersion平台和操作系统数组元素。
+tcl_precision       指的是精度，即位数转换为浮点数时，字符串保留。默认值是12。 $tcl_precision
+tcl_prompt1         指的是主提示符。
+tcl_prompt2         指无效的命令二次提示。
+tcl_rcFileName      为用户提供了具体的启动文件。                 $tcl_rcFileName
+tcl_traceCompile    用于控制字节码编译的跟踪。用0表示无输出，1为概要和2为详细。
+tcl_traceExec       用于控制执行的字节码的跟踪。用0表示无输出，1为概要和2为详细。
+tcl_version         返回Tcl解释器的最新版本。                    $tcl_version
+
+1. 使用新的行或分号终止代码前行。但分号不是必要的，如果使用的是每一个命令(即一个换行)。
+2. 注释可以使用hash_(#)在开始写入。
+   多行或者块注释使用，如果条件为0。
+   if 0 {
+    my first program in Tcl program
+    Its very simple
+    }
+3. TCL不允许标点字符，如@和％标识符。TCL是大小写敏感的语言。
+4. 仅包含空格，可能与注释行，被称为一个空行和Tcl解释完全忽略它。
+   空白格是Tcl中用来描述空格，制表符，换行符和注释的术语。
+5.  TCL命令是建立在对与每一个具有其自身的预定义的功能的语言。
+   这些命令构成该语言的保留字，不能用于其它变量命名。这些Tcl命令的好处是，可以用来定义自己实现这些命令代替原来的内置功能。
+   Tcl命令实际上是词语的列表，使用要执行表示该命令的第一个字。
+   接下来的单词代表参数。为了组单词组成单一的参数，随函多个单词可使用""或{}。
+   Tcl命令的语法如下。
+   commandName argument1 argument2 ... argumentN
+   
+  5.1 命令替换    puts [expr 1 + 6 + 9] # 方括号是用来计算在方括号中的脚本。
+      变量替换    set a 3; puts $a
+      反斜杠替换  puts "Hello\nWorld"
+      
+6. 原始数据类型在Tcl中是字符串；复合数据类型列表和关联数组。
+   在Tcl中，数据类型可以表示不仅是简单Tcl的对象，但也可以代表相同的句柄，图形对象(主要是小部件)复杂的对象，和I/O通道。
+   set myVariable 18 ; puts [expr $myVariable + 6 + 9]
+   如果我们尝试使用puts来打印，这个数字被转化为正确的字符串。有两种表示方法，内部和外部，帮助 Tcl 创建复杂的数据结构很容易相对于其他语言。
+   
+   6.1 字符串表示 ： 不同于其他语言，在TCL，不需要包含双引号，它只有一个字。
+        当我们想表示多个字符串，可以使用双引号或大括号。
+        set myVariable "hello world"
+        set myVariable {hello world}
+    Tcl 的原始数据类型是字符串，我们常常可以在Tcl找到引用字符串的唯一语言。
+    这些字符串可以包含字母数字字符，数字，布尔值，甚至是二进制数据。
+    TCL采用16位Unicode字符和字母数字字符，可以包含字母包括非拉丁字符，数字或标点符号。
+    布尔值，可以表示为1，yes 或 true 为真值和0，no 或 false 为假值。
+        
+   6.2 列表 - List ： 列表不过是一组元素。一组单词或者使用双引号或大括号可以用来表示一个简单的列表。
+    set myVariable {red green blue}
+    puts [lindex $myVariable 2]
+    set myVariable "red green blue"
+    puts [lindex $myVariable 1]
+   6.3 关联数组 关联数组有一个索引(key)但不一定是整数。人们普遍认为就像键值对是字符串。
+    set  marks(english) 80
+    puts $marks(english)
+    set  marks(mathematics) 90
+    puts $marks(mathematics)
+   6.4 句柄 TCL句柄通常用于表示文件和图形对象。这些可以包括句柄网络请求以及其它渠道，如串口通讯，套接字或I/O设备。
+    set myfile [open "filename" r]
+7. 变量命名 : 变量的名称可以包含任何字符和长度。甚至可以存在空格被封闭在大括号中的变量，但不建议这样做。
+    set variableName value
+    set variableA 10
+    set {variable B} test
+    puts $variableA
+    puts ${variable B}
+   动态类型 : 变量的值可以在需要时被动态地转换为所需的类型。
+    set variableA "10"
+    puts $variableA
+    set sum [expr $variableA +20];
+    puts $sum
+   数学表达式 : expr是用于表示数学表达式。 Tcl默认精度为12位。
+    set variableA "10"
+    set result [expr $variableA / 9];
+    puts $result
+    set result [expr $variableA / 9.0];
+    puts $result
+    set variableA "10.0"
+    set result [expr $variableA / 9];
+    puts $result
+    
+    set tcl_precision 5 # 控制精度
+8.  算术运算符 + - * / %
+    关系运算符 == != > < >= <=
+    逻辑运算符 && || !
+    位运算符   & | ^ << >>
+9.  if语句包含一个布尔表达式后跟一个或多个语句。
+    if {boolean_expression 1} {
+    # Executes when the boolean expression 1 is true
+    } elseif {boolean_expression 2} {
+    # Executes when the boolean expression 2 is true 
+    } elseif {boolean_expression 3} {
+    # Executes when the boolean expression 3 is true 
+    } else {
+    # executes when the none of the above condition is true 
+    }
+10. switch语句可以让一个变量值的列表进行相等测试。每个值被称为一个的情况(case)，该变量被接通检查每个switch case。
+    switch switchingString {
+    matchString1 {
+        body1
+    }
+    matchString2 {
+        body2
+    }
+    ...
+    matchStringn {
+        bodyn
+    }
+    }
+    在switch语句中使用的switchingString通过比较matchString使用在不同块之间。 
+    在一个switch内可以任何数量matchString块。 
+    switch语句可以具有可选默认块，其中必须出现在开关的末尾。缺省情况下，可用于执行任务时没有一个case是真实的
+    
+11. 无限循环
+  11.1 while {condition} {
+    statement(s)
+    }在这里，声明(S)可以是单个语句或语句块。所述条件可以是任何表达，真是指任何非零值。循环迭代当条件为真。
+  11.2 for {initialization} {condition} {increment} {
+    statement(s);
+    }
+    初始化步骤首先执行，并且只有一次。这一步可以声明和初始化任何循环控制变量。不需要把一个声明放在这里，只要给定一个分号。
+    接着，条件condition进行了计算。如果为真，则执行循环体。如果是假的，循环体不执行，for循环之后的流程控制跳转到下一条语句。
+    循环的执行主体之后，控制流跳转回到增量语句。此语句可以更新任何循环控制变量。这个语句可以留空，只需要一个分号。
+    条件现在重新计算评估。如果条件为真，循环执行的过程中重新执行(循环体，然后增加步，然后再次计算条件)。之后当条件为假时，for循环终止。
+    
+12.数组 : 数组是一组使用索引对应元素的排列方式
+    set ArrayName(Index) value  # 创建数组
+    [array size variablename]   # 数组大小
+    
+13. append          将值追加到字符串尾
+    format          字符串格式
+    scan            字符串分解
+    binary          二进制字符串操作
+    string options  字符串操作和命令集
+    subst           字符替代(替代特殊字符)
+    regexp          正则表达式(用于字符串模式匹配)
+    regsub          用正则表达式进行字符串模式匹配和替换
+    
+    append 变量1 $变量2 将变量2的值追加到变量1的未尾。
+    format spec value1 value2 ...
+      spec为格式说明字符串，valuex不变元，每个变元最多有6个关键词：位置说明符、标志、字段宽度、精度、长度和转换符。
+      格式转换符与C类似，格式标志符："-"表示左对齐，"+"右对齐，“space”在数字前没有前导符时，加一个空格，"0"用0补空白，前导o为八进制，x为十六进制。
+    scan string format var? var? ....
+      与format相反，scan根据格式描述符来解析一个字符串并将对应值赋给后面的变量，返回成功转换的个数，如果没有指定输出变量则返回成功解析的结果。
+      string是待解析的字符串，第二个是控制解析方式的格式字符串, 后面的参数用来存储转换出的值。
+      
+14. 列表
+set listName { item1 item2 item3 .. itemn }
+set listName [list item1 item2 item3]
+set listName [split "items separated by a character" split_character] 
+      

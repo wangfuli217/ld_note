@@ -1,0 +1,34 @@
+编程和思考 -- 公众号
+https://github.com/Google/sanitizers
+AddressSanitizer, ThreadSanitizer, MemorySanitizer
+
+
+ASan是GCC内置的一个工具，通过选项-fsanitize=address可以启用。
+在gcc编译程序时，加入这样一个选项，GCC就会把相关的调试代码编译到目标程序中。
+
+ASan可用于定位以下几类问题：
+    使用已分配内存(Use of Deallocated Memory)
+    重复释放(Deallocation of Deallocated Memory)
+    释放非分配内存(Deallocation of Nonallocated Memory)
+    返回后继续使用函数的栈内存(Use of Stack Memory After Function Return)
+    使用栈内存越界(Use of Out-of-Scope Stack Memory)
+    缓冲区溢出(Overflow and Underflow of Buffers)
+    C++容器溢出(Overflow of C++ Containers)
+另外ASan还有几个小兄弟，
+包括UndefinedSanitizer,
+ThreadSanitizer,
+LeakSanitizer,
+MemorySanitizer。
+这个家族的若干工具组合起来，基本等于valgrind。但是这个工具族性能很高，对程序运行性能影响大约2-5倍。
+---------------------------------------
+
+1. 工具准备
+# yum install libasan
+
+2. 编译程序
+# gcc -g -o test -fsanitize=address test.c
+CFLAGS += -fsanitize=address -fno-omit-frame-pointer
+
+由于ASan只能定位那些运行时发生的错误，所以要发现更多问题，需要保证测试完备，达到尽可能高的代码覆盖率。
+运行过程中，如果发生能捕捉到的错误，ASan会输出错误的详细信息。
+

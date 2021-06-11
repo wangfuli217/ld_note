@@ -1,0 +1,43 @@
+sftp配置及安装
+	1)安装
+		yum install vsftpd
+	2)开机启动
+		chkconfig vsftpd on(或者echo "/etc/init.d/vsftpd start" >> /etc/rc.local)
+		
+	3)创建用户
+		useradd -s /sbin/nologin otpub_upload
+		passwd  abc!@#$aasdf
+				
+			
+	4)配置vsftpd.conf主配置文件并作相应修改
+		cp /etc/vsftpd/vsftpd.conf /etc/vsftpd/vsftpd.conf.bak
+
+		vi /etc/vsftpd/vsftpd.conf
+			anonymous_enable=NO #禁止匿名用户登录
+			local_enable=YES    #允许本地用户登录
+			chroot_list_enable=YES #激chroot功能 
+			chroot_list_file=/etc/vsftpd/chroot_list：设置锁定用户在根目录中的列表文件
+			
+	5)建立/etc/vsftpd/chroot_list文件,添加otpub_upload
+		touch /etc/vsftpd/chroot_list
+		vi /etc/vsftpd/chroot_list
+			gxt_upload
+
+	6)重启vsftpd服务使配置生效
+		service vsftpd restart
+	7)防火墙设置
+		cp /etc/sysconfig/iptables /etc/sysconfig/iptables.bak
+		vi /etc/sysconfig/iptables
+			iptables -A OUTPUT -p tcp --sport 22 -j ACCEPT
+		service iptables restart
+
+更改端口：
+	vsftpd启动后，默认的ftp端口是21，现在我想把ftp端口改成 801 ,修改后能保证
+	用户上传下载不受影响
+	1.编辑 /etc/vsftpd/vsftpd.conf 文件，在该配置文件中添加此行：listen_port=801
+	2.编辑 /etc/services 文件，将其中的 ftp 21/tcp 改为
+	ftp 801/tcp
+	ftp 21/udp
+	改为 ftp 801/udp
+	
+3.执行 /etc/init.d/vsftpd restart 重新启动 vsftpd 服务。启动完成后可以使用 netstat -ntpl | grep vsftpd 命令可以查看到系统现监听的 vsftpd 的端口为 801

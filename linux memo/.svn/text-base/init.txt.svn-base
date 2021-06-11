@@ -1,0 +1,54 @@
+#!/bin/sh
+echo
+echo "###########################################################"
+echo "## THis is a init script for initrd/initramfs            ##"
+echo "## Author: wengpingbo@gmail.com                          ##"
+echo "## Date: 2013/08/17 16:27:34 CST                         ##"
+echo "###########################################################"
+echo
+
+PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+
+if [ ! -f "/bin/busybox" ];then
+  echo "cat not find busybox in /bin dir, exit"
+  exit 1
+fi
+
+BUSYBOX="/bin/busybox"
+
+echo "build root filesystem..."
+$BUSYBOX --install -s
+
+if [ ! -d /proc ];then
+  echo "/proc dir not exist, create it..."
+  $BUSYBOX mkdir /proc
+fi
+echo "mount proc fs..."
+$BUSYBOX mount -t proc proc /proc
+
+if [ ! -d /dev ];then
+  echo "/dev dir not exist, create it..."
+  $BUSYBOX mkdir /dev
+fi
+# echo "mount tmpfs in /dev..."
+# $BUSYBOX mount -t tmpfs dev /dev
+
+$BUSYBOX mkdir -p /dev/pts
+echo "mount devpts..."
+$BUSYBOX mount -t devpts devpts /dev/pts
+
+if [ ! -d /sys ];then
+  echo "/sys dir not exist, create it..."
+  $BUSYBOX mkdir /sys
+fi
+echo "mount sys fs..."
+$BUSYBOX mount -t sysfs sys /sys
+
+echo "/sbin/mdev" > /proc/sys/kernel/hotplug
+echo "populate the dev dir..."
+$BUSYBOX mdev -s
+
+echo "drop to shell..."
+$BUSYBOX sh
+
+exit 0

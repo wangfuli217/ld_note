@@ -1,0 +1,30 @@
+stm202 error
+Memcache::connect(): Can't connect to 127.0.0.1:11211, Connection refused (111)
+http://summervast.blog.51cto.com/690507/460155
+Memcached 是高效、快速的分布式内存对象缓存系统，主要用于加速 WEB 动态应用程序，memcache是C/S架构；Linux下安装memcache需要安装服务器端和客户端；
+apt-get install memcached php5-memcache
+memcached -d -m 10 -u root -l 192.168.250.111 -p 11211 -c 256 -P /tmp/memcached.pid
+-d选项是启动一个守护进程，
+-m是分配给Memcache使用的内存数量，单位是MB，我这里是10MB，
+-u是运行Memcache的用户，我这里是root，
+-l设置监听的 IP 地址，如果是本机的话，通常可以不设置此参数，我这里指定了服务器的IP地址192.168.250.111，
+-p是设置Memcache监听的端口，我这里设置了11211，最好是1024以上的端口，
+-c选项是最大运行的并发连接数，默认是1024，我这里设置了256，按照你服务器的负载量来设定，
+-P是设置保存Memcache的pid文件，我这里是保存在 /tmp/memcached.pid
+ 新建一个mem.php的文档输入;
+<?php
+$memcache = new Memcache;
+$memcache->connect('127.0.0.1', 11211) or die ("Could not connect");
+$version = $memcache->getVersion();
+echo "Server's version: ".$version."\n";
+$tmp_object = new stdClass;
+$tmp_object->str_attr = 'test';
+$tmp_object->int_attr = 123;
+$memcache->set('key', $tmp_object, false, 10) or die ("Failed to save data at the server");
+echo "Store data in the cache (data will expire in 10 seconds)\n";
+$get_result = $memcache->get('key');
+echo "Data from the cache:\n";
+var_dump($get_result);
+?>
+输出如下：
+Server's version: 1.4.5 Store data in the cache (data will expire in 10 seconds) Data from the cache: object(stdClass)#3 (2) { ["str_attr"]=> string(4) "test" ["int_attr"]=> int(123) }

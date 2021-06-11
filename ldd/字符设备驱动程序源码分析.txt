@@ -1,0 +1,137 @@
+一、insmod模块时调用module_init(scull_init_module)，就来看一下这个函数： int scull_init_module(void)
+二、
+int scull_init_module(void)  
+{  
+ int result, i; //声明两个整形变量 result，i  
+ dev_t dev = 0; //声明一个dev_t类型的对象dev，默认初始值是0  
+  
+//下面这段代码调用了alloc_chrdev_region方法动态生成设备编号给dev，设备的名称是"scull” ，并且抽取dev中的主设备号付给scull_major，
+//方法是调用宏MAJOR(dev_t dev)  
+//alloc_chrdev_region函数原型是: int alloc_chrdev_region(dev_t *dev, unsigned int firstminor, unsigned int count, char *name);  
+  
+//各个参数的意义如下：  
+// dev_t *dev： dev_t型指针，是（存储生成的设备编号的）变量的地址  
+// firstminor: 要使用的被请求的第一个次设备号，通常为0。 这里在本文件中有定义：int scull_minor =   0;  
+// count:所请求的连续设备号的个数。这里是scull_nr_devs。在本文件中定义：int scull_nr_devs = SCULL_NR_DEVS;  
+  
+//         SCULL_NR_DEVS在头文件Scull.h中定义  
+//         #ifndef SCULL_NR_DEVS  
+//         #define SCULL_NR_DEVS 4    /* scull0 through scull3 */  
+//         #endif  
+  
+// name:char指针。是和该编号范围关联的设备名称。 "scull”这个名字会出现在/proc/devices和sysfs文件中  
+  
+if (scull_major) {  
+  dev = MKDEV(scull_major, scull_minor);  
+  result = register_chrdev_region(dev, scull_nr_devs, "scull");  
+ } else { //由于默认scull_major == 0; 所以采用动态分配的方法  
+  result = alloc_chrdev_region(&dev, scull_minor, scull_nr_devs,  
+    "scull");  
+  scull_major = MAJOR(dev);  
+ }  
+ if (result < 0) {  
+  printk(KERN_WARNING "scull: can't get major %d/n", scull_major);  
+  return result;  
+ }  
+  
+//scull_devices：是scull_dev结构声明的一个指针变量： struct scull_dev *scull_devices;  
+  
+//而scull_dev结构则是自定义的，每个SCULL设备都有一个对应的scull_dev结构。在Scull.h中声明.  
+  
+//struct scull_dev {  
+//   struct scull_qset *data;  /* 指向第一个量子集的指针  
+//   int quantum;              /*量子大小  
+//   int qset;                 /* 量子集大小  
+//   unsigned long size;       /* 保存的数据总量*/  
+//   unsigned int access_key;  /* used by sculluid and scullpriv */  
+//   struct semaphore sem;     /* mutual exclusion semaphore     */  
+//   struct cdev cdev;   /* 字符设备结构*/  
+//   };  
+// kmalloc函数原型是：void * kmalloc (size_t size, int flags); 其作用是在设备驱动程序或者内核模块中动态开辟内存.各个参数意义如下：  
+  
+// size:要分配内存的大小. 以字节为单位. 这里为（一个scull_dev结构的大小）*设备数量，设备数量由scull_nr_devs确定为4个  
+  
+// flags:要分配内存的类型. 这里使用最常用的GFP_KERNEL标志。GFP = Get Free Page。  
+  
+// 该函数返回分配到的内存首地址。这里把这个地址付给了scull_dev的指针变量scull_devices  
+  
+// 如果没有分配成功，则goto fail  
+  
+// 由于kmalloc并不对所获取的内存空间清零，所以又调用了memset函数来清零内存  
+  
+// memset函数原型是：void *memset(void *s,int c,size_t n) ；总的作用是将已开辟内存空间 s 的首 n 个字节的值设为值 c。  
+  
+scull_devices = kmalloc(scull_nr_devs * sizeof(struct scull_dev), GFP_KERNEL);  
+ if (!scull_devices) {  
+  result = -ENOMEM;  
+  goto fail;  /* Make this more graceful */  
+ }  
+  
+memset(scull_devices, 0, scull_nr_devs * sizeof(struct scull_dev)); //将刚刚开辟的内存清零  
+  
+   
+  
+//初始化并注册每个设备  
+  
+// 1. 每个设备的量子大小设定为4000  
+  
+// 2. 每个设备的数组大小设定为1000  
+  
+// 3. 将每个设备的互斥信号量设置为1.函数原型是void init_MUTEX (struct semaphore *sem);  
+  
+//     该函数用于初始化一个互斥锁，即它把信号量sem的值设置为1。   
+  
+// 4. 使用自定义函数scull_setup_cdev来初始化字符设备结构并添加到系统中（注册设备）， 总共加了4个设备。函数定义如下：  
+  
+//     static void scull_setup_cdev(struct scull_dev *dev, int index)  
+//        {  
+//          int err, devno = MKDEV(scull_major, scull_minor + index); //此处使用的是已经动态分配完的scull_major  
+//          下面这几步是非常重要的！！！是注册一个独立的cdev设备的基本过程！！！     
+//          cdev_init(&dev->cdev, &scull_fops);  //初始化struct cdev  
+//          dev->cdev.owner = THIS_MODULE;  //初始化cdev.owner  
+//          dev->cdev.ops = &scull_fops;           //初始化cdev.ops  
+//          err = cdev_add (&dev->cdev, devno, 1); //在cdev结构设置好以后，告诉内核该结构的信息  
+//          /* Fail gracefully if need be */  
+//          if (err)  
+//          printk(KERN_NOTICE "Error %d adding scull%d", err, index);  
+//         }  
+  
+  
+ for (i = 0; i < scull_nr_devs; i++) {  
+  scull_devices[i].quantum = scull_quantum;  
+  scull_devices[i].qset = scull_qset;  
+  init_MUTEX(&scull_devices[i].sem);  
+  scull_setup_cdev(&scull_devices[i], i);  
+ }  
+  
+   
+  
+/*At this point call the init function for any friend device*/  
+  
+//此处暂时不考虑其他的设备  
+  
+dev = MKDEV(scull_major, scull_minor + scull_nr_devs);  
+  
+dev += scull_p_init(dev);  
+  
+dev += scull_access_init(dev);
+至此初始化设备完了。
+
+总结一下初始化模块的步骤（只考虑一般情况，不考虑SCULL的特例）。
+
+Step 1：动态生成设备编号。此步骤的关键函数如下：
+
+            int alloc_chrdev_region(dev_t *dev, unsigned int firstminor, unsigned int count, char *name);
+
+Step 2:   分配一个字符设备结构。此步骤的关键函数如下：
+
+             struct cdev *cdev_alloc(void);
+
+           (在SCULL中，使用了kmalloc来为设备开辟内存）
+
+Step 3：设备初始化并添加该设备。此步骤的关键函数如下：
+
+            void cdev_init(struct cdev *cdev,  struct file_operations *fops);
+            int cdev_add(struct cdev *dev, dev_t num, unsigned int count);
+
+Step2和Step3合起来称作“字符设备的注册”

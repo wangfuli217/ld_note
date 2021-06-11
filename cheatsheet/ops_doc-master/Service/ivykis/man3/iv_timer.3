@@ -1,0 +1,70 @@
+.\" This man page is Copyright (C) 2003, 2010 Lennert Buytenhek.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.TH iv_timer 3 2010-08-15 "ivykis" "ivykis programmer's manual"
+.SH NAME
+iv_timer_register, iv_timer_unregister, iv_timer_registered \- deal with ivykis timers
+.SH SYNOPSIS
+.B #include <iv.h>
+.sp
+.nf
+struct iv_timer {
+        struct timespec         expires;
+        void                    *cookie;
+        void                    (*handler)(void *);
+};
+.fi
+.sp
+.BI "void IV_TIMER_INIT(struct iv_timer *" timer ");"
+.br
+.BI "void iv_timer_register(struct iv_timer *" timer ");"
+.br
+.BI "void iv_timer_unregister(struct iv_timer *" timer ");"
+.br
+.BI "int iv_timer_registered(const struct iv_timer *" timer ");"
+.br
+.SH DESCRIPTION
+The functions
+.B iv_timer_register
+and
+.B iv_timer_unregister
+register, respectively unregister, a timer with the current thread's
+ivykis event loop.
+.B iv_timer_registered
+on a timer returns true if that timer is currently registered with
+ivykis.
+.PP
+When a timer that is registered becomes 'ready', due to the current
+system clock value becoming greater than or equal to the timer's
+.B ->expires
+member field, the callback function specified by
+.B ->handler
+is called in the thread that the timer was registered in, with
+.B ->cookie
+as its first and sole argument.  When this happens, the timer is
+transparently unregistered.
+.PP
+The application is allowed to change the
+.B ->cookie
+and
+.B ->handler
+members at any time.  The application is not allowed to change
+the
+.B ->expires
+member while the timer is registered.
+.PP
+A given
+.B struct iv_timer
+can only be registered in one thread at a time, and a timer can only
+be unregistered in the thread that it was registered from.
+.PP
+There is no limit on the number of timers registered at once.
+.PP
+See
+.BR iv_examples (3)
+for programming examples.
+.SH "SEE ALSO"
+.BR ivykis (3),
+.BR iv_examples (3)

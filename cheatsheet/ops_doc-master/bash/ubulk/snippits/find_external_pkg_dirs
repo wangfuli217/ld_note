@@ -1,0 +1,27 @@
+#!/bin/sh
+
+# THIS IS SLOW - maybe use a leftover files from the build, to get this list quickly?
+
+find_all_packages() {
+	set -e
+	for p in `grep -v '^#' /etc/pkglist`; do
+		cd /usr/pkgsrc/$p
+		echo $p
+		/usr/pkgsrc/mk/scripts/depends-depth-first.awk -- -d install $p
+		#make show-depends-pkgpaths DEPENDS_TYPE=install
+	done
+}
+
+set -e
+
+ALL_PACKAGES=`find_all_packages`
+
+ALL_PACKAGES=`echo $ALL_PACKAGES | tr ' ' '\n' | sort | uniq`
+
+for p in $ALL_PACKAGES; do
+	cd /usr/pkgsrc/$p
+	#echo $p
+	make show-vars VARNAMES='OWN_DIRS MAKE_DIRS' | tr ' ' '\n' | grep -v '^$' | grep -v '^/usr/pkg/' | grep -v '^[^/]' | sed 's/^/  /'
+done
+
+

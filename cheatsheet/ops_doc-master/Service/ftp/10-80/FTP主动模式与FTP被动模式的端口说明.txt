@@ -1,0 +1,232 @@
+FTP主动模式与FTP被动模式的端口说明
+
+    FTP是仅基于TCP的服务，不支持UDP。 与众不同的是FTP使用2个端口，一个数据端口和一个命令端口(也可叫做控制端口)。
+通常来说这两个端口是21(命令端口)和20(数据端口)。但FTP工作方式的不同，数据端口并不总是20。这就是主动与
+被动FTP的最大不同之处。
+
+FTP协议有两种工作方式：PORT方式和PASV方式，中文意思为主动式和被动式。
+
+
+(一) FTP主动模式
+===============================================================================
+    主动方式的FTP是这样的：客户端从一个任意的非特权端口N(N>1024)连接到FTP服务器的命令端口，也就是21端口。
+然后客户端开始监听端口N+1，并发送FTP命令"port N+1"到FTP服务器。接着服务器会从它自己的数据端口(20)连接到
+客户端指定的数据端口(N+1)。
+
+针对FTP服务器前面的防火墙来说，必须允许以下通讯才能支持主动方式FTP：
+1. 任何大于1024的端口到FTP服务器的21端口。(客户端初始化的连接)
+2. FTP服务器的21端口到大于1024的端口。    (服务器响应客户端的控制端口)
+3. FTP服务器的20端口到大于1024的端口。    (服务器端初始化数据连接到客户端的数据端口)
+4. 大于1024端口到FTP服务器的20端口        (客户端发送ACK响应到服务器的数据端口)
+
+简明概括：
+    PORT(主动)方式的连接过程是：客户端向服务器的FTP端口(默认是21)发送连接请求，服务器接受连接，建立一条命令链路。
+当需要传送数据时，客户端在命令链路上用PORT命令告诉服务器："我打开了XXXX端口，你过来连接我"。于是服务器从20端口
+向客户端的XXXX端口发送连接请求，建立一条数据链路来传送数据。
+
+开启主动模式：
+pasv_enable=no
+若设置为YES，则使用PASV工作模式；若设置为NO，则使用PORT模式。默认值为YES，即使用PASV工作模式。
+
+# 如果要禁用PORT安全检查，则设置为YES，以确保传出数据连接只能连接到客户端。只有在你知道自己在做什么的情况下才能启用
+port_promiscuous
+
+主动模式下：
+SecureFX工具去连接ftp，客户没有允许开放端口，服务器没法与客户端相连接，关闭客户端防火墙
+
+
+
+(二) FTP被动模式
+===============================================================================
+    为了解决服务器发起到客户的连接的问题，人们开发了一种不同的FTP连接方式。这就是所谓的被动方式，或者叫做PASV，
+当客户端通知服务器它处于被动模式时才启用。
+    在被动方式FTP中，命令连接和数据连接都由客户端发起，这样就可以解决从服务器到客户端的数据端口的入方向连接被
+防火墙过滤掉的问题。
+
+    当开启一个 FTP连接时，客户端打开两个任意的非特权本地端口(N > 1024和N+1)。第一个端口连接服务器的21端口，
+但与主动方式的FTP不同，客户端不会提交PORT命令并允许服务器来回连它的数据端口，而是提交 PASV命令。这样做的结果
+是服务器会开启一个任意的非特权端口(P > 1024)，并发送PORT P命令给客户端。然后客户端发起从本地端口N+1到服务器
+的端口P的连接用来传送数据。
+
+对于服务器端的防火墙来说，必须允许下面的通讯才能支持被动方式的FTP:
+1. 从任何大于1024的端口到服务器的21端口         (客户端初始化的连接)
+2. 服务器的21端口到任何大于1024的端口           (服务器响应到客户端的控制端口的连接)
+3. 从任何大于1024端口到服务器的大于1024端口     (客户端初始化数据连接到服务器指定的任意端口)
+4. 服务器的大于1024端口到远程的大于1024的端口   (服务器发送ACK响应和数据到客户端的数据端口)
+
+简明概括：
+    PASV(被动)方式的连接过程是：客户端向服务器的FTP端口(默认是21)发送连接请求，服务器接受连接，建立一条命令链路。
+当需要传送数据时，服务器在命令链路上用PASV命令告诉客户端："我打开了XXXX端口，你过来连接我"。于是客户端向服务器
+的XXXX端口发送连接请求，建立一条数据链路来传送数据。
+
+开启被动模式
+默认是开启的，但是要指定一个端口范围，打开vsftpd.conf文件，在后面加上
+pasv_enable=yes
+若设置为YES，则使用PASV工作模式；若设置为NO，则使用PORT模式。默认值为YES，即使用PASV工作模式。
+pasv_min_port=30000
+在PASV工作模式下，数据连接可以使用的端口范围的最大端口，0表示任意端口。默认值为0。
+pasv_max_port=30999
+在PASV工作模式下，数据连接可以使用的端口范围的最小端口，0表示任意端口。默认值为0。
+
+
+
+# 这可以控制PORT样式数据连接是否在服务器计算机上使用端口20(ftp-data)。出于安全原因，
+# 一些客户可能会坚持认为是这种情况。相反，禁用此选项可使vsftpd以较低的权限运行。
+# 默认值：NO(但是示例配置文件启用它)
+connect_from_port_20
+
+# 如果要禁用PASV安全检查，则设置为YES，以确保数据连接源自与控制连接相同的IP地址。只有在你知道自己在做什么的情况下才能启用 
+# 对此的唯一合法用途是采用某种形式的安全隧道方案，或者可能是为了促进FXP支持。
+pasv_promiscuous
+
+###############################################################  server wait client connecting rule
+# conntrack : V:\rtu\otdr\crosstool\cheatsheet\firewall\firewall.sh
+# conntrack :V:\rtu\otdr\crosstool\cheatsheet\iptables.sh
+/sbin/modprobe ip_conntrack
+/sbin/modprobe ip_conntrack_ftp
+
+# Allow FTP connections @ port 21
+/sbin/iptables -A INPUT  -p tcp --sport 21 -m state --state ESTABLISHED -j ACCEPT
+/sbin/iptables -A OUTPUT -p tcp --dport 21 -m state --state NEW,ESTABLISHED -j ACCEPT
+ 
+# Allow Active FTP Connections
+/sbin/iptables -A INPUT -p tcp --sport 20 -m state --state ESTABLISHED,RELATED -j ACCEPT
+/sbin/iptables -A OUTPUT -p tcp --dport 20 -m state --state ESTABLISHED -j ACCEPT 
+ 
+# Allow Passive FTP Connections
+/sbin/iptables -A INPUT -p tcp --sport 1024: --dport 30000:30999  -m state --state ESTABLISHED -j ACCEPT
+/sbin/iptables -A OUTPUT -p tcp --sport 30000:30999 --dport 1024:  -m state --state ESTABLISHED,RELATED -j ACCEPT
+############################################################### 
+
+
+
+/sbin/modprobe ip_conntrack_ftp
+
+CONNECTION_TRACKING="1"
+IPT="/sbin/iptables"                 # Location of iptables on your system
+INTERNET="eth0"                      # Internet-connected interface
+IPADDR=""                            # your IP address
+UNPRIVPORTS="1024:65535"             # unprivileged port range
+
+############################################################### client connectting to server rule
+# ftp (TCP Ports 21, 20)
+# ftp 服务
+# Outgoing Local Client Requests to Remote Servers
+# 主动模式 port mode    原始的默认的机制。客户端告诉服务器它会监听的次要的，非特权的端口。服务器则从端口20向客户端指定的
+#   非特权端口发起数据连接。
+# 被动模式 passive mode 服务器的数据连接并不会绑定到端口20，而是由服务器告诉客户端连接请求应该发到哪一个高位的、非特权端口
+
+# Outgoing Control Connection to Port 21 ; 定义ftp client 连接ftp server的规则. 即client(UNPRIVPORTS) -> server(21) 
+if [ "$CONNECTION_TRACKING" = "1" ]; then
+  $IPT -A OUTPUT -o $INTERNET -p tcp \
+                 -s $IPADDR --sport $UNPRIVPORTS \
+                 --dport 21 -m state --state NEW -j ACCEPT
+fi
+
+$IPT -A OUTPUT -o $INTERNET -p tcp \
+               -s $IPADDR --sport $UNPRIVPORTS \
+               --dport 21 -j ACCEPT
+               
+$IPT -A INPUT -i $INTERNET -p tcp ! --syn \
+              --sport 21 \
+              -d $IPADDR --dport $UNPRIVPORTS -j ACCEPT
+              
+### Incoming Port Mode
+# 连接时服务器通过回调建立服务器20端口到客户指定的非特权端口的连接; 服务器作为发起方
+# Incoming Port Mode Data Channel Connection from Port 20; 
+# 定义PORT模式下，ftp server(20) 连接 ftp client的规则。即 server(20) -> client(UNPRIVPORTS)
+if [ "$CONNECTION_TRACKING" = "1" ]; then
+  # This rule is not necessary if the ip_conntrack_ftp
+  # module is used.
+  $IPT -A INPUT  -i $INTERNET -p tcp \
+                 --sport 20 \
+                 -d $IPADDR --dport $UNPRIVPORTS \
+                 -m state --state NEW -j ACCEPT
+fi
+
+$IPT -A INPUT  -i $INTERNET -p tcp \
+         --sport 20 \
+         -d $IPADDR --dport $UNPRIVPORTS -j ACCEPT
+
+$IPT -A OUTPUT -o $INTERNET -p tcp ! --syn \
+         -s $IPADDR --sport $UNPRIVPORTS \
+         --dport 20 -j ACCEPT
+
+### Outgoing Passive Mode
+# Outgoing Passive Mode Data Channel Connection Between Unprivileged Ports
+# 定义PASV模式下，ftp client(UNPRIVPORTS) 连接 ftp server(UNPRIVPORTS)的规则，即 client(UNPRIVPORTS) -> server(UNPRIVPORTS)
+if [ "$CONNECTION_TRACKING" = "1" ]; then
+  # This rule is not necessary if the ip_conntrack_ftp
+  # module is used.
+  $IPT -A OUTPUT -o $INTERNET -p tcp \
+                 -s $IPADDR --sport $UNPRIVPORTS \
+                 --dport $UNPRIVPORTS -m state --state NEW -j ACCEPT
+fi
+
+    $IPT -A OUTPUT -o $INTERNET -p tcp \
+             -s $IPADDR --sport $UNPRIVPORTS \
+             --dport $UNPRIVPORTS -j ACCEPT
+
+    $IPT -A INPUT -i $INTERNET -p tcp ! --syn \
+             --sport $UNPRIVPORTS \
+             -d $IPADDR --dport $UNPRIVPORTS -j ACCEPT
+
+
+############################################################### server wait client connecting rule
+# Incoming Remote Client Requests to Local Servers
+# FTP(TCP端口20 ，21)
+# 定义 ftp server 接收 ftp client 连接的规则； server(21) <- ftp client(UNPRIVPORTS)
+
+if [ "$FTP_SERVER" = "1" ]; then
+    # Incoming Control Connection to Port 21
+    # 从控制通路发出FTP请求
+    if [ "$CONNECTION_TRACKING" = "1" ]; then
+    $IPT -A INPUT  -i $INTERNET -p tcp \
+             --sport $UNPRIVPORTS \
+             -d $IPADDR --dport 21 \
+             -m state --state NEW -j ACCEPT
+    fi
+
+$IPT -A INPUT  -i $INTERNET -p tcp \
+         --sport $UNPRIVPORTS \
+         -d $IPADDR --dport 21 -j ACCEPT
+
+$IPT -A OUTPUT -o $INTERNET -p tcp ! --syn \
+         -s $IPADDR --sport 21 \
+         --dport $UNPRIVPORTS -j ACCEPT
+
+    # Outgoing Port Mode Data Channel Connection to Port 20
+    # FTP主动模式的数据通路
+    # PORT模式下，定义ftp server 主动连接 ftp client 的规则；即ftp server(20) -> ftp client(UNPRIVPORTS) 
+    if [ "$CONNECTION_TRACKING" = "1" ]; then
+        $IPT -A OUTPUT -o $INTERNET -p tcp \
+             -s $IPADDR --sport 20 \
+             --dport $UNPRIVPORTS -m state --state NEW -j ACCEPT
+    fi
+
+$IPT -A OUTPUT -o $INTERNET -p tcp \
+         -s $IPADDR --sport 20 \
+         --dport $UNPRIVPORTS -j ACCEPT
+
+$IPT -A INPUT -i $INTERNET -p tcp ! --syn \
+         --sport $UNPRIVPORTS \
+         -d $IPADDR --dport 20 -j ACCEPT
+
+    # Incoming Passive Mode Data Channel Connection Between Unprivileged Ports
+    # PASV 模式下，定义 ftp client 主动连接 ftp server的规则；即 ftp client(UNPRIVPORTS) -> ftp server(UNPRIVPORTS)
+if [ "$CONNECTION_TRACKING" = "1" ]; then
+    $IPT -A INPUT  -i $INTERNET -p tcp \
+             --sport $UNPRIVPORTS \
+             -d $IPADDR --dport $UNPRIVPORTS \
+             -m state --state NEW -j ACCEPT
+    fi
+
+$IPT -A INPUT  -i $INTERNET -p tcp \
+         --sport $UNPRIVPORTS \
+         -d $IPADDR --dport $UNPRIVPORTS -j ACCEPT
+
+$IPT -A OUTPUT -o $INTERNET -p tcp ! --syn \
+         -s $IPADDR --sport $UNPRIVPORTS \
+         --dport $UNPRIVPORTS -j ACCEPT
+fi
+

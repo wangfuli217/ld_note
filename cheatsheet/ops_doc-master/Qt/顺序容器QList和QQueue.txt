@@ -1,0 +1,703 @@
+https://qtguide.ustclug.org/
+
+Qt容器的优点： 在所有的平台上在运行时表现的一致
+               都是隐含共享的(写时复制)，是一个能够把整个容器作为不需要太多运行成本的值来传递的最优化过程。
+               易于使用的迭代器类
+               利用DataStream变成数据流。
+QString 是贯穿Qt应用编程接口的一个16为Unicode字符串
+QByteArray 是一个用来存储原始二进制数的8位字符数组
+QVariant 类则是可以存储绝大多数C++和Qt值的类型
+
+QLinkedList 未提供 [] 操作符，所以必须使用迭代器来遍历项。
+QList<T> 连续容器是一个"数组列表"，结合了单一类中QVector<T>和QLinkedList<T>的最重要有点。
+它支持随机访问，而且它的界面与QVector的一样是基于索引的。
+
+QList<T>通常是最合适采用的多用途容器类。
+QStringList是QList<T>的子类。同时提供了一些特别函数，以使得这种类对字符串的处理方式更通用。
+QStack<T> 是一个可以提供push() pop()和top()的向量
+QQueue<T>是一个可以提供enqueue() dequeue()和head()的列表。
+
+    这些类是隐式共享的，它们都是可重入，它们进行了速度优化，用更少的内存和最小的内联代码扩展，
+生成更小的可执行文件。此外，当所有的线程仅仅以只读的方式访问它们时，它们是线程安全的。
+
+Java-style iterators更容易使用和提供更高级的函数。
+STL-style iterators 效率稍微高一些，而且可以和Qt的或STL的通用算法一起使用。
+Qt也提供关键字foreach 使得很容易遍历容易内的元素。
+
+Qt各容器的区别
+-----------------
+只有三类：QList(含派生类 QQueue)、QLinkedList、QVector(含派生类 QStack)
+① 在大多数情况下，QList 都是非常优秀的选择。QList 基于序号的访问机制比链表 QLinkedList 访问效率要高， 
+   通常情况 QList的访问速度优于 QVector，因为 QList 专门优化过内存存储方式，并且 QList 的代码编写也很简洁。
+② 如果需要使用链式的数据结构，希望随机插入、随机删除总是常量时间，那么应该使用 QLinkedList。
+③ 如果希望元素在内存中连续相邻存储，就是使用封装好的数组，那么 QVector 是适合的选择。
+④ Qt 另外提供了低级别的可变长度数组 QVarLengthArray， 比 QVector 函数少一些，QVarLengthArray 
+   不会初始化C++基本类型的元素，而 QVector  总是对元素做初始化。通常情况下，连续空间数组的场景建议优先使用 QVector 。
+
+
+Multi容器支持多个value关联到单一的key。Hash容器提供了通过hash函数快速查找取代二分查找。
+
+QTL 和 STL
+--------------- https://www.dushibaiyu.com/2014/11/stl-vs-qtl-1.html
+QTL                 STL
+顺序容器
+QVector             std::vector
+———————             std::deque
+QList               ———————
+QLinkedList         std::list
+———————             std::forward_list
+关联容器
+QMap                std::map
+QMultiMap           std::multimap
+———————             std::set
+———————             std::multiset
+QHash               std::unordered_map
+QMultiHash          std::unordered_multimap
+QSet                std::unordered_set
+———————            std::unordered_multiset
+没有QTL与 std::deque, std::forward_list 和 std::{multi,}set,对应，也没有STL与QList对应。
+提示：谨记QList和std::list是不一样的，QSet和std::set也是不一样的.没有QTL没有QMultiSet的。
+
+QTL有”Qt-ish” 和 “STL-compatible”两种赋值api，。他们是 append() 和push_back(); count() 和 size();  isEmpty() 和 empty()。
+全部使用Qt的程序去使用Qt-ish API，当做分层程序时，为与项目中其他地方使用的 STL 容器的一致性，你应该去用STL-compatible API。
+提示：了解Qt的两种API，”Qt-ish” 和 “STL-compatible”。并尽量避免在一个程序中同时使用两种API。
+
+大多数STL容器都rbegin()/rend()函数，它返回一个反向迭代器
+const std::vector<int> v = { 1, 2, 4, 8 };
+for ( auto it = v.rbegin(), end = v.rend() ; it != end ; ++it )
+    std::cout << *it << std::endl; // prints 8 4 2 1
+
+在QTL中，你就必须用正常的迭代器和相减的效果来实现相同的功能：
+const QVector<int> v = ...;
+auto it = v.end(), end = v.begin();
+while ( it != end ) {
+    --it;
+   std::cout << *it << std::endl;
+}
+
+或者使用JAVA风格的迭代器（见下面）：
+QVectorIterator it( v );
+it.toBack();
+while ( it.hasPrevious() )
+    std::cout << it.previous() << std::endl;
+
+所有 STL 容器也都有范围插入、范围构造和分配，以及范围擦除。
+const std::set<T> s = ...;
+std::vector<S> v( s.begin(), s.end() ) ; // 'T' needs to be convertible to 'S'
+这样就省去使用 qCopy()/std::copy() 算法函数了。
+
+Copy-On-Write(写入时复制)
+--------------- https://www.dushibaiyu.com/2014/11/stl-vs-qtl-1.html
+在好的方面，QTL都是隐式共享，所以其副本都是浅复制。与QTL相反，除了std:string外的所有STL容器都是深度复制，虽然看起来有点资源浪费。
+
+迭代器
+---------------------
+https://www.cnblogs.com/findumars/p/5176173.html
+1. 容器可以嵌套。例如，当key的类型是Qstring和value类型是Qlist<int>，完全可以用 QMap<QString, QList<int>>
+
+Containers                          Read-only iterator      Read-write iterator
+QList<T>, QQueue<T>                 QListIterator<T>        QMutableListIterator<T>
+QLinkedList<T>                      QLinkedListIterator<T>  QMutableLinkedListIterator<T>
+QVector<T>, QStack<T>               QVectorIterator<T>      QMutableVectorIterator<T>
+QSet<T>                             QSetIterator<T>         QMutableSetIterator<T>
+QMap<Key, T>, QMultiMap<Key, T>     QMapIterator<Key, T>    QMutableMapIterator<Key, T>
+QHash<Key, T>, QMultiHash<Key, T>   QHashIterator<Key, T>   QMutableHashIterator<Key, T> 
+
+Java-StyleIterators
+Java-style iterators是在Qt4才新加入的而且Qt程序中标准的使用着。它们比STL-styleiterators用起来方便，但是效率稍微低了一点。
+
+Containers                          Read-only iterator              Read-write iterator
+QList<T>, QQueue<T>                 QList<T>::const_iterator        QList<T>::iterator
+QLinkedList<T>                      QLinkedList<T>::const_iterator  QLinkedList<T>::iterator
+QVector<T>, QStack<T>               QVector<T>::const_iterator      QVector<T>::iterator
+QSet<T>                             QSet<T>::const_iterator         QSet<T>::iterator
+QMap<Key, T>, QMultiMap<Key, T>     QMap<Key, T>::const_iterator    QMap<Key, T>::iterator
+QHash<Key, T>, QMultiHash<Key, T>   QHash<Key, T>::const_iterator   QHash<Key, T>::iterator 
+对于每个容器，都有两种STL-style iterator类型：一种是只读，一种是可读写的。应该进可能的使用只读的迭代器，因为它比可读写的迭代器快。
+
+
+1. 数据容器(Container Classes)就是数据结构课程里常见的列表(QList)、链表(QLinkedList)、队列(QQueus)、栈(QStack)、 向量(QVector)等保存和处理数据的类。
+2. Qt 所有的数据容器都是模板类，这样方便处理任何类型的数据，当然这些类构造时要带数值类型。
+3. Qt 提供了两大类数据容器，第一类是顺序容器，包括列表 QList、队列 QQueue、链表 QLinkedList、向量 QVector 和栈 QStack 。
+4. 关联容器，用于保存键值(key-value)映射，关联容器包括 单映射 QMap、多映射 QMultiMap、单哈希映射QHash、多哈希映射 QMultiHash 和集合 QSet。
+5. 单映射就是一个 key 对应一个 value，多映射是一个 key 对应多个 value。集合类只有 value 值，没有 key。
+
+6. QList 是最为常用的，可以当作数组、队列、栈等使用，队列 QQueue 是 QList 的派生类， 增加了几个队列操作函数，
+7. 链表 QLinkedList 是比较特别的顺序容器，是真正的双向链表，数据离散存储， 用双向指针衔接前后节点，
+   需要借助迭代器进行遍历，而其他顺序容器都可以用数组下标的形式访问元素。
+8. Qt 不仅提供了数据容器，还为数据容器提供了方便访问的迭代器，
+   有 Java 风格迭代器类 和 STL 风格的迭代器，功能都是差不多，使用习惯不同而已。
+
+
+针对不同的元素，QList 有两种方式存储元素：
+    第一种是当“元素的占用空间”<=“指针占用的空间”，即 sizeof(T) <= sizeof(void*)，
+并且元素已经使用 Q_DECLARE_TYPEINFO 声明为 Q_MOVABLE_TYPE 或 Q_PRIMITIVE_TYPE 时，
+那么 QList 存储方式和 QVector、QVarLengthArray一样，都是以数组的形式存储，即 
+QList<T> 表示为 T 的数组。这时候就和 C 兼容，参考“什么是 POD？”；
+    另一种是当“元素的占用空间”>“指针占用的空间”，那么 QList 会给每一个元素 new 到堆上，
+即 QList<T> 表示为 QList<T*> 的数组；
+    
+1. 列表 QList (能存储什么类型，不能存储什么类型?)
+-----------------
+Qt提供的数据容器都是模板类，构造时要带数据类型，比如下面这句定义"整型数列表"：
+    QList<int> integerList;
+Qt数据容器有支持的数据类型，也有不支持的类型，不仅是QList，其他数据容器都有不支持的数据类型。
+  存储在Qt数据容器里面的数据，必须是可赋值类型！
+    C++ 基本数据类型，int、double、指针
+    Qt 的数据类型，比如 QString、QDate、QTime、QBrush, QColor, QDateTime, QFont, QPixmap, QVariant.QByteArray，QRegExp
+    
+    不能存储在数据容器里的：窗体QWidget、对话框QDialog、定时器QTimer等等，
+凡是QObject类和所有QObject派生类的对象都不允许直接存储在数据容器里面。
+如果代码里新建QList<QWidget>列表，那么编译器会报错，QWidget的复制构造函数和赋值运算符=函数都是禁用的。
+如果确实要存储窗口列表，那么只能存储指针，比如 QList<QWidget *>。
+
+如果希望自定义数据类型能存储在 Qt 数据容器里面，那么自定义类型必须至少满足三个条件：
+1.1. 定义默认构造函数，比如 MyData() ;
+1.2. 定义复制构造函数，比如 MyData(const MyData   &d);
+1.3. 定义赋值运算符 = 函数，比如 MyData& operator=(const MyData &d)。
+
+QList<T> 可以模拟队列操作，比如入队 append() ，出队 takeFirst()；
+             模拟栈工作，比如入栈 append() ，出栈 takeLast()；
+             模拟数组，直接用用下标形式，如 aList[0] 。
+
+
+QList 构造函数 (QList<T> 针对数据的插入、列表头部添加元素、列表尾部添加元素等等做过优化，访问也非常高效)
+-----------------
+QList()                                //默认构造函数
+QList(const QList<T> & other)          //复制构造函数
+QList(QList<T> && other)               //移动构造函数
+QList(std::initializer_list<T> args)   //初始列表构造函数
+~QList()   //析构函数
+第一个是默认构造函数，不带任何参数，可以支持嵌套的列表或与其他数据容器嵌套。
+第二个是复制构造函数，将 other 里面的元素均复制到新对象里面。
+第三个是 C++11 新特性，配合 std::move 语句使用，将 other 里面的元素全部移动给新建对象，other 本身清空。
+第四个也是 C++11 新特性，使得列表对象可以用大括号列举元素初始化，比如 {1, 3, 6, 8} 可以用于初始化整型数列表。
+
+QList 添加函数
+-----------------
+void append(const T & value)
+void append(const QList<T> & value)
+void push_back(const T & value)  //同第一个 append()，STL风格添加到队尾
+append() 是追加元素到列表的末尾，
+第一个追加函数添加一个元素到列表末尾，
+第二个追加函数将一个列表中所有元素追加到列表末尾。
+
+void insert(int i, const T & value)
+插入函数将 value 插入到序号为 i 的位置，如果 i 为 0，元素插到列表列头部，如果 i 为 size() 数值，那么元素添加到列表末尾。
+
+void prepend(const T & value)
+void push_front(const T & value)  //STL风格，同 prepend()
+prepend() 是将参数里的元素 value 添加到列表头部，等同于 insert(0, value) 。
+
+
+QList 移除和删除函数
+-----------------
+移除函数和删除函数调用之前都要判断列表是否非空，用 ! empty() 或  ! isEmpty()  判断，带有序号 i 的必须保证序号不越界。
+T takeAt(int i)   //移除序号为 i 元素并返回该元素
+T takeFirst()     //移除队头元素并返回该元素
+T takeLast()      //移除队尾元素并返回该元素
+
+take**() 移除函数只是将元素从列表中卸载下来，并不会删除元素内存空间，卸下来的元素作为返回值返回。
+void removeAt(int i)  //删除序号为 i 的元素，释放该元素内存
+void removeFirst()     //删除队头元素，释放该元素内存
+void pop_front()       //同 removeFirst() ，STL风格
+void removeLast()      //删除队尾元素，释放该元素内存
+void pop_back()         //同 removeLast()，STL风格
+
+remove**() 函数没有返回值，直接从列表删除元素，并释放该元素内存空间，删除的元素彻底消失。
+int removeAll(const T & value)  //删除列表中所有等于 value 值的元素，返回删除的数量
+bool removeOne(const T & value) //删除列表中第一个等于 value 值的元素，如果列表有等于 value 值的元素，返回 true，否则返回 false
+注意 removeAll( value ) 函数不是清空列表，而是删除列表中所有等于 value 值的元素，并返回删除的计数。
+removeOne( value ) 函数第一个等于 value 值的元素，如果删除成功返回 true，即列表中存在等于 value 的元素，
+如果删除失败返回 false，即列表中不存在等于 value 的元素。需要特别注意的是：
+removeAll(value)、removeOne(value)这两个函数必 须要类型 T 存在 operator==() 等于号函数，T 类型能够进行相等判断！
+
+void clear()
+clear() 函数才是删除列表所有元素，并释放内存空间。
+
+关于删除操作，如果在删除某个元素的时候还想获得删除的元素值是多少，用“take系列”函数；如果仅仅是删除，用“remove系列”的函数会更好。
+
+QList 访问和查询函数
+-----------------
+int size() const
+int length() const    //同 size() 
+获取列表大小，即存储的元素总数量。列表有 size() 函数，但是没有 resize() 函数，不能直接扩展列表大小。
+
+列表只有为新元素提前保留空间的函数：
+void  reserve(int alloc)
+reserve() 函数是在程序员能够提前预估元素总量的情况提前为 alloc 数量的元素申请内存空间，保留使用。
+  如果 alloc 数值不超过 size() 数值，该函数调用被忽略；
+  如果 alloc 数值大于 size() 数值，那么提前分配空间，保证列表能够存储 alloc  数量的元素。
+
+注意 reserve() 函数不会改变列表  size() 数值大小，不会添加任何新元素，仅仅是调整内部存储空间，保留使用，实际并没有使用新分配的空间，列表内的元素个数不变。
+
+列表有两个 count() 计数函数，用途不一样：
+int count(const T & value) const
+int count() const
+第一个 count( value ) 函数统计列表中等于 value 值的元素个数，这个函数也需要类型 T 带有 operator==() 等于号函数。
+第二个 count() 函数不带参数，等同于 size() 函数，是列表元素的总数量。
+
+判断列表是否为空列表，使用如下函数：
+bool empty() const    //空列表返回 true，有元素就返回 false，STL风格
+bool isEmpty() const  //空列表返回 true，有元素就返回 false ，Qt 风格
+    注意 empty() /isEmpty() 、size()/length()/count()函数要牢记经常使用，因为列表的函数，凡是涉及到序号 i 的，
+绝大部分函数都不会判断序号 i 是否越界，需要程序员手动判断序号 i 是否越界，列表的很多函数并不安全！
+列表函数为了优化访问效率，基本上没有为访问序号 i 的函数添加越界判断，所以一旦越界，程序很可能崩溃！
+
+
+访问序号为 i 的元素，可以使用如下函数：
+const T & at(int i) const
+at(i) 函数返回序号为 i 元素的只读引用，但是不进行数组越界判断，需要手动判断，该函数的好处是读取效率高。
+比较安全的访问函数是下面两个：
+T value(int i) const
+T value(int i, const T & defaultValue) const
+第一个 value(i) 函数返回序号为 i 的元素(数值复制，不是引用)，如果 i 越界，那么返回 T 类型默认构造函数生成的数值，比如 int、double、指针 都返回 0
+第二个 value(i, value)原理是类似的， i 不越界就返回该序号元素值，越界就返回参数里指定的 value 值。
+
+两个 value() 函数因为每次调用都进行数组越界判断，所以访问效率不如 at() 函数高，在知道不越界的情况下使用 at() 更好。
+
+
+查询数组里是否包含某个数值元素，使用如下函数：
+bool contains(const T & value) const
+如果包含等于 value 值的元素返回 true，否则返回 false。要统计等于 value 值的元素个数，使用前面的 count(value)  函数。
+
+如果希望查询等于 value 值的元素的序号，
+int indexOf(const T & value, int from = 0) const          //从前向后 查找等于 value 值的元素序号
+int lastIndexOf(const T & value, int from = -1) const  //从后向前查找等于 value 值的元素序号 
+indexOf( value, from ) 是从前向后查找元素，第一个参数是要匹配的数值，第二个是查询的起始最小序号，默认从 0  序号开始查找。
+lastIndexOf( value, from ) 是从后向前查找元素，第一个参数是要匹配的数值，第二个是查询的起始最大序号，默认从队尾开始查找。
+这两个查询函数，如果没找到匹配元素就返回 -1，如果找到了就返回值正确的序号。
+
+注意 contains(value)、count(value) 、indexOf(value, from)、lastIndexOf(value, from) 函数都要求 T 类型支持 operator==() 等于号函数。
+
+判断队头、队尾元素是否为 value 的函数如下：
+bool startsWith(const T & value) const    //检查队头是否等于 value
+bool endsWith(const T & value) const      //检查队尾是否等于 value
+startsWith( value ) 检查队头元素，如果等于 value 就返回 true，如果列表为空或队头不等于 value 返回 false。
+endsWith( value ) 检查队尾元素，如果等于 value 就返回 true，如果列表为空或末尾不等于 value 返回 false。
+
+
+获取列表头部、尾部元素引用的函数如下：
+T &    first()                      //队头读写引用，可以修改队头数值
+const T &    first() const          //队头只读引用
+T &    front()                      //队头读写引用，可以修改队头数值，STL风格
+const T &    front() const          //队头只读引用，STL风格
+T &    last()                       //队尾读写引用，可以修改队尾数值
+const T &    last() const           //队尾只读引用
+T &    back()                       //队尾读写引用，可以修改队尾数值，STL风格
+const T &    back() const           //队尾只读引用，STL风格
+注意区分只读引用和读写引用，只读引用不会改变元素的数值，而读写引用可以修改队头或队尾的数值。
+上面获取队头、队尾引用的 8 个函数本身没有进行列表数组非空判断，在调用它们之前，
+必须手动用 ! empty() 或  ! isEmpty() 判断列表非空之后才能调用上面 8 个函数。
+
+获取列表的子列表，使用如下函数：
+QList<T>    mid(int pos, int length = -1) const
+mid() 函数新建一个子列表，将本列表从序号 pos 开始位置，复制长度为 length 数量的元素到子列表中并返回。
+如果 length 为-1(或大于后面剩余的元素数量)，就返回从 pos 开始的所有元素列表。返回的子列表是独立的新列表，与本列表没有内存共享。
+
+
+QList 替换、移动和交换函数
+-----------------
+替换函数就是赋值修改：
+void replace(int i, const T & value)  // 等同于 list[i] = value;
+将 序号为 i 的元素数值修改为新的 value。注意序号 i 不能越界，必须满足  0 <= i < size() 。
+void move(int from, int to)
+move(from, to) 移动函数是将序号 from 的元素移动到序号为 to 的位置，就是先卸载 from 序号元素，然后插入到 to 序号位置。
+两个序号必须都位于 0 到 size() 之间，序号必须合法。
+void swap(QList<T> & other)
+这是大 swap() 函数，将本列表所有元素与参数 other 列表内所有元素互换，这个函数不会出错，并且互换的效率非常高。
+void swap(int i, int j)
+第二个是小 swap() 函数，将序号 i 的元素和序号 j 的元素数值互换，序号 i、j 不能越界，必须合法。
+
+QList 运算符函数
+-----------------
+我们设置三个简单整数列表，在表格中举例说明各个运算符函数用途。三个列表如下：
+QList<int> aList = {1, 3, 5};
+QList<int> bList = {2, 4, 6};
+QList<int> cList;
+
+运算符函数                                        举 例                          描述
+bool operator!=(const QList<T> & other) const     aList != bList ;               aList 和 bList 两个列表有元素不同，结果为 true。
+QList<T> operator+(const QList<T> & other) const  cList = aList + bList;         aList 和 bList 复制拼接后生成新列表，赋值给 cList。
+QList<T> & operator+=(const QList<T> & other)     aList += bList ;               复制 bList 所有元素追加到 aList 末尾。
+QList<T> & operator+=(const T & value)            aList += 100 ;                 添加一个元素 100 到 aList 末尾。
+QList<T> & operator<<(const QList<T> & other)     aList<<bList;                  复制 bList 所有元素追加到 aList 末尾。
+QList<T> & operator<<(const T & value)            aList<<100;                    添加一个元素 100 到 aList 末尾。
+QList<T> & operator=(const QList<T> & other)      cList = aList;                 aList 所有元素都复制一份给 cList，aList本身不变。二者相等。
+QList & operator=(QList<T> && other) //移动赋值   cList = std::move(aList) ;     aList 所有元素都移动给 cList，aList本身被清空。
+bool operator==(const QList<T> & other) const     aList == bList ;               aList 和 bList 有元素不同，结果为 false。只有两个列表所有元素相等并且顺序一样，它们才能算相等。
+T & operator[](int i)                             aList[0] = 100;                获取序号为 i 的元素的读写引用，可修改列表元素。
+const T & operator[](int i) const                 qDebug()<<aList[0] ;           获取序号为 i 的元素的只读引用。 
+    这里说明一下：operator==() 函数需要左右两个列表的长度、每个序号对应元素全部都相同才返回 true，两个列表的元素次序也都要求一样。
+列表的等于号函数和不等于号函数都要求元素类型 T 必须有 operator==() 判断各个元素是否相等。
+
+QList 迭代器函数
+-----------------
+QList 内嵌了 STL 风格的只读迭代器和读写迭代器：
+QList::const_iterator     //只读迭代器类，STL风格
+QList::iterator           //读写迭代器类，STL风格
+QList::​ConstIterator      //只读迭代器，Qt命名风格
+QList::​ Iterator         //读写迭代器，Qt命名风格
+迭代器就像指向元素的指针，可以枚举列表中所有元素，迭代器本身支持各种操作符函数，
+比如 ++ 是找寻下一个元素，-- 是倒退一个元素， (* it) 是获取元素。
+
+QList<QString> list;
+list.append("January");
+list.append("February");
+...
+list.append("December");
+
+QList<QString>::const_iterator i;
+for (i = list.constBegin(); i != list.constEnd(); ++i)
+         cout << *i << endl;
+上述代码定义了一个字符串列表，为字符串列表添加多个字符串，然后定义字符串列表的迭代器 i；
+i 从列表头部迭代器开始，逐个遍历列表元素，打印每个字符串，直到迭代器末尾结束。
+ list.constBegin() 是指向队头元素的指针，但是注意  list.constEnd() 是指向队尾后面假想元素的指 针，
+ list.constEnd() 指向的东西根本不存在，仅用于越界判断。
+
+获取指向队头、队尾假想元素的只读迭代器函数如下：
+const_iterator  begin() const           //指向队头迭代器，STL风格
+const_iterator  cbegin() const          //指向队头迭代器，STL风格
+const_iterator  constBegin() const      //指向队头迭代器，Qt命名风格
+const_iterator  end() const             //指向队尾假想元素迭代器，STL风格
+const_iterator  cend() const            //指向队尾假想元素迭代器，STL风格
+const_iterator  constEnd() const        //指向队尾假想元素迭代器，Qt命名风格
+
+获取指向队头、队尾假想元素的读写迭代器函数如下：
+iterator    begin()  //指向队头迭代器，STL风格
+iterator    end()     //指向队尾假想元素迭代器，STL风格
+
+
+利用迭代器也可以添加元素或删除元素，通过迭代器插入元素的函数如下：
+iterator    insert(iterator before, const T & value)  //在 before 指向的元素前面插入元素 value
+注意两点：
+  第一是返回值的迭代器指向新增元素 value ；
+  第二是执行插入元素操作后，参数里的迭代器 before 失效，不能再使用，只能利用返回值的迭代器进行遍历。
+
+通过迭代器删除一个元素或多个元素的函数如下：
+iterator    erase(iterator pos)  //删除 pos 指向的元素，返回指向下一个元素的迭代器或者 list.end()
+iterator    erase(iterator begin, iterator end) //删除从 begin 到 end 指向的元素，注意 end 指向的元素不删除
+第一个 erase() 函数删除单个元素，它的返回值可能为指向下一个元素或者 list.end() ，要注意判断是否为指向队尾假想元素的迭代器。
+第二个 erase() 函数删除多个元素，从 begin 删除到 end，但是 end 指向的元素不删除，这个函数总是返回参数里的 end 迭代器。
+
+
+QList 容器类型转换函数
+-----------------
+列表支持将自身对象转换为其他容器类型，比如集合、标准库列表、向量：
+QSet<T>    toSet() const              //转为集合
+std::list<T>    toStdList() const     //转为标准库的列表
+QVector<T>    toVector() const        //转为向量
+QList 能够转出，也能使用列表的静态成员函数，把其他三种容器转换为新的列表对象：
+QList<T>    fromSet(const QSet<T> & set)                     //静态函数，将集合转为列表
+QList<T>    fromStdList(const std::list<T> & list)            //静态函数，将标准库列表转为 Qt 列表
+QList<T>    fromVector(const QVector<T> & vector)     //静态函数，将向量转为列表
+静态成员函数的语法类似下面这样：
+    QVector<int>  v = {1, 2, 3};
+    QList<int> cList = QList<int>::fromVector(v);
+
+
+QList 其他内容
+-----------------
+QList 附带了友元函数 operator<<() 和 operator>>()，用于支持数据流输入和输出：
+QDataStream &    operator<<(QDataStream & out, const QList<T> & list)
+QDataStream &    operator>>(QDataStream & in, QList<T> & list)
+这些流操作符函数正常运行的前提是类型 T 也能支持流的输入输出，对于 C++ 基本类型 int、double 等都没问题；
+Qt 的数据类型如 QColor、QPoint 一般也都附带了友元函数，用于支持流输入输出。
+如果使用自定义类型，希望存储在列表中并支持自动的流输入输出，那么要为自定义类型添加友元函数 operator<<() 和 operator>>() 。
+
+使用 QList 时，需要注意 QList 仅支持存储 值类型、指针类型，不能存储变量的引用。
+    
+如果定义列表时类型 T 设置为引用，如 QList<int &> ，那么程序无法编译！
+    
+Qt 带有全局函数，可以支持容器类对象的排序：
+void qSort(Container & container)        //排序
+void qStableSort(Container & container)  //稳定排序
+排序函数要求容器的元素类型 T 必须支持 operator<() 小于号函数，用于比较元素大小。
+Qt 调用的小于号函数原型是两个参数的全局 operator<() 函数，不是成员函数，应该在类外面声明并定义下面的小于号函数：
+bool  operator< ( const T &t1, const T &t2 )
+一般要将该函数声明为 T 类型的友元函数，方便访问私有变量。
+
+如果自定义类型希望能够完美地和 QList 配合使用，那么需求如下：
+① 必须是可赋值类型，需要默认构造函数、复制构造函数、赋值函数 operator=() ；
+② 如果希望支持查询函数，需要双等号函数 operator==()；
+③ 如果希望支持排序函数，需要全局小于号函数 operator< (  const T &t1, const T &t2 ) ；
+④ 如果希望支持 QDataStream 数据流输入输出，那么添加友元函数  operator<<() 和 operator>>() 。
+第一条是必须实现的函数，后面三条是建议实现的函数。
+
+
+ContactList 
+-------------
+1. 追加
+append::append()
+
+QListWidget::addItem() 添加字符串时，传递参数是引用，添加QListWidgetItem时，传递参数是指针
+void QListWidget::addItem ( const QString & label )  字符串形式
+void QListWidget::addItem ( QListWidgetItem * item ) QListWidgetItem对象形式
+QListWidgetItem ( const QString & text, QListWidget * parent = 0, int type = Type ) QListWidgetItem对象可以通过字符串构造
+
+2. 删除
+curItem = ui->listWidget->currentItem()
+int ix = ui->listWidget->currentRow();
+m_listContacts.removeAt( ix );
+delete curItem; curItem = NULL;
+
+3. 查找
+ix = m_listContacts.indexOf( Contact(strName, "", "") );
+ui->listWidget->setCurrentRow( ix );
+ui->listWidget->currentItem()->setSelected(true); //高亮色
+ui->listWidget->setFocus(); //显示焦点
+
+4. 排序
+::qSort( m_listContacts ); # 比较函数调用
+ui->listWidget->clear();
+//循环添加条目给列表控件
+for(int i=0; i<nCount; i++)
+{
+    ui->listWidget->addItem( m_listContacts[i].toString() );
+}
+
+5. 写入
+QFile fileOut(strFile);
+QDataStream ds( &fileOut );
+ds<<m_listContacts; //QList 和 Contact 都有配套的流操作符函数，因此可以这样一句搞定
+ds.setDevice(NULL);
+fileOut.close();
+
+6. 读取
+QFile fileIn( strFile );
+//正常打开
+QDataStream ds( &fileIn );
+//先清空旧的列表对象和列表控件内容
+m_listContacts.clear();
+ui->listWidget->clear();
+ds>>m_listContacts; //QList 和 Contact 都有配套的流操作符函数，因此可以这样一句搞定
+int nCount = m_listContacts.count();
+for(int i=0; i<nCount; i++)
+{
+    ui->listWidget->addItem( m_listContacts[i].toString() );
+}
+ds.setDevice(NULL);
+fileIn.close();
+
+
+QQueue
+-------------------
+    QQueue 是 QList 的派生类，继承了列表的全部功能，仅仅是添加了几个队列操作函数，
+这些队列新函数都可以在基类 QList 找到相应的功能实现，就是名字有点区别。
+    
+
+QQueue 构造函数
+-------------------
+QQueue()
+~QQueue()
+这两个函数内容都是空的，队列的复制构造函数、赋值运算符函数等全都继承基类 QList 的函数。
+
+新增的入队和出队操作函数如下：
+void enqueue(const T & t)           //元素入队，添加到队尾
+T    dequeue()                      //元素出队，将队头元素卸下并返回
+入队其实就是调用基类的 append() ，出队就是调用基类的 takeFirst()，仅仅就是套层壳，加个新函数名。
+
+队列类还添加了获取队头元素引用，但是不卸下队头的函数：
+T &    head()                  //获取队头的读写引用
+const T &    head() const      //获取队头的只读引用
+
+最后队列还添加了与其他队列互换元素的函数：
+void    swap(QQueue<T> & other)
+这个函数将自身所有元素和 other 队列里面的元素全部互换，交换效率非常高，并且从不失败。
+
+典型的队列操作代码示例如下：
+QQueue<int> queue;
+queue.enqueue(1);
+queue.enqueue(2);
+queue.enqueue(3);
+while (!queue.isEmpty())
+    cout << queue.dequeue() << endl;
+上述代码依次入队了三个元素，然后用 while 循环依次将元素出队并打印。isEmpty() 函数是从基类继承的，判断队列是否为空。
+
+链表 QLinkedList 
+-------------------
+构造函数
+QLinkedList()        //默认构造函数
+QLinkedList(const QLinkedList<T> & other)    //复制构造函数
+QLinkedList(std::initializer_list<T> list)            //初始化列表构造函数，C++11特性
+QLinkedList(QLinkedList<T> && other)        //移动构造函数，C++11特性
+~QLinkedList()        //析构函数
+第一个是默认构造函数，可以用于支持容器类的嵌套。
+第二个是复制构造函数，将参数 other 里的元素都复制一份给新建链表对象。
+第三个是初始化列表构造函数，可以根据 {1, 2, 3}  这种列表新建链表对象。
+第四个是移动构造函数，将 other 里的元素全部移动给新建的链表对象，就是将元素都搬家的意思
+QLinkedList<int>  listA = {1, 2, 3};    //初始化列表构造   
+QLinkedList<int>  listB = std::move (listA );         //移动构造函数，listA 会被搬空，元素都存到 listB
+
+
+QLinkedList 添加函数
+-------------------
+链表自带了两个添加元素到末尾的函数和两个添加元素到头部的函数：
+void    append(const T & value)         //添加元素到链表末尾
+void    push_back(const T & value)    //添加元素到链表末尾，STL风格
+void    prepend(const T & value)        //添加元素到链表头部
+void    push_front(const T & value)    //添加元素到链表头部，STL风格
+
+    链表能添加元素到头部和尾部，但是没有直接将元素插入到中间某个位置的函数，
+链表必须借助迭代器才能将元素插到链表中间的某个位置。链表除了头部、尾部的元素，
+其他中间元素都要依赖迭代器插入、删除和访问。
+
+QLinkedList 移除和删除函数
+-------------------
+注意使用移除和删除函数之前要先用  ! empty() 或  ! isEmpty()   判断列表非空才能移除和删除。
+take***() 移除函数只是将元素从链表卸下，并返回该元素值，不会彻底删除该元素：
+T    takeFirst()     //卸下头部元素并返回该元素
+T    takeLast()      //卸下尾部元素并返回该元素
+remove***() 函数会将元素从链表卸下，并且彻底删除该元素的内存空间，删除链表头部、尾部元素的函数如下：
+void    removeFirst()   //删除头部元素
+void    pop_front()     //删除头部元素，STL风格
+void    removeLast()    //删除尾部元素
+void    pop_back()      //删除尾部元素，STL风格
+
+如果希望删除一个匹配的元素或删除所有匹配的元素，使用如下函数：
+bool    removeOne(const T & value)   //如果找到匹配的元素就删除第一个匹配的元素，删除后返回true，如果没找到相等的元素返回 false
+int    removeAll(const T & value)        //删除所有匹配的元素，并返回删除数量
+removeOne(  value ) 和 removeAll(  value )  函数要求元素类型 T 支持 operator==() 双等号函数。
+removeAll(  value ) 函数不是删除所有元素，是删除所有匹配的元素。
+真正删除链表全部内容的函数是下面这个：
+void    clear()
+
+QLinkedList 访问和查询函数
+-------------------
+链表可以查询元素的总数量：
+int    size() const     //获取元素总数量
+int    count() const    //获取元素总数量
+如果希望统计匹配某 value 的元素个数，使用下面的函数：
+int    count(const T & value) const     //统计等于 value 值的元素个数
+
+判断链表中是否包含匹配 value 的元素，使用下面函数：
+bool    contains(const T & value) const    //判断有没有等于 value 值的元素
+
+判断链表是否为空，可以用下面两个函数：
+bool    empty() const    //判断链表是否为空，STL风格
+bool    isEmpty() const  //判断链表是否为空
+
+不卸下元素，直接获取链表头部、尾部元素引用的函数如下：
+T &    first()    //获取头部元素的读写引用
+const T &    first() const    //获取头部元素的只读引用
+T &    front()  //获取头部元素的读写引用，STL风格
+const T &    front() const  //获取头部元素的只读引用，STL风格
+T &    back()    //获取尾部元素的读写引用，STL风格
+const T &    back() const  //获取尾部元素的只读引用，STL风格
+T &    last()    //获取尾部元素的读写引用
+const T &    last() const    //获取尾部元素的只读引用
+判断头部、尾部元素是否等于 value 值的函数如下：
+bool    startsWith(const T & value) const    //判断头部元素是否等于 value
+bool    endsWith(const T & value) const     //判断尾部元素是否等于 value
+访问和查询函数、删除函数里面，凡是带 value 参数都要求链表元素类型 T 本身支持 operator==() 函数判断。
+
+
+QLinkedList 交换函数
+-------------------
+下面函数将自身元素与 other 链表的元素全部互换，这个操作非常快，并且不会失败。
+void    swap(QLinkedList<T> & other)
+
+
+QLinkedList 运算符函数
+-------------------
+我们以下面三个链表举例子，示范运算符函数的使用：
+QLinkedList<int> listA = {1, 2, 3};
+QLinkedList<int> listB = {4, 5, 6};
+QLinkedList<int> listC;
+
+运算符函数                                                    举 例           描述
+bool operator!=(const QLinkedList<T> & other) const           listA != listB ;            listA 和 listB 两个链表有元素不同，结果为 true。
+QLinkedList<T> operator+(const QLinkedList<T> & other) const  listC = listA + listB;      将listA和listB的元素都复制并拼接为新链表，赋值给listC 。
+QLinkedList<T> & operator+=(const QLinkedList<T> & other)     listA += listB ;            将 listB 的元素都复制添加到 listA 的末尾。
+QLinkedList<T> & operator+=(const T & value)                  listA += 100 ;              将 100 添加到listA 末尾。
+QLinkedList<T> & operator<<(const QLinkedList<T> & other)     listA<<listB;               将 listB 的元素都复制添加到 listA 的末尾。
+QLinkedList<T> & operator<<(const T & value)                  listA<<100;                 将 100 添加到listA 末尾。
+QLinkedList<T> & operator=(const QLinkedList<T> & other)      listC = listA;              将listA的元素都复制并添加给listC，listA 本身不变。二者相等。
+QLinkedList<T> & operator=(QLinkedList<T> && other)//移动赋值 listC = std::move(listA);   将listA的元素都移动添加给listC，listA 本身被清空。
+bool operator==(const QLinkedList<T> & other) const           listA == listB;             listA 和 listB 存在不相等的元素，结果为 false。只有两个链表所有元素相等并且顺序一样，它们才能算相等。
+
+迭代器函数
+-------------------
+链表自带了 STL 风格迭代器：
+class    iterator        //STL 命名风格读写迭代器
+typedef    Iterator   //Qt 命名风格读写迭代器
+class    const_iterator        //STL 命名风格只读迭代器
+typedef    ConstIterator    //Qt 命名风格只读迭代器
+
+迭代器就像指向元素的指针，可以枚举链表中所有元素，迭代器本身支持各种操作符函数，
+比如 ++ 是找寻下一个元素，-- 是倒退一个元素， (* it) 是获取元素。Qt 帮助文档中示范了迭代器的使用：
+QLinkedList<QString> list;
+list.append("January");
+list.append("February");
+...
+list.append("December");
+
+QLinkedList<QString>::iterator i;
+for (i = list.begin(); i != list.end(); ++i)
+    cout << *i << endl;
+
+ list.begin() 是指向链表头部元素的指针，但是注意  list.end() 是指向链表尾部后面假想元素的指 针，
+ list.end() 指向的东西根本不存在，仅用于越界判断。
+
+获取指向链表头部迭代器、尾部后面假想元素迭代器的函数如下：
+iterator    begin()    //指向头部元素的读写迭代器
+const_iterator    begin() const    //指向头部元素的只读迭代器，STL风格
+const_iterator    cbegin() const  //指向头部元素的只读迭代器，STL风格
+const_iterator    constBegin() const //指向头部元素的只读迭代器，Qt风格
+iterator    end()    //指向尾部后面假想元素的读写迭代器
+const_iterator    end() const      //指向尾部后面假想元素的只读迭代器，STL风格
+const_iterator    cend() const    //指向尾部后面假想元素的只读迭代器，STL风格
+const_iterator    constEnd() const  //指向尾部后面假想元素的只读迭代器，Qt风格
+注意 *begin() 迭代器是指向真实存在的头部元素，而 *end() 迭代器指向尾部后面不存在的假想元素， *end() 迭代器只能做不等于判断，它不指向任何东西！
+
+链表除了头部、尾部元素，其他中间所有元素都需要用迭代器来操作，在链表中间插入元素的迭代器函数如下：
+iterator    insert(iterator before, const T & value)
+该函数在 before 指向元素的前面插入 value 元素，返回指向新的 value 元素的迭代器。
+插入元素后，要使用新返回的迭代器进行后面的元素遍历。
+从链表中间部分删除一个元素或连续多个元素的函数如下：
+iterator    erase(iterator pos)    //删除 pos 迭代器指向的元素，返回 pos 下一个元素迭代器，注意返回值可能是指向假想元素的 end()
+iterator    erase(iterator begin, iterator end)  //删除从 begin 开始到 end 之间所有元素，但是参数 end 指向的元素不删除，该函数总是返回参数 end
+第一个 erase() 函数删除 pos 指向的单个元素，它的返回值可能为指向下一个元素或者 指向末尾假想元素的 end() ，要注意判断返回值。
+第二个 erase() 函数删除多个元素，从参数 begin 删除到参数 end，但是 end 指向的元素不删除，这个函数总是返回参数里的 end 迭代器。
+
+
+容器类型转换函数
+-------------------
+链表带有一个成员函数，将自身对象转换为标准库的链表 std::list<T> ：
+std::list<T>    toStdList() const
+而将标准库链表转为 Qt 链表是通过静态函数实现的，该函数的返回值是新的 Qt 链表：
+QLinkedList<T>    fromStdList(const std::list<T> & list)
+静态函数的语法类似下面这样：
+    std::list<int> sl = {1, 2, 3};
+    QLinkedList<int> qll = QLinkedList<int>::fromStdList( sl );
+
+其他内容
+-------------------
+链表类附带了两个友元 流操作符函数，用于支持数据流输出、输入：
+QDataStream &    operator<<(QDataStream & out, const QLinkedList<T> & list)
+QDataStream &    operator>>(QDataStream & in, QLinkedList<T> & list)
+    这些流操作符函数正常运行的前提是元素类型 T 也能支持流的输入输出，对于 C++ 基本类型、
+Qt 常见数据类型都是支持数据流输入输出的，如果是自定义类型，那么需要手动编写两个友元 流操作符函数。
+
+
+memlinkedlist
+------------
+QLinkedList<QString> m_memFree;  空闲内存块链表，以字符串代表内存块
+QLinkedList<QString> m_memUsed;  已使用的内存块链表
+QListWidget listWidgetFree;
+QListWidget listWidgetUsed;
+List总是和链表关联在一起。即一个页面List对象总是关联内部的一个顺序容器。
+
+QSpinBox spinBoxMemCount; 如果 顺序容器受限，用来表示容器的限制。
+spinBoxMemCount->value();
+spinBoxMemCount->setRange(1, MEM_MAX);
+
+清空未尝不是一种很好的实现方法
+ui->listWidgetFree->clear();
+ui->listWidgetUsed->clear();
+
+int nMemCount = m_memUsed.count( strName );
+
+
+//同步更新图形界面的列表控件
+void Widget::updateListWidgets() 很重要

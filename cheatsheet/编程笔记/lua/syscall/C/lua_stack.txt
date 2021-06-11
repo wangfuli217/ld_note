@@ -1,0 +1,116 @@
+#if 0
+  lua的栈类似于以下的定义, 它是在创建lua_State的时候创建的:  TValue stack[max_stack_len]  
+  欲知内情可以查 lstate.c 的stack_init函数
+
+  存入栈的数据类型包括数值, 字符串, 指针, talbe, 闭包等,
+  
+    lua_pushboolean : [-0, +1, –]
+void lua_pushboolean (lua_State *L, int b);
+把 b 作为一个布尔量压栈。
+
+    lua_pushcclosure : [-n, +1, e]
+void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n);
+把一个新的 C 闭包压栈。
+当创建了一个 C 函数后，你可以给它关联一些值，这就是在创建一个 C 闭包（参见 §4.4）； 
+接下来无论函数何时被调用，这些值都可以被这个函数访问到。 为了将一些值关联到一个 C 函数上， 
+首先这些值需要先被压入堆栈（如果有多个值，第一个先压）。 接下来调用 lua_pushcclosure 来创建出闭包并把这个 C 函数压到栈上。 
+参数 n 告之函数有多少个值需要关联到函数上。 lua_pushcclosure 也会把这些值从栈上弹出。
+n 的最大值是 255 。
+当 n 为零时， 这个函数将创建出一个 轻量 C 函数， 它就是一个指向 C 函数的指针。 这种情况下，不可能抛出内存错误。
+
+
+    lua_pushcfunction : [-0, +1, –]
+void lua_pushcfunction (lua_State *L, lua_CFunction f);
+将一个 C 函数压栈。 这个函数接收一个 C 函数指针， 并将一个类型为 function 的 Lua 值压栈。 当这个栈顶的值被调用时，将触发对应的 C 函数。
+注册到 Lua 中的任何函数都必须遵循正确的协议来接收参数和返回值 （参见 lua_CFunction ）。
+lua_pushcfunction 是作为一个宏定义出现的：
+    #define lua_pushcfunction(L,f)  lua_pushcclosure(L,f,0)
+     
+    lua_pushfstring : [-0, +1, e]
+const char *lua_pushfstring (lua_State *L, const char *fmt, ...);
+把一个格式化过的字符串压栈， 然后返回这个字符串的指针。 它和 C 函数 sprintf 比较像，不过有一些重要的区别：
+你不需要为结果分配空间： 其结果是一个 Lua 字符串，由 Lua 来关心其内存分配 （同时通过垃圾收集来释放内存）。
+这个转换非常的受限。 不支持符号、宽度、精度。 转换符只支持 '%%' （插入一个字符 '%'）， 
+'%s' (插入一个带零终止符的字符串，没有长度限制)
+'%f' (插入一个 lua_Number)
+'%I' (插入一个 lua_Integer) 
+'%p' (插入一个指针或是一个十六进制数) 
+'%d' (插入一个 int)
+'%c' (插入一个用 int 表示的单字节字符)
+'%U' (插入一个用 long int 表示的 UTF-8 字)
+
+    lua_pushglobaltable : [-0, +1, –]
+void lua_pushglobaltable (lua_State *L);
+将全局环境压栈。
+
+    lua_pushinteger : [-0, +1, –]
+void lua_pushinteger (lua_State *L, lua_Integer n);
+把值为 n 的整数压栈。
+
+    lua_pushlightuserdata : [-0, +1, –]
+void lua_pushlightuserdata (lua_State *L, void *p);
+把一个轻量用户数据压栈。
+  用户数据是保留在 Lua 中的 C 值。 轻量用户数据 表示一个指针 void*。 它是一个像数字一样的值： 
+  你不需要专门创建它，它也没有独立的元表，而且也不会被收集（因为从来不需要创建）。 
+  只要表示的 C 地址相同，两个轻量用户数据就相等。
+
+    lua_pushliteral : [-0, +1, e]
+const char *lua_pushliteral (lua_State *L, const char *s);
+这个宏等价于 lua_pushstring，区别仅在于只能在 s 是一个字面量时才能用它。 它会自动给出字符串的长度。
+
+    lua_pushlstring : [-0, +1, e]
+const char *lua_pushlstring (lua_State *L, const char *s, size_t len);
+把指针 s 指向的长度为 len 的字符串压栈。 Lua 对这个字符串做一个内部副本(或是复用一个副本)， 
+因此 s 处的内存在函数返回后，可以释放掉或是立刻重用于其它用途。 字符串内可以是任意二进制数据，包括零字符。
+返回内部副本的指针。
+
+    lua_pushnil : [-0, +1, –]
+void lua_pushnil (lua_State *L);
+将空值压栈。
+
+    lua_pushnumber : [-0, +1, –]
+void lua_pushnumber (lua_State *L, lua_Number n);
+把一个值为 n 的浮点数压栈。
+
+    lua_pushstring : [-0, +1, e]
+const char *lua_pushstring (lua_State *L, const char *s);
+将指针 s 指向的零结尾的字符串压栈。Lua 对这个字符串做一个内部副本(或是复用一个副本)， 
+因此 s 处的内存在函数返回后，可以释放掉或是立刻重用于其它用途。
+返回内部副本的指针。
+如果 s 为 NULL，将 nil 压栈并返回 NULL。
+
+
+    lua_pushthread : [-0, +1, –]
+int lua_pushthread (lua_State *L);
+把 L 表示的线程压栈。 如果这个线程是当前状态机的主线程的话，返回 1 。 
+#endif
+
+#if 0
+
+    lua_gettop ：[-0, +0, –]
+int lua_gettop (lua_State *L);
+返回栈顶元素的索引。 因为索引是从 1 开始编号的， 所以这个结果等于栈上的元素个数； 
+特别指出，0表示栈为空。
+
+    lua_settop : [-?, +?, –]
+void lua_settop (lua_State *L, int index);
+参数允许传入任何索引以及 0 。 它将把堆栈的栈顶设为这个索引。 
+如果新的栈顶比原来的大，超出部分的新元素将被填为 nil 。 
+如果 index 为 0 ，把栈上所有元素移除。
+
+    lua_pushvalue : [-0, +1, –]
+void lua_pushvalue (lua_State *L, int index);
+把栈上给定索引处的元素作一个副本压栈。
+
+  lua_remove : [-1, +0, –]
+void lua_remove (lua_State *L, int index);
+从给定有效索引处移除一个元素， 把这个索引之上的所有元素移下来填补上这个空隙。 
+不能用伪索引来调用这个函数，因为伪索引并不指向真实的栈上的位置。
+
+    lua_replace : [-1, +0, –]
+void lua_replace (lua_State *L, int index);
+把栈顶元素放置到给定位置而不移动其它元素(因此覆盖了那个位置处的值)，然后将栈顶元素弹出。
+
+#endif
+
+

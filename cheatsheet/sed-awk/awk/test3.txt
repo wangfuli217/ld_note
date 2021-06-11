@@ -1,0 +1,29 @@
+awk ' BEGIN { print " ID Number Arrival Time" > "today_rpt1" ; print "===========================" > "today_rpt1" } { printf(" %s %s\n", $1,$2 ) > "today_rpt1" } ' data3
+
+== 本程序中若使用 ">" 将数据重导到 today_rpt1, awk 第一次执行该指令时会产生一个新档 
+== today_rpt1, 其后再执行该指令时则把数据追加到today_rpt1文件末, 并非每执行一次就重开
+== 一个新文件. 
+== 若采用">>"其差异仅在第一次执行该指令时, 若已存在today_rpt1则 awk 将直接把数据
+== append在原文件之末尾. 
+
+
+[a. 语法] awk output 指令 | "Shell 接受的命令" 
+( 如 : print $1,$2 | "sort -k 1" ) 
+上列awk程序中, "print$1, $2" 可能反复执行很多次, 其输出的结果将先暂存于 pipe 中,等到该程序结束时, 
+才会一并进行 "sort -k 1". 
+[b. 语法] "Shell 接受的命令" | awk input 指令 
+( 如 : "ls " | getline) 
+awk "立刻"调用 Shell 来执行 "ls", 执行次数是一次. getline 则可能执行多次(若pipe中存在多行数据). 
+
+注 : awk input 指令只有 getline 一个. 
+awk output 指令有 print, printf() 二个. 
+
+
+BEGIN { 
+"date" | getline # Shell 执行 "date". getline 取得结果并以$0记录 
+print " Today is " , $2, $3 >"today_rpt2" 
+print "=========================" > "today_rpt2" 
+print " ID Number Arrival Time" >"today_rpt2" 
+close( "today_rpt2" ) 
+} 
+{printf( "%s %s\n", $1 ,$2 ) | "sort -k 1 >>today_rpt2"} 

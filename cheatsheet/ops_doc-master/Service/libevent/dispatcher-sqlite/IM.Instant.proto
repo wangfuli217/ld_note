@@ -1,0 +1,113 @@
+syntax = "proto2";
+
+message AuthenticationReq {
+  required string user_name = 1;
+  required string password = 2;
+}
+
+message AuthenticationRsp {
+  required int32 auth = 1; //0:success 1:fail
+}
+
+message LogoutReq {
+  required string user_name = 1;
+}
+
+message LogoutRsp {
+  // result = 0, if the update query succeeds.
+  // result =-1, if the update query fails.
+  required int32 result = 1;
+}
+
+message MemberRecd {
+  required string friend_name = 1;
+  // status = 1, On-Line
+  // status = 0, Off-Line
+  required int32 status = 2;
+}
+
+// After a user logs in or logs out, a message is 
+// sent to all the contacts in his/her friends list
+message NotifyFriendsRsp {
+  required MemberRecd user = 1;
+}
+
+message FriendListRsp {
+  repeated MemberRecd friend_list = 1;
+}
+
+message RegisterReq {
+  required string user_name = 1;
+  required string password = 2;
+  optional string s_add1 = 3;
+  optional string s_add2 = 4;
+  optional string s_phone1 = 5;
+  optional string s_phone2 = 6;
+  optional string s_email1 = 7;
+  optional string s_email2 = 8;
+  optional string s_pin = 9;
+  optional string s_city = 10;
+  optional string s_professtion = 11;
+}
+
+message RegisterRsp {
+  // result = 1, if the given login name already exists.
+  // result = 0, if the user's registration succeeds.
+  // result =-1, if the update query fails.
+  required int32 result = 1;
+}
+
+message AddFriendReq {
+  required string user_name = 1;
+  required string friend_name = 2;
+}
+
+message FriendStatusRsp {
+  required string user_name = 1;
+  required string friend_name = 2;
+
+  // status = 0, if a friend is successfully added to the friend table.
+  // status = 1, if the friend's name doesn't exists in the member table.
+  // status = 2, if the friend already exists in the friend table of the user.
+  // status = 3, if the friend's member ID is same as the user's member ID, that is,
+  //  the user is trying to add himself as his friend!
+  // status =-1, if the friend cannot be added.
+  required int32 status = 3;
+}
+
+message AcceptanceFriendReq {
+  required string user_name = 1;
+  required string friend_name = 2;
+  required int32 status = 3; //1:accepted 0:declined
+}
+
+message DeleteFriendReq {
+  required string user_name = 1;
+  required string friend_name = 2;
+}
+
+message DeleteFriendRsp{
+  required string user_name = 1;
+  required string friend_name = 2;
+  // status = 0, if the friend is successfully deleted from the friend table.
+  // status = 1, if the delete query fails.
+  // status = 2, if friend's login-name does not exists in member table.
+  // status =-1, if the friend cannot be deleted.
+  required int32 status = 3;
+}
+
+message MsgReqRsp {
+  required string target = 1;
+  required string source = 2;
+  required string text = 3;
+}
+
+message UnregisterReq {
+  required string user_name = 1;
+}
+
+message UnregisterRsp {
+  // unreg = 0, if deletion of user record succeeds.
+  // unreg =-1, if unregistration fails.
+  required int32 unreg = 1;
+}

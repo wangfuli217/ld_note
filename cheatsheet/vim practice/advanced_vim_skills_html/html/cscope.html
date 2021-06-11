@@ -1,0 +1,122 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>第 12 章 程序员的利器 - cscope</title><link rel="stylesheet" href="http://easwy.com/blog/uploads/css/style.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.73.2"><link rel="start" href="index.html" title="vim使用进阶"><link rel="up" href="index.html" title="vim使用进阶"><link rel="prev" href="syntax_on.html" title="第 11 章 乱花渐欲迷人眼 - 语法高亮"><link rel="next" href="quickfix.html" title="第 13 章 剑不离手 - quickfix"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">第 12 章 程序员的利器 - cscope</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="syntax_on.html">上一页</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="quickfix.html">下一页</a></td></tr></table><hr></div><div class="chapter" lang="zh-CN"><div class="titlepage"><div><div><h2 class="title"><a name="cscope"></a>第 12 章 程序员的利器 - cscope</h2></div></div></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p>
+    本节所用命令的帮助入口：
+  </p><pre class="programlisting">
+:help cscope </pre><p>
+    在前面的文章中介绍了<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-use-ctags-tag-file/">利用tag文件</a>，跳转到标签定义的地方。但如果想查找函数在哪里被调用，或者标签在哪些地方出现过，ctags就无能为力了，这时需要使用更为强大的cscope。
+  </p><p>
+    Cscope具有纯正的Unix血统，它最早是由贝尔实验室为PDP-11计算机开发的，后来成为商用的AT&amp;T Unix发行版的组成部分。直到2000年4月，这个工具才由SCO公司以BSD license开源发行。
+  </p><p>
+    Cscope的主页在<a class="link" href="http://cscope.sourceforge.net/">http://cscope.sourceforge.net/</a>，如果你的计算机上没有cscope，你可以在此处下载它，在写本文时，它的最新版本是15.6。安装它非常简单，你只需要在cscope的源代码目录中执行下面三条命令：
+  </p><pre class="programlisting">
+./configure
+make
+make install </pre><p>
+    在windows上也可以使用cscope，在cscope的主页上可以下载到由DJGPP编译器编译的cscope for windows，不过这个版本不能和vi一起工作。或者你可以下载cygwin工具包(<a class="link" href="http://www.cygwin.com/">http://www.cygwin.com/</a>)，这个工具包中也包含了cscope。
+  </p><p>
+    在<a class="link" href="http://iamphet.nm.ru/cscope/">http://iamphet.nm.ru/cscope/</a>有Sergey Khorev预编译的一个Win32版本的cscope，这个版本的cscope可以很好的与windows版本的vim搭配使用。
+  </p><p>
+    cscope的用法很简单，首先需要为你的代码生成一个cscope数据库。在你的项目根目录运行下面的命令：
+  </p><pre class="programlisting">
+cscope -Rbq </pre><p>
+    这些选项的含义见后面。这个命令会生成三个文件：cscope.out, cscope.in.out, cscope.po.out。其中cscope.out是基本的符号索引，后两个文件是使用"<span class="emphasis"><em>-q</em></span>"选项生成的，可以加快cscope的索引速度。
+  </p><p>
+    在缺省情况下，cscope在生成数据库后就会进入它自己的查询界面，我们一般不用这个界面，所以使用了"<span class="emphasis"><em>-b</em></span>"选项。如果你已经进入了这个界面，按<span class="command"><strong>CTRL-D</strong></span>退出。
+  </p><p>
+    Cscope在生成数据库中，在你的项目目录中未找到的头文件，会自动到/usr/include目录中查找。如果你想阻止它这样做，使用"<span class="emphasis"><em>-k</em></span>"选项。
+  </p><p>
+    Cscope缺省只解析C文件(.c和.h)、lex文件(.l)和yacc文件(.y)，虽然它也可以支持C++以及Java，但它在扫描目录时会跳过C++及Java后缀的文件。如果你希望cscope解析C++或Java文件，需要把这些文件的名字和路径保存在一个名为cscope.files的文件。当cscope发现在当前目录中存在cscope.files时，就会为cscope.files中列出的所有文件生成索引数据库。通常我们使用<span class="command"><strong>find</strong></span>来生成cscope.files文件，仍以vim 7.0的源代码为例：
+  </p><pre class="programlisting">
+cd ~/src/vim70 
+find . –type f &gt; cscope.files
+cscope -bq </pre><p>
+    这条命令把~src/vim70目录下的所有普通文件都加入了cscope.files，这样，cscope会解析该目录下的每一个文件。上面的cscope命令并没有使用"<span class="emphasis"><em>-R</em></span>"参数递归查找子目录，因为在cscope.files中已经包含了子目录中的文件。
+  </p><p>
+    注意：<span class="command"><strong>find</strong></span>命令输出的文件以相对路径表示，所以cscope.out的索引也相对于当前路径。如果你要在其它路径中使用当前的cscope.out，需要使用下面介绍的<span class="emphasis"><em>-P</em></span>选项。
+  </p><p>
+    Cscope只在第一次解析时扫描全部文件，以后再调用cscope，它只扫描那些改动过的文件，这大大提高了cscope生成索引的速度。
+  </p><p>
+    下表中列出了cscope的常用选项：
+  </p><div class="itemizedlist"><ul type="disc"><li><span class="bold"><strong>-R</strong></span>: 在生成索引文件时，搜索子目录树中的代码
+    </li><li><span class="bold"><strong>-b</strong></span>: 只生成索引文件，不进入cscope的界面
+    </li><li><span class="bold"><strong>-q</strong></span>: 生成cscope.in.out和cscope.po.out文件，加快cscope的索引速度
+    </li><li><span class="bold"><strong>-k</strong></span>: 在生成索引文件时，不搜索/usr/include目录
+    </li><li><span class="bold"><strong>-i</strong></span>: 如果保存文件列表的文件名不是cscope.files时，需要加此选项告诉cscope到哪儿去找源文件列表。可以使用"<span class="bold"><strong>-</strong></span>"，表示由标准输入获得文件列表。
+    </li><li><span class="bold"><strong>-I</strong></span><span class="emphasis"><em>dir</em></span>: 在<span class="bold"><strong>-I</strong></span>选项指出的目录中查找头文件
+    </li><li><span class="bold"><strong>-u</strong></span>: 扫描所有文件，重新生成交叉索引文件
+    </li><li><span class="bold"><strong>-C</strong></span>: 在搜索时忽略大小写
+    </li><li><span class="bold"><strong>-P</strong></span><span class="emphasis"><em>path</em></span>: 在以相对路径表示的文件前加上的path，这样，你不用切换到你数据库文件所在的目录也可以使用它了。
+    </li></ul></div><p>
+    要在vim中使用cscope的功能，需要在<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-solve-compile-problem/">编译vim</a>时选择"<span class="emphasis"><em>+cscope</em></span>"。vim的cscope接口先会调用cscope的命令行接口，然后分析其输出结果找到匹配处显示给用户。
+  </p><p>
+    在vim中使用cscope非常简单，首先调用"<span class="command"><strong>cscope add</strong></span>"命令添加一个cscope数据库，然后就可以调用"<span class="command"><strong>cscope find</strong></span>"命令进行查找了。vim支持8种cscope的查询功能，如下：
+  </p><div class="itemizedlist"><ul type="disc"><li><span class="bold"><strong>s:</strong></span> 查找C语言符号，即查找函数名、宏、枚举值等出现的地方
+    </li><li><span class="bold"><strong>g:</strong></span> 查找函数、宏、枚举等定义的位置，类似ctags所提供的功能
+    </li><li><span class="bold"><strong>d:</strong></span> 查找本函数调用的函数
+    </li><li><span class="bold"><strong>c:</strong></span> 查找调用本函数的函数
+    </li><li><span class="bold"><strong>t:</strong></span> 查找指定的字符串
+    </li><li><span class="bold"><strong>e:</strong></span> 查找egrep模式，相当于egrep功能，但查找速度快多了
+    </li><li><span class="bold"><strong>f:</strong></span> 查找并打开文件，类似vim的find功能
+    </li><li><span class="bold"><strong>i:</strong></span> 查找包含本文件的文件
+    </li></ul></div><p>
+    例如，我们想在vim 7.0的源代码中查找调用do_cscope()函数的函数，我们可以输入："<span class="command"><strong>:cs find c do_cscope</strong></span>"，回车后发现没有找到匹配的功能，可能并没有函数调用do_cscope()。我们再输入"<span class="command"><strong>:cs find s do_cscope</strong></span>"，查找这个C符号出现的位置，现在vim列出了这个符号出现的所有位置。
+  </p><p>
+    我们还可以进行字符串查找，它会双引号或单引号括起来的内容中查找。还可以输入一个正则表达式，这类似于egrep程序的功能，但它是在交叉索引数据库中查找，速度要快得多。
+  </p><p>
+    vim提供了一些选项可以调整它的cscope功能：
+  </p><div class="itemizedlist"><ul type="disc"><li><span class="emphasis"><em>cscopecscopeprg</em></span>选项用于设置cscope程序的位置。
+    </li><li><span class="emphasis"><em>cscopecscopequickfix</em></span>设定是否使用quickfix窗口来显示cscope的结果，详情请"<span class="command"><strong>:help cscopequickfix</strong></span>"；
+    </li><li>
+      如果你想vim同时搜索tag文件以及cscope数据库，设置<span class="emphasis"><em>cscopecscopetag</em></span>选项；
+    </li><li><span class="emphasis"><em>cscopecscopetagorder</em></span>选项决定是先查找tag文件还是先查找cscope数据库。设置为0则先查找cscope数据库，设置为1先查找tag文件。我通常设置为1，因为在tag文件中查找到的结果，会把最佳匹配列在第一位。
+    </li></ul></div><p>
+    vim的手册中给出了使用cscope的建议方法，使用命令"<span class="command"><strong>:help cscope-suggestions</strong></span>"查看。
+  </p><p>
+    下面是我的vimrc中关于cscope接口的设置：
+  </p><pre class="programlisting">
+    
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" cscope setting
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+if has("cscope")
+  set csprg=/usr/bin/cscope
+  set csto=1
+  set cst
+  set nocsverb
+  " add any database in current directory
+  if filereadable("cscope.out")
+      cs add cscope.out
+  endif
+  set csverb
+endif
+
+nmap &lt;C-@&gt;s :cs find s &lt;C-R&gt;=expand("&lt;cword&gt;")&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;g :cs find g &lt;C-R&gt;=expand("&lt;cword&gt;")&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;c :cs find c &lt;C-R&gt;=expand("&lt;cword&gt;")&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;t :cs find t &lt;C-R&gt;=expand("&lt;cword&gt;")&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;e :cs find e &lt;C-R&gt;=expand("&lt;cword&gt;")&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;f :cs find f &lt;C-R&gt;=expand("&lt;cfile&gt;")&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;i :cs find i ^&lt;C-R&gt;=expand("&lt;cfile&gt;")&lt;CR&gt;$&lt;CR&gt;
+nmap &lt;C-@&gt;d :cs find d &lt;C-R&gt;=expand("&lt;cword&gt;")&lt;CR&gt;&lt;CR&gt;
+ </pre><p>
+    下面的两个链接是cscope主页提供的cscope使用方法，也可以作为参考：
+  </p><p>
+    vim/cscope指导：<a class="link" href="http://cscope.sourceforge.net/cscope_vim_tutorial.html">http://cscope.sourceforge.net/cscope_vim_tutorial.html</a>
+  </p><p>
+    在大项目中使用cscope：<a class="link" href="http://cscope.sourceforge.net/large_projects.html">http://cscope.sourceforge.net/large_projects.html</a>
+  </p><p>
+    在vim的网站上有很多与cscope相关的插件，有兴趣可以去看一下。
+  </p><p>
+    我以前写的<a class="link" href="http://easwy.com/blog/archives/vim-cscope-ctags/">Vim + Cscope/Ctags</a>。
+  </p><p>
+    <span class="bold"><strong>[参考文档]</strong></span>
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      vim帮助文件
+    </li><li><a class="link" href="http://vimcdoc.sourceforge.net/">vim中文手册</a></li><li><a class="link" href="http://cscope.sourceforge.net/">http://cscope.sourceforge.net/</a></li><li><a class="link" href="http://iamphet.nm.ru/cscope/">http://iamphet.nm.ru/cscope/</a></li><li>
+      cscope手册
+    </li></ul></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p><span class="bold"><strong>原创文章，转载请注明：</strong></span>转载自<a class="link" href="http://easwy.com/blog/">Easwy的博客</a> [  <a class="link" href="http://easwy.com/blog/">http://easwy.com/blog/</a> ]</p><p>
+    <span class="bold"><strong>　　　　本文链接地址:</strong></span> <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-cscope/">http://easwy.com/blog/archives/advanced-vim-skills-cscope/</a>
+  </p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="syntax_on.html">上一页</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="quickfix.html">下一页</a></td></tr><tr><td width="40%" align="left" valign="top">第 11 章 乱花渐欲迷人眼 - 语法高亮 </td><td width="20%" align="center"><a accesskey="h" href="index.html">起始页</a></td><td width="40%" align="right" valign="top"> 第 13 章 剑不离手 - quickfix</td></tr></table></div></body></html>

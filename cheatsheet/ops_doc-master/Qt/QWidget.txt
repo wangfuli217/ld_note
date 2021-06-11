@@ -1,0 +1,137 @@
+https://blog.csdn.net/liang19890820/article/details/50533262
+
+1. QWidget继承于QObject和QPaintDevice，
+   QDialog和QMainWindow则继承于QWidget，
+   QDialog、QMainWindow两者之间没有直接关系。
+   
+   
+2. QWidget
+QWidget类是所有用户界面对象的基类。
+
+    窗口部件是用户界面的一个原子：它从窗口系统接收鼠标、键盘和其它事件，并且将自己的表现形式绘制在屏幕上。
+每一个窗口部件都是矩形，并且它们按Z轴顺序排列。一个窗口部件可以被它的父窗口部件或者它前面的窗口部件盖住一部分。
+    QWidget有很多成员函数，但是它们中的一些有少量的直接功能：例如，QWidget有字体属性，但是自己从来不用。
+为很多继承它的子类提供了实际的功能，比如QLabel、QPushButton、QCheckBox等等。
+    没有父窗体的小部件始终是一个独立的窗口(顶级窗口部件)。
+    非窗口的小部件为子部件，它们在父窗口中显示。
+    Qt中大多数部件主要被用作子部件。例如：可以显示一个按钮作为顶层窗口，但大多数人更喜欢将按钮内置于其它部件，如QDialog。
+
+3. QDialog
+QDialog类是对话框窗口的基类。
+    对话框窗口是一个顶级窗体，主要用于短期任务以及和用户进行简要通讯。
+    QDialog可以是模式的也可以是非模式的。
+    QDialog支持扩展性并且可以提供返回值。
+    QDialog可以有默认按钮。
+    QDialog也可以有一个QSizeGrip在它的右下角，使用setSizeGripEnabled()。
+    
+    注意：QDialog（以及其它使用Qt::Dialog类型的widget）使用父窗口部件的方法和Qt中其它类稍微不同。
+对话框总是顶级窗口部件，但是如果它有一个父对象，它的默认位置就是父对象的中间。它也将和父对象共享工具条条目。
+    
+3.1 模式对话框
+    阻塞同一应用程序中其它可视窗口输入的对话框。模式对话框有自己的事件循环，用户必须完成这个对话框中的交互操作，
+并且关闭了它之后才能访问应用程序中的其它任何窗口。
+    显示模态对话框最常见的方法是调用其exec()函数，当用户关闭对话框，exec()将提供一个有用的返回值，
+并且这时流程控制继续从调用exec()的地方进行。
+    通常情况下，要获得对话框关闭并返回相应的值，我们连接默认按钮，例如："确定"按钮连接到accept()槽，
+"取消"按钮连接到reject()槽。另外我们也可以连接done()槽，传递给它Accepted或Rejected。
+    
+3.2 非模式对话框
+    和同一个程序中其它窗口操作无关的对话框。在文字处理中的查找和替换对话框通常是非模式的，
+允许用户同时与应用程序的主窗口和对话框进行交互。调用show()来显示非模式对话框，并立即将控制返回给调用者。
+
+3.3 半模式对话框
+调用setModal(true)或者setWindowModality()，然后show()。有别于exec()，show() 立即返回给控制调用者。
+    对于进度对话框来说，调用setModal(true)是非常有用的，用户必须拥有与其交互的能力，例如：取消长时间运行的操作。
+如果使用show()和setModal(true)共同执行一个长时间操作，则必须定期在执行过程中调用QApplication::processEvents()，
+以使用户能够与对话框交互（可以参考QProgressDialog）。
+
+
+4. QMainWindow
+QMainWindow类提供一个有菜单条、工具栏、状态条的主应用程序窗口(例如：开发Qt常用的IDE-Visual Studio、Qt Creator等)。 
+
+一个主窗口提供了构建应用程序的用户界面框架。Qt拥有QMainWindow及其相关类来管理主窗口。
+    QMainWindow拥有自己的布局，我们可以使用QMenuBar（菜单栏）、QToolBar（工具栏）、QStatusBar（状态栏）以及QDockWidget
+（悬浮窗体），布局有一个可由任何种类小窗口所占据的中心区域。
+
+
+使用原则
+    如果需要嵌入到其他窗体中，则基于QWidget创建。
+    如果是顶级对话框，则基于QDialog创建。
+    如果是主窗体，则基于QMainWindow创建。
+
+================================================================================
+https://zhuanlan.zhihu.com/p/28322969
+
+# QWidget的几何属性
+     |x() y() pos()
+     |-----------------------------------------------|
+     |                   Window Title                |
+     |-----------------------------------------------|---
+     |geometry().x                                   |/|\
+     |                                               | height() and geometry().height()
+     |                                               | |
+     |<-      width() and geometry().width()   ----->|\|/
+     |-----------------------------------------------|---
+    |---------   frameGeometry().width()      ---------| 
+
+
+frameGeometry，frameSize，x，y，pos：框架的几何区域和大小，框架指窗口的最外层。
+geometry，width，height，size，rect：内部绘图区域的几何框架。
+
+在WidgetProperty的构造函数中添加代码：
+
+WidgetProperty::WidgetProperty(QWidget *parent) :
+    QWidget(parent),
+    ui(new Ui::WidgetProperty){
+    ui->setupUi(this);
+    setGeometry(0, 0, 400, 300);
+}
+运行代码，窗口的绘图区域左上角和屏幕的左上角刚好吻合，而标题栏都跑到了屏幕外面。
+
+
+# windowFlags属性。
+我们还可以通过调用setWindowFlags(Qt::WindowFlags)来设置窗口类型和窗口标识。
+在WidgetProperty构造函数后面继续添加代码
+move(100, 100);
+setWindowFlags(Qt::CustomizeWindowHint|Qt::WindowStaysOnTopHint);
+运行程序，我们看到窗口的标题栏已经被隐藏掉了，并且当你点击其他外部窗口时，本窗口仍然在最屏幕最上面。
+
+下面我总结了在实际项目中可能经常用到的标识
+
+常用窗口类型：
+    Qt::Widget 默认窗口
+    Qt::Dialog 对话框
+    Qt::SplashScreen 启动窗口
+
+
+E:\Qt\Qt5.12.0\Examples\Qt-5.12.0\widgets\widgets\windowflags\windowflags.pro
+常用窗口标识：
+    Qt::SplashScreen 在还没有展示出主界面前的启动画面
+    Qt::FramelessWindowHint 隐藏标题栏，并且去掉窗口的边框，窗口不能移动和缩放。
+    Qt::CustomizeWindowHint 隐藏标题栏，不会去掉窗口的边框，窗口不能移动，但可以缩放。
+    Qt::WindowStaysOnTopHint 使窗口始终处于最顶部。类似于播放器中的总在最前功能。
+
+Qt最大化显示函数         window.showMaximized()
+Qt最小化显示函数         window.showMinimized()
+Qt固定尺寸显示函数       window.resize(x,y)
+获取屏幕宽度和高度
+QApplication::desktop()->width()  ;
+QApplication::desktop()->height() ;
+
+
+# 其他属性
+    acceptDrops：接受放下事件。
+    autoFillBackground：如果将这个属性设置为true，Qt将在调用paintEvent之前填充背景。可以使用调色板来进行填充。
+    enabled：窗口是否可用，如果被设置为false，则不会接收用户操作，同时其子控件也不接收用户操作。
+    focus：是否获得焦点。
+    modal：是否为模态窗口，关于模态窗口，我会在QDialog中讲解。
+    mouseTracking：是否跟踪鼠标，默认为不跟踪。默认情况时，当鼠标按下后才会跟踪鼠标移动，如果被设置为true，在鼠标不按下时，也跟踪鼠标移动。
+    palette：调色板。
+    toolTip：鼠标悬停时的提示信息。
+    toolTipDuration：鼠标悬停时显示提示信息持续时间。
+    visible：是否可见。
+    windowOpacity：窗口透明度0-1。
+    windowTitle：窗口标题。
+    
+%% E:\Qt\journey of qt\lesson-3\widget-1
+    

@@ -1,0 +1,547 @@
+systemd(守护整个系统){
+工具：journalctl (1)       - Query the systemd journal
+      loginctl (1)         - Control the systemd login manager
+      systemctl (1)        - Control the systemd system and service manager
+      systemd-analyze (1)  - Analyze system boot-up performance
+      systemd-bootchart (1) - Boot performance graphing tool
+      systemd-cat (1)      - Connect a pipeline or program output with the journal
+      systemd-cgls (1)     - Recursively show control group contents
+      systemd-cgtop (1)    - Show top control groups by their resource usage
+      systemd-delta (1)    - Find overridden configuration files
+      systemd-detect-virt (1) - Detect execution in a virtualized environment
+      systemd-escape (1)   - Escape strings for usage in system unit names
+      systemd-inhibit (1)  - Execute a program with an inhibition lock taken
+      systemd-machine-id-setup (1) - Initialize the machine ID in /etc/machine-id
+      systemd-notify (1)   - Notify service manager about start-up completion and other daemon status changes
+      systemd-path (1)     - List and query system and user paths
+      systemd-resolve (1)  - Resolve domain names, IPV4 and IPv6 addresses, DNS resource records, and services
+      systemd-run (1)      - Run programs in transient scope or service or timer units
+      
+守护进程: systemd (1)          - systemd system and service manager
+          journald networkd logind user session
+管理对象：bootmode shutdown basic reboot
+          multi-user dbus dlog telephony longind 
+          graphical user-session
+核心管理：unit：service path device socket target swap snapshot mount timer
+          longin: mulitseat inhibit session pam
+          namespace log cgroup dbus
+底层库  ：dbus-1 libpam libcap libcryptsetup tcpwrapper libaudit libnotify
+内核    ：cgroup autofs kdbus
+}
+
+systemctl(chkconfig){
+任务                  旧指令                             新指令
+使某服务自动启动      chkconfig --level 3 httpd on       systemctl enable httpd.service
+使某服务不自动启动    chkconfig --level 3 httpd off      systemctl disable httpd.service
+检查服务状态          service httpd status               systemctl status httpd.service     (服务详细信息) 
+                                                         systemctl is-active httpd.service  (仅显示是否 Active)
+显示所有已启动的服务  chkconfig --list                   systemctl list-units --type=service
+启动某服务            service httpd start                systemctl start httpd.service
+停止某服务            service httpd stop                 systemctl stop httpd.service
+重启某服务            service httpd restart              systemctl restart httpd.service
+}
+
+systemctl(){
+Listing services
+    systemctl To list running services
+    systemctl --failed To list failed services
+Managing Targets (Similar to Runlevels in SysV)
+    systemctl get-default To ﬁnd the default target for your system
+    systemctl set-default <target-name> To set the default target for your system
+Managing services at runtime
+    systemctl start [service-name] To start a service
+    systemctl stop [service-name] To stop a service
+    systemctl restart [service-name] To restart a service
+    systemctl reload [service-name] To request service to reload its conﬁguration
+    systemctl status [service-name] To show current status of a service
+Managing autostart of services
+    systemctl is-enabled [service-name] To show whether a service is enabled on system boot
+    systemctl is-active [service-name] To show whether a service is currently active(running)
+    systemctl enable [service-name] To enable a service on system boot
+    systemctl disable [service-name] To disable a service on system boot
+Masking services
+    systemctl mask [service-name] To mask a service (Makes it hard to start a service by mistake)
+    systemctl unmask [service-name] To unmask a service
+Restarting systemd
+    systemctl daemon-reload
+}
+    
+
+systemctl --version         # 检查你的系统中是否安装有systemd并确定当前安装的版本
+whereis systemd             # 检查systemd的二进制文件和库文件的安装位置
+whereis systemctl           # 检查systemctl的二进制文件和库文件的安装位置
+systemctl(analyze查看启动耗时){
+systemd-analyze [OPTIONS...] [time]
+systemd-analyze [OPTIONS...] blame
+systemd-analyze [OPTIONS...] critical-chain [UNIT...]
+systemd-analyze [OPTIONS...] plot [> file.svg]
+systemd-analyze [OPTIONS...] dot [PATTERN...] [> file.dot]
+systemd-analyze [OPTIONS...] dump
+systemd-analyze [OPTIONS...] set-log-level LEVEL
+systemd-analyze [OPTIONS...] set-log-target TARGET
+systemd-analyze [OPTIONS...] verify [FILES...]
+
+systemd-analyze dot 'avahi-daemon.*' | dot -Tsvg > avahi.svg
+systemd-analyze dot --to-pattern='*.target' --from-pattern='*.target' | dot -Tsvg > targets.svg
+
+systemd-analyze             # 分析systemd启动进程
+systemd-analyze blame       # 分析启动时各个进程花费的时间
+systemd-analyze critical-chain # 显示瀑布状的启动过程流
+systemd-analyze critical-chain atd.service # 显示指定服务的启动流
+}
+hostnamectl(查看当前主机的信息){
+hostnamectl # 显示当前主机的信息
+hostnamectl status
+
+hostnamectl set-hostname rhel7 # 设置主机名
+set-hostname NAME
+set-icon-name NAME
+set-chassis TYPE
+set-deployment ENVIRONMENT
+set-location LOCATION
+}
+localectl(看本地化设置){
+localectl # # 查看本地化设置
+localectl status
+
+set-locale LOCALE...
+list-locales
+set-keymap MAP [TOGGLEMAP]
+list-keymaps
+set-x11-keymap LAYOUT [MODEL [VARIANT [OPTIONS]]]
+list-x11-keymap-models, list-x11-keymap-layouts, list-x11-keymap-variants [LAYOUT], list-x11-keymap-options
+
+localectl set-locale LANG=en_GB.utf8 # 设置本地化参数。
+localectl set-keymap en_GB           # 设置本地化参数。
+}
+timedatectl(查看当前时区设置){
+timedatectl # 查看当前时区设置
+timedatectl status
+set-time [TIME]
+set-timezone [TIMEZONE]
+list-timezones
+set-local-rtc [BOOL]
+set-ntp [BOOL] # timedatectl set-ntp true
+
+timedatectl list-timezones   # 显示所有可用的时区
+
+timedatectl set-timezone America/New_York # 设置当前时区
+timedatectl set-time YYYY-MM-DD           # 设置当前时区
+timedatectl set-time HH:MM:SS             # 设置当前时区
+
+systemctl status systemd-timesyncd.service
+}
+loginctl(当前登录的用户){
+loginctl list-sessions # 列出当前session
+loginctl list-users # 列出当前登录用户
+loginctl show-user ruanyf # 列出显示指定用户的信息
+1. session
+list-sessions
+session-status [ID...]
+show-session [ID...]
+activate [ID]
+lock-session [ID...], unlock-session [ID...]
+lock-sessions, unlock-sessions
+terminate-session ID...
+kill-session ID...
+
+2. user
+user-status [USER...]
+show-user [USER...]
+enable-linger [USER...], disable-linger [USER...]
+terminate-user USER...
+kill-user USER...
+
+3. seat
+list-seats
+seat-status [NAME...]
+show-seat [NAME...]
+attach NAME DEVICE...
+flush-devices
+terminate-seat NAME...
+
+}
+
+journalctl(){
+journalctl [OPTIONS...] [MATCHES...]
+
+journalctl
+journalctl _SYSTEMD_UNIT=avahi-daemon.service
+journalctl _SYSTEMD_UNIT=avahi-daemon.service _PID=28097
+journalctl _SYSTEMD_UNIT=avahi-daemon.service _SYSTEMD_UNIT=dbus.service
+journalctl _SYSTEMD_UNIT=avahi-daemon.service _PID=28097 + _SYSTEMD_UNIT=dbus.service
+
+journalctl /usr/bin/dbus-daemon
+journalctl -k -b -1
+journalctl -f -u apache
+
+journalctl -k     # 查看内核日志（不显示应用日志）
+journalctl -b     # 查看系统本次启动的日志
+journalctl -b -0  # 查看系统本次启动的日志
+
+journalctl -b -1 # 查看上一次启动的日志（需更改设置）
+# 查看指定时间的日志
+journalctl --since="2012-10-30 18:17:16" 
+journalctl --since "20 min ago" 
+journalctl --since yesterday 
+journalctl --since "2015-01-10" --until "2015-01-11 03:00" 
+journalctl --since 09:00 --until "1 hour ago"
+
+# 显示尾部的最新10行日志
+journalctl -n 
+# 显示尾部指定行数的日志
+journalctl -n 20 
+# 实时滚动显示最新日志
+journalctl -f 
+
+# 查看指定服务的日志
+journalctl /usr/lib/systemd/systemd # 查看指定进程的日志
+journalctl _PID=1 
+# 查看某个路径的脚本的日志
+journalctl /usr/bin/bash 
+# 查看指定用户的日志
+journalctl _UID=33 --since today 
+# 查看某个 Unit 的日志
+journalctl -u nginx.service 
+journalctl -u nginx.service --since today 
+# 实时滚动显示某个 Unit 的最新日志
+journalctl -u nginx.service -f 
+# 合并显示多个 Unit 的日志
+journalctl -u nginx.service -u php-fpm.service --since today 
+# 查看指定优先级（及其以上级别）的日志，共有8级
+# 0: emerg
+# 1: alert
+# 2: crit
+# 3: err
+# 4: warning
+# 5: notice
+# 6: info
+# 7: debug
+journalctl -p err -b 
+# 日志默认分页输出，--no-pager 改为正常的标准输出
+journalctl --no-pager 
+# 以 JSON 格式（单行）输出
+journalctl -b -u nginx.service -o json 
+# 以 JSON 格式（多行）输出，可读性更好
+journalctl -b -u nginx.serviceqq -o json-pretty 
+# 显示日志占据的硬盘空间
+journalctl --disk-usage
+# 指定日志文件占据的最大空间
+journalctl --vacuum-size=1G 
+# 指定日志文件保存多久
+journalctl --vacuum-time=1years
+}
+
+timer(){
+1. 自动生成日志，配合 Systemd 的日志工具，很方便除错
+2. 可以设置内存和 CPU 的使用额度，比如最多使用50%的 CPU
+3. 任务可以拆分，依赖其他 Systemd 单元，完成非常复杂的任务
+
+Service 单元负责后台服务，Timer 单元负责定时器，Slice 单元负责资源的分配
+每个单元都有一个单元描述文件，它们分散在三个目录。
+1. /lib/systemd/system：系统默认的单元文件
+2. /etc/systemd/system：用户安装的软件的单元文件
+3. /usr/lib/systemd/system：用户自己定义的单元文件
+
+systemctl start mytimer.timer
+systemctl status mytimer.timer
+systemctl list-timers
+systemctl stop myscript.timer
+systemctl enable myscript.timer
+systemctl disable myscript.timer
+
+# 查看 mytimer.timer 的日志
+journalctl -u mytimer.timer 
+# 查看 mytimer.timer 和 mytimer.service 的日志
+journalctl -u mytimer 
+# 从结尾开始查看最新日志
+journalctl -f 
+# 从结尾开始查看 mytimer.timer 的日志
+journalctl -f -u timer.timer
+}
+systemctl(units){ 
+1. 单元管理部分
+systemctl list-units           # 列出所有运行中单元
+systemctl list-units --all # 列出所有Unit，包括没有找到配置文件的或者启动失败的
+systemctl list-units --all --state=inactive # 列出所有没有运行的 Unit
+systemctl list-units --failed # 列出所有加载失败的 Unit
+systemctl list-units --type=service # 列出所有正在运行的、类型为 service 的 Unit
+
+systemctl status # 显示系统状态
+systemctl status bluetooth.service # 显示单个 Unit 的状态
+systemctl -H root@rhel7.example.com status httpd.service # 显示远程主机的某个 Unit 的状态
+
+
+systemctl show httpd.service # 显示某个 Unit 的所有底层参数
+systemctl show -p CPUShares httpd.service # 显示某个 Unit 的指定属性的值
+
+          list-units [PATTERN...]
+          list-sockets [PATTERN...]
+          list-timers [PATTERN...]
+start|stop|reload|restart|try-start|reload-or-restart|try-reload-or-restart|kill|status|cat|help PATTERN...
+is-failed|is-active PATTERN...
+show [PATTERN...|JOB...]
+isolate NAME
+list-dependencies [NAME]
+reset-failed
+help units名称
+
+systemctl list-dependencies nginx.service
+systemctl list-dependencies --all nginx.service
+
+systemctl start sshd == systemctl start sshd.service
+systemctl isolate default == systemctl isolate default.target
+
+systemctl status /dev/sda == systemctl status dev-sda.device
+systemctl status /home    == systemctl status home.mount
+
+systemctl stop sshd@*.service 关闭所有sshd实例
+
+systemctl enable foo.service
+systemctl link /path/to/foo.service
+
+2. 单元文件管理
+Systemctl接受服务(.service)，挂载点(.mount)，套接口(.socket)和设备(.device)作为单元。
+systemctl list-unit-files |grep enabled  # 列出所有可用单元
+systemctl list-unit-files --type=service # 列出所有服务(包括启用的和禁用的)
+systemctl list-unit-files --type=mount   # 列出所有系统挂载点
+systemctl list-unit-files --type=socket  # 列出所有socket
+返回状态标志说明
+  enabled：已建立启动链接
+  disabled：没建立启动链接
+  static：该配置文件没有[Install]部分（无法执行），只能作为其他配置文件的依赖
+  masked：该配置文件被禁止建立启动链接
+
+systemctl is-active application.service # 显示某个 Unit 是否正在运行
+systemctl is-failed application.service # 显示某个 Unit 是否处于启动失败状态
+systemctl is-enabled application.service  # 显示某个 Unit 服务是否建立了启动链接
+
+systemctl enable命令用于在上面两个目录之间，建立符号链接关系。
+systemctl enable clamd@scan.service # 等同于
+ln -s '/usr/lib/systemd/system/clamd@scan.service' '/etc/systemd/system/multi-user.target.wants/clamd@scan.service'
+systemctl disable命令用于在两个目录之间，撤销符号链接关系，相当于撤销开机启动。
+
+list-unit-files [PATTERN...]
+enable|diable|reenable|preset|preset-all|is-enabled|mask|unmask|link|edit|add-events|get-default|set-default NAME...
+
+3. 计算机管理
+list-machines
+
+4. 任务管理
+list-jobs [PATTERN...]
+cancel JOB...
+
+5. 环境管理
+show-environment
+set-environment VARIABLE=VALUE...
+unset-environment VARIABLE...
+import-environment [VARIABLE...]
+
+6. 生命周期管理
+systemctl daemon-reload # 重载所有修改过的配置文件
+daemon-reload
+daemon-reexec
+
+7. 系统管理
+default
+is-system-running
+rescue
+emergency
+halt
+poweroff
+kexec
+reboot [arg]
+exit [EXIT_CODE]
+switch-root ROOT [INIT]
+suspend
+hibernate
+hybrid-sleep
+
+systemctl --failed             # 列出所有失败单元
+systemctl is-enabled crond.service # 检查某个单元(如 cron.service)是否启用
+systemctl status firewalld.service # 检查某个单元或服务是否运行
+}
+
+Linux中如何启动、重启、停止、重载服务以及检查服务(如 httpd.service)状态
+systemctl start httpd.service
+systemctl restart httpd.service
+systemctl stop httpd.service
+systemctl reload httpd.service
+systemctl status httpd.service
+如何激活服务并在启动时启用或禁用服务(即系统启动时自动启动服务)
+systemctl is-active httpd.service
+systemctl enable httpd.service
+systemctl disable httpd.service
+如何屏蔽(让它不能启动)或显示服务(如 httpd.service)
+# systemctl mask httpd.service
+ln -s '/dev/null' '/etc/systemd/system/httpd.service'
+# systemctl unmask httpd.service
+rm '/etc/systemd/system/httpd.service'
+使用systemctl命令杀死服务
+systemctl kill httpd
+systemctl status httpd
+
+使用Systemctl控制并管理挂载点
+# systemctl list-unit-files --type=mount
+挂载、卸载、重新挂载、重载系统挂载点并检查系统中挂载点状态
+systemctl start tmp.mount
+systemctl stop tmp.mount
+systemctl restart tmp.mount
+systemctl reload tmp.mount
+systemctl status tmp.mount
+在启动时激活、启用或禁用挂载点(系统启动时自动挂载)
+systemctl is-active tmp.mount
+systemctl enable tmp.mount
+systemctl disable  tmp.mount
+在Linux中屏蔽(让它不能启用)或可见挂载点
+# systemctl mask tmp.mount
+ln -s '/dev/null' '/etc/systemd/system/tmp.mount'
+# systemctl unmask tmp.mount
+rm '/etc/systemd/system/tmp.mount'
+    
+使用Systemctl控制并管理套接口
+# 列出所有可用系统套接口
+systemctl list-unit-files --type=socket
+# 在Linux中启动、重启、停止、重载套接口并检查其状态
+systemctl start cups.socket
+systemctl restart cups.socket
+systemctl stop cups.socket
+systemctl reload cups.socket
+systemctl status cups.socket
+# 在启动时激活套接口，并启用或禁用它(系统启动时自启动)
+systemctl is-active cups.socket
+systemctl enable cups.socket
+systemctl disable cups.socket
+# 屏蔽(使它不能启动)或显示套接口
+# systemctl mask cups.socket
+ln -s '/dev/null' '/etc/systemd/system/cups.socket'
+# systemctl unmask cups.socket
+rm '/etc/systemd/system/cups.socket'
+
+服务的CPU利用率(分配额)
+# 获取当前某个服务的CPU分配额(如httpd)
+systemctl show -p CPUShares httpd.service
+注意：各个服务的默认CPU分配份额=1024，你可以增加/减少某个进程的CPU分配份额。
+# 将某个服务(httpd.service)的CPU分配份额限制为2000 CPUShares/
+systemctl set-property ssh.service CPUShares=2000
+systemctl show -p CPUShares ssh.service
+# vi /etc/systemd/system/httpd.service.d/90-CPUShares.conf 
+# 检查某个服务的所有配置细节
+systemctl show httpd
+# 分析某个服务(httpd)的关键链
+systemd-analyze critical-chain httpd.service
+# 获取某个服务(httpd)的依赖性列表
+systemctl list-dependencies httpd.service
+# 按等级列出控制组
+systemd-cgls
+# 按CPU、内存、输入和输出列出控制组
+systemd-cgtop
+
+systemctl(管理系统->控制系统运行等级){
+systemctl rescue # 启动进入救援状态(单用户状态)
+systemctl emergency # 进入紧急模式
+systemctl get-default # 列出当前使用的运行等级
+                                    # 启动运行等级5，即图形模式
+systemctl isolate runlevel5.target  # sudo apt-get install ubuntu-desktop | kubuntu-desktop | xubuntu-desktop
+systemctl isolate graphical.target  # 
+                                    # 启动运行等级3，即多用户模式(命令行)
+systemctl isolate runlevel3.target
+systemctl isolate multiuser.target
+                                        # 设置多用户模式或图形模式为默认运行等级
+systemctl set-default runlevel3.target
+systemctl set-default runlevel5.target
+
+# 重启、停止、挂起、休眠系统或使系统进入混合睡眠
+systemctl reboot
+systemctl halt
+systemctl suspend
+systemctl hibernate  # 让系统进入冬眠状态
+systemctl hybrid-sleep # 让系统进入交互式休眠状态
+}
+
+systemctl服务主体存贮目录：
+/usr/lib/systemd/system/
+/lib/systemd/system/
+
+systemctl服务开机启动链接存贮目录：
+/etc/systemd/system/basic.target.wants/
+
+systemctl(常用命令){
+    systemctl list-unit-files --type=service #列出所有服务
+    systemctl status nginx.service #检查nginx服务状态
+    systemctl start/restart/stop/reload/status nginx.service #启动、重启、停止、重载、检查nginx服务
+    systemctl enable/disable nginx.service #自动启动、禁止启动nginx服务
+    systemctl daemon-reload #更新.service配置到系统
+    systemctl kill nginx #杀死nginx服务
+    systemctl show nginx #查看nginx配置细节
+}
+systemctl(系统命令){
+    whereis systemd/systemctl #检查二进制文件和库文件的安装位置
+    ps -eaf | grep systemd # 检查systemd是否运行
+    systemctl --version #查看systemd版本
+    systemd-analyze blame #分析启动各个进程耗时
+    systemd-cgls #按等级列出控制组
+    systemd-cgtop #按CPU、内存、输入和输出列出控制组
+    systemctl set-default runlevel3.target #设置多用户模式为默认运行等级
+    systemctl reboot/halt/suspend/hibernate/hybrid-sleep  #重启、停止、挂起、休眠系统或使系统进入混合睡眠
+}
+
+systemctl(单元命令){
+    systemd-analyze #分析启动进程
+    systemd-analyze critical-chain #分析启动时关键链，Systemctl接受服务(.service)，挂载点(.mount)，套接口(.socket)和设备(.device)作为单元。
+    systemctl show -p CPUShares nginx.service #查看nginx服务CPU分配额，默认1024
+    systemctl set-property nginx.service CPUShares=2048 #将nginx服务CPU分配额设置2048
+    systemd-analyze critical-chain nginx.service #分析nginx服务关键链
+    systemctl list-dependencies nginx.service #获取nginx依赖性列表
+    systemctl list-units #列出运行中的单元
+    systemctl --failed #列出失败的单元
+    systemctl list-unit-files #列出可用单元状态
+    systemctl list-unit-files --type=service/mount/socket/device   #列出可用的系统套接字/挂载点
+    systemctl start/stop/restart/reload/status *.service/*.socket/*.mount/*.device #常用操作
+    systemctl mask/unmask *.socket/*.mount/*.service/*.device #注销/取消注销	
+    systemctl is-enabled *.socket/*.mount/*.service/*.device #检查是否启动
+    systemctl is-active *.socket/*.mount/*.service/*.device #检查是否活跃的
+    systemctl enable/disable *.socket/*.mount/*.service/*.device #自动启动、禁止启动
+}
+
+新增自己的systemd服务
+# vi my-init.service
+    [Unit]
+    Description=my-init service
+    After=network.target
+    
+    [Service]
+    Type=oneshot
+    ExecStart=/bin/bash /etc/rc.d/init.d/init.sh
+    RemainAfterExit=yes
+    
+    [Install]
+    WantedBy=multi-user.target
+    
+    # mv my-init.service /usr/lib/systemd/system/
+    # systemctl enable my-init.service
+    # reboot
+    # ps:init.sh脚本文件里面执行路径必须是绝对路径
+
+新增一个shadowsocke启动服务
+    [Unit]
+    Description=Shadowsocks Server
+    After=network.target
+    
+    [Service]
+    Type=forking
+    PIDFile=/run/ssserver.pid
+    ExecStart=/usr/bin/ssserver -c /etc/shadowsocks.json --pid-file /run/ssserver.pid  -d start
+    Restart=on-abort
+    
+    [Install]
+    WantedBy=multi-user.target
+
+运行等级 	个人理解
+0 	为停机，机器关闭
+1 	为单用户模式，救援维护模式，就像Win9x 下的安全模式类似
+2 	为多用户模式，但是没有NFS 支持
+3 	为完整的多用户模式，是标准的运行级
+4 	一般不用，在一些特殊情况下可以用它来做一些事情，例如在笔记本电脑的电池用尽时，可以切换到这个模式来做一些设置
+5 	就是 X11 ，进到 X Window 系统了
+6 	为重启，运行 init 6 机器就会重启

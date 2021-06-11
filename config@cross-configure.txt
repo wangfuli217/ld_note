@@ -1,0 +1,161 @@
+## 交叉编译概念 #########
+-------------------------------------------------------
+交叉编译的时候不能使用本地（i686机器，即PC机器，开发机器）机器上的库，但是在做编译链接的时候默认的是使用本地库，即/usr/lib,/lib两个目录。因此，在交叉编译的时候，要采取一些方法使得在编译链接的时候找到需要的库。
+首先，要知道：编译的时候只需要头文件，真正实际的库文件在链接的时候用到。然后，讲讲如何在交叉编译链接的时候找到需要的库。
+ （1）、交叉编译时候直接使用-L和-I参数指定搜索非标准的库文件和头文件的路径。例如：
+ arm-linux-gcc test.c -L/usr/local/arm/2.95.3/arm-linux/lib -I/usr/local/arm/2.95.3/arm-linux/include
+（2）、使用ld.so.conf文件，将用到的库所在文件目录添加到此文件中，然后使用ldconfig命令刷新缓存。
+（3）、使用如下命令：
+
+ $ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/arm/2.95.3/arm-linux-lib
+参见《ld.so.conf 文件与PKG_CONFIG_PATH变量》这篇文章。
+（4）、交叉编译时使用软件的configure参数。例如我编译minigui-1.3.3，使用如下配置：
+ #!/bin/bash
+ rm -f config.cache config.status
+./configure --build=i686-linux --host=arm-linux --target=arm-linux \
+CFLAGS=-I/usr/local/arm/2.95.3/arm-linux/include \
+LDFLAGS=-L/usr/local/arm/2.95.3/arm-linux/lib \
+--prefix=/usr/local/arm/2.95.3/arm-linux \
+--enable-lite \
+--disable-galqvfb \
+--disable-qvfbial \
+--disable-vbfsupport \
+--disable-ttfsupport \
+--disable-type1support \
+--disable-imegb2312py \
+--enable-extfullgif \
+--enable-extskin \
+--disable-videoqvfb \
+--disable-videoecoslcd
+
+这里我配置了CFLAGS和LDFLAGS参数，这样一来，我就不用去修改每个Makefile里-L和-I参数了，也不用再去设置LD_LIBRARY_PATH或者改写ld.so.conf文件了。
+
+## minigui #########
+-------------------------------------------------------
+Device Drivers --> Graphics support --> Support for frame buffer devices ##配置对图形引擎的支持
+Device Drivers --> Graphics support --> Console display driver support --> Framebuffer Console support ## 支持控制台帧缓存
+1）MiniGUI-Processes运行模式（多进程）
+2）MiniGUI-Lite运行模式（）
+3）MiniGUI-Threads运行模式（多线程）
+4）MiniGUI-Standalone运行模式（单线程）
+
+libminigui-gpl-3.0.12.tar.gz   MiniGUI的函数库源代码
+jpegsrc.v7.tar.gz              MiniGUI依赖的函数库，用来支持JPEG图片
+libpng-1.2.37.tar.gz           MiniGUI依赖的函数库，用来支持PNG图片
+minigui-res-be-3.0.12.tar.gz   MiniGUI所使用的资源文件，包括字体、图片、位图和鼠标光标等
+qvfb2-2.0.tar.gz               MiniGUI的图形引擎
+mg-samples-3.0.12.tar.gz       MiniGUI提供的一个游戏范例tball
+libmgplus-1.2.4.tar.gz         M
+                                           ###libminigui-gpl                     指定编译生成的库存放的路径
+###libminigui-gpl                          CC=arm-linux-gcc ./configure --prefix=/usr/local/arm/4.4.3/arm-none-linux-gnueabi/ 
+mkdir /usr/local/minigui_setup              --build=i386-linux --host=arm-linux --target=arm-linux
+cd /usr/local/minigui_setup                 make
+tar -zxvf libminigui-gpl-3.0.12.tar.gz      make install
+cd libminigui-gpl-3.0.12                    ##MiniGUI的函数库和头文件及配置文件等资源将被安装到/usr/local/arm/4.4.3/arm-none-linux-gnueabi/目录中
+./configure                                 ##函数库安装在lib/子目录；头文件安装在include/子目录中；手册被安装在man/子目录中；配置文件被装在etc/子目录中
+make                                        
+make install                                
+
+vi /usr/local/arm/4.4.3/arm-none-linux-linux-gnieabi/etc/MiniGUI.cfg
+[system]
+#GAL engine and default options
+gal_engine=fbcon
+defaultmode=480x272-16bpp
+#IAL engine
+ial_engine=console
+mdev=/dev/input/mice
+mtype=IMPS2
+[fbcon]
+defaultmode=480x272-16bpp
+[qvfb]
+defaultmode=480x272-16bpp
+display=0
+
+ls /usr/local/lib 
+ls /usr/local/include/minigui/              
+                                                   ### minigui-res-be-3.0.12
+### minigui-res-be-3.0.12                          #configure.linux文件中，修改prefix=${TOPDIR}/usr/local/arm/4.4.3/arm-none-linux-linux-gnieabi
+tar -zxvf minigui-res-be-3.0.12.tar.gz             #MiniGUi资源文件安装到/usr/local/arm/4.4.3/arm-none-linux-linux-gnieabi/lib/minigui/res/目录下  
+cd minigui-res-be-3.0.12                           CC=arm-linux-gcc  
+make                                               CFLAGS=-I/usr/local/arm/4.4.3/arm-none-linux-linux-gnieabi/include/
+make install                                       LDFLAGS=-L/usr/local/arm/4.4.3/arm-none-linux-linux-gnieabi/lib
+                                                   ./configure --build=i386-linux --host=arm-linux --target=arm-linux  
+vi /etc/ld.so.conf ## 添加 /usr/loca/lib和/usr/lib  make && make install  
+ldconfig                                             
+yum install qt3-devel                                
+
+### qvfb2-2.0
+tar -zxvf qvfb2-2.0.tar.gz
+cd qvfb2-2.0
+./configure --with-qt-includes=/usr/lib/qt-3.3/include  #指定头文件目录
+--with-qt-libraries=/usr/lib/qt-3.3/lib                 #指定库文件目录
+--with-qt-dir=/usr;ob/qt-3.3                            #指定路径
+make
+make install
+
+vi /usr/local/etc/miniGUI.cfg ##添加
+window_caption=QVFB2-for-MiniGUI-3.0-Gtk-2
+exec_file=/usr/local/bin/qvfb2
+
+### jpegsrc.v7.tar.gz
+tar zxvf jpegsrc.v7.tar.gz
+cd jpeg-v7
+./configure
+make
+make install
+tar zxvf libpng-1.2.37.tar.gz
+cd libpng-1.2.37
+./configure
+make -l /usr/lib ##指定编译库，否则会出现找不到libpng.a错误
+make install
+tar zxvf libmgplus-1.2.4.tar.gz
+cd libmgplus
+./configure
+make
+make install
+
+### mg-samples-3.0.12.tar.gz
+tar zxvf mg-samples-3.0.12.tar.gz
+cd mg-samples
+./configure
+make
+make install
+
+
+## Qt ######### 有点复杂
+-------------------------------------------------------
+yum install qt3
+
+tar zxvf qt-x11-free-3.3.8b.tar.gz
+cd  qt-x11-free-3.3.8b
+./configure
+make
+
+将/usr/lib/qt-3.3/lib 添加到/etc/ld/so/conf文件中 ##echo $QTDIR
+ldconfig
+
+Qtopia Core
+qt-x11-opensource-src-4.3.5.tar.gz
+qtopia-core-x11-opensource-src-4.3.5.tar.gz
+
+## Berkeley DB ######### 
+-------------------------------------------------------
+mkdir /usr/local/db-6.0.20/build_arm_linux
+cd /usr/local/db-6.0.20/build_arm_linux
+../dist/configure CC=arm-linux-gcc --host=arm-linux -enable-mutexsupport
+--exec-prefix=/usr/local/BerkeleyDB_ARM
+--includedir=/usr/local/BerkeleyDB_ARM/include --enable-cxx
+
+## SQLite DB ######### 
+-------------------------------------------------------
+mkdir /usr/local/sqlite_arm
+cd /usr/local/sqlite_arm
+./configure CC=arm-linux-gcc --prefix=/usr/local/sqlite_arm --disable-tcl --host=arm-linux
+make && make install
+
+arm-linux-gcc                       指定交叉编译器
+-o test                             输出文件名
+-I /usr/local/sqlite_arm/include    指定头文件路径
+-L /usr/local/sqlite_arm/lib        指定库文件路径
+test.c                              源文件
+-lsqlite3 -static -lpthread -ldl    指定库名字为libpthread和libsqlite3，且为静态方式编译。

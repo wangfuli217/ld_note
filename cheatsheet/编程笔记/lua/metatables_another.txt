@@ -1,0 +1,539 @@
+引言  # 
+-- 通常，Lua中的每个值都有一套预定义的行为集合。如，数字相加，连接字符串等。
+-- 但无法将两个table相加，此时可通过元表修改一个值的行为，使其在面对一个非预定义的操作时执行一个指定操作。
+-- 在Lua代码中，只能设置table的元表，若要设置其他类型的值的元表，必须通过C代码来完成。
+== Lua中每个值都可具有元表。 元表是普通的Lua表，定义了原始值在某些特定操作下的行为。
+== 可通过在值的原表中设置特定的字段来改变作用于该值的操作的某些行为特征。
+== 我们称元表中的键为事件(event)，称值为元方法(metamethod)。前述例子中的事件是"add"，元方法是执行加法的函数。 
+++ 表和完整的用户数据具有独立的元表（尽管多个表和用户数据可共享元表）；
+++ 每种其他类型的所有值共享一个元表。所以，所有数字共享一个元表，字符串也是，等等。
+   1. 元表可以控制对象的数学运算、顺序比较、连接、取长、和索引操作的行为。
+   2. 元表也能定义用户数据被垃圾收集时调用的函数。
+   3. Lua给这些操作的每一个都关联了称为事件的特定键。
+   4. 当Lua对某值执行其中一个操作时，检查该值是否含有元表以及相应的事件。
+      如果有，与该键关联的值(元方法)控制Lua如何完成操作。
+   5. 元表是普通的Lua表
+   6. 元表中的键为事件(event)，称值为元方法(metamethod)
+   7. 缺省情况下，table在创建时没有元表
+   8. 每一个table都可以附加元表，元表是带有索引集合的表，它可以改变被附加表的行为。
+   9. 元表还可以定义一个函数，当表对象或用户数据对象在垃圾回收时调用它。
+访问机制 # 
+-- 一般的元方法都只针对Lua的核心，也就是一个虚拟机。它会检测一个操作中的值是否有元表，这些元表是否定义了关于次操作的元方法。
+-- 例如两个table相加，先检查两者之一是否有元表，之后检查是否有一个叫"__add"的字段，若找到，则调用对应的值。
+-- "__add"等即时字段，其对应的值(往往是一个函数或是table)就是"元方法"。
+
+元表语法 元表设置|获得操作 # 
+-- setmetatable(只能用于table)和getmetatable(用于任何对象)
+--     语法：setmetatable(table, metatable)，对指定table设置metatable      
+--           如果元表(metatable)中存在__metatable键值，setmetatable会失败
+--     语法：tmeta = getmetatable (tab)，返回对象的元表(metatable)             
+--           如果元表(metatable)中存在__metatable键值，当返回__metatable的值
+
+setmetatable (table, metatable) -- 可通过函数setmetatable替换表的元表。不能从Lua中改变其他类型的元表(除了使用调试库)；必须使用C API才能做到。
+    功能：为指定的table设置元表metatable，
+          如果metatable为nil则取消table的元表，
+          当metatable有__metatable字段时，将触发错误
+    返回值：setmetatable 返回第一个参数(本表)
+    注：只能为LUA_TTABLE 表类型指定元表
+getmetatable(object)            -- 可通过函数getmetatable查询任何值的元表。
+    功能：返回指定对象的元表(若object的元表.__metatable项有值，则返回object的元表.__metatable的值)，
+          当object没有元表时将返回nil
+          
+元表语法 表元素设置|获得操作 # 
+__newindex 用来对元表包含元素更新，  如果本表不存在，则在元表中更新。  __newindex可被设置为函数和表
+__index    用来对元表包含元素访问，  如果本表不存在，则在元表中查找。  __index   可被设置为函数和表
+rawset     函数设置值时不会使用元表中的 __newindex 元方法。 直接更新本表包含元素。
+rawget     方法访问表中键值时也不会调用 __index 的元方法。  直接获取本表包含元素。
+     
+rawequal (v1, v2)
+    功能：检测v1是否等于v2，此函数不会调用任何元表的方法
+          当两个表是同一个时，不管有没有元方法都不会调用。
+rawget(table, index) -- rawget(table, index)
+    功能：获取表中指定索引的值，此函数不会调用任何元表的方法，成功返回相应的值，当索引不存在时返回nil
+rawset (table, index, value)
+    功能：设置表中指定索引的值，此函数不会调用任何元表的方法，此函数将返回table
+rawlen
+    功能：在不触发任何元方法的情况下 返回对象 v 的长度。 v 可以是表或字符串。 它返回一个整数。
+
+table -> table     -> table|func           -> metatable  ->  table|func
+表       元表管理     元表属性                元表管理       元表属性  
+table -> metatable -> __index=<func|table>
+  /|\       /|\             /|\
+   |         |               |
+rawget   setmetatable       =<func|table>
+rawset   getmetatable       =nil
+rawlen    
+
+注意： x有元表,而y没有,生成的列表z也没有元表.虽然相加的两个成员中只要有一个定义了加法就能按照元表中的规则运算,
+但是如果y和新生成的z相加就会报错.为了防止这种情况,我们重新定义f,使得经由它生成的代表复数的表都带有元表.
+
+获取  -> metatable   -> __index=<func|table>
+设置  -> metatable   -> __newindex=<func|table>
+
+元表实例 元表设置|获得操作 # 1
+    t = {}
+    assert(getmetatable(t) == nil) -- 缺省情况下，table在创建时没有元表
+    
+    s = {}
+    setmetatable(t, s)
+    assert(getmetatable(t) == s)   -- 返回对象的元表(metatable); 返回表地址
+    
+    print(getmetatable("hi"))      -- 用于任何对象
+    print(getmetatable(1))         -- 用于任何对象
+
+元表实例 元表设置|获得操作 # 2
+    --使用__metatable可以保护元表，禁止用户访问元表中的成员或者修改元表。
+    tA = {}
+    mt = {}
+    setmetatable(tA, mt)     -- 设置tA的元表mt
+    mt.__metatable = "lock"  -- 设置mt的__metatable字段后,不能再对tA设置元表，否则出现异常情况。
+    setmetatable(tA, mt)     -- 出现异常输出
+    print(getmetatable(tA))  -- 元表存在__metatable字段，返回__metatable对应的值，否则返回mt元表地址
+    
+    mt.__metatable = nil     -- 取消对元表的锁定
+    setmetatable(tA, mt)     -- 可以设置元表
+    print(getmetatable(tA))  -- print(mt) 输出表地址
+    
+    setmetatable(tA, nil)    -- 取消元表
+    print(getmetatable(tA))  -- nil
+    
+元表实例 元素的设置|获得操作 # 3
+    1. __index被设置为表
+    table定义了元方法__index，当key不存在本表中时，访问的结果将由__index决定
+        如果有__index函数就调用__index函数，而不是直接获取。-- 函数
+        如果这个__index指向一个table，Lua将对此table访问。  -- 表
+        1.1 实例     --- 见 13.4.5 只读的table    
+        1.2 实例
+    other = { foo = 3 } 
+    t = setmetatable({}, { __index = other }) 
+    t.foo -- 3 ，现在__index包含的表{foo=3}查找 
+    t.bar -- nil ，没找到
+    说明：1. Lua 会先在查找已有的索引。
+          2. 接着查找表的metatable里（如果它有）查找__index 索引。
+          3. 如果__index 包含了表, Lua会在__index包含的表里查找索引。
+    2. __index被设置为函数
+        2.1 实例    --- 见 监控表(代理表)：
+        2.2 实例
+    mytable = setmetatable({key1 = "value1"}, { -- 元表
+      __index = function(mytable, key)          -- 元表 的__index 键事件 和 function 值函数
+        if key == "key2" then
+          return "metatablevalue"
+        else
+          return mytable[key]
+        end
+      end
+    })
+        2.3 实例
+    Window = {}     -- 本表
+    
+    Window.prototype = {x = 0 ,y = 0 ,width = 100 ,height = 100,}
+    Window.mt = {}  -- 元表
+    function Window.new(o) -- 构造函数
+    	setmetatable(o ,Window.mt)
+    	return o
+    end
+    --将Window的元方法__index指向一个匿名函数
+    --匿名函数的参数table和key取自于table.key。
+    Window.mt.__index = function (t ,key) -- 元表 的__index 键事件 和 function 值函数
+    	return Window.prototype[key]
+    end
+    w = Window.new{x = 10 ,y = 20}
+    print(w.width)   --输出100
+    print(w.width1)  --由于Window.prototype变量中也不存在该字段，因此返回nil。
+
+    -- Window.mt.__index = Window.prototype 这种简洁的方法执行效率更高，但是函数的方法扩展性更强。
+    3. __newindex被设置为表
+    当对一个table中不存在的key赋值时，解释器就会查找__newindex函数。
+        如果元表有__newindex函数就调用__newindex函数，而不是赋值给本表。           -- 函数
+        如果__newindex指向一个table，Lua将对此table赋值，而不是对原有的table赋值。 -- 表
+        3.1 实例
+    other = {}
+    t = setmetatable({}, { __newindex = other })
+    t.foo = 3      --t里没有foo，查看__newindex，并把foo=3传给了other，并没有给t里的foo赋值
+    other.foo      -– 3 故为3
+    t.foo          -– nil 故为 nil
+    
+    4. __newindex被设置为函数
+        4.1 实例   -- 监控表(代理表)
+        4.2 实例
+    __newindex 是函数时,当被调用时会传递表、索引、值三个参数。
+    t = setmetatable({}, { 
+      __newindex = function(t, key, value) 
+        if type(value) == "number" then 
+          rawset(t, key, value * value) 
+        else 
+          rawset(t, key, value) 
+        end 
+      end 
+    })
+    t.foo = "foo"
+    t.bar = 4
+    t.la = 10
+    t.foo -- "foo"
+    t.bar -- 16
+    t.la -- 100
+        4.3 实例
+    Window.mt.__newindex = function (table ,key ,value)
+	if key == "wangbin" then
+		rawset(table ,"wangbin" ,"yes,i am")
+	end
+    end
+    w = Window.new{x = 10 ,y = 20}
+    w.wangbin = "55"
+    print(w.wangbin)
+
+    5. rawset|rawget -- 为了避免陷在无限循环里，才需要使用rawset|rawget
+    rawget 允许你得到索引无需__index
+    5.1 实例
+    w = Window.new{x = 10 ,y = 20} 
+    print(rawget(w ,w.wangbin))  -- 打印结果是:nil。这里的元表中__index函数就不再起作用了
+    
+    rawset允许你设置索引的值无需__newindex  -- 见 4.2 实例
+
+元表实例 # 4 算术类的元方法
+    -- __add(相加) __mul(乘), __sub(减), __div(除), __unm(取反), __mod(取模), __pow(乘幂), __concat(连接)
+    -- __idiv(//)  __band(&)  __bor(|)   __bxor(^)  __bnot(~)    __shl(<<)    __shl(>>)    __len(#)
+    __add(a, b) --加法
+    __sub(a, b) --减法
+    __mul(a, b) --乘法
+    __div(a, b) --除法
+    __mod(a, b) --取模
+    __pow(a, b) --乘幂
+    __unm(a) --相反数
+    __concat(a, b) --连接
+    __len(a) --长度
+    __eq(a, b) --相等
+    __lt(a, b) --小于
+    __le(a, b) --小于等于
+    __index(a, b) --索引查询
+    __newindex(a, b, c) --索引更新（PS：不懂的话，后面会有讲）
+    __call(a, ...) --执行方法调用
+    __tostring(a) --字符串输出
+    __metatable --保护元表
+
+    Lua定位元表的步骤为，
+    1. 如果第一个值有元表，且存在__add字段，那么Lua将以这个字段为元方法，否则会再去查看第二个值否是有元表且包含__add字段，
+    2. 如果有则以此字段为元方法。
+    3. 最后，如果两个值均不存在元方法，Lua就引发一个错误。然而对于上例中的Set.union函数
+    
+代码1：两个table相加
+    mt = {}                       -- 元表定义
+    mt.__add = function(a, b)     -- 元表 的__add 键事件 和 function 值函数
+        return { a[1] + b[1] }    -- 返回值为表
+    end
+    
+    -- __add 元方法
+    -- 步骤：如果第一个值有元表切有__add字段，就使用这个元方法，否则就找从第二个值查找。
+    -- 都没有的话，就会引发一个错误。
+    local t1 = { 12 }
+    setmetatable(t1, mt)
+    local t2 = { 4 }
+    setmetatable(t2, mt)
+    local t3 = t1 + t2
+    assert(#t3 == 1)
+    assert(t3[1] == 16)
+    print(getmetatable(t3)) -- nil
+    print(getmetatable(t1)) -- table: 0xc17000
+    print(getmetatable(t2)) -- table: 0xc17000
+    
+    代码2：两个table相加
+    tA = {1, 3}
+    tB = {5, 7}
+    
+    --tSum = tA + tB
+    mt = {}                           -- 元表
+    mt.__add = function(t1, t2)       -- 元表 的__add 键事件 和 function 值函数
+        for _, item in ipairs(t2) do
+            table.insert(t1, item)    -- 修改输出参数 ?? 不提倡
+        end
+        return t1
+    end
+    
+    setmetatable(tA, mt)
+    tSum = tA + tB
+    for k, v in pairs(tSum) do
+        print(v)                     -- 1 3 5 7
+    end
+    for k, v in pairs(tA) do
+        print(v)                     -- 1 3 5 7
+    end
+    for k, v in pairs(tB) do
+        print(v)                     -- 5 7
+    end
+    
+    tSum1 = tB + tA            -- tA和tB似乎一个设置元表即可以
+    print(getmetatable(tA))    -- table: 0xc1ad20
+    print(getmetatable(tB))    -- nil
+    print(getmetatable(tSum))  -- table: 0xc1ad20
+    print(getmetatable(tSum1)) -- nil
+
+元表实例 # 5 关系类的元方法
+    -- __eq(等于), __lt(小于), __le(小于等于)，其他三个则没有单独的元方法
+    -- lua会将 a ~= b 转化为 not (a == b)， a > b 转化为 a < b， a >= b 转化为b <= a
+    -- 与算术类的元方法不同，关系类的元方法不能应用于混合的类型。
+    
+    代码1 ：比较集合大小
+    mt = {}
+    mt.__eq = function(a, b)  -- 元表 的__eq 键事件 和 function 值函数
+        return a[1] == b[1]
+    end
+    t1, t2, t3 = { 2 }, { 3 }, { 2 }
+    setmetatable(t1, mt)      -- 只设置了t1的元表mt
+    assert(t1 ~= t2)
+    assert(t2 ~= t1)
+    setmetatable(t3, mt)      -- 必须设置了t3的元表mt
+    assert(t1 == t3)
+    
+    代码2 ：比较集合大小
+    mt = {}
+    function mt.__lt(tA, tB)
+        return #tA < #tB
+    end
+    
+    tA, tB = {3}, {1, 2}
+    
+    setmetatable(tA, mt)
+    setmetatable(tB, mt)
+    
+    print(tA < tB)
+
+元表实例 # 6 集合 算术类的元方法
+    Set = {}
+    metatable = {} --元表
+    
+    --根据参数列表中的值创建一个新的集合
+    function Set.new(l)  -- l为序列, set为字典,将l序列的值转换为set字典的key
+        local set = {}
+        --将所有由该方法创建的集合的元表都指定到metatable
+        setmetatable(set,metatable)
+        for _, v in ipairs(l) do
+            set[v] = true
+        end
+        return set
+    end
+    
+    --取两个集合并集的函数
+    function Set.union(a,b)
+        if getmetatable(a) ~= metatable or getmetatable(b) ~= metatable then -- 这就保证了a和b必须有相同的元表
+            error("attempt to 'add' a set with a non-set value")
+        end
+        local res = Set.new{}
+        for k in pairs(a) do
+            res[k] = true
+        end
+        for k in pairs(b) do
+            res[k] = true
+        end
+        return res
+    end
+    
+    --取两个集合交集的函数
+    function Set.intersection(a,b)
+        if getmetatable(a) ~= metatable or getmetatable(b) ~= metatable then -- 这就保证了a和b必须有相同的元表
+            error("attempt to 'mul' a set with a non-set value")
+        end
+        local res = Set.new{}
+        for k in pairs(a) do
+            res[k] = b[k]
+        end
+        return res
+    end
+    
+    function Set.tostring(set)
+        local l = {}
+        for e in pairs(set) do
+            l[#l + 1] = e
+        end
+        return "{" .. table.concat(l,", ") .. "}";
+    end
+    
+    function Set.print(s)
+        print(Set.tostring(s))
+    end
+    
+    --最后将元方法加入到元表中，这样当两个由Set.new方法创建出来的集合进行
+    --加运算时，将被重定向到Set.union方法，乘法运算将被重定向到Set.intersection
+    metatable.__add = Set.union
+    metatable.__mul = Set.intersection
+    
+    --下面为测试代码
+    s1 = Set.new{10,20,30,50}
+    s2 = Set.new{30,1}
+    s3 = s1 + s2
+    Set.print(s3)
+    Set.print(s3 * s1)
+    
+    --输出结果为：
+    --{1, 30, 10, 50, 20}
+    --{30, 10, 50, 20}
+
+  在元表中，每种算术操作符都有对应的字段名，除了上述的__add(加法)和__mul(乘法)外，还有__sub(减法)、__div(除法)、
+__unm(相反数)、__mod(取模)和__pow(乘幂)。此外，还可以定义__concat字段，用于描述连接操作符的行为。
+
+元表实例 # 7 集合 关系类的元方法
+    元表还可以指定关系操作符的含义，元方法分别为__eq(等于)、__lt(小于)和__le(小于等于)，
+至于另外3个关系操作符，Lua没有提供相关的元方法，可以通过前面3个关系运算符的取反获得。见如下示例：
+    Set = {}
+    local metatable = {}
+    
+    function Set.new(l)
+        local set = {}
+        setmetatable(set,metatable)
+        for _, v in ipairs(l) do
+            set[v] = true
+        end
+        return set
+    end
+    
+    metatable.__le = function(a,b) 
+        for k in pairs(a) do
+            if not b[k] then return false end
+        end
+        return true
+    end
+    metatable.__lt = function(a,b) return a <= b and not (b <= a) end
+    metatable.__eq = function(a,b) return a <= b and b <= a end
+    
+    --下面是测试代码：
+    s1 = Set.new{2,4}
+    s2 = Set.new{4,10,2}
+    print(s1 <= s2) --true
+    print(s1 < s2)  --true
+    print(s1 >= s1) --true
+    print(s1 > s1)  --false
+
+元表实例 # 8 集合 tostring的元方法
+    print函数总是调用tostring来格式化其输出。
+    如果当前对象存在__tostring元方法时，tostring将用该元方法的返回值作为自己的返回值
+    Set = {}
+    local metatable = {}
+    
+    function Set.new(l)
+        local set = {}
+        setmetatable(set,metatable)
+            for _, v in ipairs(l) do
+                set[v] = true
+            end
+        return set
+    end
+    
+    function Set.tostring(set)
+        local l = {}
+            for e in pairs(set) do
+                l[#l + 1] = e
+            end
+        return "{" .. table.concat(l,", ") .. "}";
+    end
+    
+    metatable.__tostring = Set.tostring
+    
+    --下面是测试代码：
+    s1 = Set.new{4,5,10}
+    print(s1) --{5,10,4}
+    
+元表实例 # 8 __call 元方法 (通话操作func(args))
+  当Lua尝试调用非函数值(即，func不是函数)时，会发生此事件。metamethod被抬头func
+  如果存在，metamethod被称为func第一个参数，然后是原始调用(args)的参数，
+  调用的所有结果都是操作的结果。
+    t = setmetatable({}, {
+      __call = function(t, a, b, c, whatever)
+        return (a + b + c) * whatever
+      end
+    })
+
+   t(1, 2, 3, 4) –- 24 ，表t在调用时先查找__call，调用里面的函数，t便相当于函数了
+   和通常一样在call里的函数，被传递了一个目标表，还有一些参数。
+   类里的new函数可以被类自身调用。
+
+元表实例 # 9 __index 元方法 
+    使用 __index 键可以接备用表(fallback table)或者函数，
+    如果接函数，则第一个参数是查找失败的表，
+                  第二个参数是查找的键。
+    备用表同样可以触发它的 __index 键，所以可以创建一个很长的备用表链
+    
+    func_example = setmetatable({}, {__index = function (t, k)
+      return "key doesn't exist"
+    end})
+    
+    fallback_tbl = setmetatable({
+      foo = "bar",
+      [123] = 456,
+    }, {__index=func_example})
+    
+    fallback_example = setmetatable({}, {__index=fallback_tbl})
+    
+    print(func_example[1])       --> key doesn't exist
+    print(fallback_example.foo)  --> bar
+    print(fallback_example[123]) --> 456
+    print(fallback_example[456]) --> key doesn't exist
+
+元表实例 # 10 __newindex
+    当向表中新分配一个不存在的键时，会触发 __newindex 元方法，如果该键已存在，则不会触发
+    t = {}
+    m = setmetatable({}, {__newindex = function (table, key, value)
+      t[key] = value
+    end})
+    -- 注：上面使用函数等同于直接指定 __newindex 为表 t
+    -- local m = setmetatable({}, {__newindex = t})
+    m[123] = 456
+    print(m[123]) --> nil
+    print(t[123]) --> 456
+
+--13.4.5 只读的table  -- __newindex 和 __index
+    __newindex元方法：
+        和__index不同的是，该元方法用于不存在键的赋值，而前者则用于访问。当对一个table中不存在的索引赋值时，
+        解释器就会查找__newindex元方法。如果有就调用它，而不是直接赋值。如果这个元方法指向一个table，Lua将对此table赋值，
+        而不是对原有的table赋值。此外，和__index一样，Lua也同样提供了避开元方法而直接操作当前table的
+        函数rawset(table,key,value)，
+        其功能类似于rawget(table,key)。
+实例1 
+    function readOnly(t)
+        local proxy = {}
+        local mt = {
+        __index = t,                       # __index    指向table
+        __newindex = function(t, k, v)     # __newindex 指向函数
+            error("attempt to update a read-only table", 2)
+        end
+        }
+        setmetatable(proxy, mt)
+        return proxy
+    end
+    
+    days = readOnly{"Sunday", "Monday", "Tuesday", "W", "T", "F", "S"}
+    print(days[1])
+    days[2] = "Noday"
+
+--13.4.6 具有默认值的table：-- __index
+        缺省情况下，table的字段默认值为nil。但是我们可以通过元表修改这个默认值，如：
+    function setDefault(table,default)
+        local mt = {__index = function() return default end }
+        setmetatable(table,mt)
+    end
+    tab = {x = 10, y = 20}
+    print(tab.x,tab.z)  --10    nil
+    setDefault(tab,0)
+    print(tab.x,tab.z)  --10    0
+    
+--13.4.7 跟踪table的访问 __newindex 和 __index
+        __index和__newindex都是在table中没有所需访问的index时才发挥作用的。因此，为了监控某个table的访问状况，
+    我们可以为其提供一个空table作为代理，之后再将__index和__newindex元方法重定向到原来的table上，见如下代码：
+    
+    t = {}        --原来的table
+    _t = t  --保持对原有table的私有访问。
+    t = {}        --创建代理
+    --创建元表
+    mt = {
+        __index = function(table,key)
+            print("access to element " .. tostring(key))
+            return _t[key]  --通过访问原来的表返回字段值
+        end,
+        
+        __newindex = function(table,key,value)
+            print("update of element " .. tostring(key) .. " to " .. tostring(value))
+            _t[key] = value  --更新原来的table
+        end
+    }
+    setmetatable(t,mt)
+    
+    t[2] = "hello"   --update of element 2 to hello
+    print(t[2])      --access to element 2  --hello

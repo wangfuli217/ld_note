@@ -1,0 +1,114 @@
+https://docs.iredmail.org/install.iredmail.on.rhel-zh_CN.html
+
+1. iRedMail 套件
+    postfix：发邮件
+    dovecot：收邮件
+    apache：web版的收、发邮件
+    mysql：数据存在mysql中
+    openldap：可选，存储数据
+    policyd：邮件黑、白名单
+    amavisd：杀毒、扫描垃圾邮件
+    roundcube：web端发邮件
+    awstat：日志分析
+    fail2ban：防止暴力破解
+    iRedAdmin：管理邮件，添加账户
+    
+    
+为服务器设置一个完整域名（FQDN）的主机名
+-------------------
+不管你的服务器将用于实际运行还是仅仅用作测试，都建议设置一个完整域名（FQDN）的主机名。
+
+输入命令 hostname -f 查看当前的主机名
+$ hostname -f
+mx.example.com
+
+在 RHEL/CentOS 系统上，主机名需要在两个文件里设置：
+    对于 RHEL/CentOS 6，主机名定义在 /etc/sysconfig/network:
+HOSTNAME=mx.example.com
+对于 RHEL/CentOS 7，主机名定义在 /etc/hostname.
+mx.example.com
+    在 /etc/hosts 里定义主机名和 IP 地址的对应关系。注意：一定要将 FQDN 主机名列在第一个。
+127.0.0.1   mx.example.com mx localhost localhost.localdomain
+确认系统已使用设置好的 FQDN 作为主机名。如果没有生效，请重启系统。
+$ hostname -f
+mx.example.com
+
+
+禁用 SELinux
+-------------------
+iRedMail 不支持 SELinux，所以需要在 /etc/selinux/config 文件里禁用它。
+SELINUX=disabled
+如果不希望禁用 SELinux，可以设置为让它打印警告信息但不强制限制：
+SELINUX=permissive
+也可以无须重启服务就禁用它：
+# setenforce 0
+
+
+启用必须的 yum 仓库
+-------------------
+对于 CentOS 系统，必须启用 /etc/yum.repos.d/CentOS-Base.repo 里定义的所有 CentOS 官方 yum 仓库。同时 禁用 所有第三方yum 仓库，以避免软件包冲突。
+对于 RHEL，请启用 Red Hat Network 以便安装软件包。
+
+下载最新的 iRedMail
+-------------------
+访问下载页面下载最新的版本。
+上传 iRedMail 到服务器上。假设上传后的路径是 /root/iRedMail-x.y.z.tar.bz2 （这里以 x.y.z 代替实际的版本号）。
+解压缩 iRedMail 安装包：
+
+# cd /root/
+# tar xjf iRedMail-x.y.z.tar.bz2
+
+运行 iRedMail 安装程序
+-------------------
+现在可以运行 iRedMail 安装程序了，它会问你几个简单的问题，仅此而已。
+cd /root/iRedMail-x.y.z/
+bash iRedMail.sh
+
+安装过程的截图
+-------------------
+    1. 欢迎和感谢使用
+    2. 指定用于存储用户邮箱的路径。默认是 /var/vmail/
+    3. 选择用于存储邮件账号的数据库
+    4. 如果选择 OpenLDAP 数据库用于存储邮件账号，安装程序会要求你输入 LDAP 前缀：
+    MySQL/MariaDB/PostgreSQL 用户
+如果选择 MySQL/MariaDB/PostgreSQL 用于存储邮件账号, 安装程序会为数据库的 root 用户生成一个随机的强密码，安装完成后可以在 iRedMail.tips 文件里找到。
+    5. 添加第一个邮件域名
+    6. 设置邮件管理员的密码
+    7. 该账号即是邮件管理员，也是普通的邮件账号，可以登录管理后台和 webmail。
+    8. 可选的组件
+    
+    
+安装完成后你必须知道的几个重要事项
+-------------------
+邮件服务器最薄弱的环节是用户的弱密码，所以请一定强制你的用户使用强度高的密码。
+阅读 /root/iRedMail-x.y.z/iRedMail.tips 文件，它包含了：
+
+    各个 web 程序的访问地址（URL），用户名和密码。
+    各个组件的配置文件路径。除此之外还应该阅读文档：Locations of configuration and log files of major components.
+    以及其它一些重要和敏感信息
+
+设置 DNS 记录
+如何配置邮件客户端程序
+强烈建议获取 SSL 证书以避免每次访问 web 程序时烦人的自签名 SSL 证书警告， Let's Encrypt 提供免费的 SSL 证书。可根据该文档 配置获取的证书：use a SSL certificate.
+如果需要批量添加邮件账号，可以参考以下针对不同数据库的批量建账号的文档： OpenLDAP， MySQL/MariaDB/PostgreSQL。
+如果这是一台繁忙的服务器，这里有一些提升性能的建议。
+
+
+访问 webmail 和其它 web 程序
+-------------------
+安装完成后，可以通过以下 URL 访问相关程序。注意：请将 <server\> 替换为实际的 服务器地址。
+    Roundcube webmail: https://your_server/mail/
+    SOGo Groupware: https://your_server/SOGo
+    Web 管理后台: httpS://your_server/iredadmin/
+    Awstats: httpS://your_server/awstats/awstats.pl?config=web (or ?config=smtp for SMTP log)
+
+
+
+
+
+
+
+
+
+
+

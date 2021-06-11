@@ -1,0 +1,36 @@
+--- old/detail.lua	2017-08-27 21:39:18.685728813 +0800
++++ new/detail.lua	2017-08-28 02:29:17.617421852 +0800
+@@ -920,6 +920,33 @@ if has_force or ( ( m:get(section, "forc
+ 	end
+ end
+ 
++-- IPv4 - domain_script (NEW) -- ############################################
++dos = ns:taboption("advanced", Value, "domain_script",
++	translate("Script"),
++	translate("User defined script to read domain IPv4-Address") )
++dos.rmempty	= true
++dos.placeholder = "/usr/bin/mydomainip"
++function dos.validate(self, value)
++	local split
++	if value then split = UTIL.split(value, " ") end
++
++	if (usev6:formvalue(section) == "1" or value == nil ) then
++		return ""
++	elseif not value or not (#value > 0) or not NXFS.access(split[1], "x") then
++		return nil, err_tab_adv(self) ..
++			translate("not found or not executable - Sample: '/usr/bin/mydomainip'")
++	else
++		return value
++	end
++end
++function dos.write(self, section, value)
++	if (usev6:formvalue(section) == "1") then
++		return true
++	else
++		return self.map:set(section, self.option, value)
++	end
++end
++
+ -- IPv4 + IPv6 - dns_server (NEW) -- ###########################################
+ -- optional DNS Server to use resolving my IP if "ip_source"="web"
+ dns = ns:taboption("advanced", Value, "dns_server",

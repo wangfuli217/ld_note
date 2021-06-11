@@ -1,0 +1,74 @@
+--[[
+  原型：string.byte (s [, i [, j] ])
+  解释：函数返回字符s[i], s[i+1], ..., s[j]的内部数字编码(ASCII码)，其中参数i的默认值是1，而参数j的默认值是i。
+        需要注意的是该函数在返回的数字编码在跨平台方面不一定是可移植的。
+   注意：byte: 当超出范围的时候，不会返回任何值；而不是返回nil
+         i==j 时: abs(i) < length       ASCII码
+                  abs(i) > length       nil
+                  abs(i) == 0           nil
+         i< j 时: i < j < length        多个ASCII码
+                  i < length < j        多个ASCII码，直到最后一个有效的值
+                  length < i < j        nil
+         i> j 时：                      nil
+   注意：sub : 当超出范围的时候，返回空字符串
+E: string slice too long
+--]]
+
+-- 首先定义一个字符串
+local str = "012abcd"
+print("str \t",str)
+
+local tbl = {str:byte(1,-1)}                                                  --  ascii转变成表元素
+-- string.char(table.unpack(tbl))                                             -- 从表数字元素到ascii
+
+-- 使用常规方式
+print('str\t',string.byte(str))        --  48
+print('str,1\t',string.byte(str,1))    --  48
+print('str,0 == nil',string.byte(str,0) == nil)    --  nil
+
+-- 使用常规方式
+print('str,1,4\t',string.byte(str,1,4))   -- 48      49      50      97
+print('1,4\t',str:byte(1,4))              -- 使用另一种表现方式
+
+-- 使用负数索引
+print('-2,-1\t',str:byte(-2,-1))          -- 99      100
+
+-- index out of range, no value returned
+-- 当索引无效时    
+print('2,100',str:byte(2,100))            -- 50      97      98      99      100
+print('2000,1000000 == nil',str:byte(2000,1000000) == nil)                    -- 返回nil
+function outofrange() 
+  return type(str:byte(2000,1000000))                                         -- type不能接收nil输入
+end
+status, msg = pcall(outofrange)
+print("outofrange", status, msg)
+
+-- 当参数i大于j时 
+function outoforder() 
+  return  str:byte(2,1)                                                       -- 返回nil
+end
+status, msg = pcall(outoforder)
+print("outoforder", status, msg)       -- outoforder      true    nil
+print("str:byte(2, 1)", (str:byte(2,1)) == nil)                               -- type不能接受空输入
+
+--[[
+1. 首先需要注意的是这个字符串字处理库假想字符串都是单字节编码的。
+2. 在代码的示例中我们测试了这个函数的两种写法结果都是一样的。
+3. 通过结果可知使用负数来作为字符串中字符的索引也是没有问题的。
+4. 我们发现代码str:byte(2, 1)是没有结果的，原因是这个函数不能从后往前依次显示字符的ASCII码，不管是证书索引还是负数索引，需要满足参数i要小于等于参数j的值。
+5. 从最后一组测试可以看出当引用的索引在原字符串中不存在时，函数也是没有返回结果的。
+--]]
+
+--[[
+> = string.byte("ABCDE")      -- no index, so the first character
+65
+> = string.byte("ABCDE",1)    -- indexes start at 1
+65
+> = string.byte("ABCDE",0)    -- we're not using C
+> = string.byte("ABCDE",100)  -- index out of range, no value returned
+> = string.byte("ABCDE",3,4)
+67      68
+> s = "ABCDE"
+> = s:byte(3,4)               -- can apply directly to string variable
+67      68
+]]

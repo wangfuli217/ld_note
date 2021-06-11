@@ -1,0 +1,182 @@
+3.2 FTP匿名登录
+FTP的匿名登录一般有三种：
+1、 用户名：anonymous 密码：Email或者为空
+2、 用户名：FTP 密码：      FTP或者为空
+3、 用户名：USER 密码：     pass
+
+在IE浏览器或文件管理器中匿名访问
+ftp://域名或者ip
+
+系统级别
+=======================================
+background=YES (NO)      # 启用后，vsftpd以"监听"模式启动，vsftpd将为侦听器进程提供背景。即控制将立即返回到启动vsftpd的shell。
+check_shell=YES (YES)    # 此选项仅对vsftpd的非PAM构建有效。如果禁用，vsftpd将不会检查/etc/shells是否有用于本地登录的用户shell。
+dual_log_enable=YES(NO)  # 如果启用，则会并行生成两个日志文件，默认情况下为 /var/log/xferlog 和 /var/log/vsftpd.log。前者是一个wu-ftpd样式的传输日志，可以通过标准工具解析。后者是vsftpd自己的样式日志。
+log_ftp_protocol=YES     # xferlog_std_format=NO时，记录ftp请求和ftp响应
+force_dot_files=YES(NO)  # 如果激活，则以.开头的文件和目录。即使客户端未使用"a"标志，也将显示在目录列表中。此覆盖不包括"."和".."条目。
+hide_ids=YES             # 如果启用，目录列表中的所有用户和组信息将显示为“ftp”。
+listen=YES               # 如果启用，vsftpd将以独立模式运行。这意味着不能从某种类型的inetd运行vsftpd。相反，vsftpd可执行文件直接运行一次。然后，vsftpd将负责监听和处理传入的连接。
+listen_ipv6              # 与listen参数一样，除了vsftpd将侦听IPv6套接字而不是IPv4套接字。此参数和listen参数是互斥的。
+run_as_launching_user    # 如果您希望vsftpd作为启动vsftpd的用户运行，则设置为YES。在根访问不可用的情况下，这很有用。
+                         # 当设置此选项时，vsftpd不会/不能使用chroot技术来限制文件访问
+                         # 一个糟糕的替代品可能是使用 deny_file 设置如{/*,*..*}，但这种可靠性无法与chroot相比，不应该依赖。如果使用此选项，则适用对其他选项的许多限制。
+session_support          # 这可以控制vsftpd是否尝试维护登录会话。
+                         # 如果vsftpd正在维护会话，它将尝试更新utmp和wtmp。
+                         # 如果使用PAM进行身份验证，它也会打开pam_session，并且只有在注销时关闭它。
+                         # 如果您不需要会话日志记录，您可能希望禁用此功能，并希望为vsftpd提供更多机会以更少的进程和/或更少的权限运行。
+                         # 注 - utmp和wtmp支持仅在启用PAM的构建中提供。
+setproctitle_enable      # 如果启用，vsftpd将尝试在系统进程列表中显示会话状态信息。换句话说，报告的进程名称将更改以反映vsftpd会话正在执行的操作(空闲，下载等)
+use_localtime            # 如果启用，vsftpd将显示当前时区中包含时间的目录列表。默认为显示GMT。MDTM FTP命令返回的时间也受此选项的影响。
+use_sendfile             # 用于测试在平台上使用sendfile()系统调用的相对好处的内部设置。
+
+
+# 启用后，ASCII模式数据传输将在下载时受到尊重。
+ascii_download_enable
+# 启用后，上传时将遵循ASCII模式数据传输。
+ascii_upload_enable
+
+# 上传失败的数据会被删除
+delete_failed_uploads 
+
+
+
+
+# 若是启动这项功能，则必须提供一个档案/etc/vsftpd/banner_emails，内容为email address。若是使用匿名登入，
+# 则会要求输入email address，
+# 若输入的email address 在此档案内，则不允许进入。默认值为NO。
+deny_email_enable=YES/NO(NO)
+
+
+banned_email_file=/etc/vsftpd/banner_emails
+#此文件用来输入email address，只有在deny_email_enable=YES时，才会使用到此档案。若是使用匿名登入，则会要求输入email address，若输入的email add
+
+
+
+匿名登陆 anonymous_enable -> ftp 和 anonymous 匿名用户。对应于本地用户为 nobody
+=============================================================================== 匿名登陆
+# 控制是否允许匿名登录。如果启用，则用户名 ftp 和 anonymous 都将被识别为匿名登录。
+anonymous_enable=YES
+
+#若是启动这项功能，则使用匿名登入时，不会询问密码。默认值为NO。
+no_anon_password=YES/NO(NO)
+
+#使用匿名登入时，所登入的目录。默认值为/var/ftp。注意ftp目录不能是777的权限属性，即匿名用户的家目录不能有777的权限。
+anon_root=/var/ftp
+
+======================================= permissions
+#是否允许登陆用户有写权限。属于全局设置，默认值为YES。
+write_enable=YES/NO(YES)
+
+#### 下面这四个主要语句控制这文件和文件夹的上传、下载、创建、删除和重命名。
+##如果设置为YES，则允许匿名用户在特定条件下上载文件。为此， 必须激活选项 write_enable，并且匿名ftp用户必须具有所需上载位置的写入权限。虚拟用户上传也需要此设置; 默认情况下，虚拟用户使用匿名(即最大限制)权限处理。
+# > write_enable=YES 同时 chmod +w directory
+anon_upload_enable=YES
+
+#只读,不能下载
+#如果设为YES，则允许匿名登入者下载可阅读的档案(可以下载到本机阅读，不能直接在FTP服务器中打开阅读)。默认值为YES。
+anon_world_readable_only=YES
+# 表示用户可以浏览FTP目录和下载文件; 不允许匿名用户浏览器整个服务器的文件系统
+anon_world_readable_only=NO
+
+# 如果设置为YES，则允许匿名用户在特定条件下创建新目录。为此, 必须激活选项 write_enable，并且匿名ftp用户必须具有父目录的写权限。
+# 默认值为NO。
+# > write_enable=YES 同时 chmod +w directory
+anon_mkdir_write_enable=YES
+
+# 如果设置为YES，则允许匿名用户执行除上载和创建目录之外的写入操作，例如删除和重命名。通常不建议这样做，但包括完整性。
+# > write_enable=YES 同时 chmod +w directory
+anon_other_write_enable=YES
+
+======================================= modify
+# 如果启用，则所有匿名上载的文件的所有权都将更改为设置chown_username中指定的用户 。从管理方面，也许是安全方面来看，这很有用。
+chown_uploads=YES/NO(NO)
+
+# 这是获得匿名上传文件所有权的用户的名称。仅当设置了另一个选项chown_uploads时，此选项才有意义 。
+chown_username=username
+
+#设置匿名登入者新增或上传档案时的umask 值。默认值为077，则新建档案的对应权限为700。
+anon_umask=077
+
+# 限定传输速率为50KB/s
+anon_max_rate=50000 
+
+# 要强制进行chown()ed匿名上传的文件模式。
+chown_upload_mode
+
+# 这是我们用于处理匿名FTP的用户的名称。该用户的主目录是匿名FTP区域的根目录。
+ftp_username
+
+
+注：匿名用户下载是使用的是nobody这个用户，所以相应的O这个位置要有R权限才能被下载。若想让匿名用户能上传和删除权限，必需设置
+
+
+本地用户登录 local_enable
+=============================================================================== 本地用户登录
+#不允许匿名用户登入
+anonymous_enable=no
+
+# 控制是否允许本地登录。如果启用，则可以使用/etc/passwd中的普通用户帐户(或PAM配置引用的任何位置)登录。必须启用此功能才能使任何非匿名登录工作，包括虚拟用户。
+local_enable=YES/NO(YES)
+
+#当本地用户登入时，将被更换到定义的目录下。默认值为各用户的家目录。
+local_root=/home/username
+
+#是否允许登陆用户有写权限。属于全局设置，默认值为YES。
+write_enable=YES/NO(YES)
+
+#本地用户新增档案时的umask 值。默认值为077。
+local_umask=022
+
+# 用于创建上载文件的权限。Umasks应用于此值之上。如果您希望上传的文件可执行，您可能希望更改为0777。
+file_open_mode=0755
+
+#用于指定用户列表文件中的用户不允许切换到上级目录。默认值为NO。
+chroot_local_user=YES
+
+# 启用后，允许使用SITE CHMOD命令。注意！这仅适用于本地用户。匿名用户永远不会使用SITE CHMOD。
+chmod_enable=YES 
+
+#设置用户的单独配置文件，用哪个帐户登陆就用哪个帐户命名
+user_config_dir
+#后面跟存放配置文件的目录。用来实现不同用户不同权限。
+#在vsftpd.conf文件中加入这一句，
+#在相应的目录里面，为每个用户创建自己的配置文件，用来实现不同的权限
+
+
+#限制了这里的用户不能访问
+userlist_enable=YES 
+
+
+#限制用户的下载权限
+download_enable  
+#所有匿名上传的文件的所属用户将会被更改成chown_username
+chown_uploads=YES
+#匿名上传文件所属用户名
+chown_username=whoever
+
+虚拟用户登录 guest_enable
+
+=============================================================================== 虚拟用户登录
+# 如果启用，则所有非匿名登录都被归类为"访客"登录。guest 虚拟机登录将重新映射到guest_username 设置中指定的用户 。
+guest_enable=YES/NO(NO)
+
+# 有关guest虚拟机 登录的说明，请参阅boolean设置 guest_enable。此设置是访客用户映射到的真实用户名。
+guest_username=ftp
+
+#设置PAM使用的名称，默认值为/etc/pam.d/vsftpd。
+pam_service_name=vsftpd
+
+#(注意：仅在没有pam验证版本时有用,是否检查用户有一个有效的shell来登录 )
+check_shell=YES   
+
+virtual_use_local_privs=YES/NO(NO)
+#这里用来映射虚拟用户。默认值为ftp。
+#当该参数激活(YES)时，虚拟用户使用与本地用户相同的权限。当此参数关闭(NO)时，虚拟用户使用与匿名用户相同的权限。
+# 默认情况下此参数是关闭的(NO)。
+
+
+user_sub_token
+此选项与虚拟用户结合使用非常有用。它用于根据模板为每个虚拟用户自动生成主目录。
+例如，如果通过guest_username指定的真实用户的主目录 是 /home/virtual/$USER，
+并且 user_sub_token 设置为$USER，那么当虚拟用户fred登录时，
+他将结束(通常是chroot()'ed )在目录 / home / virtual / fred中。如果local_root 包含 user_sub_token，则此选项也会 生效。

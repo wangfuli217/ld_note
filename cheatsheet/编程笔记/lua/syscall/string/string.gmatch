@@ -1,0 +1,33 @@
+--[[
+原型：string.gmatch (s, pattern)
+解释：返回一个迭代器函数，每一次调用这个函数，返回一个在字符串s找到的下一个符合pattern描述的子串。
+      如果参数pattern描述的字符串没有找到，迭代函数返回nil。
+--]]
+
+local str = "12ab34,eed,56"
+local func_itor = string.gmatch(str, "%d+")
+
+print('string.gmatch("12ab34,eed,56", "%d+")')
+print("func_itor is\t", func_itor)                                              -- 查看func_itor类型
+print("func_itor ret is ", func_itor())                                         -- 第一次调用函数func_itor
+print("func_itor ret is ", func_itor())                                         -- 再次调用函数func_itor
+
+local sourcestr = "hello world from Lua"                                        -- 整体捕获 一个字符串(位置表)
+local index = 1
+print("\nindexed table (one capture):")
+for word in string.gmatch(sourcestr, "%a+") do
+    print(index, word)
+    index = index + 1
+end
+
+local attrstr = "from=world, to=Lua, name=AlbertS"                              -- 独立捕获 两个字符串(映射表)
+print("\nassociative table (two capture):")
+for k,v in string.gmatch(attrstr, "(%w+)=(%w+)") do
+    print(k, v)
+end
+
+local nonumstr = "fadfasd,.;p[];'asd"                                           -- 匹配失败
+local func_numitor = string.gmatch(nonumstr, "%d+")
+local numret = func_numitor()
+print('\nstring.gmatch("fadfasd,.;p[];asd" , "%d+")')
+print("numret ret is", numret)

@@ -1,0 +1,140 @@
+1. 内核中通过lookup_symbol_name获取函数名称
+
+内核中很多结构体成员是函数，有时可能比较复杂不知道具体使用哪一个函数。这是可以通过lookup_symbol_name来获取符号表名称。
+复制代码
+
+int lookup_symbol_name(unsigned long addr, char *symname)
+{
+    symname[0] = '\0';
+    symname[KSYM_NAME_LEN - 1] = '\0';
+
+    if (is_ksym_addr(addr)) {----------------------------------------地址有效性检查
+        unsigned long pos;
+
+        pos = get_symbol_pos(addr, NULL, NULL);
+        /* Grab name */
+        kallsyms_expand_symbol(get_symbol_offset(pos), symname);-----获取不好名称到symname
+        return 0;
+    }
+    /* See if it's in a module. */
+    return lookup_module_symbol_name(addr, symname);------------------从module符号表中查找
+}
+
+复制代码
+
+在timer_list.c和timer_stats.c中有使用，如下：
+复制代码
+
+static void print_name_offset(struct seq_file *m, unsigned long addr)
+{
+    char symname[KSYM_NAME_LEN];
+
+    if (lookup_symbol_name(addr, symname) < 0)
+        seq_printf(m, "<%p>", (void *)addr);
+    else
+        seq_printf(m, "%s", symname);
+}
+
+复制代码
+
+ 
+ 2. 通过__builtin_return_address获取调用者函数地址
+
+2.1 背景介绍：__builtin_return_address是GCC提供的一个内置函数，用于判断给定函数的调用者。
+
+6.49 Getting the Return or Frame Address of a Function里面有更多获取函数调用者的介绍。
+
+void * __builtin_return_address (unsigned int level)
+
+level为参数，如果level为0，那么就是请求当前函数的返回地址；如果level为1，那么就是请求进行调用的函数的返回地址。
+
+2.2 使用实例
+
+ 内核中ftrace使用的较多：
+复制代码
+
+#define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
+#define CALLER_ADDR1 ((unsigned long)return_address(1))
+#define CALLER_ADDR2 ((unsigned long)return_address(2))
+#define CALLER_ADDR3 ((unsigned long)return_address(3))
+#define CALLER_ADDR4 ((unsigned long)return_address(4))
+#define CALLER_ADDR5 ((unsigned long)return_address(5))
+#define CALLER_ADDR6 ((unsigned long)return_address(6))
+
+复制代码
+
+ 一个测试示例：
+复制代码
+
+#include <stdio.h>
+
+void func_e(void)
+{
+    printf("func_e(0)=%p\n", __builtin_return_address(0));-------------------------打印返回层级地址
+    printf("func_e(1)=%p\n", __builtin_return_address(1));
+    printf("func_e(2)=%p\n", __builtin_return_address(2));
+    printf("func_e(3)=%p\n", __builtin_return_address(3));
+    printf("func_e(4)=%p\n", __builtin_return_address(4));
+    printf("func_e(5)=%p\n", __builtin_return_address(5));
+}
+
+void func_d(void)
+{
+    func_e();
+}
+
+void func_c(void)
+{
+    func_d();
+}
+
+void func_b(void)
+{
+    func_c();
+}
+
+void func_a(void)
+{
+    func_b();
+}
+
+int main(int argc, char *agrv[])
+{
+    func_a();
+    printf("func_a=%p, func_b=%p, func_c=%p, func_d=%p, func_e=%p\n", func_a, func_b, func_c, func_d, func_e);---------------------打印函数地址
+}
+
+复制代码
+
+执行结果如下：
+复制代码
+
+func_e(0)=0x4005f2
+func_e(1)=0x4005fd
+func_e(2)=0x400608
+func_e(3)=0x400613
+func_e(4)=0x400629
+func_e(5)=0x7fba4af1af45
+func_a=0x40060a, func_b=0x4005ff, func_c=0x4005f4, func_d=0x4005e9, func_e=0x40052d
+
+复制代码
+
+使用addr2line -e file -f addrs，可以看出编译是否-g的区别：
+gcc caller.c -o caller 	gcc caller.c -o caller -g
+
+addr2line -e caller -f 4005f2
+func_d
+??:?
+	
+
+addr2line -e caller -f 4005f2
+func_d
+/home/lubaoquan/temp/caller.c:16
+
+通过nm xxxx也可以找到地址对应的函数名：
+
+000000000040060a T func_a
+00000000004005ff T func_b
+00000000004005f4 T func_c
+00000000004005e9 T func_d
+000000000040052d T func_e

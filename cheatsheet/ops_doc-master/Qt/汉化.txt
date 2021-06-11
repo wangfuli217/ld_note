@@ -1,0 +1,79 @@
+    QT自带的内建标准对话框QFontDialog、QColorDialog、QMessageBox。默认的文字全是英文的。
+QLineEdit和QTextEdit的右键菜单，默认的文字也全是英文的。 请问，如何可以把文字修改成中文或其他语言文字？
+
+解决方案如下： 简体中文的解决思路是打开Qt安装目录下的translations，找到qt_zh_CN.qm和qt_zh_CN.ts。 
+直接用qt_zh_CN.qm即可，如果确实有翻译不完全的，打开qt_zh_CN.ts翻译一下重新生成.qm文件即可。 
+即：把translation/qt_zh_CN.qm加载到QTranslator中。 其他国语言方法类似。
+
+lupdate lrelease Qt linguist.
+
+参考源码：
+#include "mainwindow.h"
+#include <QApplication>
+#include <QTranslator>
+ 
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+ 
+    //加载Qt标准对话框的中文翻译文件
+    QTranslator tran;
+    bool ok = tran.load("qt_zh_CN.qm", "C:\\qt\\4.8.5_VS2010\\translations\\");//注,这里使用的是绝对路径,建议把.qm拷贝到工程目录下,然后使用相对路径.
+    a.installTranslator(&tran);
+ 
+    //加载用户自定义的界面翻译文件
+ 
+    QTranslator user;
+    ok = user.load("user_zh.qm", ":/");
+    a.installTranslator(&user);
+ 
+    //设置全局文字大小,非必需,根据自身情况使用
+    QFont font  = a.font();
+    font.setPointSize(9);
+    a.setFont(font);
+ 
+    MainWindow w;
+    w.show();
+ 
+    return a.exec();
+}
+
+
+如果软件想动态得切换语言，则需要定义一个全局函数供调用，举例如下：
+
+#include "mainwindow.h"
+#include <QApplication>
+#include <QTranslator>
+ 
+QTranslator g_tran;//必须设置成全局变量，如果是局部变量，设置将失效。
+ 
+void setLanguage(int lan)//全局函数，可供其他文件调用
+{
+    bool ok = false;
+    if (lan == 1)//中文
+    {
+        ok = g_tran.load("qt_zh_CN.qm", ":/lan/");//这里使用Qt资源文件,把.qm文件拷贝到项目路径/lan之下
+    }
+    else if (lan == 2)//英文
+    {
+        ok = g_tran.load("", ":/lan/");
+    }
+ 
+    QCoreApplication::installTranslator(&g_tran);
+    //或者写成qApp->installTranslator(&g_tran);
+}
+ 
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+ 
+    setLanguage(1);//调用全局函数
+ 
+    MainWindow w;
+    w.show();
+ 
+    return a.exec();
+}
+
+
+

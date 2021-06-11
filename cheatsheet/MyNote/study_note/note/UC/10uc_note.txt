@@ -1,0 +1,185 @@
+复习：
+进程的管理
+	waitpid()- 等待指定的子进程状态发生改变
+	vfork()- 创建子进程,与fork相似,所不同的是不会去复制父进程中的内存资源,而是直接占用,导致子进程先执行
+	execl()-相当于实现进程的跳转功能
+	system()-主要用于执行具体的shell命令/shell脚本
+
+信号的处理
+	信号的概念和分类
+		信号本质就是一个软件中断,进程既可以发送信号,又可以处理信号
+		使用kill -l查看当前系统支持的信号,以SIG开头
+		在linux系统中,信号的范围从1~64,不保证连续,其中1~31来说,不支持排除,信号可能丢失,叫做不可靠信号,也叫做非实时信号；其中34~64之间的信号支持排除,信号不会丢失,叫做可靠信号,也叫做实时信号
+
+	信号的处理方式
+		默认处理,绝大多数信号的默认处理都是终止进程
+		忽略处理
+		自定义处理
+
+	信号的处理函数
+		signal()-主要用于设置信号的处理方式
+
+	父子进程对信号处理方式的比较
+	对于fork创建的子进程,完全照搬父进程的处理方式
+	对于vfork()和execl函数创建的子进程来说,父进程默认,子进程默认;父进程忽略,子进程也忽略;父进程自定义处理,子进程采用默认处理
+
+信号的发送方式
+	键盘发送=>只能发送部分特殊的信号
+	ctrl+c 2 SIGINT
+	...
+	程序出错 => 只能发送部分特殊信号
+	段错误 11 SIGSEGV
+	...
+	采用kill命令发送信号
+	kill - 信号值 进程号
+	采用系统函数发送信号
+	raise()/kill()/alarm()/sigqueue()
+
+今天内容
+	信号的处理
+		采用系统函数发送信号
+			alarm()函数
+				   #include <unistd.h>
+			       unsigned int alarm(unsigned int seconds);
+				   函数功能
+						主要用于设置参数指定的秒数之后发送SIG_ALRM,如果参数为0表示没有设置新的闹钟,成功返回上一个闹钟没有来得及走的秒数,如果之前没有闹钟则返回0
+
+信号集
+	信号集-信号的集合,用于存储多个信号
+	在linux系统中,信号的数值范围是1~64,采用最省内存的方式来表示所有的信号
+	long long int =>8 =>64位二进制,每一个二进制们代表一个信号,信号存在置为1,不存在置为0
+
+	信号集的数据类型:sigset_t类型,底层还是采用每一个二进制位代表一个信号的方式存储多少信号
+	typedef struct
+	  {
+		      unsigned long int __val[(1024 / (8 * sizeof (unsigned long int)))];128个字节
+	  } __sigset_t;
+
+信号集的基本操作
+	sigemptyset() - 清空信号集
+	sigfillset() - 填满信号集
+	sigaddset() - 增加信号到信号集中
+	sigdelset() - 删除信号集中的指定信号
+	sigismember() - 判断信号是否存在
+
+信号的屏蔽
+	在某些特殊情况下程序的执行不允许被信号打断,此时需要使用信号的屏蔽策略来解决此问题
+	sigprocmask函数
+		  #include <signal.h>
+	      int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+		  第一个参数:用什么方式设置
+			SIG_BLOCK:	ABC+CDE=>ABCDE(旧+新)
+			SIG_UNBLOCK:	ABC-CDE=>AB(旧-新)
+			SIG_SETMASK:	ABC  CDE=>CDE(新的替换旧的,掌握)
+		  第二个参数:新的信号集
+		  第三个参数:旧的信号集,用于带出之前屏蔽的信号集
+		  函数功能:
+			主要用于检查和改变要屏蔽的信号集
+   		  注意
+			信号屏蔽并不是删除信号,而是将信号暂时性存起来,等信号屏蔽被解除之后,信号还是会被处理的
+			习惯上设置完信号屏蔽之后,一般都会恢复系统默认的信号屏蔽方式
+	sigpending函数
+	   #include <signal.h>
+	   int sigpending(sigset_t *set);
+	   函数功能:
+			主要用于获取在信号屏蔽期间来过的信号,通过参数将来过的信号带出去
+
+sigaction函数=>signal函数的增强版
+	 #include <signal.h>
+     int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+	 第一个参数:信号值/信号名称(设置哪个信号)
+					(信号SIGKILL和SIGSTOP不能使用)
+	 第二个参数:针对信号的新处理方式
+				 struct sigaction {
+					 void     (*sa_handler)(int);  =>函数指针,用于设置信号的处理方式,与signal函数中第二个参数相同,SIG_IGN(忽略),SIG_DFL(信号默认动作),函数名
+					 void     (*sa_sigaction)(int, siginfo_t *, void *);  =>函数指针,作为第二种处理信号的方式,是否使用该处理方式依赖于sa_flags
+					 sigset_t   sa_mask;  =>设置在信号处理函数的执行期间需要屏蔽的信号,自动屏蔽与正在处理的信号相同的信号
+					 int        sa_flags;  =>处理的标志,如果这个值是
+											SA_SIGINFO		表示采用第二个函数指针处理信号
+											SA_NODEFER		表示解除对相同信号的屏蔽
+											SA_RESETHAND	表示自定义处理信号之后恢复默认处理状态
+					 void     (*sa_restorer)(void);   =>保留成员,暂时不使用
+				 };
+	 第三个参数:旧的处理方式
+					(用于带出针对信号之前的处理方式)
+	 函数功能:主要用于设置或改变信号的处理方式
+
+	 其中第二个函数指针的第二个参数类型如下
+	 struct siginfo_t
+	 {	
+		...
+		pid_t		si_pid;      //发送信号的进程ID
+		sigval_t    si_value;    //发送信号时的附加数据
+		...
+     }
+
+sigqueue函数
+	   #include <signal.h>
+       int sigqueue(pid_t pid, int sig, const union sigval value);
+	   第一个参数:进程号(给谁发信号)
+	   第二个参数:信号值(发送什么样的信号)
+	   第三个参数:联合类型,附加数据
+	   union sigval {
+		   int   sival_int;   //整数
+		   void *sival_ptr;	  //地址
+	   };
+
+
+	   函数功能:表示向指定的进程发送指定的信号和附加数据
+
+计时器
+	在unix/linux系统中,操作系统会为每一个进程维护三种计时器,虚拟计时器,实用计时器,一般采用真实计时器工作,真实计时器采用发送SIGALARM信号进行工作的
+
+	setitimer
+	 #include <sys/time.h>
+	 int getitimer(int which, struct itimerval *curr_value);
+	 int setitimer(int which, const struct itimerval *new_value,struct itimerval *old_value);
+	 第一个参数:计时器的类型
+				ITIMER_REAL - 真实计时器,主要描述进程运行的真实时间,通过产生SIGALRM信号工作(掌握)
+				ITIMER_VIRTUAL - 虚拟计时器,主要描述进程在用户空间消耗的时间,通过产生SIGVAALRM信号工作(了解)
+				ITIMER_PROF	- 实用计时器,主要描述进程在用户空间和内核空间共同消耗的时间,参考产生SIGPROF信号工作(了解)
+	 第二个参数:计时器的新值
+	 struct itimerval {
+		 struct timeval it_interval; /* next value */   间隔时间
+		 struct timeval it_value;    /* current value */ 启动时间
+	 };
+
+		struct timeval {
+			long tv_sec;                /* seconds */    秒数
+			long tv_usec;               /* microseconds */	微秒(1秒等于10^6微秒)
+			};
+	 第三个参数:用于获取计时器的旧值
+	 函数功能:主要用于获取/设置计时器的数值
+
+进程间的通信
+	概念
+		两个/多个进程间的数据交换叫做进程间的通信
+	
+进程间的通信方式
+	1.文件
+	2.信号
+	3.管道
+	4.共享内存
+	5.消息队列(重点)
+	6.信号量集
+	7.网络(重点)
+	...
+	其中4,5,6统称为XSI IPC通信方式
+	(X/open system interface Inter-process commucation)
+
+采用消息队列实现进程间的通信(重点)
+	概念
+		使用不同的进程将发送的数据打包成具体格式的消息,然后将消息放入到消息队列中,使用其他进程从消息队列中取出消息,从而实现进程间的通信
+
+使用消息队列通信的流程
+	1.获取key值,使用ftok函数
+	2.创建/获取消息队列,使用msgget函数
+	3.发送消息/接收消息,使用msgsnd和msgrcv函数
+	4.如果不再使用消息队列,使用msgctl函数删除消息队列
+
+作业:
+	查询并且尝试使用消息队列通信流程中的相关函数
+
+明日预报:
+	1.使用消息队列实现进程间的通信
+	2.综合小项目:银行账户管理系统

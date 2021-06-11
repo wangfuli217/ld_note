@@ -1,0 +1,23 @@
+http://www.tcpipguide.com/free/t_DHCPLeaseRenewalandRebindingProcesses-1.htm
+http://www.tcpipguide.com/free/t_DHCPLeaseRenewalandRebindingProcesses-2.htm
+http://www.tcpipguide.com/free/t_DHCPLeaseRenewalandRebindingProcesses-3.htm
+
+confirm / renew / rebind 区别
+​​​1. confirm 报文
+   1） 在链路发送变化的情况下触发
+   2） A client sends a Confirm message to any available server to determine whether the addresses 
+      it was assigned are still appropriate to the link to which the client is connected
+   客户发送confirm信息给任何可用的服务器（confirm报文中不带server id这个选项），以确定自己已经分配到的这个地址是否仍然适用
+   所以它的报文中的T1，T2，preferred lifetime,valid lifetime都是为0， 对应的reply报文中的这些字段也是为0
+2. renew 报文
+   1） T1 = 0.5 * preferred lifetime时触发
+   2） A client sends a Renew message to the server that originally provided the client's addresses and configuration parameters 
+   to extend the lifetimes on the addresses assigned to the client and to update other configuration parameters.
+   客户发送Renew报文给原先分配client地址和配置参数的那个服务器（renew报文中带server id这个选项），以延长分配给client的地址的生存时间并且更新其它配置参数
+   它的报文中的T1，T2，preferred lifetime,valid lifetime不为0， 对应的reply报文中的这些字段也不为0
+3. rebind 报文
+   1） T2 = 0.8 * preferred lifetime时触发
+   2） A client sends a Rebind message to any available server to extend the lifetimes on the addresses assigned to the client 
+      and to update other configuration parameters; this message is sent after a client receives no response to a Renew message.
+client发送Rebind报文给任何可以用的服务器（Rebind报文中没有server id选项），以延长分配给client的地址的生存时间并且更新其它配置参数，这个消息是在发送Renew消息没有回应后才发送。  
+它的报文中的T1，T2，preferred lifetime,valid lifetime不为0， 对应的reply报文中的这些字段也不为0

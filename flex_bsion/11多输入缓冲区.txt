@@ -1,0 +1,143 @@
+11 多输入缓冲区
+一些扫描器需要从多个输入流中读取输入(如一些支持"include"文件的扫描器)。当flex扫
+描大量的缓冲区时，你可以简单的写YY_INPUT()来控制读取下一个输入，它对扫描的上下文
+很敏感。YY_INPUT()只有在扫描器到达其缓冲区末端时才会被调用，这期间可能是一个比较
+长的过程，会在扫描一个语句(statement)之后，如一个include语句，它需要选择输入源。
+
+为协商这些个问题，flex提供了一种创建并选择多个输入缓冲区的机制。用一下方式来创建
+一个输入缓冲区：
+
+  函数：YY_BUFFER_STATE yy_create_buffer(File *file, int size)
+
+它带一个函数指针参数以及一个指定文件的缓冲区大小的整数，该整数足够容纳size个字节
+(如果尚存疑虑，就是用YY_BUF_SIZE作为size值)。该函数返回一个YY_BUFFER_STATE句柄(h
+andle)，接下来该句柄会被传递给其他函数(见下文)。YY_BUFFER_STATE是一个指向晦涩结
+构体yy_buffer_state的指针，所以，愿意的话，你可以安全的用((YY_BUFFER_STATE)0)来
+初始化YY_BUFFER_STATE类型的变量，并且还可以将它refer to那个晦涩的结构体，以将源
+文件中的输入缓冲区正确地声明，而不仅仅是存在于你的扫描器中。注意，yy_create_buff
+er 调用中的FILE指针只能用于被YY_INPUT所见的yyin的值。如果你重定义了YY_INPUT()，
+那么YY_INPUT()就不会再使用yyin,然后你就可以安全的传递一个空文件指针给yy_create_b
+uffer。你可以选择扫描一个特定的缓冲区，使用：
+
+    函数： void yy_switch_to_buffer(YY_BUFFER_STATE new_buffer)
+
+上面的函数会选择扫描器的输入，所以接下来的标识符就来自new_buffer中。注意，yy_swi
+tch_to_buffer()可以可以为yywrap()所用，以此来为继续扫描做相关设置，而不用打开一
+个新文件并将yyin指向该文件。如果你正查找一个输入缓冲区栈，那么你将要使用yypush_b
+uffer_state()来代替本函数。同时要注意的是，通过yy_switch_to_buffer()或yywrap()来
+选择输入源并不会改变起始状态。
+
+    函数：void yy_delete_buffer(YY_BUFFER_STATE buffer)
+
+该函数用于改造一个缓冲区中的存储。(缓冲区可以为NULL，此事函数啥也不错)你也可以使
+用下面的函数来清除当前缓冲区中的内容：
+    
+    函数：void yypush_buffer_state(YY_BUFER_STATE buffer)
+
+该函数将一个新的缓冲区压栈到一个内部栈中。被压栈状态成为新的当前状态。该栈由flex
+管理，并按需做相应增长。该函数的目的是代替yy_switch_to_buffer()函数，当你希望改
+变状态，但又要保存当前状态，以供后续使用时，可以使用它。
+
+    函数：void yypop_buffer_state()
+
+该函数把当前状态从栈顶移除，并通过调用yy_delete_buffer来删除当前状态。栈中的下一
+个状态，如果有的话，则成为新的当前状态。
+
+    函数：void yy_flush_buffer(YY_BUFFER_STATE buffer)
+
+该函数丢弃buffer中的内容，所以，当下一次扫描器试图为该buffer匹配一个标识符时，扫
+描器将首先用YY_INPUT()来填充这个buffer。
+
+    函数：YY_BUFFER_STATE yy_new_buffer(FILE *file, int size)
+
+它是yy_create_buffer()的别名函数，以提供C++的兼容性，用new和delete来创建和销毁动
+态对象。
+
+YY_CURRENT_BUFFER宏返回一个YY_BUFFER_STATE句柄给当前状态，它不能作为左值来使用。
+
+下面是2个使用这些特性的例子，编写了一个扫描器来展开包含文件(EOF特性在后面讨论)。
+
+第一个例子使用了yypush_buffer_state和yypop_buffer_state。flex管理着这个内部栈。
+
+    /* "incl"的状态用于得到一个包含文件的名字 */
+    %x incl
+    %%
+    include             BEGIN(incl);
+    [a-z]+              ECHO;
+    [^a-z\n]*\n?        ECHO;
+    <incl>[ \t]*        /*略过空格*/
+    <incl>[^ \t\n]+     {/*得到包含文件名*/
+             yyin = fopen(yytext, "r");
+             if (!yyin) error(...);
+             yypush_buffer_state(yy_create_buffer(yyin, YY_BUF_SIZE));
+             BEGIN(INITIAL);
+    }
+    <<EOF>> {
+            yypop_buffer_state();
+            if (!YY_CURRENT_BUFFER) yyterminate(); 
+    }
+
+第二个例子完成前例同样的事情，但是手动管理着自己的输入缓冲区栈(而不是由flex来来
+做)。
+
+    /* the "incl" state is used for picking up the name of an include file*/
+    %x incl
+     
+    %{
+    #define MAX_INCLUDE_DEPTH 10
+    YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
+    int include_stack_ptr = 0;
+    %}
+     
+    %%
+    include             BEGIN(incl);
+    [a-z]+              ECHO;
+    [^a-z\n]*\n?        ECHO;
+    <incl>[ \t]*      /* eat the whitespace */
+    <incl>[^ \t\n]+   { /* got the include file name */
+        if (include_stack_ptr >= MAX_INCLUDE_DEPTH) {
+            fprintf(stderr, "Includes nested too deeply");
+            exit(1);
+        }
+        include_stack[include_stack_ptr++] = YY_CURRENT_BUFFER;
+        yyin = fopen(yytext, "r");
+        if(!yyin) error(...);
+        yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
+        BEGIN(INITIAL);
+    }
+    <<EOF>> {
+        if (--include_stack_ptr == 0) yyterminate();
+        else{
+            yy_delete_buffer(YY_CURRENT_BUFFER);
+            yy_switch_to_buffer(include_stack[include_stack_ptr]);
+        }
+    }
+
+下面的函数可以用来设置输入缓冲区为扫描内存字符串而不是文件。所有这些函数都创建了
+一个新的缓冲区来扫描这些字符串，接着返回一个相应的YY_BUFFER_STATE句柄(当完成任务
+后你可以调用yy_delete_buffer()来将其删除)。它们同样可以使用yy_switch_to_buffer()
+来选择新的缓冲区，所以下次调用的yylex()将从字符串开始扫描。
+
+    函数：YY_BUFFER_STATE yy_scan_string(const char *str)
+
+扫描一个以NUL结尾的字符串。
+
+    函数：YY_BUFFER_STATE yy_scan_bytes(const char *bytes, int len)
+
+从起始字节位置扫描len个字节(包括可能的NULs)。
+
+注意，这里的两个函数创建并扫描这些字符串或字节的一份拷贝。(这是可取的，因为yylex
+()会修改扫描的缓冲区中的内容。)你可以以下述方式来避免拷贝：
+
+    函数：YY_BUFFER_STATE yy_scan_buffer(char *base, yy_suze_t size)
+
+它从base的起始位置开始扫描，包含size个字节，最后的两个字节必定是YY_END_OF_BUFFER
+_CHAR(ASCII NUL).这2个字节就没有扫描；因此，扫描的内容是base[0]到base[size-2]之
+间的内容，包括边界。
+
+如果你用此法设置base失败(如忘记最后2个YY_END_OF_BUFFER_CHAR字节)，那么yy_scan_bu
+ffer()会返回一个NULL指针，而不是创建一个新的输入缓冲区。
+
+    数据类型：yy_size_t
+
+它是一个整型数，它可以赋值给一个整型表达式，反映缓冲区的大小。

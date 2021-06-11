@@ -1,0 +1,296 @@
+http://cn.linux.vbird.org/linux_server/0410vsftpd_1.php
+
+---- 不同等级的用户身份：user, guest, anonymous ----
+(1)实体账号,real user；      取得系统的权限比较完整， 所以可以进行比较多的动作
+(2)访客, guest；             仅提供他下载资源
+(3)匿名登录者, anonymous
+
+---- 命令记录与登录文件记录 ---- 
+FTP 可以利用系统的 syslogd 来进行数据的纪录， 而记录的数据报括了用户曾经下达过的命令与用户传输数据(传输时间、档案大小等等)的纪录
+/var/log/
+
+---- 限制用户活动的目录： (change root, 简称 chroot) ----
+根目录就是自己家目录的内容，这种环境称之为 change root
+
+使用 iptables 所提供的 FTP 侦测模块：
+客户端选择被动式 (Passive) 联机模式：
+
+http://cn.linux.vbird.org/linux_server/0410vsftpd_2.php
+
+---- Very Secure FTP Daemon ---- 
+---- 所需要的软件以及软件结构 ----
+
+---- /etc/vsftpd/vsftpd.conf
+参数=设定值  等号两边不能有空白 man 5 vsftpd.conf
+
+---- /etc/pam.d/vsftpd
+vsftpd 使用 PAM 模块时的相关配置文件。主要用来作为身份认证之用，还有一些用户身份的抵挡功能， 也是透过这个档案来达成
+root@www ~]# cat /etc/pam.d/vsftpd
+#%PAM-1.0
+session optional pam_keyinit.so    force revoke
+auth    required pam_listfile.so item=user sense=deny file=/etc/vsftpd/ftpusers onerr=succeed
+auth    required pam_shells.so
+auth    include  password-auth
+account include  password-auth
+session required pam_loginuid.so
+session include  password-auth
+
+    上面那个 file 后面接的档案是(限制使用者无法使用 vsftpd)之意， 也就是说，其实你的限制档案不见得要使用系统默认值，
+也可以在这个档案里面进行修改
+
+
+就是 PAM 模块 (/etc/pam.d/vsftpd) 所指定的那个无法登入的用户配置文件
+将(不想让他登入 FTP 的账号)写入这个档案即可。一行一个账号.
+
+
+---- /etc/vsftpd/user_list
+是否能够生效与 vsftpd.conf 内的两个参数有关，分别是(userlist_enable, userlist_deny)
+如果说 /etc/vsftpd/ftpusers 是 PAM 模块的抵挡设定项目，那么这个 /etc/vsftpd/user_list 则是 vsftpd 自定义的抵挡项目。
+事实上这个档案与 /etc/vsftpd/ftpusers 几乎一模一样， 在预设的情况下，你可以将不希望可登入 vsftpd 的账号写入这里。
+不过这个档案的功能会依据 vsftpd.conf 配置文件内的 userlist_deny={YES/NO} 而不同，这得要特别留意！
+
+---- /etc/vsftpd/chroot_list
+必须要手动自行建立。这个档案的主要功能是可以将某些账号的使用者 chroot 在他们的家目录.
+生效与 vsftpd.conf 内的( chroot_list_enable, chroot_list_file)两个参数有关。
+
+---- /usr/sbin/vsftpd
+这就是 vsftpd 的主要执行档
+
+---- /var/ftp/
+这个是 vsftpd 的预设匿名者登入的根目录喔！其实与 ftp 这个账号的家目录有关
+
+
+---- 与服务器环境较相关的设定值 ---- 
+connect_from_port_20=YES (NO)
+记得在前一小节提到的主动式联机使用的 FTP 服务器的 port 吗？这就是 ftp-data 的埠号；
+
+listen_port=21
+vsftpd 使用的命令通道 port，如果你想要使用非正规的埠号，在这个设定项目修改吧！ 不过你必须要知道，这个设定值仅适合以 stand alone 的方式来启动喔！(对于 super daemon 无效)
+
+dirmessage_enable=YES (NO)
+当用户进入某个目录时，会显示该目录需要注意的内容，显示的档案默认是 .message ，你可以使用底下的设定项目来修订！
+
+message_file=.message
+当 dirmessage_enable=YES 时，可以设定这个项目来让 vsftpd 寻找该档案来显示讯息！
+
+listen=YES (NO)
+若设定为 YES 表示 vsftpd 是以 standalone 的方式来启动的！预设是 NO 呦！所以我们的 CentOS 将它改为 YES 哩！这样才能使用 stand alone 的方式来唤醒。
+
+pasv_enable=YES (NO)
+支持数据流的被动式联机模式(passive mode)，一定要设定为 YES 的啦！
+
+use_localtime=YES (NO)
+是否使用本地时间？vsftpd 预设使用 GMT 时间(格林威治)，所以预设的 FTP 内的档案日期会比台湾晚 8 小时，建议修改设定为 YES 吧！
+
+write_enable=YES (NO)
+如果你允许用户上传数据时，就要启动这个设定值；
+
+connect_timeout=60
+单位是秒，在数据连接的主动式联机模式下，我们发出的连接讯号在 60 秒内得不到客户端的响应，则不等待并强制断线咯。
+
+accept_timeout=60
+当用户以被动式 PASV 来进行数据传输时，如果服务器启用 passive port 并等待 client 超过 60 秒而无回应， 那么就给他强制断线！这个设定值与 connect_timeout 类似，不过一个是管理主动联机，一个管理被动联机。
+
+data_connection_timeout=300
+如果服务器与客户端的数据联机已经成功建立 (不论主动还是被动联机)，但是可能由于线路问题导致 300 秒内还是无法顺利的完成数据的传送，那客户端的联机就会被我们的 vsftpd 强制剔除！
+
+idle_session_timeout=300
+如果使用者在 300 秒内都没有命令动作，强制脱机！避免占着茅坑不拉屎～
+
+max_clients=0
+如果 vsftpd 是以 stand alone 方式启动的，那么这个设定项目可以设定同一时间，最多有多少 client 可以同时连上 vsftpd 哩！限制使用 FTP 的用量！
+
+max_per_ip=0
+与上面 max_clients 类似，这里是同一个 IP 同一时间可允许多少联机？
+
+pasv_min_port=0, pasv_max_port=0
+上面两个是与 passive mode 使用的 port number 有关，如果你想要使用 65400 到 65410 这 11 个 port 来进行被动式联机模式的连接，可以这样设定 pasv_max_port=65410 以及 pasv_min_port=65400。 如果是 0 的话，表示随机取用而不限制。
+
+ftpd_banner=一些文字说明
+当使用者联机进入到 vsftpd 时，在 FTP 客户端软件上头会显示的说明文字。不过，这个设定值数据比较少啦！ 建议你可以使用底下的 banner_file 设定值来取代这个项目；
+
+banner_file=/path/file
+这个项目可以指定某个纯文本档作为使用者登入 vsftpd 服务器时所显示的欢迎字眼。同时，也能够放置一些让使用者知道本 FTP 服务器的目录架构！
+
+
+---- 与实体用户较相关的设定值 ---- 
+guest_enable=YES (NO)
+若这个值设定为 YES 时，那么任何实体账号，均会被假设成为 guest 喔 (所以预设是不开放的)！ 至于访客在 vsftpd 当中，预设会取得 ftp 这个使用者的相关权限。但可以透过 guest_username 来修改。
+
+guest_username=ftp
+在 guest_enable=YES 时才会生效，指定访客的身份而已。
+
+local_enable=YES (NO)
+这个设定值必须要为 YES 时，在 /etc/passwd 内的账号才能以实体用户的方式登入我们的 vsftpd 服务器喔！
+
+local_max_rate=0
+实体用户的传输速度限制，单位为 bytes/second， 0 为不限制。
+
+chroot_local_user=YES (NO)
+在预设的情况下，是否要将使用者限制在自己的家目录之内(chroot)？如果是 YES 代表用户默认就会被 chroot，如果是 NO， 则预设是没有 chroot。不过，实际还是需要底下的两个参数互相参考才行。为了安全性，这里应该要设定成 YES 才好。
+
+chroot_list_enable=YES (NO)
+是否启用 chroot 写入列表的功能？与底下的 chroot_list_flie 有关！这个项目得要开启，否则底下的列表档案会无效。
+
+chroot_list_file=/etc/vsftpd.chroot_list
+如果 chroot_list_enable=YES 那么就可以设定这个项目了！这个项目与 chroot_local_user 有关，详细的设定状态请参考 21.2.6 chroot 的说明。
+
+userlist_enable=YES (NO)
+是否藉助 vsftpd 的抵挡机制来处理某些不受欢迎的账号，与底下的参数设定有关；
+
+userlist_deny=YES (NO)
+当 userlist_enable=YES 时才会生效的设定，若此设定值为 YES 时，则当使用者账号被列入到某个档案时， 在该档案内的使用者将无法登入 vsftpd 服务器！该档案文件名与下列设定项目有关。
+
+userlist_file=/etc/vsftpd/user_list
+若上面 userlist_deny=YES 时，则这个档案就有用处了！在这个档案内的账号都无法使用 vsftpd 喔
+
+
+---- 匿名者登入的设定值 ---- 
+anonymous_enable=YES (NO)
+设定为允许 anonymous 登入我们的 vsftpd 主机！预设是 YES ，底下的所有相关设定都需要将这个设定为 anonymous_enable=YES 之后才会生效！
+
+anon_world_readable_only=YES (NO)
+仅允许 anonymous 具有下载可读档案的权限，预设是 YES。
+
+anon_other_write_enable=YES (NO)
+是否允许 anonymous 具有除了写入之外的权限？包括删除与改写服务器上的档案及档名等权限。预设当然是 NO！如果要设定为 YES，那么开放给 anonymous 写入的目录亦需要调整权限，让 vsftpd 的 PID 拥有者可以写入才行！
+
+anon_mkdir_write_enable=YES (NO)
+是否让 anonymous 具有建立目录的权限？默认值是 NO！如果要设定为 YES， 那么 anony_other_write_enable 必须设定为 YES ！
+
+anon_upload_enable=YES (NO)
+是否让 anonymous 具有上传数据的功能，默认是 NO，如果要设定为 YES ，则 anon_other_write_enable=YES 必须设定。
+
+deny_email_enable=YES (NO)
+将某些特殊的 email address 抵挡住，不让那些 anonymous 登入！如果以 anonymous 登入服务器时，不是会要求输入密码吗？密码不是要你输入你的 email address 吗？如果你很讨厌某些 email address， 就可以使用这个设定来将他取消登入的权限！需与下个设定项目配合：
+
+banned_email_file=/etc/vsftpd/banned_emails
+如果 deny_email_enable=YES 时，可以利用这个设定项目来规定哪个 email address 不可登入我们的 vsftpd 喔！在上面设定的档案内，一行输入一个 email address 即可！
+
+no_anon_password=YES (NO)
+当设定为 YES 时，表示 anonymous 将会略过密码检验步骤，而直接进入 vsftpd 服务器内喔！所以一般预设都是 NO 的！(登入时会检查输入的 emai)
+
+anon_max_rate=0
+这个设定值后面接的数值单位为 bytes/秒 ，限制 anonymous 的传输速度，如果是 0 则不限制(由最大带宽所限制)，如果你想让 anonymous 仅有 30 KB/s 的速度，可以设定『anon_max_rate=30000』
+
+anon_umask=077
+限制 anonymous 上传档案的权限！如果是 077 则 anonymous 传送过来的档案权限会是 -rw
+
+---- 关于系统安全方面的一些设定值 ---- 
+ascii_download_enable=YES (NO)
+如果设定为 YES ，那么 client 就优先 (预设) 使用 ASCII 格式下载文件。
+
+ascii_upload_enable=YES (NO)
+与上一个设定类似的，只是这个设定针对上传而言！预设是 NO
+
+one_process_model=YES (NO)
+这个设定项目比较危险一点～当设定为 YES 时，表示每个建立的联机都会拥有一支 process 在负责，可以增加 vsftpd 的效能。不过， 除非你的系统比较安全，而且硬件配备比较高，否则容易耗尽系统资源喔！一般建议设定为 NO 的啦！
+
+tcp_wrappers=YES (NO)
+当然我们都习惯支持 TCP Wrappers 的啦！所以设定为 YES 吧！
+
+xferlog_enable=YES (NO)
+当设定为 YES 时，使用者上传与下载文件都会被纪录起来。记录的档案与下一个设定项目有关：
+
+xferlog_file=/var/log/xferlog
+如果上一个 xferlog_enable=YES 的话，这里就可以设定了！这个是登录档的档名啦！
+
+xferlog_std_format=YES (NO)
+是否设定为 wu ftp 相同的登录档格式？预设为 NO ，因为登录档会比较容易读！ 不过，如果你有使用 wu ftp 登录文件的分析软件，这里才需要设定为 YES
+
+dual_log_enable=YES, vsftpd_log_file=/var/log/vsftpd.log
+除了 /var/log/xferlog 的 wu-ftp 格式登录档之外，还可以具有 vsftpd 的独特登录档格式喔！如果你的 FTP 服务器并不是很忙碌， 或许订出两个登录档的撰写 (/var/log/{vsftpd.log,xferlog) 是不错的。
+
+nopriv_user=nobody
+我们的 vsftpd 预设以 nobody 作为此一服务执行者的权限。因为 nobody 的权限相当的低，因此即使被入侵，入侵者仅能取得 nobody 的权限喔！
+
+pam_service_name=vsftpd
+这个是 pam 模块的名称，我们放置在 /etc/pam.d/vsftpd
+
+
+#### vsftpd 启动的模式
+/etc/init.d/vsftpd start
+vim /etc/vsftpd/vsftpd.conf
+
+
+xinetd
+root@www ~]# yum install xinetd   <==假设 xinetd 没有安装时
+[root@www ~]# vim /etc/xinetd.d/vsftpd
+service ftp
+{
+        socket_type             = stream
+        wait                    = no
+        user                    = root
+        server                  = /usr/sbin/vsftpd
+        log_on_success          += DURATION USERID
+        log_on_failure          += USERID
+        nice                    = 10
+        disable                 = no
+}
+然后尝试启动看看呢：
+[root@www ~]# /etc/init.d/vsftpd stop
+[root@www ~]# /etc/init.d/xinetd restart
+[root@www ~]# netstat -tulnp| grep 21
+tcp  0  0 0.0.0.0:21  0.0.0.0:*   LISTEN   32274/xinetd
+
+
+---- CentOS 的 vsftpd 默认值 ----
+[root@www ~]# vim /etc/vsftpd/vsftpd.conf
+# 1. 与匿名者有关的信息：
+anonymous_enable=YES        <==支持匿名者的登入使用 FTP 功能
+
+# 2. 与实体用户有关的设定
+local_enable=YES            <==支持本地端的实体用户登入
+write_enable=YES            <==允许用户上传数据 (包括档案与目录)
+local_umask=022             <==建立新目录 (755) 与档案 (644) 的权限
+
+# 3. 与服务器环境有关的设定
+dirmessage_enable=YES       <==若目录下有 .message 则会显示该档案的内容
+xferlog_enable=YES          <==启动登录文件记录，记录于 /var/log/xferlog
+connect_from_port_20=YES    <==支持主动式联机功能
+xferlog_std_format=YES      <==支持 WuFTP 的登录档格式
+listen=YES                  <==使用 stand alone 方式启动 vsftpd
+pam_service_name=vsftpd     <==支持 PAM 模块的管理
+userlist_enable=YES         <==支持 /etc/vsftpd/user_list 档案内的账号登入管控！
+tcp_wrappers=YES            <==支持 TCP Wrappers 的防火墙机制
+
+上面各项设定值请自行参考 21.2.3 的详细说明吧。而通过这样的设定值咱们的 vsftpd 可以达到如下的功能：
+    你可以使用 anonymous 这个匿名账号或其他实体账号 (/etc/passwd) 登入；
+    anonymous 的家目录在 /var/ftp ，且无上传权限，亦已经被 chroot 了；
+    实体用户的家目录参考 /etc/passwd，并没有被 chroot，可前往任何有权限可进入的目录中；
+    任何于 /etc/vsftpd/ftpusers 内存在的账号均无法使用 vsftpd (PAM)；
+    可利用 /etc/hosts.{allow|deny} 来作为基础防火墙；
+    当客户端有任何上传/下载信息时，该信息会被纪录到 /var/log/xferlog 中；
+    主动式联机的埠口为 port 20；
+    使用格林威治时间 (GMT)。
+
+
+---- 仅有匿名登录的相关设定 ---- 
+建立 vsftpd.conf 的设定数据
+
+[root@www ~]# vim /etc/vsftpd/vsftpd.conf
+# 将这个档案的全部内容改成这样：
+# 1. 与匿名者相关的信息：
+anonymous_enable=YES
+no_anon_password=YES        <==匿名登录时，系统不会检验密码 (通常是email)
+anon_max_rate=1000000       <==最大带宽使用为 1MB/s 左右
+data_connection_timeout=60  <==数据流联机的 timeout 为 60 秒
+idle_session_timeout=600    <==若匿名者发呆超过 10 分钟就断线
+max_clients=50              <==最大联机与每个 IP 的可用联机
+max_per_ip=5
+
+# 2. 与实体用户相关的信息，本案例中为关闭他的情况！
+local_enable=NO
+
+# 3. 与服务器环境有关的设定
+use_localtime=YES
+dirmessage_enable=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+xferlog_std_format=YES
+listen=YES
+pam_service_name=vsftpd
+tcp_wrappers=YES
+banner_file=/etc/vsftpd/anon_welcome.txt <==檔名有改喔！
+
+[root@www ~]# /etc/init.d/vsftpd restart

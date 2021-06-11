@@ -1,0 +1,341 @@
+docs/gnome.txt
+6307f0a on 13 Aug 2016
+@huhuoyun huhuoyun Signed-off-by: huhuoyun <huhuoyun@sina.com>
+338 lines (305 sloc) 20.6 KB
+1.恢复窗体的按钮！
+  临时解决办法：
+   metacity --replace &
+  永久解决办法：
+    ~/.local/share/applications/metacity.desktop 注释hidden=true这条语句。
+    ~/.local/share/applications/gnome-wm.desktop 注释hidden=true这条语句。
+    ~/.local/share/applications/gnome-panel.desktop  注释hidden=true这条语句。
+  以上这三条语句如果全都设置true，则顶部和下面panel都将隐藏
+2.gnome-session-properties 可以设置gnome一些特性。
+3.经过测试/usr/src/ 中包含的Gcc,linux 源代码都是可以编译的。
+4.自己动手制作Linux系统清参照LFS手册。
+5.由于安装gnu-fdisk 导致原先fdisk变成了fdisk.distrib
+  cfdisk 变成了 cfdisk.distrib
+  fdisk.distrib /dev/sdx 依然有效.
+  /sbin/ 是一个很重要的目录;fdisk,cfdisk 等程序就安装在这个目录. 
+6.cron是Linux定时任务,可以通过修改 /etc/cron 文件添加定时任务
+  eg.30 5    * * *    root    /usr/bin/apt-mirror >> /var/spool/apt-mirror/var/cron.log
+
+7.调整屏幕亮度,不需要sudo管理员权限;当前用户即可操作.
+  >cat /sys/class/backlight/acpi_xx/max_brightness   #查看本机最大亮度值,xx 表示那个视频卡;这个文件在虚拟机中没发现，但是笔记本中竟然有不知道是不是设置了之后才有这个文件的.
+  >pkexec /usr/lib/gnome-settings-daemon/gsd-backlight-helper --set-brightness 15  #将屏幕亮度设置为15.
+  eg. >vi xxx.sh   #创建shell脚本，当系统自动登录时自动设置.
+        #!/bin/sh 
+        pkexec /usr/lib/gnome-settings-daemon/gsd-backlight-helper --set-brightness 15 
+      >chmod +x xxx.sh      #添加可执行权限
+      >gsettings set org.gnome.settings-daemon.peripherals.input-devices hotplug-command "/home/xx/xxx.sh" #设置gnome
+
+8.virtualbox 插入U盘不能识别的解决办法:
+    >sudo adduser hy vboxusers    #将用户名 hy 添加到vboxusers 组,重启或注销后即可解决.
+
+9.scp 同步文件:
+    eg.scp -rv xxx/xx  xx@xx.xx.xx.xx:/xxx/ 
+
+10.同步gnu源代码:
+    >rsync -rltpHS --delete-excluded rsync://ftp.gnu.org/ /home/xx 
+
+11.gdb 使用:
+    1. directory:
+        (gdb) directory /home/xxx/      #指定调试过程中需要查看的源代码目录
+        eg. (gdb) directory /home/eglibc-2.15/nptl
+            (gdb) b pthread_create  #此刻就可以进入pthread_create函数了.
+
+    2.gdb 参数:
+        gdb [options] --args prog [arguments]
+
+    3.gdb 符号表:    #如果现在有同一个工程构建出的debug和release可执行文件progjectD和projectR,如下命令可以帮助把debug中的符号表加入到release中，实现对release的调试.
+        1.objcopy --only-keep-debug projectD projectsymbol.dbg 
+        2.gdb -q --symbol=projectsymbol.dbg --exec=projectR 
+12.gnome ssh远程桌面,这些操作都是在本地操作:
+    CTRL + ALT + F2    #切换到一个新的shell提示符.
+    CTRL + ALT + F12   #切换到一个空的控制台.
+    CTRL + ALT + F7    #回到原有的X图形显示.
+
+    >X :12.0 vt12 2>&1 >/dev/null&   #在需要远程的计算机中ctrl+alt+f2,输入以上内容.
+    >xterm -display :12.0 -e ssh -X xx@xx.xx.xx.xx    #在链接远程的计算机的终端中输入以上内容,ctrl+alt+f12 输入密码即可登录shell;下面要使用gnome桌面.
+    >xterm -display :12.0 -e ssh -4 -C -c blowfish-cbc -X USER@HOST  #这种经过压缩后的数据包，远程效果要比上面好.
+    >startx       #显示一次桌面
+    >gnome-session   #会话不退出,就可以永久显示桌面.
+
+    配置gnome startx :
+       1. /etc/X11/Xwrapper.config 
+            1.root 
+            2.anybody
+            3.console 
+
+            eg.allowed_users=anybody 
+        2.使用命令: 
+            >dpkg-reconfigure x11-common 
+
+13.下载Linux内核源代码,执行 apt-get source linux 这条命令即可.
+
+14.minicom 使用方法，首先使用 minicom -s 进入设置,然后就可以使用mnicom串口测试程序了.
+
+15.构建debian的arm的根文件系统:    #整个过程需要以root来执行.
+    >apt-get install binfmt-support qemu qemu-user-static debootstrap vde2-cryptcab  #qemu-kvm 虚拟机中会安装失败. 
+    1.使用apt-mirror 构建离线的镜像服务器.
+    2. DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGAGE=C LANG=C chroot /home/hy/arm/fs_debian_wheezy debootstrap/debootstrap  --second-stage #/home/hy/arm/fs_debian_wheezy 是构建arm根文件系统路径.
+    3.debootstrap --arch=armel --foreign wheezy fs_debian_wheezy file:////var/spool/apt-mirror/mirror/ftp.us.debian.org/debian  #file:/// 后面填写的本地镜像文件的路径; --foreign 这个选项必须有，下面的命令会用到--foreign导入的脚本;--arch 指定了cpu架构eg.arm,armel,x86,amd64. --include=vim,openssh-server 此条语句加在--foreign 即可.
+    4.sudo cp /usr/bin/qemu-arm-static /home/hy/arm/fs_debian_wheezy/usr/bin   #将qemu-arm-static 复制到要制作arm根文件系统的/usr/bin目录，需要注意的这一步是必须的否则下面执行的 chroot 将会无法执行;该命令的意思是设置一些环境变量,然后切换根目录到fs_debian_wheezy,执行目录fs_debian_wheezy/debootstrap 下的命令:debootstrap --second-stage;终端上会最后打印 "I:Base system installed successfully." 说明根文件系统就定制成功了.
+    5.修改文件,目录等:
+        >cd /home/hy/arm/fs_debian_wheezy 
+        >sudo echo "proc /proc proc defaults 0 0">>etc/fstab
+        >sudo mkdir -p usr/share/man/man1 
+        >sudo mknod dev/console c 5 1   #如果dev/console设备节点不存在,也需要创建. 
+    6.测试跟文件系统是否构建成功:
+        >cd ..
+        >sudo chroot fs_debian_wheezy   #如果这一步不能执行需要检查qemu-arm-static 是否拷贝到usr/bin 目录中. 
+    7.设置软件源:
+        >vi /etc/apt/source.list #填写相应的软件源即可.
+    8.为root 设置密码和创建新用户:
+        >passwd root   #debian不能以root用户登录,所以创建一个普通用户;登录系统后再切换到root用户. 
+        >adduser xxx  #添加用户xxx 
+        >passwd xxx   #为xxx设置密码 
+制作完成后,根据需求将根文件系统打包. uboot/units 可以将根文件系统打包.
+
+16.Linux 驱动编写的环境建立:
+    基本环境和准备:
+        >apt-get install build-essential libncurses-dev kernel-package fakeroot initramfs-tools module-init-tools libncurses5-dev wget bzip2    
+        >cd /usr/src 
+        >tar xzvf linux-version.tar.gz    #文件扩展名称为*.tar.gz，可以使用当前指令解压.
+        >tar xjvf linux-version.tar.gz2   #文件扩展名称为*.tar.bz2,可以使用当前指令解压. 
+        >cd linux-version   
+        >bzcat ../patch-xx.bz2 | patch -pl   #如果 /usr/src/存在patch-xx.bz2 .
+    
+    编译和安装内核:
+        >cd /usr/src/linux-version 
+        >make mrproper   #清除所有旧的配置和旧的编译目标文件. 
+        >cp /boot/config-'uname -r' .config    #为了debian开发环境正常运行,拷贝之前已经配置好的配置文件到当前目录. 
+        >make -jn      #n代表的cpu的核心数量,i7-4770k n=8  eg. make -j8 
+        >make modules 
+        >make install 
+        >make modules_install 
+        mkinitramfs -o /boot/initrd.img-version /lib/modules/version   #version eg.2.6.39-4  这里是创建initramfs .
+    到此为止,debian会自动设置grub; 重启进入新的环境即可. 
+
+    Makefile模板:
+        ifneq ($(KERNELRELEASE),)
+            mymodule-objs:=mymodule xx.o xxx.o   #依赖关系
+            obj-m += mymodule.o                  #编译,链接后将生成mymodule.o模块. 
+        else 
+            PWD := $(shell pwd)
+            KVER := $(shell uname -r)
+            KDIR := /lib/modules/$(KVER)/build 
+        all:
+            $(MAKE) -C $(KDIR) M=$(PWD)  #此处再次调用make 
+
+    内核调试函数printk:
+        printk(记录级别 "格式化输出信息");    #printk 语法格式
+        记录等级                字符串代号           描述
+        KERN_EMERG               "<0>"        这是一个最高优先级输出的紧急事件消息,表示操作系统崩溃前会进行输出提示信息
+        KERN_ALERT               "<1>"        输出警告信息,通知需要采取措施
+        KERN_CRIT                "<2>"        这是一个临界情况,当发生严重的软件或硬件操作失败时,进行输出提示信息
+        KERN_ERR                 "<3>"        当系统检测发生一个错误时,会输出信息.设备驱动程序常常KERN_ERR来报告硬件的错误信息
+        KERN_WARNING             "<4>"        提示信息,一般用于提醒.常用在与系统安全相关的消息输出
+        KERN_NOTICE              "<5>"        这是一个普通的提示,系统输出时需要注意的情况信息
+        KERN_INFO                "<6>"        非正式的消息,可能无关紧要,例如驱动程序进行挂载时,一般打印硬件相关信息
+        KERN_DEBUG               "<7>"        这是用于程序开发与调试的信息,完成编码后.这类信息一般都要删除.
+
+        eg. printk("没哟等级信息,则采用默认级别!\n");
+            printk(KERN_INFO "内核提示信息\n");
+            printk(KERN_DEBUG "内核调试信息\n");
+        如果没有特定指定一个记录等级,函数会选用默认的DEFAULT_MESSAGE_LOGLEVEL,现在默认等级是KERN_WARNING.由于这个默认值将来存在变化的可能性，所以还是应该为自定义的消息指定一个记录等级.
+
+17.debian 源代码阅读与编译:
+    1.linux内核源代码编译:
+        >apt-get source linux 
+        >cd linux-version 
+        >bash debian/bin/test-patches ../xxx.patch ../xxxx.patch   #打补丁
+        >bash debian/bin/test-patches 
+        >fakeroot debian/rules binary 
+
+18.gnome-session-properties 配置 gnome-terminal 时给定参数:
+    基本设置:
+        >gnome-terminal --geometry=90x60+650+0   #设置gnome-terminal 窗口大小,宽度x高度+左偏移量+上方偏移量
+        >gnome-terminal --maximize     #打开后最大化
+        >gnome-terminal --full-screen    #打开后全屏
+        >gnome-terminal --title="xxxx"   #设置标题
+        >gnome-terminal --widnow --window   #打开两个窗口
+        >gnome-terminal --window --tab --window --tab --tab   #打开两个窗口,第一个两个tab,第二个三个tab.
+   启动后自动执行命令:
+        >gnome-terminal -e ls    # -e 可以出现多次,如果在所有--widnow 前面表示对所有widnow和tab起作用.如果在--widnow 或者 --tab 后面，表示只针对这个tab执行,要注意-e后面只能有一个参数 也就是说如果有空格,需要用引号.
+        >gnome-terminal -x ls    #只能出现一次,在-x后面的所有内容，均认为是要执行的命令,所以可以出现空格 这些命令是针对所有tab都执行的.
+            eg.gnome-terminal -x ls|less
+        >gnome-terminal -x bash -c 'export RUN_AFTER_BASHRC="ls --help";exec bash'  #后台运行ls --help，打开一个新的bash窗口. 
+
+20.debian配置crontab定时任务:
+    >cd /var/spool/cron/crontabs/ 
+    >vi root 
+    -------------------------
+    SHELL=/bin/bash 
+    USER=root 
+    LOGNAME=root 
+    HOME=/root 
+    PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/local/sbin:/bin:/usr/sbin:/usr/bin
+
+    0 0 * * * /usr/bin/apt-mirror >> /var/spool/apt-mirror/cron.log 2>&1
+    -------------------------
+21.debian版本查看:
+    >lsb_release -a  #查看lsb本身的版本信息
+    >uname -a        #查看内核版本信息
+
+22.linux 库的的更新维护:
+
+23.光盘挂载:
+    /xx/xxx/xx.iso /xx/xxx udf,iso9660 owner,auto,ro,loop,iocharset=utf8 0 0    #开机自动挂载
+
+24.acl访问控制列表:
+    >apt-get install acl 
+    >mount     #查看是否启用acl属性. 
+    >vi /etc/fstab 
+    /dev/mapper/DEBIAN-root /               ext4    acl,errors=remount-ro 0       1     #注意acl属性,在这里表示根文件系统已经开启acl.
+    >mount / -o remount     #重新挂载根分区,或者重启. 
+    setfacl    #用于增加或修改acl. 
+    getfacl    #用于显示分配完的acl.  
+    eg.sudo setfacl -m u:hy:rwx /home/common 
+       sudo setfacl -m u:xx:rx  /home/common   #读取目录需要执行权限. 
+    ------------------------------------------
+    -m 表示修改acl.可以增加或者修改已存在的acl.
+    u 表示用户,你可以使用g来设置组权限.
+    hy 用户名
+    :rwx 需要设置的权限. 
+    ------------------------------------------
+    >ls -lh /home/common    #在正常权限后多了一个+标记,者表示acl已经设置成功. 
+    >sudo getfacl /home/common     #查看  
+    >sudo setfacl -x u:hy /home/common     #单条移除acl.
+    >sudo setfacl -b /home/common          #删除所有acl条目.
+
+25.wget
+    1>wget 批量下载网页:
+        eg. wget -c -r -np -k -L --restrict-file-names=nocontrol http://www.kerneltravel.net/kernel-book/
+    2>下载整个http或者ftp站点:
+        eg. wget http://place.your.url/here   # -x 会强制建立服务器上一模一样的目录,-nd 从服务器上下载的所有内容都会加到本地目录.
+        eg. wget -r http://place.your.url/here  #按照递归的方法,下载服务器上所有目录和文件. -i number 参数来指定下载层次.
+        eg. wget -m http://place.your.url/here  #制作镜像站点. 
+    3>断点续传:
+        eg.wget -c http://the.url.of/incomplete/file   # -t 重试次数 -t 100 . -t 0 表示无穷此重试直到连接成功. -T 表示超时时间 -T 120 表示等待120秒链接不上就算超时. 
+    4>批量下载:
+        eg.wget -i download.txt   #download.txt 添加要下载的内容即可. 
+    5>选择性的下载:
+        eg. wget -m -reject=gif http://target.web.site/subdirectory  #表示下载http://target.web.site/subdirectory，但是忽略gif文件. -accept=LIST可以接受的文件类型.
+    6>密码和认证:
+        eg. --http-user=USER 设置http用户  -http-passwd=PASS 设置http密码.  对于需要证书做认证的网站,只能利用其他下载工具（curl）.
+    7.利用代理服务器进行下载:
+        需要在当前用户的目录创建一个 .wgetrc 文件, 加入代理服务地址即可.
+        eg. http-proxy = 11.11.11.11:8080 
+            ftp-proxy = 11.11.11.11:8080 
+        分别代表http的代理服务器和ftp的代理服务器. 如果需要密码则使用下面的例子.
+        eg. -proxy-user=USER  #设置代理用户 
+            -proxy-passwd=PASS  #设置代理密码  
+            -proxy=on/off  #使用或关闭代理 
+    8>定时下载,添加cron定时任务:
+        eg. 0 23 * * 1-5 wget -c -N http://place.your.url/here 
+            0 6 * * 1-5 killall wget 
+
+26.ssh 高级用法:
+    1.复制 ssh 密钥到目标主机,开启无密码ssh登录:
+        eg. ssh-copy-id user@host   #如果还没有密钥,ssh-keygen 命令生成.
+    2.从某主机的 80 端口开启到本地主机的2001的隧道:
+        eg. ssh -N -L 2001:localhost:80 somemachine   #现在可以使用浏览器访问http://localhost:2001 这个网站. 
+    3.比较远程和本地文件:
+        eg. ssh user@host cat /path/to/remotefile | diff /path/to/localfile - 
+    4.通过ssh挂载目录/文件系统:
+        sshfs name@server:/path/to/folder /path/to/mount/point 
+    5. ssh-keygen -R 
+    6.通过ssh运行复杂的远程shell命令:
+        eg. ssh host -l login-user $(cmd.txt) 
+    7.通过ssh 将mysql 数据库复制到新的服务器:
+        eg. mysqldump -add-drop-table -extended-insert -force -log-error=error.log -uUSER -pPASS OLD_DB_NAME | ssh -C user@newhost "mysql -uUSER -pPASS NEW_DB_NAME"
+    8. 从一台没有 ssh-copy-id 命令的主机将主机的ssh公钥复制到服务器:
+        eg. cat ~/.ssh/id_rsa.pub | ssh user@machine "mkdir ~/.ssh; cat >> ~/.ssh/authorized_keys" 
+    9. 实时测试网络吞吐量:
+        eg. yes | pv | ssh host "cat > /dev/null"   #通过ssh链接主机,显示实时的传输速度,将所有的数据指向/dev/null ，需要安装 pv ; sudo apt-get install pv 
+    10.使用cstream控制带宽:
+        eg. cd ~ && touch backup 
+            tar -cj ~/backup | cstream -t 777k | ssh host 'tar -xj -C ~/backup'   #sudo apt-get install cstream  使用bzip压缩文件夹,然后以 777k bit/s 速率向远程主机传输. 
+    11.更稳定,更快,更强的ssh客户端:
+        eg. ssh -4 -C -c blowfish-cbc USER@HOST     #强制使用IPV4，压缩数据流,使用blowfish加密. 
+    12.保持ssh会话永久打开:
+        eg. autossh -M21 -t USER@HOST 'screen -raAd mysession'  #sudo apt-get install autossh   打开一个ssh会话后，让其保持永久打开；如果需要在wifi热点之间切换，可以保证切换后不会丢失连接. 
+    13. 一步将ssh 公钥传输到另外一台主机:
+        ssh-keygen ; ssh-copy-id user@host;ssh user@host 
+    14.通过 ssh / wireshark 分析流量:
+        eg. ssh USER@HOST tcpdump -w - 'port !22' | wireshark -k -i -   #sudo apt-get install wireshark  
+        eg. ssh USER@HOST 'tshark -w - "port !22"' | wireshark -k -i -
+    15.建立一个可以重新连接的远程GNU Screen:
+        eg. ssh -t user@host /usr/bin/screen -xRR 
+        如果会话突然终端或者CTRL+a d ，远程主机的shell不会丝毫受到影响;可以重新建立连接,使用重复使用上面的命令打开远程shell即可. 在执行上面的命令中,可以使用CTRL + a c 打开一个新的shell；CTRL + a a 可以在打开的多个shell之间进行切换.
+
+27.已挂载的文件系统和设备:
+    >aptitude search util-linux 
+    eg. findmnt     #列出文件系统. 
+    eg. findmnt -l  #以列表的形式输出. 
+    eg. findmnt -s/-fstab  #使用-s 或者-fstab 选项，将只从/etc/fstab文件和/etc/fstab.d目录读取文件系统. 
+    eg. findmnt -t ext4    #打印只基于类型的特定的文件系统,多个系统类型可以指定一个逗号分隔. 
+    eg. findmnt -r/--raw    #原始输出,使用-r或者--raw. 
+    eg. findmnt -S /dev/sda1  #通过源设备查找,指定的设备路径包括/不包括 -S 选项. 
+    eg. find findmnt -T /  #通过挂载点查找文件系统,指定的目录包括/不包括 -T/--target 选项. 
+
+28.Linux上录制终端操作并转换成gif动画:
+    > sudo apt-get install ttyrec imagemagick python-opster xdotool
+    录制:
+        >ttyrec   #将产生ttyrecord 文件. 
+        键入 exit或者 CTRL + d 来停止.
+    回放:
+        >ttyplay ttyrecord   
+        点击 + 或者 - 进行加速或减速，0 和 1 暂停和恢复播放. 
+    导出GIF:
+        python tty2gif.py typing ttyrecord    #将 tty2gif.py 拷贝到 ttyrecord 文件的相同目录.     /home/vsftpd/ttyrec  ln -sv /home/vsftpd/ttyrec/tty2gif.py /home/xx/tty2gif.py
+    将gif整合成一个gif文件:#通过imagemagick工具:
+        convert -delay 25 -loop 0 *.gif example.gif
+
+29.vi:
+    >vimtutor   #学习编辑一个文本时能够帮助认识vi.
+    >gvim       #vi 图形显示
+    保存文件并退出:
+        :x  or :wq  # :x 当文件被修改时两个命令是相同的。但如果未被修改,使用 :x 不会更改文件的修改时间,而使用 :wq 会改变文件的修改时间. 
+    基本计算器:
+        在插入模式下(i),使用CTRL+r 然后输入 = ,再输入简单的算式;按回车,计算结果就会插入到文件中.
+    设置搜索高亮:
+        set hlsearch   #搜索 /内容
+        /\(\<\w\+\>\)\_s*\1   #查找重复的连续的单词 eg. is is 
+    缩写:
+        :ab [缩写] 【要替换的文字】
+        eg. :ab asap as soon as possible  #会把你输入的asap 替换为 as soon as possible 
+    忘记用root方式打开文件时的文件保存:
+        :w !sudo tee %
+    自动补全:
+        在插入模式 CTRL+n 即可. 
+    比较两个文件的不同:
+        >vimdiff [文件1] [文件2]
+        or 
+        eg. vi test.c 
+            cp test.c test-diff.c 
+            :vsp test-diff.c 
+            :diffthis   #在的第一个缓冲区输入. 
+            CTRL+w    #切换到下一个缓冲区. 
+            :diffthis  #在下一个缓冲区. 
+
+            :diffoff  #停止比较.
+        这样两个文件中不同部分就会被高亮了.
+    按时间回退文件:
+        :earlier 1m     #把文件回退到1分钟以前的状态. 
+        :later          #进行相反的转换.
+    把 vim 变为十六进制编辑器:
+        :%!xxd    
+        :%!xxd -r     #恢复原来的状态.
+    跳到上一个/下一个位置:
+        CTRL+o      #跳到另外一处.
+        CTRL+i      #回退上面的跳动.
+    删除标记内部的文字:
+        di[标记]   .
+        eg.di(  or di{    #把光标放在开始的（ or { [圆括号 or 方括号]上,使用 di( 删除() {} 内的文字. 
+    删除指定标记前的内容:
+        dt[标记]    #会删除所有光标和标记之间的内容（保持标记不动）,如果在同一行有这个标记的话.  注意:是同一行.
+
+    把当前文件转化为网页:
+        :%TOhtml 

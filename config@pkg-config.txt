@@ -1,0 +1,37 @@
+在GNU中大部分的软件都是用Autoconf配置，Autoconf通常借助工具pkg-config去获取将要编译的程序依赖的共享库的一些信息，
+比如库的头文件存放在那个目录下，共享库存放在那个目录下一集连接哪些共享库等等，这些信息称为库的元信息。
+一般先搜索PKG_CONFIG_PATH指定的目录，然后搜索默认路径，一般是/usr/lib/pkgconfig /usr/share/pkgconfig  /usr/local/lib/pkgconfig 
+一旦设置了PKG_CONFIG_LIBDIR，其将取代pkg-config默认的搜索路径
+/home/vita/.bashrc
+
+unset PKG_CONFIG_LIBDIR
+export PKG_CONFIG_LIBDIR=${SYSROOT}/usr/lib/pkgconfig:${SYSROOT}/usr/share/pkgconfig
+
+除了pkgconfig寻找pc文件的搜索路径需要调整外，从pc文件中获取的cflags和libs也需要追加sysroot作为前缀。因此
+/vita/cross-tool/bin/pkg-config
+#!/bin/bash
+HOST_PKG_CFG=/usr/bin/pkg-config
+
+if [ ! ${SYSROOT} ] ; then
+    echo "Please make sure you are in cross-compile enviroment !"
+    exit 1
+fi
+
+${HOST_PKG_CFG} --exists $*
+if [ $? -ne 0 ] ; then
+    exit 1
+fi
+
+if ${HOST_PKG_CFG} $* | sed -e "s/-I/-I\/vita\/sysroot/g; s/-L/-L\/vita\/sysroot/g" then
+    exit 0
+else     
+    exit 1
+fi
+
+## TEST ##
+#/usr/bin/pkg-config --cflags --libs mount
+#/vita/cross-tool/bin/pkg-config --cflags --libs mount
+
+
+## libtool ##
+# find $SYSROOT -name "*.la" -exec rm -f '{}' \

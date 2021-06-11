@@ -1,0 +1,222 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>第 18 章 在vim中使用gdb调试</title><link rel="stylesheet" href="http://easwy.com/blog/uploads/css/style.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.73.2"><link rel="start" href="index.html" title="vim使用进阶"><link rel="up" href="index.html" title="vim使用进阶"><link rel="prev" href="advanced_movement.html" title="第 17 章 指随意动，移动如飞 (二)"><link rel="next" href="solve_compile_problem.html" title="第 19 章 vim编译中遇到的问题及解决方法"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">第 18 章 在vim中使用gdb调试</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="advanced_movement.html">上一页</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="solve_compile_problem.html">下一页</a></td></tr></table><hr></div><div class="chapter" lang="zh-CN"><div class="titlepage"><div><div><h2 class="title"><a name="vimgdb"></a>第 18 章 在vim中使用gdb调试</h2></div></div></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p>
+    本节所用命令的帮助入口：
+  </p><pre class="programlisting">
+:help vimgdb </pre><p>
+    在UNIX系统最初设计时，有一个非常重要的思想：每个程序只实现单一的功能，通过管道等方式把多个程序连接起来，使之协同工作，以完成更强大的功能。程序只实现单一功能，一方面降低了程序的复杂性，另一方面，也让它专注于这一功能，把这个功能做到最好。就好像搭积木一样，每个积木只提供简单的功能，但不同的积木垒在一起，就能搭出大厦、汽车等等复杂的东西。
+  </p><p>
+    从UNIX系统(及其变种，包括Linux)的命令行就可以看出这一点，每个命令只专注于单一的功能，但通过管道、脚本等把这些命令揉合起来，就能完成复杂的任务。
+  </p><p>
+    vi/vim的设计也遵从这一思想，它只提供了文本编辑功能(与Emacs的大而全刚好相反)，而且正如大家所看到的，它在这一领域做的是如此的出色。
+  </p><p>
+    也正因为如此，vim自身并不提供集成开发环境所需的全部功能(它也不准备这样做，vim只想成为一个通用的文本编辑器)。它把诸如编译、调试这样功能，交给更专业的工具去实现，而vim只提供与这些工具的接口。
+  </p><p>
+    我们在前面已经介绍过vim与编译器的接口(即<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-quickfix-mode/">quickfix</a>)，vim也提供了与调试器的接口，这一接口就是netbeans。除此之外，还可以给vim打一个补丁，以使其支持gdb调试器。
+  </p><p>
+    由于netbeans接口只能在gvim中使用，而使用vimgdb补丁，无论在终端的vim，还是gvim，都可以调试。所以我更喜欢打补丁的方式，我首先介绍这种方法。
+  </p><p>
+    打补丁的方式，需要重新编译vim，刚好借这个机会，介绍一下vim的编译方法。我只介绍Linux上编译方法，如果你想在windows上编译vim，可以参考这篇文档：<a class="link" href="http://users.skynet.be/antoine.mechelynck/vim/compile.htm">Vim: Compiling HowTo: For Windows</a>。
+  </p><p>
+    <span class="bold"><strong>[ 下载vim源代码 ]</strong></span>
+  </p><p>
+    首先我们需要下载vim的源码。到<a class="link" href="http://www.vim.org/sources.php">vim主页</a>下载当前最新的vim 7.1的源代码，假设我们把代码放到~/install/目录，文件名为vim-7.1.tar.bz2。
+  </p><p>
+    <span class="bold"><strong>[ 下载vimgdb补丁 ]</strong></span>
+  </p><p>
+    接下来，我们需要下载<a class="link" href="http://clewn.sourceforge.net/">vimgdb补丁</a>，下载页面在：
+  </p><p>
+    <a class="link" href="http://sourceforge.net/project/showfiles.php?group_id=111038&amp;package_id=120238">http://sourceforge.net/project/showfiles.php?group_id=111038&amp;package_id=120238</a>
+  </p><p>
+    在这里，选择vim 7.1的补丁，把它保存到~/install/vimgdb71-1.12.tar.gz。
+  </p><p>
+    <span class="bold"><strong>[ 打补丁 ]</strong></span>
+  </p><p>
+    运行下面的命令，解压源码文件，并打上补丁：
+  </p><pre class="programlisting">
+cd ~/install/
+tar xjf vim-7.1.tar.bz2
+tar xzf vimgdb71-1.12.tar.gz
+patch -d vim71 --backup -p0 &lt; vimgdb/vim71.diff </pre><p>
+    <span class="bold"><strong>[ 定制vim的功能 ]</strong></span>
+  </p><p>
+    缺省的vim配置已经适合大多数人，但有些时候你可能需要一些额外的功能，这时就需要自己定制一下vim。定制vim很简单，进入~/install/vim71/src文件，编辑Makefile文件。这是一个注释很好的文档，根据注释来选择：
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      如果你不想编译gvim，可以打开<span class="emphasis"><em>--disable-gui</em></span>选项；
+    </li><li>
+      如果你想把perl, python, tcl, ruby等接口编译进来的话，打开相应的选项，例如，我打开了<span class="emphasis"><em>--enable-tclinterp</em></span>选项；
+    </li><li>
+      如果你想在vim中使用cscope的话，打开<span class="emphasis"><em>--enable-cscope</em></span>选项；
+    </li><li>
+      我们刚才打的vimgdb补丁，自动在Makefile中加入了<span class="emphasis"><em>--enable-gdb</em></span>选项；
+    </li><li>
+      如果你希望在vim使用中文，使能<span class="emphasis"><em>--enable-multibyte</em></span>和<span class="emphasis"><em>--enable-xim</em></span>选项；
+    </li><li>
+      可以通过<span class="emphasis"><em>--with-features=XXX</em></span>选项来选择所编译的vim特性集，缺省是<span class="emphasis"><em>--with-features=normal</em></span>；
+    </li><li>
+      如果你没有root权限，可以把vim装在自己的home目录，这时需要打开<span class="bold"><strong>prefix = $(HOME)</strong></span>选项；
+    </li></ul></div><p>
+    编辑好此文件后，就可以编辑安装vim了。如果你需要更细致的定制vim，可以修改config.h文件，打开/关闭你想要的特性。
+  </p><p>
+    <span class="bold"><strong>[ 编译安装 ]</strong></span>
+  </p><p>
+    编译和安装vim非常简单，使用下面两个命令：
+  </p><pre class="programlisting">
+make
+make install </pre><p>
+    你不需要手动运行<span class="command"><strong>./configure</strong></span>命令，make命令会自动调用configure命令。
+  </p><p>
+    上面的命令执行完后，vim就安装成功了。
+  </p><p>
+    我在编译时打开了"prefix = $(HOME)"选项，因此我的vim被安装在~/bin目录。这时需要修改一下PATH变量，以使其找到我编辑好的vim。在~/.bashrc文件中加入下面这两句话：
+  </p><pre class="programlisting">
+PATH=$HOME/bin:$PATH
+export PATH </pre><p>
+    退出再重新登录，现在再敲入vim命令，发现已经运行我们编译的vim了。
+  </p><p>
+    <span class="bold"><strong>[ 安装vimgdb的runtime文件 ]</strong></span>
+  </p><p>
+    运行下面的命令，解压vimgdb的runtime文件到你的~/.vim/目录：
+  </p><pre class="programlisting">
+cd ~/install/vimgdb/
+tar zxf vimgdb_runtime.tgz –C~/.vim/ </pre><p>
+    现在启动vim，在vim中运行下面的命令以生成帮助文件索引：
+  </p><pre class="programlisting">
+:helptags ~/.vim/doc </pre><p>
+    现在，你可以使用"<span class="command"><strong>:help vimgdb</strong></span>"命令查看vimgdb的帮助了。
+  </p><p>
+    至此，我们重新编译了vim，并为之打上了vimgdb补丁。下面我以一个例子来说明如何在vim中完成"编码—编译—调试"一条龙服务。
+  </p><p>
+    <span class="bold"><strong>[ 在vim中调试 ]</strong></span>
+  </p><p>
+    首先确保你的计算机上安装了gdb ，vimgdb支持5.3以上的gdb版本，不过最好使用gdb 6.0以上的版本。
+  </p><p>
+    我使用下面这个简单的例子，来示例一下如何在vim中使用gdb调试。先来看示例代码：
+  </p><p>
+    文件~/tmp/sample.c内容如下，这是主程序，调用函数计算某数的阶乘并打印：
+  </p><pre class="programlisting">
+    
+/* ~/tmp/sample.c */
+#include &lt;stdio.h&gt;
+extern int factor(int n, int *rt);
+
+int main(int argc, char **argv)
+{
+    int i;
+    int result = 1;
+
+    for (i = 1; i &lt; 6; i++)
+    {
+        factor(i, &amp;result);
+        printf("%d! = %d\n", i, result);
+    }
+
+    return 0;
+}  </pre><p>
+    文件~/tmp/factor/factor.c内容如下，定义了子函数factor()。之所以把它放到子目录factor/，是为了演示vimgdb可以根据调试位置自动打开文件，不管该文件在哪个目录下：
+  </p><pre class="programlisting">
+    
+/* ~/tmp/factor/factor.c */
+int factor(int n, int *r)
+{
+    if (n &lt;= 1)
+        *r =  n;
+    else
+    {
+        factor(n - 1, r);
+        *r *= n;
+    }
+
+    return 0;
+}  </pre><p>
+    Makefile文件，用来编译示例代码，最终生成的可执行文件名为sample。
+  </p><pre class="programlisting">
+    
+# ~/tmp/Makefile
+sample: sample.c factor/factor.c
+gcc -g -Wall -o sample sample.c factor/factor.c  </pre><p>
+    假设vim的当前工作目录是~/tmp(使用"<span class="command"><strong>:cd ~/tmp</strong></span>"命令切换到此目录)。我们编辑完上面几个文件后，输入命令"<span class="command"><strong>:make</strong></span>"，vim就会根据Makefile文件进行编译。如果编译出错，vim会跳到第一个出错的位置，改完后，用"<span class="command"><strong>:cnext</strong></span>"命令跳到下一个错误，以此类推。这种开发方式被称为quickfix，我们已经在<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-quickfix-mode/">剑不离手 - quickfix</a>一文中讲过，不再赘述。
+  </p><p>
+    现在，假设已经完成链接，生成了最终的sample文件，我们就可以进行调试了。
+  </p><p>
+    vimgdb补丁已经定义了一些键绑定，我们先加载这些绑定：
+  </p><pre class="programlisting">
+:run macros/gdb_mappings.vim </pre><p>
+    加载后，一些按键就被定义为调试命令(vimgdb定义的键绑定见"<span class="command"><strong>:help gdb-mappings</strong></span>")。按<span class="command"><strong>&lt;F7&gt;</strong></span>可以在按键的缺省定义和调试命令间切换。
+  </p><p>
+    好了，我们现在按空格键，在当前窗口下方会打开一个小窗口(command-line窗口)，这就是vimgdb的命令窗口，可以在这个窗口中输入任何合法的gdb命令，输入的命令将被送到gdb执行。现在，我们在这个窗口中输入"<span class="command"><strong>gdb</strong></span>"，按回车后，command-line窗口自动关闭，而在当前窗口上方又打开一个窗口，这个窗口是gdb输出窗口。现在vim的窗口布局如下(我又按空格打开了command-line窗口)：
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/03/vimgdb1-300x217.jpg" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/03/vimgdb1.jpg">点击查看大图</a></div></div><p>
+    <span class="bold"><strong>小技巧</strong></span>: command-line窗口是一个特殊的窗口，在这种窗口中，你可以像编辑文本一样编辑命令，完成编辑后，按回车，就会执行此命令。你要重复执行某条命令，可以把光标移到该命令所在的行，然后按回车即可；你也可以对历史命令进行修改后再执行。详见"<span class="command"><strong>:help cmdline-window</strong></span>"。
+  </p><p>
+    接下来，在command-line窗口中输入以下命令：
+  </p><pre class="programlisting">
+cd ~/tmp
+file sample </pre><p>
+    这两条命令切换gdb的当前工作目录，并加载我们编译的sample程序准备调试。
+  </p><p>
+    现在使用vim的移动命令，把光标移动到sample.c的第7行和14行，按"<span class="command"><strong>CTRL-B</strong></span>"在这两处设置断点，然后按"<span class="command"><strong>R</strong></span>"，使gdb运行到我们设置的第一个断点处("<span class="command"><strong>CTRL-B</strong></span>"和"<span class="command"><strong>R</strong></span>"都是gdb_mappings.vim定义的键绑定，下面介绍的其它调试命令相同)。现在vim看起来是这样：
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/03/vimgdb2-300x216.png" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/03/vimgdb2.png">点击查看大图</a></div></div><p>
+    断点所在的行被置以蓝色，并在行前显示标记1和2表明是第几个断点；程序当前运行到的行被置以黄色，行前以"=&gt;"指示，表明这是程序执行的位置(显示的颜色用户可以调整)。
+  </p><p>
+    接下来，我们再按"<span class="command"><strong>C</strong></span>"，运行到第2个断点处，现在，我们输入下面的vim命令，在右下方分隔出一个名为gdb-variables的窗口：
+  </p><pre class="programlisting">
+:bel 20vsplit gdb-variables </pre><p>
+    然后用"<span class="command"><strong>v</strong></span>"命令选中变量i，按"<span class="command"><strong>CTRL-P</strong></span>"命令，把变量i加入到监视窗口，用同样的方式把变量result也加入到监视窗口，这里可以从监视窗口中看到变量i和result的值。
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/03/vimgdb3-300x216.png" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/03/vimgdb3.png">点击查看大图</a></div></div><p>
+    现在我们按"<span class="command"><strong>S</strong></span>"步进到factor函数，vim会自动打开factor/factor.c文件并标明程序执行的位置。我们再把factor()函数中的变量n加入到监视窗口；然后按空格打开command-line窗口，输入下面的命令，把变量*r输入到变量窗口：
+  </p><pre class="programlisting">
+createvar *r </pre><p>
+    现在，vim看起来是这样的：
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/03/vimgdb4-300x217.png" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/03/vimgdb4.png">点击查看大图</a></div></div><p>
+    现在，你可以用"<span class="command"><strong>S</strong></span>"、"<span class="command"><strong>CTRL-N</strong></span>"或"<span class="command"><strong>C</strong></span>"来继续执行，直至程序运行结束。
+  </p><p>
+    如果你是单步执行到程序结束，那么vim最后可能会打开一个汇编窗口。是的，vimgdb支持汇编级的调试。这里我们不用进行汇编级调试，忽略即可。
+  </p><p>
+    如果你发现程序有错误，那么可以按"<span class="command"><strong>Q</strong></span>"退出调试(gdb会提示是否退出，回答y即可)，然后修改代码、编译、调试，直到最终完成。在修改代码时，你可能并不喜欢vimgdb的键映射(例如，它把<span class="command"><strong>CTRL-B</strong></span>映射为设置断点，而这个键又是常用的翻页功能)，你可以按<span class="command"><strong>&lt;F7&gt;</strong></span>取消vimgdb的键映射，或者你直接修改gdb_mappings.vim文件中定义的映射。
+  </p><p>
+    看，vim + gdb调试是不是很简单?!
+  </p><p>
+    我们可以再定制一下，使调试更加方便。
+  </p><p>
+    打开~/.vim/macros/ gdb_mappings.vim文件，在"<span class="emphasis"><em>let s:gdb_k = 0</em></span>"这一行下面加上这段内容：
+  </p><pre class="programlisting">
+" <a class="link" href="http://easwy.com/blog/">easwy</a> add
+if ! exists("g:vimgdb_debug_file")
+    let g:vimgdb_debug_file = ""
+elseif g:vimgdb_debug_file == ""
+    call inputsave()
+    let g:vimgdb_debug_file = input("File: ", "", "file")
+    call inputrestore()
+endif
+call gdb("file " . g:vimgdb_debug_file)
+" easwy end </pre><p>
+    在"<span class="emphasis"><em>let s:gdb_k = 1</em></span>"这一行下面加上这段内容：
+  </p><pre class="programlisting">
+" <a class="link" href="http://easwy.com/blog/">easwy</a> add
+call gdb("quit")
+" end easwy </pre><p>
+    注释掉最后一行的"<span class="emphasis"><em>call s:Toggle()</em></span>"。
+  </p><p>
+    然后在你的vimrc中增加这段内容：
+  </p><pre class="programlisting">
+""""""""""""""""""""""""""""""
+" vimgdb setting
+""""""""""""""""""""""""""""""
+let g:vimgdb_debug_file = ""
+run macros/gdb_mappings.vim </pre><p>
+    现在，在启动vim后，按<span class="command"><strong>&lt;F7&gt;</strong></span>，就进入调试模式以及设定调试的键映射。在第一次进入调试模式时，会提示你输入要调试的文件名，以后就不必再输入了。再按一次<span class="command"><strong>&lt;F7&gt;</strong></span>，就退出调试模式，取消调试的键映射。
+  </p><p>
+    利用vim的键映射(map)机制，你可以把你喜欢的gdb命令映射为vim的按键，方便多了。映射的例子可以参照~/.vim/macros/ gdb_mappings.vim。
+  </p><p>
+    再附上一张抓图，这是使用putty远程登录到linux上，在终端vim中进行调试。这也是我为什么喜欢vimgdb的原因，因为它可以在终端vim中调试，而clewn只支持gvim：
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/03/vimgdb5-300x215.png" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/03/vimgdb5.png">点击查看大图</a></div></div><p>
+    因为我不常使用gdb调试，所以本文仅举了个简单的例子，以抛砖引玉。欢迎大家共享自己的经验和心得。
+  </p><p>
+    最后，让我们感谢vimgdb作者xdegaye的辛勤劳动，我们后续文章会介绍clewn，这是vim与gdb结合的另外一种形式，它和vimgdb同属一个项目。
+  </p><p>
+    <span class="bold"><strong>[参考文档]</strong></span>
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      vim帮助文件
+    </li><li><a class="link" href="http://vimcdoc.sourceforge.net/">vim中文手册</a></li><li><a class="link" href="http://clewn.sourceforge.net/index.html">http://clewn.sourceforge.net/index.html</a></li></ul></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p><span class="bold"><strong>原创文章，转载请注明：</strong></span>转载自<a class="link" href="http://easwy.com/blog/">Easwy的博客</a> [  <a class="link" href="http://easwy.com/blog/">http://easwy.com/blog/</a> ]</p><p><span class="bold"><strong>　　　　本文链接地址:</strong></span> <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-vim-gdb-vimgdb/">http://easwy.com/blog/archives/advanced-vim-skills-vim-gdb-vimgdb/</a></p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="advanced_movement.html">上一页</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="solve_compile_problem.html">下一页</a></td></tr><tr><td width="40%" align="left" valign="top">第 17 章 指随意动，移动如飞 (二) </td><td width="20%" align="center"><a accesskey="h" href="index.html">起始页</a></td><td width="40%" align="right" valign="top"> 第 19 章 vim编译中遇到的问题及解决方法</td></tr></table></div></body></html>

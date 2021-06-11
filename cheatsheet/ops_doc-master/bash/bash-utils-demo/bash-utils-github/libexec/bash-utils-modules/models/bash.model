@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+#
+# <http://github.com/e-picas/bash-utils>
+# Copyright (c) 2015 Pierre Cassat & contributors
+# License Apache 2.0 - This program comes with ABSOLUTELY NO WARRANTY.
+# For the full copyright and license information, please view the LICENSE
+# file that was distributed with this source code or see <http://www.apache.org/licenses/LICENSE-2.0>.
+#
+# Bash script starter template
+#
+# Default options are:
+#   - '-V' | '--version': get name and version of the script
+#   - '-h' | '--help': get help of the script
+#   - '-v' | '--verbose': increase script's verbosity (use method `verbose <string>`)
+#
+# Options MUST be writtent before other parameters ; short options can be concatanated in a single argument
+# (`-abc` = `-a -b -c`) and argument of option can use an optional equal sign separator:
+#
+#       <script-name> [-ab -c=<arg> -d <arg> --opt=<arg> --other-opt <arg>] [parameters ...]
+#
+# In case of error, always exit with a non-zero status ; you can use the `error <string>` function.
+#
+
+#######################
+## Bash options (uncomment to enable):
+set -e             # exit if a command has a non-zero status
+#set -E             # trap on ERR are inherited by shell functions
+#set -T             # trap on DEBUG and RETURN are inherited by shell functions
+#set -o pipefail    # do not mask pipeline's errors
+#set -u             # throw error on unset variable usage
+#set -x             # for dev usage: debug commands before to execute them
+#set -v             # for dev usage: print shell input lines as they are read
+
+#######################
+## script info
+
+SCRIPT_NAME="$(basename "$0")"
+SCRIPT_DESC='(description)'
+SCRIPT_VERSION='0.0.0'
+
+#######################
+## simple library
+
+# usage: `version`
+version()
+{
+    echo "$SCRIPT_NAME $SCRIPT_VERSION"
+}
+
+# usage: `usage`
+usage()
+{
+    echo "usage: $(basename "$0") <options>"
+    echo "  e.g. $(basename "$0") my-sample-option"
+    return 0
+}
+
+# usage: `help`
+help()
+{
+    version
+    echo
+    usage
+    echo
+    echo "$SCRIPT_DESC"
+}
+
+# usage: `verbose <string>`
+verbose()
+{
+    $VERBOSE && echo "> $*";
+    return 0
+}
+
+# usage: `error [message='an unknown error occurred'] [status=1]`
+error()
+{
+    {   echo '----'
+        echo ">> ERROR : ${1:-an unknown error occurred}"
+        $VERBOSE && echo "at ${BASH_SOURCE[1]}:${BASH_LINENO[0]}";
+        echo '----'
+        usage
+    } >&2
+    exit "${2:-1}"
+}
+
+# get absolute directory name of a path
+# inspired by <https://github.com/sstephenson/bats>
+# usage: `abs_dirname <path>`
+abs_dirname()
+{
+    [ $# -lt 1 ] && echo 'usage: `abs_dirname <path>`' >&2 && exit 1;
+    local cwd="$(pwd)"
+    local path="$1"
+    while [ -n "$path" ]; do
+        cd "${path%/*}"
+        local name="${path##*/}"
+        path="$(resolve_link "$name" || true)"
+    done
+    pwd
+    cd "$cwd"
+}
+
+# resolve symbolic link
+# inspired by <https://github.com/sstephenson/bats>
+# usage: `resolve_link <path>`
+resolve_link()
+{
+    [ $# -lt 1 ] && echo 'usage: `resolve_link <path>`' >&2 && exit 1;
+    $(type -p greadlink readlink | head -1) "$1"
+    return 0
+}
+
+# get absolute path
+# inspired by <https://github.com/sstephenson/bats>
+# usage: `expand_path <path>`
+expand_path()
+{
+    [ $# -lt 1 ] && echo 'usage: `expand_path <path>`' >&2 && exit 1;
+    {   cd "$(dirname "$1")" 2>/dev/null
+        local dirname="$PWD"
+        cd "$OLDPWD"
+        echo "$dirname/$(basename "$1")"
+    } || echo "$1"
+}
+
+#######################
+## command options & arguments
+
+# trap errors to 'die'
+trap 'error "trapped error at ${BASH_SOURCE}:${BASH_LINENO:-}"' 1 2 3 15 ERR
+# name of current script
+declare -x PROGNAME="$(basename "$0")"
+# root directory of the script
+declare -x ROOT_DIR="$(abs_dirname "$0")"
+# verbose flag
+declare -x VERBOSE=false
+
+# treat options (example of options 'a' and 'test' with argument)
+# this treatment implies you MUST use options first: `<script> [options ...] [arguments]`
+AVALUE=''
+TESTVALUE=''
+TOSHIFT=0
+while getopts 'hvVa:-:' opt; do
+    case "$opt" in
+        h)  help && exit 0;;
+        V)  version && exit 0;;
+        v)  VERBOSE=true;;
+        a)  AVALUE="${OPTARG#*=}";;
+        -*) case "${OPTARG}" in
+                help)    help && exit 0;;
+                version) version && exit 0;;
+                verbose) VERBOSE=true;;
+                test*)  # test if an argument has to be shifted (with no equal sign: `--test value`)
+                        if [ "${OPTARG#*=}" = "${OPTARG}" ]; then
+                            TESTVALUE="${!OPTIND}"
+                            TOSHIFT=$((TOSHIFT+1))
+                        else
+                            TESTVALUE="${OPTARG#*=}"
+                        fi
+                    ;;
+            esac
+            ;;
+        *)  usage >&2 && exit 1;;
+    esac
+done
+shift $((OPTIND - 1 + TOSHIFT))
+# `$*` is now arguments only
+
+#######################
+## script's logic ...
+
+# usage info if no argument
+if [ $# -eq 0 ]; then
+    usage >&2
+    exit 1
+fi
+
+# usage demos
+verbose 'verbose mode' 'is enabled'
+echo 'options debug:'
+echo "- AVALUE (option -a <arg>) is '$AVALUE'"
+echo "- TESTVALUE (option --test <arg>) is '$TESTVALUE'"
+echo "- final arguments are: $*"
+echo 'write the script here ...'
+error 'test error'
+
+#######################
+## exit
+# a bash script should always exit with a status (0 for no error)
+exit 0
+
+## vim default shell setup (must be the very last line):
+# vim: autoindent tabstop=4 shiftwidth=4 expandtab softtabstop=4 filetype=sh

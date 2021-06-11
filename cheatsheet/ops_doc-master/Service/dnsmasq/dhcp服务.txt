@@ -1,0 +1,83 @@
+http://www.cnblogs.com/studio313/category/66891.html
+
+其中一些关键的配置如下,配置文件/etc/dnsmasq.conf 中的注释已经给出了非常详细的解释。
+	
+# 服务监听的网络接口地址
+# If you want dnsmasq to listen for DHCP and DNS requests only on
+# specified interfaces (and the loopback) give the name of the
+# interface (eg eth0) here.
+# Repeat the line for more than one interface.
+#interface=
+# Or you can specify which interface _not_ to listen on
+#except-interface=
+# Or which to listen on by address (remember to include 127.0.0.1 if
+# you use this.)
+listen-address=192.168.1.132,127.0.0.1
+ 
+# dhcp动态分配的地址范围
+# Uncomment this to enable the integrated DHCP server, you need
+# to supply the range of addresses available for lease and optionally a lease time
+dhcp-range=192.168.1.50,192.168.1.150,48h
+ 
+# dhcp服务的静态绑定
+# Always set the name and ipaddr of the host with hardware address
+# dhcp-host=00:0C:29:5E:F2:6F,192.168.1.201
+# dhcp-host=00:0C:29:5E:F2:6F,192.168.1.201,infinite 无限租期
+dhcp-host=00:0C:29:5E:F2:6F,192.168.1.201,os02
+dhcp-host=00:0C:29:15:63:CF,192.168.1.202,os03
+ 
+# 设置默认租期
+# Set the limit on DHCP leases, the default is 150
+#dhcp-lease-max=150
+ 
+# 租期保存在下面文件
+# The DHCP server needs somewhere on disk to keep its lease database.
+# This defaults to a sane location, but if you want to change it, use
+# the line below.
+#dhcp-leasefile=/var/lib/dnsmasq/dnsmasq.leases
+ 
+# 通过/etc/hosts来分配对应的hostname
+# Enable the address given for "judge" in /etc/hosts
+# to be given to a machine presenting the name "judge" when
+# it asks for a DHCP lease.
+#dhcp-host=judge
+ 
+# 忽略下面MAC地址的DHCP请求
+# Never offer DHCP service to a machine whose ethernet
+# address is 11:22:33:44:55:66
+#dhcp-host=11:22:33:44:55:66,ignore
+ 
+# dhcp所在的domain
+# Set the domain for dnsmasq. this is optional, but if it is set, it
+# does the following things.
+# 1) Allows DHCP hosts to have fully qualified domain names, as long
+#     as the domain part matches this setting.
+# 2) Sets the "domain" DHCP option thereby potentially setting the
+#    domain of all systems configured by DHCP
+# 3) Provides the domain part for "expand-hosts"
+domain=debugo.com
+ 
+# 设置默认路由出口
+# dhcp-option遵循RFC 2132（Options and BOOTP Vendor Extensions),可以通过dnsmasq --help dhcp来查看具体的配置
+# 很多高级的配置，如iSCSI连接配置等同样可以由RFC 2132定义的dhcp-option中给出。
+# option 3为default route
+# Override the default route supplied by dnsmasq, which assumes the
+# router is the same machine as the one running dnsmasq.
+dhcp-option=3,192.168.0.1
+ 
+# 设置NTP Server.这是使用option name而非选项名来进行设置
+# Set the NTP time server addresses to 192.168.0.4 and 10.10.0.5
+#dhcp-option=option:ntp-server,192.168.0.4,10.10.0.5
+
+注意:当为某一MAC地址同时静态分配主机名和IP时，如果写到两条dhcp-host选项里（如下所示），则只会生效后面的一条。正确的选项写法如上配置。
+ 
+dhcp-host=00:0C:29:5E:F2:6F,192.168.1.201
+dhcp-host=00:0C:29:5E:F2:6F,os02
+
+重新启动客户端网卡。由于之前测试中客户端网卡已经申请了DHCP租期。所以这里需要修改租期文件，让客户端重新获得IP和hostname。
+
+[root@server] vim /var/lib/dnsmasq/dnsmasq.leases
+1400240493 00:0c:29:5e:f2:6f 192.168.1.143 os02 *
+1400240498 00:0c:29:15:63:cf 192.168.1.52 os01 *
+
+启动dnsmasq服务（server的IP为192.168.1.132）

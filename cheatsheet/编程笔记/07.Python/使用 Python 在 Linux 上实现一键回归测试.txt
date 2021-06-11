@@ -1,0 +1,138 @@
+1. 从代码库迁出代码 ---- pexpect 的使用
+
+清单 1. 用 pexpect 迁出代码库代码
+try:
+    chkout_cmd = 'cvs co project_code' #从代码库迁出 project_code 的内容
+    child = pexpect.spawn(chkout_cmd)
+    child.expect('password:')
+    child.sendline('your-password')    #请替换"your-password"为真实密码
+    child.interact()
+    except:
+        pass #忽略迁出代码中的错误
+        
+2. 编译代码和运行测试脚本 ---- subprocess 的使用
+
+清单 2. 用 subprocess 编译代码
+build_cmd = 'build_command_for_your_code' #请在这里配置编译命令
+build_proc = subprocess.Popen(build_cmd, stdin=None, stdout=None, stderr=None, shell=True)
+build_proc.wait() #等待子进程结束
+    assert (0 == build_proc.returncode)
+        
+在一些系统中我们编译代码采用的是脚本文件（如 shell 脚本），那么我们仍然可以如下命令来完成代码编译工作。
+清单 3. 用 subprocess 的 call 函数执行脚本文件
+subprocess.call(["code_compile.sh"])
+
+
+运行测试脚本
+    我们同样可以调用 subprocess.Popen 来创建子进程运行测试用例
+    清单 4. 用重定向命令把输出写文件
+ut_cmd = 'Your_unit_test_command  2>&1 > %s' %self.debug_log #debug_log 定义在__init__函数中，用来存储详细日志
+
+3. 测试结果存储和发布 ---- XML 解析
+
+
+4. 也谈界面设计 ---- getopt 的使用
+选项 1：迁出代码-->编译版本-->运行测试用例-->收集测试结果
+选项 2：更新代码-->编译版本-->运行测试用例-->收集测试结果
+选项 3：编译版本-->运行测试用例-->收集测试结果
+选项 4：运行测试用例-->收集测试结果
+
+当然我们还需要提供帮助信息，以方便不熟悉该脚本实现的人员使用。python 也提供了 getopt 模块让我们轻松实现上述功能。实现代码参见清单 9
+清单 9. 命令行写解析代码
+try:
+   opts, args = getopt.getopt(sys.argv[1:], 'bchu', ['build', 'checkout', 'help', 'update'])
+    except getopt.error, msg:
+        self.usage()
+        sys.exit(2)
+ 
+    build_flag = 0 #构建选项
+    for o, a in opts:
+        if o in ('-h', '--help'):
+            self.usage()
+            sys.exit()
+        elif o in ('-c', '--checkout'):
+            print "执行操作：迁出代码-->编译版本-->运行测试用例-->收集测试结果"
+            build_flag = 1
+            break
+        elif o in ('-u', '--update'):
+            print "执行操作：更新代码-->编译版本-->运行测试用例-->收集测试结果"
+            build_flag = 2
+            break
+        elif o in ('-b', '--build'):
+            print "执行操作：编译版本-->运行测试用例-->收集测试结果"
+            build_flag = 3
+            break
+        else:
+            self.usage()
+            sys.exit()
+     if (0 == build_flag) :
+        if 2 <= len(sys.argv):
+            self.usage()
+            sys.exit()
+ 
+    raw_input('\n 按 Enter 键继续。。。(Ctrl+C 退出)\t')
+        
+    if (1 == build_flag) : #迁出代码，并编译代码
+        self.checkout_code()
+        self.build_code()
+    elif (2 == build_flag) : #更新代码，并编译代码
+        self.update_code()
+        self.build_code()
+    elif (3 == build_flag) : #编译代码
+        self.build_code()
+ 
+    #运行测试用例并收集运行结果
+    self.set_python()
+    self.run_testsuite()
+    self.store_logs()
+    
+清单 10. 信号处理代码
+# 终止子进程的运行
+def handler(self, signum, frame):
+    if (-1 != self.subproc_id) : #subproc_id 定义在初始化函数中，用来存储当前子进程的 ID
+        os.killpg(self.subproc_id, signal.SIGINT)
+    sys.exit(-1)
+    
+6. 基于对象的设计 ---- class 的使用
+清单 11. 初始化处理代码
+def __init__(self):
+    signal.signal(signal.SIGINT, self.handler) #注册需要捕获的信号量
+    self.myafs_dir = os.getenv('myafs')
+    self.subproc_id = -1 #子进程 ID，用来在终止主进程时也同时终止子进程
+    self.debug_log = 'log.txt' #存储详细运行日志的文件名
+    self.debug_fullname = os.getcwd() + os.sep + self.debug_log #全路径文件名（假设产生在该目录下）
+    self.sum_log = 'summary' #存储汇总日志的文件名
+    self.sum_fullname = os.getcwd() + os.sep + self.sum_log #全路径文件名（假设产生在当前目录下）
+    self.share_dir = self.utafs_dir + '/SharedFiles' #共享目录文件名
+
+清单 12. class 框架结构代码
+class COneClickRegTest:
+    #设定一些经常使用的变量，如当前工作目录，日志名称、存储路径等
+    def __init__(self):
+ 
+    #设定 python 环境变量，实现参见代码文件
+    def set_python(self):
+ 
+    #更新代码，实现参见代码文件
+    def update_code(self):
+ 
+    #迁出代码，实现参见第 2 章代码
+    def checkout_code(self):
+     
+    #编译版本，实现参见清单 1 代码
+    def build_code(self):
+ 
+    #运行测试集，实现参见代码文件
+    def run_testsuite(self):
+ 
+    #存储运行结果，实现参见清单 7 和清单 8 代码
+    def store_logs(self):
+  
+    #信号处理，实现参见清单 10 代码
+    def handler(self, signum, frame):
+ 
+    #脚本使用说明，实现参见代码文件
+    def usage(self):
+ 
+    #命令行解析以及执行对应的功能，实现参见清单 9 代码
+    def main(self):

@@ -1,0 +1,56 @@
+--[[
+  原型：rawset(table, index, value)
+  解释：在不调用元表的情况下，给table[index]赋值为value，其中参数table必须是一个表，而参数index可以是不为nil的任何值。
+  此函数将返回table
+--]]
+
+--  定义一个table
+local tab = {
+    66,
+    h = 25,
+    w = 32,
+}
+
+--  定义元表
+local mt = {
+    __index = { ['h']=111, ['x']=222, ['i']=123 },
+    __newindex = function(table, key, value)
+    print("\nthis is the first time to assignment for the field : " .. key .. " = "..value);
+    rawset(table, key, value);
+    end
+}
+
+-- 设置元表
+setmetatable(tab, mt)
+
+-- 在有元表的情况下赋值
+tab.a = 123
+print("have metatable tab.a =", tab.a)
+tab.b = 246
+print("have metatable tab.b =", tab.b)
+
+-- 打印不使用元表的赋值情况
+rawset(tab, "year", 2016)
+print("\nnot use metatable tab.year =", tab.year)
+rawset(tab, "date", 1105)
+print("not use metatable tab.date =", tab.date)
+
+-- 打印表字段h和__index表字段x
+print("\nhave metatable tab.h =", tab.h)
+print("have metatable tab.x =",   tab.x)
+
+-- 打印表字段x和打印表字段x
+rawset(tab, 'x', 100);
+print("\ncall rawset 'x'=100 ",   tab.x)
+
+-- pairs函数不遍历__index关联表字段信息
+print("\n tab table desc")
+for k,v in pairs(tab) do
+  print(k..'='..v)
+end
+
+-- pairs函数不遍历__index关联表字段信息
+print("\n getmetatable(tab).__index table desc")
+for k,v in pairs(getmetatable(tab).__index) do
+  print(k..'='..v)
+end

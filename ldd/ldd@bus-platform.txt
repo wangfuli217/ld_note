@@ -1,0 +1,262 @@
+1、 platform 搜索是一种虚拟的总线，与i2c、spi之类不同，是kernel定义的一种规范driver一种总线，适合不属于现有总线的设备，
+    比如直接操作寄存器的driver。
+
+http://blog.chinaunix.net/uid-27664726-id-3334981.html
+	
+由传统的机制，也不难总结出platform的开发流程为
+1、定义一个platform_device，并注册
+2、定义一个platform_driver，并注册
+定义platform_device过程
+
+----------------- device -----------------
+->->   struct platform_device *platform_device_alloc(const char *name, int id)
+
+struct platform_device {
+    const char    * name;                  //设备名
+    int        id;                         //设备ID
+    struct device    dev;
+    u32        num_resources;              //设备使用的资源的数目
+    struct resource    * resource;         //设备使用的资源
+
+    const struct platform_device_id    *id_entry;
+
+    /* MFD cell pointer */
+    struct mfd_cell *mfd_cell;
+
+    /* arch specific additions */
+    struct pdev_archdata    archdata;
+};
+
+struct resource {
+    resource_size_t start;
+    resource_size_t end;
+    const char *name;
+    unsigned long flags;
+    struct resource *parent, *sibling, *child;
+};
+
+在struct resource结构中我们通常只关心start、end和flags这3个字段，分别表示资源的开始值、结束值和类型，flags可以用内存资源，IO资源，中断资源等。
+
+->-> int platform_device_register(struct platform_device *pdev)
+
+----------------- driver -----------------
+struct platform_driver {
+   int (*probe)(struct platform_device *);
+   int (*remove)(struct platform_device *);
+   void (*shutdown)(struct platform_device *);
+   int (*suspend)(struct platform_device *, pm_message_t state);
+   int (*resume)(struct platform_device *);
+   struct device_driver driver;
+   const struct platform_device_id *id_table;
+;
+
+->-> int platform_driver_register(struct platform_driver *drv)
+
+----------------- 实现 -----------------
+在platform的设备驱动的编写有两种方法：
+1、在bsp版文件中实现定义，在文件中将platform_device被化为一个数组，最后通过platform_add_devices函数注册。
+对于2440来说位于arch\arm\mach-s3c2440\mach-smdk2440.c中定义
+static struct platform_device *smdk2440_devices[] __initdata = {
+    &s3c_device_usb,
+    &s3c_device_lcd,
+    &s3c_device_wdt,
+    &s3c_device_i2c,
+    &s3c_device_iis,
+};
+如果我们要实现一个设备的添加，那么只需要加入一个struct platform_device的数组，然后只需要编写对应的platform_driver驱动程序就可以了。
+从这种方法可以看出，存在一个很明显的缺点，如果要改写驱动，就要重新的编译内核。
+
+2、第二种方法只需要单独编写一个内核模块加载到内核中。
+例子：
+--------------------   device文件：platform_dev.c
+
+struct platform_device *my_led_dev;
+  
+static int __init platform_dev_init(void)
+{
+    int ret;
+      
+ //分配一个 platform_device结构体
+    my_led_dev = platform_device_alloc("platform_led", -1);
+      
+    ret = platform_device_add(my_led_dev);//将自定义的设备添加到内核设备架构中
+      
+    if(ret)
+        platform_device_put(my_led_dev);//销毁platform设备结构
+      
+    return ret;
+}
+  
+static void __exit platform_dev_exit(void)
+{
+    platform_device_unregister(my_led_dev);//注销platform_device
+}
+  
+module_init(platform_dev_init);
+module_exit(platform_dev_exit);
+  
+MODULE_AUTHOR("Sola");
+MODULE_LICENSE("GPL");
+
+
+--------------------  drv文件：platform_drv.c
+static int s3c6410_led_open(struct inode *inode, struct file *file)
+{
+   unsigned tmp;
+          tmp = readl(S3C64XX_GPMCON);
+     tmp = (tmp & ~(0xFFFF))|(0x1111U);
+          writel(tmp, S3C64XX_GPMCON);
+  
+     return 0;
+}
+  
+  
+static int s3c6410_led_close(struct inode *inode, struct file *file)
+{
+
+    return 0;
+}
+  
+  
+static int s3c6410_led_read(struct file *filp, char __user *buff, size_t count, loff_t *offp)
+{
+     printk("#########read######\n");
+     return count;
+}
+
+static int s3c6410_led_write (struct file *filp, const char __user *buf, size_t count,loff_t *f_pos)
+{
+     char wbuf[10];
+     unsigned tmp;
+
+     copy_from_user(wbuf,buf,count);
+  if(wbuf[0]==1)//1号灯亮
+     switch(wbuf[1])
+     {
+         case 0: //off
+             tmp = readl(S3C64XX_GPMDAT);
+                           tmp |= (0x1U);
+                           writel(tmp, S3C64XX_GPMDAT);
+             break;
+         case 1: //on
+             tmp = readl(S3C64XX_GPMDAT);
+                           tmp &= ~(0x1U);
+                           writel(tmp, S3C64XX_GPMDAT);
+             break;
+         default :
+             break;
+     }
+  
+  if(wbuf[0]==2)//2号灯亮
+     switch(wbuf[1])
+     {
+         case 0: //off
+             tmp = readl(S3C64XX_GPMDAT);
+                           tmp |= (0x2U);
+                           writel(tmp, S3C64XX_GPMDAT);
+             break;
+         case 1: //on
+             tmp = readl(S3C64XX_GPMDAT);
+                           tmp &= ~(0x2U);
+                           writel(tmp, S3C64XX_GPMDAT);
+             break;
+         default :
+             break;
+     }
+  
+  if(wbuf[0]==3)//3号灯亮
+     switch(wbuf[1])
+     {
+         case 0: //off
+             tmp = readl(S3C64XX_GPMDAT);
+                           tmp |= (0x4U);
+                           writel(tmp, S3C64XX_GPMDAT);
+             break;
+         case 1: //on
+             tmp = readl(S3C64XX_GPMDAT);
+                           tmp &= ~(0x4U);
+                           writel(tmp, S3C64XX_GPMDAT);
+             break;
+         default :
+             break;
+     }
+  
+  if(wbuf[0]==4)//4号灯亮
+     switch(wbuf[1])
+     {
+         case 0: //off
+             tmp = readl(S3C64XX_GPMDAT);
+                           tmp |= (0x8U);
+                           writel(tmp, S3C64XX_GPMDAT);
+             break;
+         case 1: //on
+             tmp = readl(S3C64XX_GPMDAT);
+                           tmp &= ~(0x8U);
+                           writel(tmp, S3C64XX_GPMDAT);
+             break;
+         default :
+             break;
+     }
+     return count;
+}
+  
+  
+static struct file_operations led_fops = {
+    .owner = THIS_MODULE,
+    .open = s3c6410_led_open,
+    .release = s3c6410_led_close,
+    .read = s3c6410_led_read,
+ .write = s3c6410_led_write,
+};
+  
+  
+static int my_plat_probe(struct platform_device *dev)
+{
+    int rc;
+ printk("Test platform_led dev\n");
+ //注册设备
+ rc = register_chrdev(LED_MAJOR,"platform_led",&led_fops);
+  if (rc <0)
+     {
+         printk ("register %s char dev error\n","led");
+         return -1;
+     }
+     printk ("ok!\n");
+     return 0;
+}
+  
+static int my_plat_remove(struct platform_device *dev)
+{
+    printk("my platfrom device has removed.\n");
+    return 0;
+}
+  
+struct platform_driver my_led_drv = {
+    .probe = my_plat_probe,
+    .remove = my_plat_remove,
+    .driver = {
+        .owner = THIS_MODULE,
+        .name = "platform_led",
+    },
+};
+  
+static int __init platform_drv_init(void)
+{
+    int ret;
+  
+    ret = platform_driver_register(&my_led_drv);
+      
+    return ret;
+}
+  
+static void __exit platform_drv_exit(void)
+{
+    platform_driver_unregister(&my_led_drv);
+}
+  
+module_init(platform_drv_init);
+module_exit(platform_drv_exit);
+  
+MODULE_LICENSE("GPL");
+
+

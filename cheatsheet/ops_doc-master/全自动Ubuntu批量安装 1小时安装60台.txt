@@ -1,0 +1,123 @@
+全自动Ubuntu批量安装 1小时安装60台
+
+
+公司每月新增几十台服务器，一台一台安装，实在是太累，通过以下方法，很容易在1小时内将60台系统安装好。
+
+环境：
+192.168.5.112        dhcp server,Ubuntu 10.04
+192.168.5.150-200    dhcp client,pxe boot
+
+所有配置在192.168.5.112上进行
+
+1.安装dnsmasq
+apt-get install dnsmasq
+
+2.配置dnsmasq
+vi /etc/dnsmasq.conf
+bogus-priv
+filterwin2k
+interface=eth0
+dhcp-range=192.168.5.150,192.168.5.250,12h
+dhcp-boot=pxelinux.0
+enable-tftp
+tftp-root=/var/ftpd
+dhcp-authoritative
+
+3.安装apache2并建立相关目录
+apt-get install apache2
+mkdir /var/www/ubuntu
+mount  -o loop ~/ubuntu10.04.iso /mnt
+cp /mnt/preseed/ubuntu-server.seed /var/www/ubuntu
+cp -a /mnt/* /var/www/ubuntu
+cp -r /mnt/install/netboot/* /var/ftpd/
+
+4.修改pxe配置
+vi /var/ftpd/pxelinux.cfg/default
+label linux
+    kernel ubuntu-installer/amd64/linux
+    append ks=http://192.168.5.112/ubuntu/ks.cfg preseed/url=http://192.168.5.112/ubuntu/ubuntu-server.seed vga=normal initrd=ubuntu-installer/amd64/initrd.gz –
+
+5.修改ks.cfg
+vi ks.cfg
+
+#System language
+lang en_US
+#Language modules to install
+langsupport en_US
+#System keyboard
+
+keyboard us
+#System mouse
+mouse
+#System timezone
+timezone Asia/Chongqing
+
+#Root password
+rootpw –disabled
+#Initial user gaojinbo/gaojinbo.com
+user gaojinbo –fullname "gaojinbo.com"  –iscrypted  –password $1$YKmaOIb5$/13bs7gCjaoH./ohFT0A7/
+#Reboot after installation
+reboot
+
+#Use text mode install
+text
+#Install OS instead of upgrade
+install
+#Use Web installation
+url –url http://192.168.5.112/ubuntu
+
+#System bootloader configuration
+bootloader –location=mbr
+#Clear the Master Boot Record
+zerombr yes
+#Partition clearing information
+clearpart –all –initlabel
+
+#Disk partitioning information
+part / –fstype ext4 –size 10000
+part swap –size 5000
+
+auth –useshadow –enablemd5
+#network –bootproto=dhcp –device=eth0
+network –bootproto=static –ip=192.168.5.168 –netmask=255.255.255.0 –gateway=192.168.5.112 –nameserver=221.5.88.88 –device=eth0
+
+firewall –disabled
+skipx
+%packages
+@openssh-server
+
+注：
+生成密码
+echo gaojinbo.com | openssl passwd -1 -stdin
+
+6.修改ubuntu-server.seed配置
+vi ubuntu-server.seed
+
+# Suggest LVM by default.
+d-i     partman-auto/init_automatically_partition       string some_device_lvm
+d-i     partman-auto/init_automatically_partition       seen false
+# Always install the server kernel.
+d-i     base-installer/kernel/override-image    string linux-server
+# Install the Ubuntu Server seed.
+tasksel tasksel/force-tasks     string server
+# Only install basic language packs. Let tasksel ask about tasks.
+d-i     pkgsel/language-pack-patterns   string
+# No language support packages.
+d-i     pkgsel/install-language-support boolean false
+# Only ask the UTC question if there are other operating systems installed.
+d-i clock-setup/utc boolean false
+d-i clock-setup/ntp boolean false
+d-i apt-setup/use_mirror boolean false
+d-i netcfg/get_ipaddress string 127.0.0.1
+d-i mirror/http://hostname string 127.0.0.1
+d-i apt-setup/restricted boolean false
+
+# No boot splash screen.
+d-i     debian-installer/splash boolean false
+# Install the debconf oem-config frontend (if in OEM mode).
+d-i     oem-config-udeb/frontend        string debconf
+# Add the network and tasks oem-config steps by default.
+oem-config      oem-config/steps        multiselect language, timezone, keyboard, user, network, tasks
+
+7.重启dnsmasq
+/etc/init.d/dnsmasq restart

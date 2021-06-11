@@ -1,0 +1,384 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>Tomcat Mysql datasource 数据源配置,Jsp技术文章,JSP系列教程,Jsp</title>
+<meta  name="keywords" content="Tomcat Mysql datasource 数据源配置,Jsp技术文章,JSP系列教程,Jsp,网站开发"/>
+<meta  name="description" content="Tomcat Mysql datasource 数据源配置好像Tomcat6的数据源配置比较简单一些，不过如果按照以前版本的方法设置的话，会出现很多问题如：Name jdbc is not bound in this Context或者 Cannot create JDBC driver of class '' for connect UR"/>
+<meta name="robots" content="index,follow"/>
+<meta name="GOOGLEBOT" content="INDEX,FOLLOW" />
+<link href="/css/2009/main.css" rel="stylesheet" />
+<link href="/css/2009/ad.css" rel="stylesheet" />
+<link href="/css/2009/SpageNew.css" rel="stylesheet" />
+<script src="/JS/jquery-1.2.6.min.js" type="text/javascript"></script>
+<script language="javascript" src="/js/2009/spage.js"></script>
+<script type="text/javascript" language="javascript" src="/js/2009/header1.js"></script>
+<script src="/JS/2009/ArticleHtml.js" type="text/javascript"></script>
+</head>
+<body>
+<!--header start-->
+<div class="top PageW">
+  <ul>
+            <li><a href="http://www.firnow.com/" target="_blank">网站首页</a></li>
+            <li><a href="http://bbs.firnow.com" target="_blank">社区首页</a></li>
+            <li><a href="http://news.firnow.com" target="_blank">新闻首页</a></li>
+            <li><a href="http://ebook.firnow.com/" target="_blank">书籍教程</a></li>
+            <li><a href="http://school.firnow.com/" target="_blank">视频教程</a></li>
+            <li><a href="http://www.diybl.com/java.shtml" target="_blank">JAVA技术</a></li>
+            <li><a href="http://www.diybl.com/donet.shtml" target="_blank">.NET开发</a></li>
+            <li><a href="http://www.diybl.com/c.shtml" target="_blank">C/C++</a></li>
+            <li><a href="http://www.diybl.com/list/107.shtml" target="_blank">数据库</a></li>
+            <li><a href="http://www.diybl.com/list/104.shtml" target="_blank">WEB开发</a></li>
+            <li><a href="http://www.diybl.com/linux.shtml" target="_blank">linux</a></li>
+            <li><a href="http://bbs.firnow.com/diybltd/2009c75.html" target="_blank">软件测试</a></li>
+            <li><a href="http://test.firnow.com/" target="_blank">在线试题</a></li>
+            <li><a href="http://blog.firnow.com/" target="_blank">博 客</a></li>
+            <li><a href="http://bbs.firnow.com/" target="_blank">进入论坛</a></li>
+            <br class="clear" />
+        </ul>
+</div>
+
+
+
+
+
+<!--------------------------------------------------修改区------------------------------------------>
+<div class="PageW">
+<div class="logo floatL">
+  <ul>
+   <li class="floatL"><a href="http://www.firnow.com/"><img src="/Topic/images/logo/logo_Doc.gif" border="0" style="margin-top:10px; margin-right:40px" /></a></li>
+    <li class="floatL"><script src="/js/2009/ad/ad_ftop.js"></script></li>
+    </ul>
+    <div class="menu">
+    <ul>
+                          <li><a href="/list/104.shtml" target="_blank"><span>网站开发</span></a></li>
+	                      <li><a href="/list/10402.shtml" target="_blank"><span>VBScript</span></a></li>
+	                      <li><a href="/list/10403.shtml" target="_blank"><span>ASP</span></a></li>
+	                      <li><a href="/list/10404.shtml" target="_blank"><span>Asp.net</span></a></li>
+	                      <li><a href="/list/10405.shtml" target="_blank"><span>Jsp</span></a></li>
+	                      <li><a href="/list/10406.shtml" target="_blank"><span>php</span></a></li>
+	                      <li><a href="/list/10407.shtml" target="_blank"><span>XML</span></a></li>
+	                      <li><a href="/list/10408.shtml" target="_blank"><span>CGI-Perl</span></a></li>
+	                      <li><a href="/list/10409.shtml" target="_blank"><span>搜索引擎</span></a></li>
+	                      <li><a href="/list/10410.shtml" target="_blank"><span>ajax</span></a></li>
+	     </ul>	 
+  </div>
+<div class="fc"></div>
+</div>
+
+<div class="login floatL border" id="divLoginHolder" > 
+	<form id="mylogin" action="http://user.firnow.com/webSiteLogin.ashx?action=login" method="post" style=" margin:0; padding:0;">用户名：
+        <input name="txtUserName" id="txtUserName" type="text" size="10"  class="input"/><br />
+        密&nbsp;&nbsp;码：
+        <input name="txtUserPwd" id="txtUserPwd" type="password" size="10" class="input" /> <br />验证码：
+        <input name="txtValNum" id="txtValNum" type="text" size="10" class="input" /><br />
+		 <input type="submit" id="btnChen" value="登录"    class="input ptop2" style="width:45px; height:20px; margin-top:3px; "/>&nbsp;
+		 <span id="displayArea"><img  style=" display:none; border:0px;top:0px; position:absolute;" id="valNumImg" onclick="this.src=this.src+'?'" />
+     <input type="button" name="Submit2" id="Submit2" value="注册" onclick="location.href='http://user.firnow.com/register.aspx'"   class="input ptop2" style="width:45px; height:20px;"/></span>
+     </form>
+  </div>
+  
+</div>
+<div class="fc"></div>
+<!--------------------------------------------------修改区------------------------------------------>
+<DIV class="tab1" id="header_b">
+  <div class="header_b mtop3">
+            <a href="http://www.diybl.com/java.shtml" target="_blank"><span id="menu_a">JAVA</span></a>
+            <a href="http://bbs.firnow.com/diybltd/2009c54.html" target="_blank">J2EE</a> <a href="http://bbs.firnow.com/diybltd/2009c11.html"
+                target="_blank">J2ME</a> <a href="http://bbs.firnow.com/diybltd/2009c12.html" target="_blank">
+                    J2SE</a> <a href="http://www.diybl.com/list/10405.shtml" target="_blank">JSP</a>
+            <a href="http://www.diybl.com/c.shtml" target="_blank"><span id="menu_a">C/C++</span></a>
+            <a href="http://www.diybl.com/list/10301.shtml" target="_blank">C语言</a> <a href="http://www.diybl.com/list/10302.shtml"
+                target="_blank">C++</a> <a href="http://www.diybl.com/list/10312.shtml" target="_blank">
+                    VC</a> <a href="http://bbs.firnow.com/diybltd/2009c70.html" target="_blank">MFC</a>
+            <a href="http://www.diybl.com/list/101.shtml" target="_blank"><span id="menu_a">Web前台</span></a>
+            <a href="http://www.diybl.com/list/10104.shtml" target="_blank">Html</a> <a href="http://www.diybl.com/list/10105.shtml"
+                target="_blank">css</a> <a href="http://www.diybl.com/list/10108.shtml" target="_blank">
+                    JavaScript</a> <a href="http://bbs.firnow.com/diybltd/2009c75.html" target="_blank"><span
+                        id="menu_a">软件测试</span></a> <a href="http://bbs.firnow.com/diybltd/2009c76.html" target="_blank">
+                            软件测试入门</a> <a href="http://bbs.firnow.com/diybltd/2009c80.html" target="_blank">LoadRunner</a>
+            <a href="http://bbs.firnow.com/diybltd/2009c7.html" target="_blank"><span id="menu_a">Windows</span></a>
+            <a href="http://www.diybl.com/list/10612.shtml" target="_blank">Win2008</a> <a href="http://www.diybl.com/list/10603.shtml"
+                target="_blank">Win2003</a> <a href="http://www.diybl.com/list/10602.shtml" target="_blank">
+                    WinXP</a>
+        </div>
+        <div class="header_b mbom3">
+            <a href="http://www.diybl.com/donet.shtml" target="_blank"><span id="menu_a">.NET</span></a>
+            <a href="http://www.diybl.com/list/10404.shtml" target="_blank">ASP.NET</a> <a href="http://bbs.firnow.com/diybltd/2009c17.html"
+                target="_blank">VB.NET</a> <a href="http://bbs.firnow.com/diybltd/2009c61.html" target="_blank">
+                    MVC</a> <a href="http://www.diybl.com/linux.shtml" target="_blank"><span id="menu_a">
+                        Linux/Unix</span></a> <a href="http://www.diybl.com/list/10601.shtml" target="_blank">
+                            Linux</a> <a href="http://www.diybl.com/list/10610.shtml" target="_blank">Unix</a>
+            <a href="http://www.diybl.com/list/10313.shtml" target="_blank">Shell</a> <a href="http://www.diybl.com/list/104.shtml"
+                target="_blank"><span id="menu_a">Web开发</span></a> <a href="http://www.diybl.com/php.shtml"
+                    target="_blank">PHP</a> <a href="http://www.diybl.com/list/10403.shtml" target="_blank">
+                        ASP</a> <a href="http://bbs.firnow.com/diybltd/2009c24.html" target="_blank">Ajax</a>
+            <a href="http://bbs.firnow.com/diybltd/2009c26.html" target="_blank">IIS</a> <a href="http://bbs.firnow.com/diybltd/2009c63.html"
+                target="_blank">Apache</a> <a href="http://bbs.firnow.com/diybltd/2009c6.html" target="_blank">
+                    <span id="menu_a">编程语言</span></a> <a href="http://www.diybl.com/c.shtml" target="_blank">
+                        C</a> <a href="http://www.diybl.com/list/10304.shtml" target="_blank">VB</a>
+            <a href="http://www.diybl.com/list/10305.shtml" target="_blank">Delphi</a> <a href="http://www.diybl.com/list/10307.shtml"
+                target="_blank">汇编</a> <a href="http://www.diybl.com/list/107.shtml" target="_blank">
+                    <span id="menu_a">数据库</span></a> <a href="http://www.diybl.com/list/10703.shtml"
+                        target="_blank">MSSQL</a> <a href="http://www.diybl.com/list/10702.shtml" target="_blank">
+                            Mysql</a> <a href="http://www.diybl.com/list/10704.shtml" target="_blank">Oracle</a></div>
+</DIV>
+<div id="ad_ftop" class="ad_ftop PageW"><script src="/js/2009/ad/ad_ftopa.js"></script></div>
+<div class="banner border ad_ftop2"id="ad_ftop2"><script src="/js/2009/ad/ad_ftopb.js"></script></div>
+<div class="fc"></div>
+<!--header end-->
+   <div class="PageW">
+  <div class="subNav">
+    <div class="floatR">
+   <iframe id="Iframe1" marginwidth="0" marginheight="0" scrolling="no"
+  framespacing="0" vspace="0" hspace="0" frameborder="0" width="280" height="21" 
+  src="http://unstat.baidu.com/bdun.bsc?tn=diybl_pg&cv=0&cid=1061623&csid=541&bgcr=ffffff&urlcr=0000ff&tbsz=180&sropls=2,99&insiteurl=firnow.com&defid=99&kwgp=0&ch=1">
+</iframe>
+    </DIV>
+    <span> <a href="http://www.firnow.com/" target="_blank">飞诺网</a>
+                >>&nbsp <a href="/list/104.shtml" target="_blank">网站开发</a>
+            >>&nbsp <a href="/list/10405.shtml" target="_blank">Jsp</a>
+                >>&nbsp<a href="/list/1040503.shtml" target="_blank">Jsp技术文章</a>
+      >>&nbsp 正文</span> </div>
+</div>
+
+<div class="fc"></div>
+<div class="PageW">
+  <div class="left-width1 floatL">
+  <!--content area start!-->
+    <div class="left floatL qlan">
+      <h3 class="text-center">Tomcat Mysql datasource 数据源配置</h3>
+	  <div class="from_info"> www.firnow.com　时间：2009-03-04　作者:匿名 编辑:sky
+               点击：　<span id="articleTimes"></span>
+               <a href="#comment">[评论]</a></div>
+      <div class="left-width hui b14"><div id="ad_f2" class="ad_f2"><script src="/js/2009/ad/ad_f2.js"/></script></div><div id="ad_f3" class="ad_f3"><script src="/js/2009/ad/ad_f3.js"/></script></div><div id="ad_f7" class="ad_f7"><script src="/js/2009/ad/ad_f7.js"/></script></div>
+        好像Tomcat6的数据源配置比较简单一些，不过如果按照以前版本的方法设置的话，会出现很多问题如：<br>Name jdbc is not bound in this Context<br>或者 Cannot create JDBC driver of class '' for connect URL 'null'等等<br>我把我用Tomcat6和Mysql5.17配置数据源的步骤写出来，大家可以参考一下<br>1. 下载mysql-connector-java-5.1.7-bin.jar，放到Tomcat安装目录下的lib文件夹下；<br>2. 在你的项目下的META-INF文件夹下(如果没有就创建一个，跟WEB-INF文件夹同级)创建一个context.xml文件；<br>&nbsp; &nbsp; 内容如下<br><BR><ol class="highlighter-xml" start="1"><li><span class="tag">&lt;?</span><span class="tag-name">xml</span><span>&nbsp;</span><span class="attribute">version</span><span>=</span><span class="attribute-value">"1.0"</span><span>&nbsp;</span><span class="attribute">encoding</span><span>=</span><span class="attribute-value">"UTF-8"</span><span class="tag">?&gt;</span><span></span></li><li class="alt"><span></span><span class="tag">&lt;</span><span class="tag-name">Context</span><span class="tag">&gt;</span><span></span></li><li><span>&nbsp;&nbsp;</span><span class="tag">&lt;</span><span class="tag-name">Resource</span><span>&nbsp;</span><span class="attribute">name</span><span>=</span><span class="attribute-value">"jdbc/datasource_name"</span><span>&nbsp;</span><span class="attribute">auth</span><span>=</span><span class="attribute-value">"Container"</span><span></span></li><li class="alt"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="attribute">type</span><span>=</span><span class="attribute-value">"javax.sql.DataSource"</span><span>&nbsp;</span><span class="attribute">username</span><span>=</span><span class="attribute-value">"root"</span><span>&nbsp;</span><span class="attribute">password</span><span>=</span><span class="attribute-value">"xxxxxxx"</span><span></span></li><li><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="attribute">driverClassName</span><span>=</span><span class="attribute-value">"com.mysql.jdbc.Driver"</span><span>&nbsp;</span><span class="attribute">url</span><span>=</span><span class="attribute-value">"jdbc:mysql://localhost/database_name"</span><span></span></li><li class="alt"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="attribute">maxActive</span><span>=</span><span class="attribute-value">"8"</span><span>&nbsp;</span><span class="attribute">maxIdle</span><span>=</span><span class="attribute-value">"4"</span><span></span></li><li><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="attribute">testOnBorrow</span><span>=</span><span class="attribute-value">"true"</span><span></span></li><li class="alt"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="attribute">validationQuery</span><span>=</span><span class="attribute-value">"select&nbsp;1"</span><span></span></li><li><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="attribute">timeBetweenEvictionRunsMillis</span><span>=</span><span class="attribute-value">"30000"</span><span></span></li><li class="alt"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="tag">/&gt;</span><span></span></li><li><span></span><span class="tag">&lt;/</span><span class="tag-name">Context</span><span class="tag">&gt;</span></li></ol>3.&nbsp; 替换以上的datasource_name为你的数据源名字, database_name为你的数据库名字, password也改成你的<br>4.&nbsp; 在你的Java代码里验证是否成功<br>&nbsp; &nbsp; &nbsp;<BR><ol class="highlighter-j" start="1"><li><span>InitialContext&nbsp;initContext&nbsp;=&nbsp;</span><span class="keyword">new</span><span>&nbsp;InitialContext();</span></li><li class="alt"><span>DataSource&nbsp;ds&nbsp;=&nbsp;(DataSource)initContext.lookup(</span><span class="string">"java:comp/env/jdbc/datasource_name"</span><span>);&nbsp;</span></li><li><span></span></li><li class="alt"><span>Connection&nbsp;conn&nbsp;=&nbsp;ds.getConnection();</span></li><li><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></li><li class="alt"><span>Statement&nbsp;ps&nbsp;=&nbsp;conn.createStatement();</span></li><li><span>ResultSet&nbsp;rs&nbsp;=&nbsp;ps.executeQuery(</span><span class="string">"select&nbsp;*&nbsp;from table_name"</span><span>);</span></li><li class="alt"><span></span><span class="keyword">while</span><span>(rs.next())</span></li><li><span>{</span></li><li class="alt"><span>&nbsp;&nbsp;&nbsp;&nbsp;System.out.println(rs.getString(</span><span class="number">2</span><span>));</span></li><li><span>}&nbsp;&nbsp;</span></li></ol> 5.应该可以看到输出的信息了<br>
+        <p> <!--<A href="#">http://msnpiki.msnfanatic.com/index.php/Main_Page</A>--></p>
+		<div id="ad_f4" class="ad_f4"><script src="/js/2009/ad/ad_f4.js"></script></div>
+      <div id="ad_f10" class="ad_f10"><script src="/js/2009/ad/ad_f10.js"></script></div><div id="ad_f11" class="ad_f11"><script src="/js/2009/ad_f11.js"></script></div>
+	  </div>
+      <div align="center" class="pager w635px"></div>
+      <div class="fh b14 w635px"> 如果图片或页面不能正常显示请<a onClick="#" onMouseOver="this.style.cursor='hand';" class= "redlink"><font color="#990000"><strong>点击这里</strong></font></a>　站内搜索：
+     <iframe id="baiduframe" marginwidth="0" marginheight="0" scrolling="no"
+  framespacing="0" vspace="0" hspace="0" frameborder="0" width="280" height="21" 
+  src="http://unstat.baidu.com/bdun.bsc?tn=diybl_pg&cv=0&cid=1061623&csid=541&bgcr=ffffff&urlcr=0000ff&tbsz=180&sropls=2,99&insiteurl=firnow.com&defid=99&kwgp=0&ch=1">
+</iframe>
+      </div>
+      <div class="toollinks hui"> 【<A href="javascript:window.external.addFavorite(self.location,document.title);">收藏此页</a>】【<A 
+      href="http://bbs.firnow.com/" target="_blank">飞诺社区</A>】【<A href="#comment">发表评论</A>】【<a href="#">返回顶部</a>】【<A 
+      href="javascript:window.close()">关闭</A>】 </div>
+      <div class="p_bottom">
+                  
+                     <a href="/course/4_webprogram/jsp/jsp_js/20090304/157727.html">上一篇文章:syuebook简易留言本系统</a>
+                                      <br>
+                                        <a href="/course/4_webprogram/jsp/jsp_js/20090304/157729.html">下一篇文章:多线程同步</a>
+                         </div>
+    </div>
+    <!--content area end!-->
+    <div class="fc"></div>
+    <div class="left-contect mtop blue border">
+      <div class="b14 bold fh left-width">推荐文章</div>
+    </div>
+    <div class="left-contect white border recommend">
+      <div class="tj_l fh20 white"> 
+       <UL>
+            
+                                              <LI>  <a href="/course/4_webprogram/jsp/jsp_js/20090304/157762.html" target="_blank">使用Apache CXF创建Web Se..</a></LI>
+                              <LI>  <a href="/course/4_webprogram/jsp/jsp_js/200838/103462.html" target="_blank">JSP使用POI读写Excel文件</a></LI>
+                              <LI>  <a href="/course/4_webprogram/jsp/jsp_js/2008515/115932.html" target="_blank">解决tomcat及其插件问题</a></LI>
+                              <LI>  <a href="/course/4_webprogram/jsp/jsp_js/2008428/111711.html" target="_blank">DOM4J学习笔记</a></LI>
+                              <LI>  <a href="/course/4_webprogram/jsp/jsp_js/20090304/157739.html" target="_blank">WebService&OpenLdap</a></LI>
+                              <LI>  <a href="/course/4_webprogram/jsp/jsp_js/20090304/157649.html" target="_blank">save the transient insta..</a></LI>
+                              <LI>  <a href="/course/4_webprogram/jsp/jsp_js/2008224/100809.html" target="_blank">Tomcat6源代码学习--容器..</a></LI>
+                              <LI>  <a href="/course/4_webprogram/jsp/jsp_js/2008121/96810.html" target="_blank">jsp基本语法结构1之jsp命..</a></LI>
+                 </UL></div>
+      <div class="tj_r fh20 white"> 
+      <ul>
+                                               <li><a href="/course/4_webprogram/jsp/jsp_js/2008313/104404.html" target="_blank">使用Eclipse远程调试发布..</a></li>
+                                <li><a href="/course/4_webprogram/jsp/jsp_js/20071126/87637.html" target="_blank">JSP入门教程（3）</a></li>
+                                <li><a href="/course/4_webprogram/jsp/jsp_js/200824/98928.html" target="_blank">jsp 中 js变量引用java变..</a></li>
+                                <li><a href="/course/4_webprogram/jsp/jsp_js/20090304/157745.html" target="_blank">邮件发送程序（可以同时发..</a></li>
+                                <li><a href="/course/4_webprogram/jsp/jsp_js/20090218/155923.html" target="_blank">FCKeditor2.4.1 for java..</a></li>
+                                <li><a href="/course/4_webprogram/jsp/jsp_js/20090219/155961.html" target="_blank">JAVA面试试题(2)--Hiberna..</a></li>
+                                <li><a href="/course/4_webprogram/jsp/jsp_js/2008525/117733.html" target="_blank">Myeclise6.0版中配置运行J..</a></li>
+                                <li><a href="/course/4_webprogram/jsp/jsp_js/2008515/115925.html" target="_blank">JSP中脚本、声明和表达式..</a></li>
+                        </ul> 
+      </div>
+    </div>
+    <div class="fc"></div>
+    <div class="left-contect mtop gray border-hui">
+      <div class="b14 bold fh left-width"><a name="comment"></a>文章评论</div>
+    </div>
+    <div class="left-contect border-hui">
+	  <div id="divComment" class="left-width fh"></div>
+    </div>
+    <div class="fc"></div>
+    <div class="comment_1 mtop border w_l">
+      <div class="blue fh b14 bold pleft">请您留言</div>
+      <div class="cleanblock fh22">
+        昵称：
+        &nbsp;<input name="tbName" id="tbName" class="input input_comment" type="text" size="15" value="" onclick="this.focus();this.select()"maxlength="20"/>        
+        <br />
+		<span style="float:left;">验证码：<input name="tbCode" id="tbCode" class="input input_comment" type="text" size="6"  /></span><span id="spanCode" style=" float:left; clear:right; "><img  id="Img2" onclick="this.src=this.src"  style="display:none;"/></span>
+        <a href="http://user.firnow.com/register.aspx" target="_blank"><font color=red><br />
+        注册会员</font></a> <a href="http://user.firnow.com/login.aspx" target="_blank">会员登陆</a> <br />
+        <textarea name="tbContent" id="tbContent" rows="6" class=" input" style="VERTICAL-ALIGN: text-top; WIDTH:290px; HEIGHT: 7em"></textarea>
+        
+        <input type="button" value="发表评论 " id="btnCommit" name="btnCommit"    class="ptop2 input" style="width:70px; height:22px; margin-top:3px;" />
+      </div>
+    </div>
+    <div class="comment_1 mtop border w_r">
+      <div class="blue fh b14 bold pleft">BBS问题帖</div>
+      <div class="cleanblock">
+        <TABLE cellSpacing=0 cellPadding=0 width="100%" class="fh20">
+          <TBODY>
+            <TR>
+              <TD style="PADDING-RIGHT: 15px" ><div class="content right-contact mbom"><UL>
+                               <li><a href="http://bbs.firnow.com/dview23t47583.html" target="_blank"> 请问index.php是什么语言.. <font color="red">[20分] </font></a></li>
+                
+                          <li><a href="http://bbs.firnow.com/dview67t7037.html" target="_blank"> 请大家看看这个声明是什.. <font color="red">[10分] </font></a></li>
+                
+                          <li><a href="http://bbs.firnow.com/dview16t15002.html" target="_blank"> DropDownList内容改变后，T.. <font color="red">[50分] </font></a></li>
+                
+                          <li><a href="http://bbs.firnow.com/dview10t34832.html" target="_blank"> jtabel 显示问题 <font color="red">[20分] </font></a></li>
+                
+                          <li><a href="http://bbs.firnow.com/dview10t34005.html" target="_blank"> hibernate 为什么会出现in.. <font color="red">[20分] </font></a></li>
+                
+                          <li><a href="http://bbs.firnow.com/dview42t23995.html" target="_blank"> [pascal 错误] logonunit... <font color="red">[30分] </font></a></li>
+                
+                          <li><a href="http://bbs.firnow.com/dview59t41916.html" target="_blank"> 急啊！跪求JSP高手进来。js.. <font color="red">[20分] </font></a></li>
+                
+                            
+                </UL></div></TD>
+            </TR>
+          </TBODY>
+        </TABLE>
+      </div>
+      <div class="fc"></div>
+    </div>
+  </div>
+  <div class="right floatL">
+    <div class="right mbom"><div id="ad_f6" class="ad_f6"><script src="/js/2009/ad/ad_f6.js"></script></div></div>
+    <div class="right">
+      <DIV class="border-hui">
+        <div class="right-contact gray fh b14 bold pleft"> BBS社区热帖 </div>        
+        <DIV class="content right-contact mbom">
+          <UL>
+                            <li><a href="http://bbs.firnow.com/dview54t13757.html" target="_blank">tomcat使用两年遇见的罕..<font color="red">[20分] </font></a></li>
+                
+                            <li><a href="http://bbs.firnow.com/dview15t24877.html" target="_blank">怎样自定义工具栏<font color="red">[20分] </font></a></li>
+                
+                            <li><a href="http://bbs.firnow.com/dview61t9681.html" target="_blank">请推荐下 2005 以及后面20..<font color="red">[20分] </font></a></li>
+                
+                            <li><a href="http://bbs.firnow.com/dview54t31887.html" target="_blank">一个很很急又简单的问题<font color="red">[10分] </font></a></li>
+                
+                            <li><a href="http://bbs.firnow.com/dview23t37159.html" target="_blank">朋友介绍杭州需求php程序..<font color="red">[0分] </font></a></li>
+                
+                            <li><a href="http://bbs.firnow.com/dview23t49206.html" target="_blank">寻找兼职PHP程序员共通创..<font color="red">[20分] </font></a></li>
+                
+                            <li><a href="http://bbs.firnow.com/dview37t10971.html" target="_blank">如何为接口程序增加异常..<font color="red">[20分] </font></a></li>
+                
+                            <li><a href="http://bbs.firnow.com/dview16t46764.html" target="_blank">绑定 gridview 问题<font color="red">[40分] </font></a></li>
+                
+                            <li><a href="http://bbs.firnow.com/dview59t46193.html" target="_blank">wget下载中文会出现乱码..<font color="red">[20分] </font></a></li>
+                
+                            <li><a href="http://bbs.firnow.com/dview30t25676.html" target="_blank">求助关于某些帐号不能远..<font color="red">[20分] </font></a></li>
+                
+                      </UL>
+        </DIV>
+      </DIV>
+    </div>
+<div class="fc"></div>
+    <div class="right">
+      <DIV class="border">
+        <div class="right-contact blue fh  b14 bold pleft "> 相关教程文章 </div>
+        <DIV class="content right-contact mbom lan">
+        <ul>
+                                                   <li><a href="/course/4_webprogram/jsp/jsp_js/2007104/76420.html" target="_blank">JSP连接各类数据库大全</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/2007104/76456.html" target="_blank">div vs span</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/2007104/76409.html" target="_blank">如何成为一个成功的Jsp程序员</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/2007917/71552.html" target="_blank">JSP总结二：Servlet</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/2007918/71764.html" target="_blank">jsp面试题</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/2007104/76417.html" target="_blank">JSP培训（13）——异常处理</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20071018/77720.html" target="_blank">对于JSP中表单数据存储的一种通..</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/2007104/76415.html" target="_blank">JSP培训（15）——购物车实例（下）及..</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20071018/77718.html" target="_blank">在Websphere中修改JSP页面后刷新..</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20071018/77723.html" target="_blank">JSP通用分页程序（测试版）</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20090304/157767.html" target="_blank">JAVA四种基本排序</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20090304/157758.html" target="_blank">java编译原理</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20090304/157776.html" target="_blank">hibernate映射关联简单示例（many-..</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20090304/157762.html" target="_blank">使用Apache CXF创建Web Service</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20090304/157771.html" target="_blank">Seam入门问题</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20090304/157775.html" target="_blank">简单SQL存储过程</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20090304/157730.html" target="_blank">解决struts开发中文乱码</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20090304/157765.html" target="_blank">AWT,SWING VS SWT(总结于一篇IBM..</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20090304/157745.html" target="_blank">邮件发送程序（可以同时发给多个..</a></li> 
+                                        <li><a href="/course/4_webprogram/jsp/jsp_js/20090304/157741.html" target="_blank">dbcp配置--官方文档中文版本</a></li> 
+                             </ul>
+        </DIV>
+      </DIV>
+    </div>
+<div class="fc"></div>
+    <div class="right">
+      <DIV class="border">
+        <div class="right-contact blue fh  b14 bold pleft"> 本栏目热门教程 </div>
+        <DIV class="content fh20 right-contact">
+        <ul>
+                                                 <li><a href="/course/4_webprogram/jsp/jsp_js/2008911/141854.html" target="_blank">Windows下JDK1.6.0+Tomcat6.0的..</a></li>   
+                             <li><a href="/course/4_webprogram/jsp/jsp_js/2008624/127856.html" target="_blank">IIS下面支持jsp，整合tomcat6.0，..</a></li>   
+                             <li><a href="/course/4_webprogram/jsp/jsp_js/2007104/76413.html" target="_blank">JSP页面查询显示常用模式</a></li>   
+                             <li><a href="/course/4_webprogram/jsp/jsp_js/2008911/141855.html" target="_blank">        配置tomcat6.0环境变量</a></li>   
+                             <li><a href="/course/4_webprogram/jsp/jsp_js/2008428/111713.html" target="_blank">Servlet action is not available </a></li>   
+                             <li><a href="/course/4_webprogram/jsp/jsp_js/20071031/80973.html" target="_blank">JSP实现投票系统源码！</a></li>   
+                             <li><a href="/course/4_webprogram/jsp/jsp_js/200869/123916.html" target="_blank">tomcat的Context配置今天终于搞定..</a></li>   
+                             <li><a href="/course/4_webprogram/jsp/jsp_js/20071031/80971.html" target="_blank">JSP页面跳转的方法总结</a></li>   
+                             <li><a href="/course/4_webprogram/jsp/jsp_js/200827/99652.html" target="_blank">JSP后台文件管理源代码</a></li>   
+                             <li><a href="/course/4_webprogram/jsp/jsp_js/2008624/127871.html" target="_blank">Apache 2.2.8 + Tomcat 6.0.16 X ..</a></li>   
+                  </ul>
+        </DIV>
+      </DIV>
+    </div>
+    <div class="fc"></div>
+    <div class="right">
+      <DIV class="border">
+        <div class="right-contact blue fh  b14 bold pleft"> 频道地图 </div>
+        <div class="content fh20 right-contact">
+                <ul><li>　<a href="/list/10405.shtml" target="_blank">Jsp</a></li>
+                <ul><li>
+                                   <li>　&nbsp;&nbsp;&nbsp;<a href="/list/1040501.shtml" target="_blank">JSP系列教程</a></li>
+                                  <li>　&nbsp;&nbsp;&nbsp;<a href="/list/1040502.shtml" target="_blank">JSP实例教程</a></li>
+                                  <li>　&nbsp;&nbsp;&nbsp;<a href="/list/1040503.shtml" target="_blank">Jsp技术文章</a></li>
+                                </li></ul>
+                <li><ul>
+                                  <li>　<a href="/list/10402.shtml" target="_blank">VBScript</a></li>
+                                  <li>　<a href="/list/10403.shtml" target="_blank">ASP</a></li>
+                                  <li>　<a href="/list/10404.shtml" target="_blank">Asp.net</a></li>
+                                  <li>　<a href="/list/10405.shtml" target="_blank">Jsp</a></li>
+                                  <li>　<a href="/list/10406.shtml" target="_blank">php</a></li>
+                                  <li>　<a href="/list/10407.shtml" target="_blank">XML</a></li>
+                                  <li>　<a href="/list/10408.shtml" target="_blank">CGI-Perl</a></li>
+                                  <li>　<a href="/list/10409.shtml" target="_blank">搜索引擎</a></li>
+                                  <li>　<a href="/list/10410.shtml" target="_blank">ajax</a></li>
+                </ul></li></ul>
+                </div>
+      </DIV>
+    </div>
+  </div>
+  <br class="clear" />
+</div>
+
+   <DIV class=footer align=center>
+        <a target=_blank href="http://en.firnow.com/">English</a> | <a rel="nofollow" target=_blank href="http://corp.firnow.com/about.htm">关于我们</a> | <a rel="nofollow" target=_blank href="http://corp.firnow.com/jrfn.htm">诚聘英才</a> | <a rel="nofollow" target=_blank href="http://corp.firnow.com/contact.htm">联系我们</a> | <a rel="nofollow" target=_blank href="http://corp.firnow.com/fnls.htm">网站大事</a> | <a rel="nofollow" target=_blank href="http://corp.firnow.com/link.htm">友情链接</a> | <a rel="nofollow" target=_blank href="http://corp.firnow.com/ggfw.htm">广告服务</a> | <a target=_blank  href="http://corp.firnow.com/map.htm">网站地图</a><br>
+  <BR>
+  <SCRIPT src="/js/2009/art_bot.js"></SCRIPT>
+  <BR>
+  <BR>
+  Copyright @ 2006-2010 陕ICP备06011157号
+  <div id="ad_f9" class="ad_f9">
+    <SCRIPT src="/ad/2009/ad_f9.js"></SCRIPT><SCRIPT src="/js/2009/spage_bot.js"></SCRIPT>
+  </div>
+</DIV>
+<input id="ajaxUrl" type="hidden"  value="/Ajax/Comment.ashx"/>
+<input id="articleID" type="hidden"  value="157728"/>
+</body>
+</html>

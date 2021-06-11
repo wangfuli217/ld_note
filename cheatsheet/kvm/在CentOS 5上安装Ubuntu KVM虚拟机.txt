@@ -1,0 +1,111 @@
+Linux下免费的虚拟化技术主要有KVM和XEN两种。KVM已经合入了Linux标准内核，也获得了诸如RedHat RHEL、Ubuntu这样的Linux发行版的支持，可以预见在未来KVM应该会成为Linux虚拟化技术的主流。只是KVM需要硬件虚拟化技术的支持，如果你的CPU不支持硬件虚拟化技术，那么只能使用XEN。
+
+本文记录了Easwy在CentOS 5.7上安装Ubuntu KVM虚拟机的过程。
+
+    环境检查
+
+    首先需要检查一下你的CPU是否支持硬件虚拟化技术(Hardware Vitualization)：
+
+    egrep '(vmx|svm)' --color=always /proc/cpuinfo 
+
+    如果在你的计算机上没有任何输出，那么说明你的CPU不支持硬件虚拟化技术，也就无法使用KVM。
+
+    另外需要注意的是，在CentOS 5.4版本以后，只有64位的CentOS才支持KVM，具体原因不清楚，所以如果你是32位的CentOS，暂时也无法使用KVM。
+    安装KVM
+
+    检查完环境后，我们开始安装并激活KVM。
+
+    首先，将SELinux的配置更改为Permissive，因为virt-install不支持SELinux为disable：
+
+    [root@srv-easwy ~]# system-config-securitylevel 
+
+    然后安装kvm及其它虚拟化相关的软件：
+
+    [root@srv-easwy ~]# yum install kvm kmod-kvm libvirt python-virtinst virt-manager
+
+    接下来需要重启系统，在启动完成后，你应该可以看到KVM内核模块已经被加载了：
+
+    [root@srv-easwy ~]# lsmod |grep kvm
+    kvm_intel              85256  1
+    kvm                   224800  2 ksm,kvm_intel 
+
+    可以通过下面的命令看看KVM是不是真正运行了：
+
+    [root@srv-easwy ~]# virsh -c qemu:///system list
+    Id Name                 State
+    ----------------------------------
+
+    [root@srv-easwy ~]# 
+
+    配置网络
+
+    现在配置一个网桥，以便虚拟机可以访问网络。首先安装所需的工具：
+
+    [root@srv-easwy ~]# yum install bridge-utils 
+
+    新创建一个文件/etc/sysconfig/network-scripts/ifcfg-br0，其内容为：
+
+    DEVICE=br0
+    TYPE=Bridge
+    BOOTPROTO=dhcp
+    ONBOOT=yes 
+
+    上面的文件配置此网桥以DHCP方式获取IP地址。接下来修改原来的网卡配置/etc/sysconfig/network-scripts/ifcfg-eth0，修改为：
+
+    DEVICE=eth0
+    HWADDR=B8:AC:6F:89:10:76
+    ONBOOT=yes
+    BRIDGE=br0 
+
+    然后重启网络配置，查看一下：
+
+    [root@srv-easwy ~]# /etc/init.d/network restart
+    [root@srv-easwy ~]# ifconfig
+    br0       Link encap:Ethernet  HWaddr B8:AC:6F:89:10:76
+              inet addr:172.23.5.50  Bcast:172.23.5.255  Mask:255.255.255.0
+              UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+              RX packets:3242738 errors:0 dropped:0 overruns:0 frame:0
+              TX packets:702638 errors:0 dropped:0 overruns:0 carrier:0
+              collisions:0 txqueuelen:0
+              RX bytes:1057883287 (1008.8 MiB)  TX bytes:448735998 (427.9 MiB)
+
+    eth0      Link encap:Ethernet  HWaddr B8:AC:6F:89:10:76
+              UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+              RX packets:3445641 errors:0 dropped:0 overruns:0 frame:93
+              TX packets:670754 errors:0 dropped:0 overruns:0 carrier:0
+              collisions:0 txqueuelen:1000
+              RX bytes:1201230368 (1.1 GiB)  TX bytes:239453000 (228.3 MiB)
+              Interrupt:177 Memory:f3de0000-f3df0000
+
+    lo        Link encap:Local Loopback
+              inet addr:127.0.0.1  Mask:255.0.0.0
+              UP LOOPBACK RUNNING  MTU:16436  Metric:1
+              RX packets:63582 errors:0 dropped:0 overruns:0 frame:0
+              TX packets:63582 errors:0 dropped:0 overruns:0 carrier:0
+              collisions:0 txqueuelen:0
+              RX bytes:154537675 (147.3 MiB)  TX bytes:154537675 (147.3 MiB)
+
+    virbr0    Link encap:Ethernet  HWaddr 00:00:00:00:00:00
+              inet addr:192.168.122.1  Bcast:192.168.122.255  Mask:255.255.255.0
+              UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+              RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+              TX packets:1797 errors:0 dropped:0 overruns:0 carrier:0
+              collisions:0 txqueuelen:0
+              RX bytes:0 (0.0 b)  TX bytes:470443 (459.4 KiB)
+          
+
+    安装虚拟机
+
+    基于磁盘逻辑卷管理(LVM)的虚拟机会拥有较好的磁盘I/O性能，所以在此处Easwy安装了基于LVM的虚拟机。如果你对LVM并不熟悉，可以参考我的Linux逻辑卷管理器(LVM)学习笔记。
+
+    Easwy在安装时已经在逻辑卷组中预留了部分未用空间，所以此处直接在卷组vg0中创建一个逻辑卷ubuntu，并分配了332G的空间：
+
+    [root@srv-easwy ~]# lvcreate -L32G -n ubuntu vg0 
+
+    接下来使用virt-install安装Ubuntu虚拟机，在此处直接使用Ubuntu的ISO文件做为源，将其安装到新创建的逻辑卷/dev/vg0/ubuntu中：
+
+    [root@srv-easwy ~]# virt-install --connect qemu:///system -n ubuntu -r 1024 --vcpus=2 -f /dev/vg0/ubuntu -c ~/Download/ubuntu/ubuntu-10.04.3-desktop-amd64.iso --vnc --os-type linux --os-variant generic26 --accelerate --network=bridge:br0 --hvm --noautoconsole
+
+    执行完此命令后，KVM虚拟机会使用Ubuntu的ISO文件启动，我们需要启动virt-manager，连接到此虚拟机，继续完成安装过程。这和安装真正的Linux操作系统完全一样，不再赘述。
+
+现在，基本KVM的Ubuntu虚拟机就完全运行起来了。如果你对此还有疑问，欢迎留言。另外，参考文档中的链接也许对你也很有帮助。

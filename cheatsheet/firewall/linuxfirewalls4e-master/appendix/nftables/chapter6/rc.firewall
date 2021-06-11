@@ -1,0 +1,65 @@
+#!/bin/sh
+
+NFT="/usr/local/sbin/nft"            # Location of nft on your system
+
+# Enable broadcast echo Protection
+echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+# Disable Source Routed Packets
+for f in /proc/sys/net/ipv4/conf/*/accept_source_route; do
+    echo 0 > $f
+done
+# Enable TCP SYN Cookie Protection
+echo 1 > /proc/sys/net/ipv4/tcp_syncookies
+# Disable ICMP Redirect Acceptance
+for f in /proc/sys/net/ipv4/conf/*/accept_redirects; do
+    echo 0 > $f
+done
+
+# Don’t send Redirect Messages
+for f in /proc/sys/net/ipv4/conf/*/send_redirects; do
+    echo 0 > $f
+done
+# Drop Spoofed Packets coming in on an interface, which, if replied to,
+# would result in the reply going out a different interface.
+for f in /proc/sys/net/ipv4/conf/*/rp_filter; do
+    echo 1 > $f
+done
+# Log packets with impossible addresses.
+for f in /proc/sys/net/ipv4/conf/*/log_martians; do
+    echo 1 > $f
+done
+
+for i in `$NFT list tables | awk '{print $2}'`
+do
+	echo "Flushing ${i}"
+	$NFT flush table ${i}	
+	for j in `$NFT list table ${i} | grep chain | awk '{print $2}'`
+	do
+		echo "...Deleting chain ${j} from table ${i}"
+		$NFT delete chain ${i} ${j}
+	done
+	echo "Deleting ${i}"
+	$NFT delete table ${i}	
+done
+
+if [ "$1" = "stop" ]
+then
+echo "Firewall completely stopped!  WARNING: THIS HOST HAS NO FIREWALL RUNNING."
+exit 0
+fi
+
+$NFT -f setup-tables
+$NFT -f localhost-policy
+$NFT -f connectionstate-policy
+
+$NFT -f invalid-policy
+$NFT -f dns-policy
+
+$NFT -f tcp-client-policy
+$NFT -f tcp-server-policy
+
+$NFT -f icmp-policy
+
+$NFT -f log-policy
+#default drop
+$NFT -f default-policy

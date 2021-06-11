@@ -1,0 +1,202 @@
+Raspberry Pi的BCM2835 SoC内建CPU，GPU和内存。Pi上电Boot是从GPU开始，这个时候CPU是没有启动的。
+
+整个Boot分为个各阶段：
+1. SoC上的bootloader加载SD卡上的boot分区（FAT32格式）。这段bootloader是不可被改写的，出厂时已经被写在板上。GPU上一个专用RISC核来实现这个功能。
+2.加载完boot分区。bootcode.bin被载入GPU执行
+3. GPU执行start.elf去启动CPU。fixup.dat（用来定义GPU和CPU的RAM大小）被载入执行。这时候CPU从GPU接管控制权。
+4. 加载Linux内核（kernel.img），配置文件（config.txt）和其他用户文件。
+
+第一段的bootloader不可被改写，所以pi之能通过SD卡启动。
+
+
+/**************************************/
+Welcome to minicom 2.6.1
+
+
+OPTIONS: I18n 
+Compiled on Nov 20 2012, 04:38:29.
+Port /dev/tty.usbserial
+
+
+Press CTRL-A Z for help on special keys
+
+
+Uncompressing Linux... done, booting the kernel. //解压linux核心,加载系统核心
+[    0.000000] Initializing cgroup subsys cpu //在加载CPU指令集后初始化CPU
+[    0.000000] Linux version 3.2.27+ (dc4@dc4-arm-01) (gcc version 4.7.2 2012072
+[    0.000000] CPU: ARMv6-compatible processor [410fb767] revision 7 (ARMv7), cd
+[    0.000000] CPU: PIPT / VIPT nonaliasing data cache, VIPT nonaliasing instrue
+[    0.000000] Machine: BCM2708 //打印系统信息 其中CPU是ARM BCM 2708
+[    0.000000] Memory policy: ECC disabled, Data cache writeback //关闭ECC,使用缓存写回的内存管理方法.
+[    0.000000] Built 1 zonelists in Zone order, mobility grouping on.  Total pa2
+[    0.000000] Kernel command line: dma.dmachans=0x7f35 bcm2708_fb.fbwidth=656 t
+[    0.000000] PID hash table entries: 2048 (order: 1, 8192 bytes) //pid哈希表的条目数与入口
+[    0.000000] Dentry cache hash table entries: 65536 (order: 6, 262144 bytes) //目录dentry的哈希表条目入口
+[    0.000000] Inode-cache hash table entries: 32768 (order: 5, 131072 bytes) //文件iNode哈希表条目数与入口
+[    0.000000] Memory: 448MB = 448MB total //总内存大小
+[    0.000000] Memory: 448872k/448872k available, 9880k reserved, 0K highmem //空闲内存448872K, 9880K为保存内存空间
+[    0.000000] Virtual kernel memory layout: //虚拟存储中系统核心的地址一览(以下为范围地址)
+[    0.000000]     vector  : 0xffff0000 - 0xffff1000   (   4 kB) //vector地址空间              
+[    0.000000]     fixmap  : 0xfff00000 - 0xfffe0000   ( 896 kB) //fixmap地址空间               
+[    0.000000]     vmalloc : 0xdc800000 - 0xe8000000   ( 184 MB)      
+//虚拟连续内存空间      
+[    0.000000]     lowmem  : 0xc0000000 - 0xdc000000   ( 448 MB)    //低内存区域空间            
+[    0.000000]     modules : 0xbf000000 - 0xc0000000   (  16 MB) //系统模块区域空间               
+[    0.000000]       .text : 0xc0008000 - 0xc04c0e78   (4836 kB)                
+[    0.000000]       .init : 0xc04c1000 - 0xc04e0b10   ( 127 kB)                
+[    0.000000]       .data : 0xc04e2000 - 0xc050e1c0   ( 177 kB)                
+[    0.000000]        .bss : 0xc050e1e4 - 0xc05b5128   ( 668 kB)                
+[    0.000000] NR_IRQS:330 //nr终端请求号                                                     
+[    0.000000] sched_clock: 32 bits at 1000kHz, resolution 1000ns, wraps every s //系统时钟的基本信息,
+[    0.000000] timer_set_mode: unhandled mode:1                                 
+[    0.000000] timer_set_mode: unhandled mode:3                                 
+[    0.000000] Console: colour dummy device 80x30  //虚拟设备信息                             
+[    0.000000] console [tty1] enabled //虚拟tty打开                                          
+[    0.000948] Calibrating delay loop... 697.95 BogoMIPS (lpj=3489792) //统计CPU计算性能         
+[    0.060148] pid_max: default: 32768 minimum: 301 //pid的默认值(最大与最小)                            
+[    0.060626] Mount-cache hash table entries: 512 //挂载缓存入口                             
+[    0.061116] Initializing cgroup subsys cpuacct //初始化CPU资源报告                              
+[    0.061209] Initializing cgroup subsys devices //初始化系统设备                               
+[    0.061244] Initializing cgroup subsys freezer //初始化中断的任务                               
+[    0.061274] Initializing cgroup subsys blkio //初始化输入输出设备                                 
+[    0.061418] CPU: Testing write buffer coherency: ok //测试CPU写缓存通过                         
+[    0.061757] hw perfevents: enabled with v6 PMU driver, 3 counters available //系统性能优化工具已打开,采用v6 PMU驱动  
+[    0.062963] devtmpfs: initialized //设备临时文件系统初始化完成                                           
+[    0.073351] NET: Registered protocol family 16  //网络协议注册成功                             
+[    0.074035] bcm2708.uart_clock = 0 //初始化CPU异步时钟为0                                          
+[    0.075659] hw-breakpoint: found 6 breakpoint and 1 watchpoint registers. //找到六个断点一个监视点    
+[    0.075717] hw-breakpoint: maximum watchpoint size is 4 bytes. //监视点可监视最大内存大小为4bytes              
+[    0.075755] mailbox: Broadcom VideoCore Mailbox driver //Broadcom公司的GPU驱动                      
+[    0.075860] bcm2708_vcio: mailbox at f200b880  //驱动地址                               
+[    0.075967] bcm_power: Broadcom power driver //博通的电源驱动                                 
+[    0.076006] bcm_power_open() -> 0                                            
+[    0.076032] bcm_power_request(0, 8)                                          
+[    0.576712] bcm_mailbox_read -> 00000080, 0                                  
+[    0.576751] bcm_power_request -> 0                                           
+[    0.576776] Serial: AMBA PL011 UART driver //串口驱动初始化                                   
+[    0.576932] dev:f1: ttyAMA0 at MMIO 0x20201000 (irq = 83) is a PL011 rev3    
+[    0.886867] console [ttyAMA0] enabled //打开虚拟tty咨询台                                       
+[    0.912370] bio: create slab <bio-0> at 0 //基本IO采用SLAB分配机制                                   
+[    0.917579] SCSI subsystem initialized //SCSI子系统初始化完成                                      
+[    0.921578] usbcore: registered new interface driver usbfs //载入USB文件系统                  
+[    0.927305] usbcore: registered new interface driver hub //载入hub驱动                    
+[    0.932888] usbcore: registered new device driver usb //载入USB驱动                       
+[    0.938922] Switching to clocksource stc                                     
+[    0.943169] FS-Cache: Loaded //载入文件系统缓存                                                
+[    0.946348] CacheFiles: Loaded //缓存文件载入成功                                              
+[    0.963096] NET: Registered protocol family 2 //网络协议注册                               
+[    0.967930] IP route cache hash table entries: 4096 (order: 2, 16384 bytes) //IP路由缓存入口设定 
+[    0.976118] TCP established hash table entries: 16384 (order: 5, 131072 byte)//TCP缓存入口设定
+[    0.984150] TCP bind hash table entries: 16384 (order: 4, 65536 bytes) //TCP绑定缓存入口设定      
+[    0.991104] TCP: Hash tables configured (established 16384 bind 16384) //TCP协议配置完成      
+[    0.997715] TCP reno registered //TCP协议注册完成                                             
+[    1.000888] UDP hash table entries: 256 (order: 0, 4096 bytes) //UDP缓存入口设定              
+[    1.006805] UDP-Lite hash table entries: 256 (order: 0, 4096 bytes) //轻量级用户数据包(UDP-Lite)缓存入口设定         
+[    1.013624] NET: Registered protocol family 1 //网络协议注册                               
+[    1.018754] RPC: Registered named UNIX socket transport module. //Unix socket 传输模块注册             
+[    1.024888] RPC: Registered udp transport module. //RPC udp传输模块注册                           
+[    1.029613] RPC: Registered tcp transport module. //tcp传输模块注册                           
+[    1.034362] RPC: Registered tcp NFSv4.1 backchannel transport module. //网络文件系统传输模块注册       
+[    1.041109] bcm2708_dma: DMA manager at dc808000  //DMA管理器地址                           
+[    1.045911] bcm2708_gpio: bcm2708_gpio_probe c04e9c18  //GPIO模块地址                      
+[    1.051371] vc-mem: phys_addr:0x00000000 mem_base=0x1c000000 mem_size:0x2000) //物理内存信息
+[    1.060657] audit: initializing netlink socket (disabled) //初始化网络连接套接字                   
+[    1.066206] type=2000 audit(0.750:1): initialized                            
+[    1.182280] VFS: Disk quotas dquot_6.5.2                                     
+[    1.186526] Dquot-cache hash table entries: 1024 (order 0, 4096 bytes) //Dquot缓存入口设定      
+[    1.194061] FS-Cache: Netfs 'nfs' registered for caching //网络文件系统缓存注册                    
+[    1.200324] msgmni has been set to 876 //消息队列上限设定                                      
+[    1.206185] io scheduler noop registered //IO调度器注册                                    
+[    1.210154] io scheduler deadline registered (default) //IO调度器请求过期设定                      
+[    1.215595] io scheduler cfq registered //IO调度器采用公平调度算法                                     
+[    1.241311] Console: switching to colour frame buffer device 82x26           
+[    1.253699] kgdb: Registered I/O driver kgdboc. //KGDB环境配置                             
+[    1.270072] brd: module loaded //载入brd模块                                              
+[    1.280417] loop: module loaded //载入环回设备模块                                             
+[    1.286588] vcos: [1]: vchiq_init_state: slot_zero = 0xffd80000, is_master =0
+[    1.296334] vcos: [1]: vchiq_init_state: called                              
+[    1.304030] vcos: [1]: vchiq: initialised - version 2 (min 2), device 252.0  
+[    1.314043] usbcore: registered new interface driver smsc95xx //USB内核接口驱动注册完成               
+[    1.322061] cdc_ncm: 04-Aug-2011 //CDC协议信息                                            
+[    1.327691] usbcore: registered new interface driver cdc_ncm  //加载USB核心CDC模块               
+[    1.335641] dwc_otg: version 3.00a 10-AUG-2012 (platform bus) //OTG版本信息               
+[    1.548781] Core Release: 2.80a                                              
+[    1.554209] Setting default values for core params //设定内核参数为默认值                          
+[    1.561146] Finished setting default values for core params                  
+[    1.774054] Using Buffer DMA mode  //使用DMA缓冲模式                                          
+[    1.779471] Periodic Transfer Interrupt Enhancement - disabled //关闭传输中断              
+[    1.787462] Multiprocessor Interrupt Enhancement - disabled  //关闭多处理器中断                
+[    1.795189] OTG VER PARAM: 0, OTG VER FLAG: 0                                
+[    1.801685] Dedicated Tx FIFOs mode                                          
+[    1.807618] dwc_otg bcm2708_usb: DWC OTG Controller //USB接口使用DWC_OTG模式                         
+[    1.814923] dwc_otg bcm2708_usb: new USB bus registered, assigned bus number1 //注册OTG端口,设定标号为1
+[    1.824478] dwc_otg bcm2708_usb: irq 32, io mem 0x00000000                   
+[    1.832170] Init: Port Power? op_state=1 //初始化电源                                    
+[    1.838280] Init: Power Port (0)                                             
+[    1.843800] usb usb1: New USB device found, idVendor=1d6b, idProduct=0002    
+[    1.852775] usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber1 //识别新USB设备
+[    1.862214] usb usb1: Product: DWC OTG Controller                            
+[    1.869150] usb usb1: Manufacturer: Linux 3.2.27+ dwc_otg_hcd                
+[    1.877086] usb usb1: SerialNumber: bcm2708_usb                              
+[    1.884665] hub 1-0:1.0: USB hub found //找到USB扩展坞                                      
+[    1.890553] hub 1-0:1.0: 1 port detected //检测到一个接入                                    
+[    1.897686] usbcore: registered new interface driver uas 注册USB接口驱动                    
+[    1.905183] Initializing USB Mass Storage driver...  //初始化USB大容量缓存驱动                        
+[    1.912342] usbcore: registered new interface driver usb-storage //注册USB存储接口驱动            
+[    1.920510] USB Mass Storage support registered.                             
+[    1.927480] usbcore: registered new interface driver libusual                
+[    1.935773] mousedev: PS/2 mouse device common for all mice //PS2鼠标设备适用于所有鼠标                 
+[    1.944362] bcm2835-cpufreq: min=700000 max=700000 cur=700000 //设定CPU内核变频机制               
+[    1.950217] bcm2835-cpufreq: switching to governor powersave //切换到省电模式                
+[    1.958030] bcm2835-cpufreq: switching to governor powersave                 
+[    1.965902] cpuidle: using governor ladder                                   
+[    1.974065] cpuidle: using governor menu                                     
+[    1.979999] sdhci: Secure Digital Host Controller Interface driver //SDHC接口驱动          
+[    1.988194] sdhci: Copyright(c) Pierre Ossman //版权信息                               
+[    1.994799] sdhci: Enable low-latency mode //SDHC采用低延迟方式                                  
+[    2.000860] bcm_power_open() -> 1                                            
+[    2.007867] mmc0: SDHCI controller on BCM2708_Arasan [platform] using platfoA
+[    2.019768] mmc0: BCM2708 SDHC host at 0x20300000 DMA 2 IRQ 77 //SDHC接口采用DMA通道2,77中断              
+[    2.027836] sdhci-pltfm: SDHCI platform and OF driver helper //SDHC平台                
+[    2.037434] usbcore: registered new interface driver usbhid                  
+[    2.045210] usbhid: USB HID core driver                                      
+[    2.052358] TCP cubic registered                                             
+[    2.057841] Initializing XFRM netlink socket //初始化XFRM网络套接字                           
+[    2.112109] registered taskstats version 1  //注册任务状态                                 
+[    2.133108] drivers/rtc/hctosys.c: unable to open rtc device (rtc0) //无法打开rtc设备         
+[    2.153537] Waiting for root device /dev/mmcblk0p2...  //等待根设备                      
+[    2.166913] mmc0: problem reading SD Status register.                        
+[    2.190425] mmc0: new high speed SDHC card at address b368                   
+[    2.213668] mmcblk0: mmc0:b368 SDC   7.51 GiB  //读到新SD卡设备                              
+[    2.222116]  mmcblk0: p1 p2                                                  
+[    2.311451] EXT4-fs (mmcblk0p2): mounted filesystem with ordered data mode. )//从根设备加载EXT4文件系统
+[    2.324224] VFS: Mounted root (ext4 filesystem) on device 179:2.             
+[    2.341452] devtmpfs: mounted  //设备临时文件系统挂在完成                                              
+[    2.346911] usb 1-1: new high-speed USB device number 2 using dwc_otg //新高速USB设备       
+[    2.356767] Freeing init memory: 124K                                        
+[    2.363161] Indeed it is in host mode hprt0 = 00001101                       
+[    2.573431] usb 1-1: New USB device found, idVendor=0424, idProduct=9512     
+[    2.582583] usb 1-1: New USB device strings: Mfr=0, Product=0, SerialNumber=0
+[    2.594508] hub 1-1:1.0: USB hub found                                       
+[    2.601197] hub 1-1:1.0: 3 ports detected                                    
+[    2.883256] usb 1-1.1: new high-speed USB device number 3 using dwc_otg      
+[    2.993764] usb 1-1.1: New USB device found, idVendor=0424, idProduct=ec00   
+[    3.005301] usb 1-1.1: New USB device strings: Mfr=0, Product=0, SerialNumbe0
+//以上均为扫描到新USB设备
+[    3.019404] smsc95xx v1.0.4                                                  
+[    3.088425] smsc95xx 1-1.1:1.0: eth0: register 'smsc95xx' at usb-bcm2708_usb3
+[    3.707686] udevd[137]: starting version 175                                 
+[    9.274748] EXT4-fs (mmcblk0p2): re-mounted. Opts: (null) //重新挂载EXT4根文件系统                   
+[    9.683250] EXT4-fs (mmcblk0p2): re-mounted. Opts: (null)                    
+[   10.404223] bcm2835 ALSA card created! //bcm2835音频卡                                     
+[   10.410508] bcm2835 ALSA chip created!                                      
+[   10.430337] bcm2835 ALSA chip created!                                       
+[   10.440482] bcm2835 ALSA chip created!                                       
+[   10.448576] bcm2835 ALSA chip created!                                       
+[   10.456597] bcm2835 ALSA chip created!                                       
+[   10.464425] bcm2835 ALSA chip created!                                       
+[   10.472112] bcm2835 ALSA chip created!   //音频芯片加载完成                                     
+??                                                                              
+Debian GNU/Linux wheezy/sid raspberrypi ttyAMA0                                 
+                                                                                
+raspberrypi login: 

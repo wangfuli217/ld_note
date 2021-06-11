@@ -1,0 +1,121 @@
+gcc(前端编程语言){
+    GCC编译系统支持众多的前端编程语言，GCC 4.4.0中${GCC_SOURCE}/gcc/目录下包含了
+前端编程语言处理的目录及其代码(其中，${GCC_SOURCE}表示GCC源代码的主目录，下同)，
+主要包括C、C++、Ada、Fortran、Java、Objective-C、Objective-C++等语言的前端处理，
+}
+
+gcc(目标机器体系结构){
+    GCC支持众多的目标机器体系结构，具有良好的可移植性，GCC 4.4.0的${GCC_SOURCE}/
+gcc/conf?ig/目录下包含了GCC对目标处理器的支持情况，其中包括了各种主流的处理器，例
+如，arm、i386、mips以及alpha等，
+}
+
+gcc(配套工具链){
+    GCC不是一个孤立的编译工具，而是整个GNU工程中的一个组成部分。GNU工程中的其他软件，
+包括GNU C库glibc、GNU的调试工具gdb，以及GNU二进制工具链binutils（GNU Binutils Toolchains，
+例如汇编工具as，连接工具ld，目标文件分析工具objdump、objcopy等）等都与GCC关系密切，互 
+相依赖。
+rpm -ql binutils  | xargs ls -l | grep "/usr/bin"
+}
+gcc(并行编译的支持){
+OpenMP
+}
+gcc(GCC调试选项){
+    GCC本身对包含了众多的调试选项，既可以为用户程序生成调试信息，也可以将GCC运行过程中的
+关键信息保存在文件或输出在终端上，
+
+gcc -fdump-tree-all -S hello.c
+gcc -fdump-rtl-all -S foo.c
+gcc -fdump-tree-all -fdump-ipa-all -fdump-rtl-all
+
+-v  查看gcc编译器的版本，显示gcc执行时的详细过程
+crt2.o 、crtbegin.o、crtend.o是gcc加入的系统标准启动文件，对于一般应用程序，这些启动是必须的。 
+-Ldir：在库文件的搜索路径列表中添加dir目录。 
+-lname：添加链接库文件。
+
+-nostartfiles： 不链接系统标准启动文件，而标准库文件仍然正常使用。
+
+-nostdlib 不链接系统标准启动文件和标准库文件，会提示因为没有链接系统标准启动文件和标准库文件，而链接失败。 
+该选项常用于裸机/bootloader、linux内核等程序，因为它们不需要启动文件、标准库文件。
+}
+
+gcc(动态库){
+将helloworld.c生成动态链接库：
+gcc -fPIC -shared helloworld.c -o libhelloworld.so
+
+gcc helloworld.h main.c -L. -lhelloworld -o main
+-L. : 标记告诉gcc函数库可能位于当前目录。 -l ：后面加上动态链接库，动态链接库的名字前的lib不用加上去。
+
+a.将文件 libhelloworld.so复制到目录/usr/lib中，再执行则没有问题：
+sudo mv libhelloworld.so /usr/lib
+./main
+
+b.既然连接器会搜寻LD_LIBRARY_PATH所指定的目录，那么我们可以将这个环境变量设置成当前目录：
+export LD_LIBRARY_PATH=$(pwd)
+./main
+
+c.ldconfig命令
+sudo ldconfig ~/mypro/C
+./main
+
+可以查看程序执行时调用动态库的过程：
+ldd main
+}
+
+gcc(静态库){
+gcc -c -o helloworld.o helloworld.c
+ar -rc libhelloworld.a helloworld.o
+gcc helloworld.h main.c -static -L. -lhelloworld -o main_static
+
+删除libhelloworld.a后运行main_static：
+rm libhelloworld.a
+./main
+}
+
+gcc(多个文件生成动态/静态库的用法){
+动态库:
+1.gcc -fPIC -shared xxx1.c xxx2.c xxx3.c -o libxxx.so 
+2.gcc -fPIC -shared xxx1.o xxx2.o xxx3.o -o libxxx.so 
+静态库：
+ar -rc libxxx.a xxx1.o xxx2.o xxx3.o
+}
+
+gcc(库的位置){
+在linux下，库文件一般放在/usr/lib和/lib下， 静态库的名字一般为libxxxx.a，其中xxxx
+是该lib的名称 动态库的名字一般为libxxxx.so.major.minor，xxxx是该lib的名称，
+major是主版本号， minor是副版本号。
+}
+
+gcc(查看可执行程序依赖的库){
+ldd命令可以查看一个可执行程序依赖的共享库， 例如:
+ldd main
+}
+
+gcc(静态库链接时搜索路径顺序){
+a.ld会去找GCC命令中的参数-L
+b.再找gcc的环境变量LIBRARY_PATH (LIBRARY_PATH环境变量：指定程序静态链接库文件搜索路径)
+c.再找内定目录 /lib /usr/lib /usr/local/lib
+}
+gcc(动态链接时、执行时搜索路径顺序){
+a.编译目标代码时指定的动态库搜索路径；
+b.环境变量LD_LIBRARY_PATH指定的动态库搜索路径；(LD_LIBRARY_PATH环境变量：指定程序动态链接库文件搜索路径)
+c.配置文件/etc/ld.so.conf中指定的动态库搜索路径；
+d.默认的动态库搜索路径/lib；
+e.默认的动态库搜索路径/usr/lib。
+}
+
+gcc(可执行程序在执行的时候定位库文件){
+    当系统加载可执行代码时候，能够知道其所依赖的库的名字，但是还需要知道绝对路径。 
+此时就需要系统动态载入器(dynamic linker/loader)。
+    对于elf格式的可执行程序，是由ld-linux.so*来完成的，它先后搜索：
+a.elf文件的 DT_RPATH段 
+b.环境变量LD_LIBRARY_PATH 
+c./etc/ld.so.cache文件列表 
+d./lib/,/usr/lib目录 找到库文件后将其载入内存。
+    
+    a.如果安装在/lib或者/usr/lib下，那么ld默认能够找到，无需其他操作。 
+    b.如果安装在其他目录，需要将其添加到/etc/ld.so.cache文件中，步骤如下: 
+    ---1.编辑/etc/ld.so.conf文件，加入库文件所在目录的路径 
+    ---2.运行ldconfig 目录名字，该命令会重建/etc/ld.so.cache文件
+    
+}

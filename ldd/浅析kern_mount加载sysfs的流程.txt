@@ -1,0 +1,608 @@
+http://blog.csdn.net/crond123/article/details/5748450
+
+因为sysfs是一个内存文件系统, 所以文件的物理存储关系就需要使用sd来维护, 因此sysfs_dirent即sd就类似于硬盘中的磁道.
+   sysfs文件系统是一个排它式的文件系统, 不论被mount多少次都只产生一个sb超级块,
+如果尝试再次mount,即尝试再次调用sysfs_get_sb获取另一个sb超级块,那么将执行atomic_inc(old->s_active);增加
+已被mount的引用计数,然后如果s已经执行了alloc_super,那么调用destroy_super将其销毁,然后返回这个已被mount了的
+super_block超级块old, 这样就实现了sysfs文件系统 不论被mount多少次都只产生一个sb超级块的效果 ,所以取名为get_sb_single[luther.gliethttp]
+
+
+start_kernel
+= > vfs_caches_init
+= > mnt_init
+= > sysfs_init
+sysfs_mount = kern_mount( & sysfs_fs_type) ;
+static struct file_system_type sysfs_fs_type = {
+    . name = "sysfs" ,
+    . get_sb = sysfs_get_sb,
+    . kill_sb = kill_anon_super,
+} ;
+# define kern_mount( type) kern_mount_data( type, NULL )
+# define MS_KERNMOUNT ( 1< < 22) /* this is a kern_mount call */
+struct vfsmount * kern_mount_data( struct file_system_type * type, void * data)
+{
+    return vfs_kern_mount( type, MS_KERNMOUNT, type- > name, data) ;
+}
+struct vfsmount *
+vfs_kern_mount( struct file_system_type * type, int flags, const char * name, void * data)
+{
+    struct vfsmount * mnt;
+    char * secdata = NULL ;
+    int error ;
+
+    if ( ! type)
+        return ERR_PTR( - ENODEV) ;
+
+    error = - ENOMEM;
+    mnt = alloc_vfsmnt( name) ; //获取一个mnt结构体,并做一些初始化工作
+    if ( ! mnt)
+        goto out;
+
+    if ( data & & ! ( type- > fs_flags & FS_BINARY_MOUNTDATA) ) {
+        secdata = alloc_secdata( ) ;
+        if ( ! secdata)
+            goto out_mnt;
+
+        error = security_sb_copy_data( data, secdata) ;
+        if ( error )
+            goto out_free_secdata;
+    }
+//调用文件系统控制结构体的get_sb()方法,获取文件系统的超级块,这里就是sysfs_get_sb.
+    error = type- > get_sb( type, flags, name, data, mnt) ;
+    if ( error < 0)
+        goto out_free_secdata;
+    BUG_ON( ! mnt- > mnt_sb) ;
+
+     error = security_sb_kern_mount( mnt- > mnt_sb, secdata) ;
+     if ( error )
+         goto out_sb;
+
+    mnt- > mnt_mountpoint = mnt- > mnt_root; //mount点就是sysfs的'/'根目录项
+    mnt- > mnt_parent = mnt; //指向自己
+    up_write( & mnt- > mnt_sb- > s_umount) ;
+    free_secdata( secdata) ;
+    return mnt; //成功完成mnt的创建和sb超级块等信息的填充[luther.gliethttp]
+out_sb:
+    dput( mnt- > mnt_root) ;
+    up_write( & mnt- > mnt_sb- > s_umount) ;
+    deactivate_super( mnt- > mnt_sb) ;
+out_free_secdata:
+    free_secdata( secdata) ;
+out_mnt:
+    free_vfsmnt( mnt) ;
+out:
+    return ERR_PTR( error ) ;
+}
+struct vfsmount * alloc_vfsmnt( const char * name)
+{
+    struct vfsmount * mnt = kmem_cache_zalloc( mnt_cache, GFP_KERNEL) ; //从cache上摘一个slab空闲对象
+    if ( mnt) {
+//成功获取mnt内存空间,初始化之[luther.gliethttp]
+        atomic_set( & mnt- > mnt_count, 1) ;
+        INIT_LIST_HEAD( & mnt- > mnt_hash) ;
+        INIT_LIST_HEAD( & mnt- > mnt_child) ;
+        INIT_LIST_HEAD( & mnt- > mnt_mounts) ;
+        INIT_LIST_HEAD( & mnt- > mnt_list) ;
+        INIT_LIST_HEAD( & mnt- > mnt_expire) ;
+        INIT_LIST_HEAD( & mnt- > mnt_share) ;
+        INIT_LIST_HEAD( & mnt- > mnt_slave_list) ;
+        INIT_LIST_HEAD( & mnt- > mnt_slave) ;
+        if ( name) {
+            int size = strlen ( name) + 1;
+            char * newname = kmalloc( size, GFP_KERNEL) ;
+            if ( newname) {
+                memcpy ( newname, name, size) ;
+                mnt- > mnt_devname = newname; //比如: "sysfs"
+            }
+        }
+    }
+    return mnt;
+}
+//sysfs文件系统是一个排它式的文件系统,不论被mount多少次都只产生一个sb超级块,
+//如果尝试再次mount,即尝试再次调用sysfs_get_sb获取另一个sb超级块,那么将执行atomic_inc(old->s_active);增加
+//已被mount的引用计数,然后如果s已经执行了alloc_super,那么调用destroy_super将其销毁,然后返回这个已被mount了的
+//super_block超级块old, 这样就实现了sysfs文件系统 不论被mount多少次都只产生一个sb超级块的效果 ,所以取名为get_sb_single[luther.gliethttp]
+static int sysfs_get_sb( struct file_system_type * fs_type,
+    int flags, const char * dev_name, void * data, struct vfsmount * mnt)
+{
+    return get_sb_single( fs_type, flags, data, sysfs_fill_super, mnt) ;
+}
+
+int get_sb_single( struct file_system_type * fs_type,
+    int flags, void * data,
+    int ( * fill_super) ( struct super_block * , void * , int ) ,
+    struct vfsmount * mnt)
+{
+    struct super_block * s;
+    int error ;
+
+    s = sget( fs_type, compare_single, set_anon_super, NULL ) ; //获取超级块,如果之前已经创建了sb,那么这里将不再创建,将返回上一次创建的sb,所以这表明sb超级块将只被生成1个 [luther.gliethttp]
+    if ( IS_ERR( s) )
+        return PTR_ERR( s) ;
+    if ( ! s- > s_root) {
+//如果是第一次mount该sysfs文件系统,那么首先填充sb超级块
+        s- > s_flags = flags;
+        error = fill_super( s, data, flags & MS_SILENT ? 1 : 0) ; //这里对应sysfs_fill_super函数,细化sb超级块
+        if ( error ) {
+            up_write( & s- > s_umount) ;
+            deactivate_super( s) ;
+            return error ;
+        }
+        s- > s_flags | = MS_ACTIVE;
+    }
+    do_remount_sb( s, flags, data, 0) ; //asks filesystem to change mount options,在sysfs中sysfs_ops没有实现remount_fs
+    return simple_set_mnt( mnt, s) ; //将s超级块安装到mnt这个mount节点上
+}
+int simple_set_mnt( struct vfsmount * mnt, struct super_block * sb)
+{
+    mnt- > mnt_sb = sb; //mnt的sb
+    mnt- > mnt_root = dget( sb- > s_root) ; //对应的根目录项
+    return 0;
+}
+static int compare_single( struct super_block * s, void * p)
+{
+    return 1;
+}
+struct super_block * sget( struct file_system_type * type,
+            int ( * test ) ( struct super_block * , void * ) ,
+            int ( * set ) ( struct super_block * , void * ) ,
+            void * data)
+{
+    struct super_block * s = NULL ;
+    struct super_block * old;
+    int err;
+
+retry:
+    spin_lock( & sb_lock) ;
+    if ( test ) {
+        list_for_each_entry( old, & type- > fs_supers, s_instances) {
+//sysfs文件系统是一个排它式的文件系统, 不论被mount多少次都只产生一个sb超级块,
+//如果尝试再次mount,即尝试再次调用sysfs_get_sb获取另一个sb超级块,那么将执行atomic_inc(old->s_active);增加
+//已被mount的引用计数,然后如果s已经执行了alloc_super,那么调用destroy_super将其销毁,然后返回这个已被mount了的
+//super_block超级块old, 这样就实现了sysfs文件系统 不论被mount多少次都只产生一个sb超级块的效果 ,所以取名为get_sb_single[luther.gliethttp]
+            if ( ! test ( old, data) ) //compare_single一直返回1
+                continue ;
+            if ( ! grab_super( old) )
+                goto retry;
+            if ( s)
+                destroy_super( s) ;
+            return old;
+        }
+    }
+    if ( ! s) {
+//没有找到
+        spin_unlock( & sb_lock) ;
+        s = alloc_super( type) ; //获取一个sb超级块的控制内存,同时做部分结构初始化
+        if ( ! s)
+            return ERR_PTR( - ENOMEM) ;
+        goto retry; //继续尝试一次,看看是否重复了
+    }
+        
+    err = set ( s, data) ; //sysfs对应set_anon_super,获取一个sb超级块的设备号,major为0
+    if ( err) {
+        spin_unlock( & sb_lock) ;
+        destroy_super( s) ;
+        return ERR_PTR( err) ;
+    }
+    s- > s_type = type; //填充该sb超级块的type
+    strlcpy( s- > s_id, type- > name, sizeof ( s- > s_id) ) ; //该sb超级块的s_id为type->name,比如:"sysfs"
+    list_add_tail( & s- > s_list, & super_blocks) ; //将该超级块添加到全局超级块链表super_blocks上
+    list_add( & s- > s_instances, & type- > fs_supers) ; //sb超级块将自己添加到type->fs_supers管理链表上
+    spin_unlock( & sb_lock) ;
+    get_filesystem( type) ; //
+    return s;
+}
+//type->fs_supers链表上挂上了有效的sb超级块之后,才会执行到这里
+static int grab_super( struct super_block * s) __releases( sb_lock)
+{
+    s- > s_count+ + ; / / alloc_super 时将设置 s->s_count = S_BIAS;
+    spin_unlock( & sb_lock) ;
+    down_write( & s- > s_umount) ;
+    if ( s- > s_root) {
+        spin_lock( & sb_lock) ;
+        if ( s- > s_count > S_BIAS) {
+            atomic_inc( & s- > s_active) ;
+            s- > s_count- - ;
+            spin_unlock( & sb_lock) ;
+            return 1; //确实有一个有效的sb超级块对应的s_root目录项,那么返回1,然后由destroy_super将其销毁
+        }
+        spin_unlock( & sb_lock) ;
+    }
+    up_write( & s- > s_umount) ;
+    put_super( s) ;
+    yield( ) ;
+    return 0;
+}
+//获取一个sb超级块的控制内存,同时做部分结构初始化
+static struct super_block * alloc_super( struct file_system_type * type)
+{
+    struct super_block * s = kzalloc( sizeof ( struct super_block) , GFP_USER) ;
+    static struct super_operations default_op;
+
+    if ( s) {
+        if ( security_sb_alloc( s) ) {
+            kfree( s) ;
+            s = NULL ;
+            goto out;
+        }
+        INIT_LIST_HEAD( & s- > s_dirty) ;
+        INIT_LIST_HEAD( & s- > s_io) ;
+        INIT_LIST_HEAD( & s- > s_more_io) ;
+        INIT_LIST_HEAD( & s- > s_files) ;
+        INIT_LIST_HEAD( & s- > s_instances) ;
+        INIT_HLIST_HEAD( & s- > s_anon) ;
+        INIT_LIST_HEAD( & s- > s_inodes) ;
+        init_rwsem( & s- > s_umount) ;
+        mutex_init( & s- > s_lock) ;
+        lockdep_set_class( & s- > s_umount, & type- > s_umount_key) ;
+        /*
+         * The locking rules for s_lock are up to the
+         * filesystem. For example ext3fs has different
+         * lock ordering than usbfs:
+         */
+        lockdep_set_class( & s- > s_lock, & type- > s_lock_key) ;
+        down_write( & s- > s_umount) ;
+        s- > s_count = S_BIAS;
+        atomic_set( & s- > s_active, 1) ;
+        mutex_init( & s- > s_vfs_rename_mutex) ;
+        mutex_init( & s- > s_dquot. dqio_mutex) ;
+        mutex_init( & s- > s_dquot. dqonoff_mutex) ;
+        init_rwsem( & s- > s_dquot. dqptr_sem) ;
+        init_waitqueue_head( & s- > s_wait_unfrozen) ;
+        s- > s_maxbytes = MAX_NON_LFS;
+        s- > dq_op = sb_dquot_ops;
+        s- > s_qcop = sb_quotactl_ops;
+        s- > s_op = & default_op;
+        s- > s_time_gran = 1000000000;
+    }
+out:
+    return s;
+}
+int set_anon_super( struct super_block * s, void * data)
+{
+    int dev;
+    int error ;
+
+ retry:
+    if ( idr_pre_get( & unnamed_dev_idr, GFP_ATOMIC) = = 0)
+        return - ENOMEM;
+    spin_lock( & unnamed_dev_lock) ;
+    error = idr_get_new( & unnamed_dev_idr, NULL , & dev) ; //从radix树中,递增式的获取一个唯一整数值到&dev
+    spin_unlock( & unnamed_dev_lock) ;
+    if ( error = = - EAGAIN)
+        /* We raced and lost with another CPU. */
+        goto retry;
+    else if ( error )
+        return - EAGAIN;
+
+    if ( ( dev & MAX_ID_MASK) = = ( 1 < < MINORBITS) ) {
+        spin_lock( & unnamed_dev_lock) ;
+        idr_remove( & unnamed_dev_idr, dev) ;
+        spin_unlock( & unnamed_dev_lock) ;
+        return - EMFILE;
+    }
+    s- > s_dev = MKDEV( 0, dev & MINORMASK) ; //生成major为0的超级块设备号
+    return 0;
+}
+//给申请的sb超级块填充细化数据
+static int sysfs_fill_super( struct super_block * sb, void * data, int silent)
+{
+    struct inode * inode;
+    struct dentry * root;
+
+    sb- > s_blocksize = PAGE_CACHE_SIZE; //块大小4k
+    sb- > s_blocksize_bits = PAGE_CACHE_SHIFT; //12
+    sb- > s_magic = SYSFS_MAGIC; //magic代号
+    sb- > s_op = & sysfs_ops; //超级块操作函数集
+    sb- > s_time_gran = 1;
+    sysfs_sb = sb; //保存
+
+    /* get root inode, initialize and unlock it */
+    inode = sysfs_get_inode( & sysfs_root) ; //生成sysfs_root中所定义要求的inode内存节点
+    if ( ! inode) {
+        pr_debug( "sysfs: could not get root inode/n" ) ;
+        return - ENOMEM;
+    }
+
+    /* instantiate and link root dentry */
+    root = d_alloc_root( inode) ; //将inode安装到'/'根目录项上
+    if ( ! root) {
+        pr_debug( "%s: could not get root dentry!/n" , __FUNCTION__ ) ;
+        iput( inode) ;
+        return - ENOMEM;
+    }
+    root- > d_fsdata = & sysfs_root; //根目录项的文件系统数据fsdata指向sysfs_root
+    sb- > s_root = root; //填充sb超级块对应的根目录项
+    return 0;
+}
+struct sysfs_dirent sysfs_root = {
+    . s_name = "" , //0空
+    . s_count = ATOMIC_INIT( 1) ,
+    . s_flags = SYSFS_DIR, //目录
+    . s_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
+    . s_ino = 1, //节点号搞为1
+} ;
+struct inode * sysfs_get_inode( struct sysfs_dirent * sd)
+{
+    struct inode * inode;
+
+    inode = iget_locked( sysfs_sb, sd- > s_ino) ;
+    if ( inode & & ( inode- > i_state & I_NEW) )
+        sysfs_init_inode( sd, inode) ; //这是一个新创建的inode节点,那么调用sysfs对它进一步做符合sysfs要求的初始化[luther.gliethttp]
+
+    return inode;
+}
+//对新创建的inode节点,进行sysfs特性格式化[luther.gliethttp]
+static void sysfs_init_inode( struct sysfs_dirent * sd, struct inode * inode)
+{
+    struct bin_attribute * bin_attr;
+
+    inode- > i_blocks = 0;
+    inode- > i_mapping- > a_ops = & sysfs_aops;
+    inode- > i_mapping- > backing_dev_info = & sysfs_backing_dev_info;
+    inode- > i_op = & sysfs_inode_operations; //更改inode的方法集
+/*
+static const struct inode_operations sysfs_inode_operations ={
+    .setattr = sysfs_setattr,
+};
+*/
+    inode- > i_ino = sd- > s_ino; //inode的节点号要和sd->s_ino目录项节点号一致
+//★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+自此
+sysfs_fill_super= > sysfs_sb = sb; //保存
+
+sysfs_create_dir
+= > parent_sd = & sysfs_root;
+sysfs_addrm_start
+inode = ilookup5_nowait( sysfs_sb, parent_sd- > s_ino, sysfs_ilookup_test, parent_sd) ;
+= > 就能够找到sysfs_root对应的inode节点了, 所以
+start_kernel
+= > vfs_caches_init
+= > mnt_init
+= > sysfs_init执行完之后, driver们也就能够在稍后的时候顺利使用sysfs文件系统进行文件创建了.
+
+start_kernel
+= > rest_init
+= > kernel_thread( kernel_init, NULL , CLONE_FS | CLONE_SIGHAND) ;
+kernel_init
+= > do_basic_setup
+= > driver_init会创建如下：
+/ sys/ devices
+/ sys/ bus
+/ sys/ class
+/ sys/ firmware
+等sysfs目录和文件
+然后do_basic_setup继续调用
+= > do_initcalls
+调用所有build in到kernel中的module_init驱动程序,
+所以这时的驱动程序就可以自由使用sysfs以及上面创建的那些sysfs文件系统下的目录和文件了[ luther. gliethttp]
+void __init driver_init( void )
+{
+    /* These are the core pieces */
+    devices_init( ) ;
+    buses_init( ) ;
+    classes_init( ) ;
+    firmware_init( ) ;
+    hypervisor_init( ) ;
+
+    /* These are also core pieces, but must come after the
+     * core core pieces.
+     */
+    platform_bus_init( ) ;
+    system_bus_init( ) ;
+    cpu_dev_init( ) ;
+    memory_dev_init( ) ;
+}
+//★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+    lockdep_set_class( & inode- > i_mutex, & sysfs_inode_imutex_key) ;
+
+    if ( sd- > s_iattr) {
+        /* sysfs_dirent has non-default attributes
+         * get them for the new inode from persistent copy
+         * in sysfs_dirent
+         */
+        set_inode_attr( inode, sd- > s_iattr) ;
+    } else
+        set_default_inode_attr( inode, sd- > s_mode) ; //设备inode默认attr属性们
+
+
+    /* initialize inode according to type */
+    switch ( sysfs_type( sd) ) { //根据sd目录项信息,来反向订制该inode节点的fops等操作函数集[luther.gliethttp]
+    case SYSFS_DIR:
+        inode- > i_op = & sysfs_dir_inode_operations;
+        inode- > i_fop = & sysfs_dir_operations; //dir目录的fops操作函数集
+        inode- > i_nlink = sysfs_count_nlink( sd) ;
+        break ;
+    case SYSFS_KOBJ_ATTR:
+        inode- > i_size = PAGE_SIZE;
+        inode- > i_fop = & sysfs_file_operations; //attr属性文件的fops操作函数集
+        break ;
+    case SYSFS_KOBJ_BIN_ATTR:
+        bin_attr = sd- > s_bin_attr. bin_attr; //bin_attr属性文件的fops操作函数集
+        inode- > i_size = bin_attr- > size;
+        inode- > i_fop = & bin_fops;
+        break ;
+    case SYSFS_KOBJ_LINK:
+        inode- > i_op = & sysfs_symlink_inode_operations; //link文件的fops操作函数集
+        break ;
+    default :
+        BUG( ) ;
+    }
+
+    unlock_new_inode( inode) ;
+}
+static inline void set_default_inode_attr( struct inode * inode, mode_t mode)
+{
+    inode- > i_mode = mode;
+    inode- > i_uid = 0;
+    inode- > i_gid = 0;
+    inode- > i_atime = inode- > i_mtime = inode- > i_ctime = CURRENT_TIME;
+}
+struct inode * iget_locked( struct super_block * sb, unsigned long ino)
+{
+    struct hlist_head * head = inode_hashtable + hash( sb, ino) ;
+    struct inode * inode;
+
+    inode = ifind_fast( sb, head, ino) ;
+    if ( inode) //第一次的话,肯定inode=NULL;
+        return inode;
+    /*
+     * get_new_inode_fast() will do the right thing, re-trying the search
+     * in case it had to block at any point.
+     */
+    return get_new_inode_fast( sb, head, ino) ; //为root获取一个inode存储结构体,对于sysfs就是获取一个内存空间
+    //对于ext3和yaffs2文件系统就是申请flash或者硬盘上的物理空间了[luther.gliethttp].
+}
+static struct inode * get_new_inode_fast( struct super_block * sb, struct hlist_head * head, unsigned long ino)
+{
+    struct inode * inode;
+
+    inode = alloc_inode( sb) ; //从sb超级块上获取一个新的inode
+    if ( inode) {
+        struct inode * old;
+
+        spin_lock( & inode_lock) ; //锁住
+        /* We released the lock, so.. */
+        old = find_inode_fast( sb, head, ino) ; //可能他人已经创建完成了,所以再查一遍
+        if ( ! old) {
+//确实ino节点号仍然没有被创建,那么我们可以安全的将inode作为ino节点号对应的inode了[luther.gliethttp]
+            inode- > i_ino = ino; //节点对应的节点号
+            inodes_stat. nr_inodes+ + ;
+            list_add( & inode- > i_list, & inode_in_use) ; //挂到全局量inode_in_use链表上
+            list_add( & inode- > i_sb_list, & sb- > s_inodes) ; //挂到超级块的s_inodes链表上
+            hlist_add_head( & inode- > i_hash, head) ; //将inode添加到所有节点都挂接到的hash数组inode_hashtable中.
+            inode- > i_state = I_LOCK| I_NEW; //标记该inode为新建节点
+            spin_unlock( & inode_lock) ; //解锁
+
+            /* Return the locked inode with I_NEW set, the
+             * caller is responsible for filling in the contents
+             */
+            return inode; //返回这个新生成的inode节点
+        }
+
+        /*
+         * Uhhuh, somebody else created the same inode under
+         * us. Use the old inode instead of the one we just
+         * allocated.
+         */
+//很不走运,该ino对应的inode节点别人已经在你上边某一步时,提前搞定了,所以我们需要把刚才申请的咚咚释放掉[luther.gliethttp]
+        __iget( old) ;
+        spin_unlock( & inode_lock) ;
+        destroy_inode( inode) ; //销毁前面申请的inode节点,因为别人已经成功添加了.
+        inode = old;
+        wait_on_inode( inode) ;
+    }
+    return inode; //inode=NULL
+}
+static const struct super_operations sysfs_ops = {
+    . statfs = simple_statfs,
+    . drop_inode = generic_delete_inode,
+} ;
+sb- > s_op = & sysfs_ops; //超级块操作函数集
+static struct inode * alloc_inode( struct super_block * sb)
+{
+    static const struct address_space_operations empty_aops;
+    static struct inode_operations empty_iops;
+    static const struct file_operations empty_fops;
+    struct inode * inode;
+
+    if ( sb- > s_op- > alloc_inode) //该sb超级块提供自定义,特殊的alloc_inode函数,对于sysfs没有提供专门的函数[luther.gliethttp]
+        inode = sb- > s_op- > alloc_inode( sb) ;
+    else
+        inode = ( struct inode * ) kmem_cache_alloc( inode_cachep, GFP_KERNEL) ; //所以从cache中获取一个空闲染色的slab对象
+
+    if ( inode) {
+//细化inode的部分结单元
+        struct address_space * const mapping = & inode- > i_data;
+
+        inode- > i_sb = sb;
+        inode- > i_blkbits = sb- > s_blocksize_bits;
+        inode- > i_flags = 0;
+        atomic_set( & inode- > i_count, 1) ;
+        inode- > i_op = & empty_iops;
+        inode- > i_fop = & empty_fops;
+        inode- > i_nlink = 1;
+        atomic_set( & inode- > i_writecount, 0) ;
+        inode- > i_size = 0;
+        inode- > i_blocks = 0;
+        inode- > i_bytes = 0;
+        inode- > i_generation = 0;
+# ifdef CONFIG_QUOTA
+        memset ( & inode- > i_dquot, 0, sizeof ( inode- > i_dquot) ) ;
+# endif
+        inode- > i_pipe = NULL ;
+        inode- > i_bdev = NULL ;
+        inode- > i_cdev = NULL ;
+        inode- > i_rdev = 0;
+        inode- > dirtied_when = 0;
+        if ( security_inode_alloc( inode) ) {
+            if ( inode- > i_sb- > s_op- > destroy_inode)
+                inode- > i_sb- > s_op- > destroy_inode( inode) ;
+            else
+                kmem_cache_free( inode_cachep, ( inode) ) ;
+            return NULL ;
+        }
+
+        spin_lock_init( & inode- > i_lock) ;
+        lockdep_set_class( & inode- > i_lock, & sb- > s_type- > i_lock_key) ;
+
+        mutex_init( & inode- > i_mutex) ;
+        lockdep_set_class( & inode- > i_mutex, & sb- > s_type- > i_mutex_key) ;
+
+        init_rwsem( & inode- > i_alloc_sem) ;
+        lockdep_set_class( & inode- > i_alloc_sem, & sb- > s_type- > i_alloc_sem_key) ;
+
+        mapping- > a_ops = & empty_aops;
+         mapping- > host = inode;
+        mapping- > flags = 0;
+        mapping_set_gfp_mask( mapping, GFP_HIGHUSER_PAGECACHE) ;
+        mapping- > assoc_mapping = NULL ;
+        mapping- > backing_dev_info = & default_backing_dev_info;
+
+        /*
+         * If the block_device provides a backing_dev_info for client
+         * inodes then use that. Otherwise the inode share the bdev's
+         * backing_dev_info.
+         */
+        if ( sb- > s_bdev) {
+            struct backing_dev_info * bdi;
+
+            bdi = sb- > s_bdev- > bd_inode_backing_dev_info;
+            if ( ! bdi)
+                bdi = sb- > s_bdev- > bd_inode- > i_mapping- > backing_dev_info;
+            mapping- > backing_dev_info = bdi;
+        }
+        inode- > i_private = NULL ;
+        inode- > i_mapping = mapping;
+    }
+    return inode;
+}
+
+struct dentry * d_alloc_root( struct inode * root_inode)
+{
+    struct dentry * res = NULL ;
+
+    if ( root_inode) {
+        static const struct qstr name = { . name = "/" , . len = 1 } ;
+
+        res = d_alloc( NULL , & name) ; //申请一个根目录项,调用dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL);
+        if ( res) {
+            res- > d_sb = root_inode- > i_sb; //根目录项的超级块
+            res- > d_parent = res; //自己指向自己
+            d_instantiate( res, root_inode) ; //将inode安装到根目录项上
+        }
+    }
+    return res;
+}
+void d_instantiate( struct dentry * entry, struct inode * inode)
+{
+    BUG_ON( ! list_empty( & entry- > d_alias) ) ;
+    spin_lock( & dcache_lock) ;
+    if ( inode)
+        list_add( & entry- > d_alias, & inode- > i_dentry) ; //将目录向链接到inode上,所以一个inode可以有多个目录项指向,
+    //这些目录项可以通过扫描inode->i_dentry链表获得
+    entry- > d_inode = inode; //目录项对应的所管理的inode节点
+    fsnotify_d_instantiate( entry, inode) ;
+    spin_unlock( & dcache_lock) ;
+    security_d_instantiate( entry, inode) ;
+}

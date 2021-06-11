@@ -1,0 +1,42 @@
+--[[
+----只知道变量名，要找到这个变量----
+
+-- 1.首先怀疑是某个函数的局部变量，用debug.getlocal(1，index)查找
+-- 2.其次怀疑是这个函数所在闭包的upvalue，用debug.getupvalue(func)查找,func通过getinfo(2).func获取
+-- 3.最后怀疑是全局变量，用debug.getfenv(func)查找
+--]]
+
+--[[
+  debug.getupvalue (f, up)
+  getupvalue 可以允许我们访问一个被Lua函数所使用的非局部变量。与局部变量不同的是，非局部变量是当函数非active的时候才会存在
+  (这也是所谓的闭包)，因此该函数的第一个参数不是一个stack level ，而是一个函数(准确的说是一个闭包)，
+  第二个参数是变量的index值，其顺序和局部变量一致都是先出现的index值越小。(函数不能以同一个名字访问两个非局部变量)
+  
+  debug.setupvalue (f, up, value)
+  使用setupvalue 可以用来改变非局部变量的值，与setlocal一样，函数也是三个参数，只不过第一个参数是一个闭包。
+--]]
+-- 获得/设置闭包的upvalues，与局部变量不同的是，即使闭包不在活动状态，它依然有upvalues(因而不需要指定栈级别)
+function newCounter()
+	local n=0
+	local k=0
+	return function()
+				k=n
+				n=n+1
+				return n
+			end
+end
+counter=newCounter()
+print(counter())
+print(counter())
+local i=1
+repeat
+	name,val=debug.getupvalue(counter,i)  		 -- 返回闭包counter的第i个upvalue的名字和值
+	if name then
+		print('index',i,name,'=',val)
+			if name=='n' then
+				debug.setupvalue(counter,2,10)   -- 将闭包counter的第二个upvalue（即k）设为10
+			end
+		i=i+1
+	end
+until not name
+print(counter())

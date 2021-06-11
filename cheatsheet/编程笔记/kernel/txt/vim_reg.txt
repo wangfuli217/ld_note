@@ -1,0 +1,66 @@
+:h pattern  for help
+
+word/char count     g<c-g>
+
+zero-widh   0长度匹配/0宽断言 只匹配某些条件而不匹配具体内容
+    \< \> \b
+    \@!
+    \zs \ze     zone start/end
+
+\(\)	m	unit area
+\1	s	represent
+\+	m	1 or more
+*               匹配0或多次
+\=              匹配0或1次
+\r	m/s	new line 	NOTICE: not \n
+\a      匹配一个字符
+\d      匹配任一数字
+\u      匹配任一大写字母
+\i      [a-zA-Z0-9_], namely legal symbol
+\I      [a-zA-Z_], excluding digits
+\s      space
+\S      not space
+\{n,m}  repeat times
+\{-}    not greedy  /a.\{-}b -> axbxbxb -> axb
+foo\|bar
+[1\|2\|3].jpg   1.jpg 2.jpg 3.jpg
+\%20c 匹配第20列
+\%20l 匹配第20行
+\(?\=expr\)     0-width assertion   jeans \<\w+\(?\=ns\>\)
+\@!   又是一个"零长度匹配",这个的要求是他前面的内容必须不存在
+    ;\@!    can't show ';'
+
+^	m/s	line start
+$	m/s	line end
+
+\(\s*\n\)\+/\r/		1 or more empty line
+
+s/[A-Z]/\L&/g
+s/\(TABLE_\w*\)/\L\1/g  to lower
+s/\(table_\w*\)/\U\1/g  to upper
+
+:g/fred/s/disk/joe/g     replace disk with joe when then line has fred
+:/xxx/d         delete
+:%g/^$/d        delete all empty lines
+:%s/^\n\+/\r/   压缩空白行（即多行变成一行）
+:s/aa bb/x&x/g  xaa bbx(&, or(&) the whole)
+
+:argdo %s/a_value/b_value/gec | update		need to Confirm
+:argdo %s/a_value/b_value/ge  | update		directly rewrite
+
+c   confirm
+d   delete
+g   global
+i   insensetive
+2   only apply on the very one
+
+
+:let i=0 | g/^<par type/s/id="\zs\ze">$/\=i/ | let i+=1
+    \=i   \=是把后面的字符串当成表达式来对待,在这里就是i的值
+
+:/abc\c     Abc aBc ABC ...
+
+add line num to every line
+    :let i=0 | g/^.*$/s/\zs\ze/\=i/ | let i+=1
+    :g/^/exec "s/^/".strpart(line(".")." ", 0, 4)
+    :%s/^/\=strpart(line(".")." ", 0, 4)/g

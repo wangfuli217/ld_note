@@ -1,0 +1,135 @@
+--[[
+io.input()##
+
+原型：io.input ([file])
+解释：打开一个文件，然后把这个文件作为默认的输入文件，
+      如果参数是一个文件名，则会以文本模式打开这个文件，并将这个文件句柄设置为默认输入文件；-- io.input(filename)
+      如果参数就是一个文件描述符，那么这个函数会把这个文件简单的设置为默认的输入文件；      -- io.input(fd)
+      如果使用函数时不传参数，那么它将的返回当前的默认文件的描述符. -- dftfd = io.input()
+
+io.output()##
+原型：io.output([file])
+解释：类似于 io.input。 不过都针对默认输出文件操作。
+--]]
+
+--[[  io.input() io.input(file) io.stdin 之间关系
+1. 初始情况下io.input()的值与io.stdin之间的值相同；
+2. io.input(file)之后，io.input()的返回值与输入file(文件描述符)的值相等；
+3. io.input()的值会发生变化，但是io.stdin的值不会发生变化；
+4. io.input(file)之后，io.read("*l")和file:read("*l") 之间共享相同的偏移量，都是从指定文件读取行数据；
+   而io.stdin:read("*l") 从标准输入读取数据
+5. 通过io.input(io.stdin)即可恢复输入流初始状态
+--]]
+io.stdout:write(string.rep('-', 30), 'io.input() io.input(file) io.stdin', string.rep('-', 30),'\n')
+
+file = io.open("writetest.txt", "r") 
+
+default_in = io.input()                    -- 返回当前的默认文件的描述符 io.stdin
+-- io.stdin 等于 default_in：说明默认的文件描述符即是io.stdin
+print("fetch io.input default>>", "io.stdin ="..tostring(io.stdin), "default_in ="..tostring(default_in)) 
+
+open_in = io.input(file)                   -- file 等于 open_in 把writetest.txt简单的设置为默认的输入文件
+-- io.stdin 等于 default_in：说明将file设置为输入文件，但io.stdin不变
+print("config io.input(file) >>", "io.stdin ="..tostring(io.stdin), "default_in ="..tostring(default_in)) 
+
+print('io.read("*l")', io.read("*l"))       -- 读取writetest.txt第一行
+print('file:read("*l")', file:read("*l"))   -- 读取writetest.txt第二行
+name = io.stdin:read("*l")                  -- 从标准输入读取
+print('io.stdin.read("*l")=', name)
+
+-- file 等于 open_in; 都是userdata类型，字符串执行引用地址
+print("file\t"..type(file), "open_in\t"..type(open_in), "\tdefault_in\t"..type(default_in))
+print("file="..tostring(file), "open_in="..tostring(open_in), "default_in="..tostring(default_in))
+
+print("io.input()="..tostring(io.input()))  -- 返回当前的默认文件的描述符 open_in
+io.close(file)                                                                  
+print("io.input()="..tostring(io.input()))  -- 当前状态为：closed
+
+-- default_in 等于 io.stdin; 因此io.input(default_in) 等于 io.input(io.stdin)
+print("closed io.close(file) >>", "io.stdin ="..tostring(io.stdin), "default_in ="..tostring(default_in))  
+-- io.input(default_in) 
+io.input(io.stdin)
+
+
+--[[  io.output() io.output(file) io.stdout 之间关系
+1. 初始情况下io.output()的值与io.stdout之间的值相同；
+2. io.output(file)之后，io.output()的返回值与输入file(文件描述符)的值相等；
+3. io.output()的值会发生变化，但是io.stdout的值不会发生变化；
+4. io.output(file)之后，io.write(...)和file:write(...) 之间共享相同的偏移量，都是从指定文件读取行数据；
+   而io.stdout:write(...) 向标准输出输出数据；
+   而print() 向标准输出输出数据   
+5. 通过io.output(io.stdout)即可恢复输入流初始状态
+--]]
+io.stdout:write(string.rep('-', 30), 'io.output() io.output(file) io.stdout', string.rep('-', 30),'\n')
+file = io.open("writetest.txt", "a")                                            -- 以追加模式打开文件
+default_out = io.output()                    -- 返回当前的默认文件的描述符 io.stdout
+--  io.stdout 等于default_out：说明默认的文件描述符即是 io.stdout
+print("fetch io.output default>>", "io.stdout ="..tostring(io.stdout), "default_out ="..tostring(default_out)) 
+
+open_out = io.output(file)                                                                 -- 将 test.lua 设置为默认的输出文件
+-- io.stdout 等于 default_out：说明将file设置为输入文件，但io.stdout不变
+print("config io.output(file) >>", "io.stdout ="..tostring(io.stdout), "default_out ="..tostring(default_out)) 
+
+io.write("-- io.write>>End of the test.lua file\n")                  -- 将内容追加到文件最后一行
+open_out:write("-- file:write>>End of the test.lua file\n")          -- 将内容追加到文件最后一行
+io.stdout:write("-- io.stdout:write>>End of the test.lua file\n")    -- 从标准输出输出
+          print("-- print          >>End of the test.lua file")      -- 从标准输出输出
+
+-- file 等于 open_out; 都是userdata类型，字符串执行引用地址
+print("file\t"..type(file), "open_in\t"..type(open_out), "\tdefault_in\t"..type(default_out))
+print("file="..tostring(file), "open_in="..tostring(open_out), "default_in="..tostring(default_out))
+
+print("io.output()="..tostring(io.output()))  -- 返回当前的默认文件的描述符 open_out
+io.close(file)   
+print("io.output()="..tostring(io.output()))  -- 当前状态为：closed
+
+-- default_out 等于 io.stdout; 因此io.output(default_out) 等于 io.output(io.stdout)
+print("closed io.close(file) >>", "io.stdout ="..tostring(io.stdout), "default_out ="..tostring(default_out))  
+-- io.input(default_out) 
+io.output(io.stdout)
+
+--[[ io.write和io.read
+1. io.write 默认等价于 io.stdout.write, 当调用io.output修改输出流向之后， io.write等价于file:write
+2. io.read  默认等价于 io.stdin.read,   当调用io.input 修改输入流向之后， io.read 等价于file:read
+3. io.close() 之后，关闭的时候输入流，不影响输出流。
+4. 有时候io.input():close() 等价于 io.close()； 如果同时打开输入输出则不相同
+--]]
+
+io.stdout:write(string.rep('-', 30), 'https://www.jianshu.com/p/b199897d2ce5', string.rep('-', 30),'\n')
+io.write("write start\n")            -- 测试默认输出文件 等价于 io.stdout:write(..)
+
+local cmd_content = io.read("*l")    -- 测试默认输入文件 等价于 io.stdin.read(..)
+print("command line content:")
+print(cmd_content)
+
+io.input("writetest.txt")            -- 设置默认的输入文件, 文件名为字符串, 默认是'r'
+local txt_content = io.read("*l")    -- 输入流指向"writetest.txt"文件
+print("txt_content content:", txt_content)
+
+local file = io.input()
+-- file:close()  -- 在此io.input():close() 等价于 io.close()
+io.close()
+
+-- io.output(io.stdout)
+print("\ncurrent io.output() >>", "io.stdout ="..tostring(io.stdout), "io.output() ="..tostring(io.output()))  
+io.write("io.write >> write again\n")
+io.stdout:write("io.stdout:write >> write again\n")
+print("print >> write again\n")
+
+
+io.output("writetest.txt")         -- 设置默认的输出文件, 文件名为字符串, 默认是'w'
+io.write("io.write")
+
+io.close()                         -- 关闭默认输出文件
+
+print(pcall(io.write, "io.write again"))   -- 测试此时默认输出文件,此时会因为输出流关闭而输出错误
+print("io.inoutput bye bye")
+-- 设置命令行为默认输出
+io.output(io.stdout)
+
+--[[
+1. 由第一行运行结果可知，默认的输出文件描述符是io.stdout，也就是命令行界面，其实默认的输出文件描述符也是命令行界面，有运行结果可以推断出来。
+2. 这里复习了一下函数io.close()他会关闭默认的输出文件，这也就是为什么程序后面会报错的原因，因为默认的输出文件描述符已经关闭了，再次调用函数io.read()就会报错。
+3. 为什么结果里没有输出文本"io.write"呢，原因就是默认的输出文件描述符已经改为文件iotest.txt，此后输出的内容都会保存在该文件中。
+4. 如果想恢复原来的默认输出文件描述符，按照代码的最后一行可以设置回来。
+--]]

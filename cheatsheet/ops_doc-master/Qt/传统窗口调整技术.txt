@@ -1,0 +1,74 @@
+https://qtguide.ustclug.org/
+
+    通过手动计算来调整控件分布，以及限定窗口最大尺寸和最小尺寸。
+    Qt 布局器非常方便，不需要我们自己去计算控件实时的位置和大小，但是我们还是应该学习
+如何根据窗口大小，自己编写代码计算各个控件的位置和大小。
+
+手动计算和调整控件分布这项传统技术有缺点，就是没有通用性，控件多一个、少一个都得重新计算。
+                                    优点，就是程序员对界面调整的掌控有最大的自由度和灵活度。
+
+限定窗口大小
+------------------
+窗体里用到的控件几乎都是以 QWidget 为基类，QWidget 关于控件或窗口大小的设置有如下几个函数：
+设置窗口占用矩形的函数：
+void setGeometry(int x, int y, int w, int h)
+void setGeometry(const QRect &)
+x 和 y 是控件距离父窗口左上角的坐标，w 是宽度，h 是高度。QRect 也是以类似的 4 个参数构造。
+
+如果不改变窗口大小，只是移动窗口左上角坐标，那么使用如下函数：
+void move(int x, int y)
+void move(const QPoint &)
+
+如果不移动窗口左上角坐标，只改变窗口的尺寸大小，那么使用如下函数：
+void resize(int w, int h)
+void resize(const QSize &)
+w 是宽度，h 是高度。QSize 也是以宽度、高度为参数构造。
+
+当窗体尺寸变化时，不会发送信号，而是调用内部保护类型的虚函数 resizeEvent()。
+一方面信号和槽有开销，这对实时绘图不利
+一方面窗体变化应该由类对象内部处理，而不是交给外部对象处理，所以窗口大小变化时，调用的是内部保护类型虚函数
+void QWidget::​resizeEvent(QResizeEvent * event)    //virtual protected
+    注意: 一般不要在 ​resizeEvent() 函数内部调用 setGeometry() 或者 resize() 改变窗口尺寸，那样容易导致 ​
+resizeEvent() 函数循环触发，进入死循环。
+
+参数 event 是 QResizeEvent 类型，除了构造函数，这个 QResizeEvent 只有两个自己的公有函数：
+const QSize & QResizeEvent::​oldSize() const
+oldSize() 用于获取窗体的旧尺寸，就是变化前的尺寸。
+const QSize & QResizeEvent::​size() const
+size() 用于获取窗体当前的新尺寸，就是变化后的尺寸。 当然，我们都是根据新尺寸调整里面各个控件的分布和尺寸。
+
+限定窗口的尺寸范围有两个属性 minimumSize(最小尺寸，该属性又可细分为 minimumWidth、minimumHeight)和 
+                             maximumSize(最大尺寸，该属性又可细分为 maximumWidth、maximumHeight)
+void setMinimumSize(const QSize &)        //最小尺寸
+void setMinimumSize(int minw, int minh)   //最小尺寸
+void setMaximumSize(const QSize &)        //最大尺寸
+void setMaximumSize(int maxw, int maxh)   //最大尺寸
+
+如果同时将窗口的最大尺寸和最小尺寸设置为一样大，那么窗口就是固定尺寸的，不能拉伸或缩小。
+设置固定大小的窗口，可以同时设置上面的最小尺寸和最大尺寸，或者调用一个比较方便的函数：
+void setFixedSize(const QSize & s)
+void setFixedSize(int w, int h)
+如果只希望单独设置固定宽度或者固定高度，则可以使用如下函数：
+void setFixedWidth(int w)    //单独设置固定宽度
+void setFixedHeight(int h)   //单独设置固定高度
+窗口的尺寸和坐标设置函数就介绍这些，控件的尺寸和坐标设置函数是一样的。
+
+
+
+
+
+
+
+
+
+
+
+如果同时将窗口的最大尺寸和最小尺寸设置为一样大，那么窗口就是固定尺寸的，不能拉伸或缩小。
+设置固定大小的窗口，可以同时设置上面的最小尺寸和最大尺寸，或者调用一个比较方便的函数：
+void setFixedSize(const QSize & s)
+void setFixedSize(int w, int h)
+如果只希望单独设置固定宽度或者固定高度，则可以使用如下函数：
+void setFixedWidth(int w)    //单独设置固定宽度
+void setFixedHeight(int h)   //单独设置固定高度
+窗口的尺寸和坐标设置函数就介绍这些，控件的尺寸和坐标设置函数是一样的。
+

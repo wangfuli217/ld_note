@@ -1,0 +1,26 @@
+apiVersion: v1            #必须
+kind: Service             #必须
+metadata:                 #必须
+  name: string              #必须
+  namespace: string        #必须
+  labels:
+    - name: string
+  annotations:
+    - name: string
+spec:                   #必须
+  selector:            #必须,label selector配置,将选择具有指定Label标签的Pod作为管理范围
+    key: volume        #必须
+  type: string         #必须,service的类型,指定Service的访问方式,默认为ClusterIP(虚拟的服务IP地址,该地址用于kubernetes集群内部的Pod访问,在Node上kube-proxy通过iptables规则进行转发,NodePort使用宿主机端口,LoadBalancer:使用外接的负载均衡器完成到服务的负载分发,需要在spec.status.loadBalancer指定外部负载均衡器的IP地址
+  clusterIP: string	   #虚拟服务IP地址,当type=ClusterIP时,如果不指定,则系统自动进行分配,也可以手工指定,当type=LoadBalancer时,则需要指定
+  sessionAffinity: string	#是否支持Session,可选值为ClientIP(表示将同一个客户端的访问请求都转发到同一个后端Pod),默认为空
+  ports:			   #service需要暴露的端口列表
+    - name: string	
+      protocol: string	#端口协议,支持TCP和UDP,默认为TCP
+      port: int			#服务监听的端口号
+      targetPort: int	#转发到后端Pod的端口号
+      nodePort: int		#当spec.type=NodePort时,指定映射到物理机的端口号
+status:					#当spec.type=LoadBalancer时,设置外部负载均衡器的地址
+  loadBalancer:			#外部负载均衡器
+    ingress:			#外部负载均衡器
+      ip: string		#外部负载均衡器IP地址
+      hostname: string	#外部负载均衡器的主机名

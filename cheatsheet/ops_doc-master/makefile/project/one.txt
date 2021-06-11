@@ -1,0 +1,109 @@
+# 让动态库和静态库成为系统一部分，避免编程过程中头文件硬链接(指定头文件路径)
+# 但是，链接时使用动态库和运行时使用动态库是不同的。
+
+https://blog.csdn.net/luotuo44/article/details/16970841
+
+1. 相对路径包含头文件: 弊端 
+#include    "function/head.h"
+当function目录改成其它名字，或者head.h文件放到其它目录了，这时都要对main.cpp文件进行修改，
+如果head.h头文件被很多其它文件包含的话，这个工作量就大多了。
+g++ main.cpp function/head.cpp -o main
+2. 用编译选项 –I(大写i)
+g++ main.cpp function/head.cpp -Ifunction -o main
+用-I选项，相当于说明了一条标准路径。
+3. 使用.o文件
+g++ -c function/head.cpp -o function/head.o
+mv head.o ../
+g++ -c main.cpp -Ifunction -o main.o  # 编译命令
+g++ main.o head.o -o main             # 链接命令
+4. 静态库
+g++ -c sub.cpp add.cpp
+ar -cr libhead.a add.o sub.o
+g++ main.cpp -Ifunction -Lfunction -lhead -o main
+-L表示要使用的静态库的目录。
+可能-L所指明的目录下有很多静态库，所以除了要告诉去哪里找之外，还要告诉编译器，找哪一个静态库。
+此时，就要用到-l(小写L)了。它用来说明链接的时候要用到哪个静态库。
+注意：
+  1. 注意是使用-lhead,而不是-llibhead
+  2. 要把-l放到命令的尽可能后的位置，必须放到源文件的后面。
+5. 动态库
+$g++ -c -fPIC add.cpp sub.cpp
+$g++ -shared -fPIC add.o sub.o -o libhead.so 
+$g++ -Ifunction -Lfunction -lhead main.cpp -o main
+./main: error while loading shared libraries: libhead.so: cannot open shared object file: No such file or directory  
+环境变量LD_LIBRARY_PATH指定的路径
+缓存文件/etc/ld.so.cache指定的路径
+默认的共享库目录，先是/lib，然后是/usr/lib
+运行./main时，明显这三个地方都没有找到。因为我们没有把libhead.so文件放到那里。
+g++ -Ifunction ./libhead.so main.cpp -o main
+注意:
+  1. 在当前目录下查找libhead.so动态库。注意这个命令不再使用-L 和 -l了
+6. 打造自己的库目录和头文件目录
+1.指定运行时Linux加载动态库的查找路径
+  可以修改环境变量LD_LIBRARY_PATH或者修改/etc/ld.so.cache文件。这里选择修改/etc/ld.so.cache文件。
+  1)  创建目录/mylib/so。
+  2)  创建并编辑一个mylib.conf文件。输入命令$sudo vim /etc/ld.so.conf.d/mylib.conf
+  在mylib.conf文件中输入 /mylib/so 
+  3)  重建/etc/ld.so.cache文件。输入命令$sudo ldconfig
+  g++  -Ifunction -Lfunction -lhead main.cpp 
+2. 指定编译时的头文件路径
+  1.先搜索当前目录（使用include””时）
+  2.然后搜索-I指定的目录
+  3.再搜索环境变量CPLUS_INCLUDE_PATH、 C_INCLUDE_PATH。两者分别是g++、gcc使用的。
+  4.最后搜索默认目录 /usr/include  和 /usr/local/include等
+
+~/.bashrc
+  C_INCLUDE_PATH=/usr/include/libxml2:/mylib
+  export C_INCLUDE_PATH
+  CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:/usr/include/libxml2:/mylib
+  export CPLUS_INCLUDE_PATH
+
+g++ -Lfunction -lhead mian.cpp -o main
+
+3.指定链接时的动态库路径
+  需要注意的是，链接时使用动态库和运行时使用动态库是不同的。
+  同样先搞清搜索顺序：
+  1. 编译命令中-L指定的目录
+  2. 环境变量LIBRARY_PATH所指定的目录
+  3. 默认目录。/lib、/usr/lib等。
+
+#找到动态链接库的路径
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/mylib 
+export LD_LIBRARY_PATH
+
+#找到静态库的路径
+LIBRARY_PATH=$LIBRARY_PATH:/mylib
+export LIBRARY_PATH
+
+
+
+pkgconfig有什么用：
+    大家应该都知道用第三方库，就少不了要使用到第三方的头文件和库文件。我们在编译、链接的时候，
+必须要指定这些头文件和库文件的位置。
+    对于一个比较大第三方库，其头文件和库文件的数量是比较多的。如果我们一个个手动地写，那将是相当麻烦的。
+所以，pkg-config就应运而生了。pkg-config能够把这些头文件和库文件的位置指出来，给编译器使用。
+    如果你的系统装有gtk，可以尝试一下下面的命令$pkg-config --cflags gtk+-2.0。可以看到其输出是gtk的头文件的路径。
+我们平常都是这样用pkg-config的。$gcc main.c $(pkg-config --cflags --libs gtk+-2.0) -o main
+    
+    --cflags和--libs分别指定头文件和库文件
+
+配置环境变量
+    pkg-config命令是通过查询XXX.pc文件而知道这些的。我们所需要做的是，写一个属于自己的库的.pc文件。
+    但pkg-config又是如何找到所需的.pc文件呢？这就需要用到一个环境变量PKG_CONFIG_PATH了。
+这环境变量写明.pc文件的路径，pkg-config命令会读取这个环境变量的内容，这样就知道pc文件了。
+对于Ubuntu系统，可以用root权限打开/etc/bash.bashrc文件。在最后输入下面的内容。
+
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig
+export PKG_CONFIG_PATH
+
+pc文件书写规范：
+好了，现在我们开始写自己的.pc文件。只需写5个内容即可：Name、Description、Version、Cflags、Libs。
+比如简单的：
+
+Name: opencv
+Description:OpenCV pc file
+Version: 2.4
+Cflags:-I/usr/local/include
+Libs:-L/usr/local/lib –lxxx –lxxx
+
+其中Name对应的内容要和这个pc文件的文件名一致。当然为了书写方便还会加入一些变量，比如前缀变量prefix。

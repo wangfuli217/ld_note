@@ -1,0 +1,1 @@
+https://github.com/limingth/sysvinit/blob/master/pdf/sysvinit.md

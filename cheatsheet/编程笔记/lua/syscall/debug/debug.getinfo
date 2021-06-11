@@ -1,0 +1,73 @@
+--[[
+debug.getinfo ([thread,] f [, what])
+  返回关于一个函数信息的表。
+  你可以直接提供该函数， 也可以用一个数字 f 表示该函数。
+  数字 f 表示运行在指定线程的调用栈对应层次上的函数：
+    0 层表示当前函数(getinfo 自身)；
+    1 层表示调用 getinfo 的函数(除非是尾调用，这种情况不计入栈)
+    如果 f 是一个比活动函数数量还大的数字， getinfo 返回 nil。
+  getinfo的第二个参数(可选), 用于指定希望获取那些信息
+    'n'       选择name和namewhat
+    'f'       选择func
+    'S'       选择source, short_src, what, linedefined, lastlinedefined
+    'l'       选择currrentline
+    'L'       选择activelines
+    'u'       选择nups nparams isvararg
+  
+  只有字符串 what 中有描述要填充哪些项，返回的表可以包含 lua_getinfo 能返回的所有项。
+  what 默认是返回提供的除合法行号表外的所有信息。 
+  对于选项 'f' ，会在可能的情况下，增加 func 域保存函数自身。
+  对于选项 'L' ，会在可能的情况下，增加 activelines 域保存合法行号表。
+  
+  table字段如下:
+    source ->          函数定义的位置；如果函数定义在一个字符串中(通过调用load),那么source就是这个字符串
+                       如果函数定义在个文件中，那么source就是用@作为前缀的文件名。
+    short_src ->       source的精简版本(最多60个字符), 对于错误信息十分有用
+    linedefined ->     该函数定义在源代码中的第一行的行号
+    lastlinedefined -> 该函数定义在源代码中的最后一行的行号
+    what ->            函数类型("lua"->Lua函数, "C"->C函数, "main"->lua主程序块)
+    name ->            该函数的一个适当名称，例如保存该函数的全局变量的名称
+    namewhat ->        上一个字段的含义(可能是"global", "local", "method", "field"和""), 空字符串表示Lua没有找到该函数的名称
+    nups ->            函数的upvalue的个数
+    nparams ->         函数的参数个数
+    isvararg ->        标明该函数是否为可变长参数函数(一个布尔值)
+    activelines ->     一个table, 包含了该函数的所有活动行的集合
+    func ->            函数本身
+  当foo是一个C函数时, 只有字段what, name和namewhat, nups, func有意义
+  
+  
+--]]
+
+
+----利用debug.getinfo自写traceback函数----
+function get_info()
+	tab=debug.getinfo(1,'nSufl')			-- getinfo名为自省函数，返回指定栈级别中函数的信息表。参数1指定函数栈级别（函数名），参数2指定记录信息
+	print('--以下是getinfo返回表的域--')
+	print('name:',tab.name)					-- 函数名
+	print('namewhat',tab.namewhat)			-- 表示上一个字符串是什么，'global' or 'local' or 'method' or 'field' or nil
+	print('source:',tab.source)				-- 函数被定义的地方，@+文件名
+	print('short_src:',tab.short_src)		-- source的简短版本（实际好像就是去掉@）
+	print('linedefined:',tab.linedefined)	-- 函数被定义处的行号
+	print('what:',tab.what)					-- 标明函数类型 ，'lua' or 'C' or 'main'
+	print('nups:',tab.nups)					-- 函数upvalue的个数
+	print('func:',tab.func)					-- 函数本身
+	print('currentline',tab.currentline)	-- 这个时刻，函数所在的行号
+	print('--------------------------')
+end
+function traceback()
+	local level = 1
+	while true do
+		local info = debug.getinfo(level, "Sl") -- 栈级别1：traceback  栈级别2:main  栈级别3：？？？这个C函数是用C写的解释器？
+		if not info then
+			break
+		end
+		if info.what == "C" then
+			print(level, "C function")
+		else
+			print(string.format("[%s]:%d",info.short_src, info.currentline))
+		end
+		level = level + 1
+	end
+end
+get_info()
+traceback()

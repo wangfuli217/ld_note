@@ -1,0 +1,124 @@
+#!/usr/bin/env bash-utils
+#
+# <http://github.com/e-picas/bash-utils>
+# Copyright (c) 2015 Pierre Cassat & contributors
+# License Apache 2.0 - This program comes with ABSOLUTELY NO WARRANTY.
+# For the full copyright and license information, please view the LICENSE
+# file that was distributed with this source code or see <http://www.apache.org/licenses/LICENSE-2.0>.
+#
+# Starter template for script using the 'bash-utils' library
+# Default options are: -f | -h | -q | -v | -V | -x | --dry-run
+#
+
+#######################
+## Bash options enabled by default, uncomment to disable them:
+#set +e             # exit if a command has a non-zero status
+#set +E             # trap on ERR are inherited by shell functions
+#set +T             # trap on DEBUG and RETURN are inherited by shell functions
+#set +o pipefail    # do not mask pipeline's errors
+#set +u             # throw error on unset variable usage
+
+## Bash options disabled by default, uncomment to enable them:
+#set -x             # for dev usage: debug commands before to execute them
+#set -v             # for dev usage: print shell input lines as they are read
+
+#######################
+## command info
+CMD_NAME='bash-utils-model'
+CMD_VERSION='0.0.0'
+CMD_COPYRIGHT='My command copyright'
+CMD_LICENSE='My command license'
+CMD_SOURCES='My command sources'
+CMD_DESCRIPTION='A model for *bash* scripts using the *bash-utils* library.'
+CMD_HELP="My command help string ...
+
+Available options:
+    --dry-run       process a dry-run
+    -f|--force      do not prompt for choices if a default choice exists
+    -h|--help       get this help info
+    -q|--quiet      decrease script's verbosity
+    -v|--verbose    increase script's verbosity
+    -V|--version    get library information (license, version etc)
+                    use option '--quiet' to get version number only
+    -x|--debug      see some debugging information
+";
+#CMD_OPTS_SHORT=(f h q v V x)
+#set_env_array CMD_OPTS_SHORT CMD_OPTS_SHORT[@]
+#CMD_OPTS_LONG=(debug dry-run force help quiet verbose version)
+#set_env_array CMD_OPTS_LONG CMD_OPTS_LONG[@]
+#CMD_ARGS=()
+#set_env_array CMD_ARGS CMD_ARGS[@]
+# the synopsis should not be overridden as it is automatically built with `CMD_OPTS_...`
+#CMD_SYNOPSIS="$0 [-fhqvVx] [--debug|--dry-run|--force|--help|--quiet|--verbose|--version] [--] <arguments>"
+# you can use `CMD_USAGE` instead, which will be added to default options:
+#CMD_USAGE=''
+
+#######################
+## command options & arguments
+
+# re-arrangement of options and arguments
+rearrange_options "$@"
+[ -n "$CMD_REQ" ] && eval set -- "$CMD_REQ";
+
+# common options treatment
+common_options "$@"
+
+# custom options eventually
+while [ $# -gt 0 ]; do
+    case "$1" in
+        # user options
+        # to add your own options, use:
+        #
+        # declare -xr CMD_OPTS_SHORT=(f q v x 'a:' 'b::')
+        # declare -xr CMD_OPTS_LONG=(force quiet verbose debug dry-run 'test1:' 'test2::')
+        #
+        # -a | --test1 ) [ -z "$2" ] && error 'argument required'; TEST1="${2#=}"; shift;;
+        # -b | --test2 ) TEST2="${2:-default#=}"; shift;;
+        #
+        
+        # end of options
+        -- ) shift; break;;
+        # error for unknown option
+        * )  ! is_known_option "$1" && error "unknown option '$1'";;
+    esac
+    shift
+done
+
+# usage info if no argument
+[ $# -eq 0 ] && usage_info && exit 1;
+
+# debug environment in debug mode
+$DEBUG && debug;
+
+#######################
+## script's logic ...
+
+# to throw an error for 'non-dev' users
+# error 'my error string'
+
+# to throw an error for 'dev' users
+# die 'my error string'
+
+# to write a string in verbose mode only
+# $VERBOSE && echo 'my string';
+
+# to write a string in not quiet mode
+# $QUIET || echo 'my string';
+
+# to not execute a command in dry-run mode
+# if $DRY_RUN; then echo 'rm -f filename.txt'; else rm -f filename.txt; fi
+
+# see the 'bash-utils.7.man' for a complete documentation
+
+# ...
+
+
+
+
+#######################
+## exit
+# a bash script should always exit with a status (0 for no error)
+exit 0
+
+## vim default shell setup (must be the very last line):
+# vim: autoindent tabstop=4 shiftwidth=4 expandtab softtabstop=4 filetype=sh

@@ -1,0 +1,115 @@
+安装虚拟机
+
+检查CPU虚拟化支持
+
+egrep '^flags.*(vmx|svm)' /proc/cpuinfo
+
+安装KVM
+
+yum install qemu-kvm libvirt virt-install virt-top libguestfs-tools
+
+启动服务
+
+systemctl start libvirtd.service
+systemctl enable libvirtd.service
+
+安装VM
+
+virt-install --name centos7 --memory=2048 --vcpus=1 --network bridge:br1 --disk path=/mnt/centos7.qcow2,size=20 --graphics vnc,listen=0.0.0.0 --cdrom /media/CentOS-7-x86_64-Minimal-1702-01.iso 
+#配置文件在 /etc/libvirt/qemu/
+
+常用参数说明：
+
+--name NAME                         客户机实例名称
+--memory MEMORY                     配置客户机内存分配(--ram)
+--vcpus VCPUS                       配置客户机虚拟 CPU(vcpu) 数量
+--cdrom CDROM                       光驱安装介质
+--location LOCATION                 安装源 例如：nfs:host:/path, http://host/path, ftp://host/path
+--pxe                               使用 PXE 协议从网络引导
+--boot BOOT                         配置客户机引导设置。例如：--boot hd,cdrom,menu=on, --boot init=/sbin/init (针对容器)	
+--disk DISK                         指定存储的各种选项。例如：--disk path=/mnt/centos7.qcow2,size=20,format=qcow2 (创建 20GiB 镜像)
+--network NETWORK                   配置客户机网络接口。例如：--network bridge=mybr0, --network network=mynet,model=virtio
+--graphics GRAPHICS                 配置客户机显示设置。例如：--graphics vnc,listen=0.0.0.0,password=foobar,port=5910,keymap=ja,  --graphics spice,port=5901,tlsport=5902
+--hostdev HOSTDEV                   配置物理 USB/PCI 等主机设备与客户机共享
+--filesystem FILESYSTEM             传递主机目录到客户机。例如：--filesystem /my/source/dir,/dir/in/guest, --filesystem template_name,/,type=template
+--hvm                               这个客户机应该是一个全虚拟化客户机
+--container                         这个客户机应该是一个容器客户机
+--autostart                         主机启动时自动启动虚拟机
+--os-type=linux                     客户机操作系统类型
+--os-variant=rhel7                  系统版本，用于进一步优化访客配置
+使用 '--option=?' 或 '--option help' 来查看可用的子选项
+
+查看VNC端口
+
+virsh vncdisplay centos7
+# :0 表示tcp/5900
+
+虚拟机管理命令
+
+virsh list                  查看正在运行的虚机
+virsh list --all            查看所有的虚拟机
+virsh domstate <vm>         查看虚拟机状态
+virsh dominfo <vm>          查看虚机基本信息
+virsh domiflist <vm>        查看虚拟机的网络接口
+virsh dommemstat <vm>       查看虚拟机的内存统计
+virsh shutdown <vm>         关闭虚拟机
+virsh destroy <vm>          关闭虚拟机电源
+virsh reboot <vm>           重启虚拟机
+virsh start <vm>            启动虚拟机
+virsh edit <vm>             编辑虚拟机配置文件，如修改虚拟机的内存、CPU以及VNC连接端口等配置
+virsh create /etc/libvirt/qemu/<vm.xml>    更新虚拟机配置，编辑xml文件并关闭虚拟机之后
+virsh autostart <vm>                       虚拟机开机启动
+virsh autostart --disable <vm>             取消虚拟机开机启动
+virsh undefine <vm>                        删除虚拟机，只是删除/etc/libvirt/qemu目录下相应的xml配置文件，还需要手动删除磁盘img文件
+virsh suspend <vm>                         挂起虚拟机
+virsh resume <vm>                          恢复挂起的虚拟机
+virt-clone -o <vm> -n <new-vm> -f /mnt/centos7-1.qcow2    克隆虚拟机，克隆完成后需要登录进虚拟机更改IP/MAC地址
+virt-top                                   查看所有虚拟机的负载
+virt-df -h <vm>                            查看虚拟机的磁盘分区
+migrate                                    将虚拟机迁移到另一个主机中
+virsh setvcpus <vm> <count>                调整CPU数量
+virsh setmem <vm> <count>                  调整内存大小
+(使用 virsh <command> --help 来获得这个命令的详细信息)
+
+如果你想使用图形化工具virt-manager来管理虚拟机
+
+yum groups install "GNOME Desktop" "Virtualization Host"
+
+虚拟机常用的两种磁盘模式
+
+raw：立即分配所有磁盘空间。
+qcow2：精简模式，使用多少占用多少磁盘空间。
+qcow2格式的磁盘只能加不能减少容量，而raw格式可以实现增加或者减少容量，使用qemu-img工具。
+如果重用现有的qcow2镜像，则需要指定format=qcow2，否则管理程序可能无法读取磁盘镜像。
+
+连接虚拟机
+
+        VNC连接工具：https://www.realvnc.com/download/vnc/
+
+    Windows VNC Viewer 连接成功后闪退的解决方法：依次点 File --> Preferences --> Expert 找到 ColourLevel，默认值是pal8，修改为rgb222或full。
+
+添加网络接口
+
+#添加网卡
+virsh attach-interface centos7-2 --type bridge --source br1 --model=virtio --persistent
+
+#查看网卡
+virsh domiflist centos7-2
+
+#删除网卡
+virsh detach-interface centos7-2 --type bridge --mac 52:54:00:bd:3f:75 --persistent
+
+虚拟机快照
+
+#创建快照
+virsh snapshot-create centos7-0
+
+#查看快照
+virsh snapshot-list centos7-0
+#快照配置文件在 /var/lib/libvirt/qemu/snapshot/
+
+#恢复到某次快照
+virsh snapshot-revert centos7-0 1497763328
+
+#删除一个快照
+virsh snapshot-delete centos7-0 1497763328

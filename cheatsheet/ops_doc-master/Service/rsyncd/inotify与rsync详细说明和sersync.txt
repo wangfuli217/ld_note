@@ -1,0 +1,321 @@
+1.inotify+rsync
+    通过rsync+inotify组合可以实现实时同步。
+    inotify实现工具有几款：inotify本身、sersync、lsyncd。
+    其中sersync是金山的周洋开发的工具，克服了inotify的缺陷，且提供了几个插件作为可选工具。
+    
+2.安装inotify-tools
+  ll /proc/sys/fs/inotify/  # 内核版本高于2.6.13
+    (1)./proc/sys/fs/inotify/max_queued_events：调用inotify_init时分配到inotify instance中可排队的event数的最大值，
+                                                超出值时的事件被丢弃，但会触发队列溢出Q_OVERFLOW事件。
+    (2)./proc/sys/fs/inotify/max_user_instances：每一个real user可创建的inotify instances数量的上限。
+    (3)./proc/sys/fs/inotify/max_user_watches：每个inotify实例相关联的watches的上限，即每个inotify实例可监控的最大
+                                               目录、文件数量。如果监控的文件数目巨大，需要根据情况适当增加此值。
+    echo 30000000 > /proc/sys/fs/inotify/max_user_watches
+  
+  inotify-tools源码包地址：https://cloud.github.com/downloads/rvoicilas/inotify-tools/inotify-tools-3.14.tar.gz 
+  tar xf inotify-tools-3.14.tar.gz
+  ./configure --prefix=/usr/local/inotify-tools-3.14
+  make && make install
+  ln -s /usr/local/inotify-tools-3.14 /usr/local/inotify
+  
+  inotify-tools工具只提供了两个命令。
+    /usr/bin/inotifywait
+    /usr/bin/inotifywatch
+  其中inotifywait命令用于等待文件发生变化，所以可以实现监控(watch)的功能，该命令是inotify的核心命令。
+  inotifywatch用于收集文件系统的统计数据，例如发生了多少次inotify事件，某文件被访问了多少次等等，一般用不上。
+  
+3. inotifywait命令以及事件分析
+inotifywait命令的选项：
+  -m：表示始终监控，否则应该是监控到了一次就退出监控了
+  -r：递归监控，监控目录中的任何文件，包括子目录。递归监控可能会超出max_user_watches的值，需要适当调整该值
+  @<file>：如果是对目录进行递归监控，则该选项用于排除递归目录中不被监控的文件。file是相对路径还是绝对路径由监控目录是相对还是绝对来决定
+  -q：--quiet的意思，静默监控，这样就不会输出一些无关的信息
+  -e：指定监控的事件。一般监控的就delete、create、attrib、modify、close_write
+  --exclude <pattern> ：通过模式匹配来指定不被监控的文件，区分大小写
+  --excludei <pattern>：通过模式匹配来指定不被监控的文件，不区分大小写
+  --timefmt：监控到事件触发后，输出的时间格式，可指定可不指定该选项，一般设置为[--timefmt '%Y/%m/%d %H:%M:%S']
+  --format：用户自定义的输出格式，如[--format '%w%f %e%T']
+    %w：产生事件的监控路径，不一定就是发生事件的具体文件，例如递归监控一个目录，该目录下的某文件产生事件，将输出该目录而非其内具体的文件
+    %f：如果监控的是一个目录，则输出产生事件的具体文件名。其他所有情况都输出空字符串
+    %e：产生的事件名称
+    %T：以"--timefmt"定义的时间格式输出当前时间，要求同时定义"--timefmt"
+  
+inotifywait -e可监控的事件：
+  access：文件被访问
+  modify：文件被写入
+  attrib：元数据被修改。包括权限、时间戳、扩展属性等等
+  close_write：打开的文件被关闭，是为了写文件而打开文件，之后被关闭的事件
+  close_nowrite：read only模式下文件被关闭，即只能是为了读取而打开文件，读取结束后关闭文件的事件
+  close：是close_write和close_nowrite的结合，无论是何种方式打开文件，只要关闭都属于该事件
+  open：文件被打开
+  moved_to：向监控目录下移入了文件或目录，也可以是监控目录内部的移动
+  moved_from：将监控目录下文件或目录移动到其他地方，也可以是在监控目录内部的移动
+  move：是moved_to和moved_from的结合
+  moved_self：被监控的文件或目录发生了移动，移动结束后将不再监控此文件或目录
+  create：在被监控的目录中创建了文件或目录
+  delete：删除了被监控目录中的某文件或目录
+  delete_self：被监控的文件或目录被删除，删除之后不再监控此文件或目录
+  umount：挂载在被监控目录上的文件系统被umount，umount后不再监控此目录
+  isdir ：监控目录相关操作
+  
+  inotifywait -m /longshuai    # 以前台方式监控目录，由于没指定监控的事件，所以监控所有事件
+  touch a.log                  # 向目录中创建文件，触发create、open attrib、close_write和close事件。
+  mkdir b                      # ISDIR表示产生该事件的对象是一个目录。
+  chown 666 a.log              # 修改文件属性，触发attrib事件。
+  cat a.log                    # cat查看文件，触发open、access、close_nowrite和close事件。
+  echo "haha" >> a.log         # 向文件中追加或写入或清除数据，触发open、modify、close_write和close事件。
+  vim a.log                    # vim打开文件并修改文件，中间涉及到临时文件，所以有非常多的事件。
+  cp /bin/find .               # 向目录中拷入一个文件，触发create、open、modify和close_write、close事件。
+  mv /tmp/after.log /longshuai # MOVED_TO 
+  mv /longshuai/after.log /tmp # MOVED_FROM 
+  rm -f a.log                  # DELETE 
+  
+1. 大多数情况下在定义监控事件时，其实并不真的需要监控open、modify、close事件。
+2. 特别是close，只需监控它的分支事件close_write和close_nowrite即可。
+3. 由于一般情况下inotify都是为了监控文件的增删改，不会监控它的访问，所以一般只需监控close_write即可。
+
+当监控到了/var/log/messages文件中出现了a.log关键字，就执行echo动作。
+while inotifywait -mrq -e modify /var/log/messages; do
+  if tail -n1 /var/log/messages | grep a.log; then
+    echo "haha"
+  fi
+done
+
+    建议对监控对象的close_write、moved_to、moved_from、delete和isdir(主要是create,isdir，
+但无法定义这两个事件的整体，所以仅监控isdir)事件定义对应的操作，
+[root@xuexi tmp]# cat a.sh
+#!/bin/bash
+#
+inotifywait -mrq -e delete,close_write,moved_to,moved_from,isdir /longshuai |\
+while read line;do
+   if grep -i delete $line; then
+       echo "At $(date +"%F %T"): $line" >>/etc/delete.log
+   else
+       rsync -az $line --password-file=/etc/rsync_back.passwd rsync://rsync_backup@172.16.10.6::longshuai
+   fi
+done
+
+-------------------- 发布服务器->Web服务器 --------------------  
+                 | ---> Web服务器B
+A 站点发布服务器 | ---> Web服务器C
+                 | ---> Web服务器D
+   rsync客户端          rsync服务器端
+以下是监控/www目录的一个inotify+rsync脚本示例，也是网上流传的用法版本。
+cat ~/inotify.sh
+#!/bin/bash
+ 
+watch_dir=/www
+push_to=172.16.10.5
+inotifywait -mrq -e delete,close_write,moved_to,moved_from,isdir --timefmt '%Y-%m-%d %H:%M:%S' --format '%w%f:%e:%T' $watch_dir \
+--exclude=".*.swp" |\
+while read line;do
+  # logging some files which has been deleted and moved out
+    if echo $line | grep -i -E "delete|moved_from";then
+        echo "$line" >> /etc/inotify_away.log
+    fi
+  # from here, start rsync's function
+    rsync -az --delete --exclude="*.swp" --exclude="*.swx" $watch_dir $push_to:/tmp
+    if [ $? -eq 0 ];then
+        echo "sent $watch_dir success"
+    else
+        echo "sent $watch_dir failed"
+    fi
+done    
+
+但其实rsync只要同步一次/www目录到远端就足够了，
+拷入了多个文件，rsync被触发了多次，但其实rsync只要同步一次/www目录到远端就足够了，多余的rsync操作完全是浪费资源。
+如果拷入少量文件，其实无所谓，但如果拷入成千上万个文件，将长时间调用rsync。
+--------------------  inotify的bug 和 inotify+rsync的缺陷--------------------  
+    当向监控目录下拷贝复杂层次目录(多层次目录中包含文件)，或者向其中拷贝大量文件时，
+inotify经常会随机性地遗漏某些文件。这些遗漏掉的文件由于未被监控到，所有监控的后续操作都不会执行.
+
+    由于inotify的bug，使用inotify+rsync时应该总是让rsync同步目录，而不是同步那些产生事件的单个文件，
+否则很可能会出现文件遗漏。另一方面，同步单个文件的性能非常差。
+(1).由于inotify监控经常会对一个文件产生多个事件，且一次性操作同一个目录下多个文件也会产生多个事件，
+    这使得inotify几乎总是多次触发rsync同步目录，由于rsync同步的是目录，所以多次触发rsync完全没必要，
+    这会浪费资源和网络带宽；如果是分层次独立监控子目录，则会导致同步无法保证实时性
+(2).vim编辑文件的过程中会产生.swp和.swx等临时文件，inotify也会监控这些临时文件，且临时文件会涉及多个事件，
+   因此它们可能也会被rsync拷贝走，除非设置好排除临时文件，但无论如何，这些临时文件是不应该被同步的，
+   极端情况下，同步vim的临时文件到服务器上可能是致命的。
+   
+在设计inotify+rsync脚本过程中，有以下几个目标应该尽量纳入考虑或达到：
+(1).每个文件都尽量少地产生监控事件，但又不能遗漏事件。
+(2).让rsync同步目录，而不是同步产生事件的单个文件。
+(3).一次性操作同步目录下的多个文件会产生多个事件，导致多次触发rsync。如果能让这一批操作只触发一次rsync，则会大幅降低资源的消耗。
+(4).rsync同步目录时，考虑好是否要排除某些文件，是否要加上"--delete"选项等。
+(5).为了性能，可以考虑对子目录、对不同事件单独设计inotify+rsync脚本。
+
+[root@xuexi tmp]# cat ~/inotify.sh
+#!/bin/bash
+ 
+###########################################################
+#  description: inotify+rsync best practice               #
+#  author     : 骏马金龙                                   #
+#  blog       : http://www.cnblogs.com/f-ck-need-u/       #
+###########################################################
+ 
+watch_dir=/www
+push_to=172.16.10.5
+ 
+# First to do is initial sync
+rsync -az --delete --exclude="*.swp" --exclude="*.swx" $watch_dir $push_to:/tmp
+ 
+inotifywait -mrq -e delete,close_write,moved_to,moved_from,isdir --timefmt '%Y-%m-%d %H:%M:%S' --format '%w%f:%e:%T' $watch_dir \
+--exclude=".*.swp" >>/etc/inotifywait.log &
+ 
+while true;do
+     if [ -s "/etc/inotifywait.log" ];then
+        grep -i -E "delete|moved_from" /etc/inotifywait.log >> /etc/inotify_away.log
+        rsync -az --delete --exclude="*.swp" --exclude="*.swx" $watch_dir $push_to:/tmp
+        if [ $? -ne 0 ];then
+           echo "$watch_dir sync to $push_to failed at `date +"%F %T"`,please check it by manual" |\
+           mail -s "inotify+Rsync error has occurred" root@localhost
+        fi
+        cat /dev/null > /etc/inotifywait.log
+        rsync -az --delete --exclude="*.swp" --exclude="*.swx" $watch_dir $push_to:/tmp
+    else
+        sleep 1
+    fi
+done
+为了让一次性对目录下多个文件的操作只触发一次rsync，通过while read line这种读取标准输入的循环方式是不可能实现的。
+    
+
+-------------------- sersync --------------------  
+sersync项目地址：https://code.google.com/archive/p/sersync/，在此网站中有下载、安装、使用等等详细的中文介绍。
+sersync下载地址：https://code.google.com/archive/p/sersync/downloads。
+
+sersync优点：
+1.sersync是使用c++编写，而且对linux系统文件系统产生的临时文件和重复的文件操作进行过滤，所以在结合rsync同步的时候，节省了运行时耗和网络资源。因此更快。
+2.sersync配置很简单，其中bin目录下已经有静态编译好的2进制文件，配合bin目录下的xml配置文件直接使用即可。
+3.sersync使用多线程进行同步，尤其在同步较大文件时，能够保证多个服务器实时保持同步状态。
+4.sersync有出错处理机制，通过失败队列对出错的文件重新同步，如果仍旧失败，则按设定时长对同步失败的文件重新同步。
+5.sersync自带crontab功能，只需在xml配置文件中开启，即可按要求隔一段时间整体同步一次。无需再额外配置crontab功能。
+6.sersync可以二次开发。
+简言之，sersync可以过滤重复事件减轻负担、自带crontab功能、多线程调用rsync、失败重传。
+建议：
+(1)当同步的目录数据量不大时，建议使用rsync+inotify
+(2)当同步的目录数据量很大时(几百G甚至1T以上)文件很多时，建议使用rsync+sersync
+
+sersync工具包无需任何安装，解压即可使用。
+[root@xuexi ~]# wget https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/sersync/sersync2.5.4_64bit_binary_stable_final.tar.gz
+[root@xuexi ~]# tar xf sersync2.5.4_64bit_binary_stable_final.tar.gz
+[root@xuexi ~]# cp -a GNU-Linux-x86 /usr/local/sersync
+[root@xuexi ~]# echo "PATH=$PATH:/usr/local/sersync" > /etc/profile.d/sersync.sh
+[root@xuexi ~]# source /etc/profile.d/sersync.sh
+sersync目录/usr/local/sersync只有两个文件：一个是二进制程序文件，一个是xml格式的配置文件。
+[root@xuexi ~]# ls /usr/local/sersync/
+confxml.xml  sersync2
+其中confxml.xml是配置文件，文件内容很容易理解。以下是示例文件内容说明。
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<head version="2.5">
+    <host hostip="localhost" port="8008"></host>
+    <debug start="false"/>           # 是否开启调试模式，下面所有出现false和true的地方都分别表示关闭和开启的开关
+    <fileSystem xfs="false"/>        # 监控的是否是xfs文件系统
+    <filter start="false">           # 是否启用监控的筛选功能，筛选的文件将不被监控
+        <exclude expression="(.*)\.svn"></exclude>
+        <exclude expression="(.*)\.gz"></exclude>
+        <exclude expression="^info/*"></exclude>
+        <exclude expression="^static/*"></exclude>
+    </filter>
+    <inotify>                         # 监控的事件，默认监控的是delete/close_write/moved_from/moved_to/create folder
+        <delete start="true"/>
+        <createFolder start="true"/>
+        <createFile start="false"/>
+        <closeWrite start="true"/>
+        <moveFrom start="true"/>
+        <moveTo start="true"/>
+        <attrib start="false"/>
+        <modify start="false"/>
+    </inotify>
+ 
+    <sersync>                       # rsync命令的配置段
+        <localpath watch="/www">    # 同步的目录或文件，同inotify+rsync一样，建议同步目录
+            <remote ip="172.16.10.5" name="/tmp/www"/>  # 目标地址和rsync daemon的模块名，所以远端要以daemon模式先运行好rsync
+            <!--remote ip="IPADDR" name="module"-->     # 除非下面开启了ssh start，此时name为远程shell方式运行时的目标目录
+        </localpath>
+        <rsync>                      # 指定rsync选项
+            <commonParams params="-az"/>
+            <auth start="false" users="root" passwordfile="/etc/rsync.pas"/>
+            <userDefinedPort start="false" port="874"/><!-- port=874 -->
+            <timeout start="false" time="100"/><!-- timeout=100 -->
+            <ssh start="false"/>      # 是否使用远程shell模式而非rsync daemon运行rsync命令
+        </rsync>
+        <failLog path="/tmp/rsync_fail_log.sh" timeToExecute="60"/><!--default every 60mins execute once-->  # 错误重传
+        <crontab start="false" schedule="600"><!--600mins-->    # 是否开启crontab功能
+            <crontabfilter start="false">       # crontab定时传输的筛选功能
+                <exclude expression="*.php"></exclude>
+                <exclude expression="info/*"></exclude>
+            </crontabfilter>
+        </crontab>
+        <plugin start="false" name="command"/>
+    </sersync>
+ 
+    <plugin name="command">
+        <param prefix="/bin/sh" suffix="" ignoreError="true"/>  <!--prefix /opt/tongbu/mmm.sh suffix-->
+        <filter start="false">
+            <include expression="(.*)\.php"/>
+            <include expression="(.*)\.sh"/>
+        </filter>
+    </plugin>
+ 
+    <plugin name="socket">
+        <localpath watch="/opt/tongbu">
+            <deshost ip="192.168.138.20" port="8009"/>
+        </localpath>
+    </plugin>
+    <plugin name="refreshCDN">
+        <localpath watch="/data0/htdocs/cms.xoyo.com/site/">
+            <cdninfo domainname="ccms.chinacache.com" port="80" username="xxxx" passwd="xxxx"/>
+            <sendurl base="http://pic.xoyo.com/cms"/>
+            <regexurl regex="false" match="cms.xoyo.com/site([/a-zA-Z0-9]*).xoyo.com/images"/>
+        </localpath>
+    </plugin>
+</head>
+以上配置文件采用的是远程shell方式的rsync连接方式，所以无需在目标主机上启动rsync daemon。设置好配置文件后，只需执行sersync2命令即可。
+
+该命令的用法如下：
+[root@xuexi sersync]# sersync2 -h
+set the system param
+execute：echo 50000000 > /proc/sys/fs/inotify/max_user_watches
+execute：echo 327679 > /proc/sys/fs/inotify/max_queued_events
+parse the command param
+_____________________________________________________________
+参数-d:启用守护进程模式，让sersync2运行在后台
+参数-r:在监控前，将监控目录与远程主机用rsync命令推送一遍，
+      :即首先让远端目录和本地一致，以后再同步则通过监控实现增量同步
+参数-n:指定开启守护线程的数量，默认为10个
+参数-o:指定配置文件，默认使用confxml.xml文件
+参数-m:单独启用其他模块，使用 -m refreshCDN 开启刷新CDN模块
+参数-m:单独启用其他模块，使用 -m socket 开启socket模块
+参数-m:单独启用其他模块，使用 -m http 开启http模块
+不加-m参数，则默认执行同步程序
+_____________________________________________________________
+由此可见，sersync2命令总是会先设置inotify相关的系统内核参数。
+所以，只需执行以下简单的命令即可。
+[root@xuexi ~]# sersync2 -r -d
+set the system param
+execute：echo 50000000 > /proc/sys/fs/inotify/max_user_watches
+execute：echo 327679 > /proc/sys/fs/inotify/max_queued_events
+parse the command param
+option: -r      rsync all the local files to the remote servers before the sersync work
+option: -d      run as a daemon
+daemon thread num: 10
+parse xml config file
+host ip : localhost     host port: 8008
+daemon start，sersync run behind the console
+config xml parse success
+please set /etc/rsyncd.conf max connections=0 Manually
+sersync working thread 12  = 1(primary thread) + 1(fail retry thread) + 10(daemon sub threads)
+Max threads numbers is: 22 = 12(Thread pool nums) + 10(Sub threads)
+please according your cpu ，use -n param to adjust the cpu rate
+------------------------------------------
+rsync the directory recursivly to the remote servers once
+working please wait...
+execute command: cd /www && rsync -az -R --delete ./  -e ssh 172.16.10.5:/tmp/www >/dev/null 2>&1
+run the sersync:
+watch path is: /www
+上面粗体加红标注的即为rsync命令的运行参数，由于rsync执行前会cd到监控目录中，且rsync通过"-R"选项是以/www为根的相对路径进行同步的，所以监控目录自身不会被拷贝到远端，因此在confxml.xml中设置目标目录为/tmp/www，这样本地/www下的文件将同步到目标主机的/tmp/www目录下，否则将会同步到目标主机的/tmp目录下。
+对于sersync多实例，也即监控多个目录时，只需分别配置不同配置文件，然后使用sersync2指定对应配置文件运行即可。
+例如：
+[root@xuexi ~]# sersync2 -r -d -o /etc/sersync.d/nginx.xml
+

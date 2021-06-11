@@ -1,0 +1,94 @@
+安装cpptools插件
+-------------------------------------------------------------------------------
+打开VS Code，快捷键ctrl+shift+p呼出命令框，输入以下命令
+ext install cpptools
+
+
+安装MINGW-W64
+-------------------------------------------------------------------------------
+这里我建议安装mingw-w64，比较稳定。
+在windows下安装完成后需要设置环境变量
+c:\mingw-w64\bin\
+
+
+配置调试环境
+-------------------------------------------------------------------------------
+1.文件-->打开文件夹，设置项目路径
+2.新建一个.vscode文件夹
+3.创建一个launch.json启动配置文件
+{
+   "version": "0.2.0",
+   "configurations": [
+       {
+           "name": "C++ Launch (GDB)",                
+           "type": "cppdbg",                         
+           "request": "launch",                        
+           "targetArchitecture": "x86",                
+           "program": "${workspaceRoot}\\${fileBasename}.exe",                 
+           "miDebuggerPath":"C:\\mingw-w64\\bin\\gdb.exe", 
+           "args": [],     
+           "stopAtEntry": false,                  
+           "cwd": "${workspaceRoot}",                  
+           "externalConsole": true,                  
+           "preLaunchTask": "g++"　　                  
+           }
+   ]
+}
+
+
+4.创建一个tasks.json的配置文件
+{
+    "version": "0.1.0",
+    "command": "g++",
+    "args": ["-g","-std=c++11","${file}","-o","${workspaceRoot}\\${fileBasename}.exe"],
+    "problemMatcher": {
+        "owner": "cpp",
+        "fileLocation": ["relative", "${workspaceRoot}"],
+        "pattern": {
+            "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "message": 5
+        }
+    }
+}
+5.创建一个c_cpp_properties.json文件，注意不同的版本的MINGW路径可能有些许不同
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceRoot}",
+                "C:/mingw-w64/lib/gcc/x86_64-w64-mingw32/7.2.0/include/c++",
+                "C:/mingw-w64/lib/gcc/x86_64-w64-mingw32/7.2.0/include/c++/x86_64-w64-mingw32",
+                "C:/mingw-w64/lib/gcc/x86_64-w64-mingw32/7.2.0/include/c++/backward",
+                "C:/mingw-w64/lib/gcc/x86_64-w64-mingw32/7.2.0/include",
+                "C:/mingw-w64/lib/gcc/x86_64-w64-mingw32/7.2.0/include/c++/tr1",
+                "C:/mingw-w64/x86_64-w64-mingw32/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "__GNUC__=6",
+                "__cdecl=__attribute__((__cdecl__))"
+            ],
+            "intelliSenseMode": "msvc-x64",
+            "browse": {
+                "path": [
+                    "${workspaceRoot}",
+                    "C:/mingw-w64/lib/gcc/x86_64-w64-mingw32/7.2.0/include/c++",
+                    "C:/mingw-w64/lib/gcc/x86_64-w64-mingw32/7.2.0/include/c++/x86_64-w64-mingw32",
+                    "C:/mingw-w64/lib/gcc/x86_64-w64-mingw32/7.2.0/include/c++/backward",
+                    "C:/mingw-w64/lib/gcc/x86_64-w64-mingw32/7.2.0/include",
+                    "C:/mingw-w64/lib/gcc/x86_64-w64-mingw32/7.2.0/include/c++/tr1",
+                    "C:/mingw-w64/x86_64-w64-mingw32/include"
+                ]
+            },
+            "limitSymbolsToIncludedHeaders": true,
+            "databaseFilename": ""
+        }
+    ],
+    "version": 3
+}

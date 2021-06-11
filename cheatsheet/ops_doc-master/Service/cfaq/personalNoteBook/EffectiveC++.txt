@@ -1,0 +1,67 @@
+<Effective C++> 中文版第三版 读书笔记，这本书非常好,55个条款。
+
+这本书最重要的一节是：条款13：用对象管理资源，RAII，用一条语句new对象且初始化智能指针。
+
+
+
+	1. 尽量以const , enum 代替#define常量，尽量以inline 代替#define 宏函数，不过有时候#define的函数可以更好的common 代码。
+	2. 对于基本内置类型(int, bool, double, *ptr)，必须显示初始化，否则值是随机的。 C风格数组并不会自动初始化，必须显示初始化，
+	无论是全局的还是局部的数组。
+	3. 对于自定义struct/class类型，必须在构造函数中对每个成员初始化且要在初始化列表中做，如果在构造函数体内那就赋值
+	（所以const/reference成员只能在初始化列表中做初始化），初始化列表的执行顺序先于构造函数体，特别地，如果成员是基本内置类型，
+	那一定要记得初始化，否则随机值。总之：在初始化列表中对每个成员按照定义顺序显示初始化，不论该成员是否需要参数。
+	4. 静态内存的对象包括：global对象，namespace内的对象，class内/函数内/file内的static对象。这些对象的内存只能在程序结束才能释放。
+
+          函数内的对象包括static和栈对象。class内的成员对象如果是非static, 内存属性与上层对象一致。
+
+	1.    不同CPP文件的全局对象初始化顺序是不确定的（同一个文件内的按照定义的顺序初始化），所以不能有顺序的依赖，如果要依赖，
+	可以把全局对象转换为local-static对象(函数内定义static对象，singlton模式, return reference)，
+	这样函数在内存中第1次被执行时才会给static对象分配内存并初始化，从而控制初始化相对顺序。
+
+
+
+
+
+1.a)pure virtual function（=0） means:derive class only inherit the interface, not implementation.
+      but it could have default implementation，but derived class must also re-declare&re-implement(call baseclass::virfunc).
+  b)non-virtual func means: derived class shoudn't overide this func;
+  c)virtual func means: derive class inherit the interface&&implementation;
+
+2.local static(within function): allocate memory and initial only when function is called;
+  non-local static(file/namespace/class/global static): initial before main();
+
+3.inherit: public inherit: is-a
+           private inherit: Not is-a, only want the implementation, not want the interface. should be replaeced by"composition+public inherit"
+
+4.hide: derive class will hide all the same name function(overload function) in base class even if only re-implement one function;
+       using BaseClass::functionname; //在派生类声明，使得基类中没有被派生类override的重载函数在派生类可见，如果不这样，
+       那基类所有的同名函数都会被隐藏（不能被调用了）；
+5. Non-const function reuse const function: return const_cast<Type&>(static_cast<const Type&>(*this).Func())
+
+6.80-20法则：一个应用程序，80%的cycle消耗在20%的代码上，所以应该找出这20%的code，重点优化；
+
+7.const成员变量，每个对象实例都需要分配内存，static const则共享1份内存；
+
+8.typename: 如果要用模板类里面的嵌套类型定义符号，必须显示用typename告诉编译器这是个Type.不然编译器不确定是Type还是static 变量.
+   template<Class T>
+   void print(const T&)
+   {
+     typename T::iterator iter;//显示用typename告诉T::iterator是个type,可以用来定义变量；
+     或者: typedef typename T::iterator iterator; && iterator iter;
+   }
+   
+9.多态：1）编译期：函数重载，模板类/函数，条件宏编译； 2）runtime:virtual   
+
+10.继承：不要修改继承得到的函数参数缺省值，函数中最好不要设置缺省参数值；虚函数尽量保持签名一致且用override关键字，不要重载；
+
+11.模板类：如果派生类想调用模板基类的成员函数，必须用this->func(或者Base::func或者using Base::func;)，否则编译出错。
+
+12.template<>表示全特化的模板类，它的接口可以和源模板类的接口不同。
+
+条款05： 了解C++默认提供的函数（构造赋值析构）及前提条件: 编译器默认提供: 构造，nonVirtual析构，拷贝，赋值，
+如果用户提供了构造函数则编译器不再提供，编译器提供的函数都是public&&inline的。建议风格：都显示提供(使用关键字default,delete)
+
+条款04： 确定对象在使用前被初始化： 尤其对于基本数据类型(int,double,char*)，C++里面必须显示初始化，不能依赖编译器；对于复合类型，
+确保每个构造函数都对每个成员显示初始化；注意，别混淆了赋值和初始化的区别；
+初始化顺序： 函数内的local static变量初始化时机在首次被执行时(runtime), 且只初始化1次，但是变量的内存在编译期间分配的；
+这个技巧可以解决多个对象的初始化顺序依赖问题，如果是多线程则在main线程中依次调用；    

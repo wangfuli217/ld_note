@@ -1,0 +1,192 @@
+UCI (Unified Configuration Interface) vi & uci 命令 & C|shell|lua API接口
+1. 在DNS代理服务器dnsmasq进程启动的情况下：文件/var/etc/dnsmasq.conf是从UCI配置文件/etc/config/dhcp
+   生成并覆盖的，是运行/etc/init.d/dnsmasq脚本进行配置文件转换的。
+2. 有些运行中的状态值没有保存在/etc/config目录下，而是保存在/var/state下,这时可以使用"-P"参数来查询当前状态值
+
+Packages(){
+uci                    -- uci工具
+  /sbin/uci
+  /lib/config/uci.sh   -- shell接口库 C
+libuci                 -- uci接口库 C
+  /lib/libuci.so
+  /lib/libuci.so.2011-01-19
+libuci-lua             -- uci接口库 lua
+  /usr/lib/lua/uci.so
+}
+
+uci(){
+1. 从配置文件获取
+uci get network.lan.ipaddr
+
+2. 从状态文件获取
+uci -p /var/state get network.lan.ipaddr
+
+uci show system
+uci export system
+uci get system.@system[0].ttylogin
+1. 追加列表
+uci add_list system.ntp.server='0.de.pool.ntp.org'
+2. 重新设置
+uci delete system.ntp.server
+uci add_list system.ntp.server='0.de.pool.ntp.org'
+uci add_list system.ntp.server='1.de.pool.ntp.org'
+uci add_list system.ntp.server='2.de.pool.ntp.org'
+3. 创建新 匿名 section
+touch /etc/config/playapp
+uci show playapp
+uci add playapp blah
+uci show playapp
+uci commit && cat /etc/config/playapp 
+
+config blah
+4. 创建新 命名 section
+uci set playapp.myname=mysectiontype
+uci set playapp.othername=mysectiontype
+uci commit && uci show playapp
+
+config blah
+
+config mysectiontype 'myname'
+
+config mysectiontype 'othername'
+5. get方法
+config bar 'first'
+	option name	'Mr. First'
+config bar
+	option name	'Mr. Second'
+config bar 'third'
+	option name	'Mr. Third'
+    
+uci get foo.@bar[0].name   # Mr. First
+uci get foo.@bar[-0].name  # Mr. First
+uci get foo.@bar[-3].name  # Mr. First
+uci get foo.first.name     # Mr. First
+
+uci get foo.@bar[1].name   # Mr. Second
+uci get foo.@bar[-2].name  # Mr. Second
+
+uci get foo.@bar[2].name   # Mr. Third
+uci get foo.@bar[-1].name  # Mr. Third
+uci get foo.third.name     # Mr. Third
+
+uci show foo
+uci show foo.@bar[0]
+
+6. 请求当前状态
+uci -P/var/state show network.wan
+
+7. 添加防火墙状态
+uci add firewall rule
+uci set firewall.@rule[-1].src=wan
+uci set firewall.@rule[-1].target=ACCEPT
+uci set firewall.@rule[-1].proto=tcp
+uci set firewall.@rule[-1].dest_port=22
+uci commit firewall
+/etc/init.d/firewall restart
+
+8. lan 接口ip地址
+uci -P/var/state get network.wan.ipaddr
+. /lib/functions/network.sh; network_get_ipaddr ip wan; echo $ip
+
+9. lan 接口名称
+uci -P/var/state get network.wan.ifname
+. /lib/functions/network.sh; network_get_device if_wan wan; echo $if_wan
+. /lib/functions/network.sh; network_get_physdev if_wan wan; echo $if_wan
+
+9. uci-defaults
+/etc/init.d/boot 调用 /etc/uci-defaults/下的配置脚本，创建配置文件
+/rom/etc/uci-defaults 
+}
+
+lua(){
+require("uci") 或者 uci = require "uci"
+1. 从配置文件获取
+x = uci.cursor()                 -- cursor()
+
+2. 从状态文件获取
+x = cursor(nil, "/var/state")    -- cursor_state()
+
+
+__gc
+cursor()            Create a new UCI-Cursor.
+cursor_state()      Create a new Cursor initialized to the state directory.
+load
+unload
+get(config, section, option)   Get a section type or an option
+    获得package，section或者option中的映射关系。
+    如果请求内容不为section，则说明请求错误。
+    如果请求为section则仅仅返回section字段对应值。
+get_all(config, section)       Get all sections of a config or all values of a section.
+    获得package，section或者option中的映射关系。
+    如果请求为section则返回section字段以及包含的所有字段
+    
+get_first (config, type, option, default)  Get the given option from the first section with the given type.
+get_list (config, section, option)         Get an option or list and return values as table.
+add(config, type)              Add an anonymous section.
+apply (configlist, command)    Applies UCI configuration changes
+changes (config)               Get a table of saved but uncommitted changes.
+set
+rename
+save
+delete(config, section, option)       Deletes a section or an option.
+delete_all (config, type, comparator) Delete all sections of a given type that match certain criteria
+commit(config)                      Commit saved changes.
+revert
+reorder
+changes
+foreach(config, type, callback)   Call a function for every section of a certain type.
+add_history
+add_delta
+get_confdir -- 获得配置文件路径，即：/etc/config
+set_confdir
+get_savedir
+set_savedir
+
+
+单实例：
+  uci:get(config, sectionType/sectionName[, optionType])接口获取一个section或option
+  -- uci:get(config, sectionType [, optionType]) config-> /etc/config/config  sectionType -> 配置文件中只有一种类型  optionType->选项名称
+  -- uci:get(config, sectionName [, optionType]) config-> /etc/config/config  sectionName -> 配置文件中只有一个名称  optionType->选项名称
+  section若是只有类型（如：config interface）第二个参数就是section的类型，如interface
+  section若是有name名（如：config interface 'testnets'），则第二个参数则写testnets，即section的name名。
+
+多实例：
+  Uci:foreach (config, type, callback)
+  若是有多个相同类型的section存在，获取其中的某个section需要获取到单个interface的ID，这个ID的获取若是用LUCI的传统方式则能够通过每一行的控件或是tr的标签id中获取。
+  多个同类型的section个人建议使用uci:foreach(config, sectionType, callbackFun)接口
+
+建立配置节：
+cursor:section (config, type, name, values)
+uci:section(config, sectionType, sectionName/nil, {'...'})接口是建立新的section节点，该节点的参数有四个，
+  第一个参数是config文件的文件名，
+  第二个参数是section的type名，
+  第三个参数是section的name名（若是没有，可为空），
+  第四个参数是具体的配置项内容；
+uci:section("network", "interface", "testnets", { 
+  ifname = ifname, 
+  type = in_type, 
+  ipaddr = in_ipaddr, 
+  net = in_net })
+  
+删除配置节：
+cursor:delete (config, section, option)
+前面获取section的uci:get()接口的使用方法一致
+
+保存和提交
+cursor:save (config)
+  uci:save("network") 
+cursor:commit (config)
+  uci:commit("network")
+
+异步获取UCI
+    local hostname 
+    luci.model.uci.cursor():foreach("system", "system", function(s) hostname = s.hostname end) 
+    或者
+    local hostname = luci.model.uci.cursor():get_first("system", "system", "hostname")
+
+/etc/config/ucitrack
+   定义了配置文件应用程序之间的依赖关系。用于页面apply之后根据配置文件更改重启对应应用程序
+   Save           -> /etc/config/配置文件
+   Save & Apply   -> /etc/config/ucitrack
+   
+}

@@ -1,0 +1,66 @@
+PrintStream主要操作byte流，而PrintWriter用来操作字符流。读取文本文件时一般用后者。
+    java的一个字符（char）是16bit的，一个BYTE是8bit的 
+    PrintStrean是写入一串8bit的数据的。 
+    PrintWriter是写入一串16bit的数据的。 
+    String缺省是用UNICODE编码，是16bit的。因此用PrintWriter写入的字符串，跨平台性好一些吧。 
+    PrintStream的可能会出现字符集乱码吧。
+
+把上例中的 PrintStream 换成 PrintWriter效果是一样的。Java I/O流分为两类，字节流和字符流。字节流是指InputStream/OutputStream及其子类，
+    字符流是指Reader/Writer及其子类。这两类I/O流的class hierarchy基本上是对等的，InputStreamReader/OutputStreamWriter是
+    InputStream/OutputStream和Reader/Writer之间的桥梁。
+
+PrintStream是OutputStream的子类，PrintWriter是Writer的子类，两者处于对等的位置上，所以它们的API是非常相似的。
+    PrintWriter实现了Writer的所有print方法。对于PrintStream，所有println方法都在内部调用相应的print方法，
+    比如println(char x)的方法体就是调用print(x);再写入一个平台相关的换行符。PrintStream构建时会在内部new一个
+    BufferedWriter，所有print方法都在内部调用这个Writer的write方法（write(String)或write(char[])）——对于print(char[])，
+    直接调用write(char[])；对于其他的print方法，先用String.valueOf获得参数的字符串表示，然后调用write(String)。
+    
+对于PrintWriter，所有println方法也都在内部调用print方法,然后再调用一个没有参数的println()来换行，print方法调用write方法。
+    传入OutputStream时，PrintWriter会在内部构造一个BufferedWriter；而传入Writer时，PrintStream内部直接使用该Writer，此时PrintWriter
+    是否进行了缓冲全看该Writer。
+所以，对于使用print系列方法的场合，二者没什么区别。但是，PrintStream是字节流，它有处理raw byte的方法，
+     write(int)和write(byte[],int,int)；PrintWriter是字符流，它没有处理raw byte的方法。PrintStream和PrintWriter的
+     auto flushing机制有点不同，前者在输出byte数组、调用println方法、输出换行符或者byte值10（即\n）时自动调用flush方法，
+     后者仅在调用println方法时发生auto flushing。
+         
+         
+         
+
+打印流
+    在整个IO包中，打印流是输出信息做方便的类，主要包含字节打印流(PrintStream)和字符打印流(PrintWriter)。打印流提供了非常方便的打印功能，
+    可以打印任何的数据类型，例如：小数、整数、字符串等等。
+    回顾：之前在打印信息的时候需要使用OutputStream，但是这样一来，所有的数据输出的时候会非常的麻烦，String——>byte[]，打印流中可以方便的
+    进行输出。
+    
+PrintStream类的常用方法
+    1、public PrintStream(File file) throws FileNotFoundException 构造方法通过一个File对象实例化PrintStream类
+    2、public PrintStream(OutputStream  out)  构造方法 接收OutputStream对象，实例化PrintStream类
+    3、public PrintStream printf(Locale l, String format, Object ...arg) 普通方法 根据指定的Locale进行格式化输出
+    4、public PrintStream printf(String format,Object ... arg) 普通方法 根据本地环境进行格式化输出
+    5、public void print(boolean b) 普通方法 此方法被重载很多次，输出任意数据
+    6、public void println(boolean b) 普通方法 此方法被重载很多次，输出任意数据后换行
+    在这个类中国定义了很多print()方法或println()方法。System.out.println，此方法可以打印任意的数据类型。
+    构造方法：Public PrintStream(OutputStream out)  —>指定输出位置，此方法可以接收OutputStream的子类。    
+    
+打印流的好处：
+    在PrintStream中定义的构造方法中可以清楚的发现有一个构造方法可以直接接收OutputStream类的实例，这是因为与OutputStream相比起来，
+    PrintStream可以更加方便的输出数据，这就好比将OutputStream重新包装了一下，使之输出更加方便。   
+
+
+    PrintStream 为其他输出流添加了功能，使它们能够方便地打印各种数据值表示形式。它还提供其他两项功能。与其他输出流不同，PrintStream
+        不会抛出 IOException；而是，异常情况仅设置可通过 checkError 方法测试的内部标志。另外，为了自动刷新，可以创建一个 PrintStream；
+        这意味着可在写入字节数组之后自动调用 flush 方法，可调用其中一个 println 方法，或写入一个新行字符或字节 ('\n')。 
+    PrintStream 打印的所有字符都使用平台的默认字符编码转换为字节。在需要写入字符而不是写入字节的情况下，应该使用 PrintWriter 类。 
+
+    PrintWriter:向文本输出流打印对象的格式化表示形式。此类实现在 PrintStream 中的所有 print 方法。它不包含用于写入原始字节的方法，
+    对于这些字节，程序应该使用未编码的字节流进行写入。 
+    与 PrintStream 类不同，如果启用了自动刷新，则只有在调用 println、printf 或 format 的其中一个方法时才可能完成此操作，而不是每当
+    正好输出新行字符时才完成。这些方法使用平台自有的行分隔符概念，而不是新行字符。 
+    PrintWriter:此类中的方法不会抛出 I/O 异常，尽管其某些构造方法可能抛出异常。客户端可能会查询调用 checkError() 是否出现错误。 
+
+
+
+    
+    
+    
+    

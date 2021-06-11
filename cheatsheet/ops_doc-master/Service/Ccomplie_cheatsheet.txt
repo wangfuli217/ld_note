@@ -1,0 +1,71 @@
+┌───────────────────────────────────────  ───────────── ┐
+│                                             Sam's CheatSheet                                              │
+├───────────────────────────────────────────────────  ─ ┤
+│ [vim/tmux configuration]:   https://github.com/jambuu/samide                                              │
+│ [GnuToolchain training]:    https://github.com/jambuu/gnutoolchain                                        │
+├───────────────────────────────────┬───────────────── ┤
+│                 TMUX                │      GCC for an Executable    │              Objdump              │
+├───────────────── ─┼────────────── ─┼───────────────── ┤
+│ * Renaming session                  │ * Preprocess Only             │ * objdump -d file.o (disassemble) │
+│   <Crtl+A> + $                      │   gcc -E file.c               │ * Find the soname of a library    │
+│ * Toggling mouse                    │ * Compile Only                │   objdump -p libf.so | grep SONAME│
+│   <Crtl+A> + m                      │   gcc -S file.c               │ * Find the needed libs of file    │
+│ * Switching tab                     │ * Compile and Assemble Only   │   objdump -p program | grep NEEDED│
+│   <Crtl+A> + (h|j|k|l)              │   gcc -c file.c               ├───────────────── ┤
+│ * Splitting tab                     │ * All steps for an executable │            ldd and size           │
+│   <Crtl+A> + - (horizontally)       │   gcc file.c -o file          ├───────────────── ┤
+│   <Crtl+A> + _ (vertically)         │ * Compile with Z Optim. level │ * Inspect Linked Libraries        │
+│ * Scrolling without mouse           │   gcc -OZ file.c -o file      │   ldd executable                  │
+│   <Crtl+A> + [                      │ * Compile with Debug Symbols  │ * Inspect size of executable      │
+├────────────────── ┤   gcc -g file.c               │   size file                       │
+│     Relevant Linux Folders          ├────────────── ─┴───────── ────────┤
+├─────────────────   ┤                              GDB                                   │
+│ * Include: /usr/include             ├──────────────────────────────────┤
+│ * Libraries: /usr/lib               │ * gdb executable   (launch gdb with executable)                    │ 
+│ * Home: /home/user                  │ * gdb -p PID       (attach to a running process)                   │ 
+│ * Processes: /proc/[pid]            │ * quit             (exit gdb)                                      │ 
+│ * Configuration: /etc               │ * run args         (run program and args are for your program)     │
+│ * Device Files: /dev                │ * backtrace        (show stack trace of all frames)                │
+├────────────────── ┤ * break f:l        (break at line l of file f)                     │
+│        Environment Variables        │ * stepi            (execute one instruction)                       │
+├────────────────── ┤ * nexti            (proceed to next instruction)                   │
+│ * LD_LIBRARY_PATH   (libraries)     │ * continue         (resume execution)                              │
+│ * CPATH             (include)       │ * finish           (run until function returns)                    │
+│ * PKG_CONFIG_PATH   (pkg_config)    │ * disas            (disassemble current function)                  │
+│ * PATH              (executables)   │ * print /x $rax    (print content of %rax register in hex)         │
+│ * CMAKE_PREFIX_PATH (cmake)         │ * info frame       (information about current stack frame)         │
+├────────────────── ┤ * info registers   (values of all registers)                       │
+│           PKG_CONFIG                │ * info variables   (info on all variables)                         │
+├────────────────── ┤ * info breakpoints (listing breakpoints)                           │
+│ * List known packages               │ * delete 1         (delete breakpoint 1)                           │
+│   pkg─config --list─all           │ * <Crtl+X> a       (toggling tui mode)                             │
+│ * Preprocessor and compiler flags   │ * list function    (it will show the code of a function)           │
+│   pkg─config --cflags package      │ * ptype            (show the definition of a type)                 │
+│ * Linking flags                     │ * watch (z > 28)   (pause execution whenever variable z is > 28)   │
+│   pkg─config --libs package        │ * frame n          (move to the nth stack frame)                   │
+├────────────────── ┴────── ─────────────────────────── ┤
+│                                      Building Static Libraries                                            │ 
+├───────────────────┴────── ──────────────────────────  ┤
+│ * Step1: Generate Positioning Dependent Code                                                              │
+│          gcc -g -c m1.c executable.c                                                                      │
+│ * Step2: Create a static library                                                                          │
+│          ar rvs libless.a m1.o                                                                            │
+│ * Step3: Statically link (order matters), -l shortcuts the library name, -L points to the location        │
+│          gcc -g executable.o -lless -L. -o executable                                                     │ 
+├───────────────────────────────────────────────────── ┤
+│                                      Building Shared Libraries                                            │ 
+├───────────────────────────────────────────────────── ┤ 
+│ * Step1: Generate Positioning Independent Code (PIC)                                                      │
+│          gcc -g -c -fPIC m1.c m2.c m3.c                                                                   │
+│ * Step2: Building Shared Library                                                                          │
+│          gcc -g -shared -Wl,-soname,libless.so.1 -o libless.so.1.3 m1.o m2.o m3.o                         │
+│ * Step3: Dynamic link the executable                                                                      │
+│          gcc -g executable.o -lless -o executable                                                         │
+├────────────────────────────────────────────────────   ┤
+│                                    Installing Shared Libraries                                            │
+├────────────────────────────────────────────────────   ┤
+│ /lib              - If library is needed during system startup                                            │
+│ /usr/lib          - Standard location for libraries                                                       │
+│ /usr/local/lib    - Nonstardard libraries which should not be on the network─shared /usr/lib             │
+│ [/etc/ld.so.conf] - This file shows locations where the dynamic linker searchs for libs on your system    │
+└───────────────────────────────────────────────────── ┘

@@ -1,0 +1,26 @@
+check process sendmail with pidfile /var/run/sendmail.pid
+	group mail
+	start program = "/etc/rc.d/init.d/sendmail start"
+	stop  program = "/etc/rc.d/init.d/sendmail stop"
+	if failed port 25 protocol smtp then restart
+	if 5 restarts within 5 cycles then timeout
+#       alert foo@bar
+#       alert 123456@sms on { timeout }
+	depends on sendmail_bin
+	depends on sendmail_rc
+
+check file sendmail_bin with path /usr/lib/sendmail
+	group mail
+	if failed checksum then unmonitor
+	if failed permission 2755 then unmonitor
+	if failed uid root then unmonitor
+	if failed gid smmsp then unmonitor
+#       alert foo@bar
+
+check file sendmail_rc with path /etc/rc.d/init.d/sendmail
+	group mail
+	if failed checksum then unmonitor
+	if failed permission 754 then unmonitor
+	if failed uid root then unmonitor
+	if failed gid root then unmonitor
+# alert foo@bar

@@ -1,0 +1,143 @@
+.\"
+.\" ----------------------------------------------------------------------------
+.\" "THE BEER-WARE LICENSE" (Revision 42):
+.\" <mph@hoth.dk> wrote this file. As long as you retain this notice you
+.\" can do whatever you want with this stuff. If we meet some day, and you think
+.\" this stuff is worth it, you can buy me a beer in return Martin Topholm
+.\" ----------------------------------------------------------------------------
+.\"
+.Dd November 14, 2012
+.Dt XPING 8
+.Os
+.Sh NAME
+.Nm xping ,
+.Nm xping-http
+.Nd A terminal based, adhoc, multi target probe tool
+.Sh SYNOPSIS
+.Nm xping ,
+.Nm xping-http
+.Op Fl 46ABCTVah
+.Op Fl c Ar count
+.Op Fl i Ar interval
+.Op Fl w Ar width
+.Op Ar target Op ...
+.Sh DESCRIPTION
+.Nm
+is a simple ping program continiously probing multiple hosts using
+ICMP-ECHO. As packets are received dots are printed on the screen.
+Hosts not responding before next packet is due will get a questionmark
+in the display. The probing stops when SIGINT is received. Host to be
+probed are taken from argument list or read from stdin.
+.Pp
+.Nm xping-http
+performs a full TCP connect and a slim HTTP GET request. Responses
+are scanned for a HTTP 200 response code and printed as dots on the
+screen. Requests time out three times after specified transmit
+.Ar interval .
+Thus three requests are inflight at a time.
+.Pp
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl 4
+Force xping to resolve IPv4 address only.
+.It Fl 6
+Force xping to resolve IPv6 address only.
+.It Fl A
+Print a bell character on stdout when a packet is missed within
+.Ar interval .
+If given multiple times only print bell if host goes from a responsive
+state to unresponsive state (e.g. ..??).
+.It Fl B
+Show success/failures using ANSI colors (not supported with ncurses).
+.It Fl C
+Color resolved hostname according to address family (IPv4 red, IPv6 green).
+.It Fl T
+Track changes to resolved hostname, honoring TTL values. If not specified
+xping will still retry unresolved hostnames.
+.It Fl V
+Print the "version" of xping and exit.
+.It Fl a
+Print a bell character on stdout on replies. If given multiple times
+only print bell if host goes from unresponsive to responsive (e.g. ??..).
+.It Fl c Ar count
+Send count probes in a non-interactive fashion. Default is to operate
+interactively and keep sending probes.
+.It Fl h
+Display program usage and exit.
+.It Fl i Ar interval
+Specifies interval between successive packets to a host. Default
+is 1.0 seconds.
+.It Fl w Ar width
+Let host labels be
+.Ar width
+characters wide. Default is 20.
+.El
+.Sh LEGEND
+.Bl -tag -width indent
+.It .
+Reply received.
+.It :
+Reply received after timeout (recovered).
+.It ?
+Timeout - interval passed without any reply.
+.It #
+Unreachable - the packet could not be delivered.
+.It %
+Other error e.g. TTL expired in transit.
+.It @
+Resolving - waiting for dns lookup to complete.
+.It !
+sendto error e.g. permission denied or no route to destination.
+.It \(dq
+Duplicate of some other entry.
+.El
+.Pp
+.Nm
+inteprets the
+.Ar target
+as either ipv4 address (in dotted decimal notation), ipv6 address,
+or as a hostname.
+.Nm xping-http
+inteprets the
+.Ar target
+as an url with optional brackets after the hostname to force a specific
+address to be used.
+.Bd -literal
+    http://192.0.2.100/
+    http://www.google.com:80/
+    http://www.google.com[127.0.0.1]/
+.Ed
+.Sh DIAGNOSTICS
+.Bl -tag -width indent
+.It "socket: Operation not permitted"
+.Nm
+could not open a raw socket. Program should be setuid root or started
+as root.
+.It "regcomp: error compiling regular expression"
+.Nm xping-http
+could not compile the regular expression used for parsing urls. This
+usually means a programming error.
+.It "probe_add: can't parse ..."
+.Nm xping-http
+could not parse url to something meaningful. Check that argument is a
+valid url.
+.El
+.Sh AUTHORS
+.Nm
+was written by
+.An Martin Topholm .
+.Pp
+.Nm
+uses
+.Nm libevent2
+by Niels Provos and Nick Mathewson, and
+.Nm uthash
+and
+.Nm utlist
+by Troy D. Hanson. Also used is assertion tricks by Poul-Henning Kamp.
+.Sh BUGS
+.Nm
+is not very informative on errors. Terminal display may flicker when
+running without ncurses.
+.Pp
+Probably more.

@@ -1,0 +1,391 @@
+.\" This man page is Copyright (C) 2003 Lennert Buytenhek.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.TH ivykis 3 2003-03-29 "ivykis" "ivykis programmer's manual"
+.SH NAME
+iv_examples \- ivykis examples
+.SH EXAMPLE
+ivykis is initialised by calling
+.BR iv_init (3).
+This function is the first function to call when dealing with ivykis
+-- it has to be called before registering file descriptors or timers.
+.PP
+The ivykis main event loop is started by calling
+.BR iv_main (3).
+This function generally does not return, except when
+.BR iv_quit (3)
+is called somewhere during execution of the program.
+.PP
+An application asks ivykis to monitor a certain file descriptor by
+filling out a structure of type 'struct iv_fd' with a file descriptor
+number and a callback function, and calling the function iv_fd_register.
+.PP
+The first example program waits for data from standard input, and
+writes a message to standard out whenever something is received:
+.PP
+.nf
+#include <stdio.h>
+#include <stdlib.h>
+#include <iv.h>
+
+struct iv_fd fd_stdin;
+
+static void callback(void *dummy)
+{
+        char buf[1024];
+        int len;
+
+        len = read(fd_stdin.fd, buf, sizeof(buf));
+        if (len <= 0) {
+                if (len < 0) {
+                        if (errno == EAGAIN)
+                                return;
+                        perror("read");
+                }
+                exit(1);
+        }
+
+        printf("read %d bytes of data from stdin\\n", len);
+}
+
+int main()
+{
+        iv_init();
+
+        IV_FD_INIT(&fd_stdin);
+        fd_stdin.fd = 0;
+        fd_stdin.handler_in = callback;
+        iv_fd_register(&fd_stdin);
+
+        iv_main();
+
+        iv_deinit();
+
+        return 0;
+}
+.fi
+.PP
+The application is responsible for memory management of 'struct iv_fd's
+passed to ivykis.  For example, it should not free memory that contains
+such structures that are still registered with ivykis (i.e. haven't
+had iv_fd_unregister called on them).
+.PP
+iv_fd_register transparently sets the passed file descriptor to
+nonblocking mode, in anticipation of its future usage.
+.PP
+File descriptor callbacks are called in a level-triggered fashion.
+Therefore, the way of dealing with fd_stdin in the example callback
+function is safe.  In case there arrives data between read and
+detecting EAGAIN, ivykis will re-call the callback function after
+it returns.  Also, if there are more than 1024 bytes waiting in the
+input buffer, ivykis will re-call the callback function until all
+data from stdin have been drained.
+.SH "EXAMPLE 2"
+The second example accepts connections on TCP port 6667, and waits
+on each of the connections for data.  When data is received on any
+connection, a message is printed to standard out.
+.PP
+.nf
+#include <stdio.h>
+#include <stdlib.h>
+#include <iv.h>
+#include <netinet/in.h>
+
+struct connection
+{
+        struct iv_fd            fd;
+        /* other per-connection data goes here */
+};
+
+struct listening_socket
+{
+        struct iv_fd            fd;
+        /* other per-listening socket data goes here */
+};
+
+
+static void connection_handler(void *_conn)
+{
+        struct connection *conn = (struct connection *)_conn;
+        char buf[1024];
+        int len;
+
+        len = read(conn->fd.fd, buf, sizeof(buf));
+        if (len <= 0) {
+                if (len < 0 && errno == EAGAIN)
+                        return;
+                iv_fd_unregister(&conn->fd);
+                close(conn->fd.fd);
+                free(conn);
+                return;
+        }
+
+        printf("got %d bytes of data from %p\\n", len, conn);
+}
+
+static void listening_socket_handler(void *_sock)
+{
+        struct listening_socket *sock = (struct listening_socket *)_sock;
+        struct sockaddr_in addr;
+        socklen_t addrlen;
+        struct connection *conn;
+        int fd;
+
+        addrlen = sizeof(addr);
+        fd = accept(sock->fd.fd, (struct sockaddr *)&addr, &addrlen);
+        if (fd < 0) {
+                if (errno == EAGAIN)
+                        return;
+                perror("accept");
+                exit(1);
+        }
+
+        conn = malloc(sizeof(*conn));
+        if (conn == NULL) {
+                fprintf(stderr, "listening_socket_handler: memory allocation error, dropping connection");
+                close(fd);
+                return;
+        }
+
+        IV_FD_INIT(&conn->fd);
+        conn->fd.fd = fd;
+        conn->fd.cookie = (void *)conn;
+        conn->fd.handler_in = connection_handler;
+        iv_fd_register(&conn->fd);
+}
+
+int main()
+{
+        struct listening_socket s;
+        struct sockaddr_in addr;
+        int fd;
+
+        fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (fd < 0) {
+                perror("socket");
+                exit(1);
+        }
+
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = htons(6667);
+        if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+                perror("bind");
+                exit(1);
+        }
+
+        if (listen(fd, 4) < 0) {
+                perror("listen");
+                exit(1);
+        }
+
+        iv_init();
+
+        IV_FD_INIT(&s.fd);
+        s.fd.fd = fd;
+        s.fd.cookie = (void *)&s;
+        s.fd.handler_in = listening_socket_handler;
+        iv_fd_register(&s.fd);
+
+        iv_main();
+
+        iv_deinit();
+
+        return 0;
+}
+.fi
+.PP
+As illustrated, it is possible to pass cookies into callback
+functions.  This is useful for conveying information on which
+higher-level entity (such as 'connection' or 'listening socket')
+generated the event for which the callback was called.
+.PP
+Note how it is possible to unregister and even free a 'struct iv_fd'
+in its own callback function.  There is logic in ivykis to deal with
+this case.
+.SH "EXAMPLE 3"
+This example extends the previous example by a per-connection
+timer that disconnects the client after too long a period of
+inactivity.  Lines not present in example 2 or different than
+in example 2 are indicated by '//XXXX' in the right-hand margin.
+.PP
+.nf
+#include <stdio.h>
+#include <stdlib.h>
+#include <iv.h>
+#include <netinet/in.h>
+
+#define CONNECTION_TIMEOUT      (10)
+
+struct connection
+{
+        struct iv_fd            fd;
+        struct iv_timer         disconnect_timeout;              //XXXX
+        /* other per-connection data goes here */
+};
+
+struct listening_socket
+{
+        struct iv_fd            fd;
+        /* other per-listening socket data goes here */
+};
+
+
+static void connection_handler(void *_conn)
+{
+        struct connection *conn = (struct connection *)_conn;
+        char buf[1024];
+        int len;
+
+        len = read(conn->fd.fd, buf, sizeof(buf));
+        if (len <= 0) {
+                if (len < 0 && errno == EAGAIN)
+                        return;
+                iv_timer_unregister(&conn->disconnect_timeout);  //XXXX
+                iv_fd_unregister(&conn->fd);
+                close(conn->fd.fd);
+                free(conn);
+                return;
+        }
+
+        printf("got %d bytes of data from %p\\n", len, conn);
+
+        iv_timer_unregister(&conn->disconnect_timeout);          //XXXX
+        iv_validate_now();                                       //XXXX
+        conn->disconnect_timeout.expires = iv_now;               //XXXX
+        conn->disconnect_timeout.expires.tv_sec += CONNECTION_TIMEOUT;//XXXX
+        iv_timer_register(&conn->disconnect_timeout);            //XXXX
+}
+
+static void disconnect_timeout_expired(void *_conn)              //XXXX
+{                                                                //XXXX
+        struct connection *conn = (struct connection *)_conn;    //XXXX
+        iv_fd_unregister(&conn->fd);                             //XXXX
+        close(conn->fd.fd);                                      //XXXX
+        free(conn);                                              //XXXX
+}                                                                //XXXX
+
+static void listening_socket_handler(void *_sock)
+{
+        struct listening_socket *sock = (struct listening_socket *)_sock;
+        struct sockaddr_in addr;
+        socklen_t addrlen;
+        struct connection *conn;
+        int fd;
+
+        addrlen = sizeof(addr);
+        fd = accept(sock->fd.fd, (struct sockaddr *)&addr, &addrlen);
+        if (fd < 0) {
+                if (errno == EAGAIN)
+                        return;
+                perror("accept");
+                exit(1);
+        }
+
+        conn = malloc(sizeof(*conn));
+        if (conn == NULL) {
+                fprintf(stderr, "listening_socket_handler: memory allocation error, dropping connection");
+                close(fd);
+                return;
+        }
+
+        IV_FD_INIT(&conn->fd);
+        conn->fd.fd = fd;
+        conn->fd.cookie = (void *)conn;
+        conn->fd.handler_in = connection_handler;
+        iv_fd_register(&conn->fd);
+
+        IV_TIMER_INIT(&conn->disconnect_timeout);                //XXXX
+        iv_validate_now();                                       //XXXX
+        conn->disconnect_timeout.cookie = (void *)conn;          //XXXX
+        conn->disconnect_timeout.handler = disconnect_timeout_expired;//XXXX
+        conn->disconnect_timeout.expires = iv_now;               //XXXX
+        conn->disconnect_timeout.expires.tv_sec += CONNECTION_TIMEOUT;//XXXX
+        iv_timer_register(&conn->disconnect_timeout);            //XXXX
+}
+
+int main()
+{
+        struct listening_socket s;
+        struct sockaddr_in addr;
+        int fd;
+
+        fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (fd < 0) {
+                perror("socket");
+                exit(1);
+        }
+
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = htons(6667);
+        if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+                perror("bind");
+                exit(1);
+        }
+
+        if (listen(fd, 4) < 0) {
+                perror("listen");
+                exit(1);
+        }
+
+        iv_init();
+
+        IV_FD_INIT(&s.fd);
+        s.fd.fd = fd;
+        s.fd.cookie = (void *)&s;
+        s.fd.handler_in = listening_socket_handler;
+        iv_fd_register(&s.fd);
+
+        iv_main();
+
+        iv_deinit();
+
+        return 0;
+}
+.fi
+.PP
+The global variable 'iv_now' represents a monotonic timer.  However,
+it is updated lazily, and its contents might be stale at any given
+time.  Before using it,
+.BR iv_validate_now (3)
+must be called.
+.SH "EXAMPLE 4"
+The fourth example demonstrates how to use a custom fatal error
+handler that does not write the message to syslog.
+.PP
+.nf
+#include <stdio.h>
+#include <iv.h>
+
+static void fatal_error(const char *msg)
+{
+        fprintf(stderr, "ivykis: FATAL ERROR: %s\\n", msg);
+}
+
+int main()
+{
+        iv_init();
+        iv_set_fatal_msg_handler(fatal_error);
+
+        iv_fatal("Programmatically triggered fatal error %d.", 42);
+        printf("This code is never reached.\\n");
+
+        iv_deinit();
+
+        return 0;
+}
+.fi
+.PP
+This program will abort immediately, with the error message printed to
+the standard error stream.
+.SH "SEE ALSO"
+.BR ivykis (3),
+.BR iv_fatal (3),
+.BR iv_fd (3),
+.BR iv_timer (3),
+.BR iv_task (3),
+.BR iv_init (3),
+.BR iv_time (3)

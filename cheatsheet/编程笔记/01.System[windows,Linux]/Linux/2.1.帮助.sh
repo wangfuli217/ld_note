@@ -1,0 +1,13 @@
+﻿
+man 对某命令提供帮助解释
+    帮助( format and display the on-line manual pages)
+    用法  man [-] [-adFlrt] [-M 路径] [-T 宏软件包] [-s 段] 名称 ...
+          man [-] [-adFlrt] [-M path] [-T macro-package]  [-s section]  name...
+    man [-M 路径] -k 关键字 ...
+    man [-M 路径] -f 文件 ...
+	如:   man ls 就可以查看ls相关的用法
+
+
+Basic Instructions基本操作命令
+    通常来说，使用”$[Instructions] –help”可以获得以下各个命令[instructions]的帮助，包含其参数列表的定义。
+

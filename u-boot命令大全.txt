@@ -1,0 +1,120 @@
+Printenv 打印环境变量。
+
+    Uboot> printenv
+    baudrate=115200
+    ipaddr=192.168.1.1
+    ethaddr=12:34:56:78:9A:BC
+    serverip=192.168.1.5
+    Environment size: 80/8188 bytes
+
+Setenv 设置新的变量
+
+    Uboot> setenv myboard AT91RM9200DK
+    Uboot> printenv
+    baudrate=115200
+    ipaddr=192.168.1.1
+    ethaddr=12:34:56:78:9A:BC
+    serverip=192.168.1.5
+    myboard=AT91RM9200DK
+    Environment size: 102/8188 bytes
+
+Saveenv 保存变量
+
+    命令将当前定义的所有的变量及其值存入flash中。用来存储变量及其值的空间只有8k字节，应不要超过。
+
+Loadb 通过串口Kermit协议下载二进制数据。
+
+Tftp 通过网络下载程序，需要先设置好网络配置
+
+    Uboot> setenv ethaddr 12:34:56:78:9A:BC
+    Uboot> setenv ipaddr 192.168.1.1
+    Uboot> setenv serverip 192.168.1.254     （tftp服务器的地址）
+    下载bin文件到地址0x20000000处。
+    Uboot> tftp 20000000 application.bin （application.bin应位于tftp服务程序的目录）
+
+    Uboot> tftp 32000000 vmlinux
+    把server（IP=环境变量中设置的serverip）中/tftpdroot/ 下的vmlinux通过TFTP读入到物理内存32000000处。
+
+Md 显示内存区的内容。
+
+Mm 修改内存，地址自动递增。
+
+Nm 修改内存，地址不自动递增。
+
+Mw 用模型填充内存
+
+    mw 32000000 ff 10000(把内存0x32000000开始的0x10000字节设为0xFF)
+
+Cp 拷贝一块内存到另一块
+
+   cp.b 20000000 10000000 ffff ；将20000000的数据写入10000000，ffff为文件大小
+
+Cmp 比较两块内存区
+
+    这些内存操作命令后都可加一个后缀表示操作数据的大小，比如cp.b表示按字节拷贝。
+
+Protect 写保护操作
+
+    protect on 1:0-3(就是对第一块FLASH的0-3扇区进行保护)
+    protect off 1:0-3取消写保护
+
+Erase 擦除扇区。
+
+    erase: 删除FLASH的扇区
+    erase 1:0-2(就是对每一块FLASH的0-2扇区进行删除)
+
+对DataFlash的操作
+
+    U-Boot在引导时如果发现NPCS0和NPCS3上连有DataFlash，就会分配虚拟的地址给它，具体为 ：
+    0xC0000000---NPCS0
+    0xD0000000---NPCS3
+
+run 执行设置好的脚本
+
+    Uboot> setenv flashit tftp 20000000 mycode.bin\; erase 10020000 1002FFFF\;
+    cp.b 20000000 10020000 8000
+    Uboot> saveenv
+    Uboot> run flashit
+
+bootcmd 保留的环境变量,也是一种脚本
+
+    如果定义了该变量，在autoboot模式下，将会执行该脚本的内容。
+
+Go 执行内存中的二进制代码，一个简单的跳转到指定地址
+
+Bootm 执行内存中的二进制代码
+
+    要求二进制代码为制定格式的。通常为mkimage处理过的二进制文件。
+    起动UBOOT TOOLS制作的压缩LINUX内核, bootm 3200000
+
+Bootp 通过网络启动，需要提前设置好硬件地址。
+
+？ 得到所有命令列表
+
+help help usb, 列出USB功能的使用说明
+
+ping 注：只能开发板PING别的机器
+
+usb
+
+    usb start: 起动usb 功能
+    usb info: 列出设备
+    usb scan: 扫描usb storage(u 盘)设备
+
+kgo 起动没有压缩的linux内核
+
+    kgo 32000000
+
+fatls 列出DOS FAT文件系统
+
+    fatls usb 0列出第一块U盘中的文件
+
+fatload 读入FAT中的一个文件
+
+    fatload usb 0:0 32000000 aa.txt 把USB中的aa.txt 读到物理内存0x32000000处！
+
+flinfo 列出flash的信息
+
+nfs
+nfs 32000000 192.168.0.2:aa.txt
+把192.168.0.2(LINUX 的NFS文件系统)中的NFS文件系统中的aa.txt 读入内存0x32000000处。

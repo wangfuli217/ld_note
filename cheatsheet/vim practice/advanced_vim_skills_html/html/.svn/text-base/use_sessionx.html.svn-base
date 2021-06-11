@@ -1,0 +1,91 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>第 5 章 保存项目相关配置</title><link rel="stylesheet" href="http://easwy.com/blog/uploads/css/style.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.73.2"><link rel="start" href="index.html" title="vim使用进阶"><link rel="up" href="index.html" title="vim使用进阶"><link rel="prev" href="vimrc_info.html" title="第 4 章 vimrc初步"><link rel="next" href="use_tag_file.html" title="第 6 章 使用标签(tag)文件"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">第 5 章 保存项目相关配置</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="vimrc_info.html">上一页</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="use_tag_file.html">下一页</a></td></tr></table><hr></div><div class="chapter" lang="zh-CN"><div class="titlepage"><div><div><h2 class="title"><a name="use_sessionx"></a>第 5 章 保存项目相关配置</h2></div></div></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p>
+    本节所用命令的帮助入口：
+  </p><pre class="programlisting">
+:help 'path'
+:help mksession
+:help find
+:help gf
+:help CTRL-W_f </pre><p>
+    我们在前面介绍了<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-introduce-vimrc/">vimrc</a>，vimrc定义了vim通常的行为。然而，每个项目都有其特殊的定义，虽然我们也可以在vimrc中对每个项目进行定制，但这样一来，vimrc会变得很大，使vim启动速度变慢；另外也会使vimrc变得难以维护。
+  </p><p>
+    因此，我们使用其它的方法来保存项目相关的信息，这就是本文的主要内容。我们将以<span class="emphasis"><em>path</em></span>选项的设置为例进行讲解。
+  </p><p>
+    <span class="emphasis"><em>path</em></span>选项定义了一个目录列表，在使用gf，find，以及CTRL-W f等vim命令时，如果使用的是相对路径，那么就会在<span class="emphasis"><em>path</em></span>选项定义的目录列表中查找相应的文件。<span class="emphasis"><em>path</em></span>选项以逗号分隔各目录名。我们依旧以vim 7.0的源代码为例（源代码放在~/src/vim70/目录中）。
+  </p><p>
+    对于这个项目，我们的<span class="emphasis"><em>path</em></span>选项设置如下：
+  </p><pre class="programlisting">
+set path=.,/usr/include,,~/src/vim70/** </pre><p>
+    稍微解释一下各项的含义，更详细的信息，请查看<span class="emphasis"><em>path</em></span>选项的帮助页：
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      .　　　　　　　　在当前文件所在目录中搜索
+    </li><li>
+      /usr/include　　　在/usr/include目录中搜索
+    </li><li>
+      ,, 　　　　　　　在当前工作路径中搜索
+    </li><li>
+      ~/src/vim70/**　　在~/src/vim70的所有子目录树中进行搜索
+    </li></ul></div><p>
+    设置了<span class="emphasis"><em>path</em></span>选项后，怎么用呢？
+  </p><p>
+    我们还是回到<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-prologue/">序言</a>中的屏幕抓图，我们把光标定位到src/main.c文件第22行的"fcntl.h"单词上，然后在Normal模式下按"<span class="command"><strong>gf</strong></span>"。咦，vim打开了/usr/include/fcntl.h文件！
+  </p><p>
+    现在我们按"<span class="command"><strong>CTRL-^</strong></span>"回到刚才的位置，光标仍旧定位在第22行的"fcntl.h"单词上，然后按"<span class="command"><strong>CTRL-W f</strong></span>"。啊哈，这次vim打开了一个水平分隔窗口，在此窗口中打开了/usr/include/fcntl.h。
+  </p><p>
+    尽管在src/main.c中未指定fcntl.h的路径，但vim会在<span class="emphasis"><em>path</em></span>选项定义的路径中搜索此文件，方便吧！
+  </p><p>
+    现在我们看一下"<span class="command"><strong>find</strong></span>"命令，输入：
+  </p><pre class="programlisting">
+:find netrw.vim </pre><p>
+    vim打开了~/src/vim70/runtime/autoload/netrw.vim文件。用这种方法打开文件真是太方便了，你不用输入文件的路径，vim会自动在<span class="emphasis"><em>path</em></span>选项定义的路径中搜索。不过"<span class="command"><strong>find</strong></span>"命令也有缺陷，如果你只记得文件名的一部分，那么就没有办法用find命令打开这个文件了。而且find命令也不允许使用正则表达式。没关系，我们还有更好的方法来打开文件，我将在<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-lookupfile-plugin/">Lookupfile插件</a>中介绍这些方法。
+  </p><p>
+    <span class="emphasis"><em>path</em></span>选项介绍完了，我们进入正题，如何把本项目相关的配置保存起来，下次打开本项目时自动恢复这些配置呢？
+  </p><p>
+    我们有两种方法做到这一点。
+  </p><p>
+    <span class="bold"><strong>[方法1]</strong></span>
+  </p><p>
+    我们在~/src/vim70/目录下建立一个文件，假定文件名为workspace.vim，文件内容为：
+  </p><pre class="programlisting">
+"set project path
+set path+=~/src/vim70/** </pre><p>
+    这个文件中保存了项目相关的信息，例如选项值，键映射，函数定义，自动命令，等等。我们的例子中只定义的<span class="emphasis"><em>path</em></span>选项，我们没有使用"set path=..."语句，在vim手册中建议使用"set path+=..."和"set path-=..."格式。
+  </p><p>
+    接下来，在你的vimrc文件中加入下面的语句：
+  </p><pre class="programlisting">
+" execute project related configuration in current directory
+if filereadable("workspace.vim")
+    source workspace.vim
+endif </pre><p>
+    以后，每次你在~/src/vim70/目录中启动vim时，vim都会自动载入workspace.vim，恢复项目的配置信息。
+  </p><p>
+    <span class="bold"><strong>[方法2]</strong></span>
+  </p><p>
+    还记得本系列文章的第二篇<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-session-file-and-viminfo/">使用会话(session)和viminfo</a>吗？那篇文章中，我们介绍了使用session文件和viminfo保存项目环境的方法。如果你使用了会话文件，那么选项值，键映射，和其它很多信息都已经保存了。但会话的功能毕竟有限，不能把项目相关的配置全部保存下来，怎么办呢？
+  </p><p>
+    vim的作者已经想到了这个问题，并提供了解决办法。
+  </p><p>
+    在vim载入会话文件的最后一步，它会查找一个额外的文件并执行其中的ex命令。查找的规则是，把会话文件名的后缀去掉，然后在后面加上"<span class="bold"><strong>x.vim</strong></span>"，。假设你的会话文件名为example.session，vim就会查找是否有examplex.vim，如果找到，就会执行此文件中的ex命令。
+  </p><p>
+    好了，我们先创建我们的会话文件：
+  </p><pre class="programlisting">
+:cd ~/src/vim70
+:set sessionoptions-=curdir        '在session option中去掉curdir
+:set sessionoptions+=sesdir        '在session option中加入sesdir
+:mksession vim70s.vim              '创建一个会话文件 </pre><p>
+    然后再编辑一个名为~/src/vim70/vim70sx.vim的文件，文件的内容为（当然，你可以在这个文件中加入更多内容）：
+  </p><pre class="programlisting">
+"set project path
+set path+=~/src/vim70/** </pre><p>
+    退出vim后，在命令行下执行"gvim &amp;"，再次进入vim，这时看到的是一个空白窗口。然后执行下面的命令：
+  </p><pre class="programlisting">
+:source ~/src/vim70/vim70s.vim  '载入会话文件 </pre><p>
+    太棒了！原来的会话环境已经恢复，并且项目相关的配置也设置好了！
+  </p><p>
+    <span class="bold"><strong>[参考文档]</strong></span>
+  </p><div class="orderedlist"><ol type="1"><li>
+    vim手册
+    </li><li><a class="link" href="http://vimcdoc.sourceforge.net/">vim中文手册</a></li></ol></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p><span class="bold"><strong>原创文章，转载请注明：</strong></span>转载自<a class="link" href="http://easwy.com/blog/">Easwy的博客</a> [  <a class="link" href="http://easwy.com/blog/">http://easwy.com/blog/</a> ]</p><p><span class="bold"><strong>　　　　本文链接地址:</strong></span> <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-save-project-configuration/">http://easwy.com/blog/archives/advanced-vim-skills-save-project-configuration/</a></p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="vimrc_info.html">上一页</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="use_tag_file.html">下一页</a></td></tr><tr><td width="40%" align="left" valign="top">第 4 章 vimrc初步 </td><td width="20%" align="center"><a accesskey="h" href="index.html">起始页</a></td><td width="40%" align="right" valign="top"> 第 6 章 使用标签(tag)文件</td></tr></table></div></body></html>

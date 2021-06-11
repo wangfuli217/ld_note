@@ -1,0 +1,68 @@
+按照 POSIX, 异步 (外部) 信号发送到整个进程.
+所有线程共享同一个设置, 即通过 sigaction 设置的线程处置方法.
+每个线程有自己的信号掩码, 线程库根据该掩码决定将信号发送到哪个线程.
+由于 Linux 线程实现上的独特性, 外部信号始终发送到特定的线程.
+
+int pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset);
+    pthread_sigmask 用来定义线程的信号掩码
+    其接口与 sigprocmask 一样
+    
+sigset_t old, new;
+ret = pthread_sigmask(SIG_SETMASK, &new, &old); 结果集是当前集合参数集的并集
+ret = pthread_sigmask(SIG_BLOCK, &new, &old);   结果集是当前集合参数集的差集
+ret = pthread_sigmask(SIG_UNBLOCK, &new, &old); 结果集是由参数集指向的集
+当 new 的值为 NULL 时，how 的值没有意义，线程的信号掩码不发生变化，查询当前已阻塞的信号。
+
+
+int main_thread_create (pthread_t * th, const pthread_attr_t * attr, void *(*fn) (void *), void *arg) {
+    sigset_t oldset;
+    sigset_t newset;
+    uint32_t i;
+    int res;
+
+    sigemptyset (&newset);
+    for (i = 0; termsignal[i] > 0; i++) {
+        sigaddset (&newset, termsignal[i]);
+    }
+    for (i = 0; reloadsignal[i] > 0; i++) {
+        sigaddset (&newset, reloadsignal[i]);
+    }
+    for (i = 0; infosignal[i] > 0; i++) {
+        sigaddset (&newset, infosignal[i]);
+    }
+    for (i = 0; alarmsignal[i] > 0; i++) {
+        sigaddset (&newset, alarmsignal[i]);
+    }
+    for (i = 0; chldsignal[i] > 0; i++) {
+        sigaddset (&newset, chldsignal[i]);
+    }
+    for (i = 0; ignoresignal[i] > 0; i++) {
+        sigaddset (&newset, ignoresignal[i]);
+    }
+    for (i = 0; daemonignoresignal[i] > 0; i++) {
+        sigaddset (&newset, daemonignoresignal[i]);
+    }
+    pthread_sigmask (SIG_BLOCK, &newset, &oldset);
+    res = pthread_create (th, attr, fn, arg);
+    pthread_sigmask (SIG_SETMASK, &oldset, NULL);
+    return res;
+}
+
+int sigemptyset(sigset_t *mask)                  清所有信号掩码的阻塞标志
+int sigfillset(sigset_t *mask)                   设置所有信号掩码的阻塞标志  
+int sigdelset(sigset_t *mask, int signum)        删除个别信号阻塞
+int sigaddset(sigset_t *mask, int signum)        增加个别信号阻塞
+int sigisnumber(sigset_t *mask, int signum)      确定特定的信号是否在掩码中被标志为阻塞
+
+进程也可以利用sigprocmask() (sigprocmask函数只能用于单线程，在多线程中使用pthread_sigmask函数)
+系统调用改变和检查自己的信号掩码的值，其实现代码在kernel/signal.c中，原型为：
+    int sys_sigprocmask(int how, sigset_t *set, sigset_t *oset)
+
+
+int pthread_kill (pthread_t thread, int signo);
+int sigwait (const sigset_t *set, int *sig);
+
+pthread_kill 向特定的线程发送信号.
+    sigwait 暂定调用线程, 直到 set 中定义的某个信号递达调用线程.
+    sigwait 返回时, sig 中保存的是接收到的信号编号.
+    sigwait 所等待的信号必须在所有线程中阻塞, 而不仅仅是调用线程. 在多线程的程序里，希望只在主线程中处理信号，可以使用

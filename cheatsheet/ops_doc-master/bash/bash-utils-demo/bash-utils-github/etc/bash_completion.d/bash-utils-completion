@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+#
+# bash-utils - A *bash* library for better scripting
+# <http://github.com/e-picas/bash-utils>
+# Copyright (c) 2015 Pierre Cassat & contributors
+#
+# This program is free software: you can freely use it, redistribute it
+# and/or modify it according to your needs, for yourself or a commercial use,
+# under the terms of the Apache License version 2.0 (the "License") as
+# published by the Apache Software Foundation.
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# The sources of this program are hosted on a public repository.
+# You can modify it, to ameliorate a feature or correct an error,
+# inform about a bug and follow updates at <http://github.com/e-picas/bash-utils>.
+#
+# You should have received a copy of the License along with this program ;
+# please see the LICENSE file that was distributed with this source code.
+# If not, see <http://www.apache.org/licenses/LICENSE-2.0>.
+#
+# --------
+#
+# bash-utils-completion: this is the script that handles terminal completion for the Bash-Utils library (core and modules)
+#
+
+declare -x COMPMODULE=''
+
+_bashutils()
+{
+    local cur prev opts fullopts actions actions_on_modules action_on_module modules applibexec compwords curtmp first curmodule
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    applibexec="$(command -v bash-utils)"
+    curmodule="${COMPMODULE:-}"
+    COMPMODULE=''
+
+    [ -z "$curmodule" ] || applibexec+=" $curmodule";
+    shortopts="$(${applibexec} --completion short_opts)"
+    longopts="$(${applibexec} --completion long_opts)"
+    actions="$(${applibexec} --completion args)"
+    modules="$(${applibexec} --completion modules)"
+    actions_on_modules=''
+    first=''
+
+    # actions on modules
+    if [ -z "$curmodule" ]; then
+        for o in $actions; do
+            [ "${o//:}" != "$o" ] && actions_on_modules+="${o//:} "
+        done
+        actions_on_modules="${actions_on_modules% }"
+    fi
+
+    # rebuild compwords
+    compwords=()
+    for (( i=1; i<=${#COMP_WORDS[@]}; i++ )); do
+        curtmp="${COMP_WORDS[$i]:-}"
+        if [ -n "${curtmp}" ] && [[ "${curtmp}" != -* ]]; then
+            compwords[${#compwords[*]}]="$curtmp"
+        fi
+    done
+    [ -z "$curmodule" ] && first="${compwords[0]:-}";
+
+    # if first is a module
+    if [ -z "$curmodule" ] && [ -n "${first:-}" ] && (
+        echo "$modules" | grep -w "$first" 2>&1 1>/dev/null
+    ); then
+        curmodule="$first"
+        applibexec+=" $curmodule";
+        shortopts="$(${applibexec} --completion short_opts)"
+        longopts="$(${applibexec} --completion long_opts)"
+        actions="$(${applibexec} --completion args)"
+    fi
+
+    # options
+    if [[ "${cur}" == -* ]]; then
+        if [ -n "${shortopts//:}" ] && [ -n "${longopts//:}" ]; then
+            COMPREPLY=( $(compgen -W "${shortopts//:} ${longopts//:}" -- "${cur}") )
+            return 0
+        elif [ -z "${shortopts//:}" ] && [ -n "${longopts//:}" ]; then
+            COMPREPLY=( $(compgen -W "${longopts//:}" -- "${cur}") )
+            return 0
+        elif [ -n "${shortopts//:}" ] && [ -z "${longopts//:}" ]; then
+            COMPREPLY=( $(compgen -W "${shortopts//:}" -- "${cur}") )
+            return 0
+        fi
+
+    # actions + modules listing
+    elif (
+        ( [ -n "$cur" ] && [ ${#compwords[@]} -eq 1 ] ) ||
+        ( [ -z "$cur" ] && [ ${#compwords[@]} -eq 0 ] )
+    ); then
+        if [ -z "$curmodule" ] && [ -n "${actions//:}" ] && [ -n "${modules}" ]; then
+            COMPREPLY=( $(compgen -W "${actions//:} ${modules}" -- "${cur}") )
+            return 0
+        elif [ -z "$curmodule" ] && [ -z "${actions//:}" ] && [ -n "${modules}" ]; then
+            COMPREPLY=( $(compgen -W "${modules}" -- "${cur}") )
+            return 0
+        elif [ -n "${actions//:}" ]; then
+            COMPREPLY=( $(compgen -W "${actions//:}" -- "${cur}") )
+            return 0
+        fi
+
+    # actions listing
+    elif (
+        [ -n "$curmodule" ] && [ -n "${actions//:}" ]
+    ); then
+        COMPREPLY=( $(compgen -W "${actions//:}" -- "${cur}") )
+        return 0
+
+    # modules listing
+    elif (
+        [ -n "$modules" ] && [ -n "$first" ] && (
+            ( [ -n "$cur" ] && [ ${#compwords[@]} -eq 2 ] ) ||
+            ( [ -z "$cur" ] && [ ${#compwords[@]} -eq 1 ] )
+        ) && (echo "$actions_on_modules" | grep "$first" 2>&1 1>/dev/null)
+    ); then
+        COMPREPLY=( $(compgen -W "${modules}" -- "${cur}") )
+        return 0
+
+    fi
+
+    # fallback to classic completion
+    return 1
+}
+complete -o default -F _bashutils bash-utils
+
+_bashutils_model()
+{
+    COMPMODULE='model'
+    _bashutils
+    unset COMPMODULE
+    return $?
+}
+complete -o default -F _bashutils_model model
+
+# vim: autoindent tabstop=4 shiftwidth=4 expandtab softtabstop=4 filetype=sh

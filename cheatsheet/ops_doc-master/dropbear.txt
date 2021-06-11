@@ -1,0 +1,39 @@
+Dropbear是一个相对较小的SSH服务器和客户端。
+
+Dropbear是一个相对较小的SSH服务器和客户端。它运行在一个基于POSIX的各种平台。 Dropbear是开源软件，在麻省理工学院式的许可证。 Dropbear是特别有用的“嵌入”式的Linux（或其他Unix）系统，如无线路由器。
+
+1.dropbear的安装依赖zlib连接库
+下载：zlib-1.2.3.tar.gz
+安装：tar xzvf zlib-1.2.3.tar.gz
+cd zlib-1.2.3
+./configure (根据实际情况使用--prefix=PATH,--host=HOST等选项)
+make
+make install
+2.安装dropbear
+tar xzvf dropbear-2012.55.tar.gz
+cd dropbear-2012.55
+./configure
+make
+make scp
+make install
+生成server key:
+cd /etc
+mkdir dropbear
+cd dropbear
+/usr/local/bin dropbearkey -t rsa -f dropbear_rsa_host_key
+/usr/local/bin dropbearkey -t dss -f dropbear_dss_host_key
+3.启动
+./dropbear -p 6700（监听6700端口）
+4.帮助
+./dropbear -h
+5.注意
+安装dropbear的时候，生成了dbclient和scp，另外还有dropbearkey和dropbearconvert
+其中：
+Dropbearkey是用来生成公钥的，
+Dropbearconvert是用来与openssh转换的
+Dbclient可以用来连接远程的服务器
+Scp可以向远程的服务器写文件和取文件
+Dbclient的用法，例如
+#./dbclient username@192.168.99.214
+Scp的用法，例如：
+#./scp /home/bin/a.log username@192.168.99.214:/home/working

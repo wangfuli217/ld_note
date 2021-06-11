@@ -1,0 +1,128 @@
+#ifndef _CIRCLE_BUFF_H
+#define _CIRCLE_BUFF_H
+/* 缓冲增长方向
+* -------------------------------------------------
+*   |  head  |      normal      |     normal     |      last     |  notuse  |
+*   -------------------------------------------------
+*		>--------------------------------->
+*/
+
+
+
+#include <stdio.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "tools-util.h"
+
+
+typedef enum _cb_type
+{
+	CB_TYPE_MEMORY = 1,
+	CB_TYPE_SHM,
+	CB_TYPE_FILE,
+}CB_TYPE;
+
+
+struct cb_inst_t
+{
+	uint32 inst_id; 
+	CB_TYPE type;
+	uint32 size;
+	int32 b_use;
+	char utb_name[128];
+	uint32 utb_ref_counter; //utb的引用计数器
+	union
+	{
+		struct cb_inst_mem_t
+		{
+			void * start_addr;
+			void * end_addr;
+			//uint32 size;
+		}m;
+		
+		struct cb_inst_shm_t
+		{
+			char name[256];
+			char mana_name[264];
+		}shm;
+		
+		struct cb_inst_file_t
+		{
+			char name[512];
+		}f;
+	};
+};
+
+
+
+/*存储到环形缓冲的一个单元，缓冲对单元是整存整取
+*
+*/
+struct cb_slice_t
+{
+	uint64 slice_id;
+	void * start_addr;
+	void * end_addr;
+	int32 size;
+};
+
+
+struct cb_init_param_t
+{
+	CB_TYPE type;
+	union
+	{
+		struct _m
+		{
+			int32 size;
+		}m;
+		struct _shm
+		{
+			int32 size;
+			char name[256];
+		}shm;
+		struct _f
+		{
+			int size;
+			char file_name[512];
+		}f;
+	};
+};
+
+typedef enum 
+{
+	NOT_USE = 0x0,
+	USEING = 0x1,
+	HEAD = 0x10,
+	//NORMAL = 0x100,
+	LAST = 0x1000,
+}UTB_TYPE;
+
+struct utb_item_t
+{
+	uint64 id;
+	UTB_TYPE type; //可以有use和pos两个属性
+	char res[4];
+	uint64 next_id;
+	uint64 prev_id;
+	int32 start_offset;
+	int32 end_offset;
+	int32 size;
+};
+
+/*
+* 删除循环缓冲区
+* 输入:circle_buff [in]: 缓冲区结构体
+* 输出:返回新的buff的id
+*/
+int circle_buff_new(struct cb_init_param_t * param);
+int32 circle_buff_destroy(uint32 cb_id);
+
+int circle_buff_push(uint32 cb_id, void * data, uint32 size);
+
+int circle_buff_pop(uint32 cb_id, void ** data, uint32 *size);
+
+#endif
+
+

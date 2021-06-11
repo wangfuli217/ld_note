@@ -1,0 +1,18 @@
+#include<stdio.h>
+exec sql include sqlca;
+int main(void)
+{
+	exec sql begin declare section;
+		char userpasswd[30]="tarena/tarena";
+		struct{
+			int id;
+			char name[30];
+			double salary;
+		}emp;
+	exec sql end   declare section;
+	exec sql connect:userpasswd;
+	exec sql select id,first_name,salary into :emp from s_emp where id=1;
+	printf("%d  %s  %lg\n",emp.id,emp.name,emp.salary);
+	exec sql commit work release;
+	return 0;
+}

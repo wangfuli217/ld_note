@@ -1,0 +1,199 @@
+############ devpts ####################
+---------------------------------------------------
+dev/pts  是远程登录终端  比如ssh telet
+mount -t devpts devpts /dev/pts
+devpts是一个虚拟文件系统，通常情况下挂载在/dev/pts目录下，为了获得一个虚拟终端设备，一个进程打开/dev/ptmx,一个虚拟终端即被创建，虚拟终端可以
+通过/dev/pts/<number>进程访问
+
+############ mdev ####################
+---------------------------------------------------
+mdev -s的功能就是扫描/sys/block本和/sys/class子目录的文件和文件夹的名字，凡是符合/etc/mdev.conf中配置，都通过mknod函数在/dev/目录下创建设备文件。
+在/etc/init.d/rcS脚本文件中，也会将mdev程序关联到/proc/sys/kernel/hotplug文件，使得热插拔的设备通过内核自动创建/dev下的设备文件，
+
+之间回调关系可以学习一下！
+recursive_action
+fileAction
+dirAction
+\busybox-1.13.3\docs\mdev.txt 文件
+
+
+############ init ####################
+---------------------------------------------------
+init -q ##向init程序发送SIGHUP消息；
+SIGHUP信号   reload_signal重新加载配置
+SIGQUIT信号  exec_restart_action 重启被init守护的所有进程
+SIGINT信号   ctrlaltdel_signal
+SIGCONT信号  record_signo
+
+SIGUSR1、SIGUSR2、SIGTERM信号 halt_reboot_pwoff
+SIGSTOP、SIGTSTP信号          stop_handler
+
+先kill(-1, SIGTERM); 等待一秒后，再kill(-1, SIGKILL); #-1表示发送给init进程外的所有进程。
+
+init -s | init single #单用户
+
+############ inittab ####################
+SYSINIT     0x01        new_init_action(SYSINIT, INIT_SCRIPT, "");
+                        new_init_action(SYSINIT, "mount -t proc proc /proc", "");
+                        new_init_action(SYSINIT, "swapon -a", "");
+RESPAWN     0x02        new_init_action(RESPAWN, bb_default_login_shell, ""); 
+ASKFIRST    0x04        
+                        new_init_action(ASKFIRST, bb_default_login_shell, "");
+                        new_init_action(ASKFIRST, bb_default_login_shell, VC_2);
+                        new_init_action(ASKFIRST, bb_default_login_shell, VC_3);
+                        new_init_action(ASKFIRST, bb_default_login_shell, VC_4);
+WAIT        0x08        new_init_action(1 << action, token[3], tty); 
+ONCE        0x10        new_init_action(1 << action, token[3], tty); 
+CTRLALTDEL  0x20        new_init_action(CTRLALTDEL, "reboot", ""); 
+SHUTDOWN    0x40        new_init_action(SHUTDOWN, "umount -a -r", ""); | new_init_action(SHUTDOWN, "swapoff -a", ""); 
+RESTART     0x80        new_init_action(RESTART, "init", ""); 
+
+new_init_action函数使用第二个和第三个参数作为唯一项关键字。
+# Format for each entry: <id>:<runlevels>:<action>:<process>
+没有inittab的时候                 如果/dev/console不是串口的时候    不是单用户的时候，boot以后首先启动    -开头假定为一个登录shell
+::sysinit:/etc/init.d/rcS         tty2::askfirst:/bin/sh            ::sysinit:/etc/init.d/rcS             ::askfirst:-/bin/sh
+::askfirst:/bin/sh                tty3::askfirst:/bin/sh                                                  tty2::askfirst:-/bin/sh
+::ctrlaltdel:/sbin/reboot         tty4::askfirst:/bin/sh                                                  tty3::askfirst:-/bin/sh
+::shutdown:/sbin/swapoff -a                                                                               tty4::askfirst:-/bin/sh
+::shutdown:/bin/umount -a -r
+::restart:/sbin/init
+
+# /sbin/getty invocations for selected ttys     将getty绑定到一个串口上                      restart命令的内容       reboot命令执行前需要执行的任务
+tty4::respawn:/sbin/getty 38400 tty5            ::respawn:/sbin/getty -L ttyS0 9600 vt100    ::restart:/sbin/init    ::ctrlaltdel:/sbin/reboot
+tty5::respawn:/sbin/getty 38400 tty6            ::respawn:/sbin/getty -L ttyS1 9600 vt100                            ::shutdown:/bin/umount -a -r
+                                                                                                                     ::shutdown:/sbin/swapoff -a
+
+ASKFIRST和RESPAWN没有太大差别
+
+串口的控制命令
+[VINTR] = 3;	/* C-c */
+[VQUIT] = 28;	/* C-\ */
+[VERASE] = 127;	/* C-? */
+[VKILL] = 21;	/* C-u */
+[VEOF] = 4;	/* C-d */
+[VSTART] = 17;	/* C-q */
+[VSTOP] = 19;	/* C-s */
+[VSUSP] = 26;	/* C-z */
+
+
+
+
+
+reboot函数 #http://www.ibm.com/developerworks/cn/linux/embed/l-rb/index.html
+#define    LINUX_REBOOT_CMD_RESTART     0x01234567
+#define    LINUX_REBOOT_CMD_HALT        0xCDEF0123
+#define    LINUX_REBOOT_CMD_CAD_ON      0x89ABCDEF
+#define    LINUX_REBOOT_CMD_CAD_OFF     0x00000000
+#define    LINUX_REBOOT_CMD_POWER_OFF   0x4321FEDC
+#define    LINUX_REBOOT_CMD_RESTART2    0xA1B2C3D4
+#define    LINUX_REBOOT_CMD_SW_SUSPEND  0xD000FCE2
+#define    LINUX_REBOOT_CMD_KEXEC       0x45584543
+
+CONSOLE或者console代表一个设备文件，通过open[open(s, O_RDWR | O_NONBLOCK | O_NOCTTY)]函数打开，将打开的文件描述符复制给
+STDIN_FILENO、STDOUT_FILENO和STDERR_FILENO。
+DAEMON_CHDIR_ROOT            init程序将/设置为根目录
+DAEMON_DEVNULL_STDIO         init程序设置/dev/null为标准输入输出设备
+DAEMON_ONLY_SANITIZE         init程序作为守护进程，脱离父进程
+DAEMON_CLOSE_EXTRA_FDS       init程序关闭多余的文件描述符
+
+TERM环境变量为linux，设置环境变量TERM=vt102；如果TERM环境变量未设置，设置环境变量TERM=linux
+
+############################### serial ioctl ##################################################
+ioctls 函数
+在 struct tty_driver 中的 ioctl 函数被 tty 核心调用当 ioctl(2) 被在设备节点上调用. 如果这个 tty 驱动不知道如何处理传递给它的 ioctl 值, 
+它应当返回 -ENOIOCTLCMD 来试图让 tty 核心实现一个通用的调用版本.
+2.6 内核定义了大约 70 个不同的 tty ioctls, 可被用来发送给一个 tty 驱动. 大部分的 tty 驱动不处理它们全部, 但是只有一个小的更普通的子集. 
+这是一个更通用的 tty ioctls 列表, 它们的含义, 以及如何实现它们:
+TIOCSERGETLSR 
+获得这个 tty 设备的线路状态寄存器( LSR )的值.
+TIOCGSERIAL 
+获得串口线信息. 调用者可以潜在地从 tty 设备获得许多串口线路信息, 在这个调用中一次全部. 一些程序( 例如 setserial 和 dip) 调用这个函数来
+确保波特率被正确设置, 以及来获得通常的关于驱动控制的设备类型信息. 调用者传递一个指向一个大的 serial_struct 结构的指针, 这个结构应当由 
+tty 驱动填充正确的值.
+TIOCSSERIAL 
+设置串口线路信息. 这是 IOCGSERIAL 的反面, 并且允许用户一次全部设置 tty 设备的串口线状态. 一个指向 struct serial_struct 的指针被传递给这
+个调用, 填满这个 tty 设备应当被设置的数据. 如果这个 tty 驱动没有实现这个调用, 大部分程序仍然正确工作.
+TIOCMIWAIT 
+等待 MSR 改变. 用户在非寻常的情况下请求这个 ioctl, 它想在内核中睡眠直到这个 tty 设备的 MSR 寄存器发生某些事情. arg 参数包含用户在等待的
+事件类型. 这通常用来等待直到一个状态线变化, 指示有更多的数据发送给设备.
+TIOCGICOUNT 
+获得中断计数. 当用户要知道已经产生多少串口线中断时调用. 如果驱动有一个中断处理, 它应当定义一个内部计数器结构来跟踪这些统计和递增适当的
+计数器, 每次这个函数被内核运行时.
+
+############################### strpbrk ##################################################
+strpbrk是在源字符串(s1)中找出最先含有搜索字符串(s2)中任一字符的位置并返回，若找不到则返回空指针。
+char *strpbrk(const char *s, const char *accept);
+strpbrk(command, "~`!$^&*()=|\\{}[];\"'<>?") != NULL
+
+############################### strsep ##################################################
+strsep函数用于分解字符串为一组字符串。定义语句为char *strsep(char **stringp, const char *delim);
+char *strsep(char **stringp, const char *delim);
+
+
+############################### asprintf 和 vasprintf  ##################################################
+int asprintf(char **strp, const char *fmt, ...);
+int vasprintf(char **strp, const char *fmt, va_list ap);
+
+见busybox的char* FAST_FUNC xasprintf(const char *format, ...)函数。
+
+############################### xfuncs_printf  ##################################################
+malloc_or_warn:    异常打印，但不退出程序；                malloc
+xmalloc       :    异常打印，并退出程序；                  malloc
+xrealloc      :    异常打印，并退出程序；                  realloc
+xzalloc       ：   异常打印，并退出程序；设置缓存空间为0   malloc+memset
+xstrdup       :    异常打印，并退出程序；                  strdup
+xstrndup      :    异常打印，并退出程序；                  malloc + memcpy
+xfopen             异常打印，并退出程序；                  fopen(path, mode);
+xopen3             异常打印，并退出程序；                  open(pathname, flags, mode);
+xopen              异常打印，并退出程序；                  open(pathname, flags, 0666); 
+open3_or_warn      异常打印，                              open(pathname, flags, mode);
+open_or_warn       异常打印，                              open(pathname, flags, 0666);
+xunlink            异常打印，并退出程序；                  unlink(pathname)
+xrename            异常打印，并退出程序；                  rename(oldpath, newpath)
+rename_or_warn     异常打印，                              rename(oldpath, newpath);
+xpipe             异常打印，并退出程序；                   pipe(filedes)
+xdup2             异常打印，并退出程序；                   dup2(from, to);
+xmove_fd          异常打印，并退出程序；                   dup2(from, to);close
+xwrite            xwrite写入fd指定数据量，写入失败->异常打印，并退出程序；         阻塞写
+full_write        full_write写入fd指定数据量，写入失败则退出；                     阻塞写
+safe_write        do {n = write(fd, buf, count);} while (n < 0 && errno == EINTR); 阻塞写
+
+## read.c  ###
+safe_read  do {n = read(fd, buf, count);} while (n < 0 && errno == EINTR);         内核阻塞读
+nonblock_safe_read(int fd, void *buf, size_t count)  通过poll判断是否仍有可读的数据，予以后续处理 /* fd is in O_NONBLOCK mode. Wait using poll and repeat */ 用户态轮询读
+full_read        full_read读取fd指定数据量，读取失败则退出；                       内核阻塞读
+xread           xread读取fd指定数据量，读取失败->异常打印，并退出程序；            内核阻塞读
+xread_char      调用xread读取一个字节
+read_close      read close
+open_read_close open read close
+
+
+
+xlseek            异常打印，并退出程序；                   lseek(fd, offset, whence);
+die_if_ferror     异常打印，并退出程序；                   ferror(fp)  int ferror(FILE *stream);
+die_if_ferror_stdout 异常打印，并退出程序；                die_if_ferror(stdout, fn)
+xfflush_stdout    异常打印，并退出程序；                   fflush(stdout) 
+bb_putchar(int ch) 封装                                    putc(ch, stdout);
+xprint_and_close_file  封装            fflush(stdout);bb_copyfd_eof(int fd1, int fd2)；fclose(file);
+xsetgid         异常打印，并退出程序；                     setgid 
+xsetuid         异常打印，并退出程序；                     setuid 
+xchdir          异常打印，并退出程序；                     chdir  
+xchroot         异常打印，并退出程序；                     chroot 
+
+warn_opendir    异常打印，并退出程序；                  dp = opendir(path);
+xopendir        异常打印，                              dp = opendir(path);
+xsocket(int domain, int type, int protocol)    异常打印，并退出程序； int r = socket(domain, type, protocol);         
+xbind           异常打印，并退出程序；                  bind    
+xlisten         异常打印，并退出程序；                  listen  
+xsendto         异常打印，并退出程序；                  sendto  
+xrecvfrom       异常打印，并退出程序；                  recvfrom
+xstat           异常打印，并退出程序；                  stat
+
+
+
+
+
+
+
+
+

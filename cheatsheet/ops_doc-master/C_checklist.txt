@@ -1,0 +1,44 @@
+1. 单文件临时调试
+#define TRACE(format, ...) printf (format, ##__VA_ARGS__)
+#define DBG(format, args...) fprintf(stderr, "[%s|%s@%s,%d] " format "\n", APP_NAME, __FUNCTION__, __FILE__, __LINE__, ##args);
+1.1 调试日志格式
+ bad argument #1 to 'mysin' (number expected, got string)
+  注意看看luaL_checknumber是如何自动使用：参数number（1），函数名（"mysin"），期望的参数类型（"number"），实际的参数类型（"string"）来拼接最终的错误信息的。
+或者
+  函数abc访问释放的内存，文件xyz.c,行号nnn.
+  
+  https://zhuanlan.zhihu.com/p/25211116
+  
+https://github.com/sunnyelf/awesome-application-security/blob/7849c474d30d41615b023ed1881274415591d833/README.md
+C 语言安全编码
+
+https://github.com/xfbs/exploit-courses
+C 黑客教程
+
+
+#ifdef SYSLOG
+#define UI_BLUE(x) 	    x
+#define UI_GREN(x) 		x
+#define UI_YELW(x)    	x
+#define UI_REDF(x)	    x
+#define UI_RFWB(x)		x
+#define DBG_vPrintf(a,b,ARGS...) do {  if (a) {syslog(LOG_DEBUG,   UI_BLUE("[DBG_%d]") b, __LINE__, ## ARGS);} } while(0)
+#define INF_vPrintf(a,b,ARGS...) do {  if (a) {syslog(LOG_INFO,    UI_YELW("[INF_%d]") b, __LINE__, ## ARGS);} } while(0)
+#define LOG_vPrintf(a,b,ARGS...) do {  if (a) {syslog(LOG_NOTICE,  UI_GREN("[LOG_%d]") b, __LINE__, ## ARGS);} } while(0)
+#define WAR_vPrintf(a,b,ARGS...) do {  if (a) {syslog(LOG_WARNING, UI_RFWB("[RED_%d]") b, __LINE__, ## ARGS);} } while(0)
+#define ERR_vPrintf(a,b,ARGS...) do {  if (a) {syslog(LOG_ERR,     UI_REDF("[ERR_%s_%d]") b, __FILE__, __LINE__, ## ARGS);} } while(0)
+#else
+#define UI_BLUE(x) 	    "\e[34;1m"x"\e[0m"
+#define UI_GREN(x) 		"\e[32;1m"x"\e[0m"
+#define UI_YELW(x)    	"\e[33;1m"x"\e[0m"
+#define UI_REDF(x)	    "\e[31;1m"x"\e[0m"
+#define UI_RFWB(x)		"\e[41m"x"\e[0m" //white font,red background
+#define DBG_vPrintf(a,b,ARGS...) do {  if (a) {printf(UI_BLUE("[DBG_%d]") b, __LINE__, ## ARGS);} } while(0)
+#define INF_vPrintf(a,b,ARGS...) do {  if (a) {printf(UI_YELW("[INF_%d]") b, __LINE__, ## ARGS);} } while(0)
+#define LOG_vPrintf(a,b,ARGS...) do {  if (a) {printf(UI_GREN("[LOG_%d]") b, __LINE__, ## ARGS);} } while(0)
+#define WAR_vPrintf(a,b,ARGS...) do {  if (a) {printf(UI_RFWB("[RED_%d]") b, __LINE__, ## ARGS);} } while(0)
+#define ERR_vPrintf(a,b,ARGS...) do {  if (a) {printf(UI_REDF("[ERR_%s_%d]") b, __FILE__, __LINE__, ## ARGS);} } while(0)
+#endif
+
+哈哈
+https://www.kernel.org/doc/html/v4.10/admin-guide/index.html

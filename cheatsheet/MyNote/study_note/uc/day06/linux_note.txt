@@ -1,0 +1,107 @@
+Ctrl+Alt+BackSpace				重启X Window
+Ctrl+Alt+[F1~F6]/F7				文件接口/图形接口
+startx							启动图形接口
+
+man page 数字意义
+	1.使用者可以操作的指令或可执行文件
+	2.系统核心可呼叫的函数与工具等
+	3.一些常用的函数(function)与函式库(library)
+	4.装置档案的说明
+	5.设定档或者是某些档案的格式
+	6.游戏
+	7.惯例与协议等，例如Linux标准档案系统、网络协议、ASCII code等等的说明内容
+	8.系统管理员可用的管理指令
+	9.跟kernel有关的文件
+
+man -f 名字  显示名字一样的指令或可执行文件
+man -k 名字	 显示包含名字的指令或可执行文件
+
+fsck  参数	装置名称   检查与修正硬盘错误
+	-t	fsck可以检查好几种不现的filesystem,而fsck只是一支综合程序而已
+		个别的filesystem的检验程序都在/sbin底下,可以使用 ls -l /sbin/fsck*检验看看
+		指定文件系统名称
+	-A	依据/etc/fstab的内容,将所有装置都扫描一次(通常开机过程中就会执行此一指令)
+	-a	自动修复检查到的有问题的扇区,所以不用一直按y
+	-r	一定要主使用者决定是否需要修复,与上一个-a刚好相反
+	-y	与-a类似,但某些filesystem仅支持-y
+	-C	可以在检验的过程中,使用一个长条图来显示进度
+	-f	强制检查,强制进入细部检查
+
+sync	把内存里的内容写入硬盘
+shutdown	参数 	[时间] [警告信息]         //时间参数必须加入,否则会进入单人维护模式,reboot,halt,poweroff
+	-t sec:-t后面加秒数,即过几秒关机的意思
+	-k	  :不要真的关机，只是发送警告信息
+	-r	  :在将系统的服务停掉后重启
+	-h	  :在将系统的服务停掉后关机
+	-n	  :不经过init程序,直接以shutdown的功能关机
+	-f	  :关机并开机之后，强制略过fsck的磁盘检查
+	-F	  :系统重新开机之后,强制进行fsck的磁盘检查
+	-c	  :取消已经在进行的shutdown指令内容
+
+chgrp  群组	档案或目录
+	-R	递归,连同目录下所有档案,目录
+chown  用户	档案或目录
+	-R  递归
+chmod  权限	档案或目录
+	-R  递归
+
+档案种类
+	-				正规档案,二进制文件(binary),纯文字文件(ASCII),数据格式文件(data)
+	d(directory)	目录
+	b(block)		区块设备,就是一些存储数据,以提供系统存取的接口设备,硬盘就是
+	c(character)	字符设备档,亦即是一些串行端口的接口设备,如键盘、鼠标
+	l(link)			连结档,亦即是Windows下的快捷方式
+	s(socket)		资料接口文件,这种类型的档案通常被用在网络上的数据承接,在/var/run这个目录中可以看到这种档案
+	p(FIFO,pipe)	数据输送文件,主要的目的在解决多个程序同时存取一个档案所造成的错误问题
+
+dumpe2fs 参数  /dev/sda1	显示磁盘inode table,block group等信息
+
+df	参数  目录或文件名		显示磁盘分区容量和类型,挂载点
+	-a	列出所有的档案系统,包括系统特有的/proc等档案系统
+	-k	以KBytes的容量显示各档案系统
+	-m	以MBytes
+	-h	以人们较易阅读的GBytes,MBytes,KBytes等格式自行显示
+	-H	以M=1000K取代M=1024的进位方式
+	-T	连同该partition的filesystem名称(例如ext3)也列出
+	-i	不用硬盘容量,而以inode的数量来显示
+
+du	参数  目录或文件名
+	-a	列出所有的档案与目录容量,因为预设仅统计目录底下的档案量而已
+	-h	以人们较易读的容量格式(G/M)显示
+	-s	列出总量而已,而不列出每个各别的目录战胜容量
+	-k	以KBytes列出容量显示
+	-m	以MBytes
+
+ln  参数  来源文件  目标文件
+	-s	如果ln不加任何参数就进行连结,那就是hard link,-s就是symbolic link
+	-f	如果目标文件存在时,就主动的将目标文件直接移除后再建立
+
+fdisk  参数	 装置名称    分割磁盘
+	-l	输出后面接的装置所有的partition内容,若仅有fdisk -l时,则系统会把整个系统内能够搜寻到的装置的partition均列出来
+
+mke2fs  参数  装置名称
+	-b	可以设定每个block的大小，目前支持1024,2048,4096 bytes三种
+	-i	多少容量给一个inode
+	-c	检查磁盘错误,仅下达一次-c时,会进行快速读取测试
+		如果下达再次-c -c时,会进行读取测试,会很慢
+	-L	可以接表头名称(Label)
+	-j	本来mke2fs建立的是EXT2,加上-J后会主动加入journal而成为EXT3
+
+mount	参数  装置名称代号  挂载点
+	-a	依照/etc/fstab的内容将所有相关的磁盘都挂上来
+	-n	一般来说,当我们挂载档案系统到Linux上头时,Linux会主动将目前的partition与filesystem还有对应的挂载点,都记录到/etc/mtab档案中,不过有些时刻(例如不正常关机导致一些问题,而进入单人维护模式)系统
+	-L	取表头名称,可以用来挂载
+	-t	指定挂载的系统类型(如ext3,ext2)
+	--bind	将某个目录挂到另一个目录下面
+	umount	装置或挂载点	卸载
+
+e2label	 装置名称  新的label名称
+
+tune2fs  参数	装置代号
+	-j	将ext2的filesystem转换为ext3的档案系统
+	-l	类似dumpe2fs -h的功能～将superblock内的数据读出来
+	-L	类似e2label的功能,可以修改filesystem的Label
+
+hdparm	参数	装置名称
+	-d	-d1启用dma模式
+		-d0关闭dma模式

@@ -1,0 +1,125 @@
+1. 博特需求表
+|-------------|----------------------|--------------------------------------------|--------------------|
+|开启DTU      | 开启/关闭DTU         |点击选择开启/关闭                           |                    |
+|串口         | 串口路径             |                                            |                    |
+|波特率       | 串口数据传输速率     |下拉列表选择 ： 根据TAU的实际串口要求设置   | b19200             |
+|数据位       | 数据传输位           |下拉列表选择 ： 根据TAU的实际串口要求设置   | cs5，cs6，cs7，cs8 |
+|奇偶校验     | 数据校验方式         |下拉列表选择 ： 根据TAU的实际串口要求设置   | parodd=<bool>      |
+|停止位       | 数据停止位           |下拉列表选择 ： 根据TAU的实际串口要求设置   | cstopb=<bool>      |
+|数据流控制   | 下拉列表选择         |根据TAU的实际串口要求设置                   | crtscts=<bool>     |
+|协议类型     | TCP/UDP              |                                            | tcp|udp            |
+|服务器/客户端| TAU工作模式，可设置为|  server：作为TAU服务器使用                 | --                 |
+|             |                      |  client：作为TAU客户端使用  下拉列表选择   | --                 |
+|             |                      |  根据TAU实际要求设置                       |                    |
+|IP           | 数据中心服务器IP地址 |填写数据中心服务器的IP地址 ： 格式：A.B.C.D | --                 |
+|端口号       | TAU服务端口号        |取值范围：1~65535                           | --                 |
+|-------------|----------------------|--------------------------------------------|--------------------|
+
+2. /etc/config/dtu 配置文件设计
+|----------------------------------- |-------------------------------------------------------------------|----------------------|
+|          配置类型 配置值           | 配置值说明                                                        | 值类型               |
+|----------------------------------- |-------------------------------------------------------------------|----------------------|
+|config 'dtu'                        |                                                                   |                      |
+|	option 'enabled' '0'             | # 0: 配置不生效 1:配置生效                                        |enabled：bool类型     |
+|	option 'proto'  'udp'            | # udp:使用udp协议 tcp使用tcp协议                                  |proto：枚举类型       |
+|	option 'ipaddr' '192.168.1.121'  | # ip地址: 客户端而言是连接服务器IP地址，服务器而言是绑定本地IP地址|ipaddr：地址类型      |
+|	option 'port'  '5000'            | # port端口：客户端而言是连接服务器端口，服务器而言是绑定本地端口  |port：端口类型        |
+|	option 'server' '0'              | # 0：客户端模式， 1: 服务器模式                                   |server：bool类型      |
+|	option 'device' '/dev/ttyS1'     | # 串口设备全路径                                                  |device：字符串类型    |
+|	option 'baudrate' '57600'        | # 波特率：socat -hh |grep ' b[1-9]'                               |baudrate：枚举类型    |
+|	option 'parity_check' 'none'     | # 'none':无校验 odd 奇校验 even 偶校验                            |parity_check：枚举类型|
+|	option 'stopbit' '1'             | # 1:1个停止位 2:2个停止位                                         |stopbit：枚举类型     |
+|	option 'databit' '8'             | # 5:5个数据位 6:6个数据位 7:7个数据位 8:8个数据位                 |databit：枚举类型     |
+|	option 'control' 'rtscts'        | # rtscts: 支持rtscts硬件引脚 none:不支持rtscts引脚                |control：枚举类型     |
+|	option 'name' ttyUSB2_TCP_SRV5555| 字符串表示名称                                                   |name：字符串类型 
+|-----------------------------------|-------------------------------------------------------------------|----------------------|
+
+3. ser2net和socat 两个命令之间差别
+-------------------------------------------------------------------------------
+ser2net 不支持udp方式；不支持客户端模式，因此这里选择使用socat实现此功能
+socat   不支持守护进程；
+-------------------------------------------------------------------------------
+
+4. socat 命令说明
+-------------------------------------------------------------------------------
+4.1 参考说明
+-------------------
+http://tinylab.org/serial-port-over-internet/
+串口转 TCP 端口
+socat tcp-l:54321,reuseaddr,fork file:/dev/tty.SLAB_USBtoUART,waitlock=/var/run/tty0.lock,clocal=1,cs8,nonblock=1,ixoff=0,ixon=0,ispeed=9600,ospeed=9600,raw,echo=0,crtscts=0
+或
+socat tcp-l:54321 /dev/tty.SLAB_USBtoUART,clocal=1,nonblock
+
+# 参考 http://www.dest-unreach.org/socat/doc/socat-ttyovertcp.txt
+# man socat 
+
+4.2 TCP 服务器|客户端 + UDP服务器模式
+-------------------
+4.2.1 TCP 客户端    -lf /var/log/socat.log
+socat -d -d -D file:/dev/ttyUSB0,b57600,cs8,parenb=0,parodd=0,cstopb=0,crtscts=0 tcp:192.168.27.117:12345,forever,interval=10,fork
+4.2.2 TCP 服务器端  -lf /var/log/socat.log
+socat -d -d -D file:/dev/ttyUSB0,b57600,cs8,parenb=0,parodd=0,cstopb=0,crtscts=0 tcp-listen:12345,bind=192.168.27.117,reuseaddr,forever,fork
+
+4.2.3 UDP 客户端    
+不支持
+UDP 服务器端  -lf /var/log/socat.log
+socat -d -d -D file:/dev/ttyUSB0,b57600,cs8,parenb=0,parodd=0,cstopb=0,crtscts=0 udp-listen:12345,bind=192.168.27.117,reuseaddr,fork
+
+4.3 实例参数说明
+-------------------
+-lf /var/log/socat.log  日志文件
+-d -d                   输出fatal, error, warning, 和 notice消息
+-D                      传输前打印文件描述打开信息
+file:/dev/ttyUSB0,b57600,cs8,parenb=0,parodd=0,cstopb=0,crtscts=0
+     /dev/ttyUSB0  串口
+     b57600             波特率
+     cs8                数据位 cs5 cs6 cs7 cs8 
+                        # 奇偶校验
+     parenb=0           无校验
+     parenb=0 parodd=1  奇校验
+     parenb=0 parodd=0  偶校验
+     cstopb=0           停止位       0表示1个停止位 1表示2个停止位
+     crtscts=0          数据流控制   rtscts控制线有效
+     
+udp-listen:12345,bind=192.168.27.117,reuseaddr,fork
+    udp-listen|tcp-listen|tcp  udp服务器|tcp服务器|tcp客户端
+    12345                      绑定端口
+    bind=192.168.27.117        绑定IP地址
+    reuseaddr                  地址重用
+    fork                       创建子进程
+-------------------------------------------------------------------------------
+dtu工作需求
+1. dtu 配置文件
+config dtu
+        option proto 'udp'
+        option port '5000'
+        option parity_check 'none'
+        option stopbit '1'
+        option databit '8'
+        option control 'rtscts'
+        option name 'ttyUSB2_TCP_SRV5555'
+        option ipaddr '192.168.1.122'
+        option enable '0'
+        option enabled '0'
+        option device '/dev/ttyS2'
+        option baudrate '460800'
+        option server '1'
+  
+2. /etc/init.d/dtu 启动脚本
+3. /sbin/dtu       配置脚本
+4. hotplug         触发脚本
+5. luasrc          lua脚本
+
+
+-------------------------------------------------------------------------------
+实现说明：
+  1. dtu支持tcp-server tcp-client udp-client三种模式，当前没有对udp-server模式进行不合理判断，计划在map层面解决
+     当前还在考虑中
+  2. dtu牵涉多多实例，为了方便程序实现，每次提交都会导致已存在的socat实例被杀掉，然后根据配置重新启动
+
+-------------------------------------------------------------------------------
+AT串口/dev/ttyUSB1映射到5555端口：
+socat -d -d file:/dev/ttyUSB2,b9600,raw,nonblock,ignoreeof,cr,echo=0 TCP4-LISTEN:5555,reuseaddr,fork
+
+AT串口/dev/ttyUSB1映射到本地：
+socat -d -d file:/dev/ttyUSB2,b9600,raw,nonblock,ignoreeof,cr,echo=0  -

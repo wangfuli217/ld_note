@@ -1,0 +1,175 @@
+环境介绍
+eth0：Internet
+eth1: PPPOE server
+
+~]# cat /etc/sysconfig/network-scripts/ifcfg-eth1 
+TYPE=Ethernet
+BOOTPROTO=none
+DEFROUTE=yes
+PEERDNS=yes
+PEERROUTES=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_PEERDNS=yes
+IPV6_PEERROUTES=yes
+IPV6_FAILURE_FATAL=no
+NAME=eth1
+DEVICE=eth1
+ONBOOT=yes
+IPADDR=0.0.0.0
+PREFIX=0
+
+PPPOE server
+---------------------------------------
+1.安装pppoe
+yum install rp-pppoe -y
+
+2.使用本地验证
+~]# vim /etc/ppp/options
+#lock
+local
+
+3.添加DNS
+~]# vim /etc/ppp/pppoe-server-options 
+# PPP options for the PPPoE server
+# LIC: GPL
+# chap验证传输的是密码的MD5值；pap验证传输的是明文密码，可使用wireshark 抓包获取。
+#require-pap
+require-chap
+login
+lcp-echo-interval 10
+lcp-echo-failure 2
+ms-dns 114.114.114.114
+
+4.账号密码
+~]# vim /etc/ppp/chap-secrets 
+# Secrets for authentication using CHAP
+# client	server	secret			IP addresses
+user1       *       123456          *
+user2       *       123456          10.0.0.100
+
+5.启动服务
+pppoe-server -I eth1 -L 10.0.0.1 -R 10.0.0.50 -N 200
+    I : 指定响应PPPOE请求的以太网接口
+    L : PPPOE服务器的IP地址
+    R : 分配给客户端IP地址,从10.0.0.50开始
+    N : IP地址递增几个, 10.0.0.50-10.0.0.249
+
+6.开启路由转发
+sysctl -w net.ipv4.ip_forward=1
+echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+sysctl -p
+
+7.防火墙配置
+systemctl restart iptables.service
+iptables -D FORWARD -j REJECT --reject-with icmp-host-prohibited
+iptables -t nat -A POSTROUTING -s 10.0.0.0/8 -o eth0 -j MASQUERADE
+iptables-save > /etc/sysconfig/iptables
+
+8.停止服务
+pkill pppoe
+
+
+PPPOE client
+---------------------------------------
+1.安装pppoe
+yum install rp-pppoe -y
+
+2.配置
+~]# pppoe-setup 
+Welcome to the PPPoE client setup.  First, I will run some checks on
+your system to make sure the PPPoE client is installed properly...
+
+
+LOGIN NAME
+Enter your Login Name (default root): 【user1】    #用户名
+
+INTERFACE
+Enter the Ethernet interface connected to the PPPoE modem
+For Solaris, this is likely to be something like /dev/hme0.
+For Linux, it will be ethX, where 'X' is a number.
+(default eth0): 【eno16777736】    #用于拨号的网卡名称
+
+Do you want the link to come up on demand, or stay up continuously?
+If you want it to come up on demand, enter the idle time in seconds
+after which the link should be dropped.  If you want the link to
+stay up permanently, enter 'no' (two letters, lower-case.)
+NOTE: Demand-activated links do not interact well with dynamic IP
+addresses.  You may have some problems with demand-activated links.
+Enter the demand value (default no): 【Enter】
+
+DNS
+Please enter the IP address of your ISP's primary DNS server.
+If your ISP claims that 'the server will provide dynamic DNS addresses',
+enter 'server' (all lower-case) here.
+If you just press enter, I will assume you know what you are
+doing and not modify your DNS setup.
+Enter the DNS information here: 【114.114.114.114】    #DNS
+Please enter the IP address of your ISP's secondary DNS server.
+If you just press enter, I will assume there is only one DNS server.
+Enter the secondary DNS server address here: 【8.8.8.8】
+
+PASSWORD
+Please enter your Password: 【123456】    #密码
+Please re-enter your Password: 【123456】
+
+USERCTRL
+Please enter 'yes' (three letters, lower-case.) if you want to allow
+normal user to start or stop DSL connection (default yes): 【Enter】    #允许普通用户可以启动或停止PPPOE连接
+
+FIREWALLING
+Please choose the firewall rules to use.  Note that these rules are
+very basic.  You are strongly encouraged to use a more sophisticated
+firewall setup; however, these will provide basic security.  If you
+are running any servers on your machine, you must choose 'NONE' and
+set up firewalling yourself.  Otherwise, the firewall rules will deny
+access to all standard servers like Web, e-mail, ftp, etc.  If you
+are using SSH, the rules will block outgoing SSH connections which
+allocate a privileged source port.
+
+The firewall choices are:
+0 - NONE: This script will not set any firewall rules.  You are responsible
+          for ensuring the security of your machine.  You are STRONGLY
+          recommended to use some kind of firewall rules.
+1 - STANDALONE: Appropriate for a basic stand-alone web-surfing workstation
+2 - MASQUERADE: Appropriate for a machine acting as an Internet gateway
+                for a LAN
+Choose a type of firewall (0-2): 【0】    #不设置防火墙
+
+Start this connection at boot time
+
+Do you want to start this connection at boot time?
+Please enter no or yes (default no):【yes】
+
+** Summary of what you entered **
+
+Ethernet Interface: eno16777736
+User name:          user1
+Activate-on-demand: No
+Primary DNS:        114.114.114.114
+Secondary DNS:      8.8.8.8
+Firewalling:        NONE
+User Control:       yes
+Accept these settings and adjust configuration files (y/n)? 【y】
+Adjusting /etc/sysconfig/network-scripts/ifcfg-ppp0
+Adjusting /etc/resolv.conf
+Adjusting /etc/ppp/chap-secrets and /etc/ppp/pap-secrets
+  (But first backing it up to /etc/ppp/chap-secrets.bak)
+  (But first backing it up to /etc/ppp/pap-secrets.bak)
+
+
+
+Congratulations, it should be all set up!
+Type '/sbin/ifup ppp0' to bring up your xDSL link and '/sbin/ifdown ppp0'
+to bring it down.
+Type '/sbin/pppoe-status /etc/sysconfig/network-scripts/ifcfg-ppp0'
+to see the link status.
+
+3.拨号与断开
+ifup ppp0      #or pppoe-start
+ifdown ppp0    #or pppoe-stop
+
+4.查看状态
+ifconfig    #or pppoe-status

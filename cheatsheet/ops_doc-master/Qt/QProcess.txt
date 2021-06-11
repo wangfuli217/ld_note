@@ -1,0 +1,144 @@
+https://blog.csdn.net/liang19890820/article/details/50478833
+
+简述
+-----------
+Qt的QProcess类用来启动一个外部程序并与其通信。
+​ 启动进程：start()，将程序名称和运行这个程序所需要的命令行参数作为该函数的参数。
+​ 执行完start()函数后，QProcess进入Starting状态，当程序已经运行后，QProcess就会进入Running状态并发射started()信号。当程序退出后，QProcess重新进入NotRunning状态（初始状态）并发射finished()信号。
+​ 发射的finished()信号提供了进程的退出代码和退出状态；
+​ exitCode()来获取上一个结束的进程的退出代码；
+​ exitStatus()来获取它的退出状态。
+​ error()查看错误的类型和上次发生的错误。
+​ state()可以查看当前进程的状态。
+​ QProcess允许将一个进程视为一个顺序I/O设备。可以像使用QTcpSocket访问一个网络连接一样来读/写一个进程。
+    调用write()向进程的标准输入进行写入；
+    调用read()、readLine()、getChar()等从标准输出进行读取。
+    
+
+
+接口
+-----------
+    start() 启动外部程序
+    readAllStandardError() 从标准错误中获取所有数据
+    readAllStandardOutput() 从标准输出中获取所有数据
+    write() 继承于QIODevice
+    close() 继承于QIODevice
+除此之外，QProcess还包含静态成员函数：
+    execute() 启动一个进程，然后等待该进程结束。
+    startDetached() 启动一个进程，然后使其和当前进程脱离进程的父子关系。
+    
+示例
+-----------
+
+启动cmd
+-----------
+QProcess process(this);
+process.startDetached("cmd.exe");
+
+cmd带参数
+-----------
+使用cmd来删除本地文件
+
+QProcess process(this);
+process.start("cmd.exe");
+process.write ("del E:\\a.txt\n\r");
+process.write ("exit\n\r");
+process.waitForFinished();
+process.close();
+
+
+cmd获取返回值
+-----------
+使用cmd来查看网络状况
+----------------------
+QStringList arguments;
+arguments << "/c" << "ping www.baidu.com";
+
+QProcess process(this);
+process.start("cmd.exe", arguments);
+process.waitForStarted();
+process.waitForFinished();
+QString strResult = QString::fromLocal8Bit(process.readAllStandardOutput());
+
+QMessageBox msgBox(this);
+msgBox.setText(strResult);
+msgBox.exec();
+
+putty远程登录
+----------------------
+QString program = "E:/Putty.exe";
+
+QStringList arguments;
+arguments<< "-pw" << "wang" << QString("%1@%2").arg("root").arg("172.18.5.73") << "22";
+
+QProcess *process = new QProcess(this);
+process->setProcessChannelMode(QProcess::SeparateChannels);
+process->setReadChannel(QProcess::StandardOutput);
+process->start(program, arguments, QIODevice::ReadWrite);
+
+
+WinSCP远程文件传输
+----------------------
+QString program = QCoreApplication::applicationDirPath() + "/WinSCP/WinSCP.exe";
+
+QStringList arguments;
+arguments << QString("%1:%2@%3:%4").arg("root").arg("wang").arg("172.18.5.73").arg(22);
+
+QProcess *process = new QProcess(this);
+process->setProcessChannelMode(QProcess::SeparateChannels);
+process->setReadChannel(QProcess::StandardOutput);
+process->start(program, arguments, QIODevice::ReadWrite);
+
+
+错误处理
+----------------------
+启动外部程序，当发生错误时，可以根据指定的错误描述所发生的错误类型。
+connect(process, SIGNAL(error(QProcess::ProcessError)), this, SLOT(processError(QProcess::ProcessError)));
+
+void processError(QProcess::ProcessError error)
+{
+    switch(error)
+    {
+    case QProcess::FailedToStart:
+        QMessageBox::information(0, "Tip", "FailedToStart");
+        break;
+    case QProcess::Crashed:
+        QMessageBox::information(0, "Tip", "Crashed");
+        break;
+    case QProcess::Timedout:
+        QMessageBox::information(0, "Tip", "Timedout");
+        break;
+    case QProcess::WriteError:
+        QMessageBox::information(0, "Tip", "WriteError");
+        break;
+    case QProcess::ReadError:
+        QMessageBox::information(0, "Tip", "ReadError");
+        break;
+    case QProcess::UnknownError:
+        QMessageBox::information(0, "Tip", "UnknownError");
+        break;
+    default:
+        QMessageBox::information(0, "Tip", "UnknownError");
+        break;
+    }
+}
+假设不存在对应的外部程序，则会返回错误类型QProcess::FailedToStart。
+
+
+参数arguments
+----------------------
+以putty远程登录为例，putty可以使用命令行putty [-pw password] user@ip来进行连接。
+所以中间为空格的地方使用arguments进行单个字符串分离：
+QStringList arguments;
+arguments<< "-pw" << "wang" << QString("%1@%2").arg("root").arg("172.18.5.73");
+其它参数类似。
+QProcess process;
+process.start("del /s *.txt");
+//等同于process.start("del", QStringList() << "/s" << "*.txt");
+
+
+获取环境变量
+----------------------
+返回调用进程的环境变量作为一个键值对列表。
+QStringList environment =  QProcess::systemEnvironment();
+//environment = {"PATH=/usr/bin:/usr/local/bin", "USER=greg", "HOME=/home/greg"}

@@ -1,0 +1,143 @@
+print(luci.sys.httpget("http://www.163.com/", false, "/usr/lib/lua/baidu"))
+print(luci.util.dumptable(luci.sys.init.names()))
+
+luci.util.dumptable(luci.sys.net.devices ())
+luci.util.dumptable(luci.sys.net.host_hints())
+luci.util.dumptable(luci.sys.net.ipv4_hints())
+luci.util.dumptable(luci.sys.net.ipv6_hints())
+luci.util.dumptable(luci.sys.net.mac_hints ())
+luci.util.dumptable(luci.sys.process.list())
+luci.util.dumptable(luci.sys.user.getuser('root'))
+luci.util.dumptable(luci.sys.user.getuser('dnsmasq'))
+user.checkpasswd
+luci.util.perror(luci.sys.user.checkpasswd('root'),'123456')
+luci.util.dumptable(luci.sys.net.pingtest ('192.168.10.109'))
+
+
+
+luci.util.dumptable(ipt4._rules)
+luci.util.dumptable(ipt4:tables())
+
+luci.util.dumptable(ipt4:chains("filter"))
+luci.util.dumptable(ipt4:chains("nat"))
+luci.util.dumptable(ipt4:chains("mangle"))
+luci.util.dumptable(ipt4:chains("raw"))
+
+luci.util.dumptable(ipt4:chain("raw", 'PREROUTING'))
+luci.util.dumptable(ipt4:chain("mangle", 'PREROUTING'))
+luci.util.dumptable(ipt4:chain("nat", 'PREROUTING'))
+luci.util.dumptable(ipt4:is_custom_target ('FORWARD'))
+
+
+addr = luci.ip.new("10.24.0.1/24") 
+
+luci.ip.routes({ from = "2001::/7" }, function(rt) 
+      print(rt.from) 
+end)
+
+routes = luci.ip.routes({ family = 4 }) 
+for _, rt in ipairs(routes) do 
+	print(rt.dest, rt.gw, rt.dev) 
+end
+
+print(addr:lower('192.168.1.2')) 
+print(addr:lower('192.168.1.0'))
+
+data = nixio.getpw('root')
+
+print(nixio.crypt('123456', 1))
+print(nixio.crypt('123456', pwdp))
+luci.util.dumptable(nixio.getsp('root'))
+
+
+print(nixio.kill(4672, 10))
+
+
+print(nixio.bin.b64decode("beijingxian"))
+print(nixio.bin.b64encode("beijingxian"))
+
+x:set("system", "ntp", "server", {
+"a.openwrt.pool.ntp.org",
+"b.openwrt.pool.ntp.org",
+"c.openwrt.pool.ntp.org",
+"d.openwrt.pool.ntp.org"
+})
+
+ x:foreach("system", "timeserver", function(s)
+    print('------------------')
+    for key, value in pairs(s) do
+     print(key .. ': ' .. tostring(value))
+     end
+   end)
+
+   
+data = x:get_all("system")
+
+admin/services/dhcp_static
+admin/services/dhcp_static
+
+net_get_subnet(){
+  local netmask
+  local net="$2"
+  
+  network_get_subnet "$1" "$net" 
+  if [ $? != 0 ] ; then
+    local netmask=$(ip address show dev "$net" | awk '/brd/' | awk '/inet/{print $2}') 1>&2 >/dev/null 
+    if [ -z "$netmask" ] ; then
+      return 1
+    fi
+    eval "$1=${netmask}"
+  fi
+  return 0
+}
+
+net_get_device(){
+  local device
+  local net="$2"
+  
+  network_get_device "$1" "$net" 
+  if [ $? != 0 ] ; then
+    local device=$(ip address show dev "$net" | awk '/brd/' | awk '/inet/{print $NF}') 1>&2 >/dev/null 
+    if [ -z "$device" ] ; then
+      return 1
+    fi
+    eval "$1=${device}"
+  fi
+  return 0
+}
+
+function expandTabs( s,tab )
+     tab = tab or 8     --tab 的大小默认为 8
+     local corr = 0
+     s = string.gsub(s,"()\t",function ( p )
+          local sp = tab - (p -1 + corr)%tab
+          corr = corr - 1 + sp
+          return string.rep(" ",sp)
+     end)
+     return s
+end
+print(expandTabs("x\txx\txx"))     --打印出来的值为:x       xx      xx间隔都是8个
+
+function unexpandTabs( s,tab )
+     tab = tab or 8
+     s = expandTabs(s)
+     local pat = string.rep(".",tab)  -- 辅助模式
+     s = string.gsub(s,pat,"%0\1")    --将匹配到的tab(8个.)替换为一个标记 \1
+     s = string.gsub(s," +\1","\1")   --将多个空格和标记 替换为一个标记(意思应该是某个字符前有多个tab都将替换为一个tab)
+     s = string.gsub(s,"\1","")       --最后将这些标记清除
+     return s
+end
+print(unexpandTabs("        x        "))     -- 打印为x
+
+a = {}
+--此时表示key为weak
+b = { __mode = "k"}
+setmetatable(a,b)
+key = {}
+a[key] = 1
+key = {}  -- 对key的第二次赋值重写了key第一次复制时的引用，
+a[key] = 2
+collectgarbage()
+for k,v in pairs(a) do
+     print(v)
+end

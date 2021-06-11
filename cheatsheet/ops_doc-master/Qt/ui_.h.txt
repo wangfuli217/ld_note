@@ -1,0 +1,84 @@
+https://qtguide.ustclug.org/
+
+1. QMetaObject类 
+    QMetaObject 是实现元对象系统的关键类，包含 Qt 对象的元信息，可以在 Qt 帮助文档检索关于它的资料。
+每个 QObject 派生类都有一个 QMetaObject 实例，保存该派生类的元信息，可以通过 QObject::metaObject() 获取元对象。
+
+QMetaObject 提供了这些公有函数：
+    className() 返回类的名称字符串。
+    superClass() 返回基类的元对象。
+    method() 和 methodCount() 提供类的元方法的信息(元方法包括信号、槽和其他 invokable 成员函数)。
+    enumerator() 和 enumeratorCount() 提供类里定义的枚举类型信息。
+    propertyCount() 和 property() 提供类的属性信息。
+    constructor() 和 constructorCount() 提供类的元构造函数信息。
+
+const char * className () const
+const char * superClassName () const
+const QMetaProperty * QMetaObject::property ( int index, bool super = FALSE ) const
+
+    另外还有多个索引函数，能根据字符串名称检索元构造函数、元方法、枚举类型、属性等，
+函数名为： indexOfConstructor(), indexOfMethod(), indexOfEnumerator() 和 indexOfProperty() 。
+invokable 成员函数是指使用 Q_INVOKABLE 前缀声明的类成员函数
+
+class Window : public QWidget
+{
+    Q_OBJECT
+
+public:
+    Window();
+    void normalMethod();
+    Q_INVOKABLE void invokableMethod();
+}; 
+    Q_INVOKABLE 前缀声明的函数和信号、槽等名称，都会由 moc 工具处理成字符串，保存到类的静态数据里面，
+这些元方法都可以通过 QMetaObject::invokeMethod() 来调用，才称之为 invokable 。
+
+    因为各个类的元方法的声明都不一样，如何通过统一的接口在运行时调用元方法呢？
+这就是QMetaObject::invokeMethod() 函数干的活，它根据元方法的名称字符串和参数列表来统一调用元方法。
+
+
+该静态函数有多个重载，下面给出它的第一个声明，其他的重载是差不多的：
+bool QMetaObject::​invokeMethod(QObject * obj, const char * member, Qt::ConnectionType type,
+QGenericReturnArgument ret,
+QGenericArgument val0 = QGenericArgument( 0 ),
+QGenericArgument val1 = QGenericArgument(),
+QGenericArgument val2 = QGenericArgument(),
+QGenericArgument val3 = QGenericArgument(),
+QGenericArgument val4 = QGenericArgument(),
+QGenericArgument val5 = QGenericArgument(),
+QGenericArgument val6 = QGenericArgument(),
+QGenericArgument val7 = QGenericArgument(),
+QGenericArgument val8 = QGenericArgument(),
+QGenericArgument val9 = QGenericArgument())
+因为是静态函数，
+第一个参数手动传了需要调用元方法的对象指针；
+第二个参数是元方法函数的名称字符串；
+第三个是关联类型，就是信号和槽函数关联时用的类型；
+第四个参数是元方法的返回值；
+接下来是编号从 0 到 9 的 10 个元方法参数。
+
+    QGenericArgument 是 Qt 内部使用的辅助类，专门用于元方法返回值和参数的传递，
+它有两个公有函数，name() 获取参数类型字符串，data() 获取 void * 保存的参数数值，
+另外不能直接调用它的构造函数，而应该用  Q_ARG() 宏：
+    QGenericArgument Q_ARG( Type, const Type & value)
+
+
+
+
+
+
+
+
+
+
+
+
+#### “Qt Internals & Reversing”
+链接如下：
+http://www.codeproject.com/Articles/31330/Qt-Internals-Reversing
+或者打开这个网址：http://www.ntcore.com/files/qtrev.htm
+
+国内也有类似的中文文章，推荐这两篇：
+Qt一些细节内幕： http://blog.csdn.net/liangkaiming/article/details/5799752
+解析Qt的信号-槽机制是如何工作的： http://blog.csdn.net/newthinker_wei/article/details/22701695 
+
+

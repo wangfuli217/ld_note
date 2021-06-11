@@ -1,0 +1,49 @@
+1.下载
+http://www.memcached.org/files/memcached-1.4.21.tar.gz
+
+2.一般安装:
+./configure --prefix=/usr/local/memcached --with-libevent=/usr/local/libevent
+make
+sudo make install
+
+3.DEBUG模式安装:
+./configure --prefix=/usr/local/memcached --with-libevent=/usr/local/libevent 
+make  CFLAGS="-g -O0" CPPFLAGS="-ggdb3"
+sudo make install
+
+-ggdb3:参数的意思是gdb支持宏展开
+
+gdb memcached
+break  5075
+run -l 127.0.0.1 -p 8888 -vv -u root
+
+gdb memcached
+break  thread.c:474
+run -l 127.0.0.1 -p 8888 -vv -u root
+info macro MEMCACHED_CONN_DISPATCH
+
+
+ldd memcached
+	linux-vdso.so.1 =>  (0x00007fff08bd1000)
+	libhugetlbfs.so => /usr/lib64/libhugetlbfs.so (0x00007f615cfe3000)
+	libevent-2.0.so.5 => /usr/lib64/libevent-2.0.so.5 (0x00007f615cd9e000)
+	librt.so.1 => /lib64/librt.so.1 (0x0000003c7c200000)
+	libpthread.so.0 => /lib64/libpthread.so.0 (0x0000003c7b600000)
+	libc.so.6 => /lib64/libc.so.6 (0x0000003c7b200000)
+	libdl.so.2 => /lib64/libdl.so.2 (0x0000003c7ba00000)
+	/lib64/ld-linux-x86-64.so.2 (0x0000003c7aa00000)
+
+vim ~/.bashrc
+export PATH="$PATH:/usr/local/memcached/bin"
+. ~/.bashrc
+
+/usr/local/memcached/share/man/man1目录中，有一个memcached.1文件。
+把这个文件拷贝到/usr/local/share/man/man1目录下。此时就可以man memcached
+
+cd /root/www/soft/memcached-1.4.21
+如果已经安装了memcached，那么可使用$sudo make uninstall  和 make clean 命令进行卸载
+
+
+启动命令：
+简单的启动命令如下，设置-l和-p分别用来设置ip和监听的端口。-vv是输出一些运行信息。
+$memcached  -l 192.168.1.112  -p 8888  -vv -u root

@@ -1,0 +1,63 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>第 15 章 自动补全</title><link rel="stylesheet" href="http://easwy.com/blog/uploads/css/style.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.73.2"><link rel="start" href="index.html" title="vim使用进阶"><link rel="up" href="index.html" title="vim使用进阶"><link rel="prev" href="omin-complete.html" title="第 14 章 智能补全"><link rel="next" href="basic_movement.html" title="第 16 章 指随意动，移动如飞 (一)"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">第 15 章 自动补全</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="omin-complete.html">上一页</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="basic_movement.html">下一页</a></td></tr></table><hr></div><div class="chapter" lang="zh-CN"><div class="titlepage"><div><div><h2 class="title"><a name="auto_complete"></a>第 15 章 自动补全</h2></div></div></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p>
+    本节所用命令的帮助入口：
+  </p><pre class="programlisting">
+:help compl-generic
+:help 'complete'
+:help ins-completion </pre><p>
+    上篇文章介绍了<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-omin-complete/">vim的智能补全(omni补全)</a>，本篇主要介绍vim提供的其它补全方式。
+  </p><p>
+    除智能补全外，最常用的补全方式应该是<span class="command"><strong>CTRL-N</strong></span>和<span class="command"><strong>CTRL-P</strong></span>补全了。它们会在当前缓冲区、其它缓冲区，以及当前文件所包含的头文件中查找以光标前关键字开始的单词。智能补全不能对局部变量进行补全，而<span class="command"><strong>CTRL-N</strong></span>和<span class="command"><strong>CTRL-P</strong></span>补全则可以很好的胜任。
+  </p><p>
+    下图是采用<span class="command"><strong>CTRL-P</strong></span>补全的一个例子，输出字符"pa"，然后按<span class="command"><strong>CTRL-P</strong></span>，vim会在下拉菜单中列出所有的匹配功能供选择，此时再按一下<span class="command"><strong>CTRL-P</strong></span>，就选中了第一个项目，也就是我想输入的"parmp"。我们第一次输入<span class="command"><strong>CTRL-P</strong></span>的是进行补全，第二次输入的<span class="command"><strong>CTRL-P</strong></span>是在下拉菜单中向上选择，二者的含义是不同的。
+  </p><p>
+    我们知道，<span class="command"><strong>CTRL-P</strong></span>一般的含义是向上，因此<span class="command"><strong>CTRL-P</strong></span>补全是向上查找以进行补全，而<span class="command"><strong>CTRL-N</strong></span>是向下查找以进行补全，在不同场合使用不同的快捷键可以加速补全的速度。
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/03/ctrl_p_complete-300x223.jpg" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/03/ctrl_p_complete.jpg">点击查看大图</a></div></div><p>
+    使用<span class="command"><strong>CTRL-N</strong></span>和<span class="command"><strong>CTRL-P</strong></span>补全时，由'<span class="emphasis"><em>complete</em></span>'选项控制vim从哪些地方查找补全的内容。例如，对于比较大的软件项目，文件包含关系复杂，如果<span class="command"><strong>CTRL-N</strong></span>和<span class="command"><strong>CTRL-P</strong></span>补全时查找所包含的头文件，耗时会比较久。此时，可以在'<span class="emphasis"><em>complete</em></span>'选项中去掉'<span class="emphasis"><em>i</em></span>'标记，这样<span class="command"><strong>CTRL-N</strong></span>和<span class="command"><strong>CTRL-P</strong></span>补全就不在头文件中查找了，速度会快很多；当然，弊端就是你无法对头文件中出现的某些内容进行补全了。'<span class="emphasis"><em>complete</em></span>'选项中其它标记的含义，请阅读手册页。
+  </p><p>
+    vim中其它的补全方式包括：
+  </p><pre class="programlisting">
+整行补全                        <span class="command"><strong>CTRL-X CTRL-L</strong></span>
+根据当前文件里关键字补全        <span class="command"><strong>CTRL-X CTRL-N</strong></span>
+根据字典补全                    <span class="command"><strong>CTRL-X CTRL-K</strong></span>
+根据同义词字典补全              <span class="command"><strong>CTRL-X CTRL-T</strong></span>
+根据头文件内关键字补全          <span class="command"><strong>CTRL-X CTRL-I</strong></span>
+根据标签补全                    <span class="command"><strong>CTRL-X CTRL-]</strong></span>
+补全文件名                      <span class="command"><strong>CTRL-X CTRL-F</strong></span>
+补全宏定义                      <span class="command"><strong>CTRL-X CTRL-D</strong></span>
+补全vim命令                     <span class="command"><strong>CTRL-X CTRL-V</strong></span>
+用户自定义补全方式              <span class="command"><strong>CTRL-X CTRL-U</strong></span>
+拼写建议                        <span class="command"><strong>CTRL-X CTRL-S</strong></span> </pre><p>
+    例如，当我们按下"<span class="command"><strong>CTRL-X CTRL-F</strong></span>"时，vim就会弹出下拉菜单，显示出当前目录下的可选目录和文件，如下图所示。这样，在输入文件名时方便多了。
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/03/ctrl_x_f_complete-300x221.jpg" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/03/ctrl_x_f_complete.jpg">点击查看大图</a></div></div><p>
+    灵活的运用这些补全方式，甚至自定义自己的补全方式，可以使你的工作更加高效。
+  </p><p>
+    可以在vimrc中定义下面的键绑定，以减少按键次数：
+  </p><pre class="programlisting">
+inoremap &lt;C-]&gt;             &lt;C-X&gt;&lt;C-]&gt;
+inoremap &lt;C-F&gt;             &lt;C-X&gt;&lt;C-F&gt;
+inoremap &lt;C-D&gt;             &lt;C-X&gt;&lt;C-D&gt;
+inoremap &lt;C-L&gt;             &lt;C-X&gt;&lt;C-L&gt; </pre><p>
+    SuperTab插件会记住你上次所使用的补全方式，下次再补全时，直接使用TAB，就可以重复这种类型的补全。比如，上次你使用<span class="command"><strong>CTRL-X CTRL-F</strong></span>进行了文件名补全，接下来，你就可以使用TAB来继续进行文件名补全，直到你再使用上面列出的补全命令进行了其它形式的补全。这个插件在下面的链接下载：
+  </p><p>
+    <a class="link" href="http://www.vim.org/scripts/script.php?script_id=1643">http://www.vim.org/scripts/script.php?script_id=1643</a>
+  </p><p>
+    下载后，把它放到.vim/plugin目录就可以了。
+  </p><p>
+    可以对下面两个选项进行配置，以调整SuperTab的缺省行为：
+  </p><div class="itemizedlist"><ul type="disc"><li><span class="emphasis"><em>g:SuperTabRetainCompletionType</em></span>的值缺省为1，意为记住你上次的补全方式，直到使用其它的补全命令改变它；如果把它设成2，意味着记住上次的补全方式，直到按ESC退出插入模式为止；如果设为0，意味着不记录上次的补全方式。
+    </li><li><span class="emphasis"><em>g:SuperTabDefaultCompletionType</em></span>的值设置缺省的补全方式，缺省为<span class="command"><strong>CTRL-P</strong></span>。
+    </li></ul></div><p>
+    你可以在vimrc中设置这两个变量，例如：
+  </p><pre class="programlisting">
+let g:SuperTabRetainCompletionType = 2
+let g:SuperTabDefaultCompletionType = "&lt;C-X&gt;&lt;C-O&gt;" </pre><p>
+    现在你可以使用TAB来进行补全了，就像在shell中那样，方便了很多！
+  </p><p>
+    <span class="bold"><strong>[参考文档]</strong></span>
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      vim手册
+    </li><li><a class="link" href="http://vimcdoc.sourceforge.net/">vim中文手册</a></li></ul></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p><span class="bold"><strong>原创文章，转载请注明：</strong></span>转载自<a class="link" href="http://easwy.com/blog/">Easwy的博客</a> [  <a class="link" href="http://easwy.com/blog/">http://easwy.com/blog/</a> ]</p><p><span class="bold"><strong>　　　　本文链接地址:</strong></span> <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-auto-complete/">http://easwy.com/blog/archives/advanced-vim-skills-auto-complete/</a></p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="omin-complete.html">上一页</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="basic_movement.html">下一页</a></td></tr><tr><td width="40%" align="left" valign="top">第 14 章 智能补全 </td><td width="20%" align="center"><a accesskey="h" href="index.html">起始页</a></td><td width="40%" align="right" valign="top"> 第 16 章 指随意动，移动如飞 (一)</td></tr></table></div></body></html>

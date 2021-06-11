@@ -1,0 +1,100 @@
+http://cn.linux.vbird.org/linux_server/0380mail_1.php
+
+DNS 的反解也很重要
+    由于目前收信端的邮件服务器会针对邮件来源的 IP 进行反解，而如果你的网络环境是由拨接取得非固定的 IP 时，
+该种 IP 在 ISP 方面通常会主动的以 xxx.dynamic.xxx 之类的主机名来管理，偏偏这样的主机名会被主要的大型邮件服务器 
+(例如 hotmail, yahoo 等) 视为垃圾信件， 所以你的邮件服务器所发出的信件将可能被丢弃，那可就伤脑筋了！
+
+需要 DNS 的 MX 及 A 标志
+    MX 代表的是 Mail eXchanger， 当一封邮件要传送出去时，邮件主机会先分析那封信的(目标主机的 DNS)，
+先取得 MX 标志 (注意，MX 标志可能会有多部主机喔) 然后以最优先 MX 主机为准将信发送出去。
+xyz.com.vbird  IN  MX 10 mail.xyz.com.vbird
+xyz.com.vbird  IN  MX 20 mail2.xyz.com.vbird
+xyz.com.vbird  IN  A     aaa.bbb.ccc.ddd
+假如上述的 DNS 设定是正常的，那么：
+    当有一封信要传给 user@xyz.com.vbird 时，由于 MX 标志最低者优先，所以该封信会先传送到 mail.xyz.com.vbird 那部主机。
+    如果 mail.xyz.com.vbird 由于种种原因，导致无法收下该封信时，该封信将以次要 MX 主机来传送，那就是传送到 mail2.xyz.com.vbird 那部主机上头；
+    如果两部 MX 主机都无法负责的话，那么该封信会直接以 A 的标志，亦即直接传送到 aaa.bbb.ccc.ddd 那个 IP 上头去， 也就是 xyz.com.vbird 本身啦！
+
+    你必需要注意到：mail.xyz.com.vbird 及 mail2.xyz.com.vbird 必需要是可以帮 xyz.com.vbird 转信的主机才行，
+也就是说，那两部主机通常是你公司的最上游的邮件主机， 并不是你随意填写的！
+    MX 标志一定要设定正确，否则你的信件将可能会直接被 MX 服务器踢掉。为了要设定 MX 但是我们没有上层邮件服务器时，
+所以你可以指定 MX 为自己，利用自己当 MX 服务器即可。
+
+---- [邮件发送] SMTP ----
+MUA (Mail User Agent)
+邮件使用者代理人 ； Thunderbird (雷鸟) Linux 桌面 KDE 常见的 Kmail ，及 Windows 内件的 Outlook Express (OE) 等
+MUA 主要的功能就是收受邮件主机的电子邮件，以及提供用户浏览与编写邮件的功能！
+
+---- MTA (Mail Transfer Agent) ----
+邮件传送代理人 ： MTA 的功能有这些：
+1. 收受信件：使用简单邮件传送协议(SMTP)
+MTA 主机最主要的功能就是：将来自客户端或者是其他 MTA 的来信收下来，这个时候 MTA 使用的是(SMTP)，他使用的是 port 25
+2. 转递信件
+如果该封信件的目的地并不是本身的用户，且该封信的相关数据符合使用 MTA 的权力， 那么咱们的 MTA 就会将该封信再传送到下一部主机上。这即是所谓的转递的功能
+
+SMTP：老牌的 sendmail，后起之秀的 postfix，还有 qmail
+
+---- MDA (Mail Delivery Agent) ----
+邮件递送代理人： 
+这个 MDA 是挂在 MTA 底下的一个小程序，最主要的功能就是：分析由 MTA 所收到的信件表头或内容等数据，来决定这封邮件的去向。
+MTA 的信件转递功能，其实是由 MDA 达成的。
+1. 过滤垃圾信件：
+2. 自动回复：
+    各主要的 MTA 程序 (sendmail,postfix...) 都有自己的 MDA 功能，不过有些外挂的程序功能更强大，
+举例来说 procmail 就是一个过滤的好帮手，另外 Mailscanner + Spamassassion 也是可以使用的一些 MDA
+
+---- Mailbox ----
+电子邮件信箱
+    我们的 Linux 系统默认的信箱都是放在 /var/spool/mail/使用者账号 中！ 若 MTA 所收到的信件是本机的使用者，
+MDA 就会将信件送到该 mailbox 当中去
+
+---- [邮件接收] POP 和 IMAP ----
+MRA (Mail Retrieval Agent)
+    使用者可以透过 MRA 服务器提供的邮政服务协议 (Post Office Protocol, POP) 来收下自己的信件， 
+也可以透过 IMAP (Internet Message Access Protocol) 协议将自己的信件保留在邮件主机上面，并进一步建立邮件数据匣等进阶工作。
+
+POP3
+1. MUA 透过 POP3 (Post Office Protocol version 3) 的协议连接到 MRA 的 port 110， 并且输入账号与密码来取得正确的认证与授权；
+2. MRA 确认该用户账号/密码没有问题后，会前往该使用者的 Mailbox (/var/spool/mail/使用者账号) 取得使用者的信件并传送给用户的 
+   MUA 软件上；
+3. 当所有的信件传送完毕后，用户的 mailbox 内的数据将会被删除！
+
+IMAP 
+    IMAP (Internet Messages Access Protocol)，这个协议可以让你将 mailbox 的数据转存到你主机上的家目录，亦
+即 /home/账号/ 那个目录下，那你不但可以建立邮件数据匣，也可以针对信件分类管理，而且在任何一个可连上网络的
+地方你只要登入主机， 原本的信件就还是存在。
+
+
+----  mail 指令来处理你邮件 ---- 
+
+    IMAP (Internet Messages Access Protocol) ， 这个协议可以让你将 mailbox 的数据转存到你主机上的家目录，
+亦即 /home/账号/ 那个目录下， 那你不但可以建立邮件数据匣，也可以针对信件分类管理，
+# 要架设一部可以使用 MUA 进行收发信件的 MTA, MRA 服务器，你至少也需要启动 SMTP 以及 POP3 这两个协议才行！
+
+# 电子邮件的数据内容
+[dmtsai@www ~]$ echo "HaHa.." | mail -s "from vbird" dmtsai
+
+然后将自己的信箱内容叫出来，如下所示：
+
+[dmtsai@www ~]$ cat /var/spool/mail/dmtsai
+From dmtsai@www.centos.vbird  Mon Aug  8 18:53:32 2011  <==发信者的 email
+Return-Path: <dmtsai@www.centos.vbird>                  <==这封信的来源
+X-Original-To: dmtsai
+Delivered-To: dmtsai@www.centos.vbird
+Received: by www.centos.vbird (Postfix, from userid 2007)
+        id 6D1C8366A; Mon,  8 Aug 2011 18:53:32 +0800 (CST) <==邮件ID
+# 这部份主要在讲这封 email 的来源与目标收件者 MTA 在哪里的信息～
+Date: Mon, 08 Aug 2011 18:53:32 +0800     <==收到信件的日期
+To: dmtsai@www.centos.vbird               <==收件者是谁啊！
+Subject: from vbird                       <==就是信件标题
+User-Agent: Heirloom mailx 12.4 7/29/08
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <20110808105332.6D1C8366A@www.centos.vbird> <==给机器看的邮件ID
+From: dmtsai@www.centos.vbird             <==发信者是谁啊！
+
+HaHa..
+
+

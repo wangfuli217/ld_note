@@ -1,0 +1,50 @@
+位向量定义
+-------------------
+    集合可以包含任意元素，因为这些元素只能通过客户程序提供的函数操作。与此相比，整数的集合灵活性较少
+但是用很频繁。Bit接口导出了操作位向量的函数。位向量可用于表示从0到N-1的集合。
+    Bit接口提供了Set接口中大部分的集合操作函数，以及少量特定于位向量的函数。不同于
+Set接口提供的集合，由位向量表示的集合有一个明确的全集，即从0~N-1的所有整数构成的集合。
+因而，Bit接口可以提供Set接口所不能提供的函数，如集合的补集。
+
+位向量接口
+-------------------
+    位向量中的各个比特位按0到N-1编号，其中N是该向量的长度。向任何Bit函数传递的T值为NULL，
+均为已检查的运行时错误(Bit_union、Bit_inter、Bit_minus、Bit_diff除外)
+    T    Bit_new(int length);  创建并返回一个长度为length的位变量，所有比特位均为0.
+                               length<0，则造成已检查的运行时错误。
+                               
+    int  Bit_length(T set);    返回set中的长度
+    int  Bit_count(T set);     返回set中值位比特位数目
+    void Bit_free(T *set);     释放*set，并将其清零。set或*set是NULL，则造成已检查的运行时错误
+    
+    # 集合中的 单个比特的操作
+    int Bit_get(T set, int n);            返回比特位n的值。n<0或n>=N，则是已检查的运行时错误，其中N是set的长度。
+    int Bit_put(T set, int n, int bit);   Bit_put将集合中的比特位n设置为bit，并返回该比特位的原值。bit<0或bit>1,
+                                          或n<0或n>=N，均为已检查的运行时错误，其中N是set的长度。
+    
+    # 操作集合中连续的比特序列
+    void Bit_clear(T set, int lo, int hi);  将有所lo到hi的比特位清零 包括边界；lo>hi或lo<0或lo>=N或hi>=N，均为已检查的运行时错误，其中N为set的长度。
+    void Bit_set(T set, int lo, int hi);    将有所lo到hi的比特位置位 包括边界；lo>hi或lo<0或lo>=N或hi>=N，均为已检查的运行时错误，其中N为set的长度。
+    void Bit_not(T set, int lo, int hi);    lo到hi取反 包括边界；lo>hi或lo<0或lo>=N或hi>=N，均为已检查的运行时错误，其中N为set的长度。
+    
+    # 遍历每个比特位
+    void    Bit_map(T set, 
+                 void apply(int n, int bit, void *cl), void *cl); 对set中从0到N-1的每个比特位调用apply(n,bit,cl),
+                 其中N是set的长度。apply对set的修改，将影响到接下来调用apply时bit参数的值。
+    
+    # 集合之间的 包含与被包含之间的关系； -- 如果s和t长度不同，则造成已检查的运行时错误。
+    int Bit_lt(T s, T t);    如果t包含s，bit_lt返回1，否则返回0
+    int Bit_eq(T s, T t);    如果t包含s，s是t的一个真子集，如果s=t,bit_eq返回，否则返回0
+    int Bit_leq(T s, T t);   如果t完全包含s，bit_leq返回1，否则返回0
+
+    # 集合之间的取集合之间的关系
+    T Bit_union(T s,   T t); 返回s与t的并集，s与t按位或。已检查的运行时错误；见Bit_diff
+    T Bit_inter(T s,   T t); 返回s与t的交集，s与t按位与。已检查的运行时错误；见Bit_diff
+    T Bit_minus(T s,   T t); 返回s-t; s与~t的按位与。已检查的运行时错误；见Bit_diff
+    T Bit_diff(T s,   T t); 返回s和t的对称差s/t: s和t的异或。如果s=NULL或t=NULL，则表示空集。s=NULL且t=NULL，或 s和t长度不同则为已检查的运行时错误。
+    
+    
+Briggs and Torczon描述了一种集合操作，专门为大的稀疏集合设计，可以在常数时间内初始化集合。
+Gimpel 介绍了多道空间的集合
+http://www2.cs.arizona.edu/icon/docs/ipd266.htm
+icon中提供的一些向列表删除和添加值的操作，与Ring提供的操作类似。

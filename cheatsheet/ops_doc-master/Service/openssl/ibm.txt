@@ -1,0 +1,167 @@
+https://www.ibm.com/developerworks/cn/linux/l-openssl.html
+https://www.ibm.com/developerworks/cn/linux/l-openss2.html
+https://www.ibm.com/developerworks/cn/linux/l-openss3.html
+
+数字证书的最简单形式就是 不对称加密密钥。目前关于数字证书的标准中都有一些标识信息，在密钥中也都包含了这些信息。
+一个典型的数字证书包含所有者的名字以及联系信息，还有一个有效日期范围，以及一个安全性签名，用来验证这个证书没有被篡改。
+数字证书可以使用 OpenSSL 命令行工具或其他用于此目的的工具简单地创建。但是任何人创建的数字证书都有一个信任的问题。
+数字证书不仅仅是一个加密密钥，它还是一个在线凭证。证书会向那些试图与您进行通信的人证明您的身份。为了显示信任关系，数字证书可以由认证权威（CA）机构进行签名。
+
+    认证权威为那些购买证书或对证书进行签名的用户的身份提供证明。因此，要信任一个证书，用户只需要信任证书权威即可。
+用户通过拥有并使用 CA 的信任证书来表明自己对认证权威的信任。
+    如果一个证书的安全性曾经受到过威胁，那么这个证书就会被丢弃 —— 也就是说，将其声明为无效。当一个证书被声明为无效时，
+CA 不可能将其通知所有拥有该证书拷贝的人。相反，CA 会发布一个 证书撤销列表CRL。浏览器和其他使用数字证书的程序都可以
+验证这个证书已经被其属主或 CA 撤销了。
+    证书的撤销也可以使用 OCSP 协议进行检查。OCSP 代表 Online Certificate Status Protocol（在线证书状态协议），
+它是在 RFC 2560 中定义的。OpenSSL 既有 OCSP 的功能，又有 CRL 的功能，目前数字证书所采用的标准是 X.509，这是在 RFC 3280 中定义的。
+
+OpenSSL 有一个专门用于数字证书的库。
+与 X.509 证书有关的 OpenSSL 结构
+结构            功能
+X509            包含所有有关数字证书的数据
+X509_ALGOR      提供该证书设计所针对的算法
+X509_VAL        该证书有效的时间跨度
+X509_PUBKEY     证书的公钥算法，通常是 RSA 或 DSA
+X509_SIG        证书的 hash 签名
+X509_NAME_ENTRY 证书所包含的数据的各个项
+X509_NAME       包含名字项的堆栈
+
+服务器要负责提供在握手过程中使用的安全证书。完整的服务器证书包括两个部分：公钥和私钥。公钥是发送给客户机的，而私钥则是保密的。
+就像是信任证书必须要提供给客户机应用程序使用的库一样，服务器密钥也必须要提供给服务器应用程序使用的库。
+
+openssl(){
+1. OpenSSL 不仅仅是 SSL。它可以实现消息摘要、文件的加密和解密、数字证书、数字签名 和随机数字。
+2. OpenSSL 不只是 API，它还是一个命令行工具。命令行工具可以完成与 API 同样的工作， 而且更进一步，可以测试 SSL 服务器和客户机。
+3. 如果想使用 OpenSSL 来生成证书请求和数字证书，那么必须创建一个配置文件。
+   在 OpenSSL 程序包 的 apps 文件夹中，有一个名为 openssl.cnf 的 可用模板文件。
+}
+
+header(){
+头文件和初始化
+ssl.h、bio.h 和 err.h
+要初始化 OpenSSL 库，只需要三个代码行即可。
+# 必需的头文件
+/* OpenSSL headers */
+#include "openssl/bio.h"
+#include "openssl/ssl.h"
+#include "openssl/err.h"
+/* Initializing OpenSSL */
+SSL_load_error_strings();
+ERR_load_BIO_strings();
+OpenSSL_add_all_algorithms();
+}
+
+unsafe_conn(){
+建立非安全连接
+    不管连接是 安全的还是不安全的，OpenSSL 都使用了一个名为 BIO 的抽象库来处理包括文件和套接字在内的各种类型的通信。
+您还可以将 OpenSSL 设置成为一个过滤器，比如用于 UU 或 Base64 编码的过滤器。
+
+    在建立连接（无论安全与否）之前，要创建一个指向 BIO 对象的指针。这类似于在标准 C 中 为文件流创建 FILE 指针。
+    BIO * bio;
+[打开连接]
+创建新的连接需要调用 BIO_new_connect 。您可以在同一个调用中同时 指定主机名和端口号。也可以将其拆分为两个单独的调用：
+一个是创建连接并设置主机名的 BIO_new_connect 调用，另一个是设置端口号的 BIO_set_conn_port(或者 BIO_set_conn_int_port)调用。
+    不管怎样，一旦 BIO 的主机名和端口号都已指定，该指针会尝试打开连接。没有什么可以影响它。
+如果创建 BIO 对象时遇到问题，指针将会是 NULL。为了确保连接成功，必须执行 BIO_do_connect 调用。
+bio = BIO_new_connect("hostname:port");
+if((bio == NULL)){
+    /* Handle the failure */
+}
+if(BIO_do_connect(bio) <= 0){
+    /* Handle failed connection */
+}
+[与服务器进行通信]
+不管 BIO 对象是套接字还是文件，对其进行的读和写操作都是通过以下两个函数来完成的： BIO_read 和 BIO_write 。
+BIO_read 将尝试从服务器读取一定数目的字节。它返回读取的字节数、 0 或者 -1。
+1. 在受阻塞的连接中，该函数返回 0，表示连接已经关闭，而 -1 则表示连接出现错误。
+2. 在非阻塞连接的情况下，返回 0 表示没有可以获得的数据，返回 -1 表示连接出错。
+可以调用 BIO_should_retry 来确定是否可能重复出现该错误。
+int x = BIO_read(bio, buf, len);
+if((x == 0)){
+    /* Handle closed connection */
+}
+else if(x < 0){
+   if(! BIO_should_retry(bio)){
+        /* Handle failed read here */
+    }
+    /* Do something to handle the retry */
+}
+BIO_write 会试着将字节写入套接字。它将返回实际写入的 字节数、0 或者 -1。
+1. 同 BIO_read ，0 或 -1 不一定表示错误。
+2. BIO_should_retry 是找出问题的途径。如果需要重试写操作，它必须 使用和前一次完全相同的参数。
+
+[关闭连接]
+您可以使用以下两种方式之一来关闭连接： BIO_reset 或 BIO_free_all 。
+1. 如果您还需要重新使用对象，那么请使用第一种方式。 
+2. 如果您不再重新使用它，则可以使用第二种方式。
+/* To reuse the connection, use this line */
+BIO_reset(bio);
+/* To free it from memory, use this line */
+BIO_free_all(bio);
+}
+safe_conn(){
+[建立安全连接]
+惟一要改变的地方就是建立并进行连接。其他所有内容都是相同的。
+    安全连接要求在连接建立后进行握手。在握手过程中，服务器向客户机发送一个证书， 
+然后，客户机根据一组可信任证书来核实该证书。它还将检查证书，以确保它没有过期。
+要 检验证书是可信任的，需要在连接建立之前提前加载一个可信任证书库。
+    只有在服务器发出请求时，客户机才会向服务器发送一个证书。该过程叫做客户机认证。
+使用证书， 在客户机和服务器之间传递密码参数，以建立安全连接。尽管握手是在建立连接之后才进行的，
+但是客户机或服务器可以在任何时刻请求进行一次新的握手。
+
+[为安全连接进行设置]
+    为安全连接进行设置要多几行代码。同时需要有另一个类型为 SSL_CTX 的指针。
+该结构保存了一些 SSL 信息。您也可以利用它通过 BIO 库建立 SSL 连接。
+可以通过使用 SSL 方法函数调用 SSL_CTX_new 来创建这个结构，该方法函数通常是 SSLv23_client_method 。
+    还需要另一个 SSL 类型的指针来保持 SSL 连接结构。以后还可以用该 SSL 指针来检查连接信息或设置其他 SSL 参数。
+设置 SSL 指针
+SSL_CTX * ctx = SSL_CTX_new(SSLv23_client_method());
+SSL * ssl;
+
+[加载可信任证书库]
+    在创建上下文结构之后，必须加载一个可信任证书库。这是成功验证每个证书所必需的。
+如果 不能确认证书是可信任的，那么 OpenSSL 会将证书标记为无效（但连接仍可以继续）
+    OpenSSL 附带了一组可信任证书。它们位于源文件树的 certs 目录中。 不过，每个证书都是一个独立的文件
+也就是说，需要单独加载每一个证书。在 certs 目录下，还有一个存放过期证书的子目录。试图加载这些证书将会出错。
+    如果您愿意，可以分别加载每一个文件，但为了简便起见，最新的 OpenSSL 发行版本的可信任证书 通常
+存放在源代码档案文件中，这些档案文件位于名为“TrustStore.pem”的单个文件中。如果已经有了一个可信任证书库，
+并打算将它用于特定的项目中，那么只需使用您的文件替换清单 8 中的“TrustStore.pem”（或者使用 单独的函数调用将它们全部加载）即可。
+    可以调用 SSL_CTX_load_verify_locations 来加载可信任证书库文件。这里要用到 三个参数：
+上下文指针、可信任库文件的路径 和文件名，以及证书所在目录的路径。
+
+加载信任库
+if(! SSL_CTX_load_verify_locations(ctx, "/path/to/TrustStore.pem", NULL)){
+    /* Handle failed load here */
+}
+
+配置证书文件夹并使用它
+/* Use this at the command line */
+c_rehash /path/to/certfolder
+/* then call this from within the application */
+if(! SSL_CTX_load_verify_locations(ctx, NULL, "/path/to/certfolder")){
+    /* Handle error here */
+}
+    
+}
+
+[创建连接]
+    将指向 SSL 上下文的指针作为惟一参数，使用 BIO_new_ssl_connect 创建 BIO 对象。还需要获得指向 SSL 结构的指针。
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

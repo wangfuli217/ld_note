@@ -1,0 +1,70 @@
+cmake_minimum_required(VERSION 2.6)
+
+PROJECT(rtud C)
+
+ADD_DEFINITIONS(-Os -Wall --std=gnu99 -Wextra -Wshadow -D_GNU_SOURCE)
+####################################### rtud
+SET(RTUD_OBJS
+	cfg.c fibre_config.c main.c otdr_proto.c pcqueue.c rtu_report.c slogger.c
+	strerr.c ttyS.c otdr_cache.c clocks.c host_proto.c ldproxy.c otdr_main.c
+	otdr_task.c rtu_config.c rtu_tty.c sockets.c tty_proto.c utils.c host.c
+	rtu_monitor.c curvedata.c
+	)
+IF (NOT DEFINED PTHREAD_LIBS)  
+	FIND_LIBRARY(libpthread NAMES pthread)
+	SET(PTHREAD_LIBS ${libpthread})
+ENDIF()
+
+ADD_EXECUTABLE(rtud ${RTUD_OBJS})
+TARGET_LINK_LIBRARIES(rtud ${PTHREAD_LIBS})
+
+####################################### hostd
+SET(HOSTD_OBJS
+	hostd.c tty_proto.c strerr.c cfg.c ttyS.c slogger.c utils.c clocks.c
+	sockets.c host.c otdr_proto.c otdr_sor.c linenoise.c
+	)
+IF (NOT DEFINED PTHREAD_LIBS)  
+	FIND_LIBRARY(libpthread NAMES pthread)
+	SET(PTHREAD_LIBS ${libpthread})
+ENDIF()
+
+ADD_EXECUTABLE(hostd ${HOSTD_OBJS})
+TARGET_LINK_LIBRARIES(hostd ${PTHREAD_LIBS})
+
+####################################### otdrd
+SET(OTDRD_OBJS
+otdrd.c otdr_proto.c strerr.c cfg.c sockets.c slogger.c utils.c clocks.c
+linenoise.c
+	)
+IF (NOT DEFINED PTHREAD_LIBS)  
+	FIND_LIBRARY(libpthread NAMES pthread)
+	SET(PTHREAD_LIBS ${libpthread})
+ENDIF()
+
+ADD_EXECUTABLE(otdrd ${OTDRD_OBJS})
+TARGET_LINK_LIBRARIES(otdrd ${PTHREAD_LIBS})
+
+####################################### slotd
+SET(SLOTD_OBJS
+	slotd.c tty_proto.c strerr.c cfg.c ttyS.c slogger.c utils.c clocks.c
+	sockets.c linenoise.c
+	)
+IF (NOT DEFINED PTHREAD_LIBS)  
+	FIND_LIBRARY(libpthread NAMES pthread)
+	SET(PTHREAD_LIBS ${libpthread})
+ENDIF()
+
+ADD_EXECUTABLE(slotd ${SLOTD_OBJS})
+TARGET_LINK_LIBRARIES(slotd ${PTHREAD_LIBS})
+
+####################################### sord
+SET(SORD_OBJS
+	sord.c strerr.c utils.c otdr_sor.c slogger.c cfg.c linenoise.c
+	)
+IF (NOT DEFINED PTHREAD_LIBS)  
+	FIND_LIBRARY(libpthread NAMES pthread)
+	SET(PTHREAD_LIBS ${libpthread})
+ENDIF()
+
+ADD_EXECUTABLE(sord ${SORD_OBJS})
+TARGET_LINK_LIBRARIES(sord ${PTHREAD_LIBS})

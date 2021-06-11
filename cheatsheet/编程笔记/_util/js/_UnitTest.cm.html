@@ -1,0 +1,117 @@
+﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!-- saved from url=(0035)http://db.tt/ORtPX1Y3 -->
+<!-- 交流QQ群:26651479 -->
+<HTML>
+<HEAD>
+<META http-equiv= 'Content-Type' content='text/html; charset=utf-8'/>
+<script src="cm.js" type="text/javascript"></script>
+<script src="_unitTest.js" type="text/javascript"></script>
+<TITLE>cm.js 测试</TITLE>
+</HEAD>
+<BODY>
+
+<!-- 显示鼠标的坐标 -->
+Mouse X Position:<input id='xxx' type='text'><br/>
+Mouse Y Position:<input id='yyy' type='text'>
+
+<center>
+    <input type="button" id='testBtn' name='testBtn' class='testBtn' value="test" onclick="test()"/><br/><br/>
+
+    <input type="button" value="人工判断" onclick="testByEye()"/><br/>
+
+    <input type="button" value="Cookie,计数器" onclick="cTest.cookie();"/>
+    <input type="button" value="删除Cookie" onclick="c$.cookie('计数器', null);"/><br/>
+
+</center>
+</BODY>
+</HTML>
+
+<script type="text/javascript" language="JavaScript">
+/** 执行测试 */
+function test() {
+    // 公有函数的测试
+    cTest();
+
+    // 最后，提示验证通过
+    alert('验证通过!');
+};
+
+/**
+ * 人工测试
+ */
+function testByEye() {
+    var alertStr = '';
+    alertStr += '浏览器类型：' + c$.browser() + '\n'; // 浏览器判断
+    alertStr += 'IE 浏览器: ' + c$.browser.isIE + '\n';
+    alertStr += 'IE6 浏览器: ' + c$.browser.isIE6 + '\n';
+    alertStr += 'Netscape 浏览器: ' + c$.browser.isNav + '\n';
+    alertStr += '火狐 浏览器: ' + c$.browser.isFF + '\n';
+    //alertStr += 'windows 系统: ' + c$.isWin + '\n'; // 系统判断
+
+    alert(alertStr);
+}
+
+// 浏览器
+cTest.getBrowser = function() {
+    var browser = c$.browser();
+    if (browser.constructor !== Array || browser.length != 2) throw new Error("获取浏览器信息出错,返回类型不对!");
+    if (c$.browser.type !== browser[0]) throw new Error("浏览器类型判断不对应!");
+    if (c$.browser.version !== browser[1]) throw new Error("浏览器版本判断不对应!");
+    switch (browser[0]) {
+        case 'Other': if (c$.browser.isIE || c$.browser.isIE6 || c$.browser.isFF) throw new Error("浏览器信息判断不对应!");break;
+        case 'IE': if (!c$.browser.isIE) throw new Error("获取 IE 浏览器信息出错!");break;
+        case 'Firefox': if (!c$.browser.isFF || !c$.browser.isNav) throw new Error("Firefox 浏览器信息判断出错!");break;
+    }
+
+    if (c$.browser.isIE6 && (browser[0] !== 'IE' || browser[1] !== '6.0')) throw new Error("IE6 浏览器信息判断不对应!");
+    if (c$.browser.isIE6 && !c$.browser.isIE) throw new Error("IE6 或者 IE 浏览器信息判断不对应!");
+    if (c$.browser.isFF && !c$.browser.isNav) throw new Error("Netscape 或者 火狐 浏览器判断信息不对应!");
+    if (c$.browser.isIE && (c$.browser.isFF || c$.browser.isNav)) throw new Error("浏览器信息判断不对应!");
+    if ((c$.browser.isNav || c$.browser.isFF) && c$.browser.isIE) throw new Error("浏览器信息判断不对应!");
+};
+
+// 获取元素
+cTest.getElement = function(){
+    var element = document.getElementById('testBtn');
+    if (c$('#testBtn') !== element || c$('$center #testBtn') !== element || c$('testBtn') !== element ||
+     c$.getElement('@testBtn') !== element || c$.getElement('.testBtn') !== element ||
+     c$.getElement('$center $input')[0] !== element) {
+        throw new Error("获取元素出错!");
+    }
+};
+
+// 获取元素
+cTest.ready = function(){
+    var flag = false;
+    // 设置一个此函数的全局变量标志，用来判断加载时机
+    c$.ready(function(){flag = true;});
+    var aa = c$(function(){
+        if (flag !== true) throw new Error("dom加载事件不按顺序执行!");
+    });
+    if (aa !== c$) throw new Error("ready 返回出错，不支持连缀!");
+    // if (flag !== true) throw new Error("ready函数在dom加载之后调用不再运行!");
+};
+
+// dom加载完毕事件
+(function(){
+    var flag = false;
+    window.onload = function(){
+        if (flag !== true) throw new Error("dom加载事件比 window.onload 时机更慢!");
+    };
+    // 设置一个此函数的全局变量标志，用来判断加载时机
+    c$.ready(function(){flag = true;});
+    var aa = c$(function(){
+        if (flag !== true) throw new Error("dom加载事件不按顺序执行!");
+    });
+    if (aa !== c$) throw new Error("ready 返回出错，不支持连缀!");
+})();
+
+
+// 鼠标移动时，文本框显示坐标
+window.document.onmousemove = function (event) {
+    var mousePos = c$.getMousePos(event);
+    window.document.getElementById('xxx').value = mousePos.x;
+    window.document.getElementById('yyy').value = mousePos.y;
+};
+
+</script>

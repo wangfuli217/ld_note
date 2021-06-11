@@ -1,0 +1,144 @@
+set -e   # 这个选项分别作用于shell环境和每个子shell环境，并会导致子shell在尚未执行其中所有命令之前退出。
+errexit
+set -E   # 捕获ERR信号的注册命令会被继承     
+errtrace                                      
+set -T   # 捕获'DEBUG' and 'RETURN'信号的注册命令会被继承
+functrace
+set -u   # 在进行参数扩展时，如果变量没有设置就报错。把错误信息写入到标准错误输出中，并退出非交互运行的shell。   
+nounset
+
+>&2 和 exit 返回值
+SHUNIT_TRUE=0
+SHUNIT_FALSE=1
+SHUNIT_ERROR=2
+
+: ${MODPROBE:=modprobe}
+: ${MOUNT:=mount}
+
+EM350_MONITOR_INTERVAL=${EM350_MONITOR_INTERVAL:-60}
+
+__SHUNIT_ANSI_NONE='\033[0m'
+__SHUNIT_ANSI_RED='\033[1;31m'
+__SHUNIT_ANSI_GREEN='\033[1;32m'
+__SHUNIT_ANSI_YELLOW='\033[1;33m'
+__SHUNIT_ANSI_CYAN='\033[1;36m'
+echo "${__SHUNIT_ANSI_YELLOW}shunit2:WARN${__SHUNIT_ANSI_NONE} help" # shunit2:WARN 颜色强调部分
+
+version(版本) {
+  echo "Bats 0.4.0"
+}
+
+usage(使用) {
+  version
+  echo "Usage: bats [-c] [-p | -t] <test> [<test> ...]"
+}
+
+help(帮助) {
+  usage
+  echo
+  echo "  <test> is the path to a Bats test file, or the path to a directory"
+  echo "  containing Bats test files."
+  echo
+  echo "  -c, --count    Count the number of test cases without running any tests"
+  echo "  -h, --help     Display this help message"
+  echo "  -p, --pretty   Show results in pretty format (default for terminals)"
+  echo "  -t, --tap      Show results in TAP format"
+  echo "  -v, --version  Display the version number"
+  echo
+  echo "  For more information, see https://github.com/sstephenson/bats"
+  echo
+}
+
+# 方法1 while + getopts + case
+while getopts "k:cudyvtb:h?" flag; do
+  case "${flag}" in
+  k)
+    version="${OPTARG}"
+    ;;
+  c)
+    mode="c"
+    ;;
+  d)
+    mode="d"
+    ;;
+  u)
+    mode="u"
+    ;;
+  v)
+    verbose="1"
+    ;;
+  y)
+    yes="1"
+    ;;
+  t)
+    takeover="1"
+    ;;
+  b)
+    BOOTDIR="${OPTARG}"
+    if [ ! -d "${BOOTDIR}" ]; then
+      echo "Error: ${BOOTDIR} is not a directory." >&2
+      exit 1
+    fi
+    ;;
+  h|?)
+    usage
+    ;;
+  esac
+done
+
+方法1 for + if
+for arg in "$@"; do # 不是$@ 或者"$*" $*
+  if [ "${arg:0:1}" = "-" ]; then        # 字符串分割，字符串第一个字符； 其实[[]]方式判断更好。
+    if [ "${arg:1:1}" = "-" ]; then      # 字符串分割，字符串第二个字符
+      options[${#options[*]}]="${arg:2}" # 1. 数组末尾添加 2. 字符串分割，第三个到最后一个字符
+    else
+      index=1
+      while option="${arg:$index:1}"; do   # 此处可以index也可以$index,  -- ${}和$()都可以嵌套
+        [ -n "$option" ] || break          # break为内建命令
+        options[${#options[*]}]="$option"
+        let index+=1                       # let为内建命令 index=$((index+1)) 或 ((index=index+1)) 或 index=$[index+1]
+      done
+    fi
+  else
+    arguments[${#arguments[*]}]="$arg"
+  fi
+done
+
+# 方法1 for + case
+for option in "${options[@]}"; do # 不是${options[@]} 或者"${options[*]}" ${options[@]}
+  case "$option" in # case格式
+  "h" | "help" )
+    help
+    exit 0 # 正常返回值0
+    ;;
+  "v" | "version" )
+    version
+    exit 0 # 正常返回值0
+    ;;
+  "c" | "count" )
+    count_flag="-c"
+    ;;
+  "t" | "tap" )
+    pretty=""         # 按照tap协议格式打印
+    ;;
+  "p" | "pretty" )
+    pretty="1"        # 按照pretty格式打印
+    ;;
+  * )
+    usage >&2   # 异常返回值1
+    exit 1      # 按照bash脚本内部命令定义，参数不正确输出结果为2
+    ;;
+  esac
+done
+
+# 方法1 if + shift
+extended_syntax_flag=""
+if [ "$1" = "-x" ]; then
+  extended_syntax_flag="-x"
+  shift
+fi
+
+# 方法1 if [[]]
+if [[ -z $debug_level ||  $debug_level != [0-9] ]]; then
+    debug_level=0
+fi

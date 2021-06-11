@@ -1,0 +1,127 @@
+《100个GDB小技巧》《GDB中文手册完美版》《GNU Make 中文手册》《Debugging with gdb 》中文版 《An Introduction to GCC 》中文版
+
+https://github.com/hellogcc/100-gdb-tips/blob/master/src/index.md     <100个GDB小技巧 .pdf>
+GDB Manual:   https://www.gnu.org/software/gdb/documentation/
+https://en.wikipedia.org/wiki/Call_stack   wiki :call stack 
+https://www.dedoimedo.com/computers/crash.html#download　　linux crash ,  free book download <Linux Kernel Crash Book:everything you need to know.pdf>
+
+gdb断点生效的原理： 在源代码断点处替换了1字节的代码，替换为int3
+
+
+
+在定位内存导致的crash问题时，watch 命令比较靠谱，可以监控内存的读写。
+
+ pstree -pul 查看进程树，shell命令
+valgrind program //check memory issue ?
+
+GDB多线程调试：gdb默认只关注main thread. 默认情况下(all-stop)，遇到断点，所有线程同时停止执行，执行s/n, 同时往前执行。
+
+多进程调试（两个窗口 ）：先在一个shell用gdb启动程序，等fork进程完毕后(代码里面需要sleep)，在新shell启动gdb并attach pid, 然后设置断点并continue; 参考<100个GDB小技巧.pdf >
+因为macps是动态加载so,所以需要在.so所在目录启动gdb并attach pid.如果在其它目录会导致断点不生效；
+
+fork新进程默认是detach mode，这时gdb只能跟踪父进程，如果要支持跟踪子进程，要设置(set detach-on-fork off)&&(set schedule-multiple on )
+对于多进程调试，还是打log比较好，因为进程时序会受到调试本身的影响。
+
+attach pid //在一个shell启动程序后，在另一个shell启动gdb后，调试指定进程
+set follow-fork-mode child //gdb加载程序后，执行这条命令，然后执行start, 这样gdb就会跟踪子进程，gdb默认是跟踪父进程;
+set detach-on-fork off //阻止子进程独立运行，这样可以同时调试父子进程，当调试一个进程时，另一个进程处于挂起；
+set schedule-multiple on//父子进程同时运行，如果不设置，则同一时刻只有1个进程可以运行；
+set scheduler-locking on/off //如果只想当前线程执行，其它线程暂停
+i threads  //显示线程info
+thread 1   // 切换到线程1
+i inferiors //显示所有进程Info
+inferiors 1 //切换调试进程1
+where //show current state
+info inferior //多进程调试，显示正在调试的进程信息，每行前面有个NUM编号对应该进程
+inferior 2 //切换到进程2
+catch fork //catch 让程序在发生某种事件（fork、异常throw、动态库加载等）的时候停止运行
+thread apply all bt //show all threads bt trace.
+p mutex //print the mutex owner.
+f frameNum //show the function in frame.
+ps -ef | grep testbin //find processid
+pstack processid //show call stack when deadlock.
+up //move up function frame. 
+call function//excute function
+b *addr //set breakpoint at address.
+p 'finename'::static_var  //print static variable in specifical file.
+i signals // show all the signals 
+handle SIGSEGV nostop/stop ;  //when SIGSEGV happen, make program no stop.
+ptype $_siginfo //print the sig struct
+command 2 //在2号断点执行自定义命令(end 结束)；
+gcore  coredumpfile//把现在的进程状态记录在coredump文件, crash后不能用？
+coredump file  +  addr2line  + .map file  ==> function call stack;
+
+启动GDB的方法有以下几种：
+    1、 gdb <program> : program如果不在当前目录下需要输入相对路径 ,eg : gdb ./lteDo/macps.bin
+    2、 gdb <program> coredumpfile : 用gdb同时调试coredump文件
+    3、 gdb <program> <PID>
+
+	1. [sudo] gdb  --args ./LteMacClient 0x1443
+
+
+
+GDB启动时，可以加上一些GDB的启动开关：
+ -se <file>  从指定文件中读取符号表信息，并把他用在可执行文件中
+ -d <directory> 加入一个源文件的搜索路径。默认搜索路径是环境变量中PATH所定义的路径
+
+GDB启动后run program之前设置参数,传递给program: 
+ set args --port 65432 --logFile HTENV_MAC_PS_WMP.log
+
+1.core dump: linux下默认关闭，即使程序crash,也不会产生core dump文件
+  开启core dump 功能： 在linux shell中输入(ulimit -c unlimited) or (ulimit -c maxCoreDumpFileSize_KB)   
+　　生成的core文件保存在可执行文件所在的目录，文件名为core.XXX
+
+  使用gdb调试core dump文件步骤(已验证)：
+  1).gcc -g src.c 编译时增加(-g)选项,产生gdb调试信息
+  2).ulimit -c unlimited   使能core dump文件生成， ulimit -c 查询是否使能，结果为0表示关闭，否则打开
+  3).运行程序，产生core dump file
+  4).gdb exename coredumpfile 进行调试，可使用命令(bt; where; info frame, bt , bt full , info threads , thread apply all bt , thread apply all bt full; )进一步查看调用栈;
+      gdb -c core.dump ./lteDO/macps.bin
+
+////////////////////////////////////////////GDB Debug:
+whereis addr2line //find the bin path
+gcc --versions
+gcc main.c -g -o main  //-g 是为了输出调试信息可以用于gdb调试;
+dmesg
+info sharedlibrary  //print the so address range.
+addr2line -j .text -e libDLEu.so.debug 0x15A72 //根据断点地址找到具体文件的具体行; 
+Offset in .text section is (fun_addr + offset_in_fun) – lib_base:  0xb5521172 - 0xb550b700 = 0x15A72
+bt   打印函数调用栈（轨迹），一般和断点结合使用； 
+apply all bt ?  打印所有线程的调用栈
+
+watch ((STtiScheduleParam *) 0xbac36ec)->firstPrb  //跟踪内存变化,只要有修改，就停止，自动打印出old/new value以及所在的函数;注意格式((*)addr)->value;
+watch *(0xad89bf3c) 监控u32/u8变量的值
+set var temp=1  临时修改变量temp的值；
+info watch
+gdb  --args ./LteMacWmp --startup=nid=0x1443 -c lte.rtm.startup.script=CP_basic_case.rtm
+Some commands in GDB:
+0.start 
+1.r  run
+2.c  continue
+3.s  step 单步进入函数内部 ，n 单步不进入函数内部；
+4.b  breakpoint  ,断点停住后用 ref 可以显示周围的代码
+  ref:  显示断点周围的代码;
+  b lineNum //set in current file.   
+  b CPsRadParamManager.cpp/hpp:153
+  b CPsRadParamManager.cpp:153 if index==31 //153行的局部变量index==31时，断点才生效；
+  dis/enable breakNumStart-NumEnd
+  d breakNumStart-NumEnd  删除若干个断点,先查看断点编号 
+  b filename:linenum
+  info break   查看断点信息
+  finish  从当前函数退出
+  condition bnum expression  修改断点号为bnum的停止条件为expression,eg: condition 7 (a==4)&&(b==0)
+  condition bnum  清除条件，也就是断点bnum始终生效
+  ignore bnum count  忽略前count次
+5.watch  variable (rwatch ,awatch) 监视一个变量的值，一旦值有变化，程序停住
+6.p   print 打印变量, p/x  16进制格式打印变量
+7.x   show memory
+8. gcore:  输出coredump文件
+
+
+11.q =quit
+12.ls -lht  显示文件detail
+
+(gdb) set print object on
+(gdb) set print pretty on
+(gdb) ptype *retval
+(gdb) print *retval 

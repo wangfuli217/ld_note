@@ -1,0 +1,112 @@
+Lua包库为lua提供简易的加载及创建模块的方法，由require、module方法及package表组成
+
+1、module (name [, ···])
+    功能：建立一个模块。
+    module的处理流程:
+
+module(name, cb1, cb2, ...)
+a. 如果package.loaded[name]是一个table，那么就把这个table作为一个module
+b. 如果全局变量name是一个table，就把这个全局变量作为一个module
+c. 当以前两种情况都不存表name时，将新建一个表，并使其作为全局名name的值，package.loaded[name],
+   而且设t._NAME为name,t._M为module,t._PACKAGE为包的全名(模块名-组件a.b.c);
+   最后把此module设t作为当前函数的新环境表和package.loaded[name]的新值
+   (也就是说，旧的环境表将不能访问,除了加上package.seeall参数外)，
+   
+   以被require使用
+   即：创建 table:
+   t = {[name]=package.loaded[name], 
+        ["_NAME"]=name, 
+        ["_M"]=t, 
+        ["_PACKAGE"]=*name*(删除了最后的".XXXX"部分)}
+   如果name是一个以点分割的串，那么得到的mod类似这个样子：
+   hello.world==> {["hello"]={["world"]={XXXXXXX}}}
+   
+d. 依次调用cbs：
+    cb1(mod), cb2(mod),...
+e. 将当前模块的环境设置为module,同时把package.loaded[name] = module
+　　module(name)后的可选参数为接收module名的函数,如package.seeall
+当在模块文件中使用module函数的时候，如下所示；
+
+module "mymodule"
+　　实际上等同于以下的语句：
+    local modname = "mymodule"     -– 定义模块名
+    local M = {}                   -- 定义用于返回的模块表
+    _G[modname] = M                -- 将模块表加入到全局变量中
+    package.loaded[modname] = M    -- 将模块表加入到package.loaded中，防止多次加载
+    setfenv(1,M)                   -- 将模块表设置为函数的环境表，这使得模块中的所有操作是以在模块表中的，这样定义函数就直接定义在模块表中
+    
+    通过module()，可以方便的编写模块中的内容。module 指令运行完后，整个环境被压栈，所以前面全局的东西再看不见了。
+    比如定义了一个 test 模块，使用module("test")后，下面不再看的见前面的全局环境。
+    如果在这个模块里想调用 print 输出调试信息怎么办呢？一个简单的方法是
+    
+    local print=print
+    module("test")
+　　这样 print 是一个 local 变量，下面也是可见的。或者可以用
+    local _G=_G
+    module("test")
+　　那么 _G.print 也是可以用的。
+   
+    当然还有一种巧妙的方式，lua 5.1 提供了一个 package.seeall 可以作为 module 的option 
+传入module("test",package.seeall)
+
+    这样就 OK 了。至于它们是如何工作的，还是自己读源码会理解的清楚一些。
+　　具体的使用比如：声明myModule包
+
+-- File :  myModule.lua
+module( "myModule", package.seeall) --显示声明一个myModule包
+
+function printMsg(msg)
+    print("myModule :" .. msg)
+end
+
+function setMag(msg)
+    test.msg = msg
+end
+
+
+-- File : myModuleTest.lua  
+local print = print 
+
+local mod = require("myModule")
+print("call myModule start")
+test = {}
+mod.setMag("test module~")
+print(test.msg)
+mod.printMsg("yes")
+
+输出结果如下：
+　　all myModule start
+　　test module~
+　　myModule :yes
+
+通过module("...", package.seeall)来显示声明一个包。看很多github上面早期的开源项目使用的都是这种方式，但官方不推荐再使用这种方式。
+因为：1， package.seeall这种方式破坏了模块的高内聚，原本引入oldmodule只想调用它的foo()函数，但是它却可以读写全局属性，例如oldmodule.os.
+      2， module函数的side-effect引起的，它会污染全局环境变量。
+module("hello.world")会创建一个hello的table，并将这个table注入全局环境变量中，这样使得不想引用它的模块也能调用hello模块的方法。
+
+所以还是  通过return table来实现一个模块 的更优。使用如下：
+--File : module.lua
+local module = {}
+
+function module.foo()
+  print("module.foo called")
+end
+
+function module:setMsg(msg)
+    self.mMsg = msg 
+end
+
+function module:getMsg()
+    return self.mMsg
+end
+
+return module
+
+-- File : myModuleTest.lua  
+local mod = require("module")
+mod:setMsg("test module~") 
+-- mod.setMsg( mod , "test module~") -- 等价上句
+print(mod:getMsg())
+-- 得到结果如下：test module~
+
+

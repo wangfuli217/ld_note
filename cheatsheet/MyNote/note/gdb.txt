@@ -1,0 +1,161 @@
+一般使用gdb来调试c/c++程序,需在编译时加上-g选项,将调试信息加入到可执行文件中
+
+gdb中变量以$开头,可以用set命令来设定,可以与被调试的程序交互
+
+启动gdb方式一般有下面几种
+gdb 程序名
+gdb 程序名 core文件
+gdb 程序名 进程id
+gdb -p 进程id
+
+gdb运行时可以加上下列参数:
+-s											#相当于-symbols,从指定文件读取符号表
+-se file									#从指定文件中读取符号表信息,并把他用在可执行文件中
+-c	core文件								#相当于-core,调试时core dump
+-d  路径									#相当于-directory,加入一个源文件的搜索路径,默认在搜索路径环境变量PATH和当前目录中查找
+-write 										#开通(enable)往可执行文件和核心文件写的权限。
+-e file										#在适当时候把File作为可执行的文件执行，来检测与core dump结合的数据。
+-x File										#从File中执行GDB命令
+                         
+              
+
+atach 	进程id								#加载指定进程id的程序
+file	[可执行程序名]						#加载可执行程序
+kill	[可执行程序名]						#终止正在调试的程序
+list										#简写l,显示当前执行处上下的代码
+set listsize count							#设置list命令显示的源代码数量最多为count行，0表示不限制行数。
+show listsize								#显示listsize的值。
+load 										#动态载入一个可执行文件到调试器
+directory	路径							#可以设置代码搜索目录(不会递归),show dir可以查看,不加任何参数将恢复默认值
+break	行数/函数名/文件名:行数或函数名		#简写b,设置断点,还可以b +/-n,n为整数,表示在当前行前/后n行停住,break 
+*address在程序运行的内存地址处停住,没有参数时,在下条指令处停住
+xbreak										#在当前函数退出的点上设置一个断点,txbreak(设置一个只执行一次的断点)
+whatis 	变量								#显示变量类型(无具体定义)
+ptype	变量								#显示变量的类型,具体的结构体定义等等
+return										#强制从当前函数返回
+break ... if ...							#条件断点,例break if i==100,目前只有break和watch支持if
+watch 表达式/变量							#设置一个观察点,一旦变量或表达式值有变化时,停住
+rwatch 表达式/变量							#当变量或表达式被读时停住
+awatch 表达式/变量							#当变量或表达式被读或被写时停住
+condition bnum expression					#为断点号为bnum的重新设置条件为expression,例:condition 6 if value_a == 10
+condition bnum								#清除断点号为bnum的断点条件
+ignore bnum count							#触发断点count次后才停止
+commands [bnum]								#为断点号bnum指写一个命令列表.当程序被该断点停住时,gdb会依次运行命令列表中的命令
+	command-list
+end
+例如： 
+	break foo if x>0 						#如果要清除命令序列,输入commands后输入end就可以了
+	commands 
+		printf "x is %d\n",x 
+		continue 
+	end 
+info watchpoints							#列出当前所有观察点
+info	break								#简写i b,查看断点信息
+run											#简写r,运行程序,也可以run	命令行参数(和使用set args 命令行参数效果一样)
+next	[count]								#简写n,单条语句执行,遇函数不会进入
+step	[count]								#简写s,单步调试,遇函数会进入
+continue									#简写c,继续运行程序,还可以写作continue [ignore-counts],忽略断点次数,c,fg是同一个意思
+stepi/nexti 								#简写si/ni,单步跟踪一条机器指令!一条程序代码有可能由数条机器指令完成,stepi和nexti可以单步执行机器指令.与之一样有相同功能的命令是“display/i $pc” ,当运行完这个命令后,单步跟踪会在打出程序代码的同时打出机器指令(也就是汇编代码)
+print 	i									#简写p i,打印变量i的值,print *array@len可以查看数组内容,打印多个变量可以写成print {a,b,c}
+printf "format",arg1,arg2..					#格式化输出
+search regexp								#从当前行的下一行开始向前搜索。
+rev regexp									#从当前行的上一行开始向后搜索。
+where 										#查看当前位置
+
+这段为查看内存命令,标准格式为x/<n/f/u> <addr>,nfu为可选参数,n为正整数,表示需要显示的内存单元的个数,f表示显示的格式,如下面的dcis,u表示从当前地址往后请求的字节数,默认是4个bytes(32位环境),可以用b表示单字节,h表示双字节,w表示四字节,g表示八字节
+x/u	按十六进制显示无符号整型
+x/o	按八进制格式显示变量
+x/t 按二进制格式显示变量
+x/a	按十六进程格式显示变量
+x/f	按单精度浮点数格式显示变量
+x/x 以十六进制输出							
+x/d 以十进制输出
+x/c 以单字符输出
+x/i  反汇编 – 通常，我们会使用 x/10i $pc-20 来查看当前的汇编（$ip是指令寄存器）
+x/s 以字符串输出
+
+disas/disass/disassemble 函数名/起始地址[,结束地址]		#反汇编,不加函数名直接显示汇编代码
+
+set print elements N 						#指定打印的长度，对长字符串特别有用。
+set print element 0 						#输出完整的字符串
+
+backtrace									#简写bt,查看函数堆栈
+frame	n									#简写f,切换到栈n
+info frame									#可以查看当前栈详细信息
+info args									#查看当前函数参数名及其值
+info locals									#打印当前函数所有局部变量及其值
+info catch									#打印当前函数中的异常处理信息
+finish										#简写fin,退出函数,并打印函数返回时的堆栈地址和返回值及参数值等信息
+until 										#简写u,这个命令可以运行程序直到退出循环体
+quit										#简写q,退出gdb
+shell	命令								#可以执行一次外部的shell命令,或者直接使用she进入shell
+make										#等于执行了一次she make命令,可以编译
+pwd											#显示当前所有目录,cd可以进入其他目录
+set args 									#可指定运行时参数.(如:set args 10 20 30 40 50)
+show args 									#命令可以查看设置好的运行参数.
+path		路径							#可指定程序的运行路径,show paths可以查看程序的运行路径
+set environment varname [=value] 			#设置环境变量.如:set env USER=hchen 
+show environment [varname] 					#查看环境变量. 
+info program								#当程序被gdb停住时,可以使用此命令查看程序是否在运行,进程号,被暂停的原因
+info registers								#查看所有寄存器的值(除了浮点寄存器)
+info all-registers							#查看所有寄存器的值,简写为info all
+clear										#清除所有已定义的停止点
+delete	[brankpoints][range]				#简写d,删除断点号为n的断点,若无参数,则删除所有断点,也可以d 3-7,删除3到7号断点
+disable [brankpoints][range]				#简写dis,停止点,若无参数,停止所有断点,这种方式停止的点不会删除
+display 变量								#一直显示某个变量的值,取消显示用undisplay
+enable	[brankpoints][range]				#简写ena,启用停止点
+enable [breakpoints] once range... 			#启用指定的停止点一次,当程序停止后,该停止点自动被disable
+enable [breakpoints] delete range... 		#启用指定的停止点一次,当程序停止后,该停止点自动被gdb删除
+set step-mode on 							#打开step-mode模式,在进行单步跟踪时,程序不会因为没有debug信息而不停住.这个参数有很利于查看机器码
+set step-mod off 							#关闭step-mode模式.
+
+catch event									#设置捕捉点,程序在发生某种事件时停止,event可以是下列值
+throw: c++抛出的异常
+catch: c++捕捉到异常						#以下目前均在HP-UX下有效
+exec: exec被调用 
+fork: fork被调用
+vfork: vfork被调用
+load: 加载动态库
+load libname:加载名为libname的动态库
+unload: 卸载动态库
+unload libname:卸载名为libname的动态库
+syscall [args]: 调用系统调用,args可以指定系统调用号,或者系统名称
+
+tcatch event								#设置只停一次的捕捉点,第一次生效后,该捕捉点被删除
+
+handle [signal][keywords]					#在gdb中定义一个信号处理.信号<signal>可以以SIG开头或不以SIG开头,可以定义一个要处理信号的范围(如：SIGIO-SIGKILL,表示处理从SIGIO信号到SIGKILL的信号,其中包括SIGIO,SIGIOT,SIGKILL三个信号),也可以使用关键字all来标明要处理所有的信号.一旦被调试的程序接收到信号,运行程序马上会被gdb停住,以供调试.其<keywords>可以是以下几种关键字中的一个或多个
+nostop										#当被调试的程序收到信号时，gdb不会停住程序的运行，但会显示出消息告诉用户收到这种信号
+stop										#当被调试的程序收到信号时，GDB会停住你的程序。
+print										#当被调试的程序收到信号时，gdb会显示出一条信息,打印数组可以使用p *arr@len
+noprint										#当被调试的程序收到信号时，gdb不会告诉用户收到信号的信息。
+pass										#同下
+noignore									#当被调试的程序收到信号时，GDB不处理信号。这表示，GDB会把这个信号交给被调试程序会处理。
+nopass										#同下
+ignore										#当被调试的程序收到信号时，GDB不会让被调试程序来处理这个信号。
+info signals								#同下
+info handle									#查看有哪些信号在被GDB检测中
+
+info threads								#查看线程信息
+thread <ID> 								#切换调试的线程为指定ID的线程。
+break <linespec> thread <threadno>
+break <linespec> thread <threadno> if ...	#linespec指定了断点设置在的源程序的行号。threadno指定了线程的ID，可以写all表示所有线程,注意，这个ID是GDB分配的,可通过info threads来查看
+set scheduler-locking off|on|step 			#off 不锁定任何线程，也就是所有线程都执行，这是默认值。
+											#on 只有当前被调试程序会执行。
+											#step 在单步的时候，除了next过一个函数的情况(熟悉情况的人可能知道，这其实是一个设置断点然后continue的行为)以外，只有当前线程会执行。
+thread apply ID1 ID2 command				#让一个或多个线程执行命令command,ID1 ID2改为all表示所以线程执行
+ 
+在GDB下，我们无法print宏定义，因为宏是预编译的。但是我们还是有办法来调试宏，这个需要GCC的配合。
+在GCC编译程序的时候，加上-ggdb3参数，这样，你就可以调试宏了 
+info macro 		宏名						#可以查看这个宏在哪些文件里被引用了，以及宏定义是什么样的。
+macro 	expand	宏名						#可以查看宏展开的样子。
+
+layout 				用于分割窗口,可以一边查看源代码,一边测试
+layout	src			显示源代码窗口
+layout 	asm			显示汇编窗口
+layout 	regs		显示源代码/寄存器窗口
+layout	split		显示源代码和汇编窗口
+layout	next/prev	显示下一个/上一个layout
+ctrl+L				刷新窗口
+ctrl+x	再按1		单窗口模式,显示一个窗口
+		再按2		双窗口模式,显示二个窗口
+		再按a		回到传统模式,即退出layout

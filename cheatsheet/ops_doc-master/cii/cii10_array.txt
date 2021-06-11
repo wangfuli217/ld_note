@@ -1,0 +1,44 @@
+动态数组定义
+-------------------
+    数组是由相同类型值组成的一个序列，序列中的元素是以一对一的方式关联到某个连续范围内
+的索引值。
+    数组的大小可以在编译时或运行时指定。
+    静态数组的大小在编译时就是已知的。
+    
+    ArrayADT 导出的函数可以分配并释放动态数组，可以访问动态数组并进行边界检查。
+可以扩展或收缩动态数组以容纳更多或更少的元素。
+    特定数组中的每个元素都是定长的，但不同数组的元素可以有不同的大小。
+    
+动态数组接口
+-------------------
+    数组索引从0到N-1,其中N是数组的长度。空数组没有元素。向任何array函数传递为NULL的T值
+都是已检查的运行时错误。
+
+    T array_new(int length,int size) 分配、初始化并返回一个新的数组，由length个元素组成，每个元素长度为size字节。
+                                     各个元素都被清零。length<0或size<=0，则为已检查的运行时错误。
+    void array_free(T *array)        释放*array并将其清零。如果array或*array是NULL，则是已检查的运行时错误。
+    
+    int array_length(T array) 返回array中元素的数目。
+    int array_size(T array)   返回array中元素的长度，按字节计算
+    
+    void *array_get(T array,int i) 返回指向第i个数组元素的指针。i<0或i>=N，则为已检查的运行时错误，其中N是array的长度。
+    void *array_put(T array,int i,void *elem) 从elem复制array_size(array)个字节到array中第i个元素并返回elem。
+                                              elem = NULL。或 i<0或i>=N，都为已检查的运行时错误，其中N是array的长度。
+    
+    void array_resize(T array,int length) 将数组中的元素的数据改为length。如果length大于原来的长度，过多的元素将被清零
+                                          length<0， 则造成已检查的运行时错误。
+    T array_copy(T array,int length) 创建并返回一个新的数组，其中包括array的前length个元素。
+                                     如果length大于array的长度，过多的元素将被清零。
+
+arrayrep
+    typedef struct T { int length; int size, char *array} *T;
+    改变T实例中的字段，属于未检查的运行时错误。
+                                     
+    void arrayrep_init(T array, int length, int size, void *ary) 将array中的各个字段初始化为leng、size和ary
+    如果length!=0且ary=NULL， 或length=0且ary!=NULL, 或size=0, 都是已检查的运行时错误。
+    用其他方式初始化T实例，属于未检查的运行时错误。
+    
+icon语言
+http://www2.cs.arizona.edu/icon/docs/ipd266.htm
+
+可以在两端添加或删除元素，从而进行扩展或收缩

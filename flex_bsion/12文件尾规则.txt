@@ -1,0 +1,31 @@
+12 文件尾规则
+特殊的规则<<EOF>>指示了当达到文件尾时要采取的行为，并且yywrap()返回一个非零值(如
+，意味着没有文件要处理了)。该行为必须通过以下几件事之一来完成：
+    将一个新的输入文件赋值给yyin(在之前版本的flex中，赋值之后你必须调用特定的YY_
+NEW_FILE行为。今后取消该限制)。
+
+    执行一个return语句。
+    执行特定的yyterminate()行为。
+    或者在之前的例子中用yy_switch_to_buffer()来选择一个新的缓冲区。
+
+<<EOF>>规则不能和其它模式共用；它们只能指定为一个起始状态列表。如果给定一个未指
+定的<<EOF>>，那么它将应用到所有没有<<EOF>>行为的起始状态中。为内部起始状态指定一
+个<<EOF>>规则，用：
+    
+    <INITIAL><<EOF>>
+
+下面这些规则对于捕捉未闭合的注释很有用。一个例子：
+
+    %x quote
+    %%
+    .... other rules for dealing with quotes...
+    <quote><<EOF>> {
+        error("unterminated quote");
+        yyterminated();
+    }
+    <<EOF>> {
+        if (*++filelist)
+            yyin = fopen(*filelist, "r");
+        else
+            yyterminate();
+    }[

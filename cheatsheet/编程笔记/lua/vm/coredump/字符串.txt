@@ -1,0 +1,50 @@
+1. 在lua虚拟机中存在一个全局的数据区，用来存放当前系统中的所有字符串。
+2. 同一个字符串数据，在Lua虚拟机中只可能有一份副本，一个字符串一旦创建，将是不可变更的
+3. 变量存放的尽是字符串的引用，而不是实际的内容。
+
+(lobject.h)
+/*
+** String headers for string table
+*/
+typedef union TString {
+  L_Umaxalign dummy;  /* ensures maximum alignment for strings */
+  struct {
+    CommonHeader;
+    lu_byte reserved;  这个变量用于标识这个字符串是否是lua虚拟机中的保留字符串。如果
+这个值为1，那么将不会在GC阶段被回收，而是一直保留在系统中。只有Lua语言中的关键字
+才会是保留字符串。
+    unsigned int hash;  该字符串的散列值。Lua的字符串比较并不会像一般的做法那样进行逐位比较
+而是仅比较字符串的散列值
+    size_t len;   字符串长度
+  } tsv;
+} TString;
+可以看见是一个union,其目的是为了让TString数据类型按照L_Umaxalign类型来进行对齐.
+typedef LUAI_USER_ALIGNMENT_T L_Umaxalign;                                      (llimitis.h)
+#define LUAI_USER_ALIGNMENT_T union { double u; void *s; long l; }              (luaconf.h)
+    在double/void */long三种类型中,尺寸最大的时double. C语言中,struct/union这样的复合数据类型,
+是按照这个类型中最大对齐量的数据来进行对齐的,所以这里就是按照double类型的对齐量来进行对齐,
+一般而言是8字节. 而在结构体tsv中,其最大的对齐单位肯定不会比double大,所以整个TString union
+是按照double的对齐量来进行对齐的.
+
+在Lua中,所有字符串是一个保存在一个全局的地方,在global_state的strt里面,这是一个hash数组,专门用于存放字符串:
+(lstate.h)
+typedef struct stringtable {
+  GCObject **hash; // luaS_resize  重新散列的过程
+  lu_int32 nuse;  /* number of elements */
+  int size;
+} stringtable;
+
+void luaS_resize (lua_State *L, int newsize) 
+# lgc.c的checkSizes函数： 如果此桶的数量太大，比如是实际存放的字符串数量的4倍，那么
+# 会将散列桶数组减少为原来的一般
+# lstring.c 的newlstr函数: 如果此时字符串的数量大于桶数组的数量，且桶数组的数量小于MAX_INT/2
+# 那么就进行翻倍的扩容。
+1. 如果当前GC处在回收字符串数据的阶段，那么这个函数直接返回，不进行重新散列的操作
+2. 重新分配一个散列桶，并且清空
+3. 遍历原先的数据，存入新的散列桶
+4. 释放旧的散列桶，保存新分配的散列桶数据
+
+1. step: 这一步的初衷是为了在字符串非常大的时候，不需要逐位来进行散列值的计算，而仅需要
+每步长单位取一个字符就可以了。
+2. 先调用isdead函数判断这个字符串是否在当前GC阶段被判定为需要回收，如果是
+则调用changwhite函数修改它的状态，将其改为不需要进行回收，从而达到复用字符串的目的。

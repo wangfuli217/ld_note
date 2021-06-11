@@ -1,0 +1,327 @@
+README for the Publib framework
+Lars Wirzenius and the Publib mailing list
+"@(#)publib-framework:README,v 1.6 1994/07/16 12:38:47 liw Exp"
+
+Introduction
+------------
+
+Publib is an attempt at creating a library of reusable C functions.  It
+consists of the build framework and the actual library modules.  The
+framework is the mechanism that does the actual compiling and
+installation (and related things) of the library.  The modules are
+groups of actual library functions.
+
+Publib was born out of discussion on a mailing list (see the end of
+this file), and is developed and maintained by Lars Wirzenius.
+
+There is no official set of modules.  The intent is that many parties
+will supply modules so that the installer of the library can pick and
+choose between modules, and will install those that interest him.
+However, at this point, there is only one set of modules.
+
+No copyright restrictions for the modules is placed by the framework,
+and the framework itself is in the public domain (except for the files
+publib/configure, publib/COPYING, and publib/install.sh).  This means
+that it can be used with commercial modules as well.  Please check the
+documentation for each module for any restrictions on its use.
+
+Just because some people are paranoid about the GPL: the file
+publib/COPYING applies to the file publib/configure only.
+publib/install.sh comes from the X distribution and may be copied
+freely.
+
+
+Getting Publib
+--------------
+
+Publib has been posted to the alt.sources Usenet newsgroup, and also
+put on the following anonymous ftp sites:
+
+	ftp.funet.fi: /pub/languages/C/Publib
+	ftp.cs.helsinki.fi: /pub/Software/Local/Publib
+
+For version 0.3, you need the following files:
+
+	publib-0.3.tar.gz	the framework itself
+	liw-modules-0.3.tar.gz	The modules by the author
+
+
+Unpacking The Sources
+---------------------
+
+Unpacking the framework distribution creates a directory publib, and
+puts the framework sources in there.  The default place to unpack the
+modules is into the publib/modules directory.  However, you can also
+unpack them elsewhere, and either make publib/modules be a symbolic link
+to that directory, or set the makefile macro `modules' in
+publib/Makefile.in to point at that directory.  Note, however, that
+publib/modules or its replacement directory will contain subdirectories,
+one per module.  Each subdirectory within publib/modules that contains a
+file called Makefile is assumed to be module directory.  (That is, if
+publib/modules/foo/Makefile exists, then publib/modules/foo contains a
+module that will be built.  This check allows there to be additional
+files and subdirectories within the modules directory, especially CVS
+directories.)
+
+If you have the .tar.gz version of the sources, use the following
+command to unpack the sources of the framework:
+
+	gzip -dc publib-xxx.tar.gz | tar xf -
+
+(replace publib-xxx.tar.gz with the pathname of the actual file with
+the framework sources).  To unpack the modules, do:
+
+	mkdir publib/modules
+	cd publib/modules
+
+and then:
+
+	gzip -dc module-xxx.tar.gz | tar xf -
+
+(replace module-xxx.tar.gz with the pathname of the actual file with the
+module sources).  This last command needs to be repeated once for
+every module that you wish to install (you don't have to install
+modules you don't need).
+
+Version 0.3 of the author's module collection is distributed as one
+.tar.gz file that contains all his (publically distributable) modules.
+
+
+Building The Library
+--------------------
+
+You need to run a configuration script before running make (there
+won't even exist a Makefile before that).  In directory publib, give
+the following command:
+
+	./configure
+
+Please look at and, if necessary, modify, the Makefile and Rules.mk that
+are output by configure.  Hopefully, you don't need to touch them.  If
+you do, please communicate any problems you had to fix to the author, so
+that they can be fixed in future releases.
+
+After that, 'make' or `make all' builds everything, `make install'
+installs everything, `make clean' gets rid of files built by make, and
+`make realclean' gets rid of everything that can be built by make
+(assuming you have the right tools; note, however, that the configure
+command is also removed, and that you will need to have GNU autoconf
+to rebuild it).
+
+Hence, the typical commands to build and install the library are
+
+	./configure
+	edit Makefile Rules.mk
+	make all
+	make install
+
+You may wish to give configure some options to specify where things
+should be installed.  See the file publib/INSTALL for more information.
+It is a generic instruction file for software packages that use GNU
+autoconf; some of the instructions are not be relevant for Publib.
+Particularly, Publib doesn't (yet) support compilation from another
+directory.  No --with- options are supported.
+
+If you need to run configure many times before getting everything just
+right, and you need to modify Makefile or Rules.mk after running
+configure, you may want to modify things in Makefile.in and Rules.mk.in
+so that you do not need to re-do the edits all the time.
+
+
+Tools Required
+--------------
+
+For unpacking the sources, the tools depend on how your copy has been
+packaged.  The variables are compression program (compress or gzip)
+and shell archives versus tar files.  All but gzip are standard on
+Unix systems; you can find gzip on a number of anonymous ftp sites,
+e.g., in prep.ai.mit.edu: pub/gnu/gzip-1.2.4.tar.gz (use the newest
+version).
+
+For building and installing the library, no special software is
+needed.  The build process uses standard Unix tools (C compiler, make,
+cp, rm, mkdir, find, uniq, sed, true, and so on).
+
+For developing the library, you may need GNU autoconf, which is used to
+generate the automatic configuration script (publib/configure).
+Autoconf in turn needs GNU m4 (normal m4 is not sufficient).  Both can
+be found on prep.ai.mit.edu, in the directory pub/gnu.  You probably
+only need to generate configure if you change configure.in, and you
+probably don't need to do that.
+
+
+Available Modules
+-----------------
+
+See the file publib/LIST for a list of some modules.  This list
+doesn't pretend to be complete; it lists those modules that the
+maintainer of the framework was aware of (and, naturally, includes
+many of his own modules).
+
+
+Writing and Distributing New Modules
+------------------------------------
+
+Publib is all about reusing code, so we would be delighted if you would
+write more modules, or to enhance existing ones.  See below for some
+notes about how the Publib framework works.  When you are ready to
+distribute, mail Lars Wirzenius at lars.wirzenius@helsinki.fi for more
+information about the preferred way to distribute it via Publib.  Or, if
+you prefer, just distribute it and tell people where they can get the
+framework so they can build it.  If you have enhanced an existing
+module, please contact its maintainer (should be mentioned in the
+documentation for the module).
+
+Publib is intended to have very low overhead for developing and
+distributing new modules.  One of the results is that there is no
+central quality assurance group (although we would be delighted to
+try out new modules, or new versions, within time constraints).  We
+hope that the easier publication will result in more modules to be
+written, and that the ease of making new versions will give enough 
+quality.  (It works for Linux, it should work for us!)
+
+
+How The Publib Build Mechanism Works
+------------------------------------
+
+The framework sources are in directory referred to here as the base
+directory, publib/ in filenames, or $(srcdir), if an absolute name is
+required.  This directory contains the following files (at least)
+relevant to the build process:
+
+	configure	automatic configuration script
+	configure.in	autoconf generates `configure' from this
+	Generic.mk	generic makefile for modules
+	Makefile	toplevel makefile
+	Makefile.in	configure generates Makefile from this
+	Rules.mk	shared stuff for all makefiles
+	Rules.mk.in	configure creates Rules.mk from this
+	publib.3	man page for Publib
+	publib.3.in	the Publib man page (publib.3) is generated
+			from this by Makefile
+	include/	build-time include directory; Makefile copies
+			the modules' headers here
+	fwmodules/	subdirectory with the modules that are part
+			of the framework (errormsg and port)
+	modules/	subdirectory with the modules of the library
+			(might be symlink; see macro modules in Makefile);
+			this is created by the person unpacking the module
+			 source code
+	Template/	some template files for use with a new module
+
+First, publib/configure is run (the current working directory
+should be publib).  This automatically creates publib/Makefile
+and publib/Rules.
+
+The build process is as follows.
+
+	1. All Publib headers are copied into publib/include/publib.
+	   This makes it easy for modules to use each others' header
+	   files, without having enourmous -I options for the compiler.
+
+	2. A publib/include/publib.h header is built.  It
+	   automatically includes all other Publib headers.  This is
+	   a convenience for the user (only publib.h needs to be
+	   included).
+
+	3. The Publib man page is built.  (The list of all modules
+	   that are to be built is automatically inserted.)
+
+	4. All modules are built.  The publib/Makefile automatically
+	   invokes the makefile in each module.  The modules'
+	   makefiles are responsible for adding any object files into
+	   the library file ($(libname) within the modules' makefiles,
+	   after $(srcdir)/Rules has been included).
+
+Requirements For Modules
+------------------------
+
+The framework sources contain two modules that are put into
+publib/fwmodules.
+
+	errormsg	error message printing
+	port		stuff for portability
+
+A new module is placed into the build framework by putting its
+sources into a subdirectory below publib/modules and making
+sure it adheres to the following conventions.
+
+	1. Its Makefile includes $(srcdir)/Rules
+
+	2. Its Makefile supports the following targets
+
+		all		build library modules
+		tests		build (and optionally run) test programs
+		install		install everything that is to be installed
+		preinstall	things to do just before `install'
+		postinstall	things to do just after `install'
+		clean		remove most files built by make
+		realclean	remove everything that can be rebuilt
+
+	3. It refers to all Publib headers, including its own, with
+
+		#include "publib/foo.h"
+
+	4. All headers can safely be included multiple times, and do
+	   not require other Publib headers to be included first.  The
+	   simplest way to ensure this is to make the header look like
+
+	   	#ifndef __publib_foo_h
+	   	#define __publib_foo_h
+
+	   	/* the actual header contents come here */
+
+	   	#endif
+
+	   Additionally, if there is a need to reference other modules'
+	   headers in the header itself, an include is done:
+
+	   	#include <publib/bar.h>
+
+	   Note <>, not "", for delimiting the filename in this case.
+
+The $(srcdir)/Generic.mk makefile can be used by most modules, by
+including it into the module's makefile.  It provides all the
+necessary things a module's makefile needs to, and allows the actual
+makefile for the module be very simple.  See instructions at the
+comment at the top of it for instructions.  Unless the module needs to
+do something complicated during the build, Generic.mk should be quite
+enough.
+
+The __publib_error macro in fwmodules/errormsg/errormsg.h should be used
+to report errors.  It will do nothing, print an error message, exit the
+program, or abort the program (or a combination of these), based on the
+user's preferences.  This makes it easy to generate a debugging version
+of the library that helps identify the problem.  Usage is like this:
+
+	p = malloc(n);
+	if (p == NULL)
+		__publib_error("malloc failed");
+	return p;
+
+The error message includes the name of the source file, the line
+number in the source file, and the string argument.
+
+The module's makefile should use $(INSTALL_MAN) for installing
+man pages.  It will either be a BSD compatible install(1) program,
+or the publib/install.sh script, which is 
+
+
+Acknowledgements and history
+----------------------------
+
+The Publib effort started from an article posted to gnu.misc.discuss,
+comp.sources.d, and comp.software-eng at the end of February, 1992, by
+Steve Nuchia.  He then created the mailing list which has been used for
+communication, library@sccsi.com.  Several people were active in the
+discussion at the beginning.  Lars Wirzenius built a few prototypes for
+the framework, based on the discussions on the list.  Paul Sander
+and Greg Woods especially gave valuable comments on them.
+
+The first version released outside of the list was 0.2, posted on
+February 19 to alt.sources by Lars Wirzenius.
+
+The list has been rather dead since the end of 1993.
+
+The second version was 0.3, posted to alt.sources and put on
+the ftp sites on July 16, 1994.

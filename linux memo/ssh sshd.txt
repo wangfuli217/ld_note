@@ -1,0 +1,108 @@
+http://lovelace.blog.51cto.com/1028430/1217893/
+
+
+ftp和telnet不安全，在网络上使用明文传输口令和数据。"中间人"攻击。
+SSH可以代替telnet、ftp、pop、ppp。
+公共钥匙认证、密钥交换、对称密钥加密、非安全连接。
+服务器端：sshd 客户端ssh scp slogin sftp
+启动SSH服务器后，sshd进程运行并在默认的22端口进行监听，当请求到来的时候，sshd守护进程会产生一个子进程，该子进程进行本次的连接处理。
+
+ssh安全认证方式：基于口令和基于密钥的安全验证方式。
+基于口令：只要知道账号和口令，就可以登录到远程主机。                                           不安全，容易受到"中间人"攻击。
+基于密钥：需要依靠密钥，也就是必须创建一对密钥（公钥和私钥），并把公钥放在需要访问的服务器上。 更安全，防止"中间人"攻击。
+
+~/.ssh/known_hosts #系统会将首次登录服务器的信息记录到这里。
+
+
+
+
+服务器端配置文件：sshd_config(对应的脚本文件：/etc/init.d/sshd)
+
+
+Port 22                          端口号设置，默认是22号端口可自定义设置，但是客户端连接的时候后面要跟上端口号
+Protocol 2                       支持ssh协议类型，默认只开启ssh v2
+AddressFamily any                指定sshd应当使用暗中地址族{any(默认)、inet(仅ipv4)、inet6(仅ipv6)}
+ListenAddress 0.0.0.0            指定监听的IP网络地址，默认监听所有地址
+ListenAddress ::                 指定监听的IP网络地址，默认监听所有地址
+
+
+PasswordAuthentication yes       基于口令的认证
+PermitEmptyPasswords no          是否允许空密码
+PasswordAuthentication yes       是否允许空密码
+
+ChallengeResponseAuthentication no 是否允许质疑-应答（challenge-response）认证(不建议使用)
+
+
+
+GSSAPIAuthentication no            是否允许使用基于 GSSAPI 的用户认证。默认值为”no”
+GSSAPICleanupCredentials yes       是否在用户退出登录后自动销毁用户凭证缓存。默认值是”yes”
+
+UsePAM yes                         PAM认证模块
+
+
+KeyRegenerationInterval 1h       设置多少秒之后自动生成服务器的密钥，
+
+OpenSSH
+HostKey         /etc/ssh/ssh_host_key   ：设置包含计算机私有主机密钥的文件。
+ServerKeyBits   1024                    : 设置服务器密钥的位数，最小值512，默认值1024
+LoginGraceTime  2m                      ： 设置如果用户不能成功登陆，在切断连接之前服务器需要等待的时间
+                                           限定用户必须在指定的时间内认证登陆，0表示无限制，默认是120秒
+PermitRootLogin yes                     ： 设置root用户是否能够使用ssh登陆
+MaxAuthTries 6                             指定每个连接最大允许的认证次数。默认值是 6
+IgnoreRhost     yes                     ： 设置RhostsRSA验证和Hostbased验证的时候是否使用.rhosts和.shosts文件
+IgnoreUserKnownHosts yes                ： 设置sshd是否在进行RhostsRSAAuthentication安全验证的时候，忽略用户的~/.ssh/known_hosts
+StrictMode      yes                     : 设置ssh在接收登陆请求之前是否检查用户主目录和rhosts文件的权限和所有权。
+X11Forwarding   no                      ： 设置是否运行X11转发
+PrintMotd       yes                     ：设置是否在用户登陆的时候显示/etc/motd文件中的信息
+SyslogFacility  AUTH                    : 设置在记录来自sshd的消息的时候，是否给出设备代码。
+LogLevel        INFO                    ：设置记录sshd日志消息的级别
+AllowGroups                             ：设置允许连接的群组
+AllowUsers                              ： 设置允许连接的用户
+DenyGroups                              ：设置拒绝连接的群组
+DenyUsers                               ：设置拒绝连接的用户
+
+
+
+ssh –l username [hostname|ip] #指定用户登陆
+ssh  [hostname|ip]            #如果不指定用户，默认会使用当前系统的当前用户
+ssh  username@[hostname|ip]   #指定用户登陆
+客户端配置文件：ssh_config  
+
+
+ssh-copy-id：将公钥传送到远程服务器
+
+ssh-keygen
+-t:指定加密类型
+-f:指定保存文件名
+-N:跳过私钥密钥认证
+-v 详细模式
+-C 注释
+-F 主机名
+
+    
+    
+    
+2、将公钥传输至服务器端某用户的家目录.ssh/authorized-keys文件中 
+可以使用ssh-copy-id或者scp来实现
+
+#生成密钥对
+[lovelace@lovelace ~]$ ssh-keygen -t rsa
+/home/lovelace/.ssh/id_rsa       #私钥保存路径及文件名
+/home/lovelace/.ssh/id_rsa.pub.  #公钥保存路径进文件名
+
+[lovelace@lovelace ~]$ ssh-keygen -t rsa -f .ssh/id_rsa -N ''
+.ssh/id_rsa.                     #私钥保存路径及文件名
+.ssh/id_rsa.pub.                 #公钥保存路径进文件名
+2、将公钥传输至服务器断某用户的家目录的.ssh/authorized-keys文件中
+
+显示主机manager.cloud.com公钥文件的SSHFP指纹资源记录。
+[root@manager ssh]# ssh-keygen -r manager.cloud.com
+manager.cloud.com IN SSHFP 1 1 f0402fe2c60a3c7ab387f322fefc99017836485e
+manager.cloud.com IN SSHFP 2 1 799dfd5a4a86aa38b4a8ca625bd02a3b3190a75e
+
+ssh-ketgen -d
+ssh-copy-id -i -root/.ssh.id_dsa.pub 192.168.0.2
+
+
+
+

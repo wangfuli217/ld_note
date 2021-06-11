@@ -1,0 +1,65 @@
+http://cn.linux.vbird.org/linux_server/0380mail_3.php
+
+---- 1. 基础的 POP3/IMAP 设定 ---- 
+[root@www ~]# yum install dovecot
+[root@www ~]# vim /etc/dovecot/dovecot.conf
+# 找到底下这一行，大约是在第 25 行左右的地方，复制新增一行内容如下：
+#protocols = imap pop3 lmtp
+protocols = imap pop3
+[root@www ~]# vim /etc/dovecot/conf.d/10-ssl.conf
+ssl = no   <==将第 6 行改成这样！
+改完之后你就可以启动 dovecot ！并且检查看看 port 110/143 (pop3/imap) 有没有启动啊
+
+---- 2. 加密的 POP3s/IMAPs 设定 ---- 
+# 1. 建立凭证：到系统提供的 /etc/pki/tls/certs/ 目录下建立所需要的 pem 凭证档：
+[root@www ~]# cd /etc/pki/tls/certs/
+[root@www certs]# make vbirddovecot.pem
+....(前面省略)....
+Country Name (2 letter code) [XX]:TW
+State or Province Name (full name) []:Taiwan
+Locality Name (eg, city) [Default City]:Tainan
+Organization Name (eg, company) [Default Company Ltd]:KSU
+Organizational Unit Name (eg, section) []:DIC
+Common Name (eg, your name or your server's hostname) []:www.centos.vbird
+Email Address []:dmtsai@www.centos.vbird
+
+# 2. 因为担心 SELinux 的问题，所以建议将 pem 档案放置到系统默认的目录去较佳！
+[root@www certs]# mv vbirddovecot.pem ../../dovecot/
+[root@www certs]# restorecon -Rv ../../dovecot
+
+# 3. 开始处理 dovecot.conf，只要 pop3s, imaps 不要明码传输的咯！
+[root@www certs]# vim /etc/dovecot/conf.d/10-auth.conf
+disable_plaintext_auth = yes  <==第 9 行改成这样！取消批注！
+
+[root@www certs]# vim /etc/dovecot/conf.d/10-ssl.conf
+ssl = required                                <==第 6 行改成这样
+ssl_cert = </etc/pki/dovecot/vbirddovecot.pem <==12, 13 行变这样
+ssl_key =  </etc/pki/dovecot/vbirddovecot.pem
+
+[root@www certs]# vim /etc/dovecot/conf.d/10-master.conf
+  inet_listener imap {
+    port = 0     <== 15 行改成这样
+  }
+  inet_listener pop3 {
+    port = 0     <== 36 行改成这样
+  }
+
+# 4. 处理额外的 mail_location 设定值！很重要！否则网络收信会失败：
+[root@www certs]# vim /etc/dovecot/conf.d/10-mail.conf
+mail_location = mbox:~/mail:INBOX=/var/mail/%u <==第 30 行改这样
+
+# 5. 重新启动 dovecot 并且观察 port 的变化：
+[root@www certs]# /etc/init.d/dovecot restart
+[root@www certs]# netstat -tlnp | grep dovecot
+Proto Recv-Q Send-Q Local Address  Foreign Address   State    PID/Program name
+tcp        0      0 :::993         :::*              LISTEN   14527/dovecot
+tcp        0      0 :::995         :::*              LISTEN   14527/dovecot
+
+最终你看到的 993 是 imaps 而 995 则是 pop3s 
+
+3. 防火墙设置
+[root@www ~]# vim /usr/local/virus/iptables/iptables.rule
+# 大约在 180 行左右，新增底下两行去！
+iptables -A INPUT -p TCP -i $EXTIF --dport 993  --sport 1024:65534 -j ACCEPT
+iptables -A INPUT -p TCP -i $EXTIF --dport 995  --sport 1024:65534 -j ACCEPT
+[root@www ~]# /usr/local/virus/iptables/iptables.rule

@@ -1,0 +1,56 @@
+require "socket"
+function receive (connection)
+    connection:settimeout(0)    -- 使receive调用不会阻塞
+    local s, status, partial = connection:receive(2^10)
+    if status == "timeout" then
+        coroutine.yield(connection)
+    end
+    return s or partial, status
+end
+function download(host, file)
+ local c = assert(socket.connect(host, 80))
+ c:send("GET " .. file .. " HTTP/1.0\r\n\r\n")
+ local count = 0
+ while true do
+  local s, status, partial = receive(c)
+  count = count + #(s or partial)
+  if status == "closed" then break end
+ end
+ print(file, count)
+ c:close()
+end
+threads = {}
+function get (host, file)
+    local co = coroutine.create(function () download(host, file) end)
+    table.insert(threads, co)
+end
+-- 调度程序
+function dispatch()
+    local i = 1
+    local connections = {}
+    while true do
+        if threads[i] == nil then 
+            if threads[1] == nil then break end
+            i = 1
+            connections = {}
+        end
+        local status, res = coroutine.resume(threads[i])
+        if not res then 
+            table.remove(threads, i)
+        else
+            i = i + 1
+            connections[#connections + 1] = res
+            if #connections == #threads then    -- 所有线程是否都阻塞了
+                socket.select(connections)    -- 如果所有连接都超时了，select就等待这些连接的状态发生变化，这样就不会陷入“忙碌等待”，只比顺序下载消耗的CPU资源略多而已。
+            end
+        end
+    end
+end
+begin_time = os.time()
+get("www.w3.org", "/TR/html401/html40.txt")
+get("www.w3.org", "/TR/2002/REC-xhtml1-20020801/xhtml1.pdf")
+get("www.w3.org", "/TR/REC-html32.html")
+get("www.w3.org", "/TR/2000/REC-DOM-Level-2-Core-20001113/DOM2-Core.txt")
+dispatich()
+end_time = os.time()
+print(string.format("wasted time: %d(s)", end_time - begin_time))

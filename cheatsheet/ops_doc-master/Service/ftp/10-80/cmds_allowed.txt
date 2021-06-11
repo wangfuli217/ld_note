@@ -1,0 +1,84 @@
+1、只能上传。不能下载、删除、重命名。
+cmds_allowed＝FEAT,REST,CWD,LIST,MDTM,MKD,NLST,PASS,PASV,PORT,PWD,QUIT,RMD,SIZE,STOR,TYPE,USER,ACCT,APPE,CDUP,HELP,MODE,NOOP,REIN,STAT,STOU,STRU,SYST
+
+对于参数的详细的解释
+cmds_allowed=ABOR,ACCT,APPE,CWD,CDUP,DELE,HELP,LIST,MODE,MDTM,MKD,NOOP,NLST,PASS,PASV,PORT,PWD,QUIT,REIN,RETR,RMD,RNFR,RNTO,SITE,SIZE,STOR,STAT,STOU,STRU,SYST,TYPE,USER
+
+CWD - change working directory 更改目录
+DELE - delete a remote file 删除文件
+LIST - list remote files 列目录
+MKD - make a remote directory 新建文件夹
+NLST - name list of remote directory
+PWD - print working directory 显示当前工作目录
+RETR - retrieve a remote file 下载文件
+RMD - remove a remote directory 删除目录
+RNFR - rename from 重命名
+RNTO - rename to 重命名
+STOR - store a file on the remote host 上传文件
+
+
+# ABOR - abort a file transfer 取消文件传输
+# CWD - change working directory 更改目录
+# DELE - delete a remote file 删除文件
+# LIST - list remote files 列目录
+# MDTM - return the modification time of a file 返回文件的更新时间
+# MKD - make a remote directory 新建文件夹
+# NLST - name list of remote directory
+# PASS - send password
+# PASV - enter passive mode
+# PORT - open a data port 打开一个传输端口
+# PWD - print working directory 显示当前工作目录
+# QUIT - terminate the connection 退出
+# RETR - retrieve a remote file 下载文件
+# RMD - remove a remote directory
+# RNFR - rename from
+# RNTO - rename to
+# SITE - site-specific commands
+# SIZE - return the size of a file 返回文件大小
+# STOR - store a file on the remote host 上传文件
+# TYPE - set transfer type
+# USER - send username
+
+# less common commands:
+
+# ACCT* - send account information
+# APPE - append to a remote file
+# CDUP - CWD to the parent of the current directory
+# HELP - return help on using the server
+# MODE - set transfer mode
+# NOOP - do nothing
+# REIN* - reinitialize the connection
+# STAT - return server status
+# STOU - store a file uniquely
+# STRU - set file transfer structure
+# SYST - return system type
+
+2、只能下载。不能上传、删除、重命名。write_enable=NO
+3、只能上传、删除、重命名。不能下载。download_enable＝NO
+
+4、只能下载、删除、重命名。不能上传。
+cmds_allowed=FEAT,REST,CWD,LIST,MDTM,MKD,NLST,PASS,PASV,PORT,PWD,QUIT,RMD,RNFR,RNTO,RETR,DELE,SIZE,TYPE,USER,ACCT,APPE,CDUP,HELP,MODE,NOOP,REIN,STAT,STOU,STRU,SYST
+
+
+# 此选项指定允许的FTP命令的逗号分隔列表(登录后.USER，PASS和QUIT以及其他始终允许在登录前使用)。其他命令被拒绝。
+# 这是一种真正锁定FTP服务器的强大方法。示例：cmds_allowed = PASV，RETR，QUIT
+# 默认值:(无)
+cmds_allowed
+
+# 此选项指定以逗号分隔的拒绝FTP命令列表(登录后。始终允许登录前使用USER，PASS，QUIT等)。如果此命令和cmds_allowed上都出现命令， 则拒绝优先。(在v2.1.0中添加)。
+# 默认值:(无)
+cmds_denied
+
+deny_file
+此选项可用于设置文件名(和目录名称等)的模式，这些模式不应以任何方式访问。受影响的项目不会被隐藏，但任何尝试对它们做任何事情(下载，更改到目录，影响目录内的某些内容等)都将被拒绝。此选项非常简单，不应用于严格的访问控制 - 应优先使用文件系统的权限。但是，此选项在某些虚拟用户设置中可能很有用。特别要注意的是，如果文件名可以通过各种名称访问(可能是由于符号链接或硬链接)，那么必须注意拒绝访问所有名称。如果项目的名称包含hide_file给出的字符串，或者它们与hide_file指定的正则表达式匹配，则将拒绝访问项目。请注意，vsftpd' 正则表达式匹配代码是一个简单的实现，它是完整正则表达式功能的子集。因此，您需要仔细而详尽地测试此选项的任何应用程序。并且由于其更高的可靠性，建议您对任何重要的安全策略使用文件系统权限。支持的正则表达式语法是任意数量的* ,? 和unnested {，}运算符。仅在路径的最后一个组件上支持正则表达式匹配，例如a / b /？支持，但/？/ c不支持。示例：deny_file = {*。mp3，*。mov，.private} 并且由于其更高的可靠性，建议您对任何重要的安全策略使用文件系统权限。支持的正则表达式语法是任意数量的* ,? 和unnested {，}运算符。仅在路径的最后一个组件上支持正则表达式匹配，例如a / b /？支持，但/？/ c不支持。示例：deny_file = {*。mp3，*。mov，.private} 并且由于其更高的可靠性，建议您对任何重要的安全策略使用文件系统权限。支持的正则表达式语法是任意数量的* ,? 和unnested {，}运算符。仅在路径的最后一个组件上支持正则表达式匹配，例如a / b /？支持，但/？/ c不支持。示例：deny_file = {*。mp3，*。mov，.private}
+默认值:(无)
+
+协议级别
+=======================================
+async_abor_enable=YES (NO)  # 支持 ABOR 命令
+dirlist_enable=YES    (YES) # NO 如果设置为NO，则所有目录列表命令都将拒绝权限。
+download_enable=YES   (YES) # NO 如果设置为NO，则所有下载请求都将拒绝权限。
+dirmessage_enable=YES (NO)  # 进入目录都会显示message，信息存在.message中
+ls_recurse_enable=YES (NO)  # 启用后，此设置将允许使用"ls -R"。这是一个小的安全风险，因为大型站点顶层的ls -R可能会消耗大量资源。
+mdtm_write=YES        (YES) # 启用后，此设置将允许MDTM设置文件修改时间(根据通常的访问检查)。
+WRITE_ENABLE                # 这可以控制是否允许任何更改文件系统的FTP命令。这些命令是：STOR，DELE，RNFR，RNTO，MKD，RMD，APPE和SITE。

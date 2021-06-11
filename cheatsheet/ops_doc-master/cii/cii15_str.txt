@@ -1,0 +1,118 @@
+低级字符串
+-------------------
+    C语言两个有助于处理字符串的特性：指向字符的指针可用于遍历字符串，字符串常数可用于
+初始化字符数组。
+    char msg[] = "File not Found";
+    char *msg  = "FIle not Fount";
+    
+    string缺点：
+    1. 客户程序必须为结果分配空间
+    2. 所有这些函数都是不安全的，其中任何一个函数都无法检查结果字符串是否包含足够的空间。
+
+低级字符串 API
+-------------------
+   str函数操作0结尾字符串。位置标识了字符之间的点，举例来说，"STRING"字符串中的位置如下：
+   1 2 3 4 5 6 7
+   S T R I N G
+  -6-5-4-3-2-1 0
+  任何两个位置都可以按任意顺序给出。创建字符串的str函数会为结果分配空间。在下文描述中，s[i:j]表示s中
+  位置i和j之间的子串。
+  向任何str函数传递的位置不存在或字符指针为NULL，均为已检查的运行时错误(str_catv和str_map函数指明的情形除外)
+   
+   str接口导出的函数可以创建并返回0结尾字符串，且返回有关其中字符串和位置的信息。创建字符串的函数是：
+   char *str_sub (const char *s, ssize_t i, ssize_t j)           返回s[i:j]
+   char *str_dup(const char *s, ssize_t i, ssize_t j, ssize_t n) 返回s[i:j]的n个副本连接形成的结果字符串。如果n<0，则为已检查的运行时错误
+   char *str_cat(const char *s1, ssize_t i1, ssize_t j1,
+    const char *s2, ssize_t i2, ssize_t j2) 返回s1[i1:j1]连接s2[i2:j2]的结果
+   char *str_catv(const char *s,...) 返回一个参数可变部分的各个三元组组成的字符串，直到遇到一个NULL指针。每个三元组都指定了一个子串s[i:j]
+   char *str_reverse(const char *s, ssize_t i, ssize_t j) 返回s[i:j]的一个副本，但其中的各个字符已经逆转为相反的方向。
+   char *str_map(const char *s, ssize_t i, ssize_t j,
+    const char *from, const char *to)
+    返回根据from和to映射s[i:j]中的字符所得到的字符串。对s[i:j]中的每个字符来说，如果其出现在from中，则映射为to中的对应字符。
+    不出现在from中的字符映射为本身。如果from和to均为NULL，则使用此前设定的from和to值。如果s=NULL，则from和to建立了一个默认映射。
+    如果from和to中仅有二者之一为NULL，或strlen(from)!=strlen(to), 或 s,form,to均为NULL，或第一次调用该函数时from和to均为NULL，
+    则造成已检查的运行时错误。
+   
+   void str_fmt(int code, va_list *app,
+                int put(int c, void *cl), void *cl,
+                unsigned char flags[], int width, int precision)
+   这是一个fmt转换函数，他消耗三个参数：一个字符串和两个位置，并按printf的%s限定符的风格。
+   将参数指定的子串格式化。app或flags是NULL，则为已检查的运行时错误。
+   
+   返回字符串中有关字符串或位置的信息，这些函数都不分配空间
+   str_pos(const char *s, ssize_t i);               返回对应于s[i:i]的整数位置，从该值减去1，即可得到字符s[i:i+1]的索引值。
+   str_cmp(const char *s1, ssize_t i1, ssize_t j1, 
+           const char *s2, ssize_t i2, ssize_t j2); 如果s1[i1:j1] < s2[i1:j1]、s1[i1:j1] = s2[i1:j1]或s1[i1:j1] > s2[i1:j1]分别返回<0\=0>0的整数
+   str_len(const char *s, ssize_t i, ssize_t j);    返回子串s[i:j]的长度   
+
+   搜索字符串、查找字符串和其他字符串
+   ssize_t str_chr      (const char *s, ssize_t i, ssize_t j, int c);   搜索s[i:j]中最左侧的字符c，并返回在s中该字符之间的位置，如果没有找到字符c，则返回0
+   ssize_t str_rchr     (const char *s, ssize_t i, ssize_t j, int c);   str_rchr是str_chr的变体，只是从右侧开始搜索。
+   ssize_t str_upto     (const char *s, ssize_t i, ssize_t j, const char *set); 从s[i:j]左侧开始搜索set中任意字符，并返回s中该字符之前的位置，如果s[i:j]
+                                                                                不包含set中任意字符，则返回0。如果set=NULL，则为已检查的运行时错误。
+   ssize_t str_rupto    (const char *s, ssize_t i, ssize_t j, const char *set); str_upto的变体，从右侧开始搜索。
+   ssize_t str_find     (const char *s, ssize_t i, ssize_t j, const char *str); 搜索s[i:j]中最左侧的子串str，并返回s中该子串之前的位置，如果没有找到子串str,则返回0
+                                                                                如果str=NULL，则为已检查的运行时错误。
+   ssize_t str_rfind    (const char *s, ssize_t i, ssize_t j, const char *str); str_find的变体，只是从右侧开始搜索。
+   
+   遍历子串，他们返回匹配的子串之后或之前的正数位置
+   ssize_t str_any      (const char *s, ssize_t i, const char *set); 如果字符s[i:i+1]出现在set中，str_any返回s中该字符之后的正数位置，否则返回0
+   ssize_t str_many     (const char *s, ssize_t i, ssize_t j, const char *set); 从s[i:j]开头出查找由set中的一个或多个字符构成连续序列，并返回s中该序列之后的正数位置，
+                                                                                如果s[i:j]并不从set中的某个字符开始，那么将返回0
+   ssize_t str_rmany    (const char *s, ssize_t i, ssize_t j, const char *set); 从s[i:j]末端出查找由set中的一个或多个字符构成连续序列，并返回s中该序列之后的正数位置，
+                                                                                如果s[i:j]并不从set中的某个字符开始，那么将返回0
+   ssize_t str_match    (const char *s, ssize_t i, ssize_t j, const char *str); 从s[i:j]开头出查找str，并返回s中该子串之后的正数位置，
+                                                                                如果s[i:j]并不结束于str，则返回0
+   ssize_t str_rmatch   (const char *s, ssize_t i, ssize_t j, const char *str); 从s[i:j]开头出查找str，并返回s中该子串之后的正数位置，
+                                                                                如果s[i:j]并不结束于str，则返回0
+                                                                                
+icon接口的设计几乎是从ICON程序设计语言的字符串操作功能逐字搬抄过来的。
+
+sds
+
+Plauger 简要批评了string.h中定义的函数，并说明了如何实现它们。
+Reberts 1995描述了一个简单的字符串接口，
+
+
+monit 
+char *Str_chomp(char *s);   将s字符串中的\r\n转换为字符串结尾。
+char *Str_copy(char *dest, const char *src, int n); # 从src拷贝n个字符到dest，dest以NULL结尾。结尾位于位置n后或者strlen(src)长度后。
+                                                    # 如果dest=NULL, src=NULL,则返回值为NULL。
+char *Str_dup(const char *s); # 返回s的拷贝。 如果s=NULL，则返回值为NULL                       调用者释放已分配内存
+char *Str_ndup(const char *s, long n); # 返回s长度为n的拷贝，如果n大于s长度，则等同于Str_dup   调用者释放已分配内存
+char *Str_cat(const char *s, ...)  # 通过一个字符串格式列表和多个被格式化数据，创建一个字符串。调用者释放已分配内存
+char *Str_trim(char *s);  # 删除字符串头部和尾部的 空白 信息 [ \\t\\r\\n]
+char *Str_ltrim(char *s); # 删除字符串头部的 空白 信息 [ \\t\\r\\n]
+char *Str_rtrim(char *s); # 删除字符串尾部的 空白 信息 [ \\t\\r\\n]
+char *Str_unquote(char *s); # 删除字符串的 转注  ["'] 信息。犹如 bash中echo不加-e选项的时候
+char *Str_toLower(char *s);
+char *Str_toUpper(char *s);
+int Str_parseInt(const char *s); # "   -2812 bla"; -> NumberFormatException
+long long int Str_parseLLong(const char *s); # "  2147483642 blabla"
+double Str_parseDouble(const char *s); # "  2.718281828 this is e"
+                                       # "1.495E+08 kilometer = An Astronomical Unit";
+                                       # " 9999999999999999999999999999999999999999"
+char *Str_replaceChar(char *s, char o, char n); # 替换o字符为n字符
+int Str_startsWith(const char *a, const char *b); # 字符串a以字符串b开头
+int Str_endsWith(const char *a, const char *b);   # 字符串a以字符串b结尾
+int Str_isEqual(const char *a, const char *b);    # 字符串内容相同，不区分大小写
+char *Str_trunc(char *s, int n);                  # 字符串截断
+unsigned int Str_hash(const void *x);             # hash值
+int Str_cmp(const void *x, const void *y);        # strcmp
+int Str_match(const char *pattern, const char *subject); # 字符串模式匹配
+Str_match("^[^@ ]+@([-a-zA-Z0-9]+\\.)+[a-zA-Z]{2,}$", "foo@bar.baz") -> true
+int Str_lim(const char *s, int limit); # 字符串长度大于limit，则返回true
+char *Str_sub(const char *a, const char *b); # 字符串a包含字符串b，则返回 位于字符串a的位置， 不区分大小写
+Str_join(dest, n, ...)  # 字符串连接最多n个字符串，n后面可变参数可以大于等于n
+char *Str_curtail(char *s, char *t); # 节点s尾部从t开头的部分，如果没有匹配则不截取
+char *Str_unescape(const char *charset, char *s); # char s[] = "foo\'ba\"r\}baz"; Str_unescape("\"'", s) -> foo'ba"r\}baz
+int Str_compareConstantTime(const void *x, const void *y); # 时间字符串比较
+
+
+
+
+
+
+
+
+

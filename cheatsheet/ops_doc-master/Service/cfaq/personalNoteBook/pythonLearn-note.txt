@@ -1,0 +1,154 @@
+工具：
+	1) IPython是一个 for Humans 的 交互式 Python  shell，比自带的 IDLE 更好用。
+	2) Jupyter Notebook 能将文本注释、数学方程、代码和可视化内容全部组合到一个Web文档中，它是机器学习的必备工具。
+	3) Anoconda 是针对windows平台的python包管理工具，同时附带了一大批常用数据科学包，也是数据分析的标配.
+	4) Python Tutor 可帮助理解每一行源代码在程序执行时在计算机中的过程。可以直接在 Web 浏览器中编写 Python 代码，并逐步可视化地运行程序。
+
+
+python推荐的书: <python cookbook> 中文版:  https://github.com/yidao620c/python3-cookbook or :  https://python3-cookbook.readthedocs.io/zh_CN/latest/
+
+http://cs231n.github.io/python-numpy-tutorial/  机器学习中的python基础知识(numpy, scipy, matplotlib), 斯坦福大学整理，这一篇文章就够用了。
+
+https://pypi.python.org/pypi  python第3方库索引，高质量，推荐使用；
+https://docs.python.org/3/library/index.html 官方库
+http://jinja.pocoo.org/  python写的html模板. 结合flask使用；
+https://www.pythonanywhere.com/ : code python in the cloud, 免费云空间，只能建立1个站点
+https://docs.python.org/3/library/concurrency.html  并发
+https://docs.python.org/   左边选择python版本3.x or 2.7
+https://docs.python.org/2/tutorial/inputoutput.html 左边有quick search，可以找各种命令的用法
+https://docs.python.org/3/library/stdtypes.html   类型说明
+https://docs.pytest.org/en/latest/   pytest
+http://pep8.org/    pep8:the good style for python code.
+
+
+4个常用调试手段： help()查看接口用法,    id()打印地址, hex(id()),  type()打印类型,  dir()查看属性(字段，方法)
+
+
+python基本类型: list[], tuple(), dict{:}, set{},   str"" or str''  通过括号类型区分.
+    
+
+python可以用来做网络web编程(后端): 用到flask包处理html数据; 用 The MySQL-Connector(driver for python) 操作SQL语句;python的威力在于粘合不同的语言库.
+  python code -----python's DB-API-------mysql connector/python-driver------mySQL.
+
+python flask框架用来连接python和html， 使得可以用python快速开发web后端服务:  python + flask + html5
+安装flask: windows:  py -3 -m pip install flask ;   or linux：sudo -H python3 -m pip install flask
+jupyter notebook: 比python IDLE 更强大的python开发环境，可以同时写代码和文档，运行和调试代码，显示图形化结果;
+application-->framework--->library--->systemCall--->virtualFilesystem--->kernal(cpu,memory,device)--->bootloader/BSP/HAL/drivers/firmware---->MCU/DSP/FPGA/GPU/SoC/ARM;
+lib-->modular--->symbol(class/function/variable)
+
+    
+
+
+	1. list[ , ],  可以store any type,  不要求元素类型一致，mutable, dynamic, eg:list=[]; list=['str', 1, 1.2]; list = [[1,2],['a','b'],[1.1, 2.2]]; 可用[i]索引，物理内存不连续，内部实现本质是个指针数组，每次修改元素的值都会释放原来的内存然后重新分配内存;
+		1. list.append(value),  extend([v1, v2, v3]), insert(index, value), remove(value), pop(index=-1) 注意: extend([]) 不改变list, 而 append([])会增加1个空元素
+		2. list的函数会导致破坏list, 而分片不会破坏，所以数据处理中一般只用分片;
+		3. 元素index: 0->1->2..; (-3)<--- (-2)<--(-1) 逆序是-1 开始递减，正序是0开始递增, list[-1]是最后一个元素
+		4. 切片:   list[start:stop:step], list[:stop] === list[0:stop:1]; list[-7:] == list[-7:end:1],  list[: : -1]==reverse
+		5. ''.join(list)  把字符表转成字符串；   list(str) 把字符串转为字符表, eg: lista=list('ab') => lista=['a','b'];
+		6. 动态生成list:   lista = [i for i in range(5)], listb = [k for k in dict.keys()] 
+		7. deque:  from collections import deque , d = deque(list), deque的插入删除比list快。
+		8. range(3) 输出[0,1,2],  for i in range(start, stop, step) 
+
+	2. dict{ : } , == map<k,v>,  dict={'k1' : 'v1', 'k2' : 'v2'} , dict['k1'] = 'v1' ,
+		1. 确保在使用前初始化:   dict.setdefault(key, value) 这行代码只会执行1次，用来初始化，即使放在循环里，效果等价于:   if k not in dict : dict[k] = v;
+		2. 插入: dict[k] = v
+		3. dict = {k1 : {k2 : v}}; dict[k1][k2] = v ;         
+		4. {} is empty dict, not set;
+		5. 遍历:    for k in dict  ;   for k in sorted(dict);        for k,v in dict.items();  for k,v in sorted(dict.items())   
+		6. for k in dict.keys(),     for v in dict.values()
+		7. 查找:  dict.get(key, None) 如果key不存在则返回None
+
+	3. tuple( , ): immutable, ==const list, size && value are fixed after created; 
+		* t = 'a', 1, 0.2     unpack:   i,j,k = t 则 i = 'a', j = 1, k = 0.2 也可以: i = t[0],j=t[1],k=t[2]
+
+	4. set{ , } :唯一性, union(), difference(), intersection(),   list=sorted(set) , 
+	5. str: str1='hello',  str2=''.join(list), str3 = str1 + str2
+	6. 遍历容器: for - in,  for - not in,   
+	7. copy拷贝:  浅拷贝 :  lista=listb;;   深拷贝 :  lista = listb.copy();   or  lista = listb[:] or lista = listb[::]
+	8. 字符串用双引号比单引号更好, 字符串里面包含单引号时必须用双引号;
+	9. python没有++ -- 指针, ? :     其它运算符和C++一样的; 
+	10. word  = input("please input: ") 交互输入
+	11. with: with open('doc.txt') as input: 自动构造和析构 ，推荐多使用with, 自定义类要支持with必须定义成员函数__enter__&&__exit__;
+	12. 类型转换type():  set(str),  list(str),   object可以表示所有类型;
+	13. class里面的每个成员函数的第1个参数都是self
+	14. python支持嵌套函数定义，函数里面可以定义函数
+	15. 赋值： python里面的赋值就是把一个变量名字绑定到一个对象（对象占内存）；函数传参就是赋值；不要通过函数参数来修改外部变量，最好是通过返回值;
+	16. python解释器会在OS创建1个进程来执行脚本；
+	17. Cython: 提升python效率的一个法宝, 或者用C++重写关键代码;
+	18. 多线程： from threading import Thread
+	19. 人性化打印:  import pprint,    pprint.pprint(dict)
+	20. 函数: python 不会检查参数的类型，但会检查参数的个数，注解使用3个双引号， 函数入参和返回类型是给用户在使用help命令时看的，不是给解释器看的
+	21. 返回bool结果用bool()函数
+	22. python最强大的不是标准库，而是第3方库( https://pypi.python.org/pypi  ), 类似github;使用pip安装
+	23. python使用动态内存来管理对象，everything is object (reference.)
+
+
+0.python编辑调试(入门推荐): 打开IDLE，在IDLE中新建文件，会弹出新窗口，在新界面编写代码后保存为.py文件， 在新文件所在的界面F5(Run)可运行当前文件，结果输出在另一个界面（IDLE中）；
+0. 在网上看别人给的答案时，要注意区分答案是针对python3还是python2.7的版本；
+1.编辑器: IDLE（安装后自带）, Pycharm(jetbrains, community version free), 
+1.PyCharm edu: 官方免费版，可以同时支持python interpreter 2.x && 3.x
+1.用notepad++编辑python脚本，在windows powershell ISE中运行，python test.py;
+在IDLE敲命令时，命令前面不能有空格（IndentationError），写复合语句时，需要两次回车才运行
+   在python shell中执行import this 可以看到pytho的设计哲学，eg: Explicit is better than implicit.   Namespaces are great idea -- let's do more of those!
+   Errors should never pass silently.
+2.不支持a++, 应该用 a += 1; or a =  a + 1
+
+	1. python脚本可以转换为可执行程序对外发布，原理是把.py/python解释器/PVM虚拟机打包在一起；
+	2. python可以调用C/C++库，这样可以用python脚本写测试用例来测试C++程序了；
+	3. python 是支持OOP的动态类型语言，支持多重继承，多态；
+	4. python: .py --->.pyc字节码--->PVM
+	5. self 类似于C++的*this,  __init__ 构造函数:定义成员变量并初始化，可接受参数,
+		* 
+			* 创建实例: obj = Class(arg), will pass arg to __init__(self, arg)
+
+
+	6. 逻辑操作: and, or , not 
+	7. 调用py modular中函数的2种方式：a)如果modular定义了class,则需要创建obj=class(), obj.func();  b)如果modular没有定义class,则通过modularName.func();
+	8. python使用空格缩进来表示语句块，不能使用tab,【和makefile相反】，使用编辑器时特别注意IndentationError
+	9. 如果py文件没有显示定义__main__函数，则按顺序执行；
+	10.     注释用#  ，  行后不能有分号， 字符串包含用 in
+	11. 学任何一门脚本语言，都要学习正则表达式。
+	12. print in python2 , print() in python3, vars(A), dir(A);
+	13. python --version 查看版本号，python2.7和python3可以同时安装，独立使用；
+	14. String is immutable so it can not be changed after creation.
+	15. To check if str contain another substr,use in:  'Py' in 'Python' //return true
+	16. 循环: for i in range(3) //i = [0,1,2]; for i in list 遍历元素, for i in range(len(list))遍历下标, for i in enumerate(list)遍历pair<index,value>;
+	17. 分支:   if / elif /else
+	18. in, not in 判断是否出现在集合中
+	19. 如果.py脚本中没有main函数，则从第一行非类型代码开始执行（非函数定义，非class定义）;
+	20. two dimension array: Matrix = [[0 for col in range(2)] for row in range(4)] ==>matrix[4][2],initial to zero;
+	21. getcwd //from os import getcwd
+	22. 函数定义包含参数类型和返回类型： def function(word: str = 'aeiou') -> list  ，参数名word,类型是str,缺省参数是'aeiou', 返回类型是list ，注意这些类型是给用户看的，不是给解释器的；
+		* 用户在传递参数时可以显示指定参数名称，比如function(first='xx', second='yy'),  这样即使参数顺序不对也没关系；
+		* 特殊参数:  def show(*args, **kwargs) 其中*表示任意个参数,args是个tuple, **表示任意个keyword参数, kwargs是dict，eg: show(1,2, name = 'zeng', age = 20);
+		* params=[1,2,3] show(*params) 相当于传入3个参数，而 show(params)只传入1个参数，这个参数是个List;
+
+	23. 注解annotation： 3个双引号 """ return sum """
+	24. 引用全局变量:如果在函数内要使用全局变量，必须用global关键字声明，否则默认用局部变量，但是对于集合类型，不需要global声明也可使用？
+	25. 乘法适用于数字，字符串，列表等等几乎所有类型？
+	26. py.test  --pep8  myscript.py 检查格式是否符合pep8规范.
+	27. 安装modular到搜索目录
+	28. 装饰模式： 在函数前加 @decorator表示把这个函数作为《回调函数》注入到decorator,然后得到一个新的同名函数（被装饰过的），一个经典例子是：cache加速求fibonachi数列
+	29. 继承: class sub(Super):
+	30. 字符串分割与合并join&split:   names=['john','mac','bob'] , str = '|'.join(names) 得到1个字符串,   str.split('|') 得到一个list
+	31. 成员变量增加可以在任意成员函数，不仅仅在__init__()
+	32. print打印不换行:  print(i, end = ' '), print(k,v, sep='->', end=';')
+	33. 参数缺省值不要使用mutable对象，可以：func(listinput=None),    不可以：func(listinput=[]), 会导致累积，因为第2次调用就不为空了;
+	34. 异常: try except
+	35. 多线程
+	36. 函数是对象, 可以被赋给一个变量, 可以被定义在另一个函数中,　　一个函数可以返回另一个函数,　　可以把函数作为参数传递;
+	37. python通过冒号+缩进来定义语句块,语句后面没有分号；
+	38. sys.argv 获取外部输入参数
+	39. 装饰：每次调用f(x)都会返回一个动态创建的函数对象，x存储在对象的内存中，比如g10=f(10), g20=f(20), g10() =>10, g20() =>20, ga = f(10);  ga/g10/g20是3个独立的动态对象，内部各自存储了数据;
+	40. python 里面有 modular(.py file), package(directory include many modulars), lib
+	41. 安装pytest: py -3 -m pip install pytest ; py -3 -m pip install pytest-pep8
+
+
+
+
+数据类型举例：
+list = ['hello'];   list = ['hello', 'world']
+str = 'hello' ;  str = "hello" ;  str = ('hello');   list(str) ==> ['h', 'e', 'l', 'l', 'o']
+tuple = ('hello','world')  注意: ('hello')是个str，而('hello', )是个tuple
+set={'h','e',1,2}
+dict={'h':'hello' , 'w': 'world'} ; dict['h'] == 'hello'

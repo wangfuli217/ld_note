@@ -1,0 +1,220 @@
+python shell script:
+http://hgoldfish.mysmth.net/2008/07/09/%E5%BA%94%E7%94%A8python%E7%BC%96%E5%86%99shell%E8%84%9A%E6%9C%AC/
+
+round 四舍五入
+
+outputs = os.popen(cmd).readlines()/.read()
+
+变量的查找作用域优先级变为：局部、外部、全局和内建。 
+作用域由def、class、lambda等语句产生，if、try、for等语句并不会产生新的作用域。
+
+#-*-coding:utf-8-*-   to str = u"你好"
+
+CALL BY REFERENCE, depend on objects' type, changable or not
+assignments are not expressions
+
+{}  dictionary, a.items() -> [(), ()]
+[]  list
+()  tuple, unchangeable list, so has no object-method; 
+    constant-vals, traversing only;
+    can be elem of dictionary, list can't;
+    (only-one, ) comma is needed
+
+any tracing or debugging facilities may keep additional references to objects
+
+PyUnit unittest module
+
+x, y, z = 1, 2, 'nihao'		2 sides are both tuples
+so (x, y, z) = (1, 2, 'nihao') are recommended
+x, y = 1, 2
+x, y = y, x	exchange, python performs evaluation before making assignments
+
+build-ins are members of the __builtins__ module, automatically inserted by the interpreter
+
+(MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY) = range(7)
+
+list	resizeable array
+dictionary	hash table
+
+http://stackless.com
+
+str() is used for print statement
+repr() is what the interactive interpreter calls to display objects
+
+<> is slow, recommend against its use
+
+--n == -(-n) == n
+
+long is similar to BigInteger class type in Java
+
+complex number	复数/虚数
+
+str = 'python'	str[2:5] == tho, including 2, excluding 5
+
+print	auto add '\n', 
+to suppress, use it with a comma, like print item, 
+
+index either by each elem or by index
+
+for i, ch in enumerate(foo):
+	print ch, '(%d)' % i
+
+attributes of objects == data + function
+
+[ppp(a) for a in 1, 2, 3]
+[ppp(a) for a in (1, 2, 3)]
+[ppp(a) for a in [1, 2, 3]]
+
+# read 1 line at a time
+fobj = open('a.txt', 'r')
+for eachLine in fobj
+    print eachLine,		must use ',' for every line has already have '\n' chars
+fobj.close()
+# all read into buffer
+fl = fobj.readlines()
+for eachLine in fobj
+    print eachLine
+
+factory func: file() (identical to open()) int() dict() type()(a type object itself)
+
+python's NULL object is retured by default if a fun isn't given
+
+obj.__doc__	string be retrieved at runtime
+
+all = []
+entry = raw_input('> ')
+all.append(entry)
+
+getattr     func pointer
+
+a ? b : c   (a and [b] or [c])[0], [b] will always be true, and [0] to drop the 1st
+
+lambda has no reture, so always true
+
+try:
+	fobj = open(fname, 'r')
+except IOError, e:
+print "*** file open error:", e
+else:
+# display contents to the screen
+for eachLine in fobj:
+print eachLine,
+fobj.close()
+
+dictionary:
+a = {a:b, }
+del a[a]  del one
+a.clear() clear all
+
+try:
+except ImportError:
+else:
+
+if a in ('a', 'b'):
+if a == 'a' or a == 'b':
+
+filter == for + if
+map == for + do
+
+re.compile("test\.py$", re.IGNORECASE)
+
+lstrip() + rstrip() == strip()
+
+filp.read()     -> str obj
+filp.readline() -> one line only, str obj
+filp.readlines() -> list obj, multi lines
+
+def grep(search, lines):
+    for line in lines:
+        if line in search:
+            yield line
+
+
+pygtk:
+NOTICE: toggle button, if set_active == current active state, nothing happens; otherwise a new toggle_clicked signal shed
+2 kind of widgets: support scrolling(GtkTreeView/GtkTextView/GtkIconView/GtkViewport) and not(need GtkViewport as an adapter)
+self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+self.window.add(self.button)
+self.button.connect("clicked", self.hello, None)
+self.button.connect_object("clicked", gtk.Widget.destroy, self.window)
+self.show_all()
+self.set_position(gtk.WIN_POS_CENTER)
+gtk.main_quit()
+image:
+    self.pix = gtk.gdk.pixbuf_new_from_file("a.jpg")
+    image = gtk.Image()
+    image.set_from_pixbuf(self.pix)
+
+if hasattr(self, attr):
+
+dynamic set new attr,
+    class a():
+        ...
+    a = a()
+    a.newattr = ...
+    del a.netattr
+
+
+STR:
+    str.index() ValueError
+    str.find()  -1
+    str.replace()
+    unicode(str, 'utf8')
+    ungetch only in msvcrt module
+
+GTK:
+    glib.io_add_watch(fd, glib.IO_IN, callback, callback_data) IO_IN to simultaneous cmd outputs and textview flush
+    callback return False to let it stop earlier, but if fd is empty, io_add_watch won't call callback again, 
+    namely we have no choice to deal with the ending. 
+    pipe.stdout.seek()/tell() is wrong, as no one knowns cmd output stream
+
+    When multiple threads are writing to the same text buffer, the program has a tendency to fail an assert and segfault on the buffer.insert line. 
+    If you explicitly silence the assert error, the interpreter tends to crash. This probably isn't a result of bad interpreter code, but just really nasty thread handling.
+
+TIPS:
+`global' is used for local assignment of global var, if no `global', read-only
+anything.split(delimiter, 1)
+a ? b : c   (a and [b] or [c])[0], [b] will always be true, and [0] to drop the 1st
+" ".join(s.split())     split s as EMPTY, to a list, then join the list with space
+'\n'.join(..)
+os.environ      all env vars
+os.getcwd()     current working dir
+os.path.split('/home/hask/a.txt')       ('/home/hask', 'a.txt') $(basename/dirname)
+os.path.splitext('/home/hask/a.txt')    ('/home/hask/a', '.txt')
+os.path.basename
+os.path.dirname
+os.listdir('/home')                     ls
+os.kill(pid, sig)
+sys.stderr.write('...')
+sys.stdout = open()     redirect
+sys.argv
+sys.exit(x)
+    def main(argv)
+    main(argv[1:])      slice from the second
+platform.system() 'Linux'
+platform.release() '2.6.37-ARCH'
+from __future__ import braces       use {}
+''.join(map(func, str))             str -> list -> str
+reverse[::-1] == l = list(str) and l.reverse() and ''.join(l)
+
+3 method to define func:
+    def
+    func = lambda arg: ...
+    getattr
+
+compiled RE is far faster than directly applied
+
+NO RETVAL:
+lambda __init__
+
+CORE STYLE:
+	keep user interaction outside of functions
+	_xxx 	denotes a var is private, inner a module/class
+	use local var to substitute for module attributes
+
+python -m SimpleHTTPServer
+
+threading:
+    tss = Thread.local()
+    tss.__setattr__('data', 1)
+    tss.__getattribute__('data')

@@ -1,0 +1,64 @@
+linux 6 双网卡绑定bond
+/etc/modprobe.conf/bonding.conf
+alias bond0 bonding
+options bond0 miimon=100 mode=1
+alias bond1 bonding
+options bond1 miimon=100 mode=1
+1.停服务
+service NetworkManager stop;
+chkconfig NetworkManager off;
+2.创建bond0
+vim /etc/sysconfig/network-scripts/ifcfg-bond0
+DEVICE= bond0
+BOOTPROTO=static
+IPADDR=10.172.19.1
+NETMASK=255.255.255.0
+ONBOOT=yes
+GATEWAY=10.172.19.254
+TYPE=Ethernet
+USERCTL=no
+3.创建eth0,eth2
+vim /etc/sysconfig/network-scripts/ifcfg-eth0
+DEVICE=eth0
+BOOTPROTO=none
+ONBOOT=yes
+TYPE=Ethernet
+MASTER=bond0
+SLAVE=yes
+USERCTL=no
+vim /etc/sysconfig/network-scripts/ifcfg-eth2
+DEVICE=eth2
+BOOTPROTO=none
+ONBOOT=yes
+MASTER=bond0
+SLAVE=YES
+USERCTL=no
+4.创建bond1
+vim /etc/sysconfig/network-scripts/ifcfg-bond0
+DEVICE= bond1
+BOOTPROTO=none
+IPADDR=10.10.10.10
+NETMASK=255.255.255.0
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+5.创建eth1,eth3
+vim /etc/sysconfig/network-scripts/ifcfg-eth1
+DEVICE=eth1
+BOOTPROTO=none
+ONBOOT=yes
+TYPE=Ethernet
+MASTER=bond1
+SLAVE=yes
+USERCTL=no
+vim /etc/sysconfig/network-scripts/ifcfg-eth3
+DEVICE=eth3
+BOOTPROTO=none
+ONBOOT=yes
+TYPE=Ethernet
+MASTER=bond1
+SLAVE=yes
+USERCTL=no
+
+
+#####删除未rm -f

@@ -1,0 +1,162 @@
+luci\view\admin_network\lease_status.htm     https://192.168.101.1/cgi-bin/luci/admin/network/dhcp
+luci\view\admin_system\Clock_status.htm      https://192.168.101.1/cgi-bin/luci/admin/system/system
+luci\view\admin_network\index.htm            https://192.168.101.1/cgi-bin/luci/admin/status/overview   自己调用自己
+luci\view\mwan\Openwrt_overview_status.htm
+luci\view\admin_network\iface_overview.htm   https://192.168.101.1/cgi-bin/luci/admin/network/network
+                                             luci\controller\admin\network.lua
+
+########## 部分页面实现异步数据传输 ########## XHR.get XHR.post XHR.poll
+1. XHR.get(URL, {k1=v1 ; k2=v2 ...}, callback())   手动触发 callback(x, data)  luci.http.write_json(luci.sys.net.host_hints())
+URL                    当前URL
+{k1=v1 ; k2=v2 ...}    数据表     将网页数据传递给后台
+callback               回调函数
+XHR.get('<%=luci.dispatcher.build_url("admin", "system", "clock_status")%>',
+            { set: Math.floor((new Date()).getTime() / 1000) }, 
+            function(){})
+entry({"admin", "system", "clock_status"}, call("action_clock_status"))
+
+    ./view/admin_status/connections.htm
+    ./view/admin_status/index.htm
+    ./view/commands.htm
+    ./view/cbi/apply_xhr.htm
+
+2. XHR.post(URL, {k1=v1 ; k2=v2 ...}, callback())   手动触发  
+URL                    当前URL
+{k1=v1 ; k2=v2 ...}    数据表     将网页数据传递给后台
+callback               回调函数
+XHR. post('<%=url('admin/system/clock_status')%>',
+            { token: '<%=token%>', set: Math.floor((new Date()).getTime() / 1000) },
+            function(){})
+entry({"admin", "system", "clock_status"}, post_on({ set = true }, "action_clock_status"))
+
+    ./view/admin_system/clock_status.htm
+    ./view/admin_system/reboot.htm
+    ./view/cbi/apply_xhr.htm
+    ./view/admin_network/iface_overview.htm
+    ./view/admin_network/diagnostics.htm
+
+3. XHR.poll(period, URL, {k1=v1 ; k2=v2 ...}, callback(x, rv)) 定时触发
+period                 定期
+URL                    当前URL
+{k1=v1 ; k2=v2 ...}    数据表     从后台定期获得数据
+callback               回调函数
+XHR.poll(5, '<%=url('admin/system/clock_status')%>', null, function(x, rv){})
+########## 在主页面部分嵌入子页面或者嵌入动态数据HTML单元 ########## 
+
+http://blog.csdn.net/luanjinlu/article/details/46429241 实例， 如index.htm
+                                             
+luci与页面的数据交互
+    htm中通过XHR调用lua脚本，lua script  location : /usr/lib/lua/luci/controller/admin/xxx.lua
+    xxx.htm:
+    1.静态调用
+    var callPath='<%=luci.dispatcher.build_url("admin", "xxx", "dev_info")%>';
+    callPath=callPath+'/'+param1+'/'+param2;         //如果需要传参
+    XHR.get(callPath,null,function(x,rval)｛
+            ......
+        ｝
+    );
+
+    2.动态调用
+    var callPath='<%=luci.dispatcher.build_url("admin", "xxx", "dev_info",parameter)%>';
+    XHR.poll(5,callPath, null,function(x,callPath rval){
+            ......
+        }
+    );
+    
+    第一个参数为定时刷新时间（单位：S）
+    第二个参数是luci生成的路径，其中parameter是传递给lua的参数
+    第三个参数暂时未知，填null不影响
+    第四个是回调函数：
+            x：是XHR对象，一般用不着
+            rval：是lua函数的返回值(一般取值rval[0])
+           
+    3.触发submit提交调用
+    <script>
+        document.getElementById("ID_INPUT_submit").value=paramt;   //value 值将会被传到lua中
+        document.getElementById("ID_INPUT_submit").click();   //触发submit事件
+    </script>
+    
+    <form style="display:none" method="post"  action="<%=luci.dispatcher.build_url("admin", "xxx","dev_info")%>" enctype="multipart/form-data">
+    <input id="ID_INPUT_submit"  name="getpackage" type="submit"  \>
+    </form>
+    
+    
+    xxx.lua:
+    entry({"admin", "xxx", "dev_info"}, call("dev_info"), nil).leaf = true
+    页面方法1,2相同：
+    --paramval:接收传下来的参数,(有两个，写两个入参)
+    function dev_info(paramval)
+    
+        local function getDev(val)
+                ......
+                return .....
+        end
+    
+        luci.http.prepare_content("application/json")
+        luci.http.write('[')
+        luci.http.write_json(getDev(paramval))
+        luci.http.write(']')
+    end
+    
+    页面方法3：
+    function dev_info()
+    
+        local value=luci.http.formvalue("getpackage")   --获取传下来的value值，其中getpackage是input的name
+    
+        .......
+    
+    end
+    
+    
+在openwrt中使用Post方式异步提交数据
+    在openwrt中，大部分都是使用get方式来进行数据交互，如：XHR.get,XHR.poll。我们可以通过查看xhr.js的源代码来看他的
+具体实现逻辑。通过查看源代码可以知道，get/poll都是XHR的静态方法，而具体的内部逻辑中，还是通过new XHR().get来进行的
+数据请求。因此我们也可以使用这种方式来调用他内部提供的post方法。
+    在使用post方法来交互数据时，对于回调函数中仅有的一个参数是一个xhr对象，因此要获取返回的数据需要调用responseText属性。
+
+    <%
+        local h = require "luci.http"
+    
+        if h.formvalue('act') == 'query' then
+            h.write('data string...')
+            return
+        end
+    %>
+    <input type="button" value="query" onclick="queryHandler(this)" />
+    <script type="text/javascript" src="<%=resource%>/xhr.js"></script>
+    <script type="text/javascript">
+    // <![CDATA[
+        function queryHandler() {
+            new XHR().post('<%=REQUEST_URI%>', {
+                act : 'query'
+            }, function(xhr) {
+                // 获取到的返回数据，这里与get返回的数据不一样，这里是字符串，而get方式回来的是json
+                console.log(xhr.responseText);
+            })
+        }
+    // ]]>
+    </script>
+    
+    
+    正如示例中所描述的，对于post回来的数据，我们通过responseText所得到的是一个字符串，如果我们也想如同get方式回来的是json格式的数据，那么我们可以将xhr.js中get的实现拿过来。
+    function queryHandler() {
+        new XHR().post('<%=REQUEST_URI%>', {
+            act : 'query'
+        }, function(xhr) {
+            var json = null;
+            if (xhr.getResponseHeader("Content-Type") == "application/json") {
+                try {
+                    json = eval('(' + xhr.responseText + ')');
+                }
+                catch(e) {
+                    json = null;
+                }
+            }
+
+            // 获取的数据
+            console.log(json);
+        })
+    }
+    
+    
+    

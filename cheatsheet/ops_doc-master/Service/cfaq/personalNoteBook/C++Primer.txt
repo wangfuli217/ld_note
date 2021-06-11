@@ -1,0 +1,696 @@
+《C++ Primer 第5版中文版》 非常非常好。
+
+《C++语言的设计和演化》C++之父的书籍
+<C++ Coding Standards: 101 Rules, Guidelines, and Best Practices>sutter;非常好的C++编码规范, download ebook
+<c++ concurrency in action> 并发编程的最佳选择；
+<Effective c++> 侯捷翻译
+《effective STL》 中文版翻译的很棒，看完了，用好STL必看的经典书籍
+<Effective Modern C++: 42 Specific Ways to Improve Your Use of C++11 and C++14>  Scott Meyers经典, 也有人翻译:https://vivym.gitbooks.io/effective-modern-cpp-zh/content/
+<muduo linux多线程>陈硕，高水平作品，书中有一些C++的经验和独到见解；
+<C++标准程序库> 对于C++熟手更加快捷；
+《嵌入式Linux系统实用开发》何永琪，后面章节总结了C&C++的语法区别；
+
+
+http://www.cyber-dojo.org/  ：online test-driven-develop; makefile, C++17, ut测试框架可选择googleTest,cppUtest,assert，最简单的测试就是assert(函数调用),支持多个文件, 每次提交都会保存，可以回到任一历史节点。
+可以通过sessionId分享给其它人参与（并保持代码独立）,可以review其它人的代码，memory sanitier runtime check, 支持其他语言:python,Go,Java,C,Asm,
+这个网站本身也是开源的，源码在github. 真正的高手不是通过gdb来调试，而是通过ut case来调试保证代码的质量；
+
+http://www.cplusplus.com/   quick search class member function,class definition, header file;对每个STL算法都有简单的模拟源码；
+  
+http://pubs.opengroup.org/onlinepubs/9699919799/  系统调用，网络编程函数库查询
+
+http://www.geeksforgeeks.org/ 丰富的算法和数据结构，包含C++源码实现；
+https://www.tutorialspoint.com/cplusplus/index.htm 提供了很多C++学习的资料,basic/advanced,object-oriented, multi-thread,STL, best practice, interview questions, resume writing;
+
+http://www.boost.org/ boost source code
+<The Boost C++ Libraries>:  https://theboostcpplibraries.com/  学习boost有助于深入理解C++特性的本质；
+http://www.bogotobogo.com/cplusplus/C11/   C11新特性学习
+http://blog.zhangliaoyuan.com/
+
+
+https://github.com/lianzeng      
+https://leetcode.com/   
+https://google.github.io/styleguide/cppguide.html   :google coding style guide
+
+*.cc/*.cxx文件是Linux/Unix下为C++源文件的默认扩展名,用GCC/G++可以编译,Windows下是*.cpp;
+cygwin,minGw是windows环境下编译Linux程序的一套工具,包含(make,g++,gcc,gdb);
+0.gcc/g++: 1)都可编译cpp file,但是只有g++自动支持链接C++库生成可执行文件,gcc必须参数指定才能支持链接C++库；
+           2)后缀为.c的，gcc把它当作是C程序，而g++当作是c++程序,后缀为.cpp的，两者都会认为是c++程序;
+           3)如果后缀为.c，并且采用gcc编译器，则宏__cplusplus就是未定义的，否则，就是已定义。
+
+1.g++    -std=c++11     -pthread     *.cpp    -o   test.out  2>&1  编译多线程程序
+g++ test.cpp 会在当前目录生成a.out, 默认使用动态链接的方式链接runtime library.
+   g++ -static test.cpp 强制使用静态链接的方式生成a.out
+   g++ -o test  *.cpp 编译当前目录下的cpp文件，输出为test, 执行: ./test
+  g++  -v  -std=c++11 main.cpp -o demo 2>&1  选项-v可以看到详细的编译信息，可以知道自动链接了哪些库;
+  gcc test.cpp 会出错，gcc只能编译.c 文件
+  gcc test.c 会在当前目录生成a.out(不产生.o文件),前提是.c文件没有使用c++库；
+  gcc -c test.c 会在当前目录生成test.o目标文件，因为-c选项。
+  gcc -o a.out test.c 会在当前目录生成a.out可执行文件
+  gcc  -fPIC -shared -o test.so test.c 生成动态库（-fPIC是生成动态库的编译选项，-shared是链接选项，表示运行时被多个进程共享）
+                                       -funroll-loops 执行循环展开，
+  gcc  -L./ -ltest -o test.out test.c 使用动态库libtest.so生成test.out,(-L./设置库的搜索路径为当前目录)注意大写L和小写l的区别，
+   gcc  -o foo foo.c -rdynamic -ldl    如果程序要用dlopen()加载so库，链接生成程序时要采用-rdynamic与-ldl选项 ； 
+ 如果不用dlopen，那么动态库的链接方式和静态库一样， 使用-l 选项就可以了( -lxxx.so );
+    (-ltest：指定动态库名称，编译器查找动态库时有隐含的命名规则，即在给出的名字前面加上lib，后面加上.so/.a来确定库的名称)
+    (对于静态链接库，库的顺序很重要，而动态库则无所谓)
+  ldd test.out 列出程序依赖的so库；
+  nm test.so 列出动态库包含的符号（变量，函数名称）；比如查找符号sin: nm test.so | grep sin | grep -v UNDEF  其中UNDEF表示函数库中有引用，但不是在此处定义；
+  nm libXXX.so.debug | grep T | grep function | c++filt,    
+  LD_LIBRARY_PATH: 这个环境变量指示链接时动态库的路径（被链接器LD使用），等效于(-Lpath);
+  LD_RUN_PATH: 这个环境变量指示运行时动态库的路径,等效于(-Rpath);
+  LD_PRELOAD: 这个环境变量用于告诉LD优先加载某个.so, 一般用于调试的时候，自定义符号取代其他so的符号；
+  gcc 默认使用动态链接，若要使用静态链接需要指定参数(-static);
+
+2.g++ -o test -Map=test.map test.cpp 会在当前目录生成test
+  ./a.out 必须显示指定程序文件位置，即使在当前目录，直接a.out执行不了；
+
+2. gcc -fPIC -shared -fvisibility=hidden -o test.so test.c test1.c 用"readelf -s test.so" 可以看出两个.c文件里的函数被设置为hidden;
+    gcc -o main main.c -rdynamic -ldl 后面2个选项是因为main.c 里面使用了dlopen()支持运行时加载so库，如果不用支持运行时加载，不需要任何特殊的链接选项，和使用静态库一样链接
+
+3.man g++ 显示帮助[官网: http://gcc.gnu.org/wiki/Visibility]
+       g++ [-c|-S|-E] [-std=standard]  //-c 只编译，不链接
+           [-v][-g] [-pg] [-Olevel]        //-O3优化, -g 生成debug信息, -v 选项输出编译链接的过程，包括头文件路径，库的路径和名字；
+           [-Wwarn...] [-pedantic]   //-Wall
+           [-Idir...] [-Ldir...]  //-IheaderPath  -LlibPath
+           [-Dmacro[=defn]...] [-Umacro] //-Dmacro
+           [-foption...] [-mmachine-option...] //-fPIC用于生成.so, -funroll-loops 执行循环展开优化，
+-fvisibility=hidden 加上这个编译选项，使得.so里的全局符号对外不可见，这时如果要开放指定符号则在函数实现的地方加上（声明的地方不加）:__attribute__((visibility("default")))
+-fvisibility=default GCC默认.so的全局符号对外可见；
+           [-o outfile] [@file] inputfile...   
+  Preprocessor Options: -Dmacro[=defn]  -Umacro  -Wp,option           
+  Linker Options: -static -shared  -llibso  -Wl,option默认是静态链接
+  Directory Options:  -Idir   -Ldir
+
+3.echo $? 返回上一个命令/程序的执行结果
+4.extern "C" 只是告诉C++编译器以C的方式对符号命名，仅仅是命名有差异 ? 但在语法解析上面，还是C++,eg:struct就是class;
+5.scanf("%d",&intv);从stdin获取输入一个整数到intv；
+6.debug ut: gdb ./MacPsTdd_tests
+7.debug rtm:gdb  --args ./LteMacClient --startup=nid=0x1443 -c lte.rtm.startup.script=TC6127_UL_RASR.rtm  使用(--args)是因为bin需要输入参数；
+
+8.常量表达式是要在编译期得到结果的表达式，下面的size是常量，但不是常量表达式，因为要运行时才知道结果；
+ const int size = getLength();
+ constexpr int size = getLength();//只有当getLength()可以在编译期可以得到结果时才可以这样做，C++11引入的constexpr;
+
+9.string(字符容器):  <string>, std::string;
+  1)string.size()返回类型是string::size_type,表示元素个数;2)string的类型与字面常量的类似是不一样的;
+  头文件 : <string>, <cstring>, <string.h>, C++程序应该使用<cname>，不使用<name.h>,因为<cname>里的定义都属于命名空间std;
+  while(std::cin>>stringIn); 逐个读入字符串，空白分隔，(ctrl+D)停止； while(std::cin>>int_a) ;逐个读入整数值，空白分隔，遇到非整形字符停止；
+  while(std::getline(cin,line));逐行读入，遇到文件结束符EOF(ctrl+D)停止，如果(cin>>string1)&&(getline(cin, line))则读入到Line的是除string1后的内容；
+  if(!s.empty()) cout<<s[0]; 在通过下标访问字符串前，要记得检查，因为string可能为空，标准库不会检查；
+  s.size(); s.empty(); s[n]; s1==s2, s1= s2, s1+= s2;
+
+  注意，sizeof(string)//返回固定大小，并不包含实际元素的大小，因为容器都是动态堆内存分配的，而sizeof是编译期运算符；
+string.size()才是字符个数；
+  std::stringstream <<str1<<":"<<str2<<":"; 
+ std::stringstream >> inta >> intb;
+  std::string = stringstream .str(); 把字符流转成1个string;
+  char* = string.c_str();
+  char c = string[i];
+  string构造：string s(char*, n); string s(s2, start); string s(s2, start, len); string s(char* p);
+   string s("hello");  string s="hello";
+   const char* p= "hello"; string s(p); //p must end with null;
+
+   substr() : string sub = s.substr(start, n);  s.substr(start); //till end
+   string.append(string2); 
+   string.replace(begin, end, newstr);  string.replace(start, len, newstr);
+   string.compare(str);  string.compare(char*); //end with null //return 0 if equal.
+   string.push_back(char);//string是字符容器；如果要把1个字符变成string: string str; str.push_back(char);
+   string += "str1"; string += 's'; 
+   字符串搜索：  string.find(str, start); //return npos if fail.    string.rfind(str, start);// reverse find
+if( mystring.npos == mystring.find("AaShell"))//fail. not found!
+                         find_first_of();// 查找第1个感兴趣的字符
+
+   字符串与数值转换：  to_string(int);  double = stod(str); stoi(); stol(); stoul();stoll();
+   
+const char* c_str() const;  //string -->const char* with '\0' 
+char& operator[] (size_t pos); //如果要遍历的话最好还是用for(auto& c : string)
+istream& getline (istream& is, string& str); //Get line from stream into string
+ostream& operator<< (ostream& os, const string& str); //Insert string into stream, eg: os<<str1<<str2;
+istream& operator>> (istream& is, string& str); //Extract string from stream
+
+
+10.<cctype><ctype.h>头文件中定义了一些常用的标准函数来处理单个字符: isdigit(c);islower(c),isalpha(c),isspace(c)空格，回车;
+   int c = tolower(static_cast<unsigned char>(c));
+
+11.IO对象不能拷贝或赋值，函数中必须以引用的方式来传递或返回IO对象，且不能是const,因为读写IO对象会改变其状态；
+
+12.vector:元素不能是引用类型，可以是对象或指针(share_ptr)，内存是连续的，所以可随机访问,当capacity不够用的时候会自动扩充内存（堆）；
+  在c++里面，一般用vector代替数组；
+   capacity():指容量, size(): 指当前的元素个数；
+   STL容器的内存空间都是在堆上分配的，无论用这些容器定义的对象实例是栈对象还是成员子对象；
+   vector<string> 其实每个元素存放的是char*;
+   vector<int> arr(10);//10个元素，初始值是0
+   vector<int> arr(10,1);//10个元素，初始值是1
+   vector<int> arr = {1,2,3} //包含3个初始化了的元素
+   vector Vs Array: 前者支持insert(), 而 array只能赋值，没有insert操作；
+
+13.容器操作函数:  std::vector<T>.pusch_back();  std::set<T>.insert(); deque.push_front,insert(p,t)//在p之前插入t;
+std::map<key,value>如果外部模块不能保证key是唯一的，那不要使用map, 但如果<key,value>组合是唯一的，则可以用std::set<>+std::pair<key,value>代替map；
+ size()/empty()/max_size();
+ sizeof(vector/string/list..)得到的是容器的固定大小，对于含有容器的对象一般是禁止使用的，container.size()才是元素个数；
+容器涉及内存移动的操作会导致迭代器失效；swap()一般不会导致迭代器失效；不过，对于string的swap会导致迭代器失效；在遍历时如果涉及增删操作要特别注意准确更新迭代器，特别是不要缓存end()的结果；
+
+deque<>也支持随机访问，支持push_front/push_back, vector不支持push_front，只支持push_back;
+插入操作： push_front/push_back/insert(p, t); c.insert(c.begin(), t) <==> c.push_front();for(auto it = c.begin(); it != c.end(); it++) begin()==end();这里只能用!=,不能用<;
+begin()/end()返回的是迭代器，front()/back()返回的是首尾元素引用；*begin() == front(); *(--end()) == back();
+emplace_front/emplace/emplace_back 分别对应push_front/insert/push_back，区别是emplace把参数用于新元素的构造，传递给构造函数，后者是直接传递元素副本；eg: c<T>.emplace_back(data);  c<T>.push_back(T(data));
+支持下标操作[]的容器: deque/vector/string/array: 
+
+
+*14.现代的C++程序尽量使用Vector和迭代器，避免使用内置数组和指针，应该尽量使用string,避免使用C风格的字符数组，可以用std::pair<val1, val2>代替只有2个元素的struct, map的元素类型就是pair<const key, value>;
+
+ 
+13.数组不能直接拷贝，但是如果封装在一个struct里面，可以通过struct拷贝；
+   数组在定义的同时可以用初始化列表赋值， 只能在定义的时候，其它时候要初始化所有元素就只能loop循环了；
+   遍历数组一般用range_for;   
+   char array[] = {'C','C','C'} 含3个元素，这时编译器根据初始列表中的元素个数推断数组大小；
+   char array[]="CCC" 含4个元素（还有1个是\0），等价于 char array[] = {'C','C','C','\0'}
+   char array[4] = {'C','C'} 数组大小为4，但只有前2个元素初始化了，其余元素的值为0
+   int a[][3] = { { 0,1 }, { 0 } };  这种不完整的初始化也是OK的； int (&b)[2][3] = a;
+
+14.移位：只对无符号整型适用，对带符号的运算依赖于机器；
+15.sizeof(): 编译期运算符，返回值是个常量表达式，可用返回值来声明数组大小，对于容器,sizeof()返回固定部分大小；
+   sizeof(referenceType)//得到的是被引用对象的大小；但如果class::member是个引用，那么这个引用成员在对象的内存中只占固定4个字节（此时被看做const*）；   
+   sizeof(*p)//即使p是null指针，也是OK的，因为sizeof只关注*p类型，并不关心p的实际值，如果p是基类指针，指向派生类实例，那结果是基类大小；
+   sizeof(ptr)//不论ptr是什么类型的指针，大小都是固定的(4byte);
+   sizeof(array)//数组的大小（所有元素大小之和）；
+   sizeof(string),sizeof(vector)//返回固定大小，与元素个数无关；
+   sizeof(class::member)//C++11支持
+   举例：
+   int arr[2][3];sizeof(arr)/sizeof(arr[0])=2, sizeof(arr)/sizeof(arr[0][0]) = 6;
+   int (&ref)[2][3]=arr;sizeof(ref)=sizeof(arr)=24;
+   struct wrap_ref{ int (&ref)[2][3];}; sizeof(wrap_ref)=4//actually pointer size;
+
+16.%取模： m%n的结果的符号与m相同，(-5)%3=-2;5%(-3)=2;(m/n)*n+m%n=m;
+17.位运算： 只能用于无符号整型(unsigned long:UL)，对于带符号的位运算,结果未定义；使用左移位运算要防止溢出；
+         char<<8 会自动提升为unsigned int; 1UL <<27; (unsigned int)<<27 ?
+
+18.类型转换： 切勿在算术表达式中混用带符号类型和无符号类型，因为当带符号类型是负数时，结果是未知的。 eg: int a=-1,unsigned b=1, (a*b)=4294967295;
+   char只用来存储字符，bool用来存储true/false,不要把char/bool用在算术表达式中；
+   如果需要一个小整数，那明确定义为signed char 或 unsigned char, 不要直接定义为char,因为这个依赖于机器；
+   如果执行浮点运算，优先使用double(64bit),因为float(32bit)精度不够，而long double(128bit)则没必要，比较耗时；         
+
+19.typeid: 运行时类型识别， 动态获取对象的类型（前提是class有虚函数） typeid(*ptr) 是ptr真实指向的对象的类型, 而decltype是静态的声明时的类型； 
+   this->*funPtr 一般用于成员函数指针 的调用；
+
+20.cast: 1)stati_cast : 比C语言的强制转换更安全，eg: static_cast<classA*>(void_ptr); 
+                如果是2个不相关的指针类型转换，会编译出错：  static_cast from 'UeResp *' to 'u8 *'  is not allowed. 这时可以用(u8*)uerespPtr;
+         2)const_cast: 去掉const属性，eg: const_cast<classA*>(ptr_to_const);   
+         3)reinterpret_cast: 依赖于机器，非常危险！可以执行任意类型的转换. 是万能的转换；
+         4)dynamic_cast: 运行时转换，可以根据不同条件转换到不同的类，用于将基类指针 转换为派生类指针，转换成功的前提是这个基类指针确实指向了这个派生类实例，如果转换失败，会导致空指针，所以要check，一般情况下避免使用这种转换，违反了依赖倒置原则；也可用于派生类指针转换为基类指针；
+                          if(Derived*ptr = dynamic_cast<Derived*>(base_ptr))//check后使用比较安全；
+
+22.可变参数(...) :
+   1）用于模板:表示零个或多个模板参数, eg:  template <class... Types> class tuple;
+   2)用于函数参数： 表示零个或多个函数参数   
+   3)举例： make_shared 模板函数
+template <class T, class... Args>
+shared_ptr<T> make_shared (Args&&... args);
+
+   综合运用: template<typename... Args> void foo(const Args& ... args);可以接受任意个任意类型的参数；
+                               {
+                               cout << sizeof... (Args) << sizeof... (args) << endl; 分别输出类型的个数，实参个数；
+                               }
+   3）如果实参类型相同，个数不定，可以用initializer_list(C++11):  void error_msg(std::initializer_list<string> errors);
+
+23)main接受参数：
+  int main(int argc, char* argv[]);   or  int main(int argc, char** argv);
+  假如运行: prog -d -o para1 para2  那么 argc=5,argv[0]="prog", argv[1]="-d", argv[2]="-o", argv[3]="-para1", argv[4]="para2"
+
+
+24）.函数指针：C++的static函数和C语言函数一样的语法，不依赖于class名字；
+   a)bool (*pf) (int) = 0;//define function pointer,intilize to null;
+      bool sum(int){}; pf = sum; or pf = &sum; //set value for function pointer
+      pf(5); or (*pf)(5) //both ok.
+
+   b)int compare(int , int, bool pf(int) );
+      int compare(int , int, bool (*pf) (int) ); // same as above, use function pointer as parameter;
+      compare(1, 2, sum);// call
+
+  c)typedef bool PF(int); 
+    typedef bool (*PF)(int);
+    int compare(int, int, PF); 
+    int compare(int, int, PF); //same as above
+
+
+25)typedef typename:  如果类型未实例化，typedef时就要加上typename. 因为模板类在实例化之前不能被识别， 举例:
+template<typename Key>
+class BST{
+typedef typename Node<Key>::type  b_type; //Node is a template class .
+using b_type = Node<Key>::type;//better
+};
+template<typename T>
+typename T::value_type top(const T&); //T::value_type是未知类型，因此要加上typename;
+
+26)using 比 typedef 更强大，用于自定义类型， eg: using u32 = std::string::size_type;
+template<typename T> using mypair = std::pair<T, T>;
+
+
+26)类的其它特性：a）类里面除了数据/函数成员外，还可以定义“type member”，typedef有public/private区别，外部访问要用class::mytype, class里的typedef建议放在class开头，因为必须先定义typedef再使用；b) className()=default声明默认构造函数；c)mutable:这类成员可以在const成员函数中修改，即使是const对象；d)前向声明（不完全类型）：可以用于定义指针/引用，函数声明中的入参/返回值（不能用在函数定义中），不能定义对象（不知道内存大小）；e)委托构造函数：C++11支持在构造函数初始值列表中调用本类的其它构造函数；f)不带explicit的单参构造函数具有隐式的类型转换功能；g)类的const成员和引用成员只能在初始化列表中赋值，建议所有的成员都在初始值 列表中初始化；h)原则：需要自定义析构函数的类也需要自定义拷贝和赋值函数（因为涉及到动态内存管理）；拷贝构造和赋值必然是成对出现的；i)可以在类里面定义自己的static对象/指针/引用，和自己的非static指针,如果类里面有引用成员，那拷贝构造得到的新对象和原对象会引用同一个东西，派生类的拷贝构造函数会自动调用基类的拷贝构造函数；j)构造函数里面调用虚函数是失效的，最终调用的还是本类的函数，所以尽量不要在构造函数里调用虚函数；k)构造函数重载很有用; m)虚函数可以是private，不影响动态绑定特性；m)拷贝构造属于构造，拷贝赋值是修改已经构造对象的值，classA obj1 = obj2 调用拷贝构造，classA obj1; obj1 = obj3;调用赋值;
+classA obj();// 定义了一个无参数函数，而非对象，如果要定义一个用默认构造函数初始化的对象，只能是：classA obj;
+
+类的拷贝控制和资源管理（13.2）：1)重载operator=时，要先拷贝参数对象，再delete,这样可以处理异常和自赋值的情况，不需要if；2)通过引用计数可以共享数据，避免拷贝，引用计数本身必须定义为指针类型(不同的对象共享引用计数)，不能是int/static int,因为static是整个类级别的;
+
+13.3定义类自己的Swap函数(friend, Not member)，特别是对于管理动态内存的类，这样可以提升性能（尤其是对于资源管理的类），避免std::swap的内存拷贝；
+      如果类A定义了swap,那么包含类A实例的组合类也必须定义swap,否则运行出错；
+    class HasPtr{ friend void swap(HasPtr&， HasPtr &);}; 
+     inline void swap(HasPtr& lhs， HasPtr & rhs) //实现自定义swap函数的标准模式，每个数据成员都要写成swap(), 不要加std::限定作用域
+     {
+         using std::swap;//这个声明的意义是：如果找不到参数匹配的自定义swap，才调用std::swap;<utility>;
+         swap(lhs.ptr, rhs.ptr); //对于ptr指针，这行实际调用的是std::swap,但是也不要写成std::swap(lhs.ptr, rhs.ptr);
+         swap(lhs.obj, rhs.obj);//这里调用的是obj子对象自定义的swap,不是std::swap，因为同样形式下，非模板函数 的匹配优先于 模板函数；
+     }
+通过copy&&swap 来实现operator= : 定义swap的类通常用swap来定义类的赋值运算符，"参数用copy, 实现用swap" 这种实现方式能处理异常和自赋值；
+ HasPtr& HasPtr::operator= ( HasPtr rhs) //Attention: rhs is temp value, Not reference !
+{
+  swap(*this, rhs);
+  return *this;
+}
+
+27)符号作用域查找顺序：块作用域--->函数--->class---->baseClass--->file--->namespace-->global;
+     函数的查找：先在函数的参数作用域内去查找函数定义，然后去namespace查找；
+
+28).即使一个static const u32 成员在类里面初始化了，也应该在类的外部定义一遍（但不再初始化了），建议类的static成员都在类外面定义并初始化；
+
+29)顺序容器：vector(动态数组), array(固定大小数组), list（双向链表）, forward_list（单向链表）, deque（双端队列）,  string;
+    关联容器： set<key, compare>, map<first/key, second/value> , multimap, multiset ; unordered_map(hash_map)散列表; set 内的元素不能重复，用于检查一个给定关键字是否在集合中； 通常可以用无序容器替换有序容器，反之亦然；
+    map/set内部实现用平衡二叉搜索树（如果key是自定义class, 必须提供operator<函数），使用迭代器遍历的话按key升序输出，
+    unordered_map/set内部实现用哈希表，遍历的话是乱序输出。
+      map体现的是key-value映射关系；map的元素类型是pair<const key,value>  map: 关联数组，map[key] = value; 特别注意的是如果key不存在，则map[]会插入新元素并默认构造初始化(因此对于const map对象，不能使用[])，如果不想这样就必须使用find(), find()返回指向pair的iter, 失败返回end(), map.insert()的返回结果是pair<map::iter, bool>; 另外map.key 是const不能修改的, second可以修改;
+
+template < class T,class Compare = less<T>, class Alloc = allocator<T> > class set; //必须提供比较函数用于排序
+map: find, 下标[] 只用于非const的map,且可能会插入;
+set: find,insert, lower_bound(): 返回第1个大于or等于value的元素, eg: {1,2,4,5}, lower_bound(2) =>2, lower_bound(3)=>4,lower_bound(6)=>end();
+multimap: count, lower_bound, upper_bound, equal_range, iter++ (相同key的元素相邻存储)；
+unordered_map: 和 map 一样的接口，value_type= pair<const key_type,mapped_type>;
+unordered_multimap: 哈希，且可以重复key;
+无论有序容器还是无序容器，具有相同key的元素都是相邻存储的；
+
+   eg: map<key, shared_ptr<T>>;  auto& value = map[key]; if(!value){value.reset(new T);}
+      map.insert(map::value_type(key, value)); 插入元素
+    set<T> s(vec.cbegin(), vec.cend());//s.size() <= vec.size() 因为会去掉重复的元素
+     multiset<T> m(vec.cbegin(), vec.cend());  //m.size() == vec.size(); 
+
+    顺序容器适配器： stack, queue, priority_queue;  其中 stack/queue是基于deque实现的，priority_queues(heap) 基于 vector实现的，本质是完全二叉树；
+   template <class T, class Container = deque<T> > class stack;
+   template <class T, class Container = deque<T> > class queue;
+   template <class T, class Container = vector<T>, class Compare = less<> > class priority_queue;
+    list: push_back/push_front;front();pop_front();insert(p,value_before_p);
+    forward_list: next = erase_after(pre);push_front,pop_front,insert_after(),单链表只有1个头指针，只能在头部插入删除，不能在尾部插入，单向链表只支持iter++,不支持iter--;
+    vector: push_back; insert(p, vlaue); erase(p); pop_back(); pop_front();
+    deque: push_back,  push_front, insert(p, value); pop_back(), pop_front();
+    array<type,size>: 对于数组容器，支持直接拷贝复制，但是内置数组不行，必须memcpy,C++对于struct可以直接拷贝复制，C语言也支持；
+    容器类型成员(表9.2): value_type, size_type,reference, const_reference,
+    容器迭代器: begin(),end(), cbegin(), cend(), rbegin(), rend(), reverse_iterator, iterator, const_iterator;   区间: [begin, end);
+    迭代器支持++/--/!=操作,不支持<,>比较, eg: for(auto it=v.begin(); it != v.end(); ++it), 只有连续内存容器的迭代器支持operator+=;
+    如果容器元素是对象，通过iter-> 访问对象成员，如果容器元素是基本内置类型，通过(*iter)访问元素;
+    容器函数: size(), empty(), max_size(); a.swap(b), swap(a,b)
+    容器构造：C c; C c1(c2); C c(p1,p2);C c={i,j,k}; 使用迭代器构造时元素类型只要能转换就可以，不必严格一致；
+    插入一个对象到容器是插入一个对象拷贝，与原始对象没有任何关系；
+容器赋值和swap(表9.4): C1=C2, C={i, j, k}; swap(c1,c2); c1.swap(c2); //swap比=要快；对于array<,>swap会真正交换元素；
+ c1.assign(b,e); c1.assign({i, j, k}); //assign不适用于map/set，不能用自己的迭代器给自己assign;
+   容器嵌套: vector<vector<string>> lines;  旧的编译器需要在>>之间有空格:   vector<vector<string>  > lines;
+
+30）IO流: istream/ostream 是基类，实际编程中充当接口类的作用; fstream(include<fstream>)读写文件; stringstream(include<sstream>)用于读写内存string,  streambuf 字符处理；
+       a)流操作符： os<< , is>>, getline(is, ) 对IO类都适用, 因为 fstream/stringstream 是 iostream的派生类;
+      a)IO对象不能拷贝和赋值，也就是说IO对象作为函数参数和返回值时不能传值，只能定义为引用，且不能是const引用;
+       b)IO流一旦发生错误，后续的IO操作都会失败，所以代码应该先检查流的状态再使用：if(cin>>input); or while(cin>>input); 对于fstream/stringstream也需要检查状态后再使用，good()/fail()函数可以检查状态；
+      c)每个输出流都对应一块缓冲区，刷新1次： cout <<"hi" << flush;      每次都刷新：cout<<unitbuf;          恢复： cout<< nounitbuf;
+      d)如果程序崩溃，输出缓冲区不会被刷新，导致的现象是代码明明已经执行了，但没有log轨迹，在Debug时尤其注意；
+     e)标准库将cin/cout 关联在一起，使得获取输入数据前会强制刷新输出流，所以交互式输入时能看到用户输入的信息；
+     f)cin/cout/cerr: IO stream object within std;
+     g)stream_size(istream);//return -1 if empty;
+     h)istream.read(char* p, len); //stream --->p;
+     i)istream.unget() ; 把字符放回输入流istream; 对于ostream,没有这样的功能；
+     i)IO库为char*定义了一个特化版本<<, 所以ostream<<ptr_char会输出一个字符串（空字符结束）而非指针值；
+
+31)File and File stream: ifstream, ofstream, fstream
+   a) FILE* fin =  fopen(filename, mode); fgets(line, 200, fin); fprintf(fin, "%s", var); fclose(fin); FILE*是C语言里面的文件流；
+   b) fstream fs(filename);  等效于  fstream fs; fs.open(filename); 
+   c)当一个fstream 对象析构时，close()会被自动调用；
+   d) fstream fs(filename); while(getline(fs, line)){}
+   e) open file list : int main(int argc, char* argv[])
+        for(auto p=argv+1; p != argv+argc; p++) {fstream fs(*p);}
+   f)readfile: fstream >>str; writefile: fstream << str; 空格分隔？？
+
+32）stringstream: istringstream, ostringstream, stringstream:  只能和string对象互操作，功能：用于字符串连接和拆分；
+     a) sstream  obj(string);    ====   sstream obj; obj.str(string); //copy string to stream;
+     b)cout << sstream.str();  //print string stream; can't use: cout <<sstream;
+     c)sstream linestream(linestring); while(linestream >>wordstring);// split strings within a line. 字符串拆分
+     d)  std::stringstream <<str1<<":"<<str2<<":"; 字符串拼接
+     e)std::getline(ifsteam,linestring);
+
+33.pair 类型：pair<T1,T2> p(first, second); p= {v1,  v2};   成员first/second是public的。其实就是个2元素的struct;
+     make_pair(v1, v2);其中v1/v2是构造T1/T2入参;
+    tuple<T1,T2,..., Tn>t：元素个数和类型都可变，是pair的扩展；
+    pair的比较operator<：先比较first, 再比较second:标准库定义    { return lhs.first<rhs.first || (!(rhs.first<lhs.first) && lhs.second<rhs.second);
+
+34.bitset<N>b; 定义Nbit 二进制变量,初始化=0; //include<bitset>
+    bitset[i] = 1;
+    count(): 1的个数 
+    size() - count() : 0的个数
+    reset, flip,
+   std::bitset<16> foo;
+  std::bitset<16> bar (0xffa2);
+  std::bitset<16> baz (std::string("0101111001"));
+  
+
+35.位域bit-field: 在内存中的存储取决于机器，不可移植，位域的类型必须是整形或枚举；
+    eg: int mode : 3; //最高1bit是符号位，低2bit才是值；要特别注意，不要越界了；
+
+35.枚举enum: 元素都是整形常量， 新的C++支持2种定义, 作用域不同，使用方式不同
+     enum class colorr {red=0, green, yellow }; // colorr c = colorr::red; 
+     enum color {red=0, green, yellow}; //color c = red; color c = color::red;  全局作用域
+     enum dolor {red=0, green, yellow}; //error, multiple definition of red..,already defined in color.
+     enum class folor {red=0, green, yellow};//ok , no conflict.
+
+34.算法Algorithm:  include<algorithm>
+     a)auto result = find(vec.cbegin(), vec.cend(), val);
+     b)auto result = find(begin(array), end(arry), val); 
+     c)迭代器使得泛型算法不依赖于容器，但算法对每个对象的操作依赖于对象类型；
+     d)任何算法都不改变容器的大小，如果要插入元素，必须使用特殊的迭代器(inserter)，插入操作由迭代器完成，对算法是透明的；
+     e) for_each(begin, end, funcObj); //funcObj(elementType);
+     stable_sort(begin, end, lambda); sort(); //默认情况下sort使用operator<进行升序排列
+     f)Algoritm一般结合标准库中的函数对象使用，函数对象作为入参，eg: sort(b, e, greater<Type>());执行降序排列；
+     g)选择算法时要考虑该算法适用于哪些容器，比如sort,stable_sort,partial_sort 只能用于连续内存的容器；
+    
+     
+35.可调用对象： 1)C function / function ptr ; 2) class with operator() 函数对象;  3)lambda expression;  4)boost::bind()创建的对象;
+            5)std::function<T>,可拷贝，可用容器保存, 可判断非空if(functionObj), bind(&mem_fn, shared_ptr_obj);
+    这几种类型都不同，不能直接存储在一起，但是可以用标准库的function类统一封装，因为function<>只关注调用形式(返回值+参数)；
+    标准库定义的函数对象: less<>;greater<>;less_equal<>;equal_to<>;logical_and<>; 
+    举例：用function封装不同的调用对象：
+     map<string, function<int (int, int)>> binaryOps = 
+{
+ {"+", funcPtr},//如果函数重载过的话，不能直接用函数名，可以间接用函数指针；
+ {"-", funcObj()},
+ {"*", [](int i, int j){return i*j;} },
+ {"/", bindObj}
+}
+36.bind(10.3.4):函数适配器, 可以调整函数的个数和顺序，如果要保持参数的引用，用std::ref(), 因为bind会把参数拷贝到生成的function对象中；
+     参数占位符(_n): using namespace std::placeholders;    include<functional>
+     auto newCallable = bind(callable, args); args中有实参和形参，形参用_n, newCallable的参数个数等于args中占位符的个数，可支持嵌套使用bind;
+     callable 可以是C函数，static函数，C++成员函数, bind()返回值；
+       如果callable是成员函数，args中第1个参数必须是对象实例或raw/shared_ptr指针,可以是实参或形参_n;
+    eg: auto newCallable = bind(callable,&obj, 5,_2,10,_1); ==> newCallable(7, 8); ===> obj.callable(5, 8, 10, 7);
+         auto nestcallable = bind(newCallable, 6,7)  ===>nestcallable(); ===>callable(5,7,10,6); 嵌套bind可以使得参数个数减少。
+
+36.Lambda : auto f = [tmp](Type param){return param > tmp;};  //[tmp] 是所在函数的局部non-static变量；可以捕获引用；
+     实质是定义一个类并创建实例，这个实例就是函数对象；
+     Lambda函数可以至少使用2种信息： (入参) + [捕获列表]；     类的成员函数可以至少使用2种信息：入参 + 成员数据； 所以[捕获列表]其实就是构造函数的入参；
+    捕获列表可以是父函数的局部变量和入参，当以引用方式捕获变量时，必须保证在lamda执行时变量是存在的；
+    当函数体只有1条return语句时，可以不需要写返回类型，否则需要使用->尾置返回类型;
+建议：尽量让捕获的变量简单，避免捕获指针/引用；
+      find_if(vec.begin(), vec.end(),   [tmp](const int& element){return element > tmp;} );
+
+
+37.虚析构函数：a)一个对象指针的类型有2种：静态类型(定义时)和动态类型（赋值时，真实所指对象），编译器先根据静态类型确定调用函数，如果是virtual的，再根据动态类型延迟绑定；
+      b)一个对象，引用或指针的静态类型决定了能访问哪些成员，跟动态类型无关；
+      b)virtual关键字会强制被继承，只要基类的析构函数是virtual的，那么派生类的析构都是virtual的，不论是否显示声明，这样就可以确保正确析构，默认的析构函数不是virtual的；
+
+
+38.代码复用的方法：1）模板；2）继承；3）组合；4）宏#define定义代码段
+     一个比较好的设计： class<T>: public interface,  外部只看到interface, 看不到模板，而模板可以复用代码；  
+
+39.模板: 记住一点：模板的实例化是在编译期，参数不同，得到的是独立的类。模板的本质是一套宏指令；
+     a)模板参数分为2种：类型参数(typename/class), 非类型参数(bool/size_t)，typename特化一般用函数类型或者自定义类，后者特化必须用常量表达式(比如数组大小)；模板参数可用于定义函数入参，返回值，局部变量，成员变量，基类继承；
+eg: template <typename T>class derived: public T
+eg: template<size_t M,size_t N> int compare(const char(&)[M], const char(&)[N] ); // 调用: compare("good", "bad");
+模板参数可以设置缺省值，实例化时可以不用再传参数：
+eg: template<typename KEYCOMPARE = decltype(compareKey)*> class RedBlackBST{};  RedBlackBST<> tree;
+       类型参数可以是自定义class, function;
+    b)只有模板被特化时才会被编译到，否则不参与编译，所以模板类的所有函数实现(无论是否依赖模板参数)一般放在头文件(在类体外加上Inline),如果事先知道特化的所有实参，
+     更好的做法是：在cpp中实现函数，然后在cpp文件末尾对类进行特化，然后在用户代码进行extern template声明即可；
+    不能直接在cpp文件实现，否则cpp中的函数不参与编译，会出现链接错误，找不到函数定义; 
+        template <typename T>
+        inline void  Bob<T>:: func(const T&);
+  c)函数模板可以根据实参推断模板参数，而类模板必须显式传递模板实参，优先使用函数模板，其次考虑类模板，函数的返回类型如果是模板，必须显示实例化，
+     当弄不清该选择哪个候选版本时，就用显示实例化的方式。
+  o)模板函数 实参推断：1)把数组实参传递给模板函数时，如果函数形参是引用类型，则不会转为指针，还是数组类型，如果参数是值类型，会自动转换为指针；
+        2)把string实参传递给const string形参是可以的；3）把const string实参以value的形式传递给string形参也是可以的，这时相当于拷贝了一个副本出去;
+        4)f(T&), 用f(const string)实例化得到的T是const string; 用f("god")实例化会错误，因为常量是右值，而f只能接受左值；
+        5)f(const T&)可以传递任何类型的实参，包括：左值，右值，指针；如果实参是指针，那形参就表示对指针的引用；
+          
+40.万能模板函数定义,可以接收任意类型的实参（左值，右值） ，参考16.2.5节；引用折叠:
+        6)template<typename T>void f3(T &&); 尽管参数是右值引用，但因为是模板函数，可以通过"引用折叠"接收左值实参: 
+    7).
+    template <typename T1,typename T2, typename T3> 返回类型T1应该作为第1个参数,因为从左到右实例化；
+    T1 sum(T2, T3); 
+    auto r= sum<long>(2,3); //T1必须显示告知，T2,T3可以推断出来;
+   int (*pf)(int, int) = sum;//模板函数可以赋值给函数指针，因为根据函数指针的类型，编译器可以推断出sum的模板参数；
+   d)一个类模板的每个实例都是独立的类，static数据成员也是独立的, 类模板的static数据成员的初始化建议在头文件中，如果要放在cpp文件，那最好在cpp文件完成所有用户类型的特化；
+   e)定义全特化类: template<> struct hash<int>{...}: 成员函数可以重新实现，只要接口保持不变；template<>表示这是个从模板类定制的类；
+
+   f)模板函数的实例化与定制化是不同的：
+     template int compare(int&, int&);//实例化模板函数，复用模板函数实现 ，注意template后面不需要<>;
+     template<> int compare(int&, int&){} //定制化模板函数， 重新实现函数体，和原模板函数定义完全不同，只是接口相同，比如stl内部就对<<charPtr做了定制化；
+     template <>  future<void>; //template <class T>  future; T = void
+     一旦用户提供了定制化的模板函数，那编译器就不会再为这个int类型做实例化了，而是使用用户的版本。
+     定制化的作用类似于用户提供一个非模板函数，区别在哪？
+    最佳实践：模板函数及其定制化版本应该放在同一个头文件中，且模板声明在前，定制化版本在后，如果不这样，会导致难以察觉的错误且编译器不报错。
+
+   g)显示实例化(16.1.5)：注意template后面没有<>
+     extern template class Bob<int>; //声明，可以避免重复实例化，在嵌入式系统中可以节省代码空间；
+     template void class::func<int>(); //实例化函数，其他地方不必再定义了，好处是可以更早发现问题；
+     template class Bob<int>;实例化模板类，会实例化所有成员；
+    h)模板类与模板函数: 普通类可以包含模板函数，普通成员函数可以使用模板类的参数;
+       模板函数要优于模板类，因为前者可以隐式推断参数类型，写程序时尽量用前者；
+       如果派生类的this指针传给基类的模板函数，则可以在基类中访问派生类函数，这个函数不需要在基类中声明定义,eg:template<typename T>func(T t){t->func2()}; 在派生类调用: func(this);
+
+    i)模板基类，要注意不同参数实例化得到的是独立的类，不是common基类；
+      模板类里的成员函数(不自带模板参数)可以是虚函数，嵌套类可以直接使用外层类的模板参数；
+      模板派生类：比如classA<T>:public interface, 从模板实例化得到的任何一个类都是interface 的派生类,这个设计对代码复用很有帮助，同时对外不可见；
+         eg: classB:public classA<T1>, classC:public classA<T2> 这时classB/C没有共同的基类;
+         eg: classB:public classA<T3>, classC:public classA<T3> 这时classB/C 有共同的基类;
+         eg: classA<T>:public interface;  classB:public classA<T1>, classC:public classA<T2> 这时classB/C有共同的基类interface.
+
+    j)模板类的成员函数实现时，从class<T>::之后的部分认为是在类作用域内，不用加<>修饰了:
+   template<typename T>
+   template<typename Arg> 类模板参数在前，然后是成员自带的模板参数
+   int class<T>::fun(Arg a)
+     {
+       //这里开始可以不需要再用<>修饰了；
+     }
+
+   k)模板类的成员函数有2种：普通函数（可以是虚函数），成员模板（自带模板参数，不能是虚函数），在模板类外实现成员模板时，必须同时声明模板类和成员模板各自的参数，
+       模板类的成员模板实例化：对象类型+函数实参；
+   m)构造函数也可以是模板函数，比如STL容器的区间构造函数；
+   m)模板函数可以声明为Static函数；
+   n)模板参数默认值：可以为模板函数和模板类提供默认参数，比如容器的定义；
+   L)模板类的友元声明： template<typename KEYCOMPARE> friend class RedBlackBST;
+  
+ 
+40).smart pointer:  include<memory>  都是用来管理动态内存的，都是explicit构造；都支持无参构造，相当于NULL指针；
+   a)shared_ptr<T>: obj = std::make_shared<T>(args); 共享数据，避免拷贝，提升性能，不用关心内存泄露，share_ptr类的析构函数会递减count,如果count=0则调用T的析构函数~T();
+    b)shared_ptr<T> obj(nullptr); if(obj == nullptr) //return true; 等价于: shared_ptr<T> obj; if(!obj) ;
+      make_shared<T>(args) 动态分配heap内存来创建T实例，args是T构造函数入参；推荐使用make_shared，不使用new;而且必须要在一条语句中创建资源并委托给shared_ptr对象管理；
+     shared_ptr<T> obj(new T()); //只支持explicit 构造; 不支持隐式转换obj=rawptr;
+     shared_ptr<T>obj(&T, deletefun);//void deletefun(T*);//在T没有定义析构函数时，这种做法如果用在函数内，可以安全的释放资源（调用deletefun），即使函数内抛出异常,也就是说share_ptr可以给一个类定制非成员的析构函数；
+     shared_ptr<Base> obj(new Derived()); 
+     shared_ptr<T> obj(unique_ptr);
+     shared_ptr<T> p(nullptr); p.reset(rawptr, deleter); //use deleter() to deconstructor obj;如果shareptr初始化为空，则需要用reset()重新初始化；
+    if(!p.unique()) {p.reset(new T(*p));} //copy-on-write,alloc new memory;
+  如果将shared_ptr保存在容器中，记得用erase()删除那些用不到的元素；
+  使用shared_ptr后就不要用其它方式管理内存（比如raw pointer, raw object），否则会导致内存问题；
+在函数内定义一个临时的  shared_ptr对象，可以安全的使用动态内存，因为离开函数时会自动释放资源(无论是否抛出异常)；
+  陷阱12.1.4： 1)不使用相同的rawptr初始化(或reset)多个smart pointer, 因为reset()会设置计数=1，认为只有1个shareptr关联obj.
+ 2)慎用get()返回的指针,不要delete它, 不使用get()结果初始化或reset另一个智能指针, 如果最后一个shareptr对象销毁后，get()返回的结果就无效了；
+3）如果使用智能指针管理的资源不是new分配的内存，一定要传递deletefunc;
+4)如果有2个shareptr管理同一个object, 其中1个调用reset()，并不会析构对象，只会递减refcount; eg: shared_ptrA=shared_ptrB; shared_ptrA.reset();
+
+b) unique_ptr<T> 表12.4: 只有1个owner,可以方便的用于多线程环境保证对象不会跨线程， A=std::move(B),则B无效了; A是owner，A原来的对象立马析构了；不支持拷贝/赋值,但支持移动拷贝/赋值；
+    auto_ptr已经被unique_ptr取代了,绝对不要再使用；
+    u = nullptr; 销毁资源,
+    rawptr = u.release();  放弃控制权, 将u置空； 
+    rawptr = u.get();//仍然控制对象
+    u.reset(rawptr); 管理rawptr所指对象
+
+
+c)weak_ptr<T>:弱引用，不改变计数，lock()提升为shared_ptr,如果对象消失提升失败；
+  weak_ptr<T> w(shared_ptr); w = shared_ptr;  
+  if(shared_ptr sp = w.lock()); //null if expired();
+  w.expired();//return true if w.use_count() ==0
+d)scoped_ptr<T>:  在C++11中已经被unique_ptr取代了,因为unique_ptr支持移动赋值;
+e)只使用智能指针，不使用raw pointer,就可以避免内存泄露，重复释放，野指针等问题；
+f)绝对不要混合使用raw pointer and smart pointer，极其容易导致内存问题；禁止使用get()函数来获取raw pointer;
+g)owner/child: shared_ptr+weak_ptr  to avoid cycle reference;
+
+41).placement new:  int* p= new (nothrow) int; //return NULL if allocate memory fail,instead of throw();
+     delete ptr;//ptr must pointer to newed obj or null;
+
+42)异常: 会一直向上层传递，直到被catch, 如果没有得到处理会终止进程(terminate);
+异常是线程级别的;线程1抛出的异常只能被线程1捕获,对于异步调用，一般是通过注册回调来处理异常；
+try{
+}
+catch( ... )  捕获所有异常
+{
+  //do something
+  throw; 无法处理的异常可以重新抛出
+}
+
+43).动态数组(尽量使用STL容器vector/string, 不要使用动态数组):
+     int size = getArraySize();
+     int *p = new int[size]; //size 只要是整型就可以(size>=0)，可以不是常量，因为这是在runtime时用到的；注意：返回类型是元素指针，不是数组类型；
+     delete[] p; //释放内存，如果调用 delete p; 会内存泄露；
+     for(int* q = p; q != p+size; q++)
+    用unique_ptr管理动态数组： unique_ptr<int []> ptr ( new int[10]) ; ptr[i ] = i; ptr.release() ; //= delete[] 需要手动调用release()，其实也不太方便；
+    用shared_ptr管理动态数组不太方便；
+
+44). std::allocator: 内存分配与对象构造分离(类似placement new)：STL容器都是用这个来实现内存管理的，可以提升性能；
+       allocator<T> a; d
+
+       T* p = a.allocate(n); //分配原始的，未构造对象的内存
+       a.constructor(p, args); //类似placement new： new (p) T(args); 构造函数
+       a.destroy(p); //p->~T() 析构函数
+       a.deallocate(p, n);//free memory
+
+45)重载++, 只能是Ptr的成员函数，不能是友元: refer to: http://www.cyber-dojo.org/kata/edit/FC6EDD4E37?avatar=koala  
+   Ptr& operator++(); // ++ptr; 注意,支持++ptr并不表示支持ptr+1, 因为重载的函数不同。
+   Ptr   operator++(int); // ptr++; 这里的参数int是为了区分重载(因为返回类型不能区分)，编译器会自动传入0;
+
+45).将成员函数 转换 回调函数/函数对象(19.4.3)：3种C++11方式,  第4种方式就是使用多态；
+函数对象：包含了一个函数指针pFun，重载了operator()(T&),  operator()(T*), 既能接收T对象，又能接收对象指针T*;
+在使用函数对象时，第1个实参必须是一个T/T*,用来调用成员函数， bind/mem_fn 比 function 更灵活；
+
+     a) function<T>:  必须显示的特化模板参数
+    function<bool (const string&)> f1 = &string::empty;  f1(string) => (string.*pFun)();
+    function<bool (const string*)> f2 = &string::empty;  f2(ptrString) =>  (ptrString->*pFun)();
+
+    b)mem_fn: 
+     auto f3 = mem_fn(&string::empty); f3(string); f3(string*);
+   
+   c)std::bind:   //bind1st,bind2nd deprecated in C++11
+      auto f4 = std::bind(&string::empty, _1);  f4(string); f4(string*);
+      如果原函数的参数是引用，且引用要保持，必须用ref()，否则只是拷贝参数的副本；
+    
+比较： mem_fn/bind 得到的funObj能接收T || T*,很灵活，  而funcion得到的funObj只能接收T或T*的一种;
+   在STL算法中使用：
+vector<string>vec;     vector<string*>pvec;
+find_if(vec.begin(), vec.end(), f1);//function生成的函数对象只能接受T 或者 T*，取决于模板参数
+find_if(pvec.begin(), pvec.end(), f2);
+find_if(vec.begin(), vec.end(), f3);//mem_fn生成的函数对象可以接受T和T*
+find_if(pvec.begin(), pvec.end(), f3);
+find_if(vec.begin(), vec.end(), f4);//bind生成的函数对象可以接受T和T*
+find_if(pvec.begin(), pvec.end(), f4);
+
+46).插入迭代器：<iterator>
+*iter = element; 赋值的真正含义是插入元素; 
+++iter 虽然合法，但不做任何事情，是为了兼容习惯用法。
+front_insert(c); //新元素变成头元素，结果是逆序
+back_insert(c); //在容器的末尾插入，结果是顺序
+auto iterator = inserter(c, iter); *iterator = element; //结果是顺序，新元素插入在iter前面， 赋值表达式的返回结果：还是指向iter.
+auto it = c.insert(iter,element ) //成员函数，在iter前面插入，返回新元素位置。
+stream_iterator,流迭代器也是插入迭代器的一种；
+
+47)流迭代器（10.4）：虽然流对象不是容器，但是标准库提供了迭代器来操作流对象，可以把流对象看做一个容器；
+容器区间表示  [  istream_iterator<int>(fstream),  istream_iterator<int>() )
+将流当做一个元素序列来读写，流迭代器使得泛型算法也可以处理流对象;
+istream_iterator<T> iter(stream), 从流里面读取数据用来构造T对象，必须要支持operator>>(is,T);
+在处理字符时istreambuf_iterator 比 istream_iterator 更高效，前者会把空格读入；
+eg:
+ifstream in("stringFile"); 
+istream_iterator<string> it(in); 
+istream_iterator<string> eof;//不关联流对象时，可以当做end()使用，非常重要；
+while(it != eof) //遇到文件结束或者IO错误时it==eof;
+{
+  vec.push_back(*it++);
+}
+或者更简洁一点:  vector<string> vec(it, eof); 读取文件中的string到vector,每个string以空格分隔；
+
+
+
+
+48）重载输出(operator<<) 输入( operator>> ) 只能是非成员函数，否则编译不过；
+ostream&  operator<<(ostream & os, const T& )  自定义输出运算符时不应该打印换行符
+istream&  operator>>(istream & is,  T& data) 输入运输符必须处理输入数据异常的情况，应该标示istream错误状态（failbit,eofbit,badbit);
+
+48)算术和关系运算符：通常定义为非成员函数（一般是友元函数）
+T operator+ (const T& lhs, const T& rhs) 返回值对象（右值）
+bool operator== (const T& lhs, const T& rhs) 一般是2个对象的所有字段都相同，才返回true;
+bool operator!= (const T& lhs, const T& rhs){return !(lhs==rhs);}
+bool operator< (const T& lhs, const T& rhs) 如果对象要用于关联容器，就必须定义operator< ，不用定义operator==,  这时只关心key字段，并不关心其它字段，这时就要区分等价与等值的概念:等值是利用operator==,  而等价是利用: !(a<b) && !(b<a) ; 两个对象等价（只是key相同）并不代表等值；
+   注意：  应该用等价运算符operator< 来排序，不是等值运算符operator==;
+
+48)赋值运算符：通常定义为成员函数, 复合赋值与赋值需要同时定义；
+T& operator+= (const T& rhs); //+=性能好于=, self+= self;  is ok, even if rhs is const&.
+T& operator= (const T& rhs);
+
+48)下标运算符：必须定义为成员函数, 且定义2个版本，返回普通引用和常量引用
+T& operator[](size_t);
+const T& operator[](size_t) const;
+
+48)指针运算符，对于类似shared_ptr,  Iterator的类才需要重载这2个运算符
+T& operator*(); //解引用
+T* operator->(){return &(this->operator*()); }
+usage: shared_ptr<vector> obj; obj->size(); (*obj).size();
+           shared_ptr<vector>* obj;  (*obj)->size(); (*(*obj)).size();
+
+49）Operator类型转换运算符(必须是成员函数)：无返回值，无参数，const，最好加上explicit, 函数体有return语句；
+实际中转换为bool比较常见，其它的尽量少用，很容易出问题；
+a)operator type() const;  把本类转换为type,  eg: explicit operator bool() const{return xx;}; 有explicit, 要static_cast ，但是在条件表达式中可以隐式转换;
+   explicit operator size_t() const;//如果类用于hash的key，可以定义这个成员函数
+   explicit operator const T&() const { return *p; } //产品中的例子
+     explicit operator T&() { return *p; }
+
+b)单参数构造函数：也是一种类型转换,把输入转换为本类
+c)B类==>A类的2种方法：1)class A{explicit  A(const B&);}   2)class B{explicit operator A() const;};
+
+50)operator new/delete(19.1.1) 
+  g)一般来说，重载的目的就是为了 将内存分配与构造分离，C++11引入了allocator类可以更好的做到这点；
+  z)编译器查找operator new的顺序是:  类及基类作用域中---->用户空间---->标准库;
+  a)要重载的话一般是作为类的成员函数(隐式static)，只影响该类的创建，销毁，不要在全局作用域中重载;
+  b)重载的原型和库函数的一致，但不会导致重定义，编译器故意的；
+  c)重载的operator new 只是替换了第1步(malloc)，后面2步(构造初始化，返回地址)编译器还是会自动做的;
+  d)重载的operator delete 只是替换了free这步，编译器在调用operator delete 之前还是会自动调用析构函数的；
+      重载只是改变了内存分配和释放，构造/析构还是会被编译器自动调用的;
+      new 抛出异常一般也是内存分配失败，如果重载了new，就可以避免抛出异常了；
+  e)库函数中的operator delete()不会抛出异常，operator new()有2个版本,一个带noexcept, 一个不带,如果抛异常不捕获会终止进程，如果不抛异常，当内存分配失败时返回nullptr?
+  f)void* operator new[] (size_t)  重载new数组, size_t 是所有元素的总大小，编译器会调用sizeof()自动计算的;
+  h)C++标准库的2个版本:
+          void * operator new(size_t); //normal new
+          void * operator new(size_t, void *here) { return here; } //placement new
+
+51)动态绑定：动态绑定只用于虚函数，且通过“基类引用或指针” 调用（根据实参来决定运行时的函数）；
+    静态绑定： 调用non-virtual函数，或者直接通过 对象 或作用域限定 来 调用函数(无论是否虚函数),eg: pObj->non_virtual_fun(); obj.fun(); classBase::fun();
+    静态类型： 编译器能看到的，比如"形参"类型，定义变量时的类型，决定了能访问的接口；
+    动态类型： 真实所指对象的类型，就是"实参"类型，决定了具体的函数；
+    静态类型决定了广度，动态类型决定了深度。
+    每个对象的内存布局中都有一个指针，指向了一个虚函数表（这个表是类级别的）；
+    static成员： 在整个进程只有1份，无论有多少个派生类，无论有多个个线程，都是共享的；如果是模板类里面的static成员，则每个特化的类的static是独立的；
+
+52）虚函数： 1）如果类要定义对象，该类或者它的基类必须为每个=0的虚函数提供定义，不论实际是否被用到了；非虚函数如果没用到是不用提供定义的；
+     2） override:  如果派生类要覆盖基类虚函数实现，函数原型（包括返回类型）必须一致，如果派生类的函数声明了override,但是基类没有原型相同的函数，编译器会报错，提示这不是覆盖，而是重载（如果真的要重载，就不要加override），这个关键字主要用来防止程序员犯错的；override 只能作用于虚函数；
+        无论是否加override,如果原型一致，派生类自动覆盖基类的实现，virtual 在基类声明后，派生类不用再声明了；
+     3) final: 虚函数不允许派生类覆盖；override 和 final 可以同时使用；
+     4) 默认实参： 建议：虚函数不带默认参数，否则就是坑；
+    5)通过作用域可以指定调用某个类的虚函数，这是在编译期确定的，属于静态绑定，如果不通过作用域限定，会导致递归；
+    6)派生类的同名函数会隐藏基类的同名函数（尽管参数不同），编程建议：如果要重写虚函数，那就保持一模一样并加上override关键字，如果要重载那就取不同的函数名字；
+    7)成员函数如果自带模板参数，那不能作为虚函数；模板类里的成员函数（如果不自带模板参数）可以是虚函数；
+
+53)继承与访问控制：public 继承接口， private 继承实现
+    private继承： 派生类的用户不能访问基类成员，但不影响派生类本身对基类的访问权限，
+    使用private继承后，可以在派生类中使用using声明来改变基类中的成员对用户的可见性；
+
+
+54)文本查询程序：值得反复学习
+12.3节和15.9节的文本查询程序非常值得看，12.3综合了fstream/stringstream/vector/map/set/shared_ptr; 
+15.9综合了：接口类(只约定接口，其它函数不受约束)，对象组合(objA+objB => objC: 引入中间类)，包装类（Query对用户隐藏继承体系,是个行为代理类），相互依赖的构建(Query/AndQuery :存成员指针+成员对象)，工具类(TextQuery)，友元类，操作符重载，构造函数重载，shared_ptr, 3个类的关系(Query,Query_base,TextQuery)比较复杂，设计模式接近于composite模式，理解这个设计有助于理解OOP中类的设计思路；
+
+55).运算符优先级表格：4.12节，
+    这张表中，按组划分，同一组内优先级相同，表的前面部分 比 后面部分的优先级高；
+    比较运算符(< != ==)的优先级高于逻辑运算符(&&, ||)
+    逻辑&& 的优先级高于 || ，  学会利用&& 和  || 的 逻辑短路技巧来简化代码；
+   a ? b : c ? d :e   等价于: a ? b : (c ? d : e) 满足右结合律；
+
+
+56).使用异常exception的好处：
+  a)可以把error handle code从函数中抽离，使得函数主线清晰,而且也很容易判断执行到哪一行出错的，因为一旦抛异常，不会执行后面的代码;
+  b)可以在函数中选择只处理某些exception,  其它的交给caller 处理;
+  c)异常可以由function call stack 中的任一函数处理, 因为异常会一直向上传递直到被捕获或者进程终止;
+try {
+  throw 'a';
+}
+catch (int param) { cout << "int exception"; } 不会执行这行，不做隐式转换
+catch (char param) { cout << "char exception"; } 只执行这行
+catch (...) { cout << "default exception"; } 不会执行这行，因为前面已经catch成功了

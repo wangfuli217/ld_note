@@ -1,0 +1,179 @@
+protocol(协议结构){
+crosstool\cheatsheet\ops_doc-master\Service\libevent\libevent-bench\bench-protocol.txt
+header:
+    ev_uint32_t type;              // message type                                                                 
+    ev_uint32_t length;            // message length                                                                 
+    ev_uint32_t origin_id;         // origin id                                                                 
+    ev_uint32_t destination_id;    // destination id                                                                 
+message payload:
+    bytes equal to the message length
+
+2.1 Greeting Request     MSG_GREETING_REQ  conn_finish_setup(conn);
+2.2 Greeting Response    MSG_GREETING_RSP
+2.3 Peer Notice
+2.4 File List Request    MSG_FILE_LIST_REQ conn_update_write_stats(conn);
+2.5 File List Response
+2.6 Send File            MSG_SEND_FILE     conn_send_file(conn);
+2.7 File Contents
+2.8 Chat                MSG_SEND_CHAT      conn_relay_chat(conn);
+2.9 Echo Request        MSG_ECHO_REQ       conn_relay_chat(conn);
+2.10 Echo Response      MSG_ECHO_RSP       conn_relay_chat(conn);
+3. Properties
+
+conn_send_error(conn, "server received invalid message");
+}
+
+
+protocol(序列化){
+1. 整数出队
+ev_uint32_t pop_uint32(struct evbuffer *buf)
+            evbuffer_remove(buf, &n, sizeof(n)); + ntohl
+2. 整数入队
+push_uint32(struct evbuffer *buf, ev_uint32_t n) 
+            htonl + evbuffer_add(buf, &n, sizeof(n));
+3. 字符串出队
+char *pop_string(struct evbuffer *buf, ev_ssize_t n) 
+            len = evbuffer_get_length(buf); + evbuffer_remove(buf, str, len); 
+}
+
+protocol(解析协议){
+
+conn_read_cb 读取解析函数
+while (evbuffer_get_length(conn->inbuf) && # 输入缓冲区有数据
+       !conn_read_message(conn))           # 读取输入缓冲区数据
+       ;
+
+int message_read(struct message *msg, struct evbuffer *buf)             解析协议
+返回值： MSGST_CONT  继续读取
+         MSGST_OK    读取成功
+         MSGST_FAIL  读取失败
+
+
+int message_parse_header(struct message *msg, struct evbuffer *buf) 解析协议头
+1. 协议头(将input缓冲区长度作为期望长度)        用input输入缓冲区长度来判断
+if (evbuffer_get_length(buf) < 16) 
+    return MSGST_CONT;
+    
+int message_read_payload(struct message *msg, struct evbuffer *buf) 解析协议体
+2. 协议体(通过length_remaining递减作为期望长度) 用外在evbuffer缓冲区长度来判断
+amt = evbuffer_remove_buffer(buf, msg->payload, msg->length_remaining);
+assert(amt <= msg->length_remaining); 
+msg->length_remaining -= amt;
+if (msg->length_remaining) 
+    return MSGST_CONT;
+}
+
+protocol(执行流程){
+conn ->MSG_GREETING_REQ -> server
+conn <-MSG_GREETING_RSP <- server
+conn之间相互介绍
+connx <-MSG_PEER_NOTICE  <- server
+connx <-...         ...  <- server
+connx <-MSG_PEER_NOTICE  <- server
+
+
+}
+
+message(消息管理){
+message_new            # 新建message
+message_reset          # 将message重置到新建状态
+message_destroy        # 释放message
+
+message_read            # 读取message头和有效载体
+message_read_payload    # 读取message有效载体
+message_parse_header    # 解析message头 返回值(MSGST_CONT|MSGST_FAIL|MSGST_OK)
+message_parse_payload   # 解析message有效数据 返回值(MSGST_CONT|MSGST_FAIL|MSGST_OK)
+
+size_t message_encode_buf           # 将message头和有效载体封装到outbuf中
+size_t message_encode               # 将message封装到outbuf中
+size_t message_encode_greeting_rsp  # 封装Greeting Response消息
+size_t message_encode_peer_notice   # 封装Peer Notice消息
+size_t message_encode_file_list_req # 封装File List Request消息
+size_t message_encode_file_list_rsp # 封装File List Response消息
+size_t message_encode_send_chat     # 封装Chat消息
+size_t message_encode_echo_req      # 封装Echo Request消息
+size_t message_encode_echo_rsp      # 封装Echo Response消息
+size_t message_encode_send_file     # 封装Send File消息
+size_t message_encode_file_contents # 封装File Contents消息
+size_t message_encode_ok            # 封装OK消息
+size_t message_encode_error         # 封装Error消息
+
+struct evbuffer *  message_get_payload                 # message有效载体
+size_t message_get_total_length                        # message全长
+ev_uint32_t message_get_type                           # message类型
+size_t message_get_length                              # message有效载体长度
+ev_uint32_t message_get_origin                         # message的origin
+ev_uint32_t message_get_destination                    # message的destination
+const char *message_payload_get_error_msg              # message中包含的error消息
+const char *message_payload_get_file_name              # message中包含的filename
+struct property_list *message_payload_get_properties   # message中的property属性
+struct file_list *message_payload_get_files            # message中的file_list属性
+}
+
+property(协议属性){
+int message_parse_payload # 解析message有效数据 返回值(MSGST_CONT|MSGST_FAIL|MSGST_OK)
+# key-value形式property
+int property_list_parse   # 解析payload中的property，不同类型message使用不同property链表关联
+int property_list_add     # 解析paylaod中的property，添加到property链表中
+# 行形式property
+int file_list_parse       # 解析payload中的property，不同类型message使用不同property链表关联
+int file_list_add         # 解析paylaod中的property，添加到property链表中
+
+void property_list_move   # 将message中的property，转接到conn的properties上
+char *property_list_find  # 从message中查找key对应的value字符串
+int  property_list_find_long # 从message中查找key对应的value数值
+}
+
+stats(){
+conn_update_read_stats   # 已处理读数据统计
+conn_update_write_stats  # 已处理写数据统计
+}
+
+conn(连接管理){
+struct conn *conn_new   # 分配conn对象
+void conn_create        # 创建conn对象
+conn_destroy            # 销毁conn对象
+
+conn_read_message       # 协议处理
+conn_finish_setup       # conn创建结束
+conn_relay_chat         # 转发chat
+conn_send_file          # 发送文件
+conn_send_peer_notice   # 发送notice消息
+conn_send_error         # 错误应答
+
+conn_read_cb            # 读回调
+conn_write_cb           # 写回调
+conn_event_cb           # 事件回调
+}
+
+client(客户端){
+client_event_cb(what & BEV_EVENT_CONNECTED) 发送message_encode_greeting_req消息
+
+client_read_cb 读取解析函数
+while (evbuffer_get_length(conn->inbuf) && # 输入缓冲区有数据
+       !client_read_message(client))           # 读取输入缓冲区数据
+       ;
+       
+rv = message_read(client->inmsg, client->inbuf);               解析协议
+返回值： MSGST_CONT  继续读取
+         MSGST_OK    读取成功
+         MSGST_FAIL  读取失败
+
+
+int message_parse_header(struct message *msg, struct evbuffer *buf) 解析协议头
+1. 协议头(将input缓冲区长度作为期望长度)        用input输入缓冲区长度来判断
+if (evbuffer_get_length(buf) < 16) 
+    return MSGST_CONT;
+    
+int message_read_payload(struct message *msg, struct evbuffer *buf) 解析协议体
+2. 协议体(通过length_remaining递减作为期望长度) 用外在evbuffer缓冲区长度来判断
+amt = evbuffer_remove_buffer(buf, msg->payload, msg->length_remaining);
+assert(amt <= msg->length_remaining); 
+msg->length_remaining -= amt;
+if (msg->length_remaining) 
+    return MSGST_CONT;
+}
+
+openssl(略){
+
+}

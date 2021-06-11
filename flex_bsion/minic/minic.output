@@ -1,0 +1,1242 @@
+Grammar
+
+    0 $accept: program $end
+
+    1 program: declarations
+
+    2 declarations: declaration declarations
+    3             | /* empty */
+
+    4 declaration: fun_declaration
+    5            | var_declaration
+
+    6 @1: /* empty */
+
+    7 $@2: /* empty */
+
+    8 fun_declaration: type NAME @1 LPAR parameters RPAR $@2 block
+
+    9 parameters: more_parameters
+   10           | /* empty */
+
+   11 more_parameters: parameter COMMA more_parameters
+   12                | parameter
+
+   13 parameter: type NAME
+
+   14 $@3: /* empty */
+
+   15 block: LBRACE $@3 var_declarations statements RBRACE
+
+   16 var_declarations: var_declaration var_declarations
+   17                 | /* empty */
+
+   18 var_declaration: type NAME SEMICOLON
+
+   19 type: INT
+   20     | FLOAT
+   21     | type TIMES
+   22     | STRUCT LBRACE fields RBRACE
+
+   23 fields: field fields
+   24       | /* empty */
+
+   25 field: type NAME SEMICOLON
+
+   26 statements: statement SEMICOLON statements
+   27           | /* empty */
+
+   28 statement: IF LPAR exp RPAR statement
+   29          | IF LPAR exp RPAR statement ELSE statement
+   30          | lexp ASSIGN exp
+   31          | RETURN exp
+   32          | block
+
+   33 lexp: var
+   34     | lexp LBRACK exp RBRACK
+   35     | lexp DOT NAME
+
+   36 exp: exp DOT NAME
+   37    | exp LBRACK exp RBRACK
+   38    | exp PLUS exp
+   39    | exp MINUS exp
+   40    | exp TIMES exp
+   41    | exp DIVIDE exp
+   42    | exp EQUAL exp
+   43    | LPAR exp RPAR
+   44    | MINUS exp
+   45    | var
+   46    | NUMBER
+   47    | NAME LPAR RPAR
+   48    | NAME LPAR exps RPAR
+
+   49 exps: exp
+   50     | exp COMMA exps
+
+   51 var: NAME
+
+
+Terminals, with rules where they appear
+
+$end (0) 0
+error (256)
+INT (258) 19
+FLOAT (259) 20
+NAME (260) 8 13 18 25 35 36 47 48 51
+STRUCT (261) 22
+IF (262) 28 29
+ELSE (263) 29
+RETURN (264) 31
+NUMBER (265) 46
+LPAR (266) 8 28 29 43 47 48
+RPAR (267) 8 28 29 43 47 48
+LBRACE (268) 15 22
+RBRACE (269) 15 22
+LBRACK (270) 34 37
+RBRACK (271) 34 37
+ASSIGN (272) 30
+SEMICOLON (273) 18 25 26
+COMMA (274) 11 50
+DOT (275) 35 36
+PLUS (276) 38
+MINUS (277) 39 44
+TIMES (278) 21 40
+DIVIDE (279) 41
+EQUAL (280) 42
+LOW (281)
+UMINUS (282)
+
+
+Nonterminals, with rules where they appear
+
+$accept (28)
+    on left: 0
+program (29)
+    on left: 1, on right: 0
+declarations (30)
+    on left: 2 3, on right: 1 2
+declaration (31)
+    on left: 4 5, on right: 2
+fun_declaration (32)
+    on left: 8, on right: 4
+@1 (33)
+    on left: 6, on right: 8
+$@2 (34)
+    on left: 7, on right: 8
+parameters (35)
+    on left: 9 10, on right: 8
+more_parameters (36)
+    on left: 11 12, on right: 9 11
+parameter (37)
+    on left: 13, on right: 11 12
+block (38)
+    on left: 15, on right: 8 32
+$@3 (39)
+    on left: 14, on right: 15
+var_declarations (40)
+    on left: 16 17, on right: 15 16
+var_declaration (41)
+    on left: 18, on right: 5 16
+type (42)
+    on left: 19 20 21 22, on right: 8 13 18 21 25
+fields (43)
+    on left: 23 24, on right: 22 23
+field (44)
+    on left: 25, on right: 23
+statements (45)
+    on left: 26 27, on right: 15 26
+statement (46)
+    on left: 28 29 30 31 32, on right: 26 28 29
+lexp (47)
+    on left: 33 34 35, on right: 30 34 35
+exp (48)
+    on left: 36 37 38 39 40 41 42 43 44 45 46 47 48, on right: 28 29
+    30 31 34 36 37 38 39 40 41 42 43 44 49 50
+exps (49)
+    on left: 49 50, on right: 48 50
+var (50)
+    on left: 51, on right: 33 45
+
+
+state 0
+
+    0 $accept: . program $end
+
+    INT     shift, and go to state 1
+    FLOAT   shift, and go to state 2
+    STRUCT  shift, and go to state 3
+
+    $default  reduce using rule 3 (declarations)
+
+    program          go to state 4
+    declarations     go to state 5
+    declaration      go to state 6
+    fun_declaration  go to state 7
+    var_declaration  go to state 8
+    type             go to state 9
+
+
+state 1
+
+   19 type: INT .
+
+    $default  reduce using rule 19 (type)
+
+
+state 2
+
+   20 type: FLOAT .
+
+    $default  reduce using rule 20 (type)
+
+
+state 3
+
+   22 type: STRUCT . LBRACE fields RBRACE
+
+    LBRACE  shift, and go to state 10
+
+
+state 4
+
+    0 $accept: program . $end
+
+    $end  shift, and go to state 11
+
+
+state 5
+
+    1 program: declarations .
+
+    $default  reduce using rule 1 (program)
+
+
+state 6
+
+    2 declarations: declaration . declarations
+
+    INT     shift, and go to state 1
+    FLOAT   shift, and go to state 2
+    STRUCT  shift, and go to state 3
+
+    $default  reduce using rule 3 (declarations)
+
+    declarations     go to state 12
+    declaration      go to state 6
+    fun_declaration  go to state 7
+    var_declaration  go to state 8
+    type             go to state 9
+
+
+state 7
+
+    4 declaration: fun_declaration .
+
+    $default  reduce using rule 4 (declaration)
+
+
+state 8
+
+    5 declaration: var_declaration .
+
+    $default  reduce using rule 5 (declaration)
+
+
+state 9
+
+    8 fun_declaration: type . NAME @1 LPAR parameters RPAR $@2 block
+   18 var_declaration: type . NAME SEMICOLON
+   21 type: type . TIMES
+
+    NAME   shift, and go to state 13
+    TIMES  shift, and go to state 14
+
+
+state 10
+
+   22 type: STRUCT LBRACE . fields RBRACE
+
+    INT     shift, and go to state 1
+    FLOAT   shift, and go to state 2
+    STRUCT  shift, and go to state 3
+
+    $default  reduce using rule 24 (fields)
+
+    type    go to state 15
+    fields  go to state 16
+    field   go to state 17
+
+
+state 11
+
+    0 $accept: program $end .
+
+    $default  accept
+
+
+state 12
+
+    2 declarations: declaration declarations .
+
+    $default  reduce using rule 2 (declarations)
+
+
+state 13
+
+    8 fun_declaration: type NAME . @1 LPAR parameters RPAR $@2 block
+   18 var_declaration: type NAME . SEMICOLON
+
+    SEMICOLON  shift, and go to state 18
+
+    $default  reduce using rule 6 (@1)
+
+    @1  go to state 19
+
+
+state 14
+
+   21 type: type TIMES .
+
+    $default  reduce using rule 21 (type)
+
+
+state 15
+
+   21 type: type . TIMES
+   25 field: type . NAME SEMICOLON
+
+    NAME   shift, and go to state 20
+    TIMES  shift, and go to state 14
+
+
+state 16
+
+   22 type: STRUCT LBRACE fields . RBRACE
+
+    RBRACE  shift, and go to state 21
+
+
+state 17
+
+   23 fields: field . fields
+
+    INT     shift, and go to state 1
+    FLOAT   shift, and go to state 2
+    STRUCT  shift, and go to state 3
+
+    $default  reduce using rule 24 (fields)
+
+    type    go to state 15
+    fields  go to state 22
+    field   go to state 17
+
+
+state 18
+
+   18 var_declaration: type NAME SEMICOLON .
+
+    $default  reduce using rule 18 (var_declaration)
+
+
+state 19
+
+    8 fun_declaration: type NAME @1 . LPAR parameters RPAR $@2 block
+
+    LPAR  shift, and go to state 23
+
+
+state 20
+
+   25 field: type NAME . SEMICOLON
+
+    SEMICOLON  shift, and go to state 24
+
+
+state 21
+
+   22 type: STRUCT LBRACE fields RBRACE .
+
+    $default  reduce using rule 22 (type)
+
+
+state 22
+
+   23 fields: field fields .
+
+    $default  reduce using rule 23 (fields)
+
+
+state 23
+
+    8 fun_declaration: type NAME @1 LPAR . parameters RPAR $@2 block
+
+    INT     shift, and go to state 1
+    FLOAT   shift, and go to state 2
+    STRUCT  shift, and go to state 3
+
+    $default  reduce using rule 10 (parameters)
+
+    parameters       go to state 25
+    more_parameters  go to state 26
+    parameter        go to state 27
+    type             go to state 28
+
+
+state 24
+
+   25 field: type NAME SEMICOLON .
+
+    $default  reduce using rule 25 (field)
+
+
+state 25
+
+    8 fun_declaration: type NAME @1 LPAR parameters . RPAR $@2 block
+
+    RPAR  shift, and go to state 29
+
+
+state 26
+
+    9 parameters: more_parameters .
+
+    $default  reduce using rule 9 (parameters)
+
+
+state 27
+
+   11 more_parameters: parameter . COMMA more_parameters
+   12                | parameter .
+
+    COMMA  shift, and go to state 30
+
+    $default  reduce using rule 12 (more_parameters)
+
+
+state 28
+
+   13 parameter: type . NAME
+   21 type: type . TIMES
+
+    NAME   shift, and go to state 31
+    TIMES  shift, and go to state 14
+
+
+state 29
+
+    8 fun_declaration: type NAME @1 LPAR parameters RPAR . $@2 block
+
+    $default  reduce using rule 7 ($@2)
+
+    $@2  go to state 32
+
+
+state 30
+
+   11 more_parameters: parameter COMMA . more_parameters
+
+    INT     shift, and go to state 1
+    FLOAT   shift, and go to state 2
+    STRUCT  shift, and go to state 3
+
+    more_parameters  go to state 33
+    parameter        go to state 27
+    type             go to state 28
+
+
+state 31
+
+   13 parameter: type NAME .
+
+    $default  reduce using rule 13 (parameter)
+
+
+state 32
+
+    8 fun_declaration: type NAME @1 LPAR parameters RPAR $@2 . block
+
+    LBRACE  shift, and go to state 34
+
+    block  go to state 35
+
+
+state 33
+
+   11 more_parameters: parameter COMMA more_parameters .
+
+    $default  reduce using rule 11 (more_parameters)
+
+
+state 34
+
+   15 block: LBRACE . $@3 var_declarations statements RBRACE
+
+    $default  reduce using rule 14 ($@3)
+
+    $@3  go to state 36
+
+
+state 35
+
+    8 fun_declaration: type NAME @1 LPAR parameters RPAR $@2 block .
+
+    $default  reduce using rule 8 (fun_declaration)
+
+
+state 36
+
+   15 block: LBRACE $@3 . var_declarations statements RBRACE
+
+    INT     shift, and go to state 1
+    FLOAT   shift, and go to state 2
+    STRUCT  shift, and go to state 3
+
+    $default  reduce using rule 17 (var_declarations)
+
+    var_declarations  go to state 37
+    var_declaration   go to state 38
+    type              go to state 39
+
+
+state 37
+
+   15 block: LBRACE $@3 var_declarations . statements RBRACE
+
+    NAME    shift, and go to state 40
+    IF      shift, and go to state 41
+    RETURN  shift, and go to state 42
+    LBRACE  shift, and go to state 34
+
+    $default  reduce using rule 27 (statements)
+
+    block       go to state 43
+    statements  go to state 44
+    statement   go to state 45
+    lexp        go to state 46
+    var         go to state 47
+
+
+state 38
+
+   16 var_declarations: var_declaration . var_declarations
+
+    INT     shift, and go to state 1
+    FLOAT   shift, and go to state 2
+    STRUCT  shift, and go to state 3
+
+    $default  reduce using rule 17 (var_declarations)
+
+    var_declarations  go to state 48
+    var_declaration   go to state 38
+    type              go to state 39
+
+
+state 39
+
+   18 var_declaration: type . NAME SEMICOLON
+   21 type: type . TIMES
+
+    NAME   shift, and go to state 49
+    TIMES  shift, and go to state 14
+
+
+state 40
+
+   51 var: NAME .
+
+    $default  reduce using rule 51 (var)
+
+
+state 41
+
+   28 statement: IF . LPAR exp RPAR statement
+   29          | IF . LPAR exp RPAR statement ELSE statement
+
+    LPAR  shift, and go to state 50
+
+
+state 42
+
+   31 statement: RETURN . exp
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 55
+    var  go to state 56
+
+
+state 43
+
+   32 statement: block .
+
+    $default  reduce using rule 32 (statement)
+
+
+state 44
+
+   15 block: LBRACE $@3 var_declarations statements . RBRACE
+
+    RBRACE  shift, and go to state 57
+
+
+state 45
+
+   26 statements: statement . SEMICOLON statements
+
+    SEMICOLON  shift, and go to state 58
+
+
+state 46
+
+   30 statement: lexp . ASSIGN exp
+   34 lexp: lexp . LBRACK exp RBRACK
+   35     | lexp . DOT NAME
+
+    LBRACK  shift, and go to state 59
+    ASSIGN  shift, and go to state 60
+    DOT     shift, and go to state 61
+
+
+state 47
+
+   33 lexp: var .
+
+    $default  reduce using rule 33 (lexp)
+
+
+state 48
+
+   16 var_declarations: var_declaration var_declarations .
+
+    $default  reduce using rule 16 (var_declarations)
+
+
+state 49
+
+   18 var_declaration: type NAME . SEMICOLON
+
+    SEMICOLON  shift, and go to state 18
+
+
+state 50
+
+   28 statement: IF LPAR . exp RPAR statement
+   29          | IF LPAR . exp RPAR statement ELSE statement
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 62
+    var  go to state 56
+
+
+state 51
+
+   47 exp: NAME . LPAR RPAR
+   48    | NAME . LPAR exps RPAR
+   51 var: NAME .
+
+    LPAR  shift, and go to state 63
+
+    $default  reduce using rule 51 (var)
+
+
+state 52
+
+   46 exp: NUMBER .
+
+    $default  reduce using rule 46 (exp)
+
+
+state 53
+
+   43 exp: LPAR . exp RPAR
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 64
+    var  go to state 56
+
+
+state 54
+
+   44 exp: MINUS . exp
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 65
+    var  go to state 56
+
+
+state 55
+
+   31 statement: RETURN exp .
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+
+    LBRACK  shift, and go to state 66
+    DOT     shift, and go to state 67
+    PLUS    shift, and go to state 68
+    MINUS   shift, and go to state 69
+    TIMES   shift, and go to state 70
+    DIVIDE  shift, and go to state 71
+    EQUAL   shift, and go to state 72
+
+    $default  reduce using rule 31 (statement)
+
+
+state 56
+
+   45 exp: var .
+
+    $default  reduce using rule 45 (exp)
+
+
+state 57
+
+   15 block: LBRACE $@3 var_declarations statements RBRACE .
+
+    $default  reduce using rule 15 (block)
+
+
+state 58
+
+   26 statements: statement SEMICOLON . statements
+
+    NAME    shift, and go to state 40
+    IF      shift, and go to state 41
+    RETURN  shift, and go to state 42
+    LBRACE  shift, and go to state 34
+
+    $default  reduce using rule 27 (statements)
+
+    block       go to state 43
+    statements  go to state 73
+    statement   go to state 45
+    lexp        go to state 46
+    var         go to state 47
+
+
+state 59
+
+   34 lexp: lexp LBRACK . exp RBRACK
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 74
+    var  go to state 56
+
+
+state 60
+
+   30 statement: lexp ASSIGN . exp
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 75
+    var  go to state 56
+
+
+state 61
+
+   35 lexp: lexp DOT . NAME
+
+    NAME  shift, and go to state 76
+
+
+state 62
+
+   28 statement: IF LPAR exp . RPAR statement
+   29          | IF LPAR exp . RPAR statement ELSE statement
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+
+    RPAR    shift, and go to state 77
+    LBRACK  shift, and go to state 66
+    DOT     shift, and go to state 67
+    PLUS    shift, and go to state 68
+    MINUS   shift, and go to state 69
+    TIMES   shift, and go to state 70
+    DIVIDE  shift, and go to state 71
+    EQUAL   shift, and go to state 72
+
+
+state 63
+
+   47 exp: NAME LPAR . RPAR
+   48    | NAME LPAR . exps RPAR
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    RPAR    shift, and go to state 78
+    MINUS   shift, and go to state 54
+
+    exp   go to state 79
+    exps  go to state 80
+    var   go to state 56
+
+
+state 64
+
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+   43    | LPAR exp . RPAR
+
+    RPAR    shift, and go to state 81
+    LBRACK  shift, and go to state 66
+    DOT     shift, and go to state 67
+    PLUS    shift, and go to state 68
+    MINUS   shift, and go to state 69
+    TIMES   shift, and go to state 70
+    DIVIDE  shift, and go to state 71
+    EQUAL   shift, and go to state 72
+
+
+state 65
+
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+   44    | MINUS exp .
+
+    LBRACK  shift, and go to state 66
+    DOT     shift, and go to state 67
+
+    $default  reduce using rule 44 (exp)
+
+
+state 66
+
+   37 exp: exp LBRACK . exp RBRACK
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 82
+    var  go to state 56
+
+
+state 67
+
+   36 exp: exp DOT . NAME
+
+    NAME  shift, and go to state 83
+
+
+state 68
+
+   38 exp: exp PLUS . exp
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 84
+    var  go to state 56
+
+
+state 69
+
+   39 exp: exp MINUS . exp
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 85
+    var  go to state 56
+
+
+state 70
+
+   40 exp: exp TIMES . exp
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 86
+    var  go to state 56
+
+
+state 71
+
+   41 exp: exp DIVIDE . exp
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 87
+    var  go to state 56
+
+
+state 72
+
+   42 exp: exp EQUAL . exp
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp  go to state 88
+    var  go to state 56
+
+
+state 73
+
+   26 statements: statement SEMICOLON statements .
+
+    $default  reduce using rule 26 (statements)
+
+
+state 74
+
+   34 lexp: lexp LBRACK exp . RBRACK
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+
+    LBRACK  shift, and go to state 66
+    RBRACK  shift, and go to state 89
+    DOT     shift, and go to state 67
+    PLUS    shift, and go to state 68
+    MINUS   shift, and go to state 69
+    TIMES   shift, and go to state 70
+    DIVIDE  shift, and go to state 71
+    EQUAL   shift, and go to state 72
+
+
+state 75
+
+   30 statement: lexp ASSIGN exp .
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+
+    LBRACK  shift, and go to state 66
+    DOT     shift, and go to state 67
+    PLUS    shift, and go to state 68
+    MINUS   shift, and go to state 69
+    TIMES   shift, and go to state 70
+    DIVIDE  shift, and go to state 71
+    EQUAL   shift, and go to state 72
+
+    $default  reduce using rule 30 (statement)
+
+
+state 76
+
+   35 lexp: lexp DOT NAME .
+
+    $default  reduce using rule 35 (lexp)
+
+
+state 77
+
+   28 statement: IF LPAR exp RPAR . statement
+   29          | IF LPAR exp RPAR . statement ELSE statement
+
+    NAME    shift, and go to state 40
+    IF      shift, and go to state 41
+    RETURN  shift, and go to state 42
+    LBRACE  shift, and go to state 34
+
+    block      go to state 43
+    statement  go to state 90
+    lexp       go to state 46
+    var        go to state 47
+
+
+state 78
+
+   47 exp: NAME LPAR RPAR .
+
+    $default  reduce using rule 47 (exp)
+
+
+state 79
+
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+   49 exps: exp .
+   50     | exp . COMMA exps
+
+    LBRACK  shift, and go to state 66
+    COMMA   shift, and go to state 91
+    DOT     shift, and go to state 67
+    PLUS    shift, and go to state 68
+    MINUS   shift, and go to state 69
+    TIMES   shift, and go to state 70
+    DIVIDE  shift, and go to state 71
+    EQUAL   shift, and go to state 72
+
+    $default  reduce using rule 49 (exps)
+
+
+state 80
+
+   48 exp: NAME LPAR exps . RPAR
+
+    RPAR  shift, and go to state 92
+
+
+state 81
+
+   43 exp: LPAR exp RPAR .
+
+    $default  reduce using rule 43 (exp)
+
+
+state 82
+
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   37    | exp LBRACK exp . RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+
+    LBRACK  shift, and go to state 66
+    RBRACK  shift, and go to state 93
+    DOT     shift, and go to state 67
+    PLUS    shift, and go to state 68
+    MINUS   shift, and go to state 69
+    TIMES   shift, and go to state 70
+    DIVIDE  shift, and go to state 71
+    EQUAL   shift, and go to state 72
+
+
+state 83
+
+   36 exp: exp DOT NAME .
+
+    $default  reduce using rule 36 (exp)
+
+
+state 84
+
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   38    | exp PLUS exp .
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+
+    LBRACK  shift, and go to state 66
+    DOT     shift, and go to state 67
+    TIMES   shift, and go to state 70
+    DIVIDE  shift, and go to state 71
+
+    $default  reduce using rule 38 (exp)
+
+
+state 85
+
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   39    | exp MINUS exp .
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+
+    LBRACK  shift, and go to state 66
+    DOT     shift, and go to state 67
+    TIMES   shift, and go to state 70
+    DIVIDE  shift, and go to state 71
+
+    $default  reduce using rule 39 (exp)
+
+
+state 86
+
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   40    | exp TIMES exp .
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+
+    LBRACK  shift, and go to state 66
+    DOT     shift, and go to state 67
+
+    $default  reduce using rule 40 (exp)
+
+
+state 87
+
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   41    | exp DIVIDE exp .
+   42    | exp . EQUAL exp
+
+    LBRACK  shift, and go to state 66
+    DOT     shift, and go to state 67
+
+    $default  reduce using rule 41 (exp)
+
+
+state 88
+
+   36 exp: exp . DOT NAME
+   37    | exp . LBRACK exp RBRACK
+   38    | exp . PLUS exp
+   39    | exp . MINUS exp
+   40    | exp . TIMES exp
+   41    | exp . DIVIDE exp
+   42    | exp . EQUAL exp
+   42    | exp EQUAL exp .
+
+    LBRACK  shift, and go to state 66
+    DOT     shift, and go to state 67
+    PLUS    shift, and go to state 68
+    MINUS   shift, and go to state 69
+    TIMES   shift, and go to state 70
+    DIVIDE  shift, and go to state 71
+
+    EQUAL  error (nonassociative)
+
+    $default  reduce using rule 42 (exp)
+
+
+state 89
+
+   34 lexp: lexp LBRACK exp RBRACK .
+
+    $default  reduce using rule 34 (lexp)
+
+
+state 90
+
+   28 statement: IF LPAR exp RPAR statement .
+   29          | IF LPAR exp RPAR statement . ELSE statement
+
+    ELSE  shift, and go to state 94
+
+    $default  reduce using rule 28 (statement)
+
+
+state 91
+
+   50 exps: exp COMMA . exps
+
+    NAME    shift, and go to state 51
+    NUMBER  shift, and go to state 52
+    LPAR    shift, and go to state 53
+    MINUS   shift, and go to state 54
+
+    exp   go to state 79
+    exps  go to state 95
+    var   go to state 56
+
+
+state 92
+
+   48 exp: NAME LPAR exps RPAR .
+
+    $default  reduce using rule 48 (exp)
+
+
+state 93
+
+   37 exp: exp LBRACK exp RBRACK .
+
+    $default  reduce using rule 37 (exp)
+
+
+state 94
+
+   29 statement: IF LPAR exp RPAR statement ELSE . statement
+
+    NAME    shift, and go to state 40
+    IF      shift, and go to state 41
+    RETURN  shift, and go to state 42
+    LBRACE  shift, and go to state 34
+
+    block      go to state 43
+    statement  go to state 96
+    lexp       go to state 46
+    var        go to state 47
+
+
+state 95
+
+   50 exps: exp COMMA exps .
+
+    $default  reduce using rule 50 (exps)
+
+
+state 96
+
+   29 statement: IF LPAR exp RPAR statement ELSE statement .
+
+    $default  reduce using rule 29 (statement)

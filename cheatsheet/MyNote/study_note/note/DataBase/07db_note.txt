@@ -1,0 +1,300 @@
+过程　procedure
+	概念:把完成某一个业务逻辑的sql语句以及PLSQL语句组织到一起的一个逻辑名
+
+	写一个PLSQL程序,设计两个整数参数,输出这两个整数的最大值
+	declare
+		num1 number;
+		num2 number;
+	begin
+		num1:=&num1;
+		num2:=&num2;
+		if(num1<num2) then
+			num1:=num2;
+		end if;
+		dbms_output.put_line('MAX is : '||num1);
+	end;
+
+	把上面的匿名块修改成有名块
+	编译完成之后会把过程的名字和逻辑存入数据库中
+	create or replace procedure getmax928(num1  number,num2 number:=123)
+	is
+	begin
+		if num1<num2 then
+			dbms_output.put_line(num2);
+		else
+			dbms_output.put_line(num1);
+		end if;
+	end;
+	如果出错,可以用show errors查看错误
+		
+	调用存储过程
+	begin
+		getmax928(500);
+		getmax928(50);
+		getmax928(3,2);
+	end;
+
+	如何查看存储过程的源代码
+		select text from user_source where name='GETMAX928';
+	语法
+		create or replace procedure 过程名(参数列表)
+		is
+			申明区
+		begin
+			执行区
+		end;
+
+		调用存储过程
+		declare
+			var_x number:=1000;
+			var_y number:=789;
+		begin
+			getmax(1,0);
+			getmax(var_x,var_y);
+		end;
+
+	查看存储过程
+		desc 过程名;
+
+	参数的名字
+	参数的类型
+	参数的默认值
+	参数的模式:
+		in  默认的模式 负责给存储过程传入参数
+		out	负责给存储过程传出值
+		in out  既能给存储过程传入值,又能传出值
+
+	写一个PLSQL的存储过程,设计三个整数参数,然后把两个参数的和存入第三个参数中,调用这个函数,验证函数的功能
+	create or replace procedure getsum928(var_x  number,var_y number,var_z out number)
+	is
+	begin
+		var_z:=var_x+var_y;
+	end;
+
+	in模式的参数只能读不能写
+	out模式的参数必须是变量
+	declare
+		var_z number:=0;
+	begin
+		getsum928(1,2,var_z);
+		dbms_output.put_line(var_z);
+	end;
+
+	练习:写一个PLSQL的存储过程,设计二个整数参数,打印这两个参数的最大值,并且把两个参数的和存入第二个参数中,调用这个过程,验证过程的功能
+		create or replace procedure getmax928(num1 number,num2 in out number)
+		is
+		begin
+			if num1<num2 then
+				dbms_output.put_line(num2);
+			else
+				dbms_output.put_line(num1);
+			end if;
+			num2:=num1+num2;
+		end;
+
+		declare
+			sum1 number:=10;
+		begin
+			getmax928(98,sum1);
+			dbms_output.put_line(sum1);
+		end;
+
+	参数的名字赋值调用
+		declare
+			sum1 number:=10;
+		begin
+			getmax928(num2=>sum1,num1=>9526);
+			dbms_output.put_line(sum1);
+		end;
+
+	写一个存储过程 设计两个整数参数,第一个参数代表从1加到的数,第二个参数代表前n项的和,调用 这个存储过程,验证功能,如getNumN(10,var_sum);
+	create or replace procedure getNumN(var_n in number,var_sum out number)
+	is
+	begin
+		var_sum:=0;
+		for var_i in 1..var_n 
+		loop
+			var_sum:=var_sum+var_i;
+		end loop;
+	end;
+
+	declare
+		var_sum number:=0;
+	begin
+		getNumN(10,var_sum);
+		dbms_output.put_line('var_sum='||var_sum);
+	end;
+
+函数
+	存储过程和函数的区别
+		关键字不同 procedure  function
+		函数有返回值类型和返回值,存储过程没有
+		调用方式不同,过程可以直接在plsql中调用,函数必须组成表达式
+
+	语法
+		create or replace function 函数名(参数列表) return 返回值类型 
+		is
+			申明区
+		begin
+			if 条件 then
+				return 值;
+			end if;
+		end;
+
+	设计一个PLSQL的函数,设计两个整数参数,返回这两个参数的最大值
+		create or replace function getmax9283(num1 number,num2 number) return number 
+		is
+		begin
+			if num1>num2 then
+				return num1;
+			else 
+				return num2;
+			end if;
+		end;
+
+		调用函数
+		begin
+			dbms_output.put_line(getmax9283(1,2));
+		end;
+
+	练习
+		使用PLSQL 写一个函数,设计两个整数参数返回两个参数的最大值,并且把两个参数的和存入第二个参数中,调用这个函数验证函数的功能
+		create or replace function  getMaxAndSum928(var_x in number,var_y in out number)return number
+		is
+		begin
+			var_y:=var_x+var_y;
+			if var_x<var_y-var_x then
+				return var_y-var_x;
+			else
+				return var_x;
+			end if;
+		end;
+
+		declare
+			var_y number:=1;
+			var_res number:=0;
+		begin
+			var_res:=getMaxAndSum928(9526,var_y);
+			dbms_output.put_line(var_res);
+			dbms_output.put_line(var_y);
+		end;
+
+包  package
+	概念:把一组逻辑相关的过程和函数以及类型 变量等组织到一起的一个逻辑名
+	系统提供的包,使用包中的数据需要在数据前加包名点
+		dbms_output
+		dbms_random		随机数相关的包
+			select dbms_random.value(1,100) from dual;
+			select trunc(dbms_random.value(1,100)) from dual;
+		dbms_lob		操作大数据的包
+			BLOB	CLOB
+			(存储大数据的路径即可)
+		dbms_job		定时任务,可以定时调用存储过程(重点)
+	
+		dbms_job.submit(
+				job out binary_integer,
+				what varchar2,
+				next_date date,
+				interval  varchar2
+				);
+		把一个要定时执行的任务 提交给系统 系统会分配一个任务编号存入job中
+		what  是要定时执行的存储过程
+		next_date 存储过程被调用的时间
+		interval  间隔或周期
+
+		dbms_job.run(job binary_integer);  把任务编号是job的任务执行起来
+		dbms_job.remove(job binary_integer);  取消编号是job的定时任务
+
+	定时调用存储过程
+		1.建立一张表 叫testjobn
+			id number primary key
+			name varchar2(30)
+		create table testjob928(
+					id number primary key,
+					name varchar2(30)
+				);
+		2.为这张表建立一个序列
+			create sequence testjob928_id_seq;
+		3.定一个存储过程,没有参数,调用一次可以向表testjobn中插入一条数据,主键的值使用序列
+			create or replace procedure insert_testjob928
+			is
+			begin
+				insert into testjob928 values(testjob928_id_seq.nextval,'test'||testjob928_id_seq.currval);
+				commit;
+			end;
+		4.让程序一分钟调用一次这个存储过程
+			declare
+				jobno binary_integer;
+			begin
+				dbms_job.submit(jobno,'insert_testjob928();',sysdate,'sysdate+1/(24*60)');
+				dbms_output.put_line('jobno='||jobno);
+				dbms_job.run(jobno);
+			end;
+
+	取消定时任务
+		select job from user_jobs;
+		begin
+			dbms_job.remove();
+		end;
+
+用户自定义包(了解)
+	调用包中的数据在这些数据前加包名点即可
+	建立一个类似C语言头文件的包
+		create or replace package 包名
+		is
+			过程/函数声明
+			变量定义
+		end;
+
+		create or replace package mypack928
+		is
+			procedure getmax(x number,y number);
+			function  getme(x number,y number) return number;
+		end;
+
+	建立一个类似C语言实现文件的package body
+		create or replace package body mypack928
+		is
+			procedure getmax(x number,y number)
+			is
+			begin
+				if x<y then
+					dbms_output.put_line(y);
+				else
+					dbms_output.put_line(x);
+				end if;
+			end;
+			function  getme(x number,y number) return number
+			is
+			begin
+				if x<y then
+					return x;
+				end if;
+				return y;
+			end;
+		end;
+
+触发器 trigger
+	概念:当进行DML(insert delete update) 操作时,这些行为可以被系统捕获到,并且针对这些操作可以作出相应的响应
+	语法
+		create or replace trigger 触发器名 before|after DML(insert delete update) on 表名 | for each row
+		declare
+		begin
+		end;
+	create table testemp928 as select id,first_name,salary from s_emp;
+	create or replace trigger testemp928_tri after update on testemp928 for each row
+	declare 
+	begin
+		dbms_output.put_line(:old.id||':'||:old.salary);
+		dbms_output.put_line('you update testemp928');
+		dbms_output.put_line(:new.id||':'||:new.salary);
+	end;
+	update testemp928 set salary=salary+300 where id=1;
+
+	无论sql语句影响多少行数据 触发器只被触发一次,这种触发器叫语句触发器
+	如果希望sql语句影响多少行 就触发多少次则可以使用行级触发器for each row
+
+	行级触发器
+	update  :old	:new
+	insert			:new
+	delete  :old

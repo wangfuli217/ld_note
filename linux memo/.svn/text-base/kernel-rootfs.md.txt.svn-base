@@ -1,0 +1,106 @@
+#############uboot启动zImage(go)和uImage(bootm)分析
+---------------------------------------------------------------------------
+
+1.bootm加载linux镜像是加载uIamge，uIamge是由mkimage制作而来，和zIamge的差异是uIamge是zIamge压缩过的，bootm需要先对uIamge解压，解压地址为内核入口地址。当解压完成时uIamge和zIamge几乎是相同的，具体差异可以论述。uboot目前只能支持uImage启动，不支持zImage启动
+2.bootm解压过程
+---------------------------------------------------------------------------
+## Booting image at 08808000 ...
+Image Name:   Linux-2.6.14.7
+Image Type:   ARM Linux Kernel Image (uncompressed)
+Data Size:    989172 Bytes = 966 kB
+Load Address: 08008000
+Entry Point:  08008000
+Verifying Checksum ... OK
+OK                                         uboot bootm命令对uIamge的解压操作
+---------------------------------------------------------------------------
+Starting kernel ...         
+传递内核参数将控制权交给arch\arm\boot\compressed]head.S
+----------------------------------------------------------------------------
+如mx1ADS班子内存的起始地址为0x0800_0000,通过tftp 下载到0x0800_8000 +offset ，offset大于0x80_0000,即tftp 0x0880_8000 然后bootm 0x0880_8000 即将0x0880_8000处的uIamge解压，解压地址即为mkimage 设置的kernel入口地址0x0800_8000。
+
+#############
+compile
+
+    cd u-boot-2010.06
+    ./mk3518.sh
+
+mk3518.sh脚本里面包含了编译uboot所需的所有的命令, 具体看mk3518.sh文件, 编译成功将生成uboot-me.bin文件, 这个就是要烧录到板子上的.
+烧写u-boot
+
+    谨慎更新板子u-boot, 没有把握尽量不要重新烧写uboot, 烧写失败将无法启动, 切记.
+    mw.b 0x82000000 0xFF 0x40000
+    set serverip 192.168.1.201 // tftpserver的ip
+    tftp 0x82000000 uboot-me.bin
+    sf probe 0
+    sf erase 0 0x40000 // 执行这步删除flash命令之前一定要tftp下载uboot-me.bin成功, 一定要小心确认, 烧写失败将无法启动, 切记.
+    sf write 0x82000000 0 0x40000
+    reset
+
+烧写过程
+
+烧录过程：
+hisilicon # mw.b 0x82000000 0xFF 0x40000
+hisilicon # set serverip 192.168.1.199
+hisilicon # tftp 0x82000000 uboot-me.bin
+Hisilicon ETH net controler
+miiphy_register: non unique device name '0:1'
+miiphy_register: non unique device name '0:2'
+MAC:   00-00-23-34-45-66
+UP_PORT : phy status change : LINK=DOWN : DUPLEX=FULL : SPEED=100M
+UP_PORT : phy status change : LINK=UP : DUPLEX=FULL : SPEED=100M
+TFTP from server 192.168.1.100; our IP address is 192.168.1.10
+Download Filename 'uboot-me.bin'.
+Download to address: 0x82000000
+Downloading: #  [ Connected ]
+####
+done
+Bytes transferred = 159204 (26de4 hex)
+hisilicon # sf probe 0
+16384 KiB hi_sfc at 0:0 is now current device
+hisilicon # sf erase 0 0x40000
+Erasing at 0x40000 -- 100% complete.
+hisilicon # sf write 0x82000000 0 0x40000
+Writing at 0x40000 -- 100% complete.
+hisilicon # reset
+
+
+
+
+
+compile kernel
+
+    cd linux-3.0.y
+    ./mk3518.sh
+
+mk3518.sh脚本里面包含了编译linux内核所需的所有的命令, 具体看mk3518.sh文件, 编译成功将生成在目录arch/arm/boot/uImage文件, 这个就是要烧录到板子上的.
+制作rootfs文件系统
+
+    ./mkfs.jffs2 -d ./rootfs -l -e 0x10000 -o rootfs.jffs2
+
+生成的rootfs.jffs2这个就是要烧录到板子上的文件.
+flash地址空间说明
+
+| 1M | 3M | 12M | |------------|---------------|-----------------------| | boot | kernel | rootfs |
+uboot烧写内核
+
+    set serverip 192.168.1.201 // tftpserver主机ip
+    mw.b 0x82000000 0xFF 0x300000
+    tftp 0x82000000 uImage
+    sf probe 0
+    sf erase 0x100000 0x300000
+    sf write 0x82000000 0x100000 0x300000
+
+烧写rootfs文件系统
+
+    mw.b 0x82000000 0xFF 0xc00000
+    tftp 0x82000000 rootfs.jffs2
+    sf probe 0
+    sf erase 0x400000 0xc00000
+    sf write 0x82000000 0x400000 0xc00000
+
+设置启动参数和启动命令
+
+    setenv bootargs 'mem=64M console=ttyAMA0,115200 root=/dev/mtdblock2 rootfstype=jffs2 mtdparts=hi_sfc:1M(boot),3M(kernel),12M(rootfs)'
+    setenv bootcmd 'sf probe 0;sf read 0x82000000 0x100000 0x300000;bootm 0x82000000'
+    saveenv
+    reset

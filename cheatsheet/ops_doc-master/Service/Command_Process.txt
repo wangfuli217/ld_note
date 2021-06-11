@@ -1,0 +1,71 @@
+Command(){
+    uid_t uid;                 # Command_setUid
+    gid_t gid;                 # Command_setGid
+    List_T env;                # 环境变量 environ
+    List_T args;               # 函数入口 path, arg0, ... Command_appendArgument
+    char **_env;               # Command_setEnv
+    char **_args;              # 
+    char *working_directory;   # NULL表示当前Dir，否则，指向特定目录
+    
+    T Command_new(const char *path, const char *arg0, ...)
+    
+    Process_T P = Command_execute(C);
+    
+# 进程环境
+1. 子进程
+uid gid的设置和获取
+1. 子进程
+恢复信号，执行进程
+sigset_t mask;
+sigemptyset(&mask);
+pthread_sigmask(SIG_SETMASK, &mask, NULL);
+signal(SIGINT, SIG_DFL);
+signal(SIGQUIT, SIG_DFL);
+signal(SIGABRT, SIG_DFL);
+signal(SIGTERM, SIG_DFL);
+signal(SIGPIPE, SIG_DFL);
+signal(SIGCHLD, SIG_DFL); 
+signal(SIGUSR1, SIG_DFL);
+signal(SIGHUP, SIG_IGN);  // Ensure future opens won't allocate controlling TTYs
+// Execute the program
+execve(_args(C)[0], _args(C), _env(C));
+
+# 关于管道
+1. 子进程
+将stdin_pipe的 stdin_pipe[0] 关联到 STDIN_FILENO
+将stdout_pipe的 stdout_pipe[1] 关联到 STDOUT_FILENO
+将stderr_pipe的 stderr_pipe[1] 关联到 STDERR_FILENO
+2. 父进程
+关闭 stdin_pipe[0]  保留 stdin_pipe[1] 
+关闭 stdout_pipe[1] 保留 stdout_pipe[0]
+关闭 stderr_pipe[1] 保留 stderr_pipe[0]
+    
+    Command_free(&C);
+}
+
+
+Process(){
+    pid_t pid;                # 
+    uid_t uid;                # getuid(); 或者 Command.uid
+    gid_t gid;                # getgid(); 或者 Command.gid
+    int status;               # WEXITSTATUS(P->status); | WTERMSIG(P->status); | WSTOPSIG(P->status);
+    int stdin_pipe[2];        # 关联stdin
+    int stdout_pipe[2];       # 关联stdout
+    int stderr_pipe[2];       # 关联stderr
+    InputStream_T in;         # 
+    InputStream_T err;        # 
+    OutputStream_T out;       # 
+    char *working_directory;  # 
+
+int Process_exitStatus(Process_T P) # 返回-1表示正在运行，否则，已停止
+do  // 测试 process 是否正在运行
+    r = waitpid(P->pid, &P->status, WNOHANG); // Wait non-blocking
+while (r == -1 && errno == EINTR); 
+
+int Process_isRunning(Process_T P)   # 返回1表示正在运行，否则，已停止
+void Process_kill(Process_T P)       # KILL 信号
+void Process_terminate(Process_T P)  # SIGTERM 信号
+}
+
+
+

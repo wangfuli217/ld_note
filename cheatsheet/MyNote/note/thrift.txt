@@ -1,0 +1,70 @@
+thrift接口描述文件(interface description file)
+thrift编译
+thrift --gen 开发语言	thrift接口描述文件
+编译thrift生成的文件时,要-lthrift
+
+第1步： 明确要交互的数据格式（如上例中的UserGradeInfo）和具体的方法（如上例中的Search），定义出thrift接口描述文件（英文叫做Inteface Description File）；
+第2步： 调用thrift工具，依据thrift接口文件，生成RPC代码
+第3步： 你的服务器端程序引用thrift生成的RPC代码，并实现其中的Search动作的逻辑，然后启动监听，等待客户端发来请求
+第4步： 客户端同样引入并调用RPC代码来与服务器端通信
+
+基础类型
+	bool:	布尔类型(true或false)
+	byte:	8位有符号整数
+	i16:	16位有符号整数
+	i32:	32位有符号整数
+	i64:	64位有符号整数
+	double:	64位浮点数
+	string:	文本字符串,使用UTF-8编码
+	
+容器
+	list:	元素可重复的有序列表,会被转换成c++中的vector,java中的HashSet,Python中的Set等
+	set:	元素不可重复的无序集合,会转换成c++中的set,java中的HashSet,Python中的Set等
+	map:	一个含有多个key:value键值对的结构,会转换成c++中的map,java中的HashMap,PHP中的关联数组,Python/Ruby中的dictionary等,map的key必须是基础类型,因为有些语言并不支持map的key类型为复杂类型
+	
+结构体,thrift接口文件中的结构体都会被转换成一个独立的类(class),类的属性是结构体各个类型,类的方法是对这些类型进行处理的相关函数
+	例:
+		struct UserGradeInfo
+		{
+			1: required string UserName="Anonymous";
+			2: required i16 UserGrade=0;
+		}
+	结构体中每一个域都有一个正整数标识符,并不要求连续,一旦定义,不建议修改
+	每一个域都会有required或optional的限定,required表示必填域,optional表示可选域,可以有默认值,像上面的"Anonymous"和0
+	
+类型之异常
+	除了使用exception来替代struct之外,"异常"这个类型在语法上和上面介绍过的结构体的用法完全一致,但是从语义上讲,exception是在远和调用发生异常时用来抛出异常使用的
+
+类型之服务
+	使用关键字service来定义,与面向对象中定义一个接口很类似,返回值为void的函数,可以在函数名前加上oneway标识符,将此函数以异步模式执行,这样在调用此函数后,函数会立即返回,oneway只能修饰返回类型为void的
+	对于返回void的函数,thrift仍然会确保函数返回,这样就表示这个函数已被正确执行,且服务器端已有返回的信息,但是如果加上oneway,此函数的返回只能表示数据已经进入传输层,并不能表示服务器端已经收到并返回了数据
+	服务可以使用extends来继承另一个服务
+	service Calculator extends shared.SharedService
+	{
+		void ping(),
+		i32 add(1:i32 num1,2:i32 num2),
+		i32 calculate(1:i32 logid,2:i32 w) throws (1:InvalidOperation ouch),
+		oneway void zip()
+	}
+	
+引用其他thrift文件
+	include "name.thrift"
+
+可用typedef给类型起别名
+	typedef i32 MyInteger
+
+避免名字冲突
+	namespace cpp tutorial	(cpp中的namespace空间,cpp可以是java,php,perl,go等)
+	
+支持常量定义
+	const i32 MY_NUM=9853
+	
+定义枚举
+	enum Operation
+	{
+		ADD=1,
+		SUBTRACT=2
+		MULTIPLY=3,
+		DIVIDE=4
+	}
+	

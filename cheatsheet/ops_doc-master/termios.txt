@@ -1,0 +1,126 @@
+Struct termios{
+Unsigned short c_iflag;            //输入模式标志
+Unsigned short c_oflag;          //输出模式标志
+Unsigned short c_cflag;           //控制模式标志
+Unsigned short c_lflag;          //本地模式标志
+Unsigned char c_line;           //线路规程
+Unsigned char c_cc[NCC];       //控制特性
+Speed_t c_ispeed;              //输入速度
+Speed_t c_ospreed;            //输出速度
+}
+
+串口结构体设置表
+
+    输入模式标志（c_iflag：16bit）
+
+INPCK 	奇偶校验使能
+IGNPAR 	忽略奇偶校验错误
+PARMRK 	奇偶校验错误掩码
+ISTRIP 	裁剪掉第8比特
+IXON 	启动输出软件控制流
+IXOF 	启动输入软件控制流
+IXANY 	输入任意字符可以重新启动输入（默：起始字符）
+IGNBRK 	忽略输入终止条件
+BRKINT 	当检测到输入终止条件时发送SIGINT信号
+INLCR 	当收到NL（换行符）转换CR（回车符）
+IGNCR 	忽略收到的CR
+ICRNL 	当收到CR转换为NL
+IUCLC 	将接收到的大写字符映射为小写字符
+IMAXBEL 	当输入队列满时响铃
+
+    输出模式标志(c_oflag :16bit)
+
+OPOST 	启动输出处理功能，如果不设置，其他位忽略
+OLCUC 	将输出中的大写字符转换成小写字符
+ONLCR 	将输出中的换行符(‘\n’)转换成回车符(‘\r’)
+ONOCR 	如果当前列号为0，则不输出回车字符
+OCRNL 	将输出中的回车符转换成换行
+ONLRET 	不输出回车符
+OFILL 	发送填充字符以提供延时
+OFDEL 	如果设置该标志，则表示填充字符为DEL字符，否则为NUL
+NLDLY 	换行延时掩码
+CRDLY 	回车延时掩码
+TABDLY 	制表符延时掩码
+BSDLY 	水平退格符延时掩码
+VTDLY 	垂直退格符延时掩码
+FFLDY 	换页符延时掩码
+
+    控制模式标志(c_cflag:16bit)
+
+CBAUD 	波特率的位掩码
+B0 	0波特率(放弃DTR)
+… 	…
+B1800 	1800的波特率
+B2400 	2400的波特率
+B4800 	4800的波特率
+B9600 	9600的波特率
+B19200 	19200的波特率
+B38400 	38400的波特率
+B57600 	57600的波特率
+B115200 	115200的波特率
+EXTA 	外部时钟率
+EXTB 	外部时钟率
+CSIZE 	数据位的位掩码
+CS5 	5个数据位
+CS6 	6个数据位
+CS7 	7个数据位
+CS8 	8个数据位
+CSTOPB 	2个停止位（不设置则是一个）
+GREAD 	接收使能
+PARENB
+PARODD 	校验使能位使用奇校验而不是偶校验
+HUPCL 	最后关闭时挂线(放弃DTR)
+CLOCAL 	本地连接(不改变端口所有者)
+CRTSCTS 	硬件流控
+
+    本地模式标志(c_lflag:16bit)
+
+        本地模式成员变量c_lflag可以控制串口驱动怎样控制输入字符。通常，你可能需要通过c_lflag成员来设置经典输入和原始输入模式。
+
+ISIG 	若收到信号字符(INTR,QUIT等)则会产生相应的信号
+ICANON 	启动规范模式
+ECHO 	启动本地回显功能
+ECHOE 	若设置ICANON则允许退格操作
+ECHOK 	若设置ICANON，则KILL字符会删除当前行
+ECHONL 	若设置ICANON，则允许回显换行符
+ECHOCTL 	若设置ECHO，则控制字符会显示成^x,其中x的ASCII码等于给相应的控制字符的ASCII码加上0x40.
+ECHOPRT 	若设置ICANON和IECHO，则删除字符和被删除的字符都会被显示
+ECHOKE 	    若设置ICANON,则允许回显在ECHOE和ECHOPRT中设定的KILL字符
+NOFLASH 	在通常情况下，当接收到INTR，QUIT，SUSP控制字符时，会清空输入和输出队列。如果设置改标志，则所有的队列不会被清空
+TOSTOP 	若一个后台进程师徒向他的控制终端进行写操作，则系统向改后台进程的进程组发送SIGTTOU信号。该信号通常终止进程的执行
+IEXTEN 	启动输入处理功能
+
+    控制特性(c_cc[])
+
+VINTR 	中断控制字符，对应的键位ctrl+c
+VQUIT 	退出操作符，对应的键为ctrl+z
+VERASE 	删除操作符，对应Backspace
+VKILL 	删除行符，对应的键为ctrl+u
+VEOF 	文件结尾符，对应的键为ctrl+d
+VEOL 	附加行结尾符，对应的键为carriage return
+VEOL2 	第二行结尾符，对应的键为line feed
+VMIN 	指定最少读取的字符数
+VTIME 	指定读取的每个字符之间的超时时间
+
+    串口编程的主要方式是按照自身的需求设置、更改串口结构体变量，然后将修改后的结构体变量通过设置函数赋值到对于的串口中，使串口按照自身需求工作。
+
+基本函数
+
+    int tcgetattr(int fd, struct termios *termios_p);
+        说明：获取对应串口的设置，并将设置参数赋值到termios结构体变量中
+        参数说明：
+            int fd：文件描述符，在Linux系统中各种IO设备、硬件驱动都映射为文件，因此可以通过文件描述符对IO设备进行操作。
+            struct termios *termios_p：串口结构体，用于保持需要获取的串口参数
+
+    int tcsetattr(int fd,int option_action,conststruct termios *termrios_p);
+        说明：设置对应的串口
+        参数说明：
+            int fd：文件描述符，在Linux系统中各种IO设备、硬件驱动都映射为文件，因此可以通过文件描述符对IO设备进行操作。
+            int option_action：
+                TCSCANOW：配置的修改立即生效
+                TCSADRAIN：配置的修改在所有写入fd的输出都传输完毕之后生效
+                TCSAFLUSH：所有已接受但未读入的输出都将在修改生效之前被丢弃
+            struct termios *termios_p：对应串口需要设置的参数
+        返回值：
+            0:成功
+            -1:失败

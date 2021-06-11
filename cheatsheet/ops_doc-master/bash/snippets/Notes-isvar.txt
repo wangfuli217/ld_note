@@ -1,0 +1,22 @@
+isnum()
+{
+    # is argument an integer?
+    local re='^[0-9]+$'
+    if [[ -n $1 ]]; then
+        [[ $1 =~ $re ]] && return 0
+        return 1
+    else
+        return 2
+    fi
+}
+isvar()
+{
+    if isnum "$1"; then
+        return 1
+    fi
+    local arr="$(eval eval -- echo -n "\$$1")"
+    if [[ -n ${arr[@]} ]]; then
+        return 0
+    fi
+    return 1
+}

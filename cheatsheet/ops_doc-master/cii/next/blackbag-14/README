@@ -1,0 +1,121 @@
+Blackbag: A miscelleny of poorly-coded network testing tools.
+
+Don't forget to read INSTALL for dependency and compilation info.
+
+## replug
+
+		replug [-b] target[:port[@localport]]
+
+A plugboard proxy which (with -b flag) will log all I/O to uniquely-name
+files, along with a "spans..." file with the read boundaries (to break
+streams into messages with).
+
+## telson / blit
+
+		telson target[:port] [local:port | port]
+		echo "foo" | blit
+
+telson/blit are a binary alternative to netcat. telson shuttles data
+between a localhost UDP port and the TCP connection to target:port. blit
+consumes stdin and feeds it out to the telson UDP port. You can use 
+"netcat" to feed data to telson, but you have to feed it arguments and
+netcat will wait uselessly after each run until you C-C it.
+
+telson prints input and output to to stdout as canon hex. If you want
+to log telson sessions, aim telson at replug.
+
+telson and blit are reasonably fast and scalable; you can cat whole kernel 
+files into blit and have blit, telson, and replug keep up.
+
+## binhex
+
+		binhex 41414100abadcafe00 | blit
+
+binhex consumes all arguments (ignoring spaces), interprets them as 
+hex character codes, and prints the resulting binary data to stdout.
+
+## nstrz
+
+		nstrz this is a test | blit
+
+nstrz consumes all arguments, including spaces, appends the 32-bit count of 
+bytes in the resulting string, and prints the resulting octet string to
+stdout.
+
+## c
+
+		c 4096 helu | blit
+
+c consumes its second argument and repeats it by the count in the first
+argument.
+
+## sextract
+
+		sextract <pcapfile> [filter] # run w/o args for usage
+
+sextract processes the packets in a pcap filter matching the filter, 
+reassembles the TCP streams in those packets, and prints the contents
+of the resulting streams to stdout:
+
+		sextract -bhdi <pcapfile>
+
+prints the binary contents of the inbound side of the selected streams
+to stdout, with no intervening content (suitable for layer 7 decoding):
+
+		sextract -bhdo <pcapfile>
+
+prints the outbound side of the selected streams.
+
+## genacl
+
+		genacl <pcapfile>
+
+genacl processes the packets in a pcap file and infers a matching set
+of access control list entries, with netmasks and port ranges, along
+with the count of bytes matching each entry.
+
+## dedump
+
+	hexdump -C file | dedump > file.orig
+
+Converts canonical hexdumps back to binary data; reads hexdump -C and 
+hexdump() output, syncs to first actual hexdump line.
+
+## modhookah
+
+A Solaris .so to LD_PRELOAD on executables to capture I/O.
+
+## httpcat
+
+	httpcat http://foo/bar?baz
+	httpcat -t application/marimba -d 1&2&3 post://foo/bar?baz
+
+Like curl or wget in 400 lines of our own code; possibly simpler syntax,
+possibly not (METHOD can replace HTTP in the URL, easy to set content-type);
+definitely easier to add functionality to, can output to stdout for use
+with telson.
+
+	httpcat -Y post://foo/bar
+
+Behaves like "telson", waiting for the input "%MARSH%" to wrap all data
+read so far into a POST with valid content-type.
+
+## b64 / d64
+
+	cat file | b64 | d64 > file.orig
+
+Base64 and un-base64 things.
+
+## hexify
+
+	binhex `cat file | hexify` > file.orig
+
+Hex-encode binary data
+
+---------------------------------------------------------------------------
+blackbag, libfirebert, all related tools, all otherwise unpublished
+source code and documentation in these directories - 20051201 -
+Copyright 2005 Matasano Security, LLC <tqbf@matasano.com> 
+All Rights Reserved
+
+

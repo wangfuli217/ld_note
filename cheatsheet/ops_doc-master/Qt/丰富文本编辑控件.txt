@@ -1,0 +1,81 @@
+https://qtguide.ustclug.org/ch05-03.htm
+丰富文本编辑控件
+
+对于多行普通文本编辑，Qt 提供 QPlainTextEdit 类，
+对于更为复杂的丰富文本编辑，Qt 提供了 QTextEdit 类，
+QTextEdit 有一个便于浏览丰富文本的派生类 QTextBrowser，相当于是 QTextEdit 只读版本，并另外做了一些打开网页链接的扩展功能。
+
+1. QTextEdit 类
+    QTextEdit 是一个高级的所见即所得（WYSIWYG）浏览器/编辑器，支持丰富文本格式，
+类似 HTML 风格的标记。它被优化用于编辑大型文档和快速相应用户的输入。
+
+    QTextEdit 基于段落和字符工作，段落是格式化的字符串，一般以换行符作为段落分隔标志，
+比如 C++ 字符串的 "\r\n" ，HTML 语言的 "<br>" 。
+    QTextEdit 显示段落内部的文本时，会自动根据控件宽度，将段落内的长文本根据单词
+间隔进行自动换行(word-wrapped)，类似 Windows 记事本里的自动换行功能。
+    QTextEdit 内部使用 QTextDocument 类管理文档，一篇文档可以有 0 个或多个段落组成，
+文本的对齐模式由其所属的段落对齐模式确定。
+    对于段落内的文本字符，又可以有自己的字符格式，比如加粗、倾斜、字体、文字颜色、文字背景色等等。
+段落仅仅是对文档组成部分的分隔和形容，并没有对应的 Qt 类。实际上编辑器内使用文本光标表示当前编辑位置，
+通常根据光标指示位置来编辑文本，文本光标是有具体的类，即 QTextCursor。
+
+    需要注意的是，QTextEdit 不仅仅是一个编辑控件，更大程度上它是一个比较完备而又复杂的视图 + 文档体系，
+基于 QTextEdit 可以开发出一个功能完备的丰富文本编辑程序.
+1. 使用QTextCursor管理选中片段和当前位置，光标形状一般是闪烁的。
+2. 使用QTextDocument管理整个文档内容
+C:\Qt\Qt5.4.0\Examples\Qt-5.4\widgets\richtext\textedit
+
+    QTextEdit 可以显示图片、列表和表格，如果文档太大，QTextEdit 自带滚动条，可以显示很多页的文档。
+QTextEdit 既可以编辑普通文本(plain text)，也可以编辑丰富文本(rich text)。
+    QTextEdit 和 QTextBrowser 都是仅支持 HTML 4 标记语言的子集，对于网页显示功能是不完备的，
+如果需要真正的网页浏览器功 能，那么建议使用更为强大的 Qt WebKit
+
+1.1 显示控件
+  作为显示控件时，可以使用三个函数设置需要显示的文本：
+  void setHtml(const QString & text)
+  void setPlainText(const QString & text)
+  void setText(const QString & text)
+    setHtml() 函数用于设置显示丰富的 HTML 网页文本，
+    setPlainText() 函数用于设置显示普通的无格式文本。
+    setText() 函数是通用的槽函数，它自动根据 text 内容猜测文本是不是 HTML 标记语言的，
+如果是 HTML 文本就显示丰富文本，如果不是那就当作普通无格式的文本显示。
+
+
+段落内的文本默认是根据控件宽度自动换行的，这样就不会用到水平的滚动条。
+对于长文本，如果不希望自动换行，那么可用 setLineWrapMode() 函数改变自动换行的特性，枚举常量 QTextEdit::NoWrap 就是不自动换行。
+如果是不自动换行，那么长的文本会导致水平滚动条显现，可以通过拖动水平滚动条查看长文本。
+
+QTextEdit 自带查找函数 find() ，可以查找并高亮显示相应的文本。
+
+槽函数                          描述
+setFontItalic(bool)             设置斜体字。
+setFontWeight(int)              设置粗体字。
+setFontUnderline(bool)          设置文字下划线。
+setFontFamily(QString)          设置字体家族，如"宋体"、"黑体"、"文泉驿黑体"。
+setFontPointSize(qreal)         设置字号大小，如9，12，16，48
+setTextColor(QColor)            设置文字颜色。
+setTextBackgroundColor(QColor)  设置文字背景色。
+setCurrentFont(QFont)           设置综合字体格式，QFont类封装了上面所有格式。
+
+    需要注意的是 setFontFamily(QString) 设置的才是如 "宋体"、"黑体"、"文泉驿黑体" 等字体家族，
+而 setCurrentFont(QFont) 是设置所有的综合字体，QFont 涵盖文字字符的所有格式，之前的斜体、
+粗体、字体家族、字体颜色等等，全包含在 QFont 内部。
+
+
+    上面设置字体格式的函数全是槽函数，因此可以直接与其他控件的状态信号关联，比如列举
+字体家族的控件 QFontComboBox 的信号
+    void QFontComboBox::currentIndexChanged(const QString & text)
+可以直接关联到 setFontFamily(QString) 槽函数。
+
+    除了文本字符本身的格式，段落对齐是采用另外的槽函数：
+void QTextEdit::​setAlignment(Qt::Alignment a)
+    上面的字体设置函数影响的就是文本光标指示的单词或高亮选中的文本。光标和高亮选中的文本通过 QTextCursor 类管理，
+针对选中的文本，可以获取该文本片段的字体格式，也可以进行复制、粘贴、剪切、删除等操作。获取当前的光标对象使用函数：
+    QTextCursor QTextEdit::​textCursor() const
+
+    文档里不同文字有各种各样的格式，当光标指向某个单词或选中文本片段时，会触发当前字符格式变化的信号：
+void QTextEdit::​currentCharFormatChanged(const QTextCharFormat & f)
+    QTextCharFormat 与 QFont 不是继承关系，QTextCharFormat 内部包含有 QFont 成员变量，QTextCharFormat 
+与 QFont 有类似的各种字体格式函数，但 QTextCharFormat 更为强大，包含的更多的细节设置，比如文字在垂直方向的对齐。
+
+

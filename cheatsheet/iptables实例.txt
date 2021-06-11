@@ -1,0 +1,417 @@
+概述 linker https://github.com/jiobxn/one/wiki/00044_iptables语法规则
+    iptables是一个用户空间应用程序，它允许系统管理员配置由Linux内核防火墙（实现为不同的Netfilter模块，
+    ip_tables、
+    ip_conntrack、
+    nf_conntrack、
+    NAT）提供的表、链、规则把它存储。
+    
+    规则链是防火墙规则/策略的集合；规则——链——表
+
+默认的5种规则链
+    INPUT链：处理入站数据包
+    OUTPUT链：处理出站数据包
+    FORWARD链：处理转发数据包
+    POSTROUTING链：在进行路由选择后处理数据包（DNAT）
+    PREROUTING链：在进行路由选择前处理数据包（SNAT）
+
+规则表
+    具有某一类相似用途的防火墙规则，按照不同处理时机区分到不同的规则链以后，被归置到不同的“表”中
+    规则表是规则链的集合
+
+默认的5个规则表
+    raw表：用于连接跟踪前进行处理，对数据包设置一个标志，让这个数据包不被连接跟踪系统所跟踪
+    mangle表：用于连接跟踪之后修改数据包（TTL、TOS）或者是设定 MARK（将封包作记号，以进行后续的过滤）
+    nat表：用于源/目的地址的转换
+    filter表：用于数据报文过滤（默认表）
+    security表：用于强制访问控制的网络规则与selinux有关
+    
+规则表间的优先顺序依次为：raw、mangle、nat、filter
+    规则链内的匹配顺序
+        按顺序依次进行检查，找到相匹配的规则即停止（LOG策略会有例外）
+        若在该链内找不到相匹配的规则，则按该链的默认策略处理
+
+Linux防火墙概述
+    官方文档：http://www.netfilter.org/documentation/
+    扩展模块：http://ipset.netfilter.org/iptables-extensions.man.html
+    iptables教程：http://rlworkman.net/howtos/iptables/
+    
+    2.0 - 版内核中，包过滤机制是ipfw，管理工具是ipfwadm
+    2.2 - 版内核中，包过滤机制是ipchain，管理工具是ipchains
+    2.4 - 版内核中，包过滤机制是netfilter，管理工具是iptables
+    3.13 -版内核中，包过滤机制是netfilter，管理工具是nftables
+总结：
+    string字符串匹配           # 数据报文内容
+    connlimit并发连接          # 同时tcp连接个数
+    quota网络配额              # 数据使用量限制
+    recent单位时间内连接限制   # 单位时间内tcp连接|icmp报文增量限制
+    limit限速匹配              # 单位时间内数据报个数限制
+    time时间匹配               # 时间断开限制
+    
+    , 逗号 | : 冒号| -连字符 | / 子网掩码 | ! 取非
+
+入站数据流向 10
+    线路上 -> 接口上 -> 
+    raw -> nf_conntrack -> mangle(PREROUTING) -> nat(PREROUTING) -> 路由 -> mangle(INPUT)-> filter(INPUT) -> 
+    应用程序
+出站数据流向 12
+    应用程序 ->
+    路由 -> OUTPUT(raw)-> nf_conntrack -> mangle(OUTPUT) -> nat(OUTPUT) -> 路由 -> filter(OUTPUT) -> mangle(POSTROUTING) -> nat(POSTROUTING)
+    接口上 ->  线路上
+转发数据流向 13
+    线路上 -> 接口上 -> 
+    raw -> nf_conntrack -> mangle(PREROUTING)-> nat(PREROUTING) -> 路由 -> mangle(FORWARD) -> filter(FORWARD) -> mangle(POSTROUTING) -> nat(POSTROUTING)
+    接口上 ->  线路上
+    
+iptables命令的管理选项
+    iptables [-t table] command [chain] [match] [target/jump] 
+    iptables [-t 表名] 管理选项 [链名] [条件匹配] [-j 跳转/目标动作]
+
+    设置规则内容：
+        -A：在链尾追加一条新的规则
+        -I：在指定位置（或链首）插入一条新的规则
+        -R：修改、替换指定位置或内容的规则
+        -P：设置指定链的默认策略（默认允许）
+
+    列表查看规则：(-nvL)
+        -L：列表查看各条规则信息
+        -S：列表查看各条规则命令
+        --line-numbers：查看规则信息时显示规则的行号
+        -n：以数字形式显示IP地址、端口等信息
+        -v：显示数据包个数、字节数等详细信息
+
+    清除规则：
+        -D：删除指定位置或内容的规则
+        -F：清空规则链内的所有规则（但不清空自定义链和默认的）
+
+    自定义规则链：
+        -N：自定义一条新的规则链
+        -X：删除自定义的规则链
+        -Z：清除链的数据包统计
+
+其他： -h：查看iptables命令的使用帮助
+iptables命令的条件匹配
+
+通用条件匹配
+    可直接使用，不依赖于其他的条件或扩展模块
+    包括网络协议、IP地址、网络接口等匹配方式
+
+隐含条件匹配
+    一般需要以特定的协议匹配作为前提
+    包括端口、TCP标记、ICMP类型等匹配方式
+
+显式条件匹配
+    需要使用"-m 扩展模块"的形式明确指定匹配方式
+    包括多端口、MAC地址、IP地址范围、数据包状态等匹配方式
+    
+通用条件匹配
+    协议匹配
+        使用"[!] -p 协议名"的形式
+        协议名可使用在"/etc/protocols"文件中定义的名称
+        协议所对应的端口在"/etc/servies"文件中
+        常用的协议包括tcp、udp、icmp、all等
+    iptables -A INPUT -p tcp 
+    iptables -A INPUT -p udp 
+    iptables -A INPUT -p icmp 
+
+    地址匹配
+        使用"[!] -s 源地址"、 "[!] -d 目标地址"的形式
+        地址可以是单个IP地址、网络地址（带掩码长度）
+    iptables -A INPUT -s 192.168.1.100 
+    iptables -A INPUT -s 192.168.1.1/24 
+
+    接口匹配
+        使用"[!] -i 网络接口名"、 "[!] -o 网络接口名"的形式，分别对应接收（进）、发送（出）数据包的网络接口。
+    iptables -A INPUT -i eth0 
+    iptables -A INPUT -o eth1 
+
+隐含条件匹配
+
+    端口匹配
+        使用"[!] --sport 源端口"、"[!] --dport 目标端口"的形式 （-p tcp 或 -p udp为前提） 
+        采用"端口1:端口2"的形式可以指定一个范围的端口(冒号分隔)。:1024 小于等于1024、1024: 大于等于
+    iptables -A INPUT -p tcp --dport 22 
+    iptables -A INPUT -p tcp --dport :1024 
+    iptables -A FORWARD -p tcp --sport 1024: 
+    iptables -A INPUT -p tcp --dport 20:25 
+
+    TCP标记匹配
+        使用"--tcp-flags 检查范围 被设置的标记"或"[!] --syn"的形式的形式（-p tcp 为前提）
+        如"--tcp-flags SYN,RST,ACK SYN"表示检查SYN、RST、ACK这3个标记，只有SYN为1时满足条件
+    iptables -p tcp --tcp-flags SYN,FIN,ACK SYN 
+    iptables -p tcp --tcp-flags ALL SYN 
+    iptables -p tcp --syn 
+
+    ICMP类型匹配
+        使用"--icmp-type ICMP类型"的形式（-p icmp 为前提） ICMP类型可以使用类型字符串或者对应的数值，
+        例如Echo-Request(8)、Echo-Reply(0)、Destination-Unreachable(3)
+    iptables -A INPUT -p icmp --icmp-type 8 
+
+显式条件匹配
+    MAC地址匹配
+        使用"-m mac"结合"--mac-source MAC地址"的形式
+    iptables -A INPUT -m mac --mac-source 00:00:00:00:00:01 
+
+    多端口匹配
+        使用"-m multiport"结合"--port 端口列表"、"--sports 源端口列表"或者"--dports 目标端口列表"的形式
+        多个端口之间使用逗号","分隔，连续的端口也可以使用冒号":"分隔
+    iptables -A INPUT -p tcp -m multiport --source-port 22:25,53,80,110 
+
+    IP地址范围匹配
+        使用"-m iprange"结合"--src-range 源IP范围"或者"--dst-range 目标IP范围" 的形式
+        以"-"符号连接起始IP地址、结束IP地址
+    iptables -A INPUT -p tcp -m iprange --src-range 192.168.1.13-192.168.2.19 
+    iptables -A FORWARD -p tcp -m iprange --dst-range 192.168.1.13-192.168.2.19
+
+    state状态匹配 使用"-m state"结合"[!] --state 状态类型"的形式
+        同时表示多种状态时以逗号","分隔
+        常见的数据包状态包括：NEW（新的）、ESTABLISHED（已建立的连接）、RELATED（已有的连接、INVALID（无法确定的封包）
+    iptables -A INPUT -m state --state NEW 
+    iptables -A INPUT -m state --state RELATED,ESTABLISHED 
+
+    comment添加注释
+        使用"-m comment"结合"--comment 注释内容(最多256个字符)"的形式
+    iptables -A INPUT -p tcp --dport 2222 -m comment --comment "A comment" 
+    iptables -A INPUT -i eth0 -m comment --comment "my local LAN" 
+
+    string字符串匹配
+        使用"-m string"结合<[!] --string "关键字" | [!] --hex-string |二进制|> --algo <bm|kmp> [--from 开始字节] [--to 结束字节] 的形式
+        # 该字符串模式可以用于简单的文本字符
+    iptables -A FORWARD -p tcp -m tcp --dport 80 -m string --string ".baidu.com" --algo bm -j DROP
+        # 十六进制字符串模式可用于非打印字符
+    iptables -A FORWARD -p tcp -m string --hex-string "|e88d89e6a6b4|" --algo bm -j REJECT --reject-with tcp-reset
+    iptables -A FORWARD -p udp --dport 53 -m string --algo bm --from 40 --to 57 --hex-string '|03|www|09|netfilter|03|org|00|' -j DROP
+
+    
+    connlimit并发连接
+        使用"-m connlimit"结合"--connlimit-above 最大并发数 --connlimit-mask 掩码"的形式
+        # 允许每个客户端主机3个SSH连接
+    iptables -I INPUT -p tcp --syn --dport 22 -m connlimit --connlimit-above 2 -j REJECT
+        # 限制并行的HTTP请求， 每个C类网络允许16个HTTP并发的数量（24位掩码）
+    iptables  -p tcp --syn --dport 80 -m connlimit --connlimit-above 16 --connlimit-mask 24 -j REJECT
+
+    time时间匹配
+        使用"-m time"结合
+            日期 "[ --datestart YYYY[-MM[-DD[Thh[:mm[:ss]]]]] --datestop YYYY[-MM[-DD[Thh[:mm[:ss]]]]] ]"、
+            时间 "--timestart hh:mm[:ss] --timestop hh:mm[:ss]"、
+            日期 "[!] --monthdays day[,day...]"、
+            星期 "[!] --weekdays day[,day...]"的形式
+        #要匹配周末，使用方法：
+    -m time --weekdays Sa,Su
+        #或者，匹配（一次）国定假日：
+    -m time --datestart 2007-12-24 --datestop 2007-12-27
+        #要匹配日期加时间
+    -m time --datestart 2007-01-01T17:00 --datestop 2007-02-01T23:59:59
+        #在午餐时间：
+    -m time --timestart 12:30 --timestop 13:30
+        #本月的第四个周五
+    -m time --weekdays Fr --monthdays 22,23,24,25,26,27,28
+
+    quota网络配额
+        使用"-m quota"结合"--quota 字节数"的形式
+        #丢弃来自http请求的前500字节
+    iptables -I FORWARD -s 192.168.80.1 -p tcp --dport 80 -m quota --quota 500 -j DROP
+
+    length数据包长度
+        使用"-m length"结合"[!] --length length[:length]"的形式
+        #丢弃长度超过1200的ICMP包
+        iptables -A INPUT -p icmp -m length --length 1200: -j DROP
+
+    recent单位时间内连接限制
+        使用"-m recent"结合"--name 名称 <--set|--rcheck|--update> --seconds 时间秒 --hitcount 最大连接数 [--mask netmask]"的形式
+        #限制80端口60秒内每个IP只能发起5个新连接
+    iptables -F
+    iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -A INPUT -p tcp --dport 80 -m state --state NEW -m recent --name HTTPPOOL --rcheck --seconds 60 --hitcount 5 -j DROP
+    iptables -A INPUT -p tcp --dport 80 -m state --state NEW -m recent --name HTTPPOOL --set -j ACCEPT
+    iptables -A INPUT -p tcp --dport 80 -j DROP
+
+        #限制22端口60秒内每个IP只能发起5个新连接，第5次错误后的60秒内不能发起连接，超过记录日记及丢失数据包
+    iptables -F
+    iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -A INPUT -p tcp --dport 22 --syn -m state --state NEW -m recent --name SSH-SYN --update --seconds 60 --hitcount 5 -j LOG --log-prefix "SSH-SYN " --log-ip-options
+    iptables -A INPUT -p tcp --dport 22 --syn -m state --state NEW -m recent --name SSH-SYN --update --seconds 60 --hitcount 5 -j DROP
+    iptables -A INPUT -p tcp --dport 22 --syn -m state --state NEW -m recent --name SSH-SYN --set -j ACCEPT
+    iptables -A INPUT -j DROP
+
+        #限制每30秒只允许5个ICMP包(第一个包开始计时)
+        #ICMP测试不需要默认的"--state RELATED,ESTABLISHED"，因为ICMP只有一个SYN。
+    iptables -F
+    iptables -A INPUT -p icmp -m recent --name PINGPOOL --rcheck --seconds 30 --hitcount 5 -j DROP
+    iptables -A INPUT -p icmp -m recent --name PINGPOOL --set -j ACCEPT
+    iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+    iptables -A INPUT -j DROP
+
+        #限制每30秒只允许5个ICMP包，如果第5次错误后的30秒内再收到ICMP包，再将被禁止30秒(最后一个触发包开始计时) 
+    iptables -F
+    iptables -A INPUT -p icmp -m recent --name PINGPOOL --update --seconds 30 --hitcount 5 -j DROP
+    iptables -A INPUT -p icmp -m recent --name PINGPOOL --set -j ACCEPT
+    iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+    iptables -A INPUT -j DROP
+
+    limit限速匹配
+        使用"-m limit"结合"--limit 数值[/second|/minute|/hour|/day] --limit-burst 突发值"的形式
+        这个数值可以是/sec， /minute，/hour或者/day.默认是/sec Example:
+        #每分钟至少允许720个ICMP包通过
+    iptables -F
+    iptables -A INPUT -p icmp -m limit --limit 720/m --limit-burst 1440 -j ACCEPT
+        #每分钟记录4次ICMP日志
+    iptables -A INPUT -p icmp -m limit --limit 4/m --limit-burst 1 -j LOG --log-prefix "icmp-log" --log-ip-options
+    iptables -A INPUT -p icmp -j DROP
+        #当WEB并发连接超过200时，每分钟记录4次日志
+    iptables -A INPUT -p tcp --dport 80 -m limit --limit 4/m --limit-burst 1 -m connlimit --connlimit-above 200 -j LOG  --log-prefix "HTTP-DDOS" --log-ip-options
+
+    connmark链路相关的标记匹配
+        使用"-m connmark"结合"[!] --mark value[/mask]"的形式
+    iptables -A INPUT -s 192.168.2.0/24 -m connmark --mark 1 
+
+    mark数据包相关的标记匹配
+        使用"-m mark"结合"[!] --mark value[/mask]"的形式
+    iptables -t mangle -s 192.168.3.0/24 -A INPUT -m mark --mark 2 
+
+
+iptables命令的跳转/目标动作
+    目标动作
+    iptables FORWARD DROP
+    iptables FORWARD ACCEPT
+
+ACCEPT放行数据包
+    iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+
+DROP丢弃数据包
+    iptables -A INPUT -p icmp --icmp-type 8 -j DROP
+    请求超时。
+
+REJECT拒绝数据包
+    iptables -A INPUT -p icmp --icmp-type 8 -j REJECT
+    无法连到端口。
+
+LOG记录日志,并传递给下一条规则处理
+    iptables -A INPUT -p icmp -j LOG --log-ip-options --log-prefix "ICMP-LOG"
+
+用户自定义链名:传递给自定义链内的规则进行处理
+    首先，创建一个新的名为LOGGING链 
+    iptables -N LOGGING 
+    接下来，确保所有剩余的入站连接跳转到LOGGING链
+    iptables -A INPUT -p icmp -j LOGGING
+    接下来，通过指定一个自定义的"登录前缀"记录这些数据包
+    iptables -A LOGGING -m limit --limit 2/min -j LOG --log-prefix "IPTables Packet Dropped: " --log-level 7
+    最后，丢弃这些数据包
+    iptables -A LOGGING -j DROP
+
+    SNAT：修改数据包的源地址信息(出站)
+        iptables -t nat -A POSTROUTING -p tcp -o eth0 -j SNAT --to-source 194.236.50.155-194.236.50.160:1024-32000 
+        iptables -t nat -A POSTROUTING -s 10.1.1.56 -o eth0 -j SNAT --to-source 10.1.2.140 
+        iptables -t nat -A POSTROUTING -s 10.1.1.0/24 -o eth0 -j SNAT --to-source 10.1.2.139 
+    
+    DNAT：修改数据包的目标地址信息（入站）
+        iptables -t nat -A PREROUTING -p tcp -d 15.45.23.67 --dport 80 -j DNAT --to-destination 192.168.1.1-192.168.1.10 
+        iptables -t nat -A PREROUTING -d 10.1.2.139 -i eth0 -p tcp -m tcp --dport 3389 -j DNAT --to-destination 10.1.1.56:3389 
+        iptables -t nat -A PREROUTING -d 10.1.2.140 -i eth0 -j DNAT --to-destination 10.1.1.30
+        iptables -t nat -I PREROUTING -s 10.1.1.0/24 -d 112.80.248.74 -p tcp --dport 80 -j DNAT --to 10.1.1.223:80
+    
+    MASQUERADE地址伪装
+        iptables -t nat -A POSTROUTING -p TCP -j MASQUERADE --to-ports 1024-31000 
+        iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+    
+    MARK数据包标记, 只适用于mangle表
+        iptables -t mangle -A PREROUTING -p tcp --dport 22 -j MARK --set-mark 2 
+    
+    CONNMARK链路标记
+        iptables -t nat -A PREROUTING -p tcp --dport 80 -j CONNMARK --set-mark 4 
+    
+    RETURN使包返回链首链
+        iptables -t mangle -A POSTROUTING -d 10.1.1.128/25 -j MARK --set-mark 2
+        iptables -t mangle -A POSTROUTING -d 10.1.1.128/25 -j RETURN
+    
+    REDIRECT内部转发包
+        iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 8080 
+    
+    NOTRACK关闭连接跟踪,注意的是一旦notrack了，就无法MASQUERD了
+        iptables -t raw -A PREROUTING -p tcp --dport 80 -j NOTRACK
+        iptables -t raw -A OUTPUT -p tcp --sport 80 -j NOTRACK
+
+导入、导出防火墙规则
+
+导出规则
+
+iptables-save >iptables.bak
+
+导入规则
+
+iptables-restore <iptables.bak
+
+开启路由转发
+
+sysctl -w net.ipv4.ip_forward=1
+echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+sysctl -p
+
+禁止本机主动连接外网
+
+iptables -A OUTPUT -p icmp -j ACCEPT
+iptables -A OUTPUT -d 192.168.1.1,8.8.8.8,114.114.114.114 -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -d mirror.centos.org,debuginfo.centos.org,mirror.centos.org,vault.centos.org,yum.dockerproject.org,download.fedoraproject.org -p tcp --dport 80 -j ACCEPT
+iptables -A OUTPUT -d mirror.centos.org,debuginfo.centos.org,mirror.centos.org,vault.centos.org,yum.dockerproject.org,download.fedoraproject.org -p tcp --dport 443 -j ACCEPT
+iptables -A OUTPUT -s 0.0.0.0/0 -d 0.0.0.0/0 -m state --state established -j ACCEPT
+iptables -P OUTPUT DROP
+
+iptables多线负载均衡
+
+iptables -t nat -A POSTROUTING -s 192.168.10/24 -o eth0 -m statistic --mode nth --every 3 --packet 0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -s 192.168.10/24 -o eth1 -m statistic --mode nth --every 3 --packet 0 -j MASQUERA
+
+
+#!/usr/bin/env bash
+
+#############################
+#  SETUP
+#############################
+
+# Define your hostname
+DEMOSTHENES=123.456.789.012
+
+# Clear all rules
+/sbin/iptables -F
+
+# Don't forward traffic
+/sbin/iptables -P FORWARD DROP 
+
+# Allow outgoing traffic
+/sbin/iptables -P OUTPUT ACCEPT
+
+# Allow established traffic
+/sbin/iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT 
+
+# Allow localhost traffic
+/sbin/iptables -A INPUT -i lo -j ACCEPT
+
+#############################
+#  MANAGEMENT RULES
+#############################
+
+# Allow SSH (alternate port)
+/sbin/iptables -A INPUT -p tcp --dport 2222 -j LOG --log-level 7 --log-prefix "Accept 2222 alt-ssh"
+/sbin/iptables -A INPUT -p tcp -d $DEMOSTHENES --dport 2222 -j ACCEPT 
+
+#############################
+#  ACCESS RULES
+#############################
+
+# Allow web server
+/sbin/iptables -A INPUT -p tcp --dport 80 -j LOG --log-level 7 --log-prefix "Accept 80 HTTP"
+/sbin/iptables -A INPUT -p tcp -d $DEMOSTHENES --dport 80 -j ACCEPT 
+
+# Allow two types of ICMP
+/sbin/iptables -A INPUT -p icmp -d $DEMOSTHENES --icmp-type 8/0 -j LOG --log-level 7 --log-prefix "Accept Ping"
+/sbin/iptables -A INPUT -p icmp -d $DEMOSTHENES --icmp-type 8/0 -j ACCEPT
+/sbin/iptables -A INPUT -p icmp -d $DEMOSTHENES --icmp-type 8/0 -j LOG --log-level 7 --log-prefix "Accept Time Exceeded"
+/sbin/iptables -A INPUT -p icmp -d $DEMOSTHENES --icmp-type 11/0 -j ACCEPT
+
+#############################
+#  DEFAULT DENY
+#############################
+
+/sbin/iptables -A INPUT -d $DEMOSTHENES -j LOG --log-level 7 --log-prefix "Default Deny"
+/sbin/iptables -A INPUT -j DROP

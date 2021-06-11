@@ -1,0 +1,44 @@
+#if 0
+typedef struct luaL_Buffer luaL_Buffer;
+字符串缓存 的类型。
+
+字符串缓存可以让 C 代码分段构造一个 Lua 字符串。 使用模式如下：
+    首先定义一个类型为 luaL_Buffer 的变量 b。
+    调用 luaL_buffinit(L, &b) 初始化它。
+    然后调用 luaL_add* 这组函数向其添加字符串片断。
+    最后调用 luaL_pushresult(&b) 。 最后这次调用会在栈顶留下最终的字符串
+
+如果你预先知道结果串的长度， 你可以这样使用缓存：
+    首先定义一个类型为 luaL_Buffer 的变量 b。
+    然后调用 luaL_buffinitsize(L, &b, sz) 预分配 sz 大小的空间。
+    接着将字符串复制入这个空间。
+    最后调用 luaL_pushresultsize(&b, sz)， 这里的 sz 指已经复制到缓存内的字符串长度。
+一般的操作过程中，字符串缓存会使用不定量的栈槽。 因此，在使用缓存中，你不能假定目前栈顶在哪。 在对缓存操作的函数调用间，你都可以使用栈，只需要保证栈平衡即可； 即，在你做一次缓存操作调用时，当时的栈位置和上次调用缓存操作后的位置相同。 （对于 luaL_addvalue 是个唯一的例外。） 在调用完 luaL_pushresult 后， 栈会恢复到缓存初始化时的位置上，并在顶部压入最终的字符串。
+
+
+    void luaL_buffinit (lua_State *L, luaL_Buffer *B);
+初始化缓存 B。 这个函数不会分配任何空间； 缓存必须以一个变量的形式声明 
+
+    char *luaL_buffinitsize (lua_State *L, luaL_Buffer *B, size_t sz);
+等价于调用序列 luaL_buffinit， luaL_prepbuffsize。
+
+    void luaL_pushresult (luaL_Buffer *B);
+结束对缓存 B 的使用，将最终的字符串留在栈顶。
+
+    void luaL_pushresultsize (luaL_Buffer *B, size_t sz);
+等价于 luaL_addsize，luaL_pushresult。
+
+    void luaL_addvalue (luaL_Buffer *B); 用于在栈顶增加一个lua字符串
+向缓存 B （参见 luaL_Buffer ） 添加栈顶的一个值，随后将其弹出。
+这个函数是操作字符串缓存的函数中，唯一一个会（且必须）在栈上放置额外元素的。 这个元素将被加入缓存。
+
+    void luaL_addchar (luaL_Buffer *B, char c);
+向缓存 B （参见 luaL_Buffer ） 添加一个字节 c。
+
+    void luaL_addlstring (luaL_Buffer *B, const char *s, size_t l);
+向缓存 B （参见 luaL_Buffer ） 添加一个长度为 l 的字符串 s。 这个字符串可以包含零。
+
+    void luaL_addstring (luaL_Buffer *B, const char *s);
+向缓存 B （参见 luaL_Buffer ） 添加一个零结尾的字符串 s。
+
+#endif

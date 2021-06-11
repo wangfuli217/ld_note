@@ -1,0 +1,40 @@
+关联表定义
+-------------------
+    关联表是一组键-值对的集合。它很像是数组，只是索引可以是任何类型值。
+    
+关联表接口
+-------------------
+    向任何Table函数传递的T值或key为NULL，均为已检查的运行时错误。
+
+    T    table_new(int hint,
+                   int cmp(const void *x,const void *y),
+                   unsigned hash(const void *key)) 创建、初始化并返回一个新的空表，可以包含任意数目的键值对。
+hint是对表可能包含的键值对数目的估计。如果hint<0，则为已检查的运行时错误。
+cmp和hash是用于比较和散列键的函数。对于键x和y，如果x<y、x=y、x>y，那么cmp(x,y)必须返回<0, =0, >0的一个int。
+如果cmp(x,y)返回零，hash(x)必须等于hash(y)。
+如果cmp=NULL或hash=NULL，Table_new将使用atom_t键的对应函数。
+    void    table_free(T *table) 释放*table并将其清零。如果table或*table为NULL，则是已检查的运行时错误
+    
+    int  table_length(T table) 返回table中键-值对的数目
+    void *table_put(T table,const void *key,void *value) 将table中与key关联的值改为value，并返回此前与key关联的值，
+                                                         如果table并不包含key，则向table添加key和value，并返回NULL。
+    void *table_get(T table,const void *key) 返回table中key关联的值，如果table并不包含key，则返回NULL。
+    
+    void *table_remove(T table,const void *key) 从table中删除键值对并返回被删除的值。
+                                                如果不包含key，则table_remove没有效果，返回NULL
+    void table_map(T table,
+                   void apply(const void *key, void **value, void *cl), void *cl)
+    按未指定的顺序，对table中每个键值调用apply(key, &value, cl)。如果apply修改table，则造成已检查的运行时错误。
+    void **table_toarray(T table, void *end) 创建一个2N+1个元素的数组，将table中的N键-值对按未指定的顺序赋值到数组中，
+    并返回指向数组第一个元素的指针。键出现在偶数编号的数组元素中，而对应的值出现在奇数编号的数组元素中。元素2N为end。
+    
+    
+关联表应用
+-------------------
+wf: 实现单词频率计算
+
+icon语言
+http://www2.cs.arizona.edu/icon/docs/ipd266.htm
+table 使用了icon一些技术
+
+https://github.com/zyxstar/md_note/blob/master/docs/Language/C/C%E8%AF%AD%E8%A8%80(Uplooking).md

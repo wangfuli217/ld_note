@@ -1,0 +1,75 @@
+http://www.kuqin.com/qtdocument/qaction.html
+
+QAction类提供了一个可以同时出现在菜单和工具条上的抽象用户界面操作。 
+
+    在图形用户界面应用程序中很多命令可以通过菜单选项、工具条按钮和键盘快捷键调用。
+因为同一个操作将会被执行，而与它的调用方法无关，并且因为菜单和工具条必须保持同步，
+所以提供一个操作这样的命令很有用。一个操作可以被添加到菜单和工具条中并且将会自动使它们同步。
+例如，如果用户按下“加粗”工具条按钮，“加粗”菜单项将会自动被选中。
+
+    QAction可以包含图标、菜单文本、快捷键、状态条文本、这是什么文本和工具提示。
+它们可以分别通过setIconSet()、setText()、setMenuText()、setToolTip()、setStatusTip()、
+setWhatsThis()和setAccel()来设置。
+
+    操作可以是一个切换操作，例如，一个“加粗”工具条按钮，或者一个命令操作，例如“打开文件”
+来调用打开文件对话框。当切换操作的状态改变了，它发射toggled()信号。当命令操作和切换按钮被调用时，
+它们都发射activated()信号。使用setToggleAction()来设置操作的切换状态。如果要看操作是否是切换操作，
+请使用isToggleAction()。切换操作可以是“开”，isOn()返回真，或者“关”，isOn()返回假。 
+
+    操作可以使用addTo()被添加到窗口部件（菜单或者工具条）中，并且使用removeFrom()来移除。
+    一旦QAction已经被创建，它应该被添加到相应的菜单或者工具条重并且然后连接到执行这个操作的槽。例如：
+    
+    fileSaveAction = new QAction( "Save File", QPixmap( filesave ),
+                                "&Save", CTRL+Key_S, this, "save" );
+    connect( fileSaveAction, SIGNAL( activated() ) , this, SLOT( save() ) );
+
+    我们创建一个菜单文本为“保存(&S)”并且Ctrl+S为键盘快捷键的“文件保存”操作。我们连接
+fileSaveAction的activated()信号到我自己的save()槽。注意在这时还没有菜单或者工具条操作，
+接下来我们将添加它们： 
+
+    QToolBar * fileTools = new QToolBar( this, "file operations" );
+    fileSaveAction->addTo( fileTools );
+    QPopupMenu * file = new QPopupMenu( this );
+    menuBar()->insertItem( "&File", file );
+    fileSaveAction->addTo( file );
+    我们创建了一个工具条并把我们的fileSaveAction添加进去。类似的，我们创建一个菜单，
+添加一个顶级菜单项并且把我们的fileSaveAction添加进去。 
+
+void QAction::setAccel ( const QKeySequence & key ) [虚]
+设置操作的快捷键为key。
+
+void QAction::setEnabled ( bool ) [虚 槽]
+设置操作是否生效。详细情况请参考“enabled”属性。 
+
+void QAction::setIconSet ( const QIconSet & ) [虚]
+设置操作的图标。详细情况请参考“iconSet”属性。
+
+void QAction::setMenuText ( const QString & ) [虚]
+设置操作的菜单文本。详细情况请参考“menuText”属性。
+
+void QAction::setOn ( bool ) [虚 槽]
+设置切换按钮为开。详细情况请参考“on”属性。
+
+void QAction::setStatusTip ( const QString & ) [虚]
+设置操作的状态提示。详细情况请参考“statusTip”属性。
+
+void QAction::setText ( const QString & ) [虚]
+设置操作的描述文本。详细情况请参考“text”属性。
+
+void QAction::setToggleAction ( bool ) [虚]
+设置操作是否是切换按钮。详细情况请参考“toggleAction”属性。
+
+void QAction::setToolTip ( const QString & ) [虚]
+设置操作的工具提示。详细情况请参考“toolTip”属性。
+
+void QAction::setWhatsThis ( const QString & ) [虚]
+设置操作的“这是什么？”帮助文本。详细情况请参考“whatsThis”属性。
+
+
+
+
+
+
+
+
+

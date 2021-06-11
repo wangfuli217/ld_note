@@ -1,0 +1,227 @@
+回顾：
+1.编译程序需要Makefile
+2.裸板程序编译链接时可以人为指定程序各个段的内存位置
+  通过连接脚本
+  ENTRY
+  SECTIONS
+  . = ....;
+  .text : 
+  {
+  	指定第一个运行的文件
+  	*
+  }
+
+3.实现了简单的shell功能
+  实现开关灯
+  实现开关蜂鸣器
+  结构体和函数指针
+
+4.NandFlash相关内容
+  作用：
+  面试题：Nor和Nand区别
+  硬件连接：
+  	8根数据线：DATA0~DATA7
+  		发命令
+  		发地址
+  		发数据
+  	其余控制信号线：
+  		WP
+  		WE
+  		RE
+  		CE/CS
+  		ALE
+  		CLE
+  		R/B
+    Nand内部存储单元的组成：
+    按页划分：2048字节
+    按块划分：1块=64页=128K
+    Nand:1G
+    
+    Nand片内地址划分：列地址和行地址
+    列地址：1页内的偏移量
+    	    发2次
+    行地址：页号(第几个页)
+            发3次
+    举例：CPU要访问8000片内地址
+    举例：CPU要写数据0x1234
+          CPU第一次发：0x1234 & 0xff
+          CPU第二次发：(0x1234 >> 8) & 0xff
+
+5.Nand具体访问操作步骤
+  明确：CPU访问Nand的基本三步骤
+        命令
+        地址
+        数据
+  问：Nand具体如何访问呢？ 
+  答：打开Nand芯片手册
+      以CPU读取Nand ID(身份证号)为例：
+      P9:罗列Nand基本操作命令
+      例如：CPU要读ID,首先CPU发送0x90命令
+            CPU要擦除Nand,首先CPU发送0x60命令
+            然后发送0xD0命令
+      CPU读取Nand ID的步骤：P35
+      发命令：
+      1.CPU拉低片选CE
+      2.CPU拉高CLE
+      3.CPU拉低WE
+      4.CPU将命令0x90放到数据线上
+      
+      发片内地址：
+      1.CPU拉低片选CE
+      2.CPU拉高ALE
+      3.CPU拉低WE
+      4.CPU将地址0x00放到数据线上
+      
+      CPU读取数据：
+      1.CPU拉低片选CE
+      2.CPU拉低ALE和CLE
+      3.CPU拉低RE
+      4.CPU从数据线上获取数据0xEC
+      ...
+      最后：Nand：0xEC 0xDC 0x51 0x95 0x58
+      
+      画出Nand操作时序图
+                 
+6.问：现在已经明确了Nand的信号线和数据线的
+      基本操作,CPU是如何操作这些线呢？
+  画出CPU和Nand的连接图
+  答：研究对象的切换
+  1.CPU访问Nand
+  2.CPU访问17根信号线
+  3.CPU访问Nand控制器
+  4.CPU访问Nand控制器对应的寄存器
+  5.打开S5PV210芯片手册找到Nand控制器的章节P692
+  6.研究寄存器和寄存器对应的各个BIT
+
+7.Nand控制器相关的物理特性
+  时钟源：HCLK
+  CPU通过访问Nand控制器的步骤：
+  1.CPU将命令写入到命令寄存器NFCMMD
+    Nand控制器硬件自动完成时序操作
+  2.CPU将片内地址写入到地址寄存器NFADDR
+    Nand控制器硬件自动完成时序操作
+  3.CPU如何是写数据,CPU将数据写入到数据寄存器NFDATA
+    CPU如估是读数据,CPU从数据寄存器NFDATA获取数据
+    Nand控制器硬件自动完成时序操作
+    
+  命令  地址  数据的操作：
+            Nand(角度)		S5PV210(角度)
+  发命令    拉低CE		NFCMMD=命令
+  	    拉CLE
+  	    拉低WE
+  	    命令放到数据线
+  发地址    拉低CE		NFADDR=地址(多次)
+            拉高ALE
+            拉低WE
+            地址放到数据线
+  数据	    拉低CE		NFDATA=数据
+  	    拉低CLE和ALE        数据 = NFDATA
+  	    拉低WE/RE
+  	    数据放到数据线		
+  	    /从数据线上获取数据
+8.Nand寄存器说明：
+  NFCONF控制器寄存器：
+  基地址：0xB0E00000
+  BIT[15:12]=TACLS:使能ALE/CLE多久以后再使能WE
+  BIT[11:8]=TWRPH0:WE写使能的有效宽度(时间)
+  BIT[7:4]=TWRPH1:WE写使能禁止多久以后再禁止ALE/CLE
+  总结：以上三个参数用于设置时序操作时间
+  问：如何设置以上三个参数的具体时间呢？
+  答：明确以上三个值的设置肯定是根据Nand本身来设置
+  计算过程：
+  1.打开Nand的手册,找到ALE/CLE和WE之间的时间间隔
+    时间间隔=tcls-twp=12ns - 12ns = 0
+  2.根据S5PV210的手册的公式：
+    HCLK*TACLS= tcls-twp=12ns - 12ns = 0
+    HCLK*TACLS>=0ns //HCLK=133MHz 
+    7ns*TACLS>=0ns
+    =>TACLS>=0
+  
+    HCLK*(TWRPH0+1) = twp = 12ns
+    7ns*(TWRPH0+1) = 12ns
+    =>TWRPH0=1
+    
+    HCLK*(TWRPH1+1) = tcls = 5ns
+    7ns*(TWRPH0+1) = 5ns
+    =>TWRPH1=0
+    
+  BIT[1] = 1:设置地址周期的个数
+  
+  NFCONT控制寄存器：
+  基地址0xB0E00004
+  BIT[1]:片选使能
+         =0：使能Nand芯片
+         =1：禁止Nand芯片(等价于开发板没有焊接Nand)
+  BIT[0]:Nand控制器的操作
+         =0：禁止控制器
+         =1：使能控制器
+  总结：Nand控制器可以一直打开
+        但是片选信号只有在CPU访问Nand时才能使能
+        Nand不访问时必须禁止使能信号
+               
+  NFCMMD命令寄存器
+  基地址0xB0E00008
+  BIT[7:0]:保存要发送的命令
+  
+  NFADDR地址寄存器
+  基地址0xB0E0000C
+  BIT[7:0]:保存要发送的地址
+  
+  NFDATA数据寄存器
+  基地址0xB0E00010
+  BIT[31:0]:保存操作的数据
+  unsigned char *:低8位
+  unsigned long *:32位
+  
+  NFSTAT状态寄存器
+  BIT[0]:指示Nand状态
+  	=0：Nand忙
+  	=1：Nand准备就绪
+  总结：CPU要想访问Nand,应该在BIT[0]=1时
+        CPU要想访问Nand,但是发现BIT[0]=0,死等
+        直到BIT[0]=1	
+8.编写Nand裸板驱动程序
+  实施步骤：
+  1.用户需求
+    读取Nand ID并且打印
+    armshell#readid //执行readid命令打印ID
+  2.编写
+    mkdir /opt/arm/day08/
+    cp /opt/arm/day08/5.0 /opt/arm/day08/1.0 -fr
+    cd /opt/arm/day08/1.0
+    vim nand.h
+    vim nand.c
+    vim cmd.c 添加readid命令对象
+    vim Makefile 添加nand.o
+    make
+  3.测试
+    tftp 20008000 shell.bin
+    go 20008000
+    readid
+            
+    100->0x64->itoa->"0x64"
+    buf[0] = '0';
+    buf[1] = 'x';
+    
+    //0~9 A~F -> '0'~'9' 'A'
+    %
+    /
+    
+    0x12345678-> "0x12345678"
+                  0123456789 //数组下标
+             
+**************************************************
+案例：读取NandFlash第一页所有的数据
+      添加命令：nandread
+      命令函数：cmd_nandread
+      读一页函数：nand_read_page
+实施步骤：
+1.cd /opt/arm/day08/
+2.cp 1.0 2.0 -fr
+3.掌握Nand的读操作过程
+  打开Nand的芯片手册P27,读操作时序图
+  
+
+
+      
+    	

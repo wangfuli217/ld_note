@@ -1,0 +1,191 @@
+http://www.cnblogs.com/rohens-hbg/p/5462240.html
+
+ath> printenv
+bootargs=console=ttyS0,115200 root=31:02 rootfstype=jffs2 init=/sbin/init mtdparts=ath-nor0:256k(u-boot),64k(u-boot-env),14528k(rootfs),1408k(uImage),64k(mib0),64k(ART)
+bootcmd=bootm 0x9fE80000
+bootdelay=2
+baudrate=115200
+ethaddr=0x00:0xaa:0xbb:0xcc:0xdd:0xee
+dir=
+lu=tftp 0x80060000 ${dir}u-boot.bin&&erase 0x9f000000 +$filesize&&cp.b $fileaddr 0x9f000000 $filesize
+lf=tftp 0x80060000 ${dir}openwrt-ar71xx-generic-ap143-16M-rootfs-squashfs.bin&&erase 0x9f050000 +0xE30000&&cp.b $fileaddr 0x9f050000 $filesize
+lk=tftp 0x80060000 ${dir}openwrt-ar71xx-generic-ap143-16M-kernel.bin&&erase 0x9fE80000 +$filesize&&cp.b $fileaddr 0x9fE80000 $filesize
+ethact=eth0
+ipaddr=192.168.2.101
+serverip=192.168.2.234
+stdin=serial
+stdout=serial
+stderr=serial
+
+Environment size: 742/65532 bytes
+
+ 
+
+具体变量定义可以查看openwrt官网的声明。
+
+地址如下：  https://wiki.openwrt.org/doc/techref/bootloader/uboot.config
+
+下面简单介绍一下：
+
+bootargs：The contents of this variable are passed to the Linux kernel as boot arguments (aka "command line").
+
+              传送给linux内核的参数，用于启动（boot），也称作命令行。
+
+bootargs=console=ttyS0,115200 root=31:02 rootfstype=jffs2 init=/sbin/init mtdparts=ath-nor0:256k(u-boot),64k(u-boot-env),14528k(rootfs),1408k(uImage),64k(mib0),64k(ART) 
+
+（1）console=ttyS0 串口
+
+（2）115200  波特率为115200
+
+（3）root=31:02     ？暂时不知什么意思
+
+（4）rootfstype=jffs2  文件系统为jffs2
+
+（5）init=/sbin/init   初始化脚本调用/sbin/init
+
+（6）mtdparts=ath-nor0:256k(u-boot),64k(u-boot-env),14528k(rootfs),1408k(uImage),64k(mib0),64k(ART) 
+
+       mtd分区为：   u-boot  256k
+
+                           u-boot-env     64k
+
+                           rootfs   14528k
+
+                           uImage  1408k(linux 内核)
+
+                           mib0   64k(factory)
+
+                           ART    64k(无线校正区)
+
+       启动完成后，查看分区情况可以看到：
+
+        root@OpenWrt:/# cat /proc/mtd
+　　　　　　dev:    size         erasesize  name
+　　　　　　mtd0: 00040000 00010000 "u-boot"
+　　　　　　mtd1: 00010000 00010000 "u-boot-env"
+　　　　　　mtd2: 00e30000 00010000 "rootfs"
+　　　　　　mtd3: 00be0000 00010000 "rootfs_data"
+　　　　　　mtd4: 00160000 00010000 "kernel"
+　　　　　　mtd5: 00010000 00010000 "factory"
+　　　　　　mtd6: 00010000 00010000 "art"
+　　　　　　mtd7: 00f80000 00010000 "firmware"
+
+ 
+
+bootcmd：This variable defines a command string that is automatically executed when the initial countdown is not interrupted. This command is only   executed when the variable bootdelay is also defined!
+
+                当初始化（initial）计时结束后开始执行此命令，此命令不可被中断，并且只能跟bootdelay一起使用。
+
+bootcmd=bootm 0x9fE80000      跳转到地址0x9fE80000去启动 
+
+bootm命令可以引导启动存储在内存中的程序映像。这些内存包括RAM和可以永久保存的Flash。
+第1个参数addr是程序映像的地址，这个程序映像必须转换成U-Boot的格式。
+第2个参数对于引导Linux内核有用，通常作为U-Boot格式的RAMDISK映像存储地址；也可以是传递给Linux内核的参数（缺省情况下传递bootargs环境变量给内核）。
+附加说明: 要求二进制代码为制定格式的。通常为mkimage处理过的二进制文件。起动UBOOT TOOLS制作的压缩LINUX内核, bootm 3200000
+
+ 
+
+ 
+
+bootdelay：After reset, U-Boot will wait this number of seconds before it executes the contents of the bootcmd variable. During this time a countdown is printed, which can be interrupted by pressing any key. Set this variable to 0 boot without delay. Be careful: depending on the contents of your bootcmd variable, this can prevent you from entering interactive commands again forever! 
+Set this variable to -1 to disable autoboot.
+
+                 reset后，经过bootdelay的时间后，执行bootcmd命令。在此期间，打印countdown计时，此时可以按任意键打断。如果这个值设置为0，则立即执行bootcmd，无需等待bootdelay的时间。如果设置为-1，则进制自动启动（autoboot）
+
+bootdelay=2  倒计时2 . 1 后执行bootcmd命令
+
+ 
+
+ 
+
+baudrate：a decimal number that selects the console baudrate (in bps)
+
+               串口的波特率（单位：bps）
+
+baudrate=115200
+
+ 
+
+ 
+
+ethaddr：Ethernet MAC address for first/only ethernet interface (eth0 in Linux). 
+This variable can be set only once (usually during manufacturing of the board). U-Boot refuses to delete or overwrite this variable once it has been set.
+
+              第一个以太口的MAC地址，这个变量只可被设置一次（一般在制造单板时设置）。一旦设置，U-Boot拒绝删除或覆盖这个变量。
+
+ethaddr=0x00:0xaa:0xbb:0xcc:0xdd:0xee    地址设置为： 00:aa:bb:cc:dd:ee
+
+ 
+
+设置lu lf 和 lk 为别名，代替后面的命令集
+
+lu=tftp 0x80060000 ${dir}u-boot.bin&&erase 0x9f000000 +$filesize&&cp.b $fileaddr 0x9f000000 $filesize
+
+    （1） 将u-boot.bin文件上传到0x80060000地址；  
+
+    （2）然后从地址0x9f000000开始，擦除filesize大小；
+
+    （3）从fileaddr地址中复制数据，大小为filesize，到地址0x9f000000.
+
+也就是说设备的地址从0x9f000000开始，到 0x9f000000+filesize里面存放的是u-boot。
+
+
+lf=tftp 0x80060000 ${dir}openwrt-ar71xx-generic-ap143-16M-rootfs-squashfs.bin&&erase 0x9f050000 +0xE30000&&cp.b $fileaddr 0x9f050000 $filesize
+
+     （1）上传openwrt-ar71xx-generic-ap143-16M-rootfs-squashfs.bin到地址0x80060000；
+
+     （2）然后从地址0x9f050000开始，擦除0xE30000大小；
+
+     （3）从fileaddr地址中复制数据，大小为filesize，到地址0x9f050000
+
+也就是说设备的地址从0x9f050000开始，到 0x9f050000+filesize里面存放的是rootfs。
+
+ 
+
+
+lk=tftp 0x80060000 ${dir}openwrt-ar71xx-generic-ap143-16M-kernel.bin&&erase 0x9fE80000 +$filesize&&cp.b $fileaddr 0x9fE80000 $filesize
+
+     （1）上传openwrt-ar71xx-generic-ap143-16M-kernel.bin到地址0x80060000；
+
+     （2）然后从地址0x9fE80000开始，擦除filesize大小；
+
+     （3）从fileaddr地址中复制数据，大小为filesize，到地址0x9E80000
+
+也就是说设备的地址从0x9fE80000开始，到 0x9fE80000+filesize里面存放的是kernel。
+
+ 
+
+ethact： uboot 要求使用环境变量 "ethact" 来指明寻找网络设备的起点。
+
+ethact=eth0
+
+ 
+
+ 
+
+ipaddr=192.168.2.101      设置设备地址，用于tftp使用
+serverip=192.168.2.234    设置服务器地址，供tftp使用
+
+ 
+
+输入，输出，错误打印均在串口
+
+stdin=serial
+stdout=serial
+stderr=serial
+
+ 
+
+附录：
+
+cp [.b, .w, .l] source target count
+
+       - copy memory
+
+cp命令可以在内存中复制数据块，包括对Flash的读写操作。
+
+第1个参数source是要复制的数据块起始地址。
+
+第2个参数target是数据块要复制到的地址。这个地址如果在Flash中，那么会直接调用写Flash的函数操作。所以U-Boot写Flash就使用这个命令，当然需要先把对应Flash区域擦净。
+
+第3个参数count是要复制的数目，根据cp.b cp.w cp.l分别以字节、字、长字为单位。

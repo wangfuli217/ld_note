@@ -1,0 +1,296 @@
+https://www.cnblogs.com/findumars/p/5176173.html
+
+以下是满足可赋值的自定义数据类型的例子：
+class Employee
+{
+public:
+    Employee() {}
+    Employee(const Employee &other);
+    Employee &operator=(const Employee &other);
+private:
+    QString myName;
+    QDate myDateOfBirth;
+
+};
+
+下面的数据类型也可以用容器存储。
+struct Movie
+{
+    int id;
+    QStringtitle;
+    QDatereleaseDate;
+};
+
+例如，QMap<Key,T>的key类型必须提供operator<()。
+
+    Qt容器提供operator<<() 和operator>>() 所以可以很容易用 QDataStream进行读写。
+这意味着存储在容器中的数据类型也必须支持operator<<() 和 operator>>()。
+QDataStream&operator<<(QDataStream&out, const Movie &movie)
+{
+    out << (quint32)movie.id<< movie.title
+        << movie.releaseDate;
+    return out;
+}
+
+QDataStream&operator>>(QDataStream&in, Movie &movie)
+{
+    quint32id;
+    QDatedate;
+    in >> id >> movie.title>> date;
+    movie.id = (int)id;
+    movie.releaseDate = date;
+    return in;
+}
+    某些容器类的函数的文档说明设计默认构造值，例如，QVector用默认构造值自动的初始化其元素。
+如果没有指定key的值，则QMap::value() 返回默认构造值。对于大多数值类型，这意味着简单的用默认构造函数创建默认值。
+但是对于原始类型如int，double和指针，C++语言不指定任何初始化，在这种情况下，Qt容器自动的初始化为0.
+
+QList(容器类)->QListIterator(只读迭代器)->QMutableListIterator(读/写迭代器)
+
+Java-StyleIterators
+----------------------------
+Java-style iterators是在Qt4才新加入的而且Qt程序中标准的使用着。它们比STL-styleiterators用起来方便，但是效率稍微低了一点。
+Containers                          Read-only iterator      Read-write iterator
+QList<T>, QQueue<T>                 QListIterator<T>        QMutableListIterator<T>
+QLinkedList<T>                      QLinkedListIterator<T>  QMutableLinkedListIterator<T>
+QVector<T>, QStack<T>               QVectorIterator<T>      QMutableVectorIterator<T>
+QSet<T>                             QSetIterator<T>         QMutableSetIterator<T>
+QMap<Key, T>, QMultiMap<Key, T>     QMapIterator<Key, T>    QMutableMapIterator<Key, T>
+QHash<Key, T>, QMultiHash<Key, T>   QHashIterator<Key, T>   QMutableHashIterator<Key, T> 
+
+    与STL-style iterators 不同的是, Java-style iterators指向元素的中间而不是直接指向元素的。
+因此，它们指向容器的开头，容器的末尾或者两个元素的之间。
+
+QList
+----------------------------
+1. 前向遍历
+QList<QString>list;
+list << "A" << "B" << "C" <<"D";
+QListIterator<QString>i(list);
+while (i.hasNext())
+    qDebug()<< i.next();
+    
+它的工作原理如下：QList 的迭代传递到 QListIterator 的构造函数。此时，迭代器指向list的第一个元素之前。
+然后调用 hasNext() 检测迭代器后面是否有元素，如果有，我们调用next() 跳过该元素，next() 返回所跳过的元素。
+对于 QList<QString>,其元素的类型是 QString.。
+2. 反向遍历
+QListIterator<QString>i(list);
+i.toBack();
+while (i.hasPrevious())
+    qDebug()<< i.previous();
+这段代码与正向遍历的对称，除了开始调用toBack() 把迭代器移到最后元素的后面。
+
+3. 遍历可用函数
+toFront()        将迭代器移动到List列表的最前面(第一个项目之前)
+hasNext()        检查该迭代器后面是否还有项目。
+next()           迭代器向后移动，返回它所跳过的项目。
+
+toBack()         将迭代器移动到List列表的最后面(最后一个项目之后)
+hasPrevious()    检查迭代器前面是否还有项目
+previous()       迭代器向前移动，返回它所跳过的项目。
+
+peekNext()       迭代器不移动，返回它本来能跳过的项目
+peekPrevious()   迭代器不移动，返回它本来能跳过的项目。
+
+4. 修改QList链表
+QListIterator不提供插入或删除元素的函数。要实现插入删除，可以用QMutableListIterator，
+QMutableListIterator<int> i(list);
+while (i.hasNext()) {
+    if (i.next() % 2 != 0)
+        i.remove();
+}
+
+    循环中每次调用next()都跳过后面的元素。remove() 函数从list中删除最近跳过的元素。
+调用remove() 不会使迭代器失效，所以可以安全的使用它。反向遍历也一样
+QMutableListIterator<int> i(list);
+i.toBack();
+while (i.hasPrevious()) {
+    if (i.previous() % 2 != 0)
+        i.remove();
+}
+
+5. 修改QList链表节点的值
+如果想改变存在的一个元素，可以用setValue().。
+QMutableListIterator<int> i(list);
+while (i.hasNext()) {
+    if (i.next() > 128)
+        i.setValue(128);
+}
+和 remove()一样， setValue()作用于最近跳过的元素。如果是正向遍历，这个元素在迭代器的前面，如果是反向遍历，该元素在迭代器的后面。
+
+next() 返回一个元素的非const引用，对于简单的操作，我们不需要setValue():：
+QMutableListIterator<int> i(list);
+while (i.hasNext())
+    i.next() *= 2;
+如以上提到的，QLinkedList, QVector 和 QSet的迭代器的API 跟 QList的一样。
+
+Map
+----------------------------
+    像 QListIterator一样, QMapIterator 提供toFront(), toBack(), hasNext(), next(), 
+peekNext(), hasPrevious(), previous(),和 peekPrevious().
+    key和value通过next(),peekNext(), previous(), 或者 peekPrevious().的返回对象调用
+key()和value()来获取。
+
+1. 修改QMap
+QMap<QString,QString>map;
+map.insert("Paris", "France");
+map.insert("Guatemala City", "Guatemala");
+map.insert("Mexico City", "Mexico");
+map.insert("Moscow", "Russia");
+...
+
+QMutableMapIterator<QString,QString>i(map);
+while (i.hasNext()) {
+    if (i.next().key().endsWith("City"))
+        i.remove();
+}
+QMapIterator 也提供对于迭代器的key()和value()函数，返回最近被跳过元素的key和value。
+QMap<int, QWidget*> map;
+QHash<int, QWidget*> hash;
+
+QMapIterator<int, QWidget*> i(map);
+while (i.hasNext()) {
+    i.next();
+    hash.insert(i.key(), i.value());
+}
+
+2. findNext() 和 findPrevious()
+如果想遍历有相同value的元素，可以用 findNext() 或者 findPrevious().。
+QMutableMapIterator<int, QWidget*> i(map);
+while (i.findNext(widget))
+    i.remove();
+    
+STL-StyleIterators
+----------------------------
+Containers                          Read-only iterator              Read-write iterator
+QList<T>, QQueue<T>                 QList<T>::const_iterator        QList<T>::iterator
+QLinkedList<T>                      QLinkedList<T>::const_iterator  QLinkedList<T>::iterator
+QVector<T>, QStack<T>               QVector<T>::const_iterator      QVector<T>::iterator
+QSet<T>                             QSet<T>::const_iterator         QSet<T>::iterator
+QMap<Key, T>, QMultiMap<Key, T>     QMap<Key, T>::const_iterator    QMap<Key, T>::iterator
+QHash<Key, T>, QMultiHash<Key, T>   QHash<Key, T>::const_iterator   QHash<Key, T>::iterator 
+对于每个容器，都有两种STL-style iterator类型：一种是只读，一种是可读写的。应该进可能的使用只读的迭代器，因为它比可读写的迭代器快。
+
+    STL iterators 的API参照数组的指针。例如，++操作将迭代器指向下一个元素，* 操作返货迭代器指向的元素。
+实际上，QVector 和 QStack,的元素存储在相邻的内存位置， iterator 仅仅是T *,的别名， const_iterator 
+是 constT *.的别名。
+
+1. for 方式遍历
+QList<QString>list;
+list << "A" << "B" << "C" <<"D";
+
+QList<QString>::iterator i;
+for (i = list.begin(); i != list.end(); ++i)
+    *i = (*i).toLower();
+
+2. while 方式遍历
+用STL-style iterator 进行反向迭代在访问元素之前必须先自减。
+QList<QString>::iterator i = list.end();
+while (i != list.begin()) {
+    --i;
+    *i = (*i).toLower();
+}
+用* 操作获取元素的值，然后调用了QString::toLower() 。大部分的编译器也支持 i->toLower(),，有的则不支持。
+
+3. 只读方式遍历
+对于只读，我们用const_iterator, constBegin(), 和 constEnd()
+QList<QString>::const_iterator i;
+for (i = list.constBegin(); i != list.constEnd(); ++i)
+    qDebug()<< *i;
+
+    
+Map
+-------------------
+对于QMap 和 QHash, *操作返回元素的value部分。如果你想获得key，可以对迭代器调用key()。对应的，迭代器也提供value()函数来获得value。
+QMap<int, int> map;
+...
+QMap<int, int>::const_iterator i;
+for (i = map.constBegin(); i != map.constEnd(); ++i)
+    qDebug()<< i.key() << ":" << i.value();
+    由于有隐式共享，函数返回容器代价不是很高。Qt的API包含了很多返回QList 
+或者 QStringList 的函数。如果你想用 STL 迭代器遍历它们，应该先拷贝容器并遍历拷贝的容器副本：
+
+// RIGHT
+const QList<int> sizes = splitter->sizes();
+QList<int>::const_iterator i;
+for (i = sizes.begin(); i != sizes.end(); ++i)
+    ...
+
+// WRONG
+QList<int>::const_iterator i;
+for (i = splitter->sizes().begin();
+        i != splitter->sizes().end();++i)
+对于返回容器的const或者非const引用的函数并不会出现这种情况。
+
+隐式共享在STL-style iterators的另外一个结果是：当容器正在使用非const迭代器时不能拷贝容器， Java-style iterators不受此限制。
+
+foreach
+-------------------
+    如果你只是想依次的遍历容器的元素，可以用Qt的关键字foreach ，该关键字是Qt对C++额外添加的，
+用预处理器实现的。它的语法为：foreach (variable, container)
+
+QLinkedList<QString> list;
+...
+QString str;
+foreach(str, list)
+    qDebug()<< str;
+foreach 代码比使用迭代器的同等代码要短：
+
+QLinkedList<QString> list;
+...
+QLinkedListIterator<QString> i(list);
+while (i.hasNext())
+    qDebug()<< i.next();
+
+
+如果数据类型不包含逗号，用于遍历的变量可以声明在foreach 之内：
+QLinkedList<QString> list;
+...
+foreach(const QString &str, list)
+    qDebug()<< str;
+    
+和其他C++循环结构一样，你可以在foreach 循环内用分支，可以用break跳出循环：
+QLinkedList<QString>list;
+...
+foreach(const QString &str, list) {
+    if (str.isEmpty())
+        break;
+    qDebug()<< str;
+}
+
+对于QMap 和 QHash,，foreach 获取的是 (key,value) 对的alue部分。如果你想遍历key和alue，可以用迭代器或者下如下代码：
+QMap<QString,int> map;
+...
+foreach(const QString&str, map.keys())
+    qDebug()<< str << ":" << map.value(str);
+
+
+For a multi-valued map:
+QMultiMap<QString,int> map;
+...
+foreach(const QString&str, map.uniqueKeys()) {
+    foreach (int i, map.values(str))
+        qDebug()<< str << ":" << i;
+}
+当进入foreach 循环时Qt自动拷贝容器。如果你在遍历的时候改变了容器，也不会影响循环。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

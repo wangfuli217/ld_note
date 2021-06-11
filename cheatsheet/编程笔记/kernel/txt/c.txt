@@ -1,0 +1,829 @@
+/usr/lib has but always 
+/usr/bin/ld: cannot find -lpcap
+collect2: ld returned 1 exit status
+need libpcap.so, neither libpcap.so.1 nor libpcap.so.1.1.1
+just make a symbol link
+
+make a func from .cpp to be called from .c
+    extern "C" int func
+    {
+
+    }
+
+left-inclusive interval
+	-- includes first and each element up to but not including last
+[first, last)
+for(i = 0; i != end; ++i)
+
+gcc - finline - functions - O3 - Winline
+    inline TYPE func() __attribute__ ((__always_inline__));
+
+round 四舍五入
+
+void * p = malloc(4);
+free(p)				free at the run time, not compiling, so no need to know the type
+
+void func(int i) == void func(const int i)
+
+void func(int *) == func(int[]) == func(int[10])
+	thought arg can't be array, the arg could be written into array type
+
+void a() {}
+void b() { return a(); }	it's OK
+
+can 't use = in ?:
+a > b ? a *= 2 : a = a * 2 + 1;
+
+malloc( count ) 恒等于 malloc( count * sizeof(char) )
+
+C89， 如果无返回语句，程序终止的状态是无定义的。
+C99中采用了C++的作法：main可以省略返回语句（仅main函数可以），终止状态是有定义的，0 。
+
+项目应该有一套完整的内存管理api，例如php语言就有一套完整的模拟c标准库的内存管理api，这保证了及时某块内存没有被及时释放也会在进程结束时内存被释放。
+
+like ' q ' in ' more ':
+c_lflag    	&= ~ECHO;	/* no echo either	*/
+c_lflag		&= ~ICANON;	/* no buffering		*/
+c_cc[VMIN]	=  1;		/* get 1 char at a time, always be with &= ~ICANON */
+
+char *getMem()
+{
+    char *p;
+    p = malloc(100);
+    return p;
+}
+int main(void)
+{
+    char *p = getMem();
+    sprintf( p, "hello" );
+    free(p);
+}
+
+wild pointer	point to anywhere
+null pointer	point to nowhere
+
+int arr[m][n];		__typeof__ arr == int *[n]		**arr == arr[0][0]
+
+target matrix' s element in M row N col-- use mat1 's Mth row * mat2' s Nth col, corresponding 1 by 1
+
+-----------------------------------------------------------------------------------------------------
+“sizeof 表达式”和“sizeof(类型名) ? ??
+sizeof 表达式中的子表达式并不求值，而只是根据类型转换规则求得子表达式的类型，然后把这种类型所占的字节数作为整个表达式的值。
+char a = 100;		sizeof(a += 155) == 1
+char a = 100;		sizeof(a == 3)   == 4  (a - promotion)
+
+WARNING: 'sizeof'不能用于函数类型
+void func() {;}
+sizeof(func) == sizeof(*func) == sizeof(****func) == 1
+
+typedef void (*func)();
+sizeof(func) == sizeof(*func) == sizeof(****func) == 4
+
+sizeof(&func) == 4
+
+void *p;		sizeof(p)	== 4
+char a = 'b';		sizeof('b')	== 4	 sizeof(a) == 1
+
+==>
+字符常量 整数而非字符sizeof(int *));	
+*m = calloc(rows * columns, sizeof(int));	/* only calloc 1 time */
+for (i = 1; i < rows; i += 1)			/* then divide the whole memory */
+	m[i] = m[i - 1] + columns;
+
+fopen rt rb
+
+void (*func_p[2]) () = {a, b};		array of func_pointers. It's An Array, Not A Func!!!
+a() == func_p[0] () == (*a) () == (*func_p[0]) () == (***a) () == (***func_p[0]) ()
+
+EOF means Error: puts fputs fputc ...
+EOF means END  : gets fgets fgetc ...
+
+ls ./ (stdout) | (stdin) more == '> more' can 't get usr input when executing
+
+/dev/tty -- another way to comunicate with term
+
+printf("\033[7m more? \033[m");	/* reverse on a vt100   */
+
+creat(char *, mode_t);	tell kernel to create a new file, if it has already exit, overlay it
+mode_t 0744
+
+ssize_t int write(int fd, void * buf, size_t );
+must check it retval, for sometimes we want write M bytes, but it writes N bytes, N < M(hd space...)
+
+char * strncpy(char *dest, const char *src, size_t n){
+       size_t i;
+       for (i = 0 ; i < n && src[i] != ' \ 0 ' ; i++)
+	   dest[i] = src[i];
+       for ( ; i < n ; i++)			/* make all behind '\0' */
+	   dest[i] = '\0';
+       return dest;
+}
+
+FILE *	fopen fread fwrite fclose fseek		retval: EOF(sometimes -1)
+int	 open  read  write  close lseek		retval: -1
+
+open  30 chars 
+write 10 chars
+open  30 chars	may found that first 10 chars changed
+
+lseek(fd, 100, SEEK_END)	enlarge the file by 100 chars
+
+1. open(fd, O_RDWR);
+2. write(fd, "hello", 5);
+3. read(fd, buf, 5); "hello"	 ==> 	seem 2 diff pointer. or we would see "hello" 'cause the pointer has been moved
+
+struct dirent {
+	__ino_t d_ino;		/* inode */
+	__off_t d_off;
+	unsigned short int d_reclen;
+	unsigned char d_type;
+	char d_name[256];	/* We must not include limits.h! */
+};
+
+opendir readdir(like read, no need to move the file pointer explicitly, when a read done, it moved itself)
+
+ls -l == dirent + stat
+
+readdir(dirent->d_name)->stat(file_name, buf)->getpwuid(num->string)->getgrgid(num->string)
+
+creat can make file sized 0, but there's no SYS-FUNC can shrink a file directly
+
+int 	       readdir(unsigned int fd, struct old_linux_dirent *dirp, unsigned int count);	readdir(2)
+struct dirent *readdir(DIR *dirp);								readdir(3) POSIX
+
+rename == link + unlink; there' s no rename sys - call ever
+rename(char *old_name, char *new_name) {
+if (link(old_name, new_name) != -1)
+	unlink(old_name);
+}
+
+dirent_ino == stat_ino(only 1 same element)
+
+getcwd(buf, len);	man 2 3
+pwd:
+.->stat()->st_ino->opendir->readdir 1 by 1->d_name. - stat.ino(stat) - dirent.name(opendir; readdir 0 by 1)
+.is the only thing we know
+
+pwd: /home/jedi/share/vim <- anti - sequence, recursive
+cd:  /home/jedi/share/vim -> sequence
+
+pwd is a exception in shell bulitin, it 's also a new proc to show the current path
+pwd use the sys-call chdir(), and print the dirname anti recursive, if in shell's current proc, would change shell proc's inode in PCB
+try:
+int main(int argc, char *argv[])
+{
+	system("pwd"); chdir("/home"); system("pwd");
+}
+
+there's no current dir name in current DIR, instead, . and ..
+so wanna show the name, must 
+1. get to it's parent dir
+2. opendir, readdir, find the name
+
+fd = creat(filename, permission_bits) 	==
+fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, permission_bits)
+'cause there was a time that creating file needs open firstly creat secondly
+
+hd "hd-link" proc "term-link" term 
+"echo" is the attribute of "term-link", not hd or proc or term
+
+1. test: if (flag & mask)
+2. set:  flag |= mask
+3. move: flag &= ~mask
+
+---------------------------------------------------------------------------------------------
+classic method to modify link attributes: 	GET - MODIFY - REWRITE
+
+int s = fcntl(fd, F_GETFL); 		GET 
+s |= O_NDELAY; 				MODIFY 
+fcntl(fd, F_SETFL, s);			REWRITE
+
+tcgetattr(0, &tty);			/* read curr. setting   */
+tty.c_lflag &= ~ICANON;			/* no buffering         */
+tty.c_cc[VMIN] = 1;	 		/* get 1 char at a time */
+tcsetattr(0, TCSANOW, &tty);		/* install settings     */  TCSANOW, TCSADRAIN, TCSAFLUSH
+-----------------------------------------------------------------------------------------
+	
+type(\r, \13) -> drive(\n, \10) -> tty-echo(\r\n)
+
+\r	\13	cr	^M, 继续输入无法停止
+\n	\10	nl	才有输入结束的效果
+"Enter" == Ctrl-M
+=>能用回车使输入结束，是驱动的功劳，把cr -> nl
+
+/home/jedi > stty -icrnl/-inlcr(type "Enter", get "^M", only ^D can stop the typing)
+
+while (int c = getchar()) { printf("here %c -- code is %d\n", c c); }
+TYPE: s<CR>d:
+here s -- code is 115
+ -- code is 13			\r make it return to the start of the line, so no here
+here d -- code is 100
+
+stty -all: icanon; inlcr == icrnl; onlcr;
+
+input - input-buf(icanon) - program - output-buf - output
+
+&= ~icanon:
+no input-buf, so u type at once u see it in the monitor. 
+delete is impossible, 'cause it has been sent to program but no attected to term input,
+'cause this time u chars hasn't sent to input-buf
+---------------------------------------------------------------------------------------------
+
+change a file descriptor: fcntl open creat
+
+hd-link-attr:		fcntl				fcntl.h
+term-link-attr:		fcntl tcgetattr tcsetattr	termios.h
+device-link-attr:	fcntl ioctl			sys/ioctl.h
+all of thses are files, the differece between them is the manipulation on "link", they have diff "link-attr"
+
+printf("give me an answer: ");
+fflush(stdout);			/* no '\n' in the printf, so flush ought to b here, otherwise we would see anything */
+getchar();
+
+如果是块设备或者块设备上的文件，这些被定义为快速设备的对象，是无论如何都不会阻塞的；某些 char 设备、pipe, fifo, socket 等“慢速设备”在读写时候会阻塞
+
+read函数只是一个通用的读文件设备的接口。是否阻塞需要由设备的属性和设定所决定。一般来说，读字符终端、网络的socket描述字，管道文件等，这些文件的缺省read都是阻塞的方式。如果是读磁盘上的文件，一般不会是阻塞方式的。但使用锁和fcntl设置取消文件O_NOBLOCK状态，也会产生阻塞的read效果。
+
+非阻塞IO：当IO操作不能立即完成，可能引起程序阻塞时，会返回一个错误，此时IO操作都没有开始，何来结束？如果操作可以立即完成，就直接进行IO操作，同样要等待IO结束时调用返回；在进行真正IO时，阻塞和非阻塞没有区别，都要等到IO结束才会返回；所以说它们真正的区别是在如果IO不能立即完成，阻塞IO的程序会阻塞，非阻塞IO的程序会立即返回错误而不进行IO请求，即它们区别在于选择IO的时机（IO是否能立即完成）。
+
+异步IO：逻辑上相当于开启单独一个线程来进行IO，异步IO对于调用方来说始终是非阻塞的，它发出请求后就立即返回，不需要等待IO完成；而同步IO，不管是阻塞还是非阻塞可以进行IO时，都要等待IO结束才返回
+
+---------------------------------------------------------------------------------------------
+#define	O_NDELAY	O_NONBLOCK
+every file(normal, device) has O_NDELAY(O_NONBLOCK)
+
+O_NONBLOCK和O_NDELAY所产生的结果都是使I/O变成非搁置模式(non-blocking)，
+在读取不到数据或是写入缓冲区已满会马上return，而不会搁置程序动作，直到有数据或写入完成。
+
+它们的差别在于设立O_NDELAY会使I/O函式马上回传0，
+但是又衍生出一个问题，因为读取到档案结尾时所回传的也是0，这样无法得知是哪中情况；
+因此，O_NONBLOCK就产生出来，它在读取不到数据时会回传-1，并且设置errno为EAGAIN。
+
+不过需要注意的是，在GNU C中O_NDELAY只是为了与BSD的程序兼容，
+实际上是使用O_NONBLOCK(bits/fcntl.h)作为宏定义，而且O_NONBLOCK除了在ioctl中使用，还可以在open时设定
+
+manipulate STDIN, FD:
+info = fcntl(0, F_GETFL);
+info |= O_NDELAY;
+fcntl(0, F_SETFL, &info);
+|
+|
+manipulate term drive:
+tcgetattr(0, &tty);
+tty.c_cc[VTIME]	=  20;		/* input delay */
+tcsetattr(0, TCSANOW, &tty);
+---------------------------------------------------------------------------------------------
+
+Programming for Device:
+1.	learn about the properties and control-link of the device
+2.	modify the properties according to the funcationalities
+3.	signal
+
+keyboard input categories:
+1.	normal data		a b c
+2.	function invocatino	Delete Enter
+3.	control			Ctrl-C
+
+ISIG
+
+sleep(5) == alarm(5) + pause()
+
+setitimer(ITIMER_REAL, &new_timeset, NULL) 	is the start of itimer, not pause()
+
+while(1) ;	essential ;
+
+typedef void (*sighandler_t)(int);			no matter the func needs an arg, we should define it like this
+void signal(int signum, sighandler_t handler);
+
+n = read(0, input, (INPUTLEN-1)); input[n] = '\0';
+
+sigset_t == long int	one signal per bit (4 bytes == 31 signals)
+
+modify directly, no need GET-MODIFY-SET:
+setitimer(int which_timer,	const struct itimerval * new, struct itimerval * old);
+sigaction(int signum,		const struct sigaction * new, struct sigaction * old);
+sigprocmask(int how,		const sigset_t	       * new, sigset_t	       * old);
+
+---------------------------------------------------------------------------------------------
+CURSES.H:
+
+no-delay mode:	if no input is waiting, ERR is returned.
+half-delay mode: the program waits until a character is typed or the specified timeout has been reached.
+delay mode:	the program waits until the system passes text through to the program. Depending on the setting of cbreak, this is after
+		one character (cbreak mode), or after the first newline (nocbreak mode).
+	
+Initially the terminal may/may not b in cbreak mode, as the mode is inherited; so a program should call cbreak or nocbreak explicitly
+---------------------------------------------------------------------------------------------
+
+ITIMER_REAL	SIGALRM
+ITIMER_VIRTUAL	SIGVTALRM
+ITIMER_PROF	SIGPROF
+
+avoid data destroyed:	block signals:
+1. sigset_t new = sigemptyset() -> sigfillset()/sigaddset() -> sigdelset();
+2. sigaction.sa_mask(new) or 
+   sigprocmask(SIG_BLOCK/SIG_UNBLOCK/SIG_SET, const sigset_t &new, sigset_t);
+
+sync:	caused by inner factors
+async:	out of proc
+
+proc over only in 3 status:	done;	failure;   dead;
+
+int status;(32 bits)
+cpid = wait(&status);		status == retval(8-15 bit), is_core_dump(7 bit), killed_by_which_sig(0-6 bit, 1-31)
+only use 16 of 32
+
+exit(user mode) -> atexit -> on_exit -> _exit(kernel manipulation, clear a proc's mem/fd/ds)
+
+nevertheless parent don't "wait", kernel will always send "SIGCHLD" to the parent
+
+---------------------------------------------------------------------------------------------
+int main()
+{
+	for ( int i = 0; i < 10; i += 1 ) {
+		printf("my pid %d, i = %d\n", getpid(), i);
+		sleep(1);
+		if (fork() != 0)
+			exit (0);
+	}
+	return 0;
+}
+
+/home/jedi > ./a.out 
+my pid 5992, i = 0			爸造儿
+my pid 5993, i = 1			儿先行。所以是原子，可以同时向同fd写内容
+/home/jedi > my pid 5995, i = 2		儿先退出，爸再退出。后开的都是孙子
+my pid 5996, i = 3			从这后就能再执行新cmd，儿与爸共享fd，即0/1/2，后续儿的输出均到fd1
+my pid 5997, i = 4
+my pid 5998, i = 5			SIGINT, & no affected!!!
+my pid 5999, i = 6
+my pid 6000, i = 7
+my pid 6001, i = 8
+my pid 6002, i = 9
+---------------------------------------------------------------------------------------------
+
+shell:
+signal(SIGINT,  SIG_IGN);
+signal(SIGQUIT, SIG_IGN);
+child:
+signal(SIGINT,  SIG_DFL);
+signal(SIGQUIT, SIG_DFL);
+
+strchr	strtok
+
+environment	--	string array pointed by "environ"
+extern ** environ
+printf("%s", environ[i]);	every time print it in a term, different values 
+
+#define offsetof(s,m) (size_t)&(((s *)0)->m)
+s: 是结构体	m: 是成员
+&(((s *)0)->m)前面的&是取值地址，即取s中成员m的地址
+由于s是用地址0（(s *)0）开始的，所以s中成员m的地址，也是m在s中的偏移地址。
+注意：这里的地址0只是形式地址，我们并没有对它做任何的操作，因此不会引起操作系统的异常
+
+~0 instead of 0xfffffff/0xffff, 4 portable
+
+void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off);
+第一个参数 addr 一般为 0。是指让系统在虚拟地址为0的地方找要分配的内存块，如果找不到空闲的，就在其它地方找，直到找到一个空闲块为止。
+第二个参数 len 为要在内存中分配的区域大小，也是要对目标进行映射的区域的大小；
+第三个参数 prot 有 PROT_READ, PROT_WRITE, PROT_EXEC 三种取值，分别设定 读，写，可执行三种限制；
+第四个参数 flags 常用的有 MAP_SHARED 和 MAP_ANONYMOUS 两个值，一般用前者。如果设成 MAP_ANONYMOUS，则会忽略 fd，只是在内存中分配一块内存区域，产生的结果是可能在两块不同的内存区域中建立映射关系；
+第五个参数 fd 是指目标文件描述符，这个描述符是由前面的 open 调用打开某个设备时产生的；
+第六个参数是 offset 偏移量，注这个偏移量是相对于前面那个设备名的可访问块的首地址的偏移，注意理解。
+六个参数中，前两个参数是对接收方──内存进行设置，中间两个参数是设置操作的方式，后两个参数是对目的方──各种块设备进行设置。
+
+线程为调度和分派的基本单位。进程为拥有资源的基本单位
+
+/dev  /proc	special file, use ioctl also
+
+c (-> std-lib -> ld) -> int 0x80 -> kernel
+
+while (*s++ = *t++)	string copy, not compare
+
+if (a = 5 == 5)		=> 	a = 1, the value of the expr "5 == 5", so if ((a = 5) == 5)
+
+void func can't retrun a val in C99, but not in C++
+
+<unistd.h>	size_t
+sysconf(_SC_PAGESIZE);
+
+mmap (void *addr, size_t length, int prot, int flags, int fd, off_t offset)	byte,	small
+mmap2(void *addr, size_t length, int prot, int flags, int fd, off_t pgoffset)	page,	huge	
+
+c编译成的执行文件，运行，进程，包括main在内的各函数的执行语句，在.text段，局部变量全在stack
+
+.o -> .out == .o -> .a -> .out
+
+no .so in .out, but .out must include dynamic loader:
+libc/int 0x80		libc needs load dynamic loader to memory firstly:
+execve("/bin/pwd", ["pwd"], [/* 72 vars */]) = 0
+brk(0)                                  = 0x86cd000
+mmap2(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7789000
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+open("/etc/ld.so.cache", O_RDONLY)      = 3
+fstat64(3, {st_mode=S_IFREG|0644, st_size=132245, ...}) = 0
+mmap2(NULL, 132245, PROT_READ, MAP_PRIVATE, 3, 0) = 0xb7768000
+close(3)                                = 0
+open("/lib/libc.so.6", O_RDONLY)        = 3
+
+int  stat(const char *path, struct stat *buf);		file
+int lstat(const char *path, struct stat *buf);		link, not file itself
+int fstat(int fd, struct stat *buf);			use fd, not file name
+
+same name space
+struct union enum -- var func type
+typedef struct stack_t stack_t;		LEGAL!!!
+
+itoa:
+1. stack
+2. recursive
+3. char *p = buf[last_one], *--p
+4. sprintf
+
+struct a {
+	char c;
+	int i;
+} example = { 5 };
+printf("%d, %d", example.c, example.i);		==> 	5, 0
+
+只有声明在所有函数外的变量才是真的全局，函数中的static虽然值会累计，但依旧只在该函数内可见
+static int a = 6;	只要a这个符号存在，就不会对其赋值6
+
+struct T {
+	int count;
+	struct elem {
+		void *x;
+		struct elem *link;
+	} *head;
+};
+T和elem均可见。如果接口头文件要导出该结构，那么该结构中包含的结构也势必得导出，2者的名字必须加特定前缀
+
+把尽可能多的放入.c，用static，不需加前后缀
+接口（函数 宏名 类型）必须有前后缀
+
+printf:
+%n.md		least(space filled if chars < least).most
+
+Debugging Hooks:
+a function in the source file while never be called by any other functions in the project but when debugging
+
+typedef long int time_t		/usr/include/time.h
+
+#include <bits/%>
+protos:		utmp.h 		dirent.h
+types:		bits/utmp.h	bits/dirent.h
+
+void *new_ptr = realloc(ptr, new_size);
+ptr == new_ptr		->	new_size == 0, namely, free()'d
+ptr != new_ptr		->	new_size >  0, new addr returnd
+ptr == NULL		->	ERROR
+
+va_list va_start va_arg va_end
+
+p1 -- hello	p2 -- cab
+while (*p2) { *p1++ = *p2++; }		p1 -- cablo
+while (*p1++ = *p2++) ;			p1 -- cab
+
+Linux libc	libc.so.5
+GNU libc	libc.so.6
+
+weak_alias (__brk, brk)
+
+when wanna use all type,
+	1. macro
+	2. void *, when copying data, direct assign / memmove();
+
+shortcomings of memmove()	must have the same size, so "char *" won't works
+shortcomings of direct assign	when use a same var with variable value, always the same addr; can't use on stack var
+so:
+with (const) char *, direct assign
+with other, memmove()
+
+<unistd.h>
+size_t ssize_t 		unsigned int(32)	unsigned long(64)
+
+通过函数指针，可以将函数作为参数传递给另一个函数，并在适当的时候调用，从而实现(异步)通信等功能
+
+C++ invokes constructors for all global objects before main() is called
+
+dtor: go out of scope;  explicitly delete
+
+=============================================================================================
+OOC:
+
+is-a(inheritance); is-like(override); has-a(composition)
+
+oop is invocation indirectly
+pp	func main, data aux
+oop	data main, func aux
+
+combine date/method in logical
+seperate data/method in code
+
+Open(extension)/Close(modification) Principle
+if add new feature to the entity, just add new codes, not modify the exsiting one
+
+polymorphism	很多形态
+
+class init itself, object inited by it's class
+
+提取公因式
+
+3 files for each class
+
+struct & p & fp & stdarg.h & malloc & free
+
+put all init_xxx() at the same place is the typical style of functional/procedure programming
+
+the overhead of function calls are insignificant compared to the danger of an application being able to overwrite a cirical value
+
+继承理解为“是”。例如，莱丝“是”牧羊犬，牧羊犬“是”狗
+
+方法参数声明为void *, avoid explicit convention when use a pointer(to a obj of subclass) as the parameter to the superclass->method
+
+polymorphisms 	<==	dynamic link
+dl func must be polymorphical, but not vice versa
+
+我 -- 可以是孙子，儿子，爸爸，爷爷 === 类与对象间无绝对区分，只是相对而言
+
+the only reason that we don't give any method a "virtual" may be considered the efficiency
+
+virtual		overriden	覆盖		dtor最好都是这样
+normal		redefined	重定义		参数不变，只变具体实现(仅1个，因为改变了原函数)
+normal		overload	重载		参数个数和类型改变(继承后若这样，制造了新的，则会有2个函数)
+polymorphism == lazy binding == virtual func
+
+the "struct" could do the same as "class" in c++
+
+object in c++ is much bigger, 'cause it would contain data/func declaration(if the func is inline, include the whole ins-set)
+
+non-constant initializers
+constructing func calls
+
+size_of/name_of/class_of 	for subclass
+superclass can directly visit the component of it's subclass
+
+1. ctor always return a modifying desc(pointer), so the retval wouldn't be "const"
+2. first .h then .r 'cause all included files are in .h not .c
+
+why use (va_list * ap) instead of (va_list ap)
+	when va_arg(ap, type), ap will be added automatically
+	so if u wanna use the list many a time, u have to "va_list arg = *ap" in every different func start
+=============================================================================================
+
+see more in 
+OOC Apendix A
+
+void *p, **q;
+p++;	ERROR	'cause the compiler donno the foot step
+q++;		foot step is 4 bytes(sizeof(void *))
+
+printf("%p", p);	0xbfcaca77
+scanf("%p", &p);
+sscanf(str, "%d%d%d %c", &t, &prob, &time, &ch); /* trick */
+
+feof()
+        while (!feof(fp)) {
+                fgets(str, BUF_SIZE, fp);
+                p = str;
+                sscanf(p, "Time: %d %d %d %d %d %d receiver xyz: %lf %lf %lf delta %lf", 
+                       &iarr[n][0], &iarr[n][1], &iarr[n][2], &iarr[n][3], &iarr[n][4], &iarr[n][5],
+                       &darr[n][0], &darr[n][1], &darr[n][2], &darr[n][3]);
+                ++n;
+        }
+    n will always be 1 larger than SLOC, SLOC + 1 = n, because at that time it just knows eof
+
+const int a = 5;
+a = 6;			ERROR
+*(int *)&a = 6;		circumvent the compiler checks
+
+struct a {			we see struct a & struct b, 'cause originally we could see struct a's components
+	struct b {
+		...;
+	};
+	...;
+};
+
+-DNDEBUG	remove all assert during compilation
+
+offsetof(struct a, elem)
+
+"volatile const"
+程序运行要先编译再真正被CPU执行，即包含了把源代码转化为机器代码的过程的编译期 和 实际代码在CPU执行的运行期。const ，只是编译器保证在“源代码”里面，没有对该变量进行修改的地方，而实际运行的时候则不是编译器所能管的了。
+volatile的所谓“可能被修改”，是指“在运行期间”可能被修改。也就是告诉编译器，这个变量不是“只”会被这些“源代码”所操纵，其它地方也有操纵它们的地方
+
+although we can make a var "static", but the scope is never changed
+
+static func() is just not export the func name to global space, but the instructions of the func may exist at somewhere in mem
+if we know it, we can call it indirectly
+
+typedef struct a* a;		it's RIGHT
+struct a {...};
+
+va_list			char *
+va_start(ap, arg)	(ap = (va_list)&arg + sizeof(arg))
+va_arg(ap ,t)		(* (t *) ((ap += sizeof(t)) - sizeof(t)))
+va_end(ap)		(ap = (va_list)0)
+
+void func()
+{
+	static int a = 6;		a only is visible inside func, nevertheless it has global life span
+}
+
+return a->b = x;		return a->b, not a!!!
+
+__VA_ARGS__ defaultly has more than 1 parameters, if it may be 0, be patient about ","
+#define	 	$arg(...)		, __VA_ARGS__
+#define         $defmethod(ret, func,...)               \
+static ret func(OBJ _me __VA_ARGS__)
+$defmethod(void, push, $arg(int i))	->	static void push(OBJ _me, int i);
+
+fclose(0);	in that process we would see anything again
+
+parameters are the COPY, before a func call
+so when use va_list/va_list *, must inside that func
+va_list ap = a_func_return_valist(int, ...); 	X	when the func return, the para-list is destroyed
+
+...	func	gnew(OBJ, ...);		must after a parameter for position, ... could be none
+...	macro	if aaa(var, __VA_ARGS__) is after a ',' so can't be none
+
+ Glibc分配算法概述：
+l         小于等于64字节：用pool算法分配。
+l         64到512字节之间：在最佳凭配算法分配和pool算法分配中取一种合适的。
+l         大于等于512字节：用最佳凭配算法分配。
+l         大于等于128K：直接调用OS提供的函数(如mmap)分配。
+
+char* get_str(void)
+{
+	char str[] = {"abcd"};		X  str的值在stack上
+	char * str = {"abcd"};		   str的值在rodata上
+	return str;
+}
+
+#define 	return_if_fail(p)	if(!(p)) \
+{printf("%s:%d Warning: "#p" failed.\n", \
+__func__, __LINE__); return;}
+#define 	return_val_if_fail(p, ret)	if(!(p)) \
+{printf("%s:%d Warning: "#p" failed.\n",\
+__func__, __LINE__); return (ret);}
+
+#define		abc(a, ...)	\
+	ppp(a, int b, ##__VA_ARGS__)
+#define		abc(a, arg...)	\
+	ppp(a, int b, ##arg)
+
+while (1) {
+	ifstream input(...);		generate a clear input every time,
+}
+
+struct A {
+  short a;
+  int b;
+  char c;
+};
+是不是有的编译器会调整一下顺序，把b放到a的前面？？？或者是把c放到b前，为了节省内存
+C won't!!
+
+gcc 中使用的带标签的 goto 语句作为 switch 的一种替代方案
+
+=============================================================================================
+
+GCC extensions:
+#define		offsetof(type, member)		__builtin_offsetof(type, member)
+__attribut__ ((weak));
+__attribut__ ((__weak__));	just concern about a possible macro with the same name
+$a
+weak nonnull sentinel
+__attribute__ ((__sentinel__));		explicit (void *)0
+void aaa() __attribute__ ((__constructor__));
+
+char p[] = "hello";
+printf("%c\n", *(p + 1));
+
+cpp extracts all "#define" "#include" at the glance, although you could redirect them to a new file, when cpp the new one, there's no 
+cpp-ins, so cpp can't do a 2-time review
+
+#define	 	func(a, func)
+	void    func(int a, int func)		X
+
+typedef typeof(expr) T;		catch the type
+
+int a __attribute__ ((__cleanup__(func_symbol)));	must be a func symbol, not the addr
+
+Other variations of exec abound:
+int execl(const char *path, const char *arg, ...);
+int execlp(const char *file, const char *arg, ...);
+int execle(const char *path, const char *arg, ..., char * const envp[]);
+int execv(const char *path, char *const argv[]);
+int execvp(const char *file, char *const argv[]);
+int execve(const char *path, char );
+v-l
+    v: vector, array of args
+    l: list arg
+e-p
+    e: specify as well the environment
+    p: use $PATH to locate executable file
+so execvp is the most useful for me, execvp("a.out", NULL);
+
+-tmp & tmp
+对偶数 不变
+对奇数 归一
+奇数位0是1 补码在反码上加1使得位0是0+1=1不进位 高端位依旧互反 &后归零留位0是1
+偶数位0是0 反后为1 1+1进位使得高端位又反回来 这样高端位相同&后不变
+
+gets(str)  		  set '\n' to \0
+fgets(str, SIZE, stdin);  store '\n' then add \0
+
+__typeof__ is in C89, but typeof
+
+for the input cases:
+2
+
+3 1 2
+32.0 54.7 -2
+
+1 3 2 4
+.004 +5.0e0 0.000007  3			scanf("%[\n]", tmp) counld eat 2 '\n'
+
+foreward	*p++
+backward	*--p
+
+#define	MAX(a, b) 	({__typeof__(a) ta=(a); __typeof__(b) tb=(b); ta>tb?ta:tb;})
+#define	MIN(a, b)	({__typeof__(a) ta=(a); __typeof__(b) tb=(b); ta<tb?ta:tb;})
+can't use _a/_b in SWAP, they're new declared, not the original
+so can't use SWAP(*p++, *q++); p/q changed in the SWAP
+#define	SWAP(a, b)	({__typeof__(a) tmp; tmp=(a); (a)=(b); (b)=tmp;})
+
+memmove     may overlap
+memcpy      shouldn't overlap
+
+char* strncpy(char *dest, const char *src, size_t n){
+    size_t i;
+    for (i = 0 ; i < n && src[i] != '\0' ; i++)
+        dest[i] = src[i];
+    for ( ; i < n ; i++)
+        dest[i] = '\0';
+    return dest;
+}
+
+char *name = "hello, world!";
+printf("%.*s\n", 4, name)       "hell"
+
+
+MACRO:
+#define LINK(a,b)  DOLINK(a,b)
+#define DOLINK(a,b)  a##b
+经过两次宏展开以后，如果a或者b本身是一个宏，那么LINK也能处理这种情况：
+例如：
+LINK(12, __LINE__)
+展开后是1222，而不是12__LINE__
+
+a macro with multy line:
+1. do {
+	...
+   } while (0)
+2. ({...})		({ int a; int b; strlen(aaa) })		return strlen's retval
+3. (exp1, exp2, exp3)	/* if all exps are simple sentence, no loop, no declaration, it can also return a value (exp3)*/
+
+1. ({ int a = 5; })   ;
+2. do {...} while (0) ;
+
+but can't define var in it. for the reason of scope
+
+#ifndef		__GNUC__	/* GCC built-in */
+#define 	__attribute__(x)	/* nop */
+#endif
+int my_printf(const char *, ...)			/* here's no ';' */
+    __attribute__ ((__format__(__printf__, 1, 2)));	/* ';' is here */
+
+#ifdef		DBG
+#define		DBGMSG(...) \
+		do { \
+			printf(__VA_ARGS__); \
+			fflush(stdout); \	/* if no '\n' in printf, fflush ought to b here */
+		} while (0)
+#else
+#define 	DBGMSG		/* nop */
+#endif
+
+#include <unistd.h>
+int main()
+{
+    printf("output\n");     \n, line buffer
+    printf("in buffer, don't print out");
+    _exit(0);               use _exit(0), no 2nd sentence, use exit(0), both
+}
+
+#ifdef == #if   defined(__i386__)
+#elif   defined(__powerpc__) || defined(__arm__)
+#endif
+
+mmap:
+因为映射文件的起动位移量受系统虚存页长度的限制，那么如果映射区的长度不是页长度的整数倍时，将如何呢？
+假定文件长12字节，系统页长为512字节，则系统通常提供512字节的映射区，其中后500字节被设为0。可以修改这500字节，但任何变动都不会在文件中反映出来。
+can't enlarge when manipulating, because length've set down when mmap(start/offset/len)
+
+MAP_ANONYMOUS == MAP_ANON, 
+useful where related processes (eg: parent and child) need to communicate via privately shared memory. 
+For instance, a (parent) process mmaps an area with MAP_ANON, and then forks to create a child process; 
+both processes have the same region of shared memory mapped and can communicate through it

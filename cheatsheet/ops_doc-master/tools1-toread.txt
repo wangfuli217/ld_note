@@ -1,0 +1,685 @@
+@huhuoyun huhuoyun 添加已有的Linux命令文档，包含现有的许多操作.
+683 lines (592 sloc) 33.7 KB
+系统迁移，虚拟机系统向host机迁移的实现如下：
+虚拟机迁移到实体机工具准备：
+     usb 3.0硬盘盒 x1
+     2T 128 cache  x1
+     usb 3.0 接口  x1
+虚拟机迁移到虚拟磁盘的工具准备：
+     2T  vmdk分割  x1
+     
+第一部分 制作引导分区
+   1.grub-install /dev/sdx  #将boot安装到/dev/sdx磁盘
+   2.首先划分100M 为boot分区, fdisk /dev/sdx 新建一个100M分区；分区工具可以选择cfdisk[.distrib] /dev/sdx (注意:这里划分的主分区 boot标记.)
+   3.mkfs.ext2 /dev/sdx1
+   4.修改uuid，tune2fs -U xx /dev/sdx1   #xx 为需要迁移的DEBIAN/dev/sda1的UUID
+注意：查看UUID的几种方式
+   >uuidgen | xargs tune2fs /dev/sdx -U
+   or
+   >blkid /dev/sdx 
+   or
+   >ls -l /dev/disk/by-uuid 
+-----------------------------------------------------
+   到此为止启动部分已经制作完成.
+   
+第二部分 制作文件系统
+   1.新建一个lvm分区，划分足够大的空间(注意：磁盘大小不要超过2T);fdisk /dev/sdx 或者 cfdisk[.distrib] /dev/sdx,类型选择8E；完成后查看/dev/会出现/dev/sdx5逻辑分区.(注意:这里划分的逻辑分区.)
+   2.lvm 操作：
+     >pvcreate /dev/sdx5   #pv
+     >vgcreate xx /dev/sdx5 (xx 是临时的vg名称后面将会把它更改为:DEBIAN)  #vg
+     >lvcreate -n swap_1 -L xG xx  #创建交互分区的大小,lv 查看lv使用lvs -v
+     >mkfs.swap /dev/xx/swap_1
+     >lvcreate -n root -L xG xx  #lv 查看lv使用lvs -v
+     >mkfs.ext4 /dev/xx/root     #创建根文件系统
+   lvm分区建立完成后，需要拷贝文件分区.
+     >mkdir /t1
+     >mkdir /t2
+     >mount /dev/sdx1 /t2
+     >mount /dev/sda1 /t1
+     >cd /t1
+     >cp -a * /t2
+     >umount /t1
+     >umount /t2
+     >mount /dev/xx/root /t2
+     >cp -a /.. /.. /t2   注意:这里是需要拷贝当前运行系统的根分区下的文件到/t2,/proc,/sys 这两个目录在这里不能包含在内.
+     >mount /dev/DEBIAN/root /t1
+     >cd /t1
+     >cp -a proc sys /t2 注意:转移到实体机上时还需要注释掉boot的配置文件中的软驱UUID.
+     >vgs -v
+     >vgrename UUID xxxx 这里是将原有的/dev/sda5的vg改名为xxxx UUID是/dev/sda5的UUID
+     >mv /dev/DEBIAN xxx
+     >vgrename UUID DEBIAN 这里是将/dev/sdx5 的vg改名为DEBIAN UUID是/dev/sdx5的UUID，注意这里的UUID是需要通过命令lvs查看的 vgs -v
+-----------------------------------------------------
+     到此为止系统迁移工作已完成,需要注意的地方是制作完成的磁盘不能使用usb启动;正确做法是使用sata方式.制作过程还有一些需要注意的地方是virtualbox 5.0 需要安装扩展包而且需要将当前用户添加到vboxuser组才能识别usb硬盘.
+         
+gnome vnc只能查看不能控制，如果使用控制很容易导致vnc崩溃.
+gnome kexi数据库设计以及报表等等.
+gnome nvidia 驱动已安装需要配置xorg.conf启用;AppArmor 启动失败.
+gnome pdf排版制作工具scribus.
+gnome pdf文档制作工具texworks.
+gnome pdf编写工具latexial.
+
+ctdb,apparmor启动出错，以将/etc/init.d/ctdb,apparmor 命令注释掉了.
+vi批量注释：
+    进入vi/vim编辑器,按下CTRL+V 进入可视化模式(visual block).
+    移动光标上移或下移，选中多行开头;选中完毕后，按大写的I键,此时下方会提示进入"insert"模式，插入你要插入的注释符号.eg.#
+    最后按ESC，你就会发现多行代码已经被注释掉了.
+
+ltsp 默认桌面启动管理器是gdm3，这里需要修改它：
+    gnome3 回到经典模式，使用命令:
+    第一种方式：
+      update-alternatives --config x-session-manager
+      -----------------------------------------------------
+      0    /usr/bin/gnome-session       #0 是默认值
+      1    /usr/bin/gnome-session-fallback     #fallback 这是经典模式
+      2    /usr/bin/gnome-session             
+      输入1,表示使用经典模式
+    
+    第二种方式：
+      设置 gsettings set org.gnome.desktop.session session-name 'gnome-fallback'
+      查看 gsettings get org.gnome.desktop.session session-name
+      两种取值方式：gnome  #gdm3,gnome-fallback  #gnome2
+      恢复gnome模式 gsettings set org.gnome.desktop.session session-name 'gnome'
+      经过实践证明:gsettings 方式可以针对单个用户生效,测试在使用命令设置时随便取个'xx',注销使用gnome 提示:"failed to laod session 'xx' ",因此我们可以修改gnome 为gnome-fallback
+      
+   /etc/alternatives 目录中包含 x-session-manager
+   /opt/ltsp/i386/etc/alternatives 中并不包含 x-session-manager 所以试着修改/etc/alternatives 已到达修改ltsp或者使用gsettings.
+   
+debian 自动登录,修改gdm3的登录pam文件
+   1.vi /etc/pam.d/gdm3 #将auth required pam_succeed_if.so user!=root quiet_success 注释掉
+   2.修改gdm3的设定文件
+     vi /etc/gdm3/deamon.conf 
+      AutomaticLogin=false #改为true
+      AutomaticLogin=root #以root自动登录
+     如果想等几秒再登录，操作如下所示:
+      TimedLoginEnable=true
+      TimedLogin=root
+      TimedLoginDelay=5 #延迟5秒登录，最后修改gdm3的自动登录pam文件.
+     vi /etc/pam.d/gdm3-autologin
+     将 auth required pam_succeed_if.so_user!=root quiet_success 注释掉.
+     
+有关gnome配置问题可以查看：man 5 xorg.conf
+
+gnome新建用户
+    useradd -g test -d /home/xxx -s /etc/bash -m xxx #有种情况是hy用户已经配置好了文件，其他用户也需要使用同样配置时；拷贝hy用户下的所有配置到其他用户的主目录时登录会出现问题.
+    chown -R user1:user1 dir    #修改属主
+    chmod -R 644 dir         #修改权限
+    usermod -a -G group_a,group_b,user   #将用户添加到组
+   
+破解Linux系统超级root密码
+    1.在Grub的引导程序菜单上，选择你要进入的条目,键入"e"来进入编辑模式.
+    2.可以删除一部分内容，然后在适当位置加上"init=/bin/bash"，
+    3.编辑完成后使用CTRL+X 即可进入Linux系统.
+    4.将文件系统重新挂在为可读写状态: mount -o remount rw -t ext4 /
+    5.最后使用"passwd xx"更新密码即可.
+    
+boot命令行的基本使用,这种情况适合于系统崩溃；但是又有很重要的东西在硬盘里的情况而写.
+    在大多数系统上,GRUB2配置文件是/boot/grub/grub.conf或者/boot/grub2/grub.conf. 但是，一些基于EFI的系统将它放在ESP上的一个目录中.这个目录可能是/boot/efi/EFI/grub/grub.conf或者其他位置.在大多数情况下,不能直grub.conf文件进行编辑;他是由脚本拼凑起来的.你可以在/etc/grub.d目录中找到一些组成片段.如果需要更你标准grub2配置，那么可以编辑这些文件.
+      引导Linux的实例GRUB2代码节
+    eg.memuentry 'Ubuntu,with Linux 3.20-24-generic-pae'{
+         recordfail
+         gfxmode $linux_gfx_mode
+         insmod gzio
+         insmod part_gpt
+         insmod reiserfs
+         set root='(hd0,gpt6)'
+         search --no-floppy --fs-uuid --set=root uuid
+         linux /vmlinuz-3.2.0-23-generic-pae root=/dev/sda7 ro quiet splash $vt_handoff
+       }
+       
+     关键地方介绍:
+        insmod 命令加载驱动程序模块.
+        set root 识别从中读取内核和初始化RAM磁盘的分区,但search行随后会改写此值，并根据它包含的文件系统的通用唯一识别码(UUID)编号查找该分区.
+        linux 行标识一个Linux内核,并设置传递给他的选项
+        initrd 行标识一个传递给内核的初始RAM磁盘文件.
+        
+     在引导时与GRUB2 交互，为了能够修复问题,首先需要了解正常引导过程和可调整它的方式.通常,你可以使用GRUB2的内置编辑器调整引导选项来修复较小的问题.有时可使用GRUB2的内置shell从更严重的问题中恢复.
+     了解正常引导过程,在传统上,GRUB显示了一个文本模式菜单来显示你的引导选项;在正常引导过程中,可使用上下箭头导航该菜单,然后按下ENTER键选择想要的选项.在LINUX系统上,GRUB随后会加载内核和初始化RAM磁盘,并将计算机的控制权转交给内核.要更改引导选项,可在GRUB菜单中选择最接近你想要的实现的目标的选项,然后按下“e”键.
+     
+     eg.在文本编辑器中编辑的引导代码节通常是为了执行一次引导更改.比如：希望引导单用户模式来执行低级维护,但GRUB中没有单用户选项.要实现此目的,可编辑引导代码节,并将signal添加到linux 行尾。完成上述操作后,按下CTRL+x或F10来进行引导.
+     
+     使用GRUB2 shell，GRUB包含它自己内置的shell,你可在其中键入与bash或者其他Linux文本模式shell中键入的命令类似的命令.要从GRUB主菜单进入该shell,可按下c.要从grub编辑器进入该shell,可按下CTRL+C或者F2.
+     命令              选项                解释
+     boot              无                引导一个已经定义好的了内核或者链式装载程序.
+     cat               filename          显示指定文件的内容
+     configfile        filename          加载指定的配置文件
+     help              [command]         显示帮助
+     initrd            filename          加载指定的初始化ram磁盘文件
+     insmod            module_name       加载指定的模块（驱动程序）
+     linux             filename          加载指定的linux内核
+     ls                [arg]             列出设备或一个设备上的文件
+     reboot            无                重新引导计算机
+     set               envar=alue       将一个环境变量设置为等于某个值
+     
+     识别要安装的GRUB的分区,这一点可助ls命令来完成.如果使用该命令不带任何选项,ls会显示GRUB可检测的磁盘和分区.然后你可以指定设备名和一个结尾斜杠(/)，以查看它特定分区内容。
+     识别GRUB配置文件所在位置后，可设置prefix和root环境变量,告诉GRUB在何处找到配置文件.
+     eg.grub> set prefix=[hd0,gpt5]/grub
+        grub> set root=[hd0,gpt5]
+     加载normal模块并启动它来调出Grub菜单
+     eg.grub> insmod normal
+        grub> normal
+        
+     执行永久修复,尽管可以直接编辑grub.cfg类修改你的设置,但此方法不可取,因为只要升级你的发行版本提供的内核,自动化脚本就可以从其他文件重新构建该文件.相反你需要编辑/etc/grub.d中的文件和/etc/default/grub中的默认全局设置.然后可以使用grub-mkconfig，从linux命令提示符生成一个新的grub。cfg文件.
+     eg.grub-mkconfig -o /boot/grub/grub.cfg 
+     
+     如果你的问题是GRUB仅显示了一个grub>提示符或完全未启动,那么你必须将grub重新安装到硬盘上.
+     eg.grub-install /dev/sdx 
+
+Linux系统模块操作
+    lsmod     #查看系统安装了那些模块
+    rmmod     #卸载模块
+    insmod    #安装模块
+    modprobe  #可安装模块,也可以写在模块.eg.modprobe -r xxx
+    注意:insmod,modprobe都是载入kernel module,不过一般差别于modprobe能够处理module载入的相依问题.
+
+查看Linux系统中所能支持的GLIBC版本：
+    strings /lib/x86_64-linux-gnu/libc.so.6|grep -i GLIBC
+    or
+    ldd --version
+    
+gnome开机启动一个指定大小的gnome-termial.
+    >gnome-session-properties 配置 gnome-terminal 参数
+    eg. gnome-termial --geometry=160X100+5+5 -e "tail -f /var/spool/apt-mirror/cron.log"
+    eg. gnome-termial --geometry=80X20+840+5 -htop
+    eg. gnome-terminal --geometry=80X26+840+300 -e 'slurm -L -i eth0'
+    
+内核调试
+   apt-get install linux-image-3.2.0-4-amd64-dbg debian-kernel-handbook
+   chmod 777 /dev/ttyS0
+   ln -sv /dev/ttyS0 /dev/modem
+   
+   虚拟机与主机之间进行串口通信：
+      打开virtualbox，将com1设置enable；port number:com1,port mode:host pipe;勾选创建pipe(create pipe):填写/tmp/xx. 打开虚拟机此时会在/tmp下出现xx 文件;接下来需要进行互通测试.
+      使用minicom来测试互通性,配置如下：
+        >cd /etc/minicom
+        >vi minirc.dfl  #添加 pu port unix#/tmp/xx 到 minirc.dfl中即可.
+          pu port unix#/tmp/xx
+          
+      minicom配置方法：
+        >minicom -s  #就能进入配置模式.
+        要设置内容只需要输入相应的字母就能进入设置界面:填写相关内容即可.
+        这里的配置为:
+           选 Serial port setup
+           修改 F - Hardware Flow Control 为No
+           Save setup as dfl #即可完成配置 /etc/minicom 下存放就是minicom配置文件.
+      打开minicom测试.
+        >vi /etc/default/grub #注释 
+				#GRUB_CMDLINE_LINUX_DEFAULT="quiet"
+				#GRUB_CMDLINE_LINUX=""
+	这两行，添加以下内容：
+          GRUB_CMDLINE_LINUX_DEFAULT="console=tty0 console=ttyS0,9600n8"
+	  
+	      #Uncomment to disable graphical terminal(grub-pc only)
+          GRUB_TERMINAL=serial
+          GRUB_SERIAL_COMMAND="serial --speed=9600 --unit=0 --word=8 --parity=no --stop=1"
+        内容修改完成后执行以下命令:
+          >grub-mkconfig
+          >update-grub2
+          
+        配置允许从串口登录Linux：
+          vi /etc/securetty #检查这个文件是否包含ttySx 的字符串，vi搜索内容,/ttyS ,如果没有 将ttyS0串口com1 加入到这个文件中即可(添加 ttyS0).
+          vi /etc/inittab   # /T0:23:respawn:/sbin/getty -L ttyS0 9600 vt100  这行去掉注释即可.
+    经过以上设置，在HOST打开minicom可以看到终端输出的信息.      
+    
+    GRUB的启动命令:
+    1.菜单命令,菜单命令只能用户grub配置文件的全局配置部分,不能用在grub命令行交互界面;菜单命令在配置文件中应放在其他命令之前.
+      default    #设置默认启动的菜单项
+      fallback    #设置启动某菜单项失败后返回的菜单项
+      hiddenmenu  #隐藏菜单界面
+      timeout  #设置菜单自动启动的延时时间
+      title   #开始一个菜单项
+    
+    2.常规命令,常规命令可以应用于配置文件和grub命令行交互界面,可使用的常规命令有:
+      bootp  #通过bootp初始化网络设备
+      color   #设置菜单界面的颜色
+      device  #指定设备文件作为驱动器
+      dhcp   #通过dhcp初始化网络设置
+      hide  #隐藏某分区
+      ifconfig   #手工配置网络设备
+      pager   #改变内部页程序状态
+      partnew  #新建一个主分区
+      parttype  #改变分区的类型
+      password  #为菜单界面设置口令
+      rarp   #通过rarp初始化网络设置
+      serial  #设置串口设备
+      setkey  #设置键盘映射
+      splashimage  #设置grub启动时的背景图片
+      terminal   #选择终端类型
+      tftpserver  #指定tftp服务器
+      unhide  #还原某隐藏分区
+    
+    3.命令行和菜单项命令
+      bolcklist  #显示某文件所在分区位置(block list notation)
+      boot  #启动操作系统
+      cat  #显示文件内容
+      chainloader  #把启动控制权软交给另外的启动引导器
+      cmp  #比较两个文件
+      configfile  #加载已存在的grub配置文件
+      debug  #设置为debug模式
+      displayapm  #显示apm bios信息
+      displaymem  #显示内存配置
+      embed  #嵌入stage 1.5文件
+      find  #查找包括某文件的所有设备
+      fstest  #测试文件系统
+      geometry  #显示某驱动器的物理信息
+      halt  #停止计算机运行（软件关机）
+      help  #显示grub的命令帮助信息
+      impsprobe  #查询对称多处理器（smp）的信息
+      initrd  #加载initrd文件
+      install  #安装grub
+      ioprobe  #查询某驱动器的输入输出（I/O）端口
+      kernel  #引导操作系统内核
+      lock  #锁定某grub引导菜单项,使其输入密码后才可启动
+      makeactive  #激活某主分区
+      map  #虚拟映射某驱动器
+      md5crypt  #使用md5加密口令
+      module  #加载模块
+      modulenounzip  #加载模块不进行解压
+      pause  #暂停并等待按键
+      quit   #退出grub
+      reboot   #重新启动计算机
+      read   #读取内存中的内容
+      root   #设置grub的root设备
+      rootnoverify  #设备grub的root设备但不装载文件系统
+      savedefault  #保存当前的启动菜单为默认启动
+      setup   #自动安装grub
+      testload  #从文件系统中测试读取某文件
+      testvbe  #测试VESA BIOS EXTENSION
+      uppermem  #强制设置主机上位内存大小
+      vbeprobe  #查询VESA BIOS EXTENSION信息
+
+程序库配置路径
+   LIBRARY_PATH   #静态库路径
+   LD_LIBRARY_PATH   #动态库路径
+   PATH          #执行文件的路径
+   
+dot语言
+   1.1 简单例子
+      graph graphname{
+	a -- b;
+	b -- c;
+	b -- d;
+	d -- a;
+      }
+      
+   1.2 一样的图,不一样的布局
+      graph graphname{
+	rankdir=LR;
+	a -- b;
+	b -- c;
+	b -- d;
+	d -- a;
+      }
+      
+   1.3 简单有向图
+      digraph graphname{
+	a->b;
+	b->c;
+	a->c;
+      }
+      
+   1.4 带标签的简单有向图
+      digraph graphname{
+	T [label="Teacher"]  //node T
+	P [label="Pupil"]   //node p
+	
+	T->P [label="Instructions",fontcolor=darkgreen] //edge T->p
+      }
+      
+   1.5 同样的图，不同的形状和颜色
+      digraph graphname{
+	T [label="Teacher" color=Blue,fontcolor=Red,fontsize=24,shape=box]  //node T
+	P [label="Pupil" color=Blue,fontcolor=Red,fontsize=24,shape=box]   //node p
+	
+	T->P [label="Instructions",fontcolor=darkgreen] //edge T->p
+      }
+   注意：你可以选择的形状的有:box,polygon,ellipse,oval,circle,point,egg,triangle,plaintext,diamond,trapezium,parallelogram,house,pentagon,hexagon,septagon,octagon,doulbecircle,doubleoctagon,tripleoctagon
+   
+   1.6 总结
+       digraph summary{
+	start [label="start with a node"]
+	next [label="choose your shape",shape=box]
+	warning [label="don't go overboard",color=Blue,fontcolor=Red,fontsize=24,style=filled,fillcolor=green,shape=octagon]
+	end [label="draw your graph!",shape=box,style=filled,fillcolor=yellow]
+	
+	start->next
+	start->warning
+	next->end [label="getting better...",fontcolor=darkblue]
+       }
+       
+   1.7 高级
+       digraph hierarchy{
+	 nodesep=1.0 //increases the separation between nodes
+	 
+	 node [color=Red,fontname=Courier,shape=box] //all nodes will this shape and color 
+	 edge [color=Blue,style=dashed]   //all the lines look like this 
+	 
+	 Headteacher->{deputy1 deputy2 BusinessManger}
+	 deputy1->{Teacher1 Teacher2}
+	 BussinessManger->ITManager
+	 {rank=same;ITManager Teacher1 Teacher2} //put them on the same level
+       }
+       
+    1.8 记录
+        digraph structs{
+	  node[shape=record]
+	  struct1 [label="<fo>left<f1> mid\ dle|<f2> right"];
+	  struct2 [label="{<f0> one|<f1> two\n\n\n}" shape=Mrecord];
+	  struct3 [label="hello\nworld |{b |{c |<here> d|e} | f} g | h"];
+	  struct1:f1->struct2:f0;
+	  struct1:f0->struct3:f1;
+        }
+        
+     1.9 例子
+        有限状态机
+        digraph finite_state_machine{
+	  rankdir=LR;
+	  size="8,5"
+	  node [shape=circle];
+	  s0->s1 [label="Lift Nozzle"]
+	  s1->s0 [label="Replace Nozzle"]
+	  s1->s2 [label="Authorize Pump"]
+	  s2->s0 [label="Replace Nozzle"]
+	  s2->s3 [label="Pull Trigger"]
+	  s3->s2 [label="Release Trigger"]
+        }
+        
+        数据流示意图
+        digraph dfd{
+	  node[shape=record]
+	  store1 [label="<f0 left|<f1> Some data store"];
+	  proc1 [label="<f0> 1.0|<f1> Some process here\n\n\n" shape=Mrecord];
+	  entil [label="Customer" shape=box];
+	  store1:f1->proc1:f0;
+	  entil->proc1:f0;
+	  
+        }
+        
+        数据流示意图2
+        digraph dfd2{
+	  node[shape=record]
+	  enti1 [label="Customer" shape=box];
+	  enti2 [label="Manager" shape=box];
+	  
+	  subgraph cluster_level{
+	    label="level 1";
+	    proc1 [label="{<f0> 1.0 |<f1> One process here\n\n\n}" shape=Mrecord];
+	    proc2 [label="{<f0> 2.0 |<f1> Other process here\n\n\n}" shape=Mrecord];
+	    
+	    store1 [label="<f0> |<f1> Data store one"];
+	    store2 [label="<f0> |<f1> Data store two"];
+	    {rank=same;store1,store2}
+	  }
+	  
+	  enti1->proc1
+	  enti2->proc2
+	  store1->proc1
+	  store2->proc2
+	  proc1->store2
+	  store2->proc1
+        }
+        
+        对象继承
+        digraph obj{
+	  node[shape=record];
+	  rankdir="BT";
+	  
+	  teacher [label="{<f0> Teacher|<f1> \n |<f2>\n}"];
+	  course [label="{<f0> Course |<f1>\n|<f2>\n}"];
+	  student [label="{<f0>Student |<f1>\n |<f2>\n}"]
+	  lesson [label="{<f0>lesson |<f1>\n |<f2>\n}"]
+	  tutuorial [label="{<f0>tutuorial |<f1>\n |<f2>\n}"]
+	  assessment [label="{<f0>assessment |<f1>\n |<f2>\n}"]
+	  coursework [label="{<f0>coursework |<f1>\n |<f2>\n}"]
+	  exam [label="{<f0>exam |<f1>\n |<f2>\n}"]
+	  
+	  {rank=same;teacher course student}
+	  
+	  teacher->course [dir="forward",arrowhead="none",arrowtial="normal",headlabel="1",taillabel="1.."];
+	  student->course [dir="forward",arrowhead="none",arrowtial="normal",headlabel="1",taillabel="1.."];
+	  lesson->course [dir="forward",arrowhead="diamond",arrowtial="normal"];
+	  tutorial->course [dir="forward",arrowhead="diamond",arrowtial="normal"];
+	  assessment->course [dir="forward",arrowhead="diamond",arrowtial="normal"];
+	  coursework->assessment;
+	  exam->assessment;
+        }
+        
+        关系实体
+        digraph ER{
+	  node[shape=box];
+	  book;
+	  customer;
+	  loan;
+	  {rank=same;book,customer,loan}
+	  book->loan[dir="forward",arrowhead="crow",arrowtial="normal"];
+	  customer->loan[dir="forward",arrowhead="crow",arrowtial="normal"];
+        }
+        
+        图像属性
+        label="My Graph"  #给图像设置标签
+        rankdir=LR;   #将图片由原来从上到下的布局变成从左到右布局
+        {rank=same;a,b,c} #将一组元素放到同一个level
+        splines="line";  #让边框变为直线,没有曲线和锐角
+        k=0.6;  #用来在布局中影响spring属性,spring属性可以用户将节点往外推,这个twopi和sfdp布局中很有用.
+        
+        交点属性
+        [label="some label"] #给交点打标签
+        [color="red"] #给交点上色
+        [fillcolor="blue"] #设置交点的填充色
+        
+        边的属性
+        [label="some label"]  #给边设置标签(设置路径的权重的时候很有用)
+        [color="red"]  #给边上色（标识路径的时候很有用）
+        [penwidth=2.0]  #给边适配厚度,标识路径的时候很有用
+        
+        尺寸,背景颜色
+        fixedsize=true;
+        size"1,1";
+        resolution=72;
+        bgcolor="#cfcfd532";
+
+global生成HTML文档
+   >cd src_dir
+   >gtags -v
+   >htags -v
+   >htags --suggest
+   
+   索引完成后将会生成3个文件
+     GTAGS：所有变量,函数定义的相关信息
+     GRTAGS :所有变量，函数被引用的相关信息
+     GPATH ：源代码中每个文件的信息
+   以上三个文件均是Berkeley DB文件，所以直接cat将会是乱码.使用gtags --dump可以查看文件的具体内容.
+     eg.gtags --dump GPATH
+     
+   如果一个文件被更新了,需要更新TAGS文件时,可以使用 更新一个文件的TAGS
+     eg.tags --signal-update file
+     
+   global xxxx  #查询xxxx定义的文件
+   global -c xx   #列出所有以xx开头的变量或文件类型
+   blobal -f xxx.c #列出xxx.c文件中定义的所有变量,文件或类型.
+   
+   -t  输出时使用标准的ctags格式
+   -x  输出时使用ctags cxref格式
+   -i  查询时不区分大小写
+   
+sourceweb源代码查看工具
+   
+   
+   
+DNS 搭建和测试,bind9 域名服务器需要联网；否则会在日志中打印错误信息.
+   1.配置一个主域名服务器(example.org)
+     安装bind9，ls /etc/bind/ -l,配置文件说明：
+       named.conf   #设置一般的named参数,指向该服务器使用的域数据库的信息源.
+       named.conf.options   #全局选项
+       db.root     #根服务器指向文件,由internet NIC创建和维护,无需修改,但是需要定期更新.
+       db.local    #localhost正向区域文件,用于将名字localhost转换为本地回送IP地址(127.0.0.1)
+       db.127      #localhost的反向区域文件,用于将本地回送IP地址(127.0.0.1)转换为名字localhost.
+    主配置文件/etc/named.conf的配置语句
+       命令         用法
+       acl          #定义IP地址的访问控制清单
+       control      #定NDC使用的控制通道
+       include      #把其他文件包含到配置文件中.
+       key          #定义授权的安全密钥
+       logging      #定义日志写什么,写在哪里.
+       options      #定义全局配置选项和缺省值
+       server       #定义远程服务器的特征
+       trunsted-keys  #为服务器定义DNSSEC加密密钥.
+       zone         #定义一个区
+    type项的值
+       master   #表示定义的主域名服务器
+       slave    #表示定义的辅助域名服务器
+       hint     #表示互联网中根域名服务器
+    在debian系统中,option语句的配置,被移至named.conf.options文件中.
+    
+    创建主域名服务器
+       1.在主机上安装bind9工具
+       2.使用编辑器,eg.vi编辑配置文件/etc/bind/named.conf
+         添加以下内容：
+           zone "example.org" {
+	      type master;
+	      file "/etc/bind/db.example";
+           };
+           
+           zone "10.168.192.in-addr.arpa" {
+	      type master;
+	      file  "/etc/bind/db.192";
+           }
+      3.创建区的资源文件,创建区资源文件/etc/bind/db.example内容如下
+        $TTL  604800
+        $ORIGIN     example.org.
+        @        IN      SOA      example.org. root.example.org. (
+	      2006080401     ;serial
+	      604800         ;refresh
+	      86400          ;retry
+	      2419200        ;expire
+	      604800 );      ;negative cache TTL
+	;
+	         IN      NS      ns
+	         IN      MX      0     mail.example.org
+	@        IN      A      192.168.10.88
+	ns       IN      A      192.168.10.88
+	www      IN      A      192.168.10.88
+	webserver        IN     CNAME      www
+	mail     IN      A      192.168.10.88
+	ftp      IN      A      192.168.10.88
+	ns(x)    IN      A      192.168.10.(xx)   ;ns(x) 这里的x可以填写数字, 192.168.10.(xx) 这里的xx可以改成其他辅助域名服务器ip或者纯缓存域名服务器.
+	
+	第一行是TTL设定，生存时间记录字段.它以秒为单位定义该资源记录中的信息存放在高速缓存中的时间长度.这里定义为604800秒,也就是1周.
+	第二行是$ORIGIN设定,说明下面的记录出自何处；这里需要注意的地方是请留意最后一个小数点"."
+	第三行是一个SOA记录的设定,这里我们看到一个特殊字符"@"，它就是ORIGIN的意思,也就是刚刚所定义的$ORIGIN example.org. 内容,你也可以写成 example.org. 也可以用“@”来代替.
+	假如这个文件前面没有定义 "$ORIGIN" , 那这个“@”的值就以 named.conf 里的 zone.  ;接着SOA 后面,指定了这个区域的授权主机和管理者的信箱,这里分别是 "example.org." 和 "root.example.org."。 我们平时使用的信箱通常是 “user@host” 这样的格式，但是因为@在dns记录中是个保留字符,所以在soa中就用"."来代替 @. 目前这个信箱是 "root@example.org."。
+	接下来的SOA设置,是被括在"()"之前的5组数字,主要作为和slave服务器同步的dns资料所使用的资料：
+	   serial   其格式通常会是 “年月日+修改次序”（但是也不一定如此，你自己能够记住就行）;当slave要进行资料同步的时候,会比较这个号码。如果发现在这里的号码比它那边的数值“大”,就进行更新，否则忽略.不过设置serial有一个地方一定要注意：不能超过10位数字!
+	   refresh  这里告诉slave要隔多久要进行资料同步(是否同步要看serial的比较结果).
+	   retry    如果slave在进行更新失败后,要隔多久进行重试.
+	   expire   这是记录预期时间,当slave 一直未能成功与master 取得联系，那到这里就放弃retry，同时这里的资料也将标识为过期(expired).
+	   minimum  这是最小默认TTL值,如果你在前面没有定义 “$TTL” 来定义,就会以此值为准.
+	请注意：SOA记录中这对"()"符号之第一个“（”括号一定要和SOA写在同一行,而不能用enter断行到下一行去，而且其左边最好有一个空格键或者tab键。而最后一个“）”括号也不能写在注解符号“；”的右边.置DNS的RR记录档,其格式要求非常严格,我们丝毫不能掉以轻心.比如：如果句子是以空格键或者tab键开始的,其设置被视为上一个“记录项”的内容。所以,如果你要为“同一个记录项”定义多个记录设置,而不想重复大字,你到可以偷懒 在接着它后面几行用空白或tab来缩排就可以了.
+	
+	NS 表明负责example.org. 这个域的nameserver  是example.org 这台主机.
+	MX 记录标明发往example.org域的邮件由mail.example.org这台服务器接收
+	A  记录标明了IP地址和域名之间的对应关系
+	
+	接下来创建该区的反向映射资源文件：
+	  $TTL 604800
+	  @        IN      SOA      example.org. root.example.org. (
+	      2006080401     ;serial
+	      604800         ;refresh
+	      86400          ;retry
+	      2419200        ;expire
+	      604800 );      ;negative cache TTL
+	  ;
+	  @        IN       NS           example.org.
+	  88       IN       PTR          mail.example.org.
+	  88       IN       PTR          www.example.org.
+	  88       IN       PTR          ns.example.org.
+	  88       IN       PTR          ftp.example.org. 
+	  xx       IN       PTR          ns(x).xxx.org.   #这主要是配置二级或者三级才会用到
+       重启dns服务， “ /etc/init.d/bind9 restart ”.
+       查看系统日志，可了解bind的启动情况 tail -f /var/log/syslog 
+       测试，使用 nslookup 测试,需要在客户机上配置：
+          vi /etc/resolv.conf 添加以下内容：
+             search example.org 
+             nameserver 192.168.10.88 
+          nslookup 测试
+             nslookup
+               >set type=any
+               >example.org 
+               
+          dig 测试
+             dig @192.168.10.88 example.org 
+             dig @192.168.10.88 ftp.example.org 
+             
+             #######反向查询#######
+             
+             dig @192.168.10.88 -x 192.168.10.88
+       
+       ####### 纯缓存域名服务器 #######
+       测试: dig @192.168.10.xx www.example.org 
+       配置，修改 /etc/bind/named.conf.options 文件
+	   options {
+		directory "/var/cache/bind";
+		forwarders {
+		  192.168.10.88;  #主域名服务器的IP地址
+		};
+	   };
+      测试:dig @192.168.10.xx www.example.org 
+      所谓 forwarders,就是某台ns主机遇到非负责的zone（slave zone 也属于本机负责的范围）查询请求的时候,将不直接向 “.”zone 查询而把请求转交给指定的forwarders（一台或多台）主机代为查询.
+      我们知道，当dns服务器接收到客户端主机的查询请求时,首先会检查这个查询是否属于本机管辖,否则将转向 "."zone在逐级的查询下去,最后再把查询的结果告诉客户端.
+      着这个过程中,dns服务器还会将查询的结果放到缓存中,只要缓存中的TTL没过期；在下次遇到同样的查询的时候，就可以直接将结果响应给客户端,而无需重复上次的查询流程.
+      如果dns服务器上指定了forwarders，那这个dns发现缓存中没有记录时,将不向"."查询,而是向forwarder 送出同样的请求 （转发），然后等待查询结果，即把逐级往下查询这个耗费精力的动作交给forwarders负责.但无论结果是自己直接查询得来的,还是forwarders送回来的,dns服务器都会保存一份数据在缓存中.
+      
+      这样，以后的相同查询就快多了，这对于dns服务器的客户端而言查询效率会提高很多.  /var/named/named.ca
+       dis @a.root-servers.net . ns > /var/named/named.ca
+       
+      注意：这里配置的 纯缓存域名服务器 只需要修改一个 “/etc/bind/named.conf” 就可以了 无需更改其他文件.
+	
+      ####### 辅助域名服务器 #######
+      192.168.10.xx 为我们的缓存服务器，这里假设服务器ip地址为：192.168.10.66 
+      编辑主配置文件 vi /etc/named.conf 中加入如下内容:
+        zone "example.org" {
+	  type slave;
+	  file "/etc/bind/slaves/db.example";
+	  master {192.168.10.88;};
+        };
+        
+        zone "192.168.192.in-addr.arpa" {
+	  type slave;
+	  file "/etc/bind/slaves/db.192";
+	  master {192.168.10.88;};
+        };
+        
+        type  #后面的值已经成为slave,表示定义的辅助域名服务器
+        file  #后面也可以是别的文件名不必与主域dns服务器设置一样
+        masters #后为主域dns服务器ip地址,可以是多个ip，eg.master {ip1;ip2;};
+        
+      创建/etc/bind/slaves 目录
+        cd /etc/bind
+        mkdir slaves
+        chown bind.bind slaves 
+      
+      重启dns服务，/etc/init.d/bind9 restart
+      
+      注意：named进程第一次启动时,辅助域名服务器就下载主域名服务器的信息;辅助域名服务器根据主域名服务器对应的soa规定的刷新时间间隔,到主域名查询相关信息.
+      ls - /etc/bind/slaves #查看 /etc/bind/slaves目录，我们会发现已经从主域名服务器获取了相应的资源文件.
+	         
+MAIL 收发邮件配置和测试
+     mail服务器搭建相当复杂，后期补上.
+IRC 聊天服务器配置和测试
+     需要查看官网文档，学习配置.
+DEBIAN更新问题
+  只能使用光盘发布版本更新，否则会出现一些软件不能使用的问题.
+
+DEBIAN 启动ERROR INFO
+1.[   57.507814] pool[5177]: segfault at 0 ip 00007fd0eb43fa80 sp 00007fd0df172ed8 error 4 in libtracker-data.so.0.1400]
+2.[   72.804453] pool[5181]: segfault at 0 ip 00007f988ddefa80 sp 00007f9881d25ed8 error 4 in libtracker-data.so.0.1400.1[7f9]
+解决这个问题的方法是:apt-get purge libtracker-* 这里不能卸载，如果卸载会出现打开目录使用图片软件打开会导致文件无法正常查看.  ##已放弃
+
+配置DNS,无法访问网页
+  vi /etc/resolv.conf
+    nameserver xxx.xxx.xxx.xxx   #添加到/etc/resolv.conf
+    eg.nameserver 1.2.4.8 
+    
+  >/etc/init.d/networking restart
+  >ifdown eth0 && ifup eth0
+  

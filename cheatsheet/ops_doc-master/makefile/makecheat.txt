@@ -1,0 +1,681 @@
+make_b_install(){
+.PHONY: ubuntu-tools centos-tools
+ubuntu-tools:
+	sudo apt-get -y install cppcheck gcc clang complexity ctags aspell dos2unix indent valgrind lcov astyle
+centos-tools:
+	yum -y  install cppcheck gcc clang complexity ctags aspell dos2unix indent valgrind lcov astyle
+    
+apt-get -y install bats shunit2 shellcheck 
+yum -y install bats shunit2 shellcheck
+shfmt  # https://github.com/mvdan/sh/releases 
+}
+
+make_g_opt(){
+
+###############################################################################
+# from .bashrc and Makefile(lms)
+# gcc 层次传参
+1. 指定DEBUG(RTU_DEBUG|PRJ_DEBUG)
+# RTU_DEBUG
+CFLAGS = -DRTUD_DEBUG
+# PRJ_DEBUG
+CFLAGS += -ggdb -p -pg -lc -O2
+
+2. 指定WARN (GCC_WARN)
+CFLAGS += -Wunreachable-code -Wcast-align -Wredundant-decls -Wstrict-prototypes -Wformat=2 \
+-Wunused-variable -Wno-unused-parameter -Wmissing-declarations -Wmissing-prototypes
+
+3. 覆盖率 GCC_GCOV
+# make GCC_GCOV=yes
+# gcov hostd.c
+# lcov -t hostd -o hostd.info -c -d .
+# geninfo -o hostd.info .
+# genhtml -o res hostd.info
+ifeq ($(GCC_GCOV),yes)
+  COV_CFLAGS += -fprofile-arcs -ftest-coverage --coverage -lgcov
+  COV_LDFLAGS += -fprofile-arcs -ftest-coverage --coverage -lgcov
+endif
+
+# 外部命令
+1. 代码格式
+indent
+astyle
+
+shfmt
+
+2.文件格式
+dos2unix *.[ch] 
+sed -i 's/[ \t]*$//g' *.[ch]
+
+
+3. 静态代码检查
+cppcheck
+scan-build clang -c source file
+tscancode
+
+
+4. 代码复杂的
+complexity --histogram --score --thresh=3 ${SRCS}
+cscout
+
+5. 数据字典
+aspell
+
+6. 编译版本
+编译时间+svn版本+代码Major:Middle:Minor
+
+7. 内存检测
+valgrind --leak-check=yes ./hostd -q -H 192.168.27.172 -p 8002
+
+8. unittest
+  mfstest.h                     -- lms
+  JEMALLOC_INTERNAL_TEST(test)  -- jemalloc
+  tinytest (libevent)           -- rtu
+  check(ccommon)                -- ccommon
+}
+make_m_opt(){
+Makefile实例手册.sh  # gcc make bash如何组织Makefile
+make-mini.txt        # Makefile 简易手册
+
+    make -n = --just-print            只是显示命令，但并不真正执行他们，方便用于调试。----- 调试
+    make -s = --silent                所有的命令都不显示                              ----- 批处理
+    make --warn-undefined-variables                                                   ----- # 输出可配置环境变量
+    make -f = --file                  可以灵性制定makefile的名字
+    make -C = --directory             指出makefile的执行目录
+    make -i = --ignore-errors         忽略命令中失败的命令，仍然继续执行
+    make -B = --always-make           认为所有的目标都需要更新(重编译)。
+    make -e = --environment-overrides 指明环境变量的值覆盖makefile中定义的变量的值。
+    make -h = --help
+    make -I = --include-dir           指定一个被包含makefile的搜索目标。可以使用多个“-I”参数来指定多个目录
+    make -r = --no-builtin-rule       禁止make使用任何隐含规则
+    make -v = --version
+    make -w = --print-directory       输出运行makefile之前和之后的信息。这个参数对于跟踪嵌套式调用make时很有用。
+    make -o = --old-file              不重新生成的指定的<file>，即使这个目标的依赖文件新于它。
+    
+grep "\:$" Makefile                   无条件目标
+grep "\:" Makefile | grep -v "="      有条件目标
+
+make [-einpqrst][-f makefile]...[ -k| -S][macro=value]... [target_name...]
+make -p                       # print default macros
+make TARGET                   # run specific target
+make -f MyOtherMakefile       # specify other file
+make -B venv                  # Unconditionally make all targets
+make all                      # 规则名称。
+make SIMPLY=0                 # 传递变量
+make FOO="FOO from argument"  # 传递变量
+make V=1  
+}
+
+make_m_opt_ext(){
+
+## LMS
+make RTU_DEBUG=yes (-DRTUD_DEBUG)
+make PRJ_DEBUG=yes (-ggdb -p -pg )
+make GCC_STEP=yes  (-save-temps)
+make GCC_WARN=yes  (-Wpointer-arith -Wshadow -Wunreachable-code -Wcast-align -Wredundant-decls -Wstrict-prototypes)
+make dos2unix      (dos2unix *.[ch] ; sed -i 's/[ \t]*$//g' *.[ch])
+make version       (RTUDRELEASE)
+make codestyle     (indent -kr -i4 -ts4 -sob -ss -sc -npsl -pcs -bs --ignore-newlines -nut -npro -brf *.[ch])
+make cppcheck      (cppcheck | cppcheck-error | cppcheck-information | cppcheck-performance | cppcheck-warning | cppcheck-all)
+make clang-lint    (scan-build clang -c source file)
+make abc           (aspell list)
+make GCC_GCOV=yes  (code coverage)
+make complexity    (code complexity)
+}
+
+# 格式化
+make_e_format_(){
+1. format:
+V:\rtu\otdr\crosstool\cheatsheet\ops_doc-master\shell实例手册.sh # indent()
+
+V:\rtu\otdr\crosstool\cheatsheet\ops_doc-master\shell实例手册.sh # astyle()
+astyle --recursive --style=google *.c
+
+# shfmt
+https://github.com/mvdan/sh           source
+https://github.com/mvdan/sh/releases  binary
+# demo
+shfmt -l -w -i 2 -ci $1
+}
+
+# from .bashrc
+make_e_shstyle(){
+  shfmt -l -w -i 2 -ci $1
+}
+
+make_e_lms_indent(){
+indent -kr -i4 -ts4 -sob -ss -sc -npsl -pcs -bs --ignore-newlines -nut -npro -brf *.[ch]
+indent -kr -i4 -ts4 -sob -ss -sc -npsl -pcs -bs --ignore-newlines -nut -npro -brf *.inl
+-rm -f *.c~
+-rm -f *.h~
+-rm -f *.inl~
+}
+
+make_e_idning_indent(){
+  find . -name "*.c" | xargs indent -npro -kr -i4 -ts4 -sob -l120 -ss -ncs -cp1 --no-tabs
+  find . -name "*.h" | xargs indent -npro -kr -i4 -ts4 -sob -l120 -ss -ncs -cp1 --no-tabs
+}
+
+make_e_cppstyle (){
+  find -name *.cpp | xargs astyle --style=google > /dev/null 2>&1;
+  find -name *.hpp | xargs astyle --style=google > /dev/null 2>&1;
+  find -name *.h | xargs astyle --style=google > /dev/null 2>&1;
+  find -name "*.orig" | xargs rm -f
+}
+make_e_cpprstyle (){
+  astyle --recursive --style=google *.cpp > /dev/null 2>&1;
+  astyle --recursive --style=google *.hpp > /dev/null 2>&1;
+  astyle --recursive --style=google *.h > /dev/null 2>&1;
+  find -name "*.orig" | xargs rm -f
+}
+make_e_crstyle (){
+  astyle --recursive --style=google *.c > /dev/null 2>&1;
+  astyle --recursive --style=google *.h > /dev/null 2>&1;
+  find -name "*.orig" | xargs rm -f
+}
+make_e_cstyle (){
+  find -name *.c | xargs astyle --style=google > /dev/null 2>&1;
+  find -name *.h | xargs astyle --style=google > /dev/null 2>&1;
+  find -name "*.orig" | xargs rm -f
+}
+make_e_javastyle (){
+  find -name *.java | xargs astyle --style=google > /dev/null 2>&1;
+  find -name "*.orig" | xargs rm -f
+}
+make_e_javarstyle (){
+  astyle --recursive --style=google *.java > /dev/null 2>&1;
+  find -name "*.orig" | xargs rm -f
+}
+
+# from Makefile[lms]
+make_e_static_check_(){
+1. static-check
+V:\rtu\otdr\crosstool\cheatsheet\ops_doc-master\shell实例手册.sh # cppcheck()
+cppcheck --enable=all .
+
+https://github.com/danmar/cppcheck
+http://cppcheck.sourceforge.net/
+https://github.com/danmar/cppcheck/releases/tag/1.83
+
+
+2. clang
+scan-build clang -c ${SRCS}
+
+3. TscanCode
+https://github.com/Tencent/TscanCode
+
+# 以来cfg配置文件提供 avr.cfg  cfg.xml  gnu.cfg  gtk.cfg  microsoft_sal.cfg  posix.cfg  qt.cfg  sdl.cfg  std.cfg  windows.cfg
+tscancode /home/rtu/rtu/src/*
+在 TscanCode 目录有从github下载的代码
+
+4. frama-c
+sudo apt install frama-c-base
+
+5. shellcheck
+}
+
+make_e_lms_cppcheck(){
+top_builddir = $(shell pwd)
+CPPCHECK_DIRS = $(top_builddir)
+CPPCHECK_OUT_PREFIX = $(top_builddir)/cppcheck-
+CPPCHECK_OUT_EXT = log.txt
+
+cppcheck:
+	cppcheck --enable=all $(CPPCHECK_DIRS) 2>$(CPPCHECK_OUT_PREFIX)all.$(CPPCHECK_OUT_EXT);
+
+cppcheck-all: cppcheck
+
+cppcheck-information:
+	cppcheck --enable=information $(CPPCHECK_DIRS) 2>$(CPPCHECK_OUT_PREFIX)information.$(CPPCHECK_OUT_EXT);
+
+cppcheck-performance:
+	cppcheck --enable=performance $(CPPCHECK_DIRS) 2>$(CPPCHECK_OUT_PREFIX)performance.$(CPPCHECK_OUT_EXT);
+
+cppcheck-portability:
+	cppcheck --enable=portability $(CPPCHECK_DIRS) 2>$(CPPCHECK_OUT_PREFIX)portability.$(CPPCHECK_OUT_EXT);
+
+cppcheck-style:
+	cppcheck --enable=style $(CPPCHECK_DIRS) 2>$(CPPCHECK_OUT_PREFIX)style.$(CPPCHECK_OUT_EXT);
+
+cppcheck-warning:
+	cppcheck --enable=warning $(CPPCHECK_DIRS) 2>$(CPPCHECK_OUT_PREFIX)warning.$(CPPCHECK_OUT_EXT);
+
+cppcheck-unusedFunction:
+	cppcheck --enable=unusedFunction $(CPPCHECK_DIRS) 2>$(CPPCHECK_OUT_PREFIX)unusedFunction.$(CPPCHECK_OUT_EXT);
+
+cppcheck-missingInclude:
+	cppcheck --enable=missingInclude $(CPPCHECK_DIRS) 2>$(CPPCHECK_OUT_PREFIX)missingInclude.$(CPPCHECK_OUT_EXT);
+}
+
+make_e_lms_clang(){
+scan-build clang -c ${SRCS}
+}
+
+make_e_tencent_tscancode(){
+
+# 以来cfg配置文件提供 avr.cfg  cfg.xml  gnu.cfg  gtk.cfg  microsoft_sal.cfg  posix.cfg  qt.cfg  sdl.cfg  std.cfg  windows.cfg
+tscancode /home/rtu/rtu/src/*
+
+
+
+# Recursively check the current folder. Print the progress on the screen and
+# write errors to a file:
+tscancode . 2> err.txt
+
+# Recursively check ../myproject/ and don't print progress:
+tscancode --quiet ../myproject/
+
+# Check test.cpp, enable all checks:
+tscancode --enable=all test.cpp
+
+# Check f.cpp and search include files from inc1/ and inc2/:
+tscancode -I inc1/ -I inc2/ f.cpp
+}
+
+
+make_e_complexity_(){
+1. complexity
+2. cscout
+}
+
+make_e_lms_complexity(){
+complexity --histogram --score --thresh=3 ${SRCS}
+
+[CScout](https://www.spinellis.gr/cscout/) -C和C预处理程序代码的复杂度和质量指标
+}
+
+
+make_e_lms_dos2unix(){
+dos2unix *.[ch]
+
+sed -i 's/[ \t]*$$//g' *.[ch]
+}
+
+
+make_e_lms_aspell(){
+abc: $(RTU_OBJS) $(SLOTD_OBJS) $(HOSTD_OBJS)
+        > $(top_builddir)/aspell-dict.txt
+        for F in $(SRCS); do \
+                echo "===== $$F:"; \
+                echo "personal_ws-1.1 en 100" > .aspell.en.$$F.pws; \
+                sed -n "/^% LocalWords:/{s/^% LocalWords:[ \t]*//;s/[ \t][ \t]*/\n/g;p}" < $$F | sed "/^$$/ d" >> .aspell.en.$$F.pws; \
+                sed -n "/\\\\epsfig/!p" < $$F | sed -n "/\[[htpb!][htpb!]*\]/!p" | \
+        aspell list --dict-dir=/usr/lib/aspell/ -t --personal=./.aspell.en.$$F.pws | sort | uniq >> $(top_builddir)/aspell-dict.txt; \
+        rm .aspell.en.$$F.pws; \
+done;
+}
+
+
+make_e_lms_version(){
+
+VERSION = 1
+PATCHLEVEL = 0
+SUBLEVEL = 1
+NAME = wangfl
+COMPNOY = www.xianleidi.com
+BUILD_DATE = $(shell date +%Y-%m-%d_%X)
+
+REV = $(shell LANG=C svn info | grep 'Rev:' | cut -d ' ' -f4)
+
+ifndef REV
+  RTUDRELEASE = "\"rtud ${VERSION}.${PATCHLEVEL}.${SUBLEVEL} @${COMPNOY} build at ${BUILD_DATE}\""
+  HOSTRELEASE = "\"hostd ${VERSION}.${PATCHLEVEL}.${SUBLEVEL} @${COMPNOY} build at ${BUILD_DATE}\""
+  SLOTRELEASE = "\"slotd ${VERSION}.${PATCHLEVEL}.${SUBLEVEL} @${COMPNOY} build at ${BUILD_DATE}\""
+else
+  RTUDRELEASE = "\"rtud ${VERSION}.${PATCHLEVEL}.${SUBLEVEL} @ svn ${REV} @${COMPNOY} build at ${BUILD_DATE}\""
+  HOSTRELEASE = "\"hostd ${VERSION}.${PATCHLEVEL}.${SUBLEVEL} @ svn ${REV} @${COMPNOY} build at ${BUILD_DATE}\""
+  SLOTRELEASE = "\"slotd ${VERSION}.${PATCHLEVEL}.${SUBLEVEL} @ svn ${REV} @${COMPNOY} build at ${BUILD_DATE}\""
+endif
+
+main.o : main.c
+    ${CC} ${CFLAGS} ${HEADER_OPS} -c $< ${LDFLAGS} -DRTUDRELEASE=${RTUDRELEASE}
+}
+
+make_e_dynamic_check_(){
+1. valgrind
+2. sanitizers
+3. backtrace
+4. signal(catch)
+}
+
+make_e_modulinos_valgrind(){
+https://github.com/mcandre/modulinos/cpp
+valgrind: modulino test
+    valgrind --tool=memcheck --leak-check=yes --show-reachable=yes --track-fds=yes --dsymutil=yes ./hostd -q -H 192.168.27.172 -p 8002
+    
+    
+valgrind --tool=memcheck --leak-check=full --trace-children=yes ./hostd -q -H 192.168.27.172 -p 8002 2>log
+
+# https://github.com/json-c/json-c
+valgrind --tool=massif --massif-out-file=massif.out ./json_parse -n ~/canada.json
+# https://github.com/vszakats/hb
+valgrind --tool=memcheck --leak-check=yes --num-callers=16 -v ./myapp 2> myapp.log
+
+# https://github.com/levidurfee/lol_lib
+clear;make clean;make;valgrind --track-origins=yes ./lol
+clear;make clean;make;valgrind --suppressions=/home/levi/valgrind.suppressions ./lol
+}
+
+make_e_cloc(){
+sudo apt install cloc
+
+cloc *
+}
+
+make_e_google_sanitizers(){
+Sanitizers包括AddressSanitizer,    https://github.com/google/sanitizers/wiki/AddressSanitizer
+              MemorySanitizer,     https://github.com/google/sanitizers/wiki/MemorySanitizer
+              ThreadSanitizer,     https://github.com/google/sanitizers/wiki/ThreadSanitizerCppManual
+              LeakSanitizer。      https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer 
+              
+-fsanitize=address -fno-omit-frame-pointer
+-g -O2 -fsanitize=address -fno-omit-frame-pointer
+clang 完全支持， gcc|g++ 4.9 之后支持
+
+gcc 9.3
+-fsanitize=address
+-fsanitize=kernel-address
+-fsanitize=pointer-compare
+-fsanitize=pointer-subtract
+-fsanitize=thread
+-fsanitize=leak
+-fsanitize=undefined
+-fsanitize=shift
+-fsanitize=shift-exponent
+-fsanitize=shift-base
+-fsanitize=integer-divide-by-zero
+-fsanitize=unreachable
+-fsanitize=vla-bound
+-fsanitize=null
+-fsanitize=return
+-fsanitize=signed-integer-overflow
+-fsanitize=bounds
+-fsanitize=bounds-strict
+-fsanitize=alignment
+-fsanitize=object-size
+-fsanitize=float-divide-by-zero
+-fsanitize=float-cast-overflow
+-fsanitize=nonnull-attribute
+-fsanitize=returns-nonnull-attribute
+-fsanitize=bool
+-fsanitize=enum
+-fsanitize=vptr
+-fsanitize=pointer-overflow
+-fsanitize=builtin
+
+}
+
+
+make_e_makefile_(){
+cheatsheet\ops_doc-master\makefile\make-mini.txt
+cheatsheet\ops_doc-master\makefile\syntax
+cheatsheet\ops_doc-master\makefile\make_1p_man.txt
+cheatsheet\ops_doc-master\makefile\make.bashrc
+
+man 1p make
+info make
+
+# "自动"构建当前目录下所有源文件为目标文件
+automakefile_demo
+
+# bin 
+cheatsheet\ops_doc-master\makefile\redis_src
+# lib
+crosstool\cheatsheet\ops_doc-master\makefile\hiredis
+}
+
+make_e_astylerc(){
+--style=kr
+--indent=spaces=4
+--indent-preprocessor
+--pad-oper
+--pad-header
+--max-instatement-indent=40
+--align-pointer=name
+--align-reference=name
+--keep-one-line-statements
+--convert-tabs
+--max-code-length=79
+--pad-method-colon=none
+--suffix=none
+}
+
+
+make_e_astylerc_kr(){
+
+#bracket style options, using k&r
+--style=kr #or -A3
+
+#indent options, in C/C++ programming, I must using space everywhere. Do not using tab
+#--indent=space=#, indent using # spaces per indent. # must between 2 to 20.
+--indent=space=4 #or -s4
+
+#attach bracket to a namespace statement. This is done regardless of bracket
+#style being used.
+#namespace FooName {
+#    ...
+#}
+--attach-namespaces  #or -xn
+
+#attach bracket to a class statement. This is done regardless of bracket
+#style being used.
+#class FooName {
+#    ...
+#}
+--attach-classes  #or -xc
+
+#attach bracket to a class or struct inline function definitions. This is not done
+#for run-in type brackets. This option is effective for C++ file only.
+--attach-inlines  #or -xl
+
+
+#Indentation options
+#------------------------------
+#indent class or struct access modifier: 'public:', 'protected:', 'private:', one
+#half indent. This option is effective for C++ file only. 
+--indent-modifiers  #or -xG
+
+#indent switch blocks so that the 'case X:' statements are indent in switch
+#block. The entire case block is indent.
+--indent-switches  #or -S
+
+#indent multi-line preprocessor definitions end with a backslasha.
+--indent-preproc-define  #or -w
+
+#indent C++ comments beginning in column one. By default, C++ comments beginning
+#in column one are not indent.
+--indent-col1-comments  #or -Y
+
+#set the minimal indent that is added when a header is built of multiple lines.
+#This indent helps to easily seperate the header from the command statement that
+#follow. 1 - indent at least one additional indent.
+--min-conditional-indent=1  #or -m1
+
+#set the maximum of 80 spaces to indent a continuation line. 80 indicates the
+#maximum columns and it must not be greater than 120 columns. 
+--max-instatement-indent=80  #or -M80
+
+#Padding options
+#--------------------------------------------------
+#padding empty lines around header blocks(e.g. 'if', 'for', 'while',...)
+--break-blocks  #or -f
+
+#padding spaces around operators
+--pad-oper  #or -p
+
+#insert space padding after parent header only(e.g. 'if', 'for', 'while'...)
+--pad-header  #or -H
+
+#align a pointer or reference operator(*, &, or ^) to either the variable
+#type(left), or variable name(right), or between the type and name(middle).
+#this options is used for C/C++, C++/CLI, C# files.
+--align-pointer=type #or -k1
+#for example
+#char *foo1;
+#char& foo2;
+#string ^ s3;
+#when --align-pointer=type, they become
+#char* foo1;
+#char& foo2;
+#string ^s3;
+
+#Formatting options
+#----------------------------------------------------
+#add bracket to unbracketed one line conditional statement(e.g. 'if','for','while').
+#This statement must be on a single line.
+--add-brackets  #or -j
+#for example
+#if (condition)
+#    isFoo = true;
+#becomes
+#if (condition) {
+#    isFoo = true;
+#}
+
+#convert tabs into spaces in the non-indentation part of line. The number of spaces
+#inserted will maintain the spacing of the tab.
+--convert-tabs  #or -c
+
+#the option max-code-length will break a line if the code exceed 80 columns.
+--max-code-length=80  #or -xC80
+
+#indent a C type, C# or Java type. C type file are C,C++, C++/CLI, Objective-C.
+--mode=c
+
+#Other options
+#--------------------------
+#for each directory in command line, process all sub-directories recursively.
+--recursive  #or -r, -R
+}
+
+
+make_e_CSTD(){
+CSTD = c99
+}
+
+make_e__feature_test_macros(){ 
+/usr/include/features.h
+man feature_test_macros
+gcc test_feature_test_macros.c
+gcc -D_XOPEN_SOURCE=500 test_feature_test_macros.c
+gcc -D_GNU_SOURCE test_feature_test_macros.c
+
+CFLAGS += -D_GNU_SOURCE
+CFLAGS += -D_DEFAULT_SOURCE
+CFLAGS += -D_BSD_SOURCE
+#define _XOPEN_SOURCE 700
+
+}
+
+make_e_CFLAGS_warn(){
+CFLAGS += -pedantic
+CFLAGS += -W
+CFLAGS += -Wall
+CFLAGS += -Wextra
+CFLAGS += -Wpedantic
+CFLAGS += -Wmissing-include-dirs
+CFLAGS += -Wmain
+CFLAGS += -Wunreachable-code
+CFLAGS += -Wwrite-strings
+CFLAGS += -Wpointer-arith
+CFLAGS += -Wincompatible-pointer-types
+CFLAGS += -Wbad-function-cast
+CFLAGS += -Winline
+CFLAGS += -Wsign-conversion
+CFLAGS += -Wconversion
+CFLAGS += -Wuninitialized
+CFLAGS += -Winit-self
+CFLAGS += -Wunused
+CFLAGS += -Wunused-result
+CFLAGS += -Wunused-value
+CFLAGS += -Wunused-function
+CFLAGS += -Wunused-label
+CFLAGS += -Wunused-parameter
+CFLAGS += -Wunused-variable
+CFLAGS += -Wunused-const-variable
+CFLAGS += -Wundef
+CFLAGS += -Wswitch
+CFLAGS += -Wswitch-enum
+CFLAGS += -Wswitch-default
+CFLAGS += -Wmissing-format-attribute
+CFLAGS += -Wattributes
+CFLAGS += -Wignored-attributes
+# CFLAGS += -Waggregate-return
+# CFLAGS += -Wpadded
+# CFLAGS += -Wpacked
+CFLAGS += -Wvla
+CFLAGS += -Wshadow
+CFLAGS += -Wcast-align
+CFLAGS += -Wcast-qual
+CFLAGS += -Wfloat-conversion
+CFLAGS += -Wfloat-equal
+CFLAGS += -Wmissing-prototypes
+CFLAGS += -Wstrict-prototypes
+CFLAGS += -Wmissing-declarations
+CFLAGS += -Wold-style-definition
+CFLAGS += -Wnested-externs
+CFLAGS += -Wredundant-decls
+CFLAGS += -Wunknown-pragmas
+CFLAGS += -Wmissing-braces
+CFLAGS += -Wmissing-field-initializers
+}
+
+
+make_e_CFLAGS_sanitize(){
+
+moosefs/sanitize_build.sh
+
+
+ifeq ($(SANITIZE_UNDEFINED),yes)
+SFLAGS += -fsanitize=undefined
+SFLAGS += -fsanitize=shift
+SFLAGS += -fsanitize=integer-divide-by-zero
+SFLAGS += -fsanitize=unreachable
+SFLAGS += -fsanitize=vla-bound
+SFLAGS += -fsanitize=null
+SFLAGS += -fsanitize=return
+SFLAGS += -fsanitize=signed-integer-overflow
+SFLAGS += -fsanitize=bounds
+SFLAGS += -fsanitize=alignment
+SFLAGS += -fsanitize=object-size
+SFLAGS += -fsanitize=float-divide-by-zero
+SFLAGS += -fsanitize=float-cast-overflow
+SFLAGS += -fsanitize=nonnull-attribute
+SFLAGS += -fsanitize=returns-nonnull-attribute
+SFLAGS += -fsanitize=bool
+SFLAGS += -fsanitize=enum
+SFLAGS += -fsanitize=vptr
+endif
+
+# Hint: Use the package hardening-wrapper for gcc and clang.
+
+# Hint: Use  the runtime  environment variable  MALLOC_PERTURB_=1 when
+# testing. Supported by glibc.
+
+ifeq ($(SANITIZE_MEMORY),yes)
+SFLAGS += -fsanitize=memory
+endif
+
+ifeq ($(SANITIZE_LEAK),yes)
+SFLAGS += -fsanitize=leak
+endif
+
+ifeq ($(SANITIZE_ADDRESS),yes)
+SFLAGS += -fsanitize=address
+endif
+
+ifeq ($(SANITIZE_THREAD),yes)
+SFLAGS += -fsanitize=thread
+endif
+
+ifeq ($(SANITIZE_INTEGER),yes)
+SFLAGS += -fsanitize=integer
+SFLAGS += -fsanitize=unsigned-integer-overflow
+endif
+
+ifeq ($(SANITIZE_CFI),yes)
+SFLAGS += -fsanitize=cfi-cast-strict
+SFLAGS += -fsanitize=cfi-nvcall
+SFLAGS += -flto
+endif
+}

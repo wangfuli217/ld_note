@@ -1,0 +1,482 @@
+cat - << 'EOL'
+[概要设计]
+    bats_p_idea                特性与局限
+    bats_i_bats                命令参数与使用环境
+    bats_t_bats_load           扩展bats项目
+    bats_t_bats_outside_code   节制的使用
+[测试用例]
+    bats_t_test_run              run何时使用
+    bats_t_test_skip             skip使用方法
+    bats_t_test_setup_teardown   setup和teardown
+[避免]
+    bats_t_except            异常决策
+[cheatsheet]
+    bats_t_testing_in_bash_master 增加support和asert后代码布局
+    bats_t_bats_demo              脚本扩展过程中的测试重构
+    bats_p_coding                 一页手册
+    
+如何进行单项测试项测试? 
+如何模块化进行测试? 
+如何编写测试用例?
+如何忽略不必要的测试?
+
+[自动化测试的思考]
+https://www.leadingagile.com/2018/10/unit-testing-shell-scriptspart-one/
+https://stackoverflow.com/questions/1339416/unit-testing-bash-scripts
+https://medium.com/wemake-services/testing-bash-applications-85512e7fe2de
+EOL
+
+
+bats_l_link(){ cat - << 'EOL'
+https://github.com/sstephenson/bats  # 不在维护
+
+https://github.com/bats-core         # 继续维护 
+新增: -f, --filter     Filter test cases by names matching the regular expression
+新增: -j, --jobs       Number of parallel jobs to run (requires GNU parallel)
+新增:  -r, --recursive  Include tests in subdirectories
+
+使用bats项目
+https://github.com/dodie/testing-in-bash # testing-in-bash-master
+https://github.com/sstephenson/bats/wiki/Projects-Using-Bats
+bash-preprocessor   工具
+bsfl-develop        库
+
+扩展bats项目
+https://github.com/bats-core/bats-assert    - common assertions for Bats
+https://github.com/bats-core/bats-support   - supporting library for Bats test helpers
+https://github.com/bats-core/bats-file      - common filesystem assertions for Bats
+https://github.com/jasonkarns/bats-mock
+
+讨论区
+https://github.com/bats-core/bats-core/issues/358
+EOL
+}
+
+bats_p_idea(){ cat - << 'EOL'
+[coding@table-driven-tests] 不支持
+load
+  setup 
+    @test "test description" { coding }
+  teardown
+bats不推荐使用 表驱动测试 的方法，因为除了run外，其他执行都是断言。社区也没方案。
+
+[startup@Running specific tests] 没有shunit2支持的好
+bats-core支持，支持方式是 --filter 功能。
+支持    bats  -f "success|failure" output.bats 方式，
+不支持  bats  -f success -f failure output.bats 
+支持    bats  -f "failure writing to stderr" output.bats 方式，
+没有shunit2对指定tests支持的好
+
+[assert@specific test condition] 
+->[bats_t_test_run] 说明测试用例的编写
+流管理上不区分 标准输出和错误输出。但是可以精确到 line 级别的判断
+shunit2 能区分 标准输出和错误输出。不能精确到 Line 级别的判断
+
+[mode@bats running]
+->[bats_i_bats] 可以批量文件执行，也可以指定文件执行。
+可以指定 匹配测试项名称 执行。
+可以并行执行。
+
+[bats_t_lms]         不断优化的自我代码
+
+测试脚本设计上:
+1. 如何设计测试用例，        bats_t_test_run | bats_t_test_skip | bats_t_test_setup_teardown       
+2. 如何描述测试用例，        bats_p_test_desc 
+3. 展示设计测试用例，        bats_t_program       模块化设计(功能代码模块化，测试用例模块化) mock设计思想
+
+文件以 .bats 结尾，
+文件以 #!/usr/bin/env bats 打头
+测试项以 @test 开头；
+测试命令使用 run 封装
+支持递归 --recursive flag
+支持过滤 --filter
+支持 load形式扩展  bats-assert 
+
+    每个 Bats 测试文件的评估次数为 n + 1 次，其中 n 是文件中的测试用例数。运行测试脚本时首先计算测试用例的数量，
+然后遍历测试用例并在独立进程中执行每个测试用例。
+    在运行测试用例时，bats使用Bash的 errexit（set -e）选项，这样写在@test 里面的语句都是真理断言。一旦测试用例中
+的某一个断言失败(某条语句的状态码不是 0)则这个测试用例视为失败。
+EOL
+}
+
+bats_i_core_code(){ cat - << 'EOL'
+BATS:env : shebang.
+BATS:setup : Setup function.
+BATS:teardown : Teardown function.
+BATS:load : Load common code.
+BATS:test : Test case.
+BATS:status : Test status code.
+BATS:output : Test output.
+BATS:line : Test line output.
+BATS:skip : Skip test.
+EOL
+}
+
+bats_i_assert_code(){ cat - << 'EOL'
+BATS:assert
+BATS:assert_output
+BATS:assert_line
+BATS:assert_success
+BATS:assert_failure
+BATS:assert_equal
+BATS:refute
+BATS:refute_output
+BATS:refute_line
+EOL
+}
+
+bats_t_testing_in_bash_master(){ cat - << 'EOL'
+#  test.sh 文件
+======================================= 布局
+lib/bats-core/bin/bats -r test
+
+# test/*.bats
+======================================= 布局
+# required for tests using bats-assert
+load '../lib/bats-support/load'
+load '../lib/bats-assert/load'
+
+# required for tests using a custom assert
+load util/customasserts
+
+
+EOL
+}
+
+bats_t_bats_demo(){ cat - << 'EOL'
+step00-basics:  bats simple-echo-test.bats 或者 bats --tap simple-echo-test.bats
+@ 测试块:
+    @test: this keyword tells Bats that there is a test here
+    a description: for instance "simple-script should output foo"
+    a function: whatever code lies within curly braes { }
+Bats will report success or failuure depending on the result of this function.
+if the function only consists of the call to the script and the script fails, Bats will report a failure.
+@ 测试函数
+    run: an optional wrapper used to collect information
+    a function or program under test: for instance simple-script.sh "foo"
+    some checks
+These checks are any command which result in true or false. A typical check makes use of the test command.
+@ run wrapper函数
+Run yields 3 variables upon execution of the function or program under test.
+    status: the exit code
+    output: the outputt of the functio or program. it collects stdout and stderr
+    lines: an array consisting of each line of the output
+
+step01-hello-round-1
+bats 如何进行调试
+    $BATS_TEST_DIRNAME is one of the environment variables provided by Bats
+@ add traces
+  echo "status=$status"
+  echo "output=$output"
+@ remove run
+  $BATS_TEST_DIRNAME/hello-world.sh  Alice
+
+step02-hello-round-2
+@ bats 添加新测试用例
+  如何处理: composite names 即 "Cheshire Cat" VS Cheshire Cat
+
+step02-hello-round-3
+@ checking for error exit       [ "$status" -eq 1 ]
+@ checking for error message    [ "$output" = "No name provided. Name is mandatory!" ]
+
+step02-hello-round-4
+@ checking output spanning on multiple lines organizing tests in multiple files run a test suite
+[[ "$output" =~ "Usage: hello-world.sh <name>" ]]     模式匹配
+ [ "${lines[0]}" = "Usage: hello-world.sh <name>" ]   完全匹配
+ 
+step02-hello-round-5
+@ refactoring of tests
+@ adding new tests
+@ check the test does not always pass or pass when it should not
+[[ "$output" =~ "input parameter name = 'Alice'" ]]   模式匹配 -- 简单形式就是包含
+[[ ! "$output" =~ "input parameter name = 'Alice'" ]] 取非 模式匹配
+
+step02-hello-round-6
+@ refactoring of code
+@ testing functions
+
+step10-more-examples
+@ basis use of bats.
+@ Example tests and scripts lies in basic-test-1.bats
+EOL
+}
+
+bats_t_test_run(){ cat - << 'EOL'
+[helper@run status output lines]
+@test "grep --version check" {                 # 测试用例名称
+  run grep --version                           # 运行的外部命令
+  [ $status -eq 0 ]                            # 断言
+  [ $( echo $output | grep "grep" -c ) -ne 0 ] # 断言
+  [ "${lines[0]%% *}" == 'grep' ]              # 断言
+  
+run: 可以将传入的参数当成命令调用，并且将退出状态和输出状态保存到特殊的全局变量中，以便可以继续在测试用例中增加断言。
+$status 是命令退出状态码
+$output 是命令的标准输出和标准错误的内容
+$lines是命令输出内容的数组包含各行内容
+
+@test "addition using bc" {
+  result="$(echo 2+2 | bc)"  # 断言
+  [ "$result" -eq 4 ]        # 断言
+}
+
+run何时使用?
+=======================================
+有时候使用run使得代码更长，可读性更差。
+# 当时执行命令返回值不等0的时候，需要使用run
+####  执行失败避免使用run
+run command args ...
+[ "status" -ne 0 ]
+等价于
+! command args ...
+
+####  执行成功避免使用run
+run command args ...      在需要单元 [ $status -eq 0 ] 的时候，使用下面形式更见简明扼要
+var=$(command args ...)   
+
+####  绝对不能使用run
+run cmd status "$id" | jq -e ".limit == 42" 此种情况使得jq不能正确获得 cmd 标准输出结果
+
+[[ "${result}" =~ 'admin_node changed=0 unreachable=0 failed=0' ]]
+[[ "${result}" =~ 'node1 changed=0 unreachable=0 failed=0' ]]
+EOL
+}
+
+bats_t_program(){ cat - << 'EOL'
+[test/fixtures/bats]
+dos_line.bats        dos格式脚本文件(支持)
+empty.bats           空脚本文件(支持)
+environment.bats     在test之间不能共享全局变量
+failing.bats               失败
+failing_and_passing.bats   失败与成功
+failing_helper.bats       helper 引入失败
+failing_setup.bats        setup  引入失败
+failing_teardown.bats     teardown  引入失败
+invalid_tap.bats          错误格式
+load.bats                 load命令测试
+loop_keep_IFS.bats        lines测试
+output.bats               对输出给予忽略
+
+[test/fixtures/suite]
+empty  multiple  single 空文件夹；多bats文件，单bats文件
+
+bats.bats 对bats命令自身的测试。
+
+通过load断言函数对 断言形式进行了扩展 # 进一步学习其形式
+bats-assert  
+bats-support 
+bats-file  
+
+# testing-in-bash-master/example-bats/test
+  assertion_showcase.sh  API演示
+  e2e_test.sh            mock演示
+  setup_and_teardown.sh  setup和teardown演示
+  unit_test.sh           单元测试方式
+  
+EOL
+}
+
+bats_t_bats_load(){ cat - << 'EOL'
+    如果想用跨越多个测试文件共享环境变量或者自定义的函数，可以使用 load 指令。
+共享文件的扩展文件名必须是.bash。load可以使用相对路径或者绝对路径。
+
+使用相对路径的写法是(可以省略扩展文件名)：
+load test_helper
+使用绝对路径的写法时(必须带上扩展文件名)：
+load /test_helpers/test_helper.bash
+
+bats-assert  
+bats-support 
+bats-file  
+通过load加载外部断言函数，简化特定业务判断。
+=======================================
+使得bats具有一定扩展性，即具有插件特性，扩展成shunit2形式的断言函数
+EOL
+}
+
+bats_t_bats_outside_code(){ cat - << 'EOL'
+在测试用例外面的代码用来检查dependencies 以及 快速fail。 
+setup 或 teardown 函数 编写重定向到 stderr (>&2)；防止污染输出
+EOL
+}
+
+bats_t_test_skip(){ cat - << 'EOL'
+在测试过程中如果失败时如果想继续可以 skip 指令来跳过测试：
+@test "A test I don't want to execute for now" {
+  skip
+  run foo
+  [ "$status" -eq 0 ]
+}
+
+也可以加入跳过原因：
+@test "A test I don't want to execute for now" {
+  skip "This command will return zero soon, but not now"
+  run foo
+  [ "$status" -eq 0 ]
+}
+
+或者也可以根据条件判断是否跳过：
+@test "A test which should run" {  
+  if [ foo != bar ]; then
+    skip "foo isn't bar"
+  fi
+
+  run foo
+  [ "$status" -eq 0 ]
+}
+
+条件执行特定测试用例；
+EOL
+}
+
+bats_t_test_setup_teardown(){ cat - << 'EOL'
+    setup / teardown 是两个特殊的函数，用于在测试用例开始之前和结束之后进行初始化和善后工作。
+比如开始之前设置环境变量创建测试目录。
+以 soar 为测试用例为例：
+
+setup() {
+  export SOAR_DEV_DIRNAME="${BATS_TEST_DIRNAME}/../"
+  export SOAR_BIN="${SOAR_DEV_DIRNAME}/bin/soar" 
+  export SOAR_BIN_ENV="${SOAR_DEV_DIRNAME}/bin/soar -config ${SOAR_DEV_DIRNAME}/etc/soar.yaml" 
+  export BATS_TMP_DIRNAME="${BATS_TEST_DIRNAME}/tmp"
+  export BATS_FIXTURE_DIRNAME="${BATS_TEST_DIRNAME}/fixture"
+  mkdir -p "${BATS_TMP_DIRNAME}"}
+
+teardown（）{  //TODO
+  ......
+}
+
+EOL
+}
+
+bats_t_except(){ cat - << 'EOL'
+1. 写在@test之外的代码
+    写在 @test 函数之外代码一旦失败 Bats 会立刻中断执行，某些情况下这样做会很有用比如检查依赖项，
+但是如果在@test、setup、teardown之外打印的任何输出必须重定向到stderr(>&2)，否则这些输出内容可能
+会污染TAP流导致Bats 测试失败。
+
+# 经过测试 @test 之外的代码会优先执行
+
+2. 文件描述符3（FD3）
+如果Bats卡死可以读这一块内容。
+    Bats 将测试代码的输出流和 TAP 输出流分开，这样做的目的是为了确保 TAP 的输出不被污染。在输出至
+终端的部分详细介绍了如何使用 FD3 正确打印自定义文本。
+
+1.会卡死的情况：
+@test "cat nonexistent_filename check" {            # 测试用例名称
+  run cat nonexistent_filename
+  sleep 100  &                                      # 后台执行
+  [ $status -eq 1 ]       
+  [ "$TTTT" -eq 1 ]                                 # 断言
+  [ "$output" == 'cat: nonexistent_filename: No such file or directory' ]   # 断言
+}
+
+2.  不会卡死的情况：
+@test "cat nonexistent_filename check" {                # 测试用例名称
+  run cat nonexistent_filename
+  sleep 100 3>&- &                                      # 后台执行并且关闭文件描述符3
+  [ $status -eq 1 ]       
+  [ "$TTTT" -eq 1 ]                                     # 断言
+  [ "$output" == 'cat: nonexistent_filename: No such file or directory' ]   # 断言
+}
+
+EOL
+}
+
+bats_i_bats(){ cat - << 'EOL'
+5. 使用方法 man 1 bats | man 7 bats
+Bats 1.1.0  Usage: bats [-cr] [-f <regex>] [-p | -t] <test>...
+                   bats [-h | -v]
+  <test>  为一个 bats 测试用例的文件，或者是一个包含后缀名为 .bats 文件的目录
+
+  -c, --count      计算没有运行的测试用例的个数
+  -f, --filter     通过正则表达式指定运行某些测试用例
+  -h, --help       显示帮助信息
+  -p, --pretty     以比较友好的方式展现测试用例的输出结果(默认是使用这种方式)
+  -r, --recursive  在子目录中包含测试
+  -t, --tap        以 TAP 格式显示输出结果
+  -v, --version    显示版本号信息
+  
+系统集成方法
+=======================================
+bats --tap addition.bats  集成到更大的脚本中进行测试时
+$ bats --tap addition.bats
+1..2
+ok 1 addition using bc
+ok 2 addition using dc
+
+bats addition.bats        手动或单独进行测试时
+$ bats addition.bats
+✓ addition using bc
+✓ addition using dc
+
+2 tests, 0 failures
+
+
+模块化方法
+=======================================
+bats suite/multiple/        进行目录级别的测试
+bats suite/multiple/a.bats  进行文件界别的测试
+
+模块化方法
+=======================================
+bats --tap --filter '[Ff]oo' 单实例测试
+EOL
+}
+
+
+bats_p_coding(){ cat - << 'EOL'
+snippet bats
+	#!/usr/bin/env bats
+
+snippet @test
+	@test "${1:test something}" {
+	  $0
+	}
+
+snippet line
+	[ "${lines[${1:0}]}" = "${2:some value}" ]
+
+snippet output
+	[ "$output" = "${1:foo: no such file 'nonexistent_filename'}" ]
+
+snippet status
+	[ "$status" -eq ${1:0} ]
+
+snippet run
+	run foo
+	[ "$status" -eq ${1:0} ]
+    
+# piping commands together with run
+run wc -l <(foo)
+
+EOL
+}
+
+
+bats_i_env(){ cat - << 'EOL'
+10. 特殊变量
+$BATS_TEST_FILENAME     is the fully expanded path to the Bats test file.
+$BATS_TEST_DIRNAME      is the directory in which the Bats test file is located.
+$BATS_TEST_NAMES        is an array of function names for each test case.
+$BATS_TEST_NAME         is the name of the function containing the current test case.
+$BATS_TEST_DESCRIPTION  is the description of the current test case.
+$BATS_TEST_NUMBER       is the (1-based) index of the current test case in the test file.
+$BATS_TMPDIR            is the location to a directory that may be used to store temporary files.
+$BATS_TEST_FILENAME     Bats测试文件的绝对路径。
+$BATS_TEST_DIRNAME      Bats测试文件所在的目录。
+$BATS_TEST_NAMES        每个测试用例的函数名称数组。
+$BATS_TEST_NAME         包含当前测试用例的函数的名称。
+$BATS_TEST_DESCRIPTION  当前测试用例的描述。
+$BATS_TEST_NUMBER       测试文件中当前测试用例的(从1开始)索引。
+$BATS_TMPDIR            用于存储临时文件的目录的位置。
+EOL
+}
+
+bats_p_compact(){ cat - << 'EOL'
+# TAP: Test Anything Protocol 用以描述测试单元和测试对象关系的文本格式协议。
+# https://testanything.org/
+当前支持: C, C++, Python, PHP, Perl, Java, JavaScript, and others.
+
+Everything from 3.2.57(1) and higher (macOS's highest version)
+EOL
+}

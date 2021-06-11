@@ -1,0 +1,265 @@
+与普通C++数组的区别在于: 向量知道自己的大小并且可以被重新定义大小。
+                         在向量末尾添加额外的项是非常快速有效的，而在向量前面或中间插入项是比较耗时的。
+
+顺序容器
+
+1. 向量 QVector 本质就是封装好的数组，向量的相邻元素在内存里是连续存储的，可以用数组下标访问，
+   其读取和修改元素的操作是非常快的，与C++数组是一样的，但是随机插入元素和随机删除 元素需要
+   大量腾挪后面的元素，所以不同的数据结构有不同的应用场景。如果读写操作频繁，但是随机增删操作
+   比较少，那么这种场景就很适合向量。
+   
+2. 栈 QStack 是向量的派生类，继承了向量的全部功能，并添加了几个进栈、出栈的操作函数。
+   
+
+向量 QVector
+-----------------------
+Qt 容器还可以进行嵌套，比如下面代码就定义了 10*10 的二维向量：
+    QVector<  QVector<int>  >  vc;
+    vc.resize(10);
+    for(int i=0; i<10; i++)
+    {
+        vc[i].resize(10);
+    }
+    
+容器嵌套定义时，要注意在两层尖括号中间加空格，避免编译器把容器嵌套识别为流操作符。
+向 量 QVector 与之前介绍的列表 QList 类似，只能存储值类型，即类型 T 必须支持默认构造函数、复制构造函数和等于号赋值函数。
+
+构造函数
+-----------------------
+QVector()    //默认构造函数
+QVector(int size)    //初始化 size 个元素的向量，元素初始值为类型 T 默认构造函数生成的值
+QVector(int size, const T & value)    //用 value 值初始化 size 个元素的向量
+QVector(const QVector<T> & other)    //复制构造函数
+QVector(QVector<T> && other)    //移动构造函数
+QVector(std::initializer_list<T> args)    //初始化列表构造函数
+~QVector()    //析构函数
+第一个是默认构造函数，用于支持容器嵌套；
+第二个是构造 size 个元素的向量，每个元素初始值都是类型 T 默认构造函数设定的数值；
+第三个是构造 size 个元素的向量，并且每个元素都设置为 value 值；
+第四个是复制构造函数，将参数 other 里的元素都复制一份给新向量；
+第五个是移动构造函数，将参数 other 里的元素都移动到新向量里面，旧的 other 向量内容清空；
+第六个是初始化列表构造，支持根据类似 {1, 2, 3} 的初始化表构造新的向量；
+第七个是析构函数。
+需要注意第二和第三个构造函数，不仅仅是分配空间，而且填充了 size 个元素。
+
+
+添加和分配空间函数
+-----------------------
+将元素添加到向量头部、尾部的函数如下：
+void    append(const T & value)      //将 value 添加到向量尾部
+void    push_back(const T & value) //将 value 添加到向量尾部，STL风格
+void    prepend(const T & value)    //将 value 添加到向量头部
+void    push_front(const T & value)//将 value 添加到向量头部，STL风格
+通常情况下，添加到向量尾部的开销比较小，而添加到头部意味着将向量原有的元素都向后平移，开销会很大。
+
+在向量中间位置插入一个元素或多个元素的函数如下：
+void    insert(int i, const T & value)
+void    insert(int i, int count, const T & value)
+第一个 insert() 是将一个 value 插入到序号 i 的位置，原本序号 i 以及后面的元素都平移，然后把 value 复制到序号 i 的位置。
+第二个 insert() 是将 count 个 value 值插入到序号 i 的位置，插入后从序号 i 到 i+count-1 序号都是等于 value 值的元素。
+
+    insert() 函数支持的最大序号是 size() ，即元素总数，如果 i 等于 size() ，那么元素添加到向量末尾。如果 i >size()  ，
+程序会因为访问越界而崩溃。其他带序号 i 的函数，序号范围仅支持 0 ~ size()-1 ，只有 insert() 例外多支持一个添加到末尾。
+这里着重说明一下，向量为了提升访问效率，绝大部分带序号 i 的函数都不做越界判断，一旦出现越界程序就会崩溃，这点与普通数组是一样的！
+
+向量还支持自动填充元素：
+QVector<T> &    fill(const T & value, int size = -1)
+如果 fill() 第二个参数为默认的 -1，那么向量内所有元素都被填充为数值 value；
+如果第二个参数不是 -1，那么向量首先进行增长或裁剪，使得元素个数正好是 size 计数，然后将向量的 size 个元素数值设置为 value。
+
+获取向量的元素数量（即向量的长度、尺寸）函数如下：
+int    count() const
+int    size() const
+int    length() const
+这三个函数是一样的，都是向量里的元素计数
+
+如果希望改变向量元素的计数(长度、尺寸)，可以用下面的重置尺寸函数：
+void    resize(int size)
+    重置向量尺寸后，向量的元素就变成 参数里的 size 个，如果元素变多，那么使用类型 T 
+的默认构造函数设置末尾的新元素，如果元素变少了，那么后面的元素会被删除掉。
+
+resize() 函数会直接影响向量里的元素个数，如果希望在不影响元素个数的情况下扩容，那么也有相应的函数。
+下面三个函数就是用于设置、获取容量，但不影响元素个数：
+void    reserve(int size)  //为 size 个元素分配空间，但是不增加任何新元素，向量的元素总数不变
+int    capacity() const    //查询向量内部的存储容量，容量一般大于等于 count()
+void    squeeze()           //释放不需要的额外容量，与 reserve()  函数功能相反
+这三个容量操作的函数不会影响向量中的元素总数，也不改变任何元素的数值。
+
+reserve(size) 是为 size 个数元素提前分配空间，
+如果参数里的个数小于向量原本的尺寸，那么该函数不执行任何操作，不会截断向量；
+如果参数 size 大于向量原本的尺寸，那么提前分配空间。
+reserve(size) 仅仅是提前分配空间，不会为向量添加新元素，向量的元素计数 count () 是不变的。
+
+capacity() 用于查询向量的存储空间，一般大于等于 count() 。
+squeeze() 用于释放额外空间，与 reserve(size) 的操作正好相反。
+
+这里需要特别注意 resize(size) 和  reserve(size) 的区别：
+    resize(size) 直接影响元素个数，如果参数里数值比旧的尺寸大，那么扩容并添加新元素，向量元素总数变为参数指定的个数；
+    如果resize(size) 参数里的数值比旧的尺寸小，那么对向量进行截断，只保留参数里指定个数的元素。
+    而 reserve(size) 无论参数里数值是什么，都不会改变向量元素的个数，也不会修改任何元素的数值，
+仅仅用于提前分配空间，但不会添加任何的新元素。如果在添加元素之前，提前知道向量大概的元素总数，
+那么用 reserve(size)提前分配空间可以避免添加新元素过程中的向量自动扩容操作。
+
+为区别这两个函数，读者可以测试下面的错误代码：
+    QVector<int> va = {1, 2, 3};
+    va.reserve(10);
+    va[4] = 1;    //！！！错误示范
+reserve(10) 会为向量扩容，但没有新增元素，上面最后一句  va[4] = 1 是数组越界，会导致程序崩溃。
+如果使用 resize(10)，那么上面代码就是合法的，因为 resize(10) 会为向量新添加 7 个元素到后面，va[4] 就不会越界。
+
+移除和删除函数
+---------------
+在调用移除和删除函数之前，一定要确保向量非空，用 ! empty() 或 ! isEmpty() 判断，不能对着没有元素的向量进行删除元素。
+如果希望从向量卸下元素并返回该元素值，使用 take**() 函数：
+T    takeAt(int i) //卸下序号 i 位置元素，并返回该元素
+T    takeFirst()    //卸下向量的头部元素，并返回该元素
+T    takeLast()    //卸下向量的尾部元素，并返回该元素
+不返回元素，直接删除元素的函数如下：
+void    remove(int i)     //删除序号 i 位置元素
+void    removeAt(int i) //删除序号 i 位置元素
+void    remove(int i, int count) //从序号 i 位置开始删除参数里 count 个数的元素
+void    removeFirst()  //删除头部元素
+void    pop_front()    //删除头部元素，STL风格
+void    removeLast() //删除尾部元素
+void    pop_back()    //删除尾部元素，STL风格
+向量从尾部删除元素的效率高，但是删除头部或中间的元素，意味着将后面大批量元素往前复制腾挪，效率就比较低了。 take**() 函数与 remove**() 函数效率差不多，仅仅是多个返回值。
+如果希望删除匹配的一个或多个元素，使用下面的函数：
+bool    removeOne(const T & t)    //如果向量里存在等于 t 的元素就删除并返回 true，否则找不到返回 false
+int    removeAll(const T & t)    //删除向量中所有等于 t 的元素，并返回删除的数量
+removeOne( t ) 和 removeAll( t ) 函数需要元素类型 T 支持双等号比较函数 operator==() 。
+如果需要清空向量，删除所有元素，那么使用如下函数：
+void    clear()
+
+
+访问和查询函数
+---------------
+访问指定序号 i 元素的函数如下：
+const T &    at(int i) const    //返回序号 i 元素的常量引用，效率最高，但是不做越界判断！
+T    value(int i) const
+T    value(int i, const T & defaultValue) const
+at(i) 的函数效率最高，但是它不检查数组越界，一旦越界程序就会崩溃，对于该函数必须确保 0 <= i < size() 。
+两个 value()函数都会检查参数的序号是否越界，
+第一个 value(i) 如果序号越界，返回类型 T 默认构造函数设置的元素数值，
+第二个 value(i,defaultValue ) 如果发生序号 i 越界，那么返回参数里指定的数值 defaultValue 。
+  如果不发生越界，两个 value() 函数都返回正常的序号 i 位置元素数值。
+
+
+快速获取向量头部、尾部元素的函数如下：
+T &    first()                     //头部元素的读写引用
+const T &    first() const         //头部元素的只读引用
+T &    front()                     //头部元素的读写引用，STL风格
+const_reference    front() const   //头部元素的只读引用，STL风格
+T &    last()                      //尾部元素的读写引用
+const T &    last() const          //尾部元素的只读引用
+reference    back()                //尾部元素的读写引用，STL风格
+const_reference    back() const    //尾部元素的只读引用，STL风格
+STL风格函数返回值的 reference 是类型定义，等同 T &  ； const_reference 也是类型定义，等同 const T &  。
+判断向量是否为空的函数如下：
+bool    empty() const    //判断向量是否为空，STL风格
+bool    isEmpty() const //判断向量是否为空
+查询向量里是否包含 value 数值或查询有几个等于 value 数值的元素，使用下面的函数：
+bool    contains(const T & value) const    //查询向量是否包含等于 value 数值的元素，有就返回 true，没有就返回 false
+int    count(const T & value) const    //查询向量包含几个等于 value 数值的元素，有就返回个数，没有就返回 0
+凡是参数里带 value 的查询函数、移除或删除函数，都需要元素类型 T 支持双等号比较函数  operator==() 。
+如果需要查询等于 value 数值的元素的序号，使用下面两个函数：
+int    indexOf(const T & value, int from = 0) const    //从前到后查询，从 from 序号开始查找等于 value 的元素序号，找不到时返回 -1
+int    lastIndexOf(const T & value, int from = -1) const //从后向前查询，从 from 序号开始倒着查找等于 value 的元素序号，找不到就返回 -1
+indexOf() 是按照序号从小到大查找，lastIndexOf() 是反过来，按照序号从大到小来查找，这两个函数如果找不到匹配的元素，就会返回 -1，要注意返回值的判断。
+查询头部和尾部是否等于某数值的快捷函数如下：
+bool    startsWith(const T & value) const    //查询头部元素是否等于 value
+bool    endsWith(const T & value) const    //查询尾部元素是否等于 value
+
+向量类还有特殊的函数，可以直接获取内部的连续存储空间指针：
+T *           data()           //获取向量内部存储空间的读写指针，可以修改元素值
+const T *    data() const      //获取向量内部存储空间的只读指针
+const T *    constData() const //获取向量内部存储空间的只读指针
+data() 和 constData() 返回值就是向量里真实的数组指针，如果读者希望自己直接用指针操作各个元素，就可以用这三个函数。
+一般是不建议直接调用这三个函数，因为如果处理不当就容易出现越界，而且不能直接为存储空间扩容。
+
+
+获取子序列、替换和交换函数
+---------------
+如果希望从向量复制出来一个子序列的向量，那么使用如下函数：
+QVector<T>    mid(int pos, int length = -1) const  //从序号 pos 开始复制 length 个数的元素到新向量，返回新向量
+mid() 函数专门提取子序列向量，从 pos 开始复制 length 个数的元素到新向量里，返回新向量。如果 length 为 -1 或超出原向量的界限，那么从 pos 开始的所有元素都会复制到新向量里。
+修改序号 i 位置元素数值的函数如下：
+void    replace(int i, const T & value)
+注意序号 i 不能越界，必须合法，即 0 <= i < size() 。
+如果希望与其他向量交换所有的元素，使用下面函数：
+void    swap(QVector<T> & other)
+swap() 函数执行效率非常高，并且不会失败。
+
+运算符函数
+---------------
+对于运算符函数，我们以下面三个向量来举例说明：
+    QVector<int> va = {1, 2, 3};
+    QVector<int> vb = {4, 5, 6};
+    QVector<int> vc;
+    
+    
+运算符函数                                             举 例                  描述
+bool operator!=(const QVector<T> & other) const        va != vb;              va 和 vb 两个向量有元素不同，结果为 true。
+QVector<T> operator+(const QVector<T> & other) const   vc = va + vb;          va 和 vb 复制拼接后生成新向量，赋值给 vc。
+QVector<T> & operator+=(const QVector<T> & other)      va += vb;              复制 vb 所有元素追加到 va 末尾。
+QVector<T> & operator+=(const T & value)               va += 100 ;            添加一个元素 100 到 va 末尾。
+QVector<T> & operator<<(const QVector<T> & other)      va << vb;              复制 vb 所有元素追加到 va 末尾。
+QVector<T> & operator<<(const T & value)               va << 100;             添加一个元素 100 到 va 末尾。
+QVector<T> & operator=(const QVector<T> & other)       vc = va;               va 所有元素都复制一份给 vc，va本身不变。二者相等。
+QVector<T> operator=(QVector<T> && other) //移动赋值   vc = std::move(va) ;   va 所有元素都移动给 vc， va本身被清空。
+bool operator==(const QVector<T> & other) const        va == vb;              va 和 vb 有元素不同，结果为 false。只有两个向量的所有元素相等并且顺序一样，它们才能算相等。
+T & operator[](int i)                                  va[0] = 100;           获取序号为 i 的元素的读写引用，可修改向量元素。
+const T & operator[](int i) const                      qDebug()<<va[0] ;       获取序号为 i 的元素的只读引用。
+
+
+容器类型转换函数
+---------------
+如果希望将向量转为列表或标准库的向量，使用下面函数：
+QList<T>    toList() const    //转为 Qt 列表
+std::vector<T>    toStdVector() const    //转为标准库的向量
+向量类还提供了静态成员函数，实现将参数里类型转为向量类型，返回值就是新的向量：
+QVector<T>    fromList(const QList<T> & list)    //将参数里的列表转为向量，返回值是新向量
+QVector<T>    fromStdVector(const std::vector<T> & vector)    //将参数里的标准库向量转为 Qt 向量
+列表的好处是针对头部插入元素有优化，向量头部插入元素需要大量元素向后复制腾挪，向量头部元素的增删不如列表效率高。
+
+其他内容
+---------------
+向量类还附带了两个友元函数，是流操作符重载函数，支持数据流的输出、输入，
+QDataStream &    operator<<(QDataStream & out, const QVector<T> & vector)  //输出
+QDataStream &    operator>>(QDataStream & in, QVector<T> & vector)    //输入
+这些流操作符函数正常运行的前提是元素类型 T 必须支持数据流的输入和输出。C++ 基本类型和 Qt 常见数据类型都支持，如果是自定义类型那么必须类似重 载  operator<<() 和 operator>>() 函数。
+
+向量与列表一样都支持排序函数：
+void qSort(Container & container)  //排序
+void qStableSort(Container & container)  //稳定排序
+排序函数要求容器的元素类型 T 必须支持小于号函数  operator<()，用于比较元素大小。Qt 调用的小于号函数原型是两个参数的全局 operator<() 函数，不是成员函数，应该在类外面声明并定义下面的小于号函数：
+bool  operator< ( const T &t1, const T &t2 )
+一般要将该函数声明为 T 类型的友元函数，方便访问私有变量。
+
+
+
+对于顺序容器而言，天生就是数组的，即索引就是从0开始的index
+QVector<QString> m_vProvinces;               保存省份名称
+QVector<  QVector<QString>  > m_vCities;     二维向量保存市县名称
+QVector<  QVector<double>  > m_vLongitudes;  二维向量保存市县的经度
+QVector<  QVector<double>  > m_vLatitudes;   二维向量保存市县的纬度
+
+
+栈 QStack
+----------------------
+QStack 是向量 QVector 的派生类，继承了基类全部的功能，仅仅添加少许的栈操作函数。首先是进栈、出栈的函数：
+  void push(const T & t)  //将 t 添加到栈顶
+  T  pop()                //取出栈顶元素并返回
+还有两个获取栈顶元素引用的函数：
+  T &  top()                  //获取栈顶元素的读写引用
+  const T &    top() const    //获取栈顶元素的只读引用
+另外栈重载了基类的交换函数，用于和另一个对象互换所有元素：
+  void swap(QStack<T> & other)
+
+交换函数的执行效率非常高，并且不会失败。
+栈自身的新函数就这些，其他功能都可以使用基类的函数实现。
+
+
+
+
+
+

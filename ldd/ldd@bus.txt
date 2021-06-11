@@ -1,0 +1,290 @@
+http://blog.chinaunix.net/uid-27664726-id-3334808.html  ## 源代码解读
+
+在kernel_init->do_basic_setup->driver_init会有很多相关文件系统的初始化
+int bus_register(struct bus_type *bus)
+
+
+1、总线是处理器与一个或多个设备之间的通道。在设备模型中，所有的设备都通过总线相连。甚至是哪些内部的虚拟"平台"总线。
+2、总线可以互相插入，比如一个USB控制器通常是一个PCI设备。设备模型展示了总线和它们所控制的设备之间的连接。
+3、设备模型展示了总线和它们所控制的设备之间的连接。
+    sysfs 是在这个 Linux 统一设备模型的开发过程中的一项副产品.
+4: 总线是处理器与设备之间的通道，在设备模型中，所有的设备都是通过总线相连的。在设备模型中，总线由bus_type表示
+
+->   [bus_type]
+struct bus_type {
+	const char		*name;                                          总线名称。如PCI，USB。在/sys/bus目录下可以看到。
+	struct bus_attribute	*bus_attrs;                             总线属性。
+	struct device_attribute	*dev_attrs;                             该总线上所有设备的默认属性。
+	struct driver_attribute	*drv_attrs;                             该总线上所有驱动的默认属性。
+                                                                    
+	int (*match)(struct device *dev, struct device_driver *drv);    匹配总线中的dev和driver
+	int (*uevent)(struct device *dev, struct kobj_uevent_env *env); 添加环境变量。
+	int (*probe)(struct device *dev);                               总线匹配成功是会调用，bus和drv的probe中只有一个奇效//，如果bus存在就调用bus->probe
+	int (*remove)(struct device *dev);                              设备移除时调用。
+	void (*shutdown)(struct device *dev);                           关机时调用。
+                                                                    
+	int (*suspend)(struct device *dev, pm_message_t state);         挂起（投入休眠）时调用。 
+	int (*resume)(struct device *dev);                              恢复时调用。
+                                                                    
+	const struct dev_pm_ops *pm;                                    设备电源管理。 
+                                                                    
+	struct subsys_private *p;                                       定义了将bus同其他类型联系起来的关系，将bus同device、driver、sysfs联系起来。
+};
+name是总线的名字；比如pci
+每个总线都有自己的子系统，然而这些子系统并不在sysfs中的顶层，相反，会在总线子系统下面发现他们。
+
+int bus_register(struct bus_type *bus)    注册bus_type
+void bus_unregister(struct bus_type *bus) 注销bus_type
+在bus_type结构中，定义了许多方法，这些方法允许总线核心作为中间介质，在设备核心与单独的驱动程序之间提供服务。
+
+总线，设备和驱动之间关系
+int bus_for_each_dev(struct bus_type *bus, struct device *start,
+		     void *data, int (*fn)(struct device *, void *))
+int bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
+		     void *data, int (*fn)(struct device_driver *, void *))
+			 
+->   [bus_attribute]			 
+总线属性。表现为/sys/bus/<name>/文件夹下的文件。这个结构体的具体定义如下：
+
+struct bus_attribute {
+	struct attribute	attr;
+	ssize_t (*show)(struct bus_type *bus, char *buf);
+	ssize_t (*store)(struct bus_type *bus, const char *buf, size_t count);
+};
+show和store方法的第一个参数都是struct bus_type指针，用来指示属性所在总线。
+show  方法实现数据读取。当用户空间读取属性值时，核心调用该方法实现编码，结果存放在形参buf中，注意大小不能超过过PAGE_SIZE。
+store 方法实现数据保存。当用户空间设置属性值时，核心调用该方法实现解码，使用buf传递的数据解码，count指示buf传递的数据长度。
+      注意buf信息来自用户空间，因此在解码前应当检测数据合法性，如果数据格式或者数值和期望的不符，应该返回一个负的错误码，
+	  而不是采取不可预期或者无法恢复的动作。
+
+->初始化
+可以在编译时刻创建和初始化bus_attribute结构
+BUS_ATTR(name, mode, show, shore);
+这个宏声明了一个结构，它将bus_attr_作为给定name的前缀来创建总线的真正名称。
+
+->操作总线的属性
+创建属于总线的任何属性，都需要显示调用bus_create_file
+int bus_create_file(struct bus_type *bus, struct bus_attribute *attr);
+void bus_remove_file(struct bus_type *bus, struct bus_attribute *attr);
+
+另外一个需要注意的是，对于store方法，不能返回0，否则会产生死循环。因为如果store返回小于形参count，驱动核心会认为解码未完成，并以本次解码剩余的缓冲区继续调用store。我们假设一个最多一次只能解码4个字符的store函数，见如下代码调用
+const char *p="1234567890";
+attrs->store(bus,p,10);
+
+第一次返回5，驱动核心会接着调用：
+attrs->store(bus,p+4,10-4);
+attrs->store(bus,p+8,10-8);
+
+------ 设备 ------
+[device]
+struct device {
+	struct device		*parent;                                       该设备的父设备，一般是该设备所从属的bus、controller等设备。
+                                                                       
+	struct device_private	*p;                                        一个用于struct device的私有数据结构指针，该指针中会保存子设备链表、
+	                                                                  用于添加到bus/driver/prent等设备中的链表头等等，具体可查看源代码。                                                          
+	struct kobject kobj;                                              该数据结构对应的struct kobject。
+	const char		*init_name; /* initial name of the device */      该设备的名称。 
+	const struct device_type *type;                                   它和struct device关系，非常类似stuct kobj_type和struct kobject之间的关系，后续会再详细说明。
+                                                                       
+	struct mutex		mutex;	/* mutex to synchronize calls to       
+					 * its driver.                                     
+					 */                                                
+                                                                       
+	struct bus_type	*bus;		/* type of bus device is on */          device属于哪个总线（后续会详细描述）。 
+	struct device_driver *driver;	/* which driver has allocated this  device对应的device driver。
+					   device */                                       
+	void		*platform_data;	                                      一个指针，用于保存具体的平台相关的数据。具体的driver模块，可以将一些私有的数据，暂存在这里，
+	                                                                 需要使用的时候，再拿出来，因此设备模型并不关心该指针得实际含义。
+	struct dev_pm_info	power;                                       电源管理相关的逻辑，后续会由电源管理专题讲解。   
+	struct dev_power_domain	*pwr_domain;                               
+                                                                       
+#ifdef CONFIG_NUMA                                                     
+	int		numa_node;	/* NUMA node this device is close to */        
+#endif                                                                 
+	u64		*dma_mask;	/* dma mask (if dma'able device) */            
+	u64		coherent_dma_mask;/* Like dma_mask, but for                
+					     alloc_coherent mappings as                    
+					     not all hardware supports                     
+					     64 bit addresses for consistent               
+					     allocations such descriptors. */              
+                                                                       
+	struct device_dma_parameters *dma_parms;                           
+                                                                       
+	struct list_head	dma_pools;	/* dma pools (if dma'ble) */       
+                                                                       
+	struct dma_coherent_mem	*dma_mem; /* internal for coherent mem     
+					     override */                                   
+	/* arch specific additions */                                      
+	struct dev_archdata	archdata;                                      
+                                                                       
+	struct device_node	*of_node; /* associated device tree node */    
+                                                                       
+	dev_t			devt;	/* dev_t, creates the sysfs "dev" */       
+                                                                       
+	spinlock_t		devres_lock;                                       
+	struct list_head	devres_head;                                   
+                                                                       
+	struct klist_node	knode_class;                                   该设备属于哪个class。
+	struct class		*class;                                        
+	const struct attribute_group **groups;	/* optional groups */      该设备的默认attribute集合。将会在设备注册时自动在sysfs中创建对应的文件。
+                                                                       
+	void	(*release)(struct device *dev);                            
+};
+在最底层，Linux系统中的每一个设备都用device接口的一个实例来表示。
+struct device *parent; 设备的"父"设备，指的是该设备所属的设备。在大多数情况下，一个父设备通常是某种总线或者是宿主控制器。如果parent
+                       是NULL，表示该设备是顶层设备，但这种情况很少出现。
+struct kobject kobj;   表示该设备并把它连接到结构体系中的kobject。请注意，作为一个通用规则，device->kojb->parent 与
+                        &device->parent->kobj是相同的。
+char bus_id[BUS_ID_SIZE]: 在总线上唯一标识该设备的字符串。比如PCI设备使用了标准PCI ID格式，它包括：域编号、总线编号、设备编号和功能编号。
+struct bus_type *bus; 标识了该设备连接在何种类型的总线上。
+struct device_driver *driver; 管理该设备的驱动程序。
+void *driver_data; 由设备驱动程序使用的私有数据成员。
+void (*release)(struct device *dev);
+                 当指向设备的最后一个引用被删除时，内核调用该方法，它将从内嵌的kobject的release方法中调用，所有向内核注册的device
+                 结构都必须有一个release方法，否则内核将打印出错误的信息。
+在注册device结构前，至少要设置parent,bus_id，bus和release成员。
+
+-> 设备注册和注销
+int device_register(struct device *dev);
+void device_unregister(struct device *dev);
+我们已经看到了lddbus代码是如何注册它的总线类型，然而，一个实际的总线是一个设备，因此必须被单独注册。
+处于过于简单的原因，lddbus模块只支持了单独的虚拟总线，因此，驱动程序在编译时构造了它的设备。
+
+[device_attribute]
+设备属性：
+struct device_attribute {
+	struct attribute	attr;
+	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count);
+};
+
+在编译时刻可用该宏构造device_attribute结构；
+DEVICE_ATTR(name, mode, show, store);
+该结构将dev_attr_作为指定名字的前缀来构造结构的名称。
+->操作设备的属性
+extern int __must_check device_create_file(struct device *device,
+					const struct device_attribute *entry);
+extern void device_remove_file(struct device *dev,
+			       const struct device_attribute *attr);	
+
+
+device结构中包含了设备模型核心用来模拟系统的信息。然而，大多数子系统记录了它们所拥有设备的其他信息，因此，单纯用device结构表示
+的设备是很少见，而是通常把类似kobject这样的结构内嵌在设备的高层表示之中。
+
+
+------ 驱动程序 ------	   
+设备模型跟踪所有系统所知道的设备。进行跟踪的主要原因是让驱动程序核心协调驱动程序和新设备之间的关系。一旦驱动程序是系统中已知对象，
+就可能完成大量的工作。
+例如：设备驱动程序可以导出信息和配置变量，而这些东西都是独立于任何特定设备的。
+struct device_driver {
+	const char		*name;                                该driver的名称。和device结构一样，该名称非常重要，后面会再详细说明。
+	struct bus_type		*bus;    该driver所驱动设备的总线设备。为什么driver需要记录总线设备的指针呢？因为内核要保证在driver运行前，设备所依赖的总线能够正确初始化。
+
+	struct module		*owner;              內核module相关的变量，暂不描述。
+	const char		*mod_name;	/* used for built-in modules */    內核module相关的变量，暂不描述。
+
+	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */   是不在sysfs中启用bind和unbind attribute，
+	//在kernel中，bind/unbind是从用户空间手动的为driver绑定/解绑定指定的设备的机制。这种机制是在bus.c中完成的，后面会详细解释。
+	const struct of_device_id	*of_match_table;
+
+	int (*probe) (struct device *dev);
+	int (*remove) (struct device *dev);
+	void (*shutdown) (struct device *dev);
+	int (*suspend) (struct device *dev, pm_message_t state);
+	int (*resume) (struct device *dev);
+	const struct attribute_group **groups;
+
+	const struct dev_pm_ops *pm;
+
+	struct driver_private *p;
+};
+1. probe、remove，这两个接口函数用于实现driver逻辑的开始和结束。Driver是一段软件code，因此会有开始和结束两个代码逻辑，就像PC程序，
+会有一个main函数，main函数的开始就是开始，return的地方就是结束。而内核driver却有其特殊性：在设备模型的结构下，只有driver和
+device同时存在时，才需要开始执行driver的代码逻辑。这也是probe和remove两个接口名称的由来：检测到了设备和移除了设备（就是为热拔插
+起的！）。
+p，私有数据的指针，具体的driver代码可以把任何需要的内容放在这里，反正设备模型代码不关心。
+
+extern int __must_check driver_register(struct device_driver *drv);
+extern void driver_unregister(struct device_driver *drv);
+
+驱动的属性：
+struct driver_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct device_driver *driver, char *buf);
+	ssize_t (*store)(struct device_driver *driver, const char *buf,
+			 size_t count);
+};
+DRIVER_ATTR(_name, _mode, _show, _store)
+
+extern int __must_check driver_create_file(struct device_driver *driver,
+					const struct driver_attribute *attr);
+extern void driver_remove_file(struct device_driver *driver,
+			       const struct driver_attribute *attr);
+				   
+------ 类 ------	
+类是一个设备的高层视图，它抽象出了底层的实现细节。驱动程序看到的是SCSI磁盘和ATA磁盘，但是在类的层次上，他们都是磁盘而已。
+类允许用户空间使用设备所提供的功能，而不关心设备是如何连接的，以及它们是如何工作的。
+
+android_usb   block         graphics      input         lcd           mmc_host      pyra          rtc           scsi_host     timed_output  video4linux
+arvo          bluetooth     i2c-adapter   kone          mdio_bus      net           regulator     scsi_device   sound         tty           vtconsole
+backlight     cdcctl        i2c-dev       koneplus      mem           power_supply  rfkill        scsi_disk     spi_master    usb_device
+bdi           firmware      ieee80211     kovaplus      misc          ppp           rp_bt_dev     scsi_generic  switch        vc
+
+struct class {
+	const char		*name;      //class的名称
+	struct module		*owner; //拥有该class的模块
+
+	struct class_attribute		*class_attrs;
+	struct device_attribute		*dev_attrs;
+	struct bin_attribute		*dev_bin_attrs;
+	struct kobject			*dev_kobj;
+
+	int (*dev_uevent)(struct device *dev, struct kobj_uevent_env *env);
+	char *(*devnode)(struct device *dev, mode_t *mode);
+
+	void (*class_release)(struct class *class);
+	void (*dev_release)(struct device *dev);
+
+	int (*suspend)(struct device *dev, pm_message_t state);
+	int (*resume)(struct device *dev);
+
+	const struct kobj_ns_type_operations *ns_type;
+	const void *(*namespace)(struct device *dev);
+
+	const struct dev_pm_ops *pm;
+
+	struct subsys_private *p;
+};
+
+int class_register(struct class *cls);
+void class_unregister(struct class *cls);
+
+struct class_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct class *class, struct class_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t count);
+};
+
+CLASS_ATTR(_name, _mode, _show, _store)	
+
+extern int __must_check class_create_file(struct class *class,
+					  const struct class_attribute *attr);
+extern void class_remove_file(struct class *class,
+			      const struct class_attribute *attr);
+				  
+				  
+				  
+struct class_interface {
+	struct list_head	node;
+	struct class		*class;
+
+	int (*add_dev)		(struct device *, struct class_interface *);
+	void (*remove_dev)	(struct device *, struct class_interface *);
+};
+extern int __must_check class_interface_register(struct class_interface *);
+extern void class_interface_unregister(struct class_interface *);
+

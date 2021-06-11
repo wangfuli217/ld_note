@@ -1,0 +1,159 @@
+http://sunxiunan.com/archives/1919
+http://www.luafaq.org/#T1.23
+
+FAQ:
+-------------------
+1. C/C++调用lua（比如使用dofile）常见的问题？
+C++调用lua，必须用绝对路径（c:\aaa\bbb.lua）而不是相对路径。否则Lua虚拟机找不到这个文件。
+
+2. Lua是否支持Unicode字符串？
+Lua字符串可以容纳任何字符（包括0），所以如果想把unicode字符存到Lua字符串中没有任何问题，但是Lua的string标准库只能处理单字节，所以想编程使用Unicode，需要另外支持，如icu4lua，详细信息参考：
+http://lua-users.org/wiki/LuaUnicode
+
+3. require与dofile有什么区别？
+这两个函数都会载入并且运行lua脚本，区别是，require只需要指定模块名字（不需要加入.lua .dll这样后缀），而dofile需要指定文件的完整的实际路径。
+在windows下输入以下命令lua -e "print(package.path)"来显示package查找路径。
+第二个区别是require会记住load过的信息，重复调用不会导致模块被重新载入（reload）。（我们可以通过dofile这种特性来实现热更新）
+第三个区别是require可以载入二进制模块，如c语言编写的动态库，可以通过package.cpath来显示动态库查找的路径信息。
+如果你想载入的动态库是在某个子目录下，如c:\lua\5.1\lib\luasockets\core，可以通过点号形式来require，如require “socket.core”
+
+4. 如何显式载入一个二进制动态库（dll）
+可以通过package.loadlib来实现。
+
+5. Lua有exception机制么？
+没有内置的，但是可以通过pcall来间接实现。
+local status,err = pcall(function()
+t.alpha = 2.0 — will throw an error if t is nil or not a table
+end)
+
+if not status then
+print(err)
+end
+
+6. 我想把lua打包成exe，如何做？
+可以使用srlua、L-Bia这样的lua项目，另外可以使用lua2c这个工具把lua代码编译成c语言代码，
+然后通过include在c语言中直接使用。
+
+7. 什么是函数环境Function Environments？
+简单的说，函数环境就是全局表global table。可以用来实现sandbox沙箱功能。
+function test ()
+return A + 2*B
+end
+t = { A = 10; B = 20 }
+setfenv(test,t)
+print(test())
+=>
+50
+
+8. 如何实现命名参数named parameters？
+function named(t)
+local name = t.name or ‘anonymous’
+local os = t.os or ‘<unknown>’
+local email = t.email or t.name..’@’..t.os
+…
+end
+named {name = ‘bill’, os = ‘windows’}
+
+9. Lua有没有Ruby gem这种机制？
+如果想自动安装更新第三方模块，可以使用luarocks。
+
+10. Lua支持字符串正则查找替换么？
+支持，参考string标准库。也可以使用lpeg这个第三方模块。
+
+11. 如何在c语言中遍历一个Lua table？
+/* table is in the stack at index ‘t’ */
+lua_pushnil(L); /* first key */
+while (lua_next(L, t) != 0) {
+/* uses ‘key’ (at index -2) and ‘value’ (at index -1) */
+printf(“%s – %s\n”,
+lua_typename(L, lua_type(L, -2)),
+lua_typename(L, lua_type(L, -1)));
+
+/* removes ‘value’; keeps ‘key’ for next iteration */
+lua_pop(L, 1);
+}
+
+12. 当从 lua 调用 C 函数时，当参数数量不足的时候，并不会填入 nil 作为缺省参数。
+比如，写了一个 C 函数，接受两个参数。当 lua 中调用这个 C 函数时，如果仅传入一个参数，
+那么在 C 中 stack 上 index 2 位置的值并不一定是 nil 。这个时候我们应该用 lua_gettop 
+得到准确的参数个数以做适当的处理，或者直接在进入 C 函数时调用一次 lua_settop(L,2) 
+强制堆栈扩展到两个。
+
+13. 判断一个字符串的前缀是不是 “@”
+有三个方案：
+1. 比较直观的是 string.sub(str,1,1) == “@”
+2. 感觉效率比较高的是 string.byte(str) == 64
+3. 或者是 string.find(str,”@”) == 1
+
+14.  http://www.lua.org/demo.html 这个演示功能怎么实现的？
+http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/，查找“demo”能看到它的源代码。
+
+15. 如何列出一个目录的所有内容？如何获取文件属性？
+http://www.keplerproject.org/luafilesystem/ 
+http://penlight.luaforge.net/api/modules/pl.dir.html
+
+16. 如何运行外部命令？
+os.execute
+io.popen
+http://www.tecgraf.puc-rio.br/~rcerq/luacom
+
+17. 如何让脚本暂停几秒钟？
+ http://www.tecgraf.puc-rio.br/~diego/professional/luasocket
+http://stevedonovan.github.com/winapi/api.html#Miscellaneous_functions
+http://luafaq.org/#T4.5.1
+
+18. 如何把程序作为Service或者Daemon方式运行？
+http://luaservice.luaforge.net/
+http://lua.net-core.org/sputnik.lua?p=Telesto:About
+
+19. Lua支持多线程么？
+http://www.keplerproject.org/copas
+http://www.tecgraf.puc-rio.br/~diego/professional/luathread/ 
+http://lua-users.org/wiki/MultiTasking 
+
+20. 如何访问Windows注册表？
+http://lua-users.org/wiki/WindowsRegistry
+
+21. 如何发送邮件？
+http://www.tecgraf.puc-rio.br/~diego/professional/luasocket/smtp.html
+
+22. Lua能用作Web开发的脚本语言么？
+http://www.keplerproject.org/
+http://keplerproject.github.com/orbit/ 
+http://sputnik.freewisdom.org/
+
+http://haserl.sourceforge.net/ 
+
+23. Lua是一个紧凑型语言，但是我需要很多库，哪里能找到？
+http://lua-users.org/wiki/LibrariesAndBindings
+http://luaforge.net/top/mostactive.php
+http://lua-users.org/wiki/LuaDistributions
+
+http://search.rpmseek.com/search.html
+http://luadist.sourceforge.net/ 
+
+24. Lua有什么界面编程库GUI toolkit么？
+http://lua-users.org/wiki/GraphicalUserInterfaceToolkits
+wxLua http://wxlua.sourceforge.net/
+https://github.com/mkottman/lqt 
+http://www.tecgraf.puc-rio.br/iup/
+http://code.google.com/p/luaforwindows/
+
+25. 如何渲染一个图片或者绘图到文件？
+Lua-GD http://lua-gd.luaforge.net/
+http://oproj.tuxfamily.org/wiki/doku.php?id=luaplot 
+http://luagraph.luaforge.net/
+http://luaforge.net/projects/gnuplot
+
+26. Lua可以用于Google Android上面么？
+http://code.google.com/p/android-scripting/
+https://github.com/mkottman/AndroLua
+http://www.anscamobile.com/corona/
+
+27. 对于嵌入式设备有什么最小需求么？
+eLua http://eluaproject.dreamhosters.com/?p=Faq
+LNUM http://luaforge.net/projects/lnum
+
+28. 如何把C++类绑定到Lua中？
+Lunar http://lua-users.org/wiki/CppBindingWithLunar
+

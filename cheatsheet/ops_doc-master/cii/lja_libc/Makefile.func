@@ -1,0 +1,41 @@
+##########################################################
+#                   自定义函数
+#
+# 通过shell完成 
+#
+##########################################################
+#检查目录是否存在，如果存在返回空，否则返回不为空
+define check_dir
+$(shell if [ -d $1 ];then echo;else echo 1;fi)
+endef
+
+#检查$1中的值$2所指向的目录是否存在，如果存在返回，否则提示然后立即退出
+# 例:
+# $(call check_dir2,DIR,xxx) 
+# 检查xxx(xxx是变量DIR值中的一个词)目录是否存在，如果不存在，提示:
+#   DIR's value (xxx) does not exist!
+define check_dir2
+$(if $(call check_dir,$2),$(error "$1's value ($2) does not exist!"),)
+endef
+
+#检查文件是否存在，如果存在返回空，否则返回不为空
+define check_file
+$(shell if [ -e $1 ];then echo;else echo 1;fi)
+endef
+
+#检查$1中的值$2所指向的文件是否存在，如果存在返回，否则提示然后立即退出
+# 例:
+# $(call check_file2,FILE,xxx) 
+# 检查xxx(xxx是变量FILE值中的一个词)文件是否存在，如果不存在，提示:
+#   FILE's value (xxx) does not exist!
+define check_file2
+$(if $(call check_file,$2),$(error "$1's value ($2) does not exist!"),)
+endef
+
+#生成一个变量obj-XX,其中存放所有以XX为后缀的文件
+#  在DIR目录下对应的.o文件
+#例:  $(call set_obj_x,c,DIR,$(all_src))
+#  定义了obj-c=DIR/XXX.o
+define set_obj_x
+obj-$1 = $(patsubst %.$1,$2/%.o,$3)
+endef

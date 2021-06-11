@@ -1,0 +1,46 @@
+--[[
+  string.char()##
+  原型：string.char(...)
+  解释：接收0个或者多个参数，返回一个字符串，字符串长度等于参数个数，前提是每一参数作为ASCII码都有一个
+        字符与之相对应，也就是说大部分的数字是无效的，这个函数参数的ASCII码在跨平台方面不一定是可移植的。
+  注意：不传递参数                        空字符串
+        传递参数
+           参数正确:    0<参数<255        对应字符串
+           参数错误: 参数>255 或参数<0    抛出异常
+--]]
+
+local ret = string.char();
+print('string.char()\t\t', ret)                                                 -- 不传参数 
+print('type(string.char())\t', type(ret))                                       -- 空字符串
+print(string.format("%q\n",string.char()))                                      -- 空字符串，没有一个字符
+print('string.byte(string.char())\t', string.byte(string.char()))               
+
+local retwith1param = string.char(48);                                          -- 一个参数
+print('string.char(48)\t\t', retwith1param)
+print('string.byte(string.char(48))', string.byte(string.char(48)))
+
+local retwith5param = string.char(48, 49 ,50, 65, 97);                          -- 多个参数
+print('string.char(48, 49 ,50, 65, 97)', retwith5param)
+
+i = 99; 
+print('string.char(i,i+1,i+2) ', string.char(i,i+1,i+2))                        -- 数字变量输入
+function invalidarg()
+  local retwith6param = string.char(48, 49 ,50, 257, 65, 97);                     -- 包含无效参数
+end
+status, msg = pcall(invalidarg)
+print(status, msg)
+print('string.char(48, 49 ,50, 257, 65, 97)', status, msg)
+
+
+
+--[[
+1. 由第一组结果可以看出当不传参数时函数返回空字符串。
+2. 从第二三组的结果可以看出如果是正常的ASCII码，则会返回一个字符串
+3. 程序的最后报错了，那是因为蚕参数中有一个不正常的参数205，没有对应的字符和其对应，故程序报错了。
+--]]
+
+--[[
+> = string.char(65,66,67)
+ABC
+> = string.char()  -- empty string
+]]

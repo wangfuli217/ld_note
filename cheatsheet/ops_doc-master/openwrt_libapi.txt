@@ -1,0 +1,561 @@
+http://blog.csdn.net/banruoju/article/details/72742646
+
+libubox
+1.1.概述
+libubox是openwrt的一个基础库，openwrt下大部分应用都是基于它开发的（ubus、uhttpd、uci等）。
+libubox主要提供了两类功能：
+[1].一套完整的基于事件驱动的机制
+[2].多个常用的功能模块(链表、avl树、json、消息传输单元、md5)
+
+1.2.基于事件驱动机制
+
+基于事件驱动机制是libubox的核心部分，这套机制主要实现了一套通用的非阻塞I/O多路复用（epoll）平台。
+以下是这部分的常用API整理
+API                                                            用法
+intuloop_init(void)                                            创建epoll句柄
+voiduloop_done(void)                                           注销epoll模块
+intuloop_fd_add(struct uloop_fd *sock,unsigned int flags)      将需要监听的fd以及要监听的事件注册到epoll（默认拥有水平触发和非阻塞的特性）
+                                                               @sock- 需要被epoll监听的fd管理块，主要记录了自己创建的fd、事件处理回调
+                                                               @flags- 监听的事件类型，必须至少包含ULOOP_READ或ULOOP_WRITE或ULOOP_PRI（这个是本人补丁追加的）
+intuloop_fd_delete(struct uloop_fd *sock)                      从epoll监听池中删除指定的fd
+                                                               @sock- 要从监听池中删除的fd管理块
+voiduloop_run(void)                                            事件驱动模型的主循环，在这里面进行[等待事件/超时->处理事件/超时->等待事件]的循环，通过信号退出
+intuloop_timeout_set(struct uloop_timeout *timeout,int msecs)  给定时器设置一个超时值，并激活
+                                                               @timeout- 定时器模块，主要记录了超时值、超时处理函数
+                                                               @msecs- 超时值，单位ms
+intuloop_timeout_cancel(struct uloop_timeout *timeout)         关掉定时器
+                                                               @timeout- 要关掉的定时器模块
+
+代码示范(未处理返回值)：
+voidrecv_handler(struct uloop_fd *h,uint32_t events)
+{
+/*do your recv handler*/
+}
+
+voidtimeout_handler(struct uloop_timeout *timer)
+{
+/*do your timeout handler*/
+}
+
+int main(int argc,char **argv)
+{
+    structuloop_fd myfd;
+    structuloop_timeout mytimer;
+    
+    uloop_init();
+    myfd.fd= socket(PF_PACKET,SOCK_RAW,htons(ETH_P_PAE));
+    myfd.cb= recv_handler;
+    
+    uloop_fd_add(&myfd);
+    mytimer.cb= timeout_handler;
+    uloop_timeout_set(&mytimer,100);
+    uloop_run();
+    uloop_fd_delete(&myfd);
+    close(myfd.fd);
+    uloop_timeout_cancel(&mytimer);
+    uloop_done();
+    return0;
+}
+
+
+#include ""  
+static struct uloop_process rsync;  //创建rsync全局变量  
+static void rsync_complete(struct uloop_process *proc, int ret)  
+{  
+    //do something where child exit;  
+    printf("rsync work is complete\n");  
+}  
+  
+function fun()   
+{  
+    char *argv[]={"rsync", "-az", "rsync://XYZ@192.168.26.99/www","/root/www/","--password-file=/root/rsync.secrets", NULL};  
+    rsync.cb = rsync_complete;  
+    rsync.pid = fork();  
+  
+    if (!rsync.pid) {  
+        /* This is child process*/  
+        execvp(argv[0], argv);  
+        fprintf(stderr, "fork failed\n");  
+        exit(-1);  
+    }  
+  
+    if (rsync.pid <=0) {  
+        fprintf(stderr, "fork failed2\n");  
+        return -1;  
+    }  
+    uloop_process_add(&rsync);  
+  
+}  
+  
+  
+int main()  
+{  
+    .....  
+    uloop_init();   //使用库前进行初始化  
+    fun();  
+    uloop_run();  
+}
+
+
+
+1.4.数据传输单元
+
+libubox提供了一套通用的数据传输机制，数据类型可以是
+enum blobmsg_type {
+    BLOBMSG_TYPE_UNSPEC,
+    BLOBMSG_TYPE_ARRAY,
+    BLOBMSG_TYPE_TABLE,
+    BLOBMSG_TYPE_STRING,
+    BLOBMSG_TYPE_INT64,
+    BLOBMSG_TYPE_INT32,
+    BLOBMSG_TYPE_INT16,
+    BLOBMSG_TYPE_INT8,
+};
+
+其中array和table两种数据类型还支持嵌套使用。
+    struct blob_buf表示一个完整的数据传输单元，这个数据结构是这套数据传输机制的核心，需要注意的是，
+blob_buf使用完后一定要调用blob_buf_free销毁，特别是当定义成局部变量时!
+
+以下是这套数据传输机制的常用API整理：
+int blob_buf_init(struct blob_buf *buf,int id)       blob_buf初始化，也可以理解为复位
+                                                     @buf- 数据传输单元
+                                                     @id- 数据类型
+void blob_buf_free(struct blob_buf *buf)             注销blob_buf，实际就是释放blob_buf使用过程中申请的空间
+static inline const char *blobmsg_name(const struct blob_attr *attr)  获取消息的名字
+static inline int blobmsg_type(const struct blob_attr *attr)           获取消息的类型
+static inline int blobmsg_len(const struct blob_attr *attr)            获取消息值长度
+
+static inline uint8_t blobmsg_get_u8(struct blob_attr *attr)             获取uint8_t类型的消息值
+static inline uint16_t blobmsg_get_u16(struct blob_attr *attr)           获取uint16_t类型的消息值
+static inline uint32_t blobmsg_get_u32(struct blob_attr *attr)           获取uint32_t类型的消息值
+static inline uint64_t blobmsg_get_u64(struct blob_attr *attr)           获取uint64_t类型的消息值
+static inline char *blobmsg_get_string(struct blob_attr *attr)           获取字符串类型的消息值
+static inline int blobmsg_add_u8(struct blob_buf *buf,const char*name,uint8_t val)
+    添加一条uint8_t类型的消息
+    @buf- 数据传输单元
+    @name- 消息名
+    @val- uint8_t类型的消息值
+
+staticinline int blobmsg_add_u16(struct blob_buf *buf,const char*name,uint16_t val)
+    添加一条uint16_t类型的消息
+    @buf- 数据传输单元
+    @name- 消息名
+    @val- uint16_t类型的消息值
+
+static inline int blobmsg_add_u32(struct blob_buf *buf,const char*name,uint32_t val)
+    添加一条uint32_t类型的消息
+    @buf- 数据传输单元
+    @name- 消息名
+    @val- uint32_t类型的消息值
+
+staticinline int blobmsg_add_u64(struct blob_buf *buf,const char*name,uint64_t val)
+    添加一条uint64_t类型的消息
+    @buf- 数据传输单元
+    @name- 消息名
+    @val- uint64_t类型的消息值
+    
+static inline int blobmsg_add_string(struct blob_buf *buf,const char*name,const char *string)
+    添加一条字符串类型的消息
+    @buf- 数据传输单元
+    @name- 消息名
+    @val- 字符串类型的消息值
+
+static inline void *blobmsg_open_array(struct blob_buf *buf,const char*name)
+    开启一个array类型的消息
+    @buf- 数据传输单元
+    @name- 消息名
+    返回值-指向这个开启的array，也就是下面用到的”cookie”
+
+static inline void blobmsg_close_array(struct blob_buf *buf,void *cookie)
+    关闭一个array类型的消息
+    @buf- 数据传输单元
+    @cookie- 指向这个开启的array
+
+static inline void *blobmsg_open_table(struct blob_buf *buf,const char*name)
+    开启一个table类型的消息
+    @buf- 数据传输单元
+    @name- 消息名
+    返回值-指向这个开启的array，也就是下面用到的”cookie”
+
+static inline void blobmsg_close_table(struct blob_buf *buf,void *cookie)
+    关闭一个table类型的消息
+    @buf- 数据传输单元
+    @cookie- 指向这个开启的table
+    备注：完成一条array或table消息的创建需要成对调用开启、关闭两个函数。
+
+
+1.5. json
+暂略
+
+1.6. avl树
+1. 定义一棵avl树
+    struct avl_tree services;  
+
+2. 初始化avl树
+    int avl_strcmp(const void *k1, const void *k2, void *ptr)  
+    {  
+        return strcmp(k1, k2);  
+    }  
+    avl_init(&services, avl_strcmp, false, NULL);  
+
+3. 插入结点
+    struct service {  
+        struct avl_node avl;  
+        ...  
+    };  
+    struct service *s = service_alloc(name);  
+    avl_insert(&services, &s->avl);  
+
+4. 删除结点
+    avl_delete(&services, &s->avl);  
+
+5. 遍历结点
+    avl_for_each_element(&services, s, avl)  
+        service_dump(s);  
+
+6. 查找结点
+    s = avl_find_element(&services, name, s, avl);
+    
+
+1.7.md5
+暂略
+
+1.8 socket
+目前只封装了unix-sock和inet-sock，个人觉得比较鸡肋，暂不分析。
+
+libubus
+
+ubus是openwrt引入的一个消息总线，类似于桌面linux系统中的dbus，其设计理念也基本一致，就是提供系统级的IPC和RPC。
+
+2.1基本原理
+
+整套ubus基于libubox库实现，通信的基础是unix-sock，ubus提供了一个后台服务器ubusd进行所有ubus消息的中转处理。
+
+所以，对于开发者来说，关注点就全放在客户端。ubus将客户端分为2种角色：
+
+服务提供者
+
+服务消费者
+
+备注：当然某个客户端既可以是一些服务的提供者，同时又可以是另一些服务的消费者
+
+ubus对其上面承载的消息格式进行了定义：采用json消息格式。
+
+ubus将服务抽象成为“对象”和“方法”，一个对象可以包含多个方法。“对象”必须先注册到ubus后台服务器，才能被消费者调用。
+
+ubus支持以“阅订-通知”的方式进行进程通信，即进程A提供阅订服务，其他进程可以选择阅订或退订该服务，进程A就可以向所有阅订者广播推送通知。
+
+2.1.C接口使用方法
+
+libubus就是其C接口库，以下是常用API整理：
+
+structubus_context *ubus_connect(const char *path)
+	
+
+创建ubus客户端并发起连接
+
+@path- ubus后台服务器socket地址，默认就是/var/run/ubus.sock
+
+返回值-成功则返回一个ubus客户端控制块
+
+voidubus_free(struct ubus_context *ctx)
+	
+
+注销ubus客户端
+
+staticinline void ubus_add_uloop(struct ubus_context *ctx)
+	
+
+ubus客户端注册到libubox库epoll监听池中
+
+intubus_add_object(struct ubus_context *ctx,struct ubus_object *obj)
+	
+
+ubus服务提供者调用，用来注册一个“对象”
+
+@ctx- ubus客户端控制块
+
+@obj- 要注册的对象控制块
+
+intubus_lookup_id(struct ubus_context *ctx,const char *path,uint32_t*id)
+	
+
+ubus服务消费者调用，根据“对象”名查找对应的id号
+
+@ctx- ubus客户端控制块
+
+@path- 对象名
+
+@id- 记录查到的对象id
+
+intubus_register_subscriber(struct ubus_context *ctx,structubus_subscriber *obj)
+	
+
+ubus客户端注册一个阅订模块，后续阅订服务用
+
+@ctx- ubus客户端控制块
+
+@obj- 要注册的阅订控制块
+
+intubus_invoke(struct ubus_context *ctx,uint32_t obj const char*method,struct blob_attr *msg,ubus_data_handler_t cb,void*priv,int timeout)
+	
+
+ubus服务消费者调用，用于调用一个指定服务（同步调用）
+
+@ctx- ubus客户端控制块
+
+@obj- 对象id
+
+@method- 指定“对象”包含的某个“方法”名
+
+@msg- 具体的调用消息
+
+@cb- 收到返回消息的处理函数
+
+@priv- 用户自定义项，cb函数中可以使用
+
+@timeout- 本次调用的超时时间
+
+intubus_invoke_async(struct ubus_context *ctx,uint32_t obj const char*method,struct blob_attr *msg,struct ubus_request *req)
+	
+
+ubus服务消费者调用，用于调用一个指定服务（异步调用）
+
+@ctx- ubus客户端控制块
+
+@obj- 对象id
+
+@method- 指定“对象”包含的某个“方法”名
+
+@msg- 具体的调用消息
+
+@req- 用来记录本次异步调用的相关信息
+
+intubus_send_reply(struct ubus_context *ctx,struct ubus_request_data*req,struct blob_attr *msg)
+	
+
+ubus服务提供者调用，用于回复服务消费者的调用请求
+
+@ctx- ubus客户端控制块
+
+@req- 用来记录本次调用的相关信息
+
+@msg- 具体的回复消息
+
+intubus_notify(struct ubus_context *ctx,struct ubus_object *obj,constchar *type,struct blob_attr *msg,int timeout)
+	
+
+ubus客户端向所有阅订者广播推送通知
+
+@ctx- ubus客户端控制块
+
+@obj- 自身对象控制块
+
+@type- 通知类型名
+
+@msg- 具体的通知消息
+
+@timeout- 本次通知的超时值
+
+2.2使用范例(不考虑异常情况)
+
+2.2.1作为服务提供者
+
+enum{
+
+TEST_HELLO,
+
+_MAX_TEST,
+
+};
+
+staticstruct ubus_context *ctx;
+
+staticconst struct blobmsg_policy policy[] = {
+
+[TEST_HELLO]{.name= “test_hello”, .type = BLOBMSG_TYPE_STRING},
+
+};
+
+staticint test_handler(struct ubus_context *ctx,struct ubus_object*obj,struct ubus_request_data *req,const char *method,structblob_attr *msg)
+
+{
+
+/*do your handler*/
+
+}
+
+staticstruct ubus_method methods[] = {
+
+UBUS_METHOD(“test_hello”,test_handler,policy),
+
+};
+
+staticstruct ubus_object_type object_type =UBUS_OBJECT_TYPE(“test”,methods);
+
+staticstruct ubus_object object = {
+
+.name= “test”,
+
+.type= &object_type,
+
+.methods= methods,
+
+.n_methodds= ARRAY_SIZE(methods),
+
+};
+
+intmain(int argc,char **argv)
+
+{
+
+uloop_init();
+
+ctx= ubus_connect(NULL);
+
+uloop_add_uloop(ctx);
+
+ubus_add_object(ctx,&object);
+
+uloop_run();
+
+ubus_free(ctx);
+
+uloop_done();
+
+return0;
+
+}
+
+2.2.2作为服务消费者
+
+staticstruct blob_buf b;
+
+staticvoid reply_handler(struct ubus_request *req,int type,struct blob_attr*msg)
+
+{
+
+/*do your handler*/
+
+}
+
+staticint call_server(struct ubus_context *ctx)
+
+{
+
+intid;
+
+ubus_lookup_id(ctx,”test”,&id);
+
+blob_buf_init(&b,0);
+
+blobmsg_add_string(&b,”name”,”value”);
+
+intret = -1;
+
+returnubus_invoke(ctx,id,”test_hello”,b.head,reply_handler,&ret,1000);
+
+}
+
+intmain(int argc,char **argv)
+
+{
+
+uloop_init();
+
+ctx= ubus_connect(NULL);
+
+uloop_add_uloop(ctx);
+
+call_server();
+
+uloop_run();
+
+ubus_free(ctx);
+
+uloop_done();
+
+return0;
+
+}
+
+2.2.3作为阅订者
+
+staticstruct ubus_subscriber event;
+
+staticvoid remove_handler(struct ubus_context *ctx,struct ubus_subscriber*s,uint32_t id)
+
+{
+
+/*doyour handler*/
+
+}
+
+staticint event_handler(struct ubus_context *ctx,struct ubus_object*obj,struct ubus_request_data *req,const char *method,structblob_attr *msg)
+
+{
+
+/*doyour handler*/
+
+}
+
+intmain(int argc,char **argv)
+
+{
+
+uloop_init();
+
+ctx= ubus_connect(NULL);
+
+uloop_add_uloop(ctx);
+
+ubus_register_subscriber(ctx,&event);
+
+event.remove_cb= remove_handler;
+
+event.cb= event_handler;
+
+ubus_lookup_id(ctx,”test”,id);
+
+ubus_subscribe(ctx,&event,id);
+
+ubus_run();
+
+ubus_free(ctx);
+
+uloop_done();
+
+return0;
+
+}
+
+2.2.4作为通知方
+
+intmain(int argc,char **argv)
+
+{
+
+uloop_init();
+
+ctx= ubus_connect(NULL);
+
+uloop_add_uloop(ctx);
+
+ubus_add_object(ctx,&object);
+
+ubus_notify(ctx,&object,”notify”,NULL,-1);
+
+ubus_run();
+
+ubus_free(ctx);
+
+uloop_done();
+
+return0;
+
+}
+
+
+3.libuci
+
+暂略

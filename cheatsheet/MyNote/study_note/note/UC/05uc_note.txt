@@ -1,0 +1,118 @@
+内存管理
+	内存管理的方式比较
+	STL(标准模版库) - 申请/释放动态内存
+	new/delete - 申请/释放动态内存，C++语言中的运算符	
+	malloc()/free() - 申请/释放动态内存，标C函数
+	sbrk()/brk()函数 - 申请/释放动态内存，UC函数
+	mmap()/munmap()函数 - 建立/接触 到内存的映射
+
+mmap/munmap函数的使用
+	mmap函数
+		void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+		第一个参数：建立映射的起始地址，给NULL由系统内核选择
+		第二个参数：建立映射的大小
+		第三个参数：映射的权限
+					PROT_EXEC - 可执行
+					PROT_READ - 可读
+					PROT_WRITE - 可写
+					PROT_NONE - 不可访问
+		第四个参数：映射的模式
+					MAP_SHARED - 共享的
+					MAP_PRIVATE - 私有的
+					MAP_ANONYMOUS - 映射到物理内存
+		第五个参数：文件描述符，映射物理内存给0即可
+		第六个参数：文件偏移量，映射物理内存给0即可
+		返回值：成功返回映射的地址，失败返回MAP_FAILED(-1)
+		函数功能： 建立文件/设备 到 内存的映射
+
+munmap函数
+		int munmap(void *addr, size_t length);
+		第一个参数：映射的地址
+		第二个参数：映射的大小
+		函数功能：删除指定的映射
+
+系统调用
+	系统调用是指操作系统内核对外提供的一系列接口函数，当外部函数调用函数时，会通过软中断的方式把地址空间由用户空间切换到内核空间，执行系统调用函数，从而来操作内核和驱动硬件等，系统调用函数执行后，地址空间由内核空间切换到用户空间接口
+
+文件操作
+	 基本概念
+		在Unix/linux系统中，几乎所有的一切都可以统称为文件，因此，对于文件的操作几乎使用于所有的设备等等，目录也可以看作文件处理
+		如：
+			/dev/null - 空设备（掌握）
+			echo 字符串 - 表示原样输出字符串内容
+			echo 字符串 > 文件名 - 表示写入字符串到文件
+			echo 字符串 > /dev/null - 表示丢弃结果信息
+			cat /dev/null > 文件名 - 表示清空文件
+
+			/dev/tty - 输入输出设备，一般默认为终端（了解）
+			echo 字符串 > /dev/tty - 表示输出到输入设备
+			cat /dev/tty - 表示读取/打印输入输出设备内容
+	
+文件的相关处理函数(重点)
+	复习标C函数：
+		fopen()/fcolse()/fwrite()/fread()/fseek()/...
+	open函数
+       #include <sys/types.h>
+       #include <sys/stat.h>
+       #include <fcntl.h>
+
+       int open(const char *pathname, int flags);
+	          int open(const char *pathname, int flags, mode_t mode);
+		第一个参数：字符串形式的路径和文件名
+		第二个参数：操作标志
+					必须包含以下访问权限中的一个：
+					O_RDONLY - 只读
+					O_WRONLY - 只写
+					O_RDWR - 可读可写
+					还可以按位或以下标志中的一个：
+					O_CREAT - 文件存在则打开，不存在则创建
+					O_EXCL - 与O_CREAT搭配使用，如果存在则创建失败
+					O_TRUNC - 文件存在，是个规则文件，打开方式有写权限则清空文件
+					O_APPEND - 追加
+		第三个参数：操作模式
+					用于指定创建的新文件权限，如：0644
+					ls -l 文件名
+		返回值：成功返回一个新文件描述符，失败返回-1 
+				文件描述符就是非负的整数，用于代表一个打开的文件
+		函数功能：打开/创建 一个 文件/设备
+
+	close函数
+       #include <unistd.h>
+       int close(int fd);
+		函数功能：
+			表示根据参数指定的文件描述符进行关闭，让该描述符不再关联任何一个文件，可以被再次使用
+	read函数
+		#include<unistd.h>
+		ssize_t read(int fd,void *buf,size_t count);
+		第一个参数：文件描述符（数据从哪里读取）
+		第二个参数：缓冲区的首地址（数据存到哪里去）
+		第三个参数：读取的数据大小
+		返回值：成功返回读取到的数据大小，失败返回-1
+		函数功能:表示从指定的文件中读取指定的数据
+	write函数
+		#include <unistd.h>
+		ssize_t write(int fd, const void *buf, size_t count);
+		第一个参数：文件描述符（写入到哪里去）
+		第二个参数：缓冲区的首地址（数据从哪里来）
+		第三个参数：读取的数据大小
+		返回值：成功返回写入的数据大小，失败返回-1
+		函数功能:表示向指定的文件中写入指定的数据
+	lseek函数
+		#include<unistd.h>
+		#include<sys/types.h>
+		off_t lseek(int fd,off_t offset,int whence);
+		第一个参数：文件描述符
+		第二个参数：偏移量
+		第三个参数：从什么地方开始偏移
+					SEEK_SET	文件起始位置
+					SEEK_CUR	文件当前位置
+					SEEK_END	文件末尾位置
+		返回值：成功返回当前位置距离文件头的偏移量，失败返回-1
+		函数功能：表示调整文件的读写位置
+
+作业
+	使用lseek函数对例子代码07lseek.c进行调整，调整位置之后进行读写，查看读写结果
+
+明日预报
+	文件操作
+

@@ -1,0 +1,110 @@
+https://qtguide.ustclug.org/
+
+1. QTextStream 中都是人类直接可读的文本形式，但是 QTextStream 有它的局限性，对于 Qt 自己的类对象，
+   QTextStream 仅支持字符相关的 QChar、QString、QByteArray，Qt 还有很多其他类，比如矩形 QRect、
+   像素图 QPixmap、点 QPoint、颜色 QColor 等等，
+
+2. 对于 Qt 知道的所有数据类型，包括 C++ 基本类型变量和 Qt 自己类对象，都可以使用 QDataStream 自动打包成整体的数据块
+  (将各种类型变量和对象按顺序打包就是串行化，按顺序解包就是反串行化)，可以用于网络传输和本地文件读写。
+
+3. QDataStream 类
+  QDataStream(QIODevice * d)
+  QDataStream(QByteArray * a, QIODevice::OpenMode mode)
+  QDataStream(const QByteArray & a)
+  第一个构造函数是用于支持 I/O 设备，需要在传递指针给 QDataStream 之前把设备打开，比如提前打开文件，然后把文件对象指针传给 QDataStream。
+  第二个构造函数一般用于支持 QByteArray 的读写，传递字节数组的指针，并且需要指定读写模式，一般是用 QIODevice::ReadWrite。
+  第三个构造函数参数为字节数组的常量引用，字节数组是只读的，仅作为输入来使用。
+  
+  void QDataStream::​setDevice(QIODevice * d) // 改变当前 QDataStream 对象的设备
+  
+4. 字节序和32位或64位操作系统
+  QDataStream 使用的是 Qt 自定义的数据打包格式，这种数据打包格式与操作系统、硬件是 100% 无关的，用 QDataStream 打包的数据包，
+无论是在 Intel + Windows 、还是 Sun SPARC + Solaris、ARM + Andorid 等等，都可以通用，不用管 CPU 字节序。
+  对于所有 C++ 基本类型变量，QDataStream 提供了一系列的 << 和 >>  运算符重载函数
+  QDataStream & QDataStream::​operator<<(qint32 i)
+  QDataStream & QDataStream::​operator>>(qint32 & i)
+  这些都是 QDataStream 的成员函数，还有其他的比如输入输出 bool、qint64、float、double 等等。
+  
+  对于 C++ 整型数的读写，需要特别注意 long 类型，在 32 位系统，long 类型是 32 bit 长度，而在 64 位系统，long 是 64 bit 长度，
+因为这种不确定性，所以整型变量都应该转为 Qt 预定义的类型：qint8、quint8、qint16、quint16、qint32、quint32、qint64、quint64，
+这样能保证变量的长度是类型名字 里指定的位数，无论在什么操作系统都不会出错。
+  
+5. QDataStream 序列化时不同类的方法定义在对应的类中
+  QColor 类的非成员函数：
+  QDataStream & operator<<(QDataStream & stream, const QColor & color)
+  QDataStream & operator>>(QDataStream & stream, QColor & color)
+  对于 QDataStream 流的输入，可以判断当前位置是否到达设备的末尾：
+  bool QDataStream::​atEnd() const
+  QDataStream 没有 seek() 函数移动游标，也没有游标获取函数 pos() ，这与文本流 QTextStream、文件类 QFile 有很大的区别。
+  
+  输入输出的顺序固定好之后，就不能进行随机位置读写，只能从头按顺序读或从头按顺序写。
+  
+================================================================================
+6. writeBytes() 和 readBytes() 函数
+  QDataStream & QDataStream::​writeBytes(const char * s, uint len) //变量 len 也会写入数据流
+  QDataStream & QDataStream::​readBytes(char *& s, uint & l)       // l 数值是从数据流里读出来的，就是上面的 len
+  对于字节写入函数，参数里的 s 是要输出的字节缓冲区，len 是写入数据的长度，这里 s 里面针对纯字节数据，
+不管里面有没有 '\0' ，都写入 数据流。
+  对于字节读取函数，s 是指针变量的引用，l 是读取的字节数，s 指针不需要程序员分配空间，由 ​readBytes() 函数自己
+new [] 一段缓冲区，然后把缓冲区指针赋值给 s；参数 l 是函数的返回变量，是真实读取到的字节数。函数返回之后 s 指针
+变量指向的缓冲区需程序员手动 delete [] 。
+
+    writeBytes() 函数在做串行化时，会先写 quint32 类型的数据长度，然后写入真实的缓冲区数据到数据流。
+    readBytes() 也是先读取字节数组长度，该函数自己 new [] 一片空间，把后面的真实数据读到缓冲区。
+    
+    writeBytes() 和 ​readBytes() 函数与字符串 读写运算符重载函数有类似的地方：
+  QDataStream & QDataStream::​operator<<(const char * s)
+  QDataStream & QDataStream::​operator>>(char *& s)
+  在做串行化时，都是先写一个 quint32 类型的长度到数据流，然后写真实数据，读的时候就是先读长度，然后根据长度 new []  缓冲区，
+把数据读到缓冲区。这两对函数的区别就是 writeBytes() 和 ​readBytes() 针对字节数组，不管是不是 '\0'，都当作普通字 节读写；
+<< 和 >> 读写字符串时遇到 '\0'  就截止了，并且 '\0' 不会写入到数据流。
+    
+    QDataStream 还提供了更裸的读写函数
+    读写函数是不把字节数组长度变量写入到数据流的，仅仅写入原始的缓冲区数据：
+  int QDataStream::​writeRawData(const char * s, int len)
+  int QDataStream::​readRawData(char * s, int len)
+  这对函数与之前一对 writeBytes() 和 ​readBytes() 函数区别有两点：
+    第一，不写数据长度变量到数据流，只读写最原始的数据块；
+    第二，​readRawData() 自己不会分配缓冲区，必须由程序员提前分配缓冲区给 s，然后传递给 readRawData() 函数。
+
+writeBytes readBytes 和 << >> 之间存在差异 # 底层协议处理一样，发送内容为 [ datalength ] + [ buffer ]
+                                           # 上层数据处理，writeBytes和readBytes面向字节缓冲区，而<<和>> 面向字符缓冲区
+writeBytes readBytes 和 writeRawData readRawData 之间存在差异 # 底层协议处理不一样，writeBytes会自动添加数据长度，writeRawData输出s字节内容
+                                                              # 上层内存管理不一样，readBytes内存自动申请手动释放，readRawData手动申请，手动释放
+                                                              # 返回值处理不一样，writeBytes 如何保证len数据发送成功，writeRawData返回值说明已发送数据
+================================================================================
+7. Status 
+Status QDataStream::​status() const
+    Status                    枚举常量        数值
+QDataStream::Ok                 0       正常操作状态，没出错。
+QDataStream::ReadPastEnd        1       底层设备已到达末尾，比如文件末尾，无数据可读了。                           
+QDataStream::ReadCorruptData    2       读入了腐化数据，典型的就是输入流读取顺序与输出流顺序不一样。               
+QDataStream::WriteFailed        3       无法向底层设备写入数据，比如文件是只读的。 
+    
+  在 QDataStream 数据流出现错误状态之后，可以重新设置流的状态：
+  void QDataStream::​setStatus(Status status)    //设置流为参数里执行的状态
+  void QDataStream::​resetStatus()    //重置为原始的 Ok 状态
+    
+8. skipRawData
+  QDataStream 流的排除处理就比较麻烦了，虽然可以跳过一定的裸字节数：
+  int QDataStream::​skipRawData(int len)
+  这个函数跳过最原始的裸数据 len 长度的字节，返回值是真实跳过的字节数。
+  这个函数可以与 ​readRawData() 配合使用，但是在处理流错误时未必有用，因为跳过指定的字节数目之后，
+流的数据到哪种类型的变量或对象了，难以确定。
+    
+9. 版本号
+    如果负责输出的程序与负责输入的程序，使用的 Qt 版本是一致的，就不需要设置版本号。
+    输出程序 使用的是 Qt 4.8.* ，输入程序使用的是 Qt 5.4.* ，那么就应该向旧版本兼容，在做读取变量或对象之前，设置版本号：
+    void QDataStream::​setVersion(int v)
+    要兼容 Qt 4.8.* ，那么就把参数设为 QDataStream::Qt_4_8  。
+    
+10. QTextStream 和 QDataStream 对比
+对比项                      QTextStream                                                     QDataStream
+用途                        处理文本流，如 QIODevice、FILE句柄、QString、QByteArray，这里的 QByteArray 是作为字符串用途，以 '\0' 为终止符
+                            处理二进制数据流，如 QIODevice 、QByteArray ，这里的 QByteArray 作为字节数组，是纯数据，不区分字节数值是否为 0
+<< 和 >> 涵盖的数据类型    C++基本类型和 QChar、QString、QByteArray（字符串）   C++基本类型和 Qt 库中几乎所有用于表示数据的类
+流操作子                很多格式化操作子，程序员可以控制格式                                没有操作子，打包格式内定，程序员不能控制                   
+流的版本号              没有版本号                                                          可以设置从 Qt_1_0 到最新的版本号，不同版本号的串行化打包是有区别的                 
+流的游标                pos() 获取游标，seek() 移动游标，atEnd() 判断末尾，可以随机化读写   没有游标，只能用 atEnd() 判断是否到末尾，不能随机化读写，必须按写入时相同的顺序和类型来读取
+流的工作状态            QTextStream::Status 四种状态                                         QDataStream::?Status 四种状态  
+    

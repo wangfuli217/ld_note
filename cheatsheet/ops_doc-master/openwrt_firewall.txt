@@ -1,0 +1,392 @@
+https://wiki.openwrt.org/doc/uci/firewall
+
+INVALID意味着这个包没有已知的流或连接与之关联，也可能是它包含的数据或包头有问题。
+ESTABLISHED意思是包是完全有效的，而且属于一个已建立的连接，这个连接的两端都已经有数据发送。
+NEW表示包将要或已经开始建立一个新的连接，或者是这个包和一个还没有在两端都有数据发送的连接有关。
+RELATED说明包正在建立一个新的连接，这个连接是和一个已建立的连接相关的。比如，FTP data transfer，ICMP error 和一个TCP或UDP连接相关。
+
+INPUT {DROP|ACCEPT} 默认规则
+  delegate_input
+    ACCEPT     all  --  lo     *       0.0.0.0/0            0.0.0.0/0 # 接收所有回环接口lo的数据包
+    input_rule all  --  *      *       0.0.0.0/0            0.0.0.0/0 # 接收规则集
+    ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+# default @ {option drop_invalid '0'}
+    DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate INVALID
+    syn_flood  tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp flags:0x17/0x02 # syn_flood处理
+      RETURN     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp flags:0x17/0x02 limit: avg 25/sec burst 50
+      DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0
+# config rule { option src '*' option src_port '21' option dest_port '21' }
+    ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp spt:21 dpt:21 /* -ftp */
+    delegate_input -i br-lan -j zone_lan_input 
+      input_lan_rule  all  --  *      *       0.0.0.0/0            0.0.0.0/0 
+      ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate DNAT  # Accept port redirections 
+      zone_lan_src_ACCEPT  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+        zone_lan_src_ACCEPT -i br-lan -j ACCEPT 
+    delegate_input -i eth1 -j zone_wan_input 
+      input_wan_rule
+      -p udp -m udp --dport 68 -m comment --comment Allow-DHCP-Renew -j ACCEPT
+      -p icmp -m icmp --icmp-type 8 -m comment --comment Allow-Ping -j ACCEPT
+      -p 2 -m comment --comment Allow-IGMP -j ACCEPT
+      ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate DNAT  # Accept port redirections 
+      zone_wan_input -j zone_wan_src_REJECT
+        zone_wan_src_REJECT -i eth1 -j reject
+      
+FORWARD {DROP|ACCEPT} 默认规则
+  delegate_forward
+    forwarding_rule  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+    ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+# default @ {option drop_invalid '0'}
+    DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate INVALID
+    delegate_forward -i br-lan -j zone_lan_forward
+      forwarding_lan_rule  all  --  *      *       0.0.0.0/0            0.0.0.0/0  # user chain for forwarding
+      -m comment --comment "forwarding lan -> wan" -j zone_wan_dest_ACCEPT
+        ACCEPT     all  --  *      eth1    0.0.0.0/0            0.0.0.0/0
+      ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate DNAT  # Accept port forwards
+      zone_lan_dest_ACCEPT  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+        zone_lan_dest_ACCEPT -o br-lan -j ACCEPT
+    delegate_forward -i eth1 -j zone_wan_forward
+      forwarding_wan_rule  all  --  *      *       0.0.0.0/0            0.0.0.0/0  # user chain for forwarding
+       -p esp -m comment --comment "@rule[7]" -j zone_lan_dest_ACCEPT
+       -p udp -m udp --dport 500 -m comment --comment "@rule[8]" -j zone_lan_dest_ACCEPT
+      ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate DNAT # Accept port forwards
+      reject     all  --  *      eth1    0.0.0.0/0            0.0.0.0/0 
+      zone_wan_forward -j zone_wan_dest_REJECT
+        zone_wan_dest_REJECT -o eth1 -j reject
+
+OUTPUT {DROP|ACCEPT} 默认规则
+  delegate_output  all  --  *      *       0.0.0.0/0            0.0.0.0/0 
+    ACCEPT     all  --  *      lo      0.0.0.0/0            0.0.0.0/0     # 发送所有回环接口lo的数据包
+    output_rule  all  --  *      *       0.0.0.0/0            0.0.0.0/0   # user chain for output
+    ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate INVALID
+    delegate_output -o br-lan -j zone_lan_output
+      output_lan_rule  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+      zone_lan_dest_ACCEPT  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+        zone_lan_dest_ACCEPT -o br-lan -j ACCEPT
+    delegate_output -o eth1 -j zone_wan_output
+      output_wan_rule  all  --  *      *       0.0.0.0/0            0.0.0.0/0 # user chain for output
+      zone_wan_output -j zone_wan_dest_ACCEPT
+        zone_wan_dest_ACCEPT -o eth1 -j ACCEPT
+        
+        
+################### default ###################
+default的accept、drop和reject选项功能实现：
+关联的3条新建链：delegate_forward  delegate_input  delegate_output，直接追加在forward input和output链上。
+1. 将ACCEPT和DROP配置成INPUT，OUTPUT和FORWARD这三个链的默认方式，实现了页面的accept和drop选项。
+2. DROP配置成INPUT，OUTPUT和FORWARD这三个链的默认方式；并在最后配置一条reject链，实现了页面的reject选项
+# 建立reject链
+iptables -t filter -N reject
+iptables -t filter -A reject -p tcp -j REJECT --reject-with tcp-reset
+iptables -t filter -A reject -j REJECT --reject-with icmp-port-unreachable
+# 跳转到reject链上
+iptables -t filter -A delegate_input -j reject
+iptables -t filter -A delegate_output -j reject
+iptables -t filter -A delegate_forward -j reject
+
+
+syn_flood # 
+1. syn_flood配置在delegate_input链上，放在ctstate RELATED,ESTABLISHED之后，因此主要用来限制每秒内新发起链接数。
+2. iptables实现syn_flood方法 @是否启用防洪水攻击
+  iptables -N syn_flood
+  iptables -A syn_flood -m limit --limit 100/s --limit-burst 150 -j RETURN
+  iptables -A syn_flood -j DROP
+  iptables -t filter -A delegate_input -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j syn_flood
+3. --limit 100/s --limit-burst 150
+   synflood_rate   100   @ 设置 SYN 包传输洪水攻击检测比率值 # 修改未生效 
+   synflood_burst  500  @ 设置 SYN 包传输比率值识别洪水攻击  # 修改生效
+   
+Drop invalid packets # 丢弃无效数据包
+  在delegate_forward  delegate_input   delegate_output上，ctstate RELATED,ESTABLISHED之后之后增加此命令
+  iptables -t filter -A delegate_forward -m conntrack --ctstate INVALID -j DROP
+  iptables -t filter -A delegate_output -m conntrack --ctstate INVALID -j DROP
+  iptables -t filter -A delegate_input -m conntrack --ctstate INVALID -j DROP
+  
+/proc/sys/net/ipv4
+    tcp_syncookies
+    tcp_ecn
+    tcp_westwood
+    tcp_window_scaling
+    accept_redirects
+    accept_source_route
+
+disable_ipv6 # 设置关闭掉 IPv6 的防火墙策略
+
+################### 域zone ###################
+Source zone        AnyZone         AnyZone           AnyZone               AnyZone
+Destination zone   Device(input)   AnyZone(forward)  lan                   lan
+                   delegate_input  delegate_forward  zone_lan_dest_ACCEPT  zone_wan_dest_ACCEPT
+                                                     delegate_forward      delegate_forward
+                                                                           
+                   lan             lan               lan                   lan
+                   Device(input)   AnyZone(forward)  lan                   lan
+                   zone_lan_input  zone_lan_forward  zone_lan_dest_ACCEPT  zone_wan_dest_ACCEPT
+                                                     zone_lan_forward      zone_lan_forward
+                   
+                   wan             wan               wan                   wan
+                   Device(input)   AnyZone(forward)  lan                   lan
+                   zone_wan_input  zone_wan_forward  zone_lan_dest_ACCEPT  zone_wan_dest_ACCEPT   
+                                                     zone_wan_forward      zone_wan_forward
+
+If src and dest are given, the rule matches forwarded traffic
+If only src is given, the rule matches incoming traffic
+If only dest is given, the rule matches outgoing traffic
+If neither src nor dest are given, the rule defaults to an outgoing traffic rule
+                                                     
+1. iptables -t filter -A delegate_input -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src '*'
+2. iptables -t filter -A delegate_forward -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src '*'
+option dest '*'
+3. iptables -t filter -A delegate_forward -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j zone_lan_dest_ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src '*'
+option dest 'lan'
+4. iptables -t filter -A delegate_forward -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j zone_wan_dest_ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src '*'
+option dest 'wan'
+5. iptables -t filter -A zone_lan_input -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src 'lan'
+6.iptables -t filter -A zone_lan_forward -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src 'lan'
+option dest '*'
+7.iptables -t filter -A zone_lan_forward -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j zone_lan_dest_ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src 'lan'
+option dest 'lan'
+8. iptables -t filter -A zone_lan_forward -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j zone_wan_dest_ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src 'lan'
+option dest 'wan'
+9. iptables -t filter -A zone_wan_input -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src 'wan
+10. iptables -t filter -A zone_wan_forward -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src 'wan'
+option dest '*'
+11. iptables -t filter -A zone_wan_forward -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j zone_lan_dest_ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src 'wan'
+option dest 'lan'
+12. iptables -t filter -A zone_wan_forward -p tcp -m tcp --sport 21 --dport 21 -m comment --comment -ftp -j zone_wan_dest_ACCEPT
+option target 'ACCEPT'
+option name '-ftp'
+option family 'ipv4'
+option proto 'tcp'
+option src_port '21'
+option dest_port '21'
+option src 'wan'
+option dest 'wan'
+
+1. WAN域 REJECT
+iptables -t filter -N zone_wan_src_REJECT
+iptables -t filter -N zone_wan_dest_ACCEPT
+iptables -t filter -N zone_wan_dest_REJECT
+
+iptables -t filter -A zone_wan_input -j zone_wan_src_REJECT
+iptables -t filter -A zone_wan_forward -j zone_wan_dest_REJECT
+
+iptables -t filter -A zone_wan_src_REJECT -i eth1 -j reject
+iptables -t filter -A zone_wan_dest_REJECT -o eth1 -j reject
+
+
+2. WAN域 ACCEPT
+iptables -t filter -N zone_wan_src_ACCEPT
+iptables -t filter -N zone_wan_dest_ACCEPT
+
+iptables -t filter -A zone_wan_input -j zone_wan_src_ACCEPT
+iptables -t filter -A zone_wan_forward -j zone_wan_dest_ACCEPT
+
+iptables -t filter -A zone_wan_src_ACCEPT -i eth1 -j ACCEPT
+
+
+masq_src
+masq_dest
+conntrack
+subnet
+device
+extra
+extra_src
+extra_dest
+
+# 路由模式和NAT模式的切换
+masq        1   设置传输伪装,如果是WAN口必须为1
+mtu_fix     1   设置MTU的MSS钳制,如果是WAN口请为1
+
+################### Redirect ###################
+redirect配置节选项   # 用于控制DNAT。
+src       安全域名称     # 指定流量的源安全域。必须指向已经定义的区域，典型的端口转发通常是wan
+src_ip    IP地址         # 匹配从指定源IP地址的报文
+src_dip   IP地址         # 对于DNAT来说，匹配指定目的地址的报文；对于SNAT来说重写源地址为指定的地址
+src_mac   MAC地址        # 对于流入报文，匹配指定的MAC地址
+src_port  端口号         # 匹配指定源端口或范围的流入报文
+src_dport 端口号         # 报文的原始目标端口
+proto     协议名称或数字 # 匹配指定的协议
+dest      安全域名称     # 指出流量的目的安全域，必须是一个定义的安全域的名称，对已DNAT这个必须为lan域
+dest_ip   IP地址         # 对于DNAT，将重定向到指定的内部主机，对于SNAT匹配给定地址的流量
+dest_port 端口号或范围   # 对于DNAT来说，重定向匹配的报文到内部主机的指定端口。对于SNAT来说，匹配的报文将直接重定向到指定端口
+
+################### Rules ###################
+rule配置            # 定义基本的的接受或拒绝来允许或限制某个指定的端口或主机。
+name        | config rule # MAC地址过滤                  | config redirect    # 端口转发
+src         |         option src      'lan'              |         option src      'wan' 
+src_ip      |         option dest     'wan'              |         option dest     'lan' 
+src_mac     |         option src_mac  '44:8A:5B:EC:49:27'|         option src_dport 8080  
+src_port    |         option proto    'all'              |         option proto    'tcp' 
+proto       |         option target   'REJECT'           |         option dest_ip  '192.168.10.104'
+dest        |                                            |         option dest_port 80 
+dest_ip     |                                            | 
+target      |                                            | 
+weekdays    |                                            | 
+
+@ icmp-type
+address-mask-reply          host-redirect           pong                    time-exceeded
+address-mask-request        host-unknown            port-unreachable        timestamp-reply
+any                         host-unreachable        precedence-cutoff       timestamp-request
+communication-prohibited    ip-header-bad           protocol-unreachable    TOS-host-redirect
+destination-unreachable     network-prohibited      redirect                TOS-host-unreachable
+echo-reply                  network-redirect        required-option-missing TOS-network-redirect
+echo-request                network-unknown         router-advertisement    TOS-network-unreachable
+fragmentation-needed        network-unreachable     router-solicitation     ttl-exceeded
+host-precedence-violation   parameter-problem       source-quench           ttl-zero-during-reassembly
+host-prohibited             ping                    source-route-failed     ttl-zero-during-transit
+
+
+Packet flow
+  INPUT (destined to router)
+    raw
+      PREROUTING
+      notrack    # Internal chain for NOTRACK rules 
+    mangle
+      PREROUTING
+      fwmark     # Internal chain for MARK rules
+    nat
+      PREROUTING
+      delegate_prerouting  # Internal chain to hold toplevel prerouting rules, dispatches traffic to the corresponding zone_name_prerouting chains
+      prerouting_rule      # Container chain for custom user prerouting rules (firewall.user) 
+      zone_name_prerouting # Per-zone container chains for DNAT (port forwarding) rules
+      prerouting_name_rule # Per-zone container chains for custom user prerouting rules (firewall.user) 
+    mangle
+      INPUT
+    filter
+      INPUT
+      delegate_input       # Internal chain to hold toplevel input rules, dispatches traffic to the corresponding zone_name_input chains
+      input_rule           # Container chain for custom user input rules (firewall.user)
+      syn_flood            # Internal chain to match and drop syn flood attempts 
+      zone_name_input      # Per-zone container chains for input rules 
+      input_name_rule      # Per-zone container chains for custom user input rules (firewall.user) 
+      
+OUTPUT
+  raw 
+    OUTPUT
+  mangle
+    OUTPUT
+  nat
+    OUTPUT
+  filter
+    OUTPUT
+    delegate_output
+    output_rule
+    zone_name_output
+    output_name_rule
+  mangle 
+    POSTROUTING
+  nat
+    POSTROUTING
+    delegate_postrouting
+    postrouting_rule
+    zone_name_postrouting
+    postrouting_name_rule
+    
+    
+    
+FORWARD
+  raw
+    PREROUTING
+    notrack
+  mangle
+    PREROUTING
+    fwmark
+  nat
+    PREROUTING
+    delegate_prerouting
+    prerouting_rule
+    zone_name_prerouting
+    prerouting_name_rule
+  mangle
+    FORWARD
+    mssfix
+  filter
+    FORWARD
+    delegate_forward
+    forwarding_rule
+    zone_name_forward
+    forwarding_name_rule
+  mangle
+    POSTROUTING
+  nat
+    POSTROUTING
+    delegate_postrouting
+    postrouting_rule
+    zone_name_postrouting
+    postrouting_name_rule

@@ -1,0 +1,44 @@
+
+https://www.ibm.com/developerworks/cn/linux/l-synch/part1
+
+读写信号量有两种实现，一种是通用的，不依赖于硬件架构，因此，增加新的架构不需要重新实现它，但缺点是性能低，获得和释放读写信号量的开销大；
+另一种是架构相关的，因此性能高，获取和释放读写信号量的开销小，但增加新的架构需要重新实现。在内核配置时，可以通过选项去控制使用哪一种实现。
+
+
+/linux/rwsem.h
+
+struct rw_semaphore;
+
+	DECLARE_RWSEM(name)	//该宏声明一个读写信号量name并对其进行初始化。
+
+	void init_rwsem(sem)	// 读取者和写入者信号量
+	
+	void down_read(struct rw_semaphore *sem);    // 进程被置于不可中断的休眠; 只能在进程上下文使用。
+	int down_read_trylock(struct rw_semaphore *sem);  //中断上下文使用。
+	用法和其他大多数内核函数不同，其他函数会在成功返回零，由down_read获得的rwsem对象最终必须通过up_read释放。
+	void up_read(struct rw_semaphore *sem);  //
+	读者使用该函数释放读写信号量sem。它与down_read或down_read_trylock配对使用。如果down_read_trylock返回0，不需要调用up_read来释放读写信号量
+    ，因为根本就没有获得信号量。
+	
+	void down_write(struct rw_semaphore *sem);    //写者使用该函数来得到读写信号量sem，它也会导致调用者睡眠，因此只能在进程上下文使用。
+	int down_write_trylock(struct rw_semaphore *sem);  //可以在中断上下文使用。
+	void downgrade_write(struct rw_semaphore *sem);
+	void up_write(struct rw_semaphore *sem);
+	写者调用该函数释放信号量sem。它与down_write或down_write_trylock配对使用。如果down_write_trylock返回0，不需要调用up_write，因为返回0表示
+	没有获得该读写信号量。
+	
+	void downgrade_write(struct rw_semaphore *sem);
+	该函数用于把写者降级为读者，这有时是必要的。因为写者是排他性的，因此在写者保持读写信号量期间，任何读者或写者都将无法访问该读写信号量
+	保护的共享资源，对于那些当前条件下不需要写访问的写者，降级为读者将，使得等待访问的读者能够立刻访问，从而增加了并发性，提高了效率。
+	
+----  只包含在2.6内核中 ----
+	
+	读写信号量适于在读多写少的情况下使用，在linux内核中对进程的内存映像描述结构的访问就使用了读写信号量进行保护。在Linux中，每一个进程都用
+	一个类型为task_t或struct task_struct的结构来描述，该结构的类型为struct mm_struct的字段mm描述了进程的内存映像，特别是mm_struct结构的mmap
+	字段维护了整个进程的内存块列表，该列表将在进程生存期间被大量地遍利或修改，因此mm_struct结构就有一个字段mmap_sem来对mmap的访问进行保护，
+	mmap_sem就是一个读写信号量，在proc文件系统里有很多进程内存使用情况的接口，通过它们能够查看某一进程的内存使用情况，命令free、ps和top都
+	是通过proc来得到内存使用信息的，proc接口就使用down_read和up_read来读取进程的mmap信息。当进程动态地分配或释放内存时，需要修改mmap来反映
+	分配或释放后的内存映像，因此动态内存分配或释放操作需要以写者身份获得读写信号量mmap_sem来对mmap进行更新。系统调用brk和munmap就使用了
+	down_write和up_write来保护对mmap的访问。
+	
+

@@ -1,0 +1,108 @@
+在Makefile可以调用shell脚本，但是Makefile和shell脚本是不同的。
+1、变量引用 shell ${变量名} ---- Makefile $(变量名)。实例如下：
+  |----------------|------------------|
+  |Shell ${变量名} |Makefile $(变量名)|
+  |----------------|------------------|
+  |PATH="/data/"   | PATH="/data/"    |
+  |SUBPATH=${PATH} | SUBPATH=$(PATH)  |
+  |----------------|------------------|
+
+  变量赋值
+  |----------------|--------------------------------------------------|
+  |立即赋值 a:=b   | 会立即计算b的值，并赋值给a；                     |
+  |延迟赋值 a=b    | 如果后面b的值改变了，那么a的值也会改变           |
+  |条件赋值 a?=b   | 如果a没有定义，则相当于a=b ，否则不执行任何操作  |
+  |附加赋值 a+=b   | 将b的值添加到a原有的值后面，再赋值给a            |
+  |----------------|--------------------------------------------------|
+  
+  1. shell中=两边不允许有空格，                Makfile中=两边允许有空格
+  2. shell中=右边多个单词用"" '' $""括住，     Makfile中=右边多个单词不需要括住
+  DEPENDENCY_TARGETS = hiredis linenoise lua
+  DEPENDENCY_TARGETS="hiredis linenoise lua"
+  
+  
+2、Makefile中所有以$打头的单词都会被解释成Makefile中的变量。
+   如果你需要调用shell中的变量，都需要加两个$符号($$)。实例如下：
+PATH="/data/"
+all:
+    echo ${PATH}   # ${PATH}引用的是Makefile中的变量，而不是shell中的PATH环境变量
+    echo $$PATH    # shell中的PATH环境变量
+  |----------------|---------------------------|
+  |    环境变量    |     Makefile内部变量      |
+  |--------|-------|-------------------|-------|
+  |${PATH} | 正常  | ${RTUD_RELEASE}   | 正常  |
+  |$(PATH) | 正常  | $(RTUD_RELEASE)   | 正常  |
+  |$${PATH}| 正常  | $${RTUD_RELEASE}  | 空值  |
+  |--------|-------|-------------------|-------|
+
+2.1 shell 传递变量
+如果是一个$符号，传递的是Makefile中的变量；如果是两个$。传递的是shell中的变量。
+  命令行中的make变量引用 等同于 Makefile内部变量
+  当变量名多于一个字符时，使用"()"
+  
+比如Makefile中有
+data=1 (E)
+all:
+    @echo ${data}; (A)
+    @data=2; (B)
+    @echo ${data}; (C)
+    @echo $${data}; (D)
+
+(A) 输出 1
+(B) 是一个单独的shell行，定义了data=1,不会影响到makefile中的data(E)的变量。
+(C) 输出1 ，因为B的修改是修改的shell里面的变量。不是makefile中的
+(D) 输出空行 Makefile中的echo $$data 等于shell里面执行 echo $data，由于这一行的shell data是没有定义的，所以输出空行,
+    (B)的定义和(D)不是同一个shell。
+
+data=1 (E)
+all:
+    @echo ${data}; (A)
+    @data=2; \ (B)
+echo ${data}; \ (C)
+echo $${data}; (D)
+(A) 输出1,也即是(E)
+(B) (C) (D)用\连接起来。所以属于同一个shell
+(C) 输出的还是1(E)。
+(D) 输出的是2.也就是(B)，因为他们属于同一个shell。echo $${data} 交给shell解释的时候变成了 echo ${data}。
+    此时${data}是B的2。
+
+3、通配符区别
+通配符: shell 通配符*表示所有的字符 ---- Makefile 中通配符%表示所有的字符
+%.o : %.c .make-prerequisites       ---- .c.o:等价于%.o:%.c
+    $(REDIS_CC) -c $<
+    
+4、在Makefile中只能在target中调用Shell脚本，其他地方是不能输出的。比如如下代码就是没有任何输出：
+VAR="Hello"
+echo "$VAR"
+
+all:
+   .....以上代码任何时候都不会输出，没有在target内，如果上述代码改为如下：
+
+VAR="Hello"
+
+all:
+    echo "$VAR"
+    .....以上代码，在make all的时候将会执行echo命令。
+    
+5、在Makefile中执行shell命令，
+一行创建一个shell来执行。Makefile中多行的末尾都是"; \"，以此来保证代码是一行而不是多行，
+这样Makefile可以在一个shell中执行，例如：
+SUBDIR=src example
+all:
+    @for subdir in $(SUBDIR); \
+    do\
+        echo "building "; \
+    done
+for循环中每行都是以"; \"结尾的
+
+shell命令一般有点长，最好采用命令定义和执行分开的形式
+    
+6、在Makefile文件的目标项冒号后的另起一行的代码才是shell代码，并且另起一行的代码前面要有Table制表符，
+这样才会认为是shell代码，例如：
+xx = xx1        //makefile代码
+yy ：xx = xx2   //makefile代码，makefile允许变量赋值时，"="号两边留空格
+yy：            //目标项
+    xx=xx3      //只有这里是shell代码 ，shell不允许'='号两边有空格，xx=xx3前面至少有一个Tab制表符
+
+8、Makefile中执行shell代码
+xx=$(shell 这里的代码也是shell代码)

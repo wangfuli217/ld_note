@@ -1,0 +1,109 @@
+别用unsigned类型。尤其是，不要仅因为unsigned不存在负值（年龄、国债）而用它表示数量。
+根据usual arithmetic conversion，int与unsigned int运算，int自动转换，这样会隐形让-1这样的负值变为极大的正值。
+若a b为unsigned，if( a - b <= 0 )... 永远不可能小于0
+只在bit field或binary masking用unsigned
+siza_t是在<stddef.h>中定义的unsigned int，strlen()、strspn()、strcspn()、offsetof()、fread()、fwrite()的返回值
+
+except + - * / 其余都用parenthesis
+
+用fgets()彻底取代gets()
+get(line);
+替换为：
+if( fgets( line, sizeof( line ), stdin ) == NULL )
+	exit( 1 );
+
+早用lint，勤用lint
+lint > debugger > inner developing group > client
+
+即使所用语言100%可靠，但依然可能成为算法中灾难性bug的牺牲品
+
+我们自己只写1次codes，后续要read无数次 -> codes简单易理解优先
+
+struct是union使用率的100倍，经验显示
+
+始终在struct的declaration中使用tag，可使codes更definition
+
+不要对struct用typedef，唯一好处是不用写“struct”
+
+但貌似offsetof( type, member )算成员offset时需要
+
+typedef用在：
+1.array、stuct、pointer、func的组合类型
+2.portable类型（不同平台int、short、long代表长度不同）
+3.为强制类型转换提供简单名字
+typedef int ( *p1 ) ( void );
+char * p2; 		/* p2指向char*/
+... = ( p1 ) p2;	/* 使p2指向func*/
+
+对struct标签命名以_tag结尾
+
+始终将-l函数库选项放在编译命令的最右边
+
+不要让program中任何symbol成为global，除非有意让它们作为program的interface。这样还能避免interpositioning的意外，把自己定义的同库函数同名的函数变为static，即使其他文件调该库函数也无所谓。
+
+作parameter的pointer均用const声明（const volatile只出现在parameter中）
+
+standard code optimized skills:消除循环、函数代码就地扩展、公共子表达式消除、改进寄存器分配、省略运行时对数组边界的检查、循环不变量代码移动（loop-invariant code motion）、操作符长度消减（index -> multi -> shift/add）
+
+用适当的函数prototype，arg's type promotion不会发生（参数也是表达式）。compiler会假定parameter是准确declaration的，于是不进行type promotion，并据此产生code。在被调用函数内部，提升后的参数被裁减为原先声明的大小。
+所有func都应有prototype，尤其是返回值不是int的func
+
+花时间把编程问题分解成几个部分往往是最快的解决方案
+
+把数组最右维尽量变为2的n次方，这样compiler会用shift代替multiplication
+
+给所有switch待default，用于检测非法部分
+
+对指定位置
+置1：		| 1
+置0：		& 0
+测试：		& 1，| 0 ，^ 1，^ 0
+
+用!!exp把非0转为1，用于真值间比较
+
+func不多于3个参数
+
+尽量不让同物表达多种意思
+
+*p++用于array中ele的遍历或者initialize 
+
+exp中若有0、1作为数字出现，巧用其做boolean判断符
+
+有些不重要的警告信息gcc默认是不提示的，但这些警告信息也有可能表明程序中有Bug。一个好的习惯是打开gcc的-Wall选项
+
+pointer做parameter时用const
+
+每个debug printf后要用fflush
+printf("");
+fflush(stdout);
+
+绝不要把必须执行的代码放在assert中，因为断言可能在编译时被关闭
+
+GDB:
+set a br in line 10, but it stops at line 15, or set a br at a variable in line 10-15, it responds that "No symbol "a" in current context" --> gcc optimization, combine several local variables in line 10-15   may try "info locals"
+
+
+抽象是程序开发的全部意义所在。之所以C比汇编是一个伟大的进步，是因为C建立了一个机器抽象，把诸如寄存器、cache、寻址方式、位对齐之类的细节都透明掉了，由此而带来的表达能力提升，当然是伟大的。
+
+格林斯潘第十定律（Greenspun's Tenth Rule）：
+    "任何C或Fortran程序复杂到一定程度之后，都会包含一个临时开发的、只有一半功能的、不完全符合规格的、到处都是bug的、运行速度很慢的Common Lisp实现。"
+
+多数语言都要付语言税 就是那些算法无关代码 写它们纯粹是为了取悦计算机 -- 唐凤
+
+Qt 是如何用 meta-object 系统打造出迄今为止C++最漂亮的GUI框架，以及所有以上一切，在简单的 C 前是多么的多余和废柴
+
+软件搞了60年，我认为真正被实践证明了的抽象，一共有四个半，分别是：
+1. 机器抽象，或者称语言抽象，构造一台新的计算机或程序语言，使其能理解领域特定的语言，从而最妥帖地解决问题。这是最有力的抽象，是软件开发中的“火箭科技”。
+2. 过程抽象，把一件事情看成是一系列嵌套和串接执行的标准化过程的总和，就像流水线一样。这是极为有力的抽象，因此C语言无所不能。但是层次偏低，规模增大以后带来一些挑战。
+3. 函数抽象，最玄妙的一种，这个我不多说，有兴趣的去看 Structure and Interpretation of Computer Programs.
+4. 面向对象抽象，把一件事情看成是一组各负其责的对象彼此之间相互收发消息，根据消息相互协作完成工作的过程。这个抽象也极为有力。
+4.5 僵化的面向对象抽象，把世界看成是由层次分明、庞杂万端的类型体系“实例化”而出的对象组成的，把事情看成是这些对象之间互相收发消息、协作而成的过程。
+问题出在这最后一个抽象上。由于面向对象早期的主要应用场合是 GUI 和仿真，是特别适合于建立类型体系的应用领域，结果人们误以为这种抽象模型可以应用于所有领域。成长于这个时期的C++受了这种思想的毒害，建立了一个极其严苛、吹毛求疵的类型系统，自以为这样可以在编译时发现更多错误，没想到其结果是在编码时和运行时引起更多麻烦。动态面向对象语言的实践已经证明，所谓没有严格的类型检查就无法有效地发现错误这一说法，在今天这个时代已经不符合实际了。
+实践表明，拿静态的类型系统去套多姿多彩、变化万千的现实世界，纯粹是人类的狂妄自大。
+C++就是被这个半吊子抽象所害，以至今天，积重难返。至于用template泛型去放松类型的约束，实属亡羊补牢。
+
+python作为一种强类型的面向对象的语言用起来非常舒服的原因，就是因为它没有C++/Java/C#过分强调类继承的问题，而是采用了泛型的手法优雅的解决了上述问题。
+
+面向对象的关键是－－－要聚合，不要继承！！接口编程！！
+
+type class 属于 Haskell 对 functional language 的贡献之一

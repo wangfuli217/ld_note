@@ -1,0 +1,19 @@
+--[[
+因为loadstring总是在全局环境中编译它的串，所以编译出的函数访问的变量是全局变量。
+为了避免污染全局环境我们需要用setfenv修改函数的环境
+--]]
+
+function eval(equation, variables)
+    if(type(equation) == "string") then
+        local eval = loadstring("return "..equation);
+        if(type(eval) == "function") then
+            setfenv(eval, variables or {});
+            return eval();
+        end
+    end
+end
+
+local str = "200+lv*10+growth*0.1"
+local val = eval(str, {lv = 3, growth = 100})
+print(val)--240
+

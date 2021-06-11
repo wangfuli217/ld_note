@@ -1,0 +1,5 @@
+#!/bin/bash
+@@@START@@@
+echo "# Build date: $(date)"
+@@@END@@@
+echo "Hello World"

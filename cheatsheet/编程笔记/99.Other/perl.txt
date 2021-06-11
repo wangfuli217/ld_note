@@ -1,0 +1,287 @@
+*perl* 
+
+1. perl的命令行              *perl_-e_-n_-p_-a_-F_-i_-m*
+    1.1 命令行执行：
+        |-e|  可以让 Perl 程序在命令行上运行.例如, 我们可以在命令行上运行 "Hello World" 程序而不用把它写入文件再运行. 
+            $ perl -e 'print "Hello World\n"'   ~
+
+            多个 -e 也可以同时使用, 运行顺序根据它出现的位置. 象所有的 Perl 程序一样, 只有程序的最后一行不需要以 ; 结尾.
+            $ perl -e 'print "Hello ";' -e 'print "World\n"'  ~
+
+    1.2 循环：
+        |-n|  循环文件内每一行, 调用处理命令, 不打印
+            $ perl -n -e 'print "$. - $_"' file.txt       ~
+            上面的这一行可以写成 
+            LINE:
+              while (<>) {
+                print "$. - $_";  #some code 输出当前行数 $. 和当前行 $_
+              }
+
+        |-p|  循环文件内每一行, 调用处理命令, 打印处理之后的结果
+            $ perl -p -e '$_ = "$. - $_"' file.txt~
+            上面的这一行可以写成 
+            LINE:
+              while (<>) {
+                $_ = "$. - $_";  # some code
+              } continue {       # continue 在这里保证print 在每次循环都会被调用. 
+                print or die "-p destination: $!\n";
+              }
+
+        注意到那个 LINE: 标签 ? 我们可以利用它来跳到下一个循环. 使用 next LINE 
+        $ perl -n -e 'next LINE unless /pattern/; print $_' file.txt~
+
+        如果想在循环的前后做些处理, 可以使用 |BEGIN| {block} 或 |END| {block}. 下面的这一行计算文件里的字数. 
+        $ perl -ne 'END { print $t } @w = /(\w+)/g; $t += @w' file.txt ~
+
+    1.3 自动分离：
+        |-a|  打开自动分离 (split)  模式. 空格是缺省的分离号. 
+            输入根据分离号被分离然后放入缺省数组 |@F|. 由此,我们可以把上面的程序改写为 
+            $ perl -ane 'END {print $x} $x += @F' file.txt ~
+
+        |-F|  把缺省的分离号改为你想要的.例如把分离号定为非字符: 
+            $ perl -F'\W' -ane 'END {print $x} $x += @F' file.txt  ~
+
+        |-l|  给每一个输出加 \n.
+            $ perl -le 'print "Hello World"'  ~
+
+    1.4 文件内编辑：
+        |-i[bak]| 实现文件内编辑
+            程序读取文件的每一行, 然后替换字符, 处理后的数据重新写入( 即覆盖 ) 源文件:
+            强哥总结: |-i| 把默认的标准输出重定向到当前文件, 所以使用的时候要和 |-p| 配合使用
+            $ perl -i -pe 's/\bPHP\b/Perl/g' file.txt  # 注: 要用-p选项 ~
+
+            如果不想覆盖源文件, 可以使用 
+            $perl -i.bak -pe 's/\bPHP\b/Perl/g' file.txt ~
+            这里处理过的数据写入 file.txt , file.txt.bak 是源文件的备份.
+
+        强哥再说 |-i[bak]|
+        选项可以使脚本直接修改文件，即开始删除当前文件的内容，然后使内部的print等标准输出重定向到当前文件。
+        程序内部使用：
+            while(<>)
+            {
+                #TODO
+                print; //修改过的数据打印到文件的当前行
+            }
+        如果想要输出到标准输出，可以使用：print STDOUTT
+
+    1.5 引用模块
+        |-M| |-m|
+        $ perl -MLWP::Simple -e 'print head "http://www.example.com"'       ~
+
+        -M模块名 和 use 模块名 一样. 如果不想引入模块的缺省值, 你可以使用 -m. -m模块名 和 use 模块名() 一样. 
+        例如下面这个例子, 因为 head 函数是缺省引入,而使用 -m 时就不会, 结果是没有输出. 
+        $ perl -mLWP::Simple -e 'print head "http://www.example.com"'       ~
+
+        -m 和 -M 通过 = 来引入某个模块的特别函数. 
+        $ perl -MCGI=:standard -e 'print header'         ~
+        这里, CGI.pm 的 ":standard" 被引入, header 函数因此可以使用.要引入多个参数可以通过使用引号和逗号.
+        $ perl -MCGI='header,start_html' -e 'print header, start_html'       ~
+        这里我们引入了 header 和 start_html 函数. 
+
+
+2. 在正则表达式内的"正则表达式变量"必须使用 |qr//| 定义，不能直接使用""定义。我就在这吃大亏了。
+    eg：$r = qr/^abc/i;
+        s/$rdef/.../g;
+
+3. 关于环视的总结:                       *look-ahead* *look-behind*
+   环视不会占字符，只匹配位置。就像 \b匹配单词边界、^匹配行开始 一样。
+    
+    语法 
+    a)、|(?=...)|  该位置在...的左边，读作：该位置右边是...; 否定式: |(?!...)|
+    b)、|(?<=...)| 该位置在...的右边，读作：该位置左边是...; 否定式: |(?<!...)|
+
+    eg:  /(?<=P)[0123][0-9](?=_[A-Z])/
+         i) 、会匹配"P12_ABC"的"12"
+         ii)、该正则表达式含义为：首先匹配两个锚点(位置)：1、位置1的左边是 "\bP" 
+                                                          2、位置2的右边是 "_[A-Z]"
+                                  然后这两个锚点中间为：[0123][0-9]
+
+4. 我一直搞错的元字符：|
+    a、/abc|efg|hij/ => 匹配: abc 或 efg 或 hij  ~
+    b、/x(abc|efg)X/ => 匹配: xabcX 或 xefgX    ~
+
+5. 关于Unix\Linux脚本，"第一行"出现：|#!/usr/bin/perl| 的含义：
+    "#!" 在 Unix/Linux 中称为"Magic Word", 也就是command interpretation.
+    这是为了指明该脚本程序的默认处理程序
+    我们这里给出的是"/usr/bin/perl"，也就是说，如果我们的程序（假设文件名为：hello.pl）第一行是上述内容的话，
+    当我们直接执行以下命令时：
+    $ ./hello.pl 
+    系统默认是用"/usr/bin/perl"来解析并执行 hello.pl 的。
+    而如果使用:
+    $ perl hello.perl
+    系统会忽略脚本内第一行的"#!"命令
+
+6. 关于 *qr* 的展开:
+    qr/abc/   => (?^:abc)               ~
+    qr/abc/i  => (?^i:abc)               ~
+    qr/abc/ix => (?^ix:abc)               ~
+
+    qr//展开解释:
+        a. 非捕获型括号
+        b. 通过^后面的值来指定参数
+
+7. 数值转换: *hex* *oct* *sprintf* 
+    $dec = hex("$hex")            : 16进制 -> 10进制 
+    $dec = oct("$oct")            : 8进制  -> 10进制
+    $dec = oct("0x"."$hex")       : 16进制 -> 10进制
+    $dec = oct("0b"."$bin")       : 2进制  -> 10进制
+
+    $hex = sprintf("%X", $dec)    : 10进制 -> 16进制
+    $oct = sprintf("%o",   $dec)  : 10进制 -> 8进制
+    $bin = sprintf("%b",   $dec)  : 10进制 -> 2进制
+
+8. 变量内插 ""
+    "It is $value"        
+    "They are ${value}s"  
+
+9. perl 文件,路径操作       *mkdir*  *rmdir*  *use_File::Copy*  *copy(file)*  *move(file)*  *rename(file)*
+    9.1 创建,删除目录
+        9.1.1. mkdir('d:/test') || die;                          ~
+        9.1.2. rmdir('d:/test') || die;  #删除之前目录必须为空。 ~
+
+    9.2 拷贝,移动,重命名文件: 
+        use File::Copy;  ~
+        9.2.1. 拷贝
+               copy("file_from", "file_to") || warn; #拷贝file_from, 并重命名为file_to  ~
+               copy("file_from", "dir_to")  || warn; #拷贝file_from到目录dir_to下   ~
+        9.2.2. 移动
+               move("file_from", "file_to") || warn; #移动file_from, 并重命名为file_to  ~
+               move("file_from", "dir_to")  || warn; #移动file_from到目录dir_to下    ~
+        9.2.3. 重命名
+               rename("file_from", "dir_to") || warn;                           ~
+
+    9.3 创建,读写文件
+        9.3.1 写入文件:
+            open($hWriteFile, '>', "writefile.txt")  || die $!;  #打开文件, >:创建 >>:追加  ~
+            print $hWriteFile "write data";                      #写入数据                ~
+            close($hWriteFile);                                  #关闭文件               ~
+
+        9.3.2 读取文件:
+            open($hReadFile,  '<', "readfile.txt")   || die $!;  #打开文件   ~
+            while (<$hReadFile>)                                 #读取数据   ~
+            {                                                               ~
+                # "$_" is every line data                                    ~
+            }                                                               ~
+            close($hReadFile);                                   #关闭文件   ~
+
+    9.4 删除文件
+        unlink("abc.txt"); #删除文件 abc.txt                                     ~
+
+    9.5 测试文件
+        => if(  -e 'a.txt') { file is exist }                             ~
+        => if(! -e 'a.txt') { file is not exist }                       ~
+
+        文件测试 测试操作符提供的信息  
+        ==================================
+        |-e| 文件或目录存在  
+        |-d| 文件为目录  
+        |-f| 文件为普通文件  
+        |-r| 文件或目录可读  
+        |-w| 文件或目录可写  
+        |-x| 文件或目录执行  
+        ==================================
+        |-o| 文件或目录归用户所有  
+        |-R| 文件或目录对真正用户可读  
+        |-W| 文件或目录对真正用户可写  
+        |-X| 文件或目录对真正用户执行  
+        |-O| 文件或目录归真正用户所有  
+        |-z| 文件存在且大小为0  
+        |-s| 文件或目录存在且不为0(返回字节数)  
+        |-l| 文件为符号链接  
+        |-p| 文件为命名管道(FIFO)  
+        |-S| 文件为一个套口(socket)  
+        |-b| 文件为块特殊文件  
+        |-c| 文件为字符特殊文件  
+        |-t| 打开tty控制台的文件句柄  
+        |-u| 文件或目录是设置用户ID号  
+        |-g| 文件或目录是设置用户组ID号  
+        |-k| 文件或目录的sticky位置位  
+        |-T| 文件是文本文件  
+        |-B| 文件是二进制文件  
+        |-M| 以天为单位的存在时间  
+        |-A| 以天为单位访问时间  
+        |-C| 以天为单位同代码更改时间  
+        ==================================
+
+10. \G 锚定上次匹配结束的位置 使用总结      *\G*
+    a. 该锚点可以使用 *pos()* 函数指定或获取.
+        如: 指定锚点位置: pos(%line) = 32; (|0|或|undef|表示字符串开始位置)
+        如: 获取锚点位置: $counter = pos($line);
+    b. 该锚点是目标字符串的属性, 当字符串改变时,锚点位置重新设置为字符串开始,
+        pos设置为undef.
+    c. 正则运算符 */c* 规定了: 
+        如果"指定"该运算符, 那么"匹配失败", "不要"重新指定|\G|锚点为字符串开始.
+        如果"没有"指定该符, 那么"匹配失败", "需要"重新指定|\G|锚点为字符串开始.
+    d. \G必须出现在正则表达式的开头.
+    e. 一般用在|/g|匹配中, 如 $line =~ m/.../g; 等
+
+    |pos()| 相关问题总结:
+    +----------+-------------------------+----------------------+-------------------+
+    | 匹配类型 | 尝试开始位置            | 匹配成功时的pos值    | 匹配失败的pos设定 |
+    +----------+-------------------------+----------------------+-------------------+
+    | m/.../   | 字符串起始位置(忽略pos) | 重置为undef          | 重置为undef       |
+    | m/.../g  | 字符串的pos位置         | 匹配结束位置的偏移量 | 重置为undef       |
+    | m/.../gc | 字符串的pos位置         | 匹配结束位置的偏移量 | 不变              |
+    +----------+-------------------------+----------------------+-------------------+
+    同样, 只要修改了字符串, pos值也会被重置为undef.
+
+    例子: >
+    $bin = "xx01010101010101010000000000000000010101010101010111111111111111110011";
+    pos($bin) = 2; #设定当前位置为从第3(2+1)个字符(包括第3个字符)开始, 所以从此处开始匹配
+    while ($bin =~ m/\G[01]{32}/gc) #这里加了/c选项
+    {
+        print $&, "\n";
+    }
+    if($bin =~ m/\G[01]+/g) #查找剩余的字符串
+    {
+        print $&, "\n";
+    }
+    print pos($bin);   #现在pos的位置是字符串结尾
+    pos($bin) = undef; #手工重置pos位置为undef
+
+    # print结果:
+    # 01010101010101010000000000000000
+    # 01010101010101011111111111111111
+    # 0011
+    # 70
+<
+
+11. 字符串截取 *substr*
+    substr EXPR, OFFSET, LENGTH, REPLACEMENT   ~
+    substr EXPR, OFFSET, LENGTH                ~
+    substr EXPR, OFFSET                        ~
+
+    这个函数从 EXPR 给出的字串中抽取一个子字串然后返回它。这个子字串是从字串前面 OFFSET 
+    个字符的位置开始抽取的。（注意：如果你曾经修改了 $[，那么字串的开头就不再是 0 了，不
+    过因为你没有修改过 $[，所以它的开头还是 0。）如果 OFFSET 是负数，那么子字串是从字串后
+    面数这么多偏移量位置开始的。如果省略了 LENGTH，那么把从该位置到字串结尾的东西都抽取出
+    来。如果 LENGTH 是负数，那么该长度是当作在字串尾部剩余那么多字符来理解的。否则，LENGTH
+    表示要抽取的子字串的长度，通常就是你想要的东西。 
+
+    你可以把 substr 当作一个左值（可以给之赋值的东西）来用，这个时候 EXPR 也必须是一个合法
+    的左值。如果你给你的子字串赋予比它短的东西，那么该字串将收缩，而如果你给它赋予比它长的
+    东西，那么它会变长。要想保持该字串长度一致，你可能需要用 sprintf 或者 x 操作符填充或者
+    截断你的数值。如果你试图给一个跨过该字串尾部的未分配区域赋值，那么 substr 就会抛出一个
+    例外。
+
+    在 $_ 的当前值前面增加字串“Larry”，用: >
+       substr($var, 0, 0) = "Larry";
+<
+    替换 $_ 的第一个字符为“Moe”，用: >
+       substr($var, 0, 1) = "Moe";
+<
+    最后，把 $var 的最后一个字符换成“Curly”，用: >
+       substr($var, -1) = "Curly";
+<
+    把 substr 当作左值使用的另外一个方面就是声明 REPLACEMENT 字串作为其第四个参数。这样就允
+    许你替换 EXPR 的某部分并且返回在一次操作之前的东西，就好象你用 splice 实现的功能那样。
+    下面一个例子也是把 $var 的最后一个字符替换成“Curly”，并且把那个被替换的字符放到 $oldstr
+    里: >
+       $oldstr = substr($var, -1, 1, "Curly");
+<
+    你不一定只是在赋值语句中使用 substr 作为左值。下面的代码把任何空格替换成句点，但是只替换字
+    串中的最后十个字符: >
+       substr($var, -10) =~ s/ /./g;
+<
+
+12. 未完待续哦..by lq

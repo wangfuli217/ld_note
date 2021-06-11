@@ -1,0 +1,63 @@
+fio(前言){
+fio 是一款非常经典的开源磁盘io测试工具
+    fio is an I/O tool meant to be used both for benchmark and stress/hardware verification. It has 
+support for 19 different types of I/O engines (sync, mmap, libaio, posixaio, SG v3, splice, null, 
+network, syslet, guasi, solarisaio, and more), I/O priorities (for newer Linux kernels), rate I/O, 
+forked or threaded jobs, and much more. It can work on block devices as well as files. fio accepts 
+job descriptions in a simple-to-understand text format. Several example job files are included. fio 
+displays all sorts of I/O performance information, including complete IO latencies and percentiles. 
+Fio is in wide use in many places, for both benchmarking, QA, and verification purposes. It 
+supports Linux, FreeBSD, NetBSD, OpenBSD, OS X, OpenSolaris, AIX, HP-UX, Android, and Windows.
+}
+
+支持网络测试：
+
+fio(下载){
+git clone git://git.kernel.dk/fio.git
+less README
+./configure
+make
+make install
+}
+fio(基础操作){
+/usr/local/bin/fio -h
+
+多出来了下面这些可执行程序
+[root@iZ116haf49sZ fio]# ll /usr/local/bin/
+fio
+fio2gnuplot
+fio-btrace2fio
+fio-dedupe
+fio_generate_plots
+fio-genzipf
+genfio
+}
+
+fio -filename=/tmp/iotest/test -direct=1 -iodepth 1 -thread -rw=randrw -rwmixread=70 -ioengine=psync -bs=16k -size=5G -numjobs=3 -runtime=100 -group_reporting -name=mytest mytest: (g=0): rw=randrw, bs=16K-16K/16K-16K/16K-16K, ioengine=psync, iodepth=1
+下面对各参建数进行解释
+Option                      Comment
+-filename=/tmp/iotest/test  设定测试文件名
+-direct=1                   不使用缓存
+-iodepth 1                  io队列的深度
+-thread                     使用线程模式
+-rw=randrw                  使用随机读写模式
+-rwmixread=70               随机读写下读占比70%
+-ioengine=psync             使用psync的io引擎
+-bs=16k                     设定单次IO的block size大小
+-size=5G                    此job中产生的io总量
+-numjobs=3                  线程数
+-runtime=100                指定运行时间
+-group_reporting            以组的方式来输出报告
+-name=mytest                设定job名
+
+自定义io benchmark
+这次要进行如下测试
+    1.要求绕过buffer
+    2.io队列深度为4
+    3.100个线程并发
+    4.随机读写，写占比30%
+    4.blocksize并不统固定，其中4k占比10%，64K占比50%，32k占比40%
+    5.总大小为5G
+    6.50秒钟给出结果
+time fio -filename=/tmp/iotest/test -direct=1 -iodepth 4  -thread -rw=randrw -rwmixread=70 -ioengine=psync  -bssplit=4k/10:64k/50:32k/40  -size=5G -numjobs=100  -runtime=50 -group_reporting -name=mytest mytest: (g=0): rw=randrw, bs=4K-64K/4K-64K/4K-64K, ioengine=psync, iodepth=4
+

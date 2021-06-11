@@ -1,0 +1,234 @@
+@1. 注册回调函数；返回已注册函数。      # 可以注册的回调函数数量有限。
+   signal有多少信号值，signal函数就可以注册多个回调函数。
+void (*signal(int signum, void (*handler)(int))) (int);
+或
+typedef void (*sighandler_t)(int);
+sighandler_t signal(int signum, sighandler_t handler);
+
+标准库中有一个 signal()函数，它的原型声明如下，
+void (*signal(int sig, void (*func)(int)))(int);
+首先着眼于标识符。
+void (*signal(int sig, void (*func)(int)))(int);
+英语的表达为：
+signal is
+相比*，()的优先顺序更高，所以先解释这部分。
+void (*signal(int sig, void (*func)(int)))(int);
+英语的表达为：
+signal is function() returning
+解释参数部分。这里有两个参数，第一参数是 int sig。
+void (*signal(int sig, void (*func)(int)))(int);
+英语的表达为：
+signal is function(sig is int,) returning
+着眼另外一个参数。
+void (*signal(int sig, void (*func)(int)))(int);
+英语的表达为：
+signal is function(sig is int, func is) returning
+因为有括号，所以这里解释*。
+void (*signal(int sig, void (*func)(int)))(int);
+英语的表达为：
+signal is function(sig is int, func is pointer to) returning
+解释表示函数的()，参数为 int。
+void (*signal(int sig, void (*func)(int)))(int);
+英语的表达为：
+signal is function(sig is int, func is pointer to function(int) returning) returning
+解释数据类型修饰符 void。
+void (*signal(int sig, void (*func)(int)))(int);
+英语的表达为：
+signal is function(sig is int, func is pointer to function(int) returning void) returning
+参数部分已经解释结束。接着因为有括号，所以这里解释*。
+void (*signal(int sig, void (*func)(int)))(int);
+英语的表达为：
+signal is function(sig is int, func is pointer to function(int) returning void) returning pointer to
+解释表示函数的()，参数为 int。
+void (*signal(int sig, void (*func)(int)))(int);
+英语的表达为：
+signal is function(sig is int, func is pointer to function(int) returning void) returning pointer to function(int) returning
+最后，添上 void。
+void (*signal(int sig, void (*func)(int)))(int);
+英语的表达为：
+signal is function(sig is int, func is pointer to function(int) returning void) returning pointer to function(int) returning void
+翻译成中文……
+signal 是返回"指向返回 void 参数为 int 的函数的指针"的函数，它有两个参数，一个是 int，另一个是"指向返回 void 参数为 int 的函数的指针"。
+如果能读懂这种难度的声明，我想应该不会再有什么让你畏惧的 C 声明了。
+下面的说明可能会让你对 C 语言感到更加不快。
+signal()是用于注册信号处理（当中断发生时被调用的函数）的函数。此函数的返回值是之前注册的处理当前信号中断的函数。
+也就是说，其中的一个参数和返回值，它们都是相同的类型——指向信号处理函数的指针。在一般的语言中，同样的表现模式出现两次并不会让你感到不适，但是解释 C 语言声明的过程是“一会儿向左一会儿向右”，因此，表示返回值的部分散落了在左右两侧。
+此时，运用 typedef 可以让声明变得格外得简洁。
+/*摘录于FreeBSD 的man page */
+typedef void(*sig_t)(int);
+
+sig_t signal(int sig, sig_t func);
+sig_t 代表"指向信号处理函数的指针"这个类型。
+3.6　应该记住：数组和指针是不同的事物
+
+
+@2. 注册回调函数：注册函数不返回任何值。# 可以注册的回调函数数量没有限制
+void main_epollregister (void (*desc)(int),void (*serve)(int ,int ,struct epoll_event *)); 基于网络描述符
+
+void main_eachloopregister (void (*fun)(void));                                            基于网络描述符和超时
+void main_timeregister (int mode,uint32_t seconds,uint32_t offset,void (*fun)(void));      基于超时
+
+@3. 静态数组指针函数: 在函数中构建静态指针函数数组；返回指针函数。
+int add(int a, int b){return a + b;}
+int minus(int a, int b){return a - b;}
+int multi(int a, int b){return a * b;}
+int divi(int a, int b){return a / b;}
+
+//  typedef void (*sighandler_t)(int);
+//  sighandler_t signal(int signum, sighandler_t handler);
+typedef int(*FUN)(int, int);
+FUN route_fn(char operator){
+    static FUN funs[] = {add, minus, multi, divi};
+    static char operators[] = {'+', '-',   '*',   '/'};
+    int i = 0;
+    while(operators[i] != operator) i++;
+    assert(i<4);
+    return funs[i];
+}
+int main(void){
+    printf("%d\n", route_fn('+')(10,20));
+    return 0;
+}
+
+或
+// void (*signal(int signum, void (*handler)(int))) (int);
+int (*route_fn(char operator))(int, int){
+    static int(*funs[])(int, int) = {add, minus, multi, divi};
+    static char operators[] = {'+', '-',   '*',   '/'};
+    int i = 0;
+    while(operators[i] != operator) i++;
+    assert(i<4);
+    return funs[i];
+}
+
+@4. 静态数组指针函数：在函数外构建静态指针函数数组；返回指针函数。
+typedef int (*runfn)();
+struct {
+	runfn fn;
+	char *name;
+} RunTab[]={
+	{state_init, "init master state"},
+	{changelog_init,"change log"},
+	{rndinit,"random generator"},
+	{dcm_init,"data cache manager"}, // has to be before 'fs_init' and 'matocuserv_networkinit'
+	{matocuserv_sessionsinit,"load stored sessions"}, // has to be before 'fs_init'
+	{acl_init,"access control list"},
+	{fs_init,"file system manager"},
+	{chartsdata_init,"charts module"},
+	{matoslaserv_init,"communication with slave"},
+	{masterconn_init,"connection with other master"},	
+	{matomlserv_init,"communication with metalogger"},	
+	{matocsserv_init,"communication with chunkserver"},	
+	{matocuserv_networkinit,"communication with clients"},
+	{(runfn)0,"****"}
+};
+
+@5. 状态机形式；非注册+非静态数组回调函数；
+typedef int (*funcptr)();         /* generic function pointer */
+typedef funcptr (*ptrfuncptr)();  /* ptr to fcn returning g.f.p. */
+
+funcptr start(), stop();
+funcptr state1(), state2(), state3();
+
+void statemachine(){
+	ptrfuncptr state = start;
+
+	while(state != stop)
+		state = (ptrfuncptr)(*state)();
+}
+
+funcptr start(){
+	return (funcptr)state1;
+}
+
+或
+
+// call function -> return function
+// 模式2
+struct functhunk {
+	struct functhunk (*func)();
+};
+
+struct functhunk start(), stop();
+struct functhunk state1(), state2(), state3();
+
+void statemachine()
+{
+	struct functhunk state = {start};
+
+	while(state.func != stop)
+		state = (*state.func)();
+}
+
+struct functhunk start()
+{
+	struct functhunk ret;
+	ret.func = state1;
+	return ret;
+}
+
+@6. qsort 排序型注册回调函数；
+#include <stdio.h>
+#include <stdlib.h>
+int MyCompare( const void * elem1, const void * elem2 )
+{
+   unsigned int * p1, * p2;
+   p1 = (unsigned int *) elem1;//*elem1非法
+   p2 = (unsigned int *) elem2;//*elem2非法
+   return  (* p1 % 10)-(* p2 % 10 );
+}
+#define NUM 5
+int main(void)
+{
+   unsigned int an[NUM] = { 8,123,11,10,4 };
+   qsort( an,NUM,sizeof(unsigned int),MyCompare);
+   for( int i = 0;i < NUM; i ++ )
+     printf("%d ",an[i]);
+   return 0;
+}
+
+@7. filter, map, reduce, each
+// reduce
+REDUCE_CACHE reduce(REDUCE_CACHE(*callback)(REDUCE_CACHE, REDUCE_ELEM, int),
+                    REDUCE_ELEM *arr, int size, REDUCE_CACHE init){
+    int i;
+    REDUCE_CACHE acc = init;
+    for(i = 0; i < size; i++){
+        acc = callback(acc, arr[i], i);
+    }
+    return acc;
+}
+
+// map
+MAP_DEST_ELEM* map(MAP_DEST_ELEM(*callback)(MAP_SRC_ELEM, int),
+                   MAP_SRC_ELEM *arr, int size){
+    int i;
+    MAP_DEST_ELEM* ret_arr = malloc(sizeof(MAP_DEST_ELEM) * size);
+    assert(ret_arr != NULL);
+    for(i = 0; i < size; i++){
+        ret_arr[i] = callback(arr[i], i);
+    }
+    return ret_arr;
+}
+
+// each
+void each(void(*callback)(EACH_ELEM*, int), EACH_ELEM *arr, int size){
+    int i;
+    for(i = 0; i < size; i++){
+        callback(&arr[i], i);
+    }
+}
+
+// filter
+int filter(int(*predicate)(FILTER_ELEM, int), FILTER_ELEM *arr, int size){
+    int i, new_size = 0;
+    FILTER_ELEM temp;
+    for(i = 0; i < size; i++){
+        if(predicate(arr[i], i)){
+            temp = arr[i];
+            arr[new_size] = temp;
+            new_size++;
+        }
+    }
+    return new_size;
+}

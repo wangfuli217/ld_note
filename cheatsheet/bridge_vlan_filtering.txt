@@ -1,0 +1,277 @@
+cat - <<'EOF'
+处理方式有三种模式：Access、Trunk、Hybrid。这三种模式都是报文在进入或者离开接口时，针对报文的VLAN ID的处理策略。 
+
+一 名词介绍
+Tag报文:     指的是报文中有VLAN ID，简称Tag。
+Untag:       指的是报文中没有VLAN ID，简称Untag。
+VID:         就是VLAN ID。
+PVID:        基于VID的端口，PVID与报文无关，是Bridge端口的一种属性，简单的说，就是端口的默认VLAN ID。
+Default VID: 端口默认VLAN ID，也可以称为PVID。Bridge端口默认VLAN ID，默认取值为"1"，当然，也可以修改为其他默认值。
+VLAN Native: 这个是Cisco创造的名词。就是默认VID，即PVID。 
+
+二 Bridge的三种接口模式：Access、Trunk、Hybrid
+bridge_vlan_filtering_i_Access
+bridge_vlan_filtering_i_Trunk
+bridge_vlan_filtering_i_Hybrid
+EOF
+
+
+bridge_vlan_filtering_i_Access(){ cat - <<'EOF'
+1 Access接口模式
+报文进入和离开Bridge的Access模式接口如下图： 
++-----------------------+          +-----------------------+
+|        Bridge         |          |        Bridge         |
+| +------------------+  |          | +------------------+  |
+| |                  |  |          | |                  |  |
+| |                  |  |          | |                  |  |
+| |    交换模块      |  |          | |    交换模块      |  |
+| |                  |  |          | |                  |  |
+| +------------------+  |          | +------------------+  |
+|      Tag(VID=1)       |          |      Tag(VID=1)       |
++-+------------------+--+          +-+------------------+--+
+  |    =       |     |               |        |         |
+  +------------------+               +------------------+ 
+      /|\     /|\                             |    
+       |       |                             \|/   
+      Tag    Untag                           Untag   
+ 1.1 报文入接口原则
+针对Tag报文：直接丢弃。
+针对Untag报文：打上Default VID Tag，送入交换模块。   
+ 1.2 报文出接口原则
+从交换模块转发到端口带有Tag标签的报文(肯定带有Tag标签，而且这VID等于Default VID)，先去除Tag，再从接口出去。
+EOF
+}
+ 
+
+bridge_vlan_filtering_i_Trunk(){  cat - <<'EOF'
+ 2 Trunk接口模式
+报文进入和离开Bridge的Trunk模式接口的情况如下图： 
++-----------------------+ 
+|        Bridge         | 
+| +------------------+  | 
+| |                  |  | 
+| |                  |  | 
+| |    交换模块      |  | 
+| |                  |  | 
+| +------------------+  | 
+| Tag(VID=10) Tag(VID=1)| 
++-+------------------+--+ 
+  |    =    |     |    
+  +---------------+    
+      /|\  /|\  /|\        
+       |    |    |         
+      Tag  Tag  UnTag 
+Tag(VID=5)Tag(VID=10)
+
+Trunk模式，首先要配置允许进入接口的VLAN ID列表，比如配置为：10,11，30~50，表示允许这些VLAN ID可以进入端口，其他则不允许进入。 
+ 2.1 报文入接口原则
+针对Tag报文，VLAN ID不在Trunk允许范围内：直接丢弃（哪怕这个报文的VID等于这个端口的Default VID）。
+针对Tag报文，VLAN ID在Trunk允许范围内：送入进入交换模块，并且VLAN ID保持不变。
+针对Untag报文：打上Default VID Tag，送入交换模块。 
+
++-----------------------+ 
+|        Bridge         | 
+| +------------------+  | 
+| |                  |  | 
+| |                  |  | 
+| |    交换模块      |  | 
+| |                  |  | 
+| +------------------+  | 
+| Tag(VID=10) Tag(VID=1)| 
++-+------------------+--+ 
+  |    |    |     |    
+  +---------------+    
+       |     |       
+      \|/   \|/      
+      Tag  Untag  
+#    (VID=10)
+ 2.2 报文出接口原则
+从交换模块转发到端口的带有Tag标签的报文，如果VLAN ID等于Default VID，先去除Tag，再从接口出去。
+从交换模块转发到端口的带有Tag标签的报文，如果VLAN ID不等于Default VID，则不去除Tag，VLAN ID保持不变，再从接口出去。 
+EOF
+}
+
+bridge_vlan_filtering_i_Hybrid(){  cat - <<'EOF'
+Hybrid接口模式
+Hybrid模式，在Trunk模式的基础上又多了一部分内容。Trunk模式，在报文出接口时，如果VLAN ID等于default VID,那么VLAN Tag会去除。
+而Hybird模式，允许配置哪些VLAN ID的报文，在出接口时，需要去除VLAN Tag，比如配置在VLAN ID在40~50这个范围内容的报文，
+但其出接口，VLAN Tag要去除。如下图所示： 
+
++-----------------------+ 
+|        Bridge         | 
+| +------------------+  | 
+| |                  |  | 
+| |                  |  | 
+| |    交换模块      |  | 
+| |                  |  | 
+| +------------------+  | 
+| Tag(VID=10) Tag(VID=1)| 
++-+------------------+--+ 
+  |    =    |     |    
+  +---------------+    
+      /|\  /|\  /|\        
+       |    |    |         
+      Tag  Tag  UnTag 
+Tag(VID=5)Tag(VID=10)
+
+ 3.1 报文入接口原则（与Trunk模式相同）。
+针对Tag报文，VLAN ID不在Trunk允许范围内：直接丢弃（哪怕这个报文的VID等于这个端口的Default VID）。
+针对Tag报文，VLAN ID在Trunk允许范围内：送入进入交换模块，并且VLAN ID保持不变。
+针对Untag报文：打上Default VID Tag，送入交换模块。 
+
++-----------------------------------+ 
+|        Bridge                     | 
+| +------------------------------+  | 
+| |                              |  | 
+| |                              |  | 
+| |    交换模块                  |  | 
+| |                              |  | 
+| +------------------------------+  | 
+| Tag(VID=10) Tag(VID=41)Tag(VID=1) | 
++-+-------------------------------+-+ 
+  |    |           |        |     |    
+  +-------------------------------+    
+       |           |        |   
+      \|/         \|/      \|/  
+      Tag        Untag    Untag
+    (VID=10)
+ 3.2 报文出接口原则
+从交换模块转发到端口的带有Tag标签的报文，如果VLAN ID等于Default VID，先去除Tag，再从接口出去。
+从交换模块转发到端口的带有Tag标签的报文，如果VLAN ID在去除VID范围内，先去除Tag，再从接口出去。
+从交换模块转发到端口的带有Tag标签的报文，如果VLAN ID不在去除标签VID范围内，也不等于Default VID，则不去除Tag，VLAN ID保持不变，再从接口出去。 
+EOF
+}
+
+# https://developers.redhat.com/blog/2017/09/14/vlan-filter-support-on-bridge/
+bridge_vlan_filtering_i_bridge(){  cat - <<'EOF'
+bridge [ OPTIONS ] OBJECT { COMMAND | help }
+       OBJECT := { link | fdb | mdb | vlan | monitor }
+       
+       
+       
+EOF
+}
+
+
+bridge_vlan_filtering_t_Without_VLAN_filtering(){  cat - <<'EOF'
+
++---------+--------+     +---------+-----------------+--------+     +---------+--------+ 
+|       guest1     |     |               guest2               |     |       guest3     | 
+|                  |     |                                    |     |                  | 
++-----+(eth0)+-----+     +-----+(eth0)+----------+(eth1)+-----+     +-----+(eth0)+-----+ 
+          |                        |                 |                        |
+          |                        |                 |                        |
+     (br0-eth0)               (br0-eth1)         (br1-eth0)               (br1-eth1)
+          |---------+--------------|                 |------------+-----------|
+                   br0                                            br1
+                    |                                             |
+                   bond0.2                                        bond0.3
+                    |---------------------+-----------------------|
+                                        bond0
+                                       eth0+eth1
+
+Create a bond device.
+# ip link add bond0 type bond
+# ip link set bond0 type bond miimon 100 mode balance-alb
+# ip link set eth0 down
+# ip link set eth0 master bond0
+# ip link set eth1 down
+# ip link set eth1 master bond0
+# ip link set bond0 up
+
+Create VLANs on bond. We need to create more VLANs if dictated by requirements.
+# ip link add link bond0 name bond0.2 type vlan id 2
+# ip link set bond0.2 up
+
+# ip link add link bond0 name bond0.3 type vlan id 3
+# ip link set bond0.3 up
+
+Add a bridge device, to which we can attach the VLAN interface.
+# ip link add br0 type bridge
+# ip link set bond0.2 master br0
+# ip link set br0 up
+
+# ip link add br1 type bridge
+# ip link set bond0.3 master br1
+# ip link set br1 up
+
+Attach tap device to bridge.
+# ip link set br0-eth0 master br0
+# ip link set br0-eth1 master br0
+
+# ip link set br1-eth0 master br1
+# ip link set br1-eth1 master br1
+EOF
+}
+
+bridge_vlan_filtering_t_With_VLAN_filtering(){  cat - <<'EOF'
+
++---------+--------+     +---------+-----------------+--------+     +---------+--------+ 
+|       guest1     |     |               guest2               |     |       guest3     | 
+|                  |     |                                    |     |                  | 
++-----+(eth0)+-----+     +-----+(eth0)+----------+(eth1)+-----+     +-----+(eth0)+-----+ 
+          |                        |                 |                        |
+          |                        |                 |                        |
+     (br0-eth0)               (br0-eth1)         (br0-eth2)               (br0-eth3)
+          |---------+--------------|                 |------------+-----------|
+                    |---------------------+-----------------------|
+                                          br0
+                    |---------------------+-----------------------|
+                                        bond0
+                                       eth0+eth1
+Create a bond device, the same as above.
+# ip link add bond0 type bond
+# ip link set bond0 type bond miimon 100 mode balance-alb
+# ip link set eth0 down
+# ip link set eth0 master bond0
+# ip link set eth1 down
+# ip link set eth1 master bond0
+# ip link set bond0 up
+
+Create the bridge interface, enable VLAN filter and attach the bond interface to the bridge directly.
+# ip link add br0 type bridge
+# ip link set br0 up
+# ip link set br0 type bridge vlan_filtering 1
+
+# ip link set bond0 master br0
+
+Attach the tap device to the bridge.
+# ip link set br0-eth0 master br0
+# ip link set br0-eth1 master br0
+# ip link set br0-eth2 master br0
+# ip link set br0-eth3 master br0
+
+Set the tap interface with the VLAN filter.
+# bridge vlan add dev br0-eth0 vid 2 pvid untagged master
+# bridge vlan add dev br0-eth1 vid 2 pvid untagged master
+
+# bridge vlan add dev br0-eth2 vid 3 pvid untagged master
+# bridge vlan add dev br0-eth3 vid 3 pvid untagged master
+
+# bridge vlan add dev bond0 vid 2 master
+# bridge vlan add dev bond0 vid 3 master
+ 
+
+To dump the VLAN information from the bridge interface.
+# bridge vlan show
+port    vlan ids
+bond0    1 PVID Egress Untagged
+         2
+         3
+
+br0      1 PVID Egress Untagged
+
+br0-eth0    1 Egress Untagged
+            2 PVID Egress Untagged
+
+br0-eth1    1 Egress Untagged
+            2 PVID Egress Untagged
+
+br0-eth2    1 Egress Untagged
+            3 PVID Egress Untagged
+
+br0-eth3    1 Egress Untagged
+            3 PVID Egress Untagged
+EOF
+}
+ 

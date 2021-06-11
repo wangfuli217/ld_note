@@ -1,0 +1,53 @@
+# monit中的List.c 和 这里的 list是存在差异的。
+
+
+typedef struct T *T;
+struct T { T rest; void *first; };
+所有的List函数都可以接受list参数值为NULL，并将其解释为空链表。
+
+T list_append(T list, T tail)   将tail追加到list并返回list。如果list=NULL,list_append返回tail
+T list_copy(T list)             创建并返回list的一个副本(浅层赋值)
+void list_free(T *list)         释放*list并将其清零。如果list=NULL，则为已检查的运行时错误
+int  list_length(T list)        返回list中元素的数目
+T list_list(void *x, ...)       创建并返回一个链表，其元素来自参数的可变部分，直至遇到第一个NULL指针为止。
+void list_map(T list, void apply(void **x, void *cl), void *cl)
+                                对于list中的每个元素p，调用apply(&p->first, cl)。如果apply修改list，则为未检查的运行时错误。
+T list_pop(T list, void **x)    将list_first赋值给*x(如果x不是NULL)，释放list,并返回list->rest.
+                                如果list=NULL，list_pop返回NULL，并不改变*x.
+T list_push(T list, void *x)    将一个包含x的新元素添加到list的前端，并返回新链表。
+T list_reverse(T list)          将list中的各个元素逆向，并返回反转后的链表
+void **list_toarray(T list, void *end) 创建一个N+1个元素的数组，包含list中的N个元素，并返回指向第一个元素的指针。
+数组中第N个元素设置为end.
+
+关于map函数
+https://github.com/zyxstar/md_note/blob/master/docs/Language/C/C%E8%AF%AD%E8%A8%80(Uplooking).md
+
+关于list链表操作
+moosefs
+dnsmasq
+kernel
+
+T List_new(void);                  # 创建一个链表对象， 返回一个链表对象， 
+void List_free(T *L);              # 销毁一个链表对象，并释放与链表对象关联的内层。调用这个函数用以销毁List_new创建的链表对象
+void List_push(T L, void *e);      # 将 e 添加到链表的头部
+void *List_pop(T L);               # 将 void*(e) 从链表头部删除
+void List_append(T L, void *e);    # 将 e 添加到链表的尾部
+void *List_remove(T L, void *e);   # 将 e 从链表中删除
+void List_cat(T L, T list);        # 连接链表L和list，list中所有元素 被追加到L中，list保持不变
+void List_reverse(T L);            # L链表对象内所有节点逆向
+int List_length(T L);              # 链表内元素总数
+void List_clear(T L);              # 清除链表
+void **List_toArray(T L);          # 创建一个N+1的数组，包含了链表中所有(N个元素)，最后一个元素为NULL。调用者使用返回数组内存空间
+
+e的内存释放不会因为调用List_free或者List_clear而被释放。
+
+测试： List_push测试
+       List_append测试
+       List_new和List_free测试
+       List_cat测试
+       List_reverse测试
+       List_clear测试
+       List malloc测试
+       List remove测试
+       check pointers测试
+       List_toArray测试

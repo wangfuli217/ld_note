@@ -1,0 +1,452 @@
+-------------------------------------------------------------------------
+    sed是一种在线编辑器，它一次处理一行内容。处理时，把当前处理的行存储在临时缓冲区中，称为"模式空间"(pattern space)，
+接着用sed命令处理缓冲区中的内容，处理完成后，把缓冲区的内容送往屏幕。接着处理下一行，这样不断重复，直到文件末尾。
+文件内容并没有改变，除非你使用重定向存储输出。Sed主要用来自动编辑一个或多个文件；简化对文件的反复操作；编写转换程序等。
+
+Latest version of this file (in English) is usually at:
+   http://sed.sourceforge.net/sed1line.txt
+   http://www.pement.org/sed/sed1line.txt
+
+This file will also available in other languages:
+  Chinese     - http://sed.sourceforge.net/sed1line_zh-CN.html
+  Czech       - http://sed.sourceforge.net/sed1line_cz.html
+  Dutch       - http://sed.sourceforge.net/sed1line_nl.html
+  French      - http://sed.sourceforge.net/sed1line_fr.html
+  German      - http://sed.sourceforge.net/sed1line_de.html
+  Italian     - http://sed.sourceforge.net/sed1line_it.html
+  Portuguese  - http://sed.sourceforge.net/sed1line_pt-BR.html
+  Spanish     - http://sed.sourceforge.net/sed1line_es.html
+
+FILE SPACING:
+### 文本间隔
+# double space a file 在每一行后面增加一空行
+sed G  # G函数把保存区域的内容添加到模式空间的内容之后；以前和新的内容用换行分隔。
+
+# double space a file which already has blank lines in it. Output file
+# should contain no more than one blank line between lines of text.
+将原来的所有空行删除并在每一行后面增加一空行,这样在输出的文本中每一行后面将有且只有一空行
+sed '/^$/d;G' # /^$/ 空行; /./ 非空行; /^$/! 非空行;  /./! 空行。
+
+# triple space a file
+sed 'G;G' # 在每一行后面增加两行空行
+
+# undo double-spacing (assumes even-numbered lines are always blank)
+# 将第一个脚本所产生的所有空行删除(即删除所有偶数行)
+sed 'n;d' # n 函数从输入读取下一行，替代当前行。当前行被写入输出。如果下一行有数据，继续执行编辑命令列表在n命令之后的部分。
+          # d 函数从文件中删除(不写入输出)匹配它的地址的所有行。
+# d还有一个副作用，在这个已删除的行上将不再尝试进一步的命令；在执行了 d 之后，马上就从输入读取一个新行，在新行上从头重新启动编辑命令列表
+
+# insert a blank line above every line which matches "regex"
+# 在匹配式样"regex"的行之前插入一空行
+sed '/regex/{x;p;x;}' # x:对换命令交换模式空间和保存区域的内容。
+                      # p 把寻址到的行写到标准输出文件。在遇到 p 函数的时候就输出它们，而不管后续的编辑命令对这些行会做些什么。
+                      # p 常和命令行选项 -n 一起使用。
+                      # 行处理完之后，模式空间内所有数据输出到缓冲区显示，模式空间处理下一行数据之间，清空模式空间内数据。
+sed '/named/{x;}' test1.sh  # 第一行为空行，最后一行不输出
+sed '/named/{x;p}' test1.sh # 第一行和第二行为空行，后续行输出两遍，最后一行不输出。
+
+# insert a blank line below every line which matches "regex"
+sed '/regex/G' # 在匹配式样"regex"的行之后插入一空行
+
+# insert a blank line above and below every line which matches "regex"
+sed '/regex/{x;p;x;G;}' # 在匹配式样"regex"的行之前和之后各插入一空行
+
+NUMBERING:
+### 编号
+# 为文件中的每一行进行编号(简单的左对齐方式)。这里使用了"制表符"
+# (tab，见本文末尾关于'\t'的用法的描述)而不是空格来对齐边缘。
+# number each line of a file (simple left alignment). Using a tab (see
+# note on '\t' at end of file) instead of space will preserve margins.
+sed = filename | sed 'N;s/\n/\t/'
+# N: 读入下一行，追加到模式空间行后面，此时模式空间中有两行。^匹配模式空间的最开始，$是匹配模式空间的最后位置。
+# 在模式空间中把下一行添加到当前行之后；两个输入行用一个内嵌的换行分隔。模式匹配可以延伸跨越这个内嵌换行。
+# 下一行没有数据是不执行任何操作。
+# = 函数在输出行内容前打印该行行号
+
+# number each line of a file (number on left, right-aligned)
+# 对文件中的所有行编号（行号在左，文字右端对齐）。
+sed = filename | sed 'N; s/^/     /; s/ *\(.\{6,\}\)\n/\1  /' 
+# s/ *\(.\{6,\}\)\n/\1  / 将数字后的'\n'截掉，连接成一行 
+
+ # number each line of file, but only print numbers if line is not blank
+ # 对文件中的所有行编号，但只显示非空白行的行号。
+ sed '/./=' filename | sed '/./N; s/\n/ /'
+
+ # count lines (emulates "wc -l")
+ sed -n '$=' # $ 最后一行
+
+TEXT CONVERSION AND SUBSTITUTION:
+# Unix环境：转换DOS的新行符（CR/LF）为Unix格式
+ # IN UNIX ENVIRONMENT: convert DOS newlines (CR/LF) to Unix format.
+ sed 's/.$//'               # assumes that all lines end with CR/LF
+ sed 's/^M$//'              # in bash/tcsh, press Ctrl-V then Ctrl-M
+ sed 's/\x0D$//'            # works on ssed, gsed 3.02.80 or higher
+# . (句点)与除终止的换行符之外的任何字符匹配。
+# \x0D 表示 \r
+
+# Unix环境：转换Unix的新行符（LF）为DOS格式。
+ # IN UNIX ENVIRONMENT: convert Unix newlines (LF) to DOS format.
+ sed "s/$/`echo -e \\\r`/"            # command line under ksh
+ sed 's/$'"/`echo \\\r`/"             # command line under bash
+ sed "s/$/`echo \\\r`/"               # command line under zsh
+ sed 's/$/\r/'                        # gsed 3.02.80 or higher
+
+# DOS环境：转换Unix新行符（LF）为DOS格式。
+ # IN DOS ENVIRONMENT: convert Unix newlines (LF) to DOS format.
+ sed "s/$//"                          # method 1
+ sed -n p                             # method 2
+
+# DOS环境：转换DOS新行符（CR/LF）为Unix格式。
+ # IN DOS ENVIRONMENT: convert DOS newlines (CR/LF) to Unix format.
+ # Can only be done with UnxUtils sed, version 4.0.7 or higher. The
+ # UnxUtils version can be identified by the custom "--text" switch
+ # which appears when you use the "--help" switch. Otherwise, changing
+ # DOS newlines to Unix newlines cannot be done with sed in a DOS
+ # environment. Use "tr" instead.
+ sed "s/\r//" infile >outfile         # UnxUtils sed v4.0.7 or higher
+ tr -d \r <infile >outfile            # GNU tr version 1.22 or higher
+
+ # 将每一行前导的"空白字符"(空格，制表符)删除使之左对齐
+ # delete leading whitespace (spaces, tabs) from front of each line
+ # aligns all text flush left
+ sed 's/^[ \t]*//'                    # see note on '\t' at end of file
+
+ # 将每一行结尾的"空白字符"(空格，制表符)删除
+ # delete trailing whitespace (spaces, tabs) from end of each line
+ sed 's/[ \t]*$//'                    # see note on '\t' at end of file
+
+ # 将每一行中的前导和拖尾的空白字符删除
+ # delete BOTH leading and trailing whitespace from each line
+ sed 's/^[ \t]*//;s/[ \t]*$//'
+
+ # 在每一行开头处插入5个空格(使全文向右移动5个字符的位置)
+ # insert 5 blank spaces at beginning of each line (make page offset)
+ sed 's/^/     /'
+
+ # 以79个字符为宽度，将所有文本右对齐
+ # align all text flush right on a 79-column width
+ sed -e :a -e 's/^.\{1,78\}$/ &/;ta'  # set at 78 plus 1 space
+# label -- place a label 
+# 标号函数在编辑命令列表中标记一个位置，它将来可以被 b 和 t 函数所引用。<标号>可以是八个或更少的字符的任何序列；
+# 如果两个不同的冒号函数有相同的标号，就会生成编译时间诊断信息，而不做执行尝试。
+
+# )t<标号> -- test substitutions
+# 函数测试在当前输入行上是否已经做了任何成功的替换；如果有，它分支到<标号>；否则，它什么都不做。
+# 指示已经执行了成功的替换的标志通过如下方式复零:
+#  1) 读取一个新输入行，或
+#  2) 执行 a 和 t 函数。
+
+# 通过 :a 和 ta实现了某种意义的循环；循环条件是 s/^.\{1,78\}$/ &/ 替换语句
+ # center all text in the middle of 79-column width. In method 1,
+ # spaces at the beginning of the line are significant, and trailing
+ # spaces are appended at the end of the line. In method 2, spaces at
+ # the beginning of the line are discarded in centering the line, and
+ # no trailing spaces appear at the end of lines.
+  # 以79个字符为宽度，使所有文本居中。在方法1中，为了让文本居中每一行的前
+ # 头和后头都填充了空格。 在方法2中，在居中文本的过程中只在文本的前面填充
+ # 空格，并且最终这些空格将有一半会被删除。此外每一行的后头并未填充空格。
+ sed  -e :a -e 's/^.\{1,77\}$/ & /;ta'                     # method 1
+ sed  -e :a -e 's/^.\{1,77\}$/ &/;ta' -e 's/\( *\)\1/\1/'  # method 2
+
+ # substitute (find and replace) "foo" with "bar" on each line
+ # 在每一行中查找字串"foo"，并将找到的"foo"替换为"bar"
+ sed 's/foo/bar/'             # replaces only 1st instance in a line
+ sed 's/foo/bar/4'            # replaces only 4th instance in a line  只替换每一行中的第四个"foo"字串
+ sed 's/foo/bar/g'            # replaces ALL instances in a line
+ sed 's/\(.*\)foo\(.*foo\)/\1bar\2/' # replace the next-to-last case  替换倒数第二个"foo" 
+ sed 's/\(.*\)foo/\1bar/'            # replace only the last case     替换最后一个"foo"
+# 标志g: 替换默认只对每行的第一处匹配进行,而加上g之后,将对每行所有匹配的字符串进行替换
+# 标志[n]: 数字标志,匹配到的第n次才进行替换
+ 
+ # substitute "foo" with "bar" ONLY for lines which contain "baz"
+ sed '/baz/s/foo/bar/g'
+
+ # substitute "foo" with "bar" EXCEPT for lines which contain "baz"
+ sed '/baz/!s/foo/bar/g'
+# ! :对其前面的要匹配的范围取反
+# 非命令导致(写在同一行上的)下一个命令，应用到所有的且只能是未被地址部分选择到那些输入行上。
+
+ # change "scarlet" or "ruby" or "puce" to "red" # 不管是"scarlet""ruby"还是"puce"，一律换成"red"
+ sed 's/scarlet/red/g;s/ruby/red/g;s/puce/red/g'   # most seds
+ gsed 's/scarlet\|ruby\|puce/red/g'                # GNU sed only
+
+ # 倒置所有行，第一行成为最后一行，依次类推(模拟"tac")。
+ # reverse order of lines (emulates "tac")
+ # bug/feature in HHsed v1.5 causes blank lines to be deleted
+ sed '1!G;h;$!d'               # ! 对其前面的要匹配的范围取反,
+ # 非命令导致(写在同一行上的)下一个命令，应用到所有的且只能是未被地址部分选择到那些输入行上。
+ # $ 匹配最后一行
+ # h:将模式空间的值拷贝到保持空间，会将保持空间原来的值覆盖掉。
+ # 把模式空间的内容复制到保存区域(销毁保存区域以前的内容)。
+ sed -n '1!G;h;$p'             # method 2
+
+ # reverse each character on the line (emulates "rev")
+ sed '/\n/!G;s/\(.\)\(.*\n\)/&\2\1/;//D;s/.//'  # 通过模式匹配实现rev
+
+ # join pairs of lines side-by-side (like "paste") # 将每两行连接成一行(类似paste)
+ sed '$!N;s/\n/ /'
+ # 在模式空间中把下一行添加到当前行之后；两个输入行用一个内嵌的换行分隔。模式匹配可以延伸跨越这个内嵌换行。
+
+ # if a line ends with a backslash, append the next line to it
+ # 如果当前行以反斜杠"\"结束，则将下一行并到当前行末尾
+ # 并去掉原来行尾的反斜杠
+ sed -e :a -e '/\\$/N; s/\\\n//; ta'
+
+ # if a line begins with an equal sign, append it to the previous line
+ # and replace the "=" with a single space
+ # 如果当前行以等号开头，将当前行并到上一行末尾
+ # 并以单个空格代替原来行头的"="
+ sed -e :a -e '$!N;s/\n=/ /;ta' -e 'P;D'
+
+ # 为数字字串增加逗号分隔符号，将"1234567"改为"1,234,567"
+ # add commas to numeric strings, changing "1234567" to "1,234,567"
+ gsed ':a;s/\B[0-9]\{3\}\>/,&/;ta'                     # GNU sed
+ sed -e :a -e 's/\(.*[0-9]\)\([0-9]\{3\}\)/\1,\2/;ta'  # other seds
+
+ # add commas to numbers with decimal points and minus signs (GNU sed)
+ gsed -r ':a;s/(^|[^0-9.])([0-9]+)([0-9]{3})/\1\2,\3/g;ta'
+
+ # add a blank line every 5 lines (after lines 5, 10, 15, 20, etc.)
+ gsed '0~5G'                  # GNU sed only
+ sed 'n;n;n;n;G;'             # other seds
+
+SELECTIVE PRINTING OF CERTAIN LINES:
+
+ # print first 10 lines of file (emulates behavior of "head")
+ sed 10q
+
+ # print first line of file (emulates "head -1")
+ sed q
+
+ # print the last 10 lines of a file (emulates "tail")
+ sed -e :a -e '$q;N;11,$D;ba'
+
+ # print the last 2 lines of a file (emulates "tail -2")
+ sed '$!N;$!D'
+
+ # print the last line of a file (emulates "tail -1")
+ sed '$!d'                    # method 1
+ sed -n '$p'                  # method 2
+
+ # print the next-to-the-last line of a file
+ sed -e '$!{h;d;}' -e x              # for 1-line files, print blank line # 当文件中只有一行时，输入空行
+ sed -e '1{$q;}' -e '$!{h;d;}' -e x  # for 1-line files, print the line   # 当文件中只有一行时，显示该行
+ sed -e '1{$d;}' -e '$!{h;d;}' -e x  # for 1-line files, print nothing    # 当文件中只有一行时，不输出
+
+ # print only lines which match regular expression (emulates "grep") 只显示匹配正则表达式的行（模拟"grep"）
+ sed -n '/regexp/p'           # method 1
+ sed '/regexp/!d'             # method 2
+
+ # print only lines which do NOT match regexp (emulates "grep -v")   只显示"不"匹配正则表达式的行（模拟"grep -v"）
+ sed -n '/regexp/!p'          # method 1, corresponds to above
+ sed '/regexp/d'              # method 2, simpler syntax
+
+ # print the line immediately before a regexp, but not the line
+ # containing the regexp
+ # 查找"regexp"并将匹配行的上一行显示出来，但并不显示匹配行
+ sed -n '/regexp/{g;1!p;};h'
+
+ # print the line immediately after a regexp, but not the line
+ # containing the regexp
+ # 查找"regexp"并将匹配行的下一行显示出来，但并不显示匹配行
+ sed -n '/regexp/{n;p;}'
+
+ # print 1 line of context before and after regexp, with line number
+ # indicating where the regexp occurred (similar to "grep -A1 -B1")
+ sed -n -e '/regexp/{=;x;1!p;g;$!N;p;D;}' -e h
+
+ # grep for AAA and BBB and CCC (in any order)
+  # 显示包含"AAA"、"BBB"或"CCC"的行（任意次序）
+ sed '/AAA/!d; /BBB/!d; /CCC/!d'
+
+ # grep for AAA and BBB and CCC (in that order)
+  # 显示包含"AAA"、"BBB"和"CCC"的行（固定次序）
+ sed '/AAA.*BBB.*CCC/!d'
+
+ # grep for AAA or BBB or CCC (emulates "egrep")
+ # 显示包含"AAA""BBB"或"CCC"的行 （模拟"egrep"）
+ sed -e '/AAA/b' -e '/BBB/b' -e '/CCC/b' -e d    # most seds
+ gsed '/AAA\|BBB\|CCC/!d'                        # GNU sed only
+
+ # print paragraph if it contains AAA (blank lines separate paragraphs)
+ # HHsed v1.5 must insert a 'G;' after 'x;' in the next 3 scripts below
+ sed -e '/./{H;$!d;}' -e 'x;/AAA/!d;'
+
+ # print paragraph if it contains AAA and BBB and CCC (in any order)
+ sed -e '/./{H;$!d;}' -e 'x;/AAA/!d;/BBB/!d;/CCC/!d'
+
+ # print paragraph if it contains AAA or BBB or CCC
+ sed -e '/./{H;$!d;}' -e 'x;/AAA/b' -e '/BBB/b' -e '/CCC/b' -e d
+ gsed '/./{H;$!d;};x;/AAA\|BBB\|CCC/b;d'         # GNU sed only
+
+ # print only lines of 65 characters or longer
+ sed -n '/^.\{65\}/p'
+
+ # print only lines of less than 65 characters
+ sed -n '/^.\{65\}/!p'        # method 1, corresponds to above
+ sed '/^.\{65\}/d'            # method 2, simpler syntax
+
+ # print section of file from regular expression to end of file
+ sed -n '/regexp/,$p'
+
+ # print section of file based on line numbers (lines 8-12, inclusive)
+ sed -n '8,12p'               # method 1
+ sed '8,12!d'                 # method 2
+
+ # print line number 52
+ sed -n '52p'                 # method 1
+ sed '52!d'                   # method 2
+ sed '52q;d'                  # method 3, efficient on large files
+
+ # beginning at line 3, print every 7th line
+ gsed -n '3~7p'               # GNU sed only
+ sed -n '3,${p;n;n;n;n;n;n;}' # other seds
+
+ # print section of file between two regular expressions (inclusive)
+ sed -n '/Iowa/,/Montana/p'             # case sensitive
+
+SELECTIVE DELETION OF CERTAIN LINES:
+
+ # print all of file EXCEPT section between 2 regular expressions
+ sed '/Iowa/,/Montana/d'
+
+ # delete duplicate, consecutive lines from a file (emulates "uniq").
+ # First line in a set of duplicate lines is kept, rest are deleted.
+ sed '$!N; /^\(.*\)\n\1$/!P; D'
+
+ # delete duplicate, nonconsecutive lines from a file. Beware not to
+ # overflow the buffer size of the hold space, or else use GNU sed.
+ sed -n 'G; s/\n/&&/; /^\([ -~]*\n\).*\n\1/d; s/\n//; h; P'
+
+ # delete all lines except duplicate lines (emulates "uniq -d").
+ sed '$!N; s/^\(.*\)\n\1$/\1/; t; D'
+
+ # delete the first 10 lines of a file
+ sed '1,10d'
+
+ # delete the last line of a file
+ sed '$d'
+
+ # delete the last 2 lines of a file
+ sed 'N;$!P;$!D;$d'
+
+ # delete the last 10 lines of a file
+ sed -e :a -e '$d;N;2,10ba' -e 'P;D'   # method 1
+ sed -n -e :a -e '1,10!{P;N;D;};N;ba'  # method 2
+
+ # delete every 8th line
+ gsed '0~8d'                           # GNU sed only
+ sed 'n;n;n;n;n;n;n;d;'                # other seds
+
+ # delete lines matching pattern
+ sed '/pattern/d'
+
+ # delete ALL blank lines from a file (same as "grep '.' ")
+ sed '/^$/d'                           # method 1
+ sed '/./!d'                           # method 2
+
+ # delete all CONSECUTIVE blank lines from file except the first; also
+ # deletes all blank lines from top and end of file (emulates "cat -s")
+ sed '/./,/^$/!d'          # method 1, allows 0 blanks at top, 1 at EOF
+ sed '/^$/N;/\n$/D'        # method 2, allows 1 blank at top, 0 at EOF
+
+ # delete all CONSECUTIVE blank lines from file except the first 2:
+ sed '/^$/N;/\n$/N;//D'
+
+ # delete all leading blank lines at top of file
+ sed '/./,$!d'
+
+ # delete all trailing blank lines at end of file
+ sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'  # works on all seds
+ sed -e :a -e '/^\n*$/N;/\n$/ba'        # ditto, except for gsed 3.02.*
+
+ # delete the last line of each paragraph
+ sed -n '/^$/{p;h;};/./{x;/./p;}'
+
+SPECIAL APPLICATIONS:
+
+ # remove nroff overstrikes (char, backspace) from man pages. The 'echo'
+ # command may need an -e switch if you use Unix System V or bash shell.
+ sed "s/.`echo \\\b`//g"    # double quotes required for Unix environment
+ sed 's/.^H//g'             # in bash/tcsh, press Ctrl-V and then Ctrl-H
+ sed 's/.\x08//g'           # hex expression for sed 1.5, GNU sed, ssed
+
+ # get Usenet/e-mail message header
+ sed '/^$/q'                # deletes everything after first blank line
+
+ # get Usenet/e-mail message body
+ sed '1,/^$/d'              # deletes everything up to first blank line
+
+ # get Subject header, but remove initial "Subject: " portion
+ sed '/^Subject: */!d; s///;q'
+
+ # get return address header
+ sed '/^Reply-To:/q; /^From:/h; /./d;g;q'
+
+ # parse out the address proper. Pulls out the e-mail address by itself
+ # from the 1-line return address header (see preceding script)
+ sed 's/ *(.*)//; s/>.*//; s/.*[:<] *//'
+
+ # add a leading angle bracket and space to each line (quote a message)
+ sed 's/^/> /'
+
+ # delete leading angle bracket & space from each line (unquote a message)
+ sed 's/^> //'
+
+ # remove most HTML tags (accommodates multiple-line tags)
+ sed -e :a -e 's/<[^>]*>//g;/</N;//ba'
+
+ # extract multi-part uuencoded binaries, removing extraneous header
+ # info, so that only the uuencoded portion remains. Files passed to
+ # sed must be passed in the proper order. Version 1 can be entered
+ # from the command line; version 2 can be made into an executable
+ # Unix shell script. (Modified from a script by Rahul Dhesi.)
+ sed '/^end/,/^begin/d' file1 file2 ... fileX | uudecode   # vers. 1
+ sed '/^end/,/^begin/d' "$@" | uudecode                    # vers. 2
+
+ # sort paragraphs of file alphabetically. Paragraphs are separated by blank
+ # lines. GNU sed uses \v for vertical tab, or any unique char will do.
+ sed '/./{H;d;};x;s/\n/={NL}=/g' file | sort | sed '1s/={NL}=//;s/={NL}=/\n/g'
+ gsed '/./{H;d};x;y/\n/\v/' file | sort | sed '1s/\v//;y/\v/\n/'
+
+ # zip up each .TXT file individually, deleting the source file and
+ # setting the name of each .ZIP file to the basename of the .TXT file
+ # (under DOS: the "dir /b" switch returns bare filenames in all caps).
+ echo @echo off >zipup.bat
+ dir /b *.txt | sed "s/^\(.*\)\.TXT/pkzip -mo \1 \1.TXT/" >>zipup.bat
+
+TYPICAL USE: Sed takes one or more editing commands and applies all of
+them, in sequence, to each line of input. After all the commands have
+been applied to the first input line, that line is output and a second
+input line is taken for processing, and the cycle repeats. The
+preceding examples assume that input comes from the standard input
+device (i.e, the console, normally this will be piped input). One or
+more filenames can be appended to the command line if the input does
+not come from stdin. Output is sent to stdout (the screen). Thus:
+
+ cat filename | sed '10q'        # uses piped input
+ sed '10q' filename              # same effect, avoids a useless "cat"
+ sed '10q' filename > newfile    # redirects output to disk
+
+For additional syntax instructions, including the way to apply editing
+commands from a disk file instead of the command line, consult "sed &
+awk, 2nd Edition," by Dale Dougherty and Arnold Robbins (O'Reilly,
+1997; http://www.ora.com), "UNIX Text Processing," by Dale Dougherty
+and Tim O'Reilly (Hayden Books, 1987) or the tutorials by Mike Arst
+distributed in U-SEDIT2.ZIP (many sites). To fully exploit the power
+of sed, one must understand "regular expressions." For this, see
+"Mastering Regular Expressions" by Jeffrey Friedl (O'Reilly, 1997).
+The manual ("man") pages on Unix systems may be helpful (try "man
+sed", "man regexp", or the subsection on regular expressions in "man
+ed"), but man pages are notoriously difficult. They are not written to
+teach sed use or regexps to first-time users, but as a reference text
+for those already acquainted with these tools.
+
+QUOTING SYNTAX: The preceding examples use single quotes ('...')
+instead of double quotes ("...") to enclose editing commands, since
+sed is typically used on a Unix platform. Single quotes prevent the
+Unix shell from intrepreting the dollar sign ($) and backquotes
+(`...`), which are expanded by the shell if they are enclosed in
+double quotes. Users of the "csh" shell and derivatives will also need
+to quote the exclamation mark (!) with the backslash (i.e., \!) to
+properly run the examples listed above, even w

@@ -1,0 +1,25 @@
+--- old/overview.lua	2017-08-28 00:42:14.269388124 +0800
++++ new/overview.lua	2017-08-28 12:30:52.338815410 +0800
+@@ -137,16 +137,21 @@ end
+ function dom.set_two(self, section)
+ 	local domain = self.map:get(section, "domain") or ""
+ 	if domain == "" then return "" end
++	local command = self.map:get(section, "domain_script") or ""
++	if command == "" then
+ 	local dnsserver = self.map:get(section, "dnsserver") or ""
+ 	local use_ipv6 = tonumber(self.map:get(section, "use_ipv6") or 0)
+ 	local force_ipversion = tonumber(self.map:get(section, "force_ipversion") or 0)
+ 	local force_dnstcp = tonumber(self.map:get(section, "force_dnstcp") or 0)
+-	local command = [[/usr/lib/ddns/dynamic_dns_lucihelper.sh]]
++	command = [[/usr/lib/ddns/dynamic_dns_lucihelper.sh]]
+ 	if not NXFS.access(command, "rwx", "rx", "rx") then
+ 		NXFS.chmod(command, 755)
+ 	end
+ 	command = command .. [[ get_registered_ip ]] .. domain .. [[ ]] .. use_ipv6 ..
+ 		[[ ]] .. force_ipversion .. [[ ]] .. force_dnstcp .. [[ ]] .. dnsserver
++	else
++		command = command .. [[ ]] .. domain
++	end
+ 	local ip = SYS.exec(command)
+ 	if ip == "" then ip = translate("no data") end
+ 	return ip

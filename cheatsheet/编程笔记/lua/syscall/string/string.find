@@ -1,0 +1,109 @@
+--[=[
+  原型：string.find (s, pattern [, init [, plain]])
+  解释：函数在字符串s里查找第一个和参数pattern匹配的子串，
+        如果找到了一个匹配的子串，就会返回这个子串的起始索引和结束索引
+        否则就会返回nil。
+
+另外，参数init作为一个数字，指定了搜索的起始位置, 这个数字默认为1，可以一个负数，表示从后往前数的字符个数。
+      参数plain作为第四个可选参数默认为false，传入参数true表示关闭模式匹配，所以函数只做简单的查找子串的操作，
+      
+      如果子串pattern没有字符为空字符串，""将会被认为是魔法字符。
+      如果模式匹配子串被找到了，一个成功被找到的子串将会作为第三个返回值，放在两个索引返回值的后边而返回。
+      
+      string.sub(string.find) == string.match -- 返回搜索到的第一个子串   
+--]=]
+
+local start_i = 1;
+local end_j = 1;
+local sunstr = "";
+
+local sourcestr = "_abcd,1234,\n%12+-cs\n"
+print("source string is \""..sourcestr.."\"")
+
+local function print_ret(findsub, i, j, substr)
+    print("\nfind substr \""..findsub.."\" ret:")
+    print(">start = "..(i or "nil"))
+    print(">end = "..(j or "nil"))
+    print(">substr = "..(substr or "nil"))
+end
+
+start_i, end_j, substr = string.find(sourcestr, "a")                            -- 成功子串匹配
+print_ret("a", start_i, end_j, substr)
+
+start_i, end_j, substr = string.find(sourcestr, "g")                            -- 失败子串匹配
+print_ret("g", start_i, end_j, substr)
+
+start_i, end_j, substr = string.find(sourcestr, "c", 10)                        -- 指定查找起始位置
+print_ret("start=10 c", start_i, end_j, substr)
+
+start_i, end_j, substr = string.find(sourcestr, "%d", 1, true)                  -- 关闭模式匹配查找字符串
+print_ret("plain %d", start_i, end_j, substr)
+
+start_i, end_j, substr = string.find(sourcestr, "%d", 1, false)                 -- 开启模式匹配查找字符串
+print_ret("pattern %d", start_i, end_j, substr)
+
+print("\none capture")
+-- 查找3个连续数字，我们来看看怎样会出现第三个返回值                            -- 单个capture
+start_i, end_j, substr = string.find(sourcestr, "(%d%d%d)", 1, false)
+print_ret("(%d%d%d)", start_i, end_j, substr)
+
+print("\nmore capture")
+str = "2018-08-07 10:15:27"
+print('2018-08-07 10:15:27, "(%d+)-(%d+)-(%d+)"\t', string.find(str, "(%d+)-(%d+)-(%d+)")) -- 多个capture
+print('2018-08-07 10:15:27, "(%d+):(%d+):(%d+)"\t', string.find(str, "(%d+):(%d+):(%d+)")) -- 多个capture
+
+print("\ncapture value in find")
+s = [[then he said: "it's all right"!]]
+a, b, c, quotedPart = string.find(s, [[(["'])(.-)%1]])
+print(quotedPart)    --> it's all right
+print(c)             --> "  
+
+-- string.sub(string.find) == string.match -- 返回搜索到的第一个子串
+str = "hello world"
+print('\nstring.sub(str, string.find(str,"hello")) = string.match(str,"hello")')
+print(string.sub(str, string.find(str,"hello")))
+print(string.match(str,"hello"))
+
+-- 检查字符串s是否以数字开头 if string.find(s, "^%d") then ...
+-- 检查字符串s是否是一个整数  if string.find(s, "^[+-]?%d+$") then ...
+
+-- 用一个字符串中所有的新行构造一个表
+local t = {}      -- 存放回车符的位置
+local i = 0
+while true do
+    i = string.find(sourcestr, "\n", i+1)  -- 查找下一行
+    if i == nil then break end
+    table.insert(t, i)
+end
+
+--  模式匹配：
+s = "Deadline is 30/05/1999, firm"
+date = "%d%d/%d%d/%d%d%d%d"
+print('\n'..string.sub(s, string.find(s, date))) --> 30/05/1999
+
+
+pair = " name = Anna "
+print(string.find(pair, "(%a+)%s*=%s*(%a+)"))   -- 输出 2 12 name Anna 
+
+--[[
+> = string.find("Hello Lua user", "Lua")
+7       9
+> = string.find("Hello Lua user", "banana")
+nil
+
+> = string.find("Hello Lua user", "Lua", 1)  -- start at first character
+7       9
+> = string.find("Hello Lua user", "Lua", 8)  -- "Lua" not found again after
+> character 8
+nil
+> = string.find("Hello Lua user", "e", -5)   -- first "e" 5 characters from the
+> end
+13      13
+
+> = string.find("Hello Lua user", "%su")          -- find a space character
+> followed by "u"
+10      11
+> = string.find("Hello Lua user", "%su", 1, true) -- turn on plain searches, now
+> not found
+nil
+]]

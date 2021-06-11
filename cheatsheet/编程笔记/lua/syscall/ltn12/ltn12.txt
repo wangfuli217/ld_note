@@ -1,0 +1,116 @@
+Filters
+1. ltn12.filter.chain(filter1, filter2 [, ... filterN])
+  Returns a filter that passes all data it receives through each of a series of given filters.
+  Filter1 to filterN are simple filters.
+  The function returns the chained filter.
+  
+    -- load required modules
+    local ltn12 = require("ltn12")
+    local mime = require("mime")
+    
+    -- create a silly identity filter
+    id = ltn12.filter.chain(
+    mime.encode("quoted-printable"),
+    mime.encode("base64"),
+    mime.decode("base64"),
+    mime.decode("quoted-printable")
+    )
+2. ltn12.filter.cycle(low [, ctx, extra])
+  Returns a high-level filter that cycles though a low-level filter by passing it each chunk and updating a context between calls.
+  Low is the low-level filter to be cycled, ctx is the initial context and extra is any extra argument the low-level filter might take.
+
+  The function returns the high-level filter.
+  
+    -- load the ltn12 module
+    local ltn12 = require("ltn12")
+    
+    -- the base64 mime filter factory
+    encodet['base64'] = function()
+        return ltn12.filter.cycle(b64, "")
+    end
+  
+Pumps
+1. ltn12.pump.all(source, sink)
+  Pumps all data from a source to a sink.
+  If successful, the function returns a value that evaluates to true. In case of error, the function returns a false value, followed by an error message.
+2. ltn12.pump.step(source, sink)
+  Pumps one chunk of data from a source to a sink.
+  If successful, the function returns a value that evaluates to true. In case of error, the function returns a false value, followed by an error message.
+
+Sinks
+1. ltn12.sink.chain(filter, sink)
+  Creates and returns a new sink that passes data through a filter before sending it to a given sink.
+2. ltn12.sink.error(message)
+  Creates and returns a sink that aborts transmission with the error message.
+3. ltn12.sink.file(handle, message)
+  Creates a sink that sends data to a file.
+  Handle is a file handle. If handle is nil, message should give the reason for failure.
+The function returns a sink that sends all data to the given handle and closes the file when done, or a sink that aborts the transmission with the error message
+In the following example, notice how the prototype is designed to fit nicely with the io.open function.
+    -- load the ltn12 module
+    local ltn12 = require("ltn12")
+    
+    -- copy a file
+    ltn12.pump.all(
+    ltn12.source.file(io.open("original.png")),
+    ltn12.sink.file(io.open("copy.png"))
+    )
+    
+4. ltn12.sink.null()
+  Returns a sink that ignores all data it receives.
+
+5. ltn12.sink.simplify(sink)
+  Creates and returns a simple sink given a fancy sink.
+
+6. ltn12.sink.table([table])
+  Creates a sink that stores all chunks in a table. The chunks can later be efficiently concatenated into a single string.
+  Table is used to hold the chunks. If nil, the function creates its own table.
+  The function returns the sink and the table used to store the chunks.
+    -- load needed modules
+    local http = require("socket.http")
+    local ltn12 = require("ltn12")
+    
+    -- a simplified http.get function
+    function http.get(u)
+    local t = {}
+    local respt = request{
+        url = u,
+        sink = ltn12.sink.table(t)
+    }
+    return table.concat(t), respt.headers, respt.code
+    end
+    
+Sources
+1. ltn12.source.cat(source1 [, source2, ..., sourceN])
+  Creates a new source that produces the concatenation of the data produced by a number of sources.
+  Source1 to sourceN are the original sources.
+  The function returns the new source.
+
+2. ltn12.source.chain(source, filter)
+  Creates a new source that passes data through a filter before returning it.
+  The function returns the new source.
+
+3. ltn12.source.empty()
+  Creates and returns an empty source.
+
+4. ltn12.source.error(message)
+  Creates and returns a source that aborts transmission with the error message.
+
+5. ltn12.source.file(handle, message)
+  Creates a source that produces the contents of a file.
+  Handle is a file handle. If handle is nil, message should give the reason for failure.
+  The function returns a source that reads chunks of data from given handle and returns it to the user, closing the file when done, or a source that aborts the transmission with the error message
+  In the following example, notice how the prototype is designed to fit nicely with the io.open function.
+    -- load the ltn12 module
+    local ltn12 = require("ltn12")
+    
+    -- copy a file
+    ltn12.pump.all(
+    ltn12.source.file(io.open("original.png")),
+    ltn12.sink.file(io.open("copy.png"))
+    )
+6. ltn12.source.simplify(source)
+  Creates and returns a simple source given a fancy source.
+
+7. ltn12.source.string(string)
+  Creates and returns a source that produces the contents of a string, chunk by chunk.

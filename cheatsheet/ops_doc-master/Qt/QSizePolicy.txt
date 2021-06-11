@@ -1,0 +1,136 @@
+https://blog.csdn.net/liang19890820/article/details/51986284
+
+QSizePolicy类是一个描述布局水平和垂直方向调整策略的属性。
+
+    大小策略会影响布局引擎处理部件的方式，部件加入布局以后，会返回一个QSizePolicy，
+描述了其水平和垂直方向的大小策略。可以通过QWidget::sizePolicy属性为特定部件设置大小策略。
+
+================================================================================
+    QSizePolicy包含了两个独立的QSizePolicy::Policy值和两个缩放因子，一个描述了部件水平方向上的大小策略，
+另一个描述了垂直方向上的大小策略。它还包含一个标志表明高度和宽度是否与首选大小有关。
+    水平和垂直方向的大小策略可以在构造函数中设置，也可以通过setHorizontalPolicy()和setVerticalPolicy()函数改变。
+缩放因子可以使用setHorizontalStretch()和setVerticalStretch()函数设置。setHeightForWidth()函数的标志表示部件的
+缺省大小sizeHint()是否是width-dependent（例如：菜单栏或自动换行标签） 。
+
+    可以使用horizontalPolicy()、verticalPolicy()、horizontalStretch()和verticalStretch()函数来返回当前的
+大小策略和缩放因子。另外，使用transpose()函数可以互换水平和垂直的大小策略和缩放因子。hasHeightForWidth()
+函数返回了当前状态表示的大小依赖性。
+
+    为了确定相关的部件是否可以比sizeHint()函数利用更多的空间，可以使用expandingDirections()函数，
+通过它，还可以找出哪个方向可以展开。
+    最后，QSizePolicy类可以进行大小策略之间的比较，并且可以用QVariant来存储QSizePolicy。
+
+
+成员类型
+================================================================================
+    枚举QSizePolicy::ControlType：
+    指定了布局交互时不同的部件类型。
+常量                          值           描述
+QSizePolicy::DefaultType    0x00000001   默认类型，当没有指定时
+QSizePolicy::ButtonBox      0x00000002   一个QDialogButtonBox实例
+QSizePolicy::CheckBox       0x00000004   一个QCheckBox实例
+QSizePolicy::ComboBox       0x00000008   一个QComboBox实例
+QSizePolicy::Frame          0x00000010   一个QFrame实例
+QSizePolicy::GroupBox       0x00000020   一个QGroupBox实例
+QSizePolicy::Label          0x00000040   一个QLabel实例
+QSizePolicy::Line           0x00000080   一个QFrame::HLine或QFrame::VLine的QFrame实例
+QSizePolicy::LineEdit       0x00000100   一个QLineEdit实例
+QSizePolicy::PushButton     0x00000200   一个QPushButton实例
+QSizePolicy::RadioButton    0x00000400   一个QRadioButton实例
+QSizePolicy::Slider         0x00000800   一个QAbstractSlider实例
+QSizePolicy::SpinBox        0x00001000   一个QAbstractSpinBox实例
+QSizePolicy::TabWidget      0x00002000   一个QTabWidget实例
+QSizePolicy::ToolButton     0x00004000   一个QToolButton实例
+
+
+    枚举QSizePolicy::Policy
+    当使用QSizePolicy时，描述了一系列线性维度大小策略。
+
+常量                      值       描述
+QSizePolicy::Fixed        0        缺省大小是唯一可以接收的改变，因此部件不能放大也不能缩小。
+QSizePolicy::Minimum  GrowFlag     缺省大小是最小值，并且是充分的。部件允许扩展，但是并不倾向扩展
+                                   （例如：水平方向上的按钮），不能比缺省大小提供的大小更小。
+QSizePolicy::Maximum  ShrinkFlag   缺省大小是最大值，假如其它部件需要空间并且不会破坏该部件
+                                   那么该部件允许被缩小（例如：一个分割线）。
+QSizePolicy::Preferred GrowFlag | ShrinkFlag    缺省大小是最佳效果，部件允许放大或缩小，但不倾向于扩展比sizeHint()大
+QSizePolicy::Expanding GrowFlag | ShrinkFlag | ExpandFlag  缺省大小是合理的大小，但部件允许缩小并且可用。
+                                  部件可以利用额外的空间，因此它将会得到尽可能多的空间（例如：水平方向上的滑块）。
+QSizePolicy::MinimumExpanding  GrowFlag | ExpandFlag  缺省大小是最小值，并且是足够的。部件允许使用额外空间，因此它将会得到尽可能多的空间
+                                   （例如：水平方向上的滑块）。
+QSizePolicy::Ignored    ShrinkFlag | GrowFlag | IgnoreFlag  缺省大小将会被忽略，部件将会得到尽可能多的空间。
+
+
+
+
+    枚举QSizePolicy::PolicyFlag
+    这些标志被组合在一起，以形成一系列大小策略值。
+常量                          值   描述
+QSizePolicy::GrowFlag       1       部件可以在必要时增长至超过它的尺寸。
+QSizePolicy::ExpandFlag     2       部件应该得到尽可能多的空间。
+QSizePolicy::ShrinkFlag     4       部件可以在必要时缩小至小于它的尺寸。
+QSizePolicy::IgnoreFlag     8       部件的缺省大小被忽略，它将会得到尽可能多的空间。
+
+
+
+公共函数
+================================================================================
+    ControlType QSizePolicy::controlType() const
+    返回部件大小策略所依赖的控制类型
+
+    Qt::Orientations QSizePolicy::expandingDirections() const
+    返回一个部件是否可以比QWidget::sizeHint()使用更多的空间
+
+    Qt::Horizontal 或 Qt::Vertical意味着可以在水平或垂直方向上伸展（例如：水平或垂直策略是Expanding或MinimumExpanding），然而Qt::Horizontal | Qt::Vertical意味着可以在两个方向上均可以伸展。
+
+    bool QSizePolicy::hasHeightForWidth() const
+    如果部件的首选高度依赖于它的宽度，则返回true；否则，返回false。
+
+    bool QSizePolicy::hasWidthForHeight() const
+    如果部件的宽度取决于其高度，则返回true；否则返回false。
+
+    Policy QSizePolicy::horizontalPolicy() const
+    返回水平方向上的大小策略
+
+    int QSizePolicy::horizontalStretch() const
+    返回水平方向上大小策略的缩放因子
+
+    bool QSizePolicy::retainSizeWhenHidden() const
+    部件被隐藏时，返回布局是否应保留它的尺寸，默认为false。
+
+    void QSizePolicy::setControlType(ControlType type)
+    设置部件大小策略所依赖的控制类型
+
+    void QSizePolicy::setHeightForWidth(bool dependent)
+    设置标志判断窗口部件的首选高度是否依赖于它的宽度。
+
+    void QSizePolicy::setHorizontalPolicy(Policy policy)
+    设置水平方向上的大小策略
+
+    void QSizePolicy::setHorizontalStretch(int stretchFactor)
+    设置水平大小策略的缩放因子，取值范围[0,255]。
+
+    当两个部件在一个水平布局中彼此相邻，如果左侧的缩放因子设置为2，右侧的缩放因子设置为1，那么，左侧部件大小将总是右边的两倍。
+
+    void QSizePolicy::setRetainSizeWhenHidden(bool retainSize)
+    当部件被隐藏时，设置其所在布局是否应保留它的大小。如果为true，布局将不被隐藏部件所改变。
+
+    void QSizePolicy::setVerticalPolicy(Policy policy)
+    设置垂直方向上的大小策略
+
+    void QSizePolicy::setVerticalStretch(int stretchFactor)
+    设置垂直大小策略的缩放因子，取值范围[0,255]。
+
+    void QSizePolicy::setWidthForHeight(bool dependent)
+    设置标志确定部件的宽度是否依赖于它的高度。
+
+    仅支持QGraphicsLayout的子类，不可能有布局同时存在height-for-width和width-for-height。
+
+    void QSizePolicy::transpose()
+    互换水平和垂直策略和伸展。
+
+    Policy QSizePolicy::verticalPolicy() const
+    返回垂直方向上的大小策略
+
+    int QSizePolicy::verticalStretch() const
+    返回垂直方向上大小策略的缩放因子
+

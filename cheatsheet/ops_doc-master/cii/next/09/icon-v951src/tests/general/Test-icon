@@ -1,0 +1,77 @@
+#!/bin/sh
+#
+#  Test-icon -- test the Icon translator and interpreter.
+#
+#  usage:  Test-icon [BLKSIZE [STRSIZE]] [file...]
+
+IC=../../bin/icont
+ICONX=../../bin/iconx
+
+unset IPATH LPATH FPATH
+unset BLKSIZE STRSIZE MSTKSIZE COEXPSIZE QLSIZE
+
+# may be needed if Icon is built with BinaryHeader defined
+export ICONX
+
+# check for BKLSIZE / STRSIZE arguments
+case X$1 in
+    X[0-9]*)  export BLKSIZE=$1; echo BLKSIZE=$1; shift;;
+esac
+case X$1 in
+    X[0-9]*)  export STRSIZE=$1; echo STRSIZE=$1; shift;;
+esac
+
+# echo system environment
+echo ""
+uname -a
+
+# check that we have what we need
+ls ../../bin/icont ../../bin/iconx >/dev/null || exit 0
+echo "icont:  `$IC -V 2>&1`"
+echo "iconx:  `$ICONX -V 2>&1`"
+
+#  report enabled features
+$IC -s features.icn -x
+
+#  if no test files specified, run them all
+if [ $# = 0 ]; then
+   set - *.std
+fi
+
+#  loop through the chosen tests
+echo ""
+FAILED=
+for F in $*; do
+   F=`basename $F .std`
+   F=`basename $F .icn`
+   rm -f $F.out
+   echo "Testing $F"
+   if $IC -s $F.icn; then
+      if test -x $F.exe; then
+         EXE=$F.exe
+      else
+         EXE=$F
+      fi
+      if test -r $F.dat; then
+         ./$EXE <$F.dat >$F.out 2>&1
+      else
+         ./$EXE </dev/null >$F.out 2>&1
+      fi
+      diff $F.std $F.out || FAILED="$FAILED $F"
+   else
+      FAILED="$FAILED $F"
+   fi
+   rm -f $EXE
+done
+
+echo ""
+if [ "x$FAILED" = "x" ]; then
+   echo "All tests passed."
+   echo ""
+   exit 0
+else
+   echo "Tests failed: $FAILED"
+   echo ""
+   exit 1
+fi
+

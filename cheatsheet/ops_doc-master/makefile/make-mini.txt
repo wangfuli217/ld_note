@@ -1,0 +1,334 @@
+make -p                       # print default macros
+make TARGET                   # run specific target
+make -f MyOtherMakefile       # specify other file
+make -B venv                  # Unconditionally make all targets
+
+1. 基本规则语法：
+    语法： 
+        target ... : prerequisites ...
+        <tab> command
+        <tab> command2
+        <tab> ...
+    或 
+        targets : prerequisites ; command
+
+    target:         目标文件，可以是object file，也可以是执行文件，也可以是个lable(伪目标)
+    prerequisites： 要生成那个target所需要的文件或是目标
+    command：       是make需要执行的命令(任意的Shell命令)
+                    NOTE: 如果要让上一条命令的结果应用在下一条命令时，请使用分号(;)分隔这两条命令
+
+2. 特殊字符：
+    \   换行符，命令或者依赖过长时，可以使用它换行
+    -   放在最前面，表示如果后面的语句出问题了，不要管，继续做后面的事情
+    @   放在最前面，表示取消当前行命令的回显，默认情况下，命令是被回显的
+    $   变量或者函数的前缀，如果需要真实的$符号，则需要用"$$"来表示
+
+3. 预定义关键字：
+    include  包含文件，
+             例如： 
+                include main.mk
+    .PHONY   声明后面的目标是lable(伪目标)，不是文件。
+             例如： 
+                # 声明clean是个lable
+                .PHONY : clean
+             例如： 
+                # 有四个需要编译的程序 ---- "prog1"， "prog2"， "prog3"和 "prog4"，
+                # 我们可以使用"make all"命令来编译所有的目标
+                .PHONY: all
+                all: prog1 prog2 prog3 prog4
+
+cheatsheet\ops_doc-master\makefile\syntax
+
+4. 变量 (字符串)
+    定义：var = value           # 当var被使用时，value的值才会被展开并赋予var (递归方式)
+          var := value          # value的值会被立即展开并赋予var。当value里包含变量时，"="和":="的区别就显现了 (静态方式)
+          var ?= value          # 如var没有被定义过，则var=value，否则什么也不做
+    使用：$(var) 或 ${var}
+    替换：var = $(foo:.o=.c)   # 后缀规则：把变量foo中所有以".o"结尾的全部替换成".c"
+          var = $(foo:%.o=%.c) # 模式规则：同上
+    追加：var += value          # var后追加value，等价于： var = $(var) value (使用"="或":="会根据前面的赋值情况)
+        NOTE: 默认的变量的作用域是全文件，(也包含变量定义的之前的位置)
+    override变量：
+        可以通过make命令行覆盖的变量。语法：
+        override <variable> = <value>
+    目标变量：
+        定义在目标上的变量，该变量的作用域为该目标。语法：
+        <target> : <variable> = <value>
+    模式目标变量：
+        定义在模式目标的变量，该变量作用域为所有匹配该模式的目标。语法：
+        <pattern> : <variable> = <value>
+
+5. 命令包
+    多个命令绑定在一起
+    语法： >
+        define cmd_package_name
+        <tab> command
+        <tab> ...
+        endef
+    <    调用：
+    $(cmd_package_name)
+
+
+6. 规则：
+    显式规则
+        明确指明的目标依赖规则，如：a.c : a.o ; command
+
+    隐含规则
+        1、编译C程序的隐含规则
+            `<n>.o` 的目标的依赖目标会自动推导为 `<n>.c`， 其生成命令是：`$(CC) -c $(CPPFLAGS) $(CFLAGS)`
+        2、编译C++程序的隐含规则
+            `<n>.o` 的目标的依赖目标会自动推导为 `<n>.cc`， 其生成命令是：`$(CXX) -c $(CPPFLAGS) $(CFLAGS)`
+        3、汇编和汇编预处理的隐含规则
+            `<n>.o` 的目标的依赖目标会自动推导为 `<n>.s`， 其生成命令是：`$(AS) $(ASFLAGS)`
+            `<n>.s` 的目标的依赖目标会自动推导为 `<n>.S`， 其生成命令是：`$(AS) $(ASFLAGS)`
+
+    模式规则
+        使用模式规则来定义一个隐含规则。
+        语法为： 
+            target-pattern : prereq-pattern ...
+            <tab> command
+            <tab> ...
+        展开方式：为所有的target-pattern展开
+        一个模式规则就好像一个一般的规则，只是在规则中，目标的定义需要有"%"字符。
+        pattern指的就是"%"字符，"%"的意思是表示一个或多个任意字符。用于匹配文件名
+        在依赖目标中同样可以使用"%"，只是依赖目标中的"%"的取值，取决于其目标。
+        例如： 
+            %.o : %.c
+                $(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+            表示：所有.o文件的依赖目标的依赖会自动推导为.c，其命令是：$(CC)...
+
+    静态模式规则
+        静态模式规则是一种特殊的模式规则
+        语法为： 
+            targets : target-pattern : prereq-pattern ...
+                <tab> command
+                <tab> ...
+        展开方式：只为targets内包含的内容，以target-pattern展开
+        例如： 
+            objects = foo.o bar.o
+            $(objects): %.o: %.c
+                $(CC) -c $(CFLAGS) $< -o $@
+            展开为：
+            foo.o : foo.c
+                $(CC) -c $(CFLAGS) foo.c -o foo.o
+            bar.o : bar.c
+                $(CC) -c $(CFLAGS) bar.c -o bar.o
+
+    后缀规则
+        后缀规则是模式规则的老式风格
+        .c.o: 等同于 %.o : %.c
+
+
+7. 内置变量
+  $@      表示规则中的目标文件集。在模式规则中，如果有多个目标，那么，"$@"就是匹配于目标中模式定义的集合。注意，其是一个一个取出来的。
+  $%      仅当目标是函数库文件中，表示规则中的目标成员名。例如，如果一个目标是"foo.a (bar.o)"，那么，"$%"就是"bar.o"，"$@"就是"foo.a"。
+          如果目标不是函数库文件（Unix下是[.a]，Windows下是[.lib]），那么，其值为空。
+  $<      依赖目标中的第一个目标名字。如果依赖目标是以模式（即"%"）定义的，那么"$<"将是符合模式的一系列的文件集。注意，其是一个一个取出来的。
+  $?      所有比目标新的依赖目标的集合。以空格分隔。
+  $^      所有的依赖目标的集合。以空格分隔。如果在依赖目标中有多个重复的，那个这个变量会去除重复的依赖目标，只保留一份。
+  $+      这个变量很像"$^"，也是所有依赖目标的集合。只是它不去除重复的依赖目标。
+  $*      这个变量表示目标模式中"%"及其之前的部分。如果目标是"dir/a.foo.b"，并且目标的模式是"a.%.b"，那么，"$*"的值就是"dir/a.foo"。
+          这个变量对于构造有关联的文件名是比较有较。如果目标中没有模式的定义，那么"$*"也就不能被推导出，
+          但是，如果目标文件的后缀是make所识别的，那么"$*"就是除了后缀的那一部分。例如：如果目标是"foo.c"，
+          因为".c"是make所能识别的后缀名，所以，"$*"的值就是"foo"。这个特性是GNU make的，很有可能不兼容于其它版本的make，
+          所以，你应该尽量避免使用"$*"，除非是在隐含规则或是静态模式中。如果目标中的后缀是make所不能识别的，那么"$*"就是空值。
+  $(@D)   表示"$@"的目录部分（不以斜杠作为结尾），如果"$@"值是"dir/foo.o"，那么"$(@D)"就是"dir"，而如果"$@"中没有包含斜杠的话，其值就是"."（当前目录）。
+  $(@F)   表示"$@"的文件部分，如果"$@"值是"dir/foo.o"，那么"$(@F)"就是"foo.o"，"$(@F)"相当于函数"$(notdir $@)"。
+  $(*D)
+  $(*F)   和上面所述的同理，也是取文件的目录部分和文件部分。对于上面的那个例子，"$(*D)"返回"dir"，而"$(*F)"返回"foo"
+  $(%D)
+  $(%F)   分别表示了函数包文件成员的目录部分和文件部分。这对于形同"archive(member)"形式的目标中的"member"中包含了不同的目录很有用。
+  $(<D)
+  $(<F)   分别表示依赖文件的目录部分和文件部分。
+  $(^D)
+  $(^F)   分别表示所有依赖文件的目录部分和文件部分。（无相同的）
+  $(+D)
+  $(+F)   分别表示所有依赖文件的目录部分和文件部分。（可以有相同的）
+  $(?D)
+  $(?F) 分别表示被更新的依赖文件的目录部分和文件部分。
+  -        用在command前面，忽略命令执行时的错误。如果发生错误,继续执行makefile
+  $$$$     随机编号
+  vpath        选择性搜索，为符合pattern的文件指定搜索路径dir,vpath pattern dir
+  CURDIR       make的工作目录 
+  MAKEFLAGS    命令行选项
+  
+8. 语法
+  空格          在makefile中不要为了美观而进行缩进，或者使用空格间隔变量,空格是makefile语法的一部分
+  :=            定义直接展开式变量
+  ?=            如果变量未定义则赋予后面的值，否则什么都不作
+  =             定义递归展开式变量
+  @             规则的命令行以@开头，表示不打印出该条命令
+  unexport      不将变量传递给子makefile
+  export:       当一个变量使用export进行声明后，变量和它的值将被加入到当前工作的环境变量中，以后make执行的所有规则的命令都可以使用这个变量。
+  SHELL         特殊变量，默认传递给子makefile，注意该变量没有使用系统环境变量中的定义，GNUmake默认值为/bin/sh
+  MAKEFLAGS     最上层make的命令行选项会被自动的通过环境变量MAKEFLAGS传递给子make进程。
+  MAKEFILES     make执行时首先将此变量的值作为需要读入的Makefile文件
+  MAKECMDGOALS  记录命令行参数指定的终极目标列表
+  VPATH         依赖文件搜索路径，用":"分隔
+  多目标规则    一个文件可以作为作为多个规则的目标(多个规则中只能有一个规则定义命令)。以这个文件为目标的规则的所有依赖文件将会被合并成此目标的一个依赖文件列表。
+  .PHONY:name   将name声明为伪目标,伪目标指的是不真正生成目标文件,只是为了执行后面的指令
+  .SILENT       创建.SILENT依赖列表中的文件时，不打印重建这些文件时使用的命令，例如  .SILENT : all
+  $()和${}      取出变量值
+  $$            表示一个$符号，因为$在makefile中具有特殊含义，所以要使用$字符时，需要使用$$，类似于C语言中的转义字符
+  override      不使用命令行中定义的同名变量替代该变量，对使用override定义的变量追加值时，也需要使用override
+  define        多行定义,如下varname是变量名，value1 value2是分行写的value的组成部分,以endef结束 
+                 define varname
+                 value1
+                 value2
+                 endef
+  ifeq          判断关键字是否相等，四种格式： 
+                 ifeq (ARG1, ARG2)    
+                 ifeq 'ARG1' 'ARG2
+                 ifeq "ARG1" 'ARG2'
+                 ifeq 'ARG1' "ARG2"
+  shell command  返回command命令在shell中执行的结果（类似于shell脚本中的`command`），注意大小写的含义不同，大写的SHELL是一个特殊变量
+  export        将变量添加到当前工作环境，传递给子makefile，不覆盖子makefile中的同名变量(除非是-e选项)。没有使用export的变量（除了一些特殊变量）不传递给子makefile
+  
+  单行命令与多行命令的区别
+  
+                 makefile的规则的命令行中，每一行命令在一个独立的子shell进程中被执行。
+                 上一行中使用的cd命令不会改变下一行命令的工作目录。可以使用\将一行命令多行排版(与C语言中的\符号作用类似)
+  
+  .d文件         GNU组织建议为每一个“name.c”的文件都生成一个“name.d'的文件，存放.c文件的依赖关系
+                 %.d: %.c
+                     @set -e; rm -f $@; \
+                     gcc -MM $< > $@.$$$$; \
+                     sed 's/\($*\)\.o[ :]*\1.o $@ :/g' < $@.$$$$ > $@; \
+                     rm -f $@.$$$$
+  
+  FORCE         没有依靠关系也没有命令的规则被认为总是新的,如下面的FORCE
+                 clean:FORCE
+                     rm *.o
+                 FORCE:
+  
+  include        make暂停读取当前的Makefile,转去读取include指定的一个或者多个文件，完成以后继续当前Makefile的读取
+  
+  
+
+9. 内置函数
+    $(<function> <arguments>)
+    字符串函数 >
+        $(subst <from>,<to>,<text>)                     # 替换：$(subst ee,EE,$(var))，把$(var)中的ee替换成EE
+        $(patsubst <pattern>,<replacement>,<text>)      # 模式替换：$(patsubst %.c,%.o,x.c.c bar.c)，把字串“x.c.c bar.c”符合模式[%.c]的单词替换成[%.o]，返回结果是“x.c.o bar.o”
+        $(strip <string>)                               # 去首尾空白
+        $(findstring <find>,<text>)                     # 查找字符串：找到返回该字符串，否则返回空
+        $(filter <pattern...>,<text>)                   # 过滤：$(filter %.c %.s,foo.c bar.c baz.s ugh.h)，返回：“foo.c bar.c baz.s”
+        $(filter-out <pattern...>,<text>)               # 反过滤：$(filter-out %.c %.s,foo.c bar.c baz.s ugh.h)，返回：“ugh.h”
+        $(sort <list>)                                  # 排序且去掉相同的项
+        $(word <n>,<text>)                              # 取第n个单词：$(word 2, foo bar baz)返回：“bar”
+        $(wordlist <s>,<e>,<text>)                      # 取单词串：$(wordlist 2, 3, foo bar baz)返回：“bar baz”
+        $(words <text>)                                 # 取单词数：$(words, foo bar baz)返回：“3”
+        $(firstword <text>)                             # 去第1个单词
+<    文件名操作函数 >
+        $(dir <names...>)                               # 取目录：$(dir src/foo.c hacks)                    返回：“src/ ./”。
+        $(notdir <names...>)                            # 取文件：$(notdir src/foo.c hacks)                 返回：“foo.c hacks”
+        $(suffix <names...>)                            # 取后缀：$(suffix src/foo.c src-1.0/bar.c hacks)   返回：“.c .c”
+        $(basename <names...>)                          # 取前缀：$(basename src/foo.c src-1.0/bar.c hacks) 返回：“src/foo src-1.0/bar hacks”
+        $(addsuffix <suffix>,<names...>)                # 加后缀：$(addsuffix .c,foo bar)                   返回：“foo.c bar.c”
+        $(addprefix <prefix>,<names...>)                # 加前缀：$(addprefix src/,foo bar)                 返回：“src/foo src/bar”
+        $(join <list1>,<list2>)                         # 连接：  $(join aaa bbb , 111 222 333)             返回：“aaa111 bbb222 333”
+        $(wildcard <wildstr>)                           # 列出所有通配符指定的的文件, 通配符："*"，"?"和"[...]"：$(wildcard *.o)
+<    其他 >
+        $(shell cat foo)                                # 执行shell函数
+        $(error <text ...>)                             # 打印错误，并退出
+        $(warning <text ...>)                           # 打印警告
+  
+10. 函数
+    定义：
+        define function_name
+            @echo $@ $(1) $(2) $(0)
+        endef
+        注意：
+            $(0)表示函数名
+            $(1),$(2)...表示传入的第1个、第2个...参数
+            如果第n个位置没有参数的话，则$(n)为空
+    调用：
+        $(call function_name,1,2)
+        注意：
+    参数和前面的","直接别加空格，否则传入的参数前面会出现空格
+  
+11. 强制每次编译都重新编译某个文件 >
+    rebuild_file.o : FORCE
+    .PHONY: FORCE
+    FORCE:
+
+12. export
+    这个export和shell的export类似，
+    都可以把export后面的值作为环境变量传递给makefile的子进程
+
+  
+13. 条件表达式
+    ifeq (<arg1>, <arg2>)       # 如果arg1==arg2
+    ifneq (<arg1>, <arg2>)      # 如果arg1!=arg2
+    ifdef <variable-name>       # 如果variable-name不为空则为真
+    ifndef <variable-name>      # 如果variable-name为空则为真
+    else                        # 否则
+    else ifeq (<arg1>, <arg2>)  # 否则如果arg1==arg2, gnu make 3.81版支持，老的不支持
+    endif                       #
+    例如： >
+        ifeq ($(VAR), something1)
+        # do something
+        else ifeq($(VAR), something2)
+        # do something
+        else
+        # do something
+        endif
+
+14. 为源文件定义宏
+    gcc -DMACRO=VALUE ~
+    example: >
+        HS_BT_USE_BLE = TRUE
+        CFLAGS = -DHS_BT_USE_BLE=$(HS_BT_USE_BLE)
+        CFLAGS += -DTHUMB_PRESENT
+        $(CC) -c $(CFLAGS) -I. $(IINCDIR) $< -o $@
+
+15. 自动生成依赖
+    大多数的C/C++编译器都支持一个“-M”的选项，即自动找寻源文件中包含的头文件，并生成一个依赖关系。
+    GNU的C/C++编译器，得用“-MM”参数，不然，“-M”参数会把一些标准库的头文件也包含进来。
+
+    一个模式规则来产生依赖文件(.d): >
+    %.d : %.c
+    	@set -e; rm -f $@; \
+    	printf $< | awk -F '/[^/]*$$' '{printf $$1."/"}' > $@.$$$$; \
+    	$(CC) -MM $(CPPFLAGS) $< >> $@.$$$$; \
+    	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+    	rm -f $@.$$$$
+    sources = foo.c bar.c
+    include $(sources:.c=.d) #包含依赖文件(.d)
+
+
+16. 例子 >
+# 源文件和包含目录
+sources = src/main.c
+includes = include/
+
+# 编译器变量
+CC = gcc
+CFLAGS = -g3 -O2 -Wall
+CPPFLAGS = -I$(includes) -DDEBUG
+
+# 第一个目标即为最终目标
+a.exe : $(sources:%.c=%.o)
+	$(CC) -o $@ $<
+
+# .o 目标的模式规则
+%.o : %.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+# .d 目标的模式规则
+%.d : %.c
+	@set -e; rm -f $@; \
+	printf $< | awk -F '/[^/]*$$' '{printf $$1."/"}' > $@.$$$$; \
+	$(CC) -MM $(CPPFLAGS) $< >> $@.$$$$; \
+	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
+
+# 包含依赖文件
+include $(sources:.c=.d)
+
+# 伪目标声明
+.PHONY : clean
+
+# 伪目标 clean
+clean:
+    find -type f -regex ".*\.\(exe\|o\|d\)$$" | xargs rm -f

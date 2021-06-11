@@ -1,0 +1,14 @@
+#include <stdio.h>
+
+namespace A {
+namespace B {
+    int i;
+}
+}
+
+
+int main(int argc, char **argv)
+{
+	printf("hello world\n");
+	return 0;
+}

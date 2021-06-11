@@ -1,0 +1,10 @@
+通过web代理(web proxy)的方式与rsync daemon建立连接，只需设置环境变量RSYNC_PROXY的
+值为hostname:port指向你的web代理。但要注意，web代理的配置必须得支持与873端口的代理连接。
+
+你还可以使用代理程序与rsync daemon建立连接，只需设置环境变量RSYNC_CONNECT_PROG的值为你想
+要运行的命令来代替建立套接字连接。环境变量的值中可能会包含"%H"，它代表rsync命令中所指定
+的主机名(因此如果想在值中包含一个"%"字符，需要使用"%%")。例如：
+
+ export RSYNC_CONNECT_PROG='ssh proxyhost nc %H 873'
+ rsync -av targethost1::module/src/ /dest/
+ rsync -av rsync:://targethost2/module/src/ /dest/

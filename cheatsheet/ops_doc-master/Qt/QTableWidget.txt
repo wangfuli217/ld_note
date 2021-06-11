@@ -1,0 +1,374 @@
+构造函数：
+    QTableWidget(QWidget * parent = 0)
+    QTableWidget(int rows, int columns, QWidget * parent = 0)
+    
+================================================================================
+=== row 和 column 
+设置行数和列数：
+    void    setRowCount(int rows) //设置行数
+    void    setColumnCount(int columns) //设置列数
+行数、列数对应的获取函数为：
+    int    rowCount() const //获取行数
+    int    columnCount() const //获取列数
+    
+列宽、行高
+void QTableView::​setColumnWidth(int column, int width) //设置列宽
+int QTableView::​columnWidth(int column) const //获取列宽
+void QTableView::​setRowHeight(int row, int height) //设置行高
+int QTableView::​rowHeight(int row) const //获取行高
+
+自动根据该列单元格内容最宽的条目，调整列宽
+void    resizeColumnToContents(int column) //自动调整第 column 列列宽，将该列条目显示完整
+void    resizeColumnsToContents() //自动调整所有列宽
+void    resizeRowToContents(int row) //自动调整第 row 行行高，将该行条目显示完整
+void    resizeRowsToContents() //自动调整所有行高
+
+隐藏或显示指定列的所有条目或指定行的条目
+void QTableView::​setColumnHidden(int column, bool hide) //设置指定列隐藏或显示
+bool QTableView::​isColumnHidden(int column) const //判断指定列是否被隐藏
+void QTableView::​setRowHidden(int row, bool hide) //设置指定行隐 藏或显示
+bool QTableView::​isRowHidden(int row) const //判断指定行是否被隐藏
+显示或隐藏行列，还有四个快捷槽函数：hideColumn(int column)，hideRow(int row)，showColumn(int column)，showRow(int row)
+
+    当前高亮单元格函数 setCurrentCell(int row, int column) 和设置当前高亮条目 ​
+setCurrentItem(QTableWidgetItem * item)，这两个函数名字很类似，二者最主要的区别就是：
+名字带 Cell 的函数是基于单元格的，对 NULL 空单元格也可以使用；而名字带 Item 的函数，
+必须是填充了实体条目的单元格，针对实际存在的单元格条目操作。
+
+================================================================================
+=== item & cell 和 NULL
+# 设置条目
+void QTableWidget::​setItem(int row, int column, QTableWidgetItem * item)
+
+QTableWidgetItem *newItem = new QTableWidgetItem(tr("newitem");
+    tableWidget->setItem(row, column, newItem);
+1. 单元格条目不仅支持文本，还能设置图标、丰富 字体、字体颜色、工具提示等信息，
+2. 关于 setItem() 函数需要注意的问题是：一个条目只能设置给唯一的一个单元格，不能重复设置给多个单元格！
+
+# 移除条目
+QTableWidgetItem * QTableWidget::​takeItem(int row, int column)
+takeItem() 函数会把指定行号、列号的条目从表格控件卸载下来，但不会完全删除。
+
+# 条目访问函数
+QTableWidgetItem * QTableWidget::​item(int row, int column) const
+注意判断返回的指针是否为空，非空指针才能进行后续操作。
+    界面坐标
+QTableWidgetItem * QTableWidget::​itemAt(const QPoint & point) const
+QTableWidgetItem * QTableWidget::​itemAt(int ax, int ay) const
+
+    获取条目的可视矩形(条目在表格可见范围内的显示矩形)：
+QRect QTableWidget::​visualItemRect(const QTableWidgetItem * item) const
+
+# 当前选中条目的操作
+    只是用鼠标
+QTableWidgetItem * QTableWidget::​currentItem() const
+返回的值如果非空那就是实际存在的条目，如果返回了 NULL，说明单元格是空的。
+不管选中的单元格内部是否为空，都可以获取当前选中单元格的行号、列号：
+int QTableWidget::​currentRow() const //当前选中行号
+int QTableWidget::​currentColumn() const //当前选中列号
+    函数调用选中, 基于row和column
+void QTableWidget::​setCurrentCell(int row, int column)
+void QTableWidget::​setCurrentCell(int row, int column, QItemSelectionModel::SelectionFlags command)
+    函数调用选中, 基于QTableWidgetItem
+void QTableWidget::​setCurrentItem(QTableWidgetItem * item)
+void QTableWidget::​setCurrentItem(QTableWidgetItem * item, QItemSelectionModel::SelectionFlags command)
+
+    信号：
+void    currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn)
+//单元格无论是否为空都起作用，当前选中单元格的变化信号，参数指出了新当前单元格行列号和旧单元格的行列号
+void    currentItemChanged(QTableWidgetItem * current, QTableWidgetItem * previous)
+//当前选中条目变化信号，新、旧当前选中单元格至少有一个非空才会触发这个信号
+
+# 条目查找和排序
+QList<QTableWidgetItem *> QTableWidget::​findItems(const QString & text, Qt::MatchFlags flags) const
+参数里的 text 是模板字符串，第二个 flags 是匹配标志，
+
+
+# 开启自动排序函数为：
+void    setSortingEnabled(bool enable) //设置是否自动排序
+bool    isSortingEnabled() const //判断是否开启了自动排序
+开启自动排序之后，需要指定按照哪一列来排序：
+void QTableView::​sortByColumn(int column, Qt::SortOrder order)
+
+# 手动排序函数，可以在不开启自动排序时手动调整排序：
+void QTableWidget::​sortItems(int column, Qt::SortOrder order = Qt::AscendingOrder)
+
+================================================================================
+=== widget
+
+# 单元格控件和运行时条目编辑
+void QTableWidget::​setCellWidget(int row, int column, QWidget * widget)
+QWidget * QTableWidget::​cellWidget(int row, int column) const
+void QTableWidget::​removeCellWidget(int row, int column)
+
+表格控件的单元格也可以开启持续编辑器和关闭持续编辑器(必须配对使用)：
+void QTableWidget::​openPersistentEditor(QTableWidgetItem * item) //开启持续编辑器
+void QTableWidget::​closePersistentEditor(QTableWidgetItem * item) //关闭持续编辑器
+
+如果想用代码让单元格进行编辑状态，可以用更简单的函数：
+void QTableWidget::​editItem(QTableWidgetItem * item)
+对于可编辑的条目，都可以用 editItem() 开启编辑器，这个临时编辑器可以自动关闭的，不需要调用其他函数。
+
+程序运行时，表格控件默认所有单元格都可以双击编辑，但如果希望表格全部是只读的，那么可以用下面函数关闭表格控件的整体编辑触发器：
+void    setEditTriggers(EditTriggers triggers) //设置编辑触发器
+EditTriggers    editTriggers() const           //获取编辑触发器
+默认的编辑器触发器是双击、回车键等可以编辑单元格，修改为 QAbstractItemView::NoEditTriggers 就不会开启任何编辑器了，相当于整个表格只读了。
+
+
+#### 信号
+void    cellActivated(int row, int column) //单元格被激活
+void    cellChanged(int row, int column) //单元格内部发生变化，如从NULL变成有条目，或者条目内部数据发生变化
+void    cellClicked(int row, int column) //单元格被点击
+void    cellDoubleClicked(int row, int column) //单元格被双击
+void    cellEntered(int row, int column)
+//鼠标进入单元格，只有在 mouseTracking 开启时或鼠标移动时点击了单元格，才触发该信号
+void    cellPressed(int row, int column) //单元格被鼠标点击按下
+第二类是基于实体条目触发的：
+void    itemActivated(QTableWidgetItem * item) //条目被激活
+void    itemChanged(QTableWidgetItem * item) //条目内部数据发生变化，如文本修改、图标变化、复选状态变化等
+void    itemClicked(QTableWidgetItem * item) //条目被点击
+void    itemDoubleClicked(QTableWidgetItem * item) //条目被双击
+void    itemEntered(QTableWidgetItem * item)
+//鼠标进入条目，只有在 mouseTracking 开启时或鼠标移动时点击了条目，才触发该信号
+void    itemPressed(QTableWidgetItem * item) //条目被鼠标点击按下
+
+
+### 槽函数
+void QTableWidget::​clear()
+void QTableWidget::​clearContents()
+整行、整列插入删除操作的槽函数：
+void QTableWidget::​insertColumn(int column) //插入新的一列，新列序号 column，新列的单元格默认 NULL
+void QTableWidget::​insertRow(int row) //插入新的一行，新行序号 row，新行的单元格默认 NULL
+void QTableWidget::​removeColumn(int column) //删除第 column 整列条目
+void QTableWidget::​removeRow(int row) //删除第 row 整行条目
+
+================================================================================
+QTableWidgetItem
+    QTableWidgetItem 也是一个纯数据类，不是控件，没有基类，也就没有信号和槽函数。
+QTableWidgetItem 可以直接用数据流 QDataStream 读写，表格条目不单单有文本，还可以
+有自己的图标、复选框等特性，表格控件会根据条目对象的丰富特性来呈现数据并进行交互操作。
+
+QTableWidgetItem(int type = Type)
+QTableWidgetItem(const QString & text, int type = Type)
+QTableWidgetItem(const QIcon & icon, const QString & text, int type = Type)
+QTableWidgetItem(const QTableWidgetItem & other) //复制构造函数
+
+QTableWidgetItem * QTableWidgetItem::​clone() const
+QTableWidgetItem & QTableWidgetItem::​operator=(const QTableWidgetItem & other)
+等于号函数复制的内容与复制构造函数差不多，type() 类型值和 tableWidget() 所属表格控件指针也不复制。
+
+================================================================================
+1. 数据角色形式管理的通用数据，这些数据自动参与 QDataStream 数据流的读写；
+2. 非通用数据，不参与数据流读写，与 QListWidgetItem 和 QListWidget 自身特性有关。
+
+通用设置数据的函数：
+virtual void setData(int role, const QVariant & value)
+也可以根据角色来获取各个数据变量：
+virtual QVariant data(int role) const
+
+获取函数          设置函数                                  数据角色                描述
+text()            setText(const QString &text)              Qt::DisplayRole         条目显示的文本。
+icon()            setIcon(const QIcon &icon)                Qt::DecorationRole      条目显示的图标。
+statusTip()       setStatusTip(const QString &statusTip)    Qt::StatusTipRole       如果主界面有状态栏，鼠标悬停在该条目上时显示该状态信息到状态栏。
+toolTip()         setToolTip(const QString &toolTip)        Qt::ToolTipRole         鼠标悬停在该条目上时显示的工具提示信息。
+whatsThis()       setWhatsThis(const QString &whatsThis)    Qt::WhatsThisRole       如果主界面窗口标题栏有？帮助按钮，点击帮助按钮再点击该条目会显示该帮助信息。
+font()            setFont(const QFont &font)                Qt::FontRole            显示条目文本用的字体。
+textAlignment()   setTextAlignment(int alignment)           Qt::TextAlignmentRole   文本的对齐方式。
+backgroundColor() setBackgroundColor(const QColor &color)   Qt::BackgroundColorRole 文本背景色。
+textColor()       setTextColor(const QColor &color)         Qt::TextColorRole       文字颜色。
+background()      setBackground(const QBrush &brush)        Qt::BackgroundRole      条目的背景画刷。
+foreground()      setForeground(const QBrush &brush)        Qt::ForegroundRole      条目的前景画刷。
+checkState()      setCheckState(Qt::CheckState state)       Qt::CheckStateRole      条目自带的复选框选中状态，可以是三态复选框。
+sizeHint()        setSizeHint(const QSize &size)            Qt::SizeHintRole        条目显示的建议尺寸。
+
+QDataStream &    operator<<(QDataStream & out, const QTableWidgetItem & item)
+QDataStream &    operator>>(QDataStream & in, QTableWidgetItem & item)
+void QTableWidgetItem::​read(QDataStream & in)
+void QTableWidgetItem::​write(QDataStream & out) const
+
+
+
+int QTableWidgetItem::​type() const
+类型值一般用于派生类区分不同的条目类型，自定义的条目类型值需要大于等于 QTableWidgetItem::UserType 。
+enum { Type = UserType + 2 };
+
+QTableWidget * QTableWidgetItem::​tableWidget() const
+新条目通过表格控件 QTableWidget::​setItem() 函数设置给表格控件之后，条目会自动保存所属的表格控件指针
+
+自身是否被选中：
+bool QTableWidgetItem::​isSelected() const       //判断条目自身是否高亮选中
+void QTableWidgetItem::​setSelected(bool select) //设置条目自身是 否被选中
+
+特性标志：
+Qt::ItemFlags QTableWidgetItem::​flags() const //获取特性标志位
+void QTableWidgetItem::​setFlags(Qt::ItemFlags flags) //设置特性标志位
+QTableWidgetItem 构造时默认的标志位为：
+    Qt::ItemIsEditable
+    |Qt::ItemIsSelectable
+    |Qt::ItemIsUserCheckable
+    |Qt::ItemIsEnabled
+    |Qt::ItemIsDragEnabled
+    |Qt::ItemIsDropEnabled
+  因此程序代码生成的所有表格条目默认都是可编辑的，程序运行时用户双击空的单元格时，
+表格控件会自动创建新条目保存用户编辑内容，这些自动创建的条目也都是可编辑的。
+如果希望条目是只读的，那么把标志位设置不带Qt::ItemIsEditable 的新标志位即可。
+
+显示复选框:
+item->setCheckState( Qt::Unchecked );  //显示复选框
+
+================================================================================
+表头设置
+    表格控件在指定了行号和列号之后，就会自动生成水平表头和垂直表头，默认的表头
+都是从数字 1 开始递增编号
+    虽然默认的表头文本看起来从 1 开始编号，但是内部的表头分段（section）都是从 0 
+开始编号的，代码里设置表头分段时，需要从 0 编号。
+    表格控件既可以简单地设置表头分段文本，也可以利用 QTableWidgetItem 为表头分段
+设置功能更丰富的表头条目
+
+void QTableWidget::​setHorizontalHeaderLabels(const QStringList & labels) //设置水平表头文本
+void QTableWidget::​setVerticalHeaderLabels(const QStringList & labels) //设置垂直表头文本
+
+# setHorizontalHeaderLabels() 和 ​setVerticalHeaderLabels()  其实是两个快捷函数，本质是循环构建表头分段条目并设置给表头分段：
+void QTableWidget::​setHorizontalHeaderItem(int column, QTableWidgetItem * item) //设置指定列的水平表头分段条目
+QTableWidgetItem * QTableWidget::​horizontalHeaderItem(int column) const //获取指定列的水平表头分段条目
+void QTableWidget::​setVerticalHeaderItem(int row, QTableWidgetItem * item) //设置指定行的垂直表头分段条目
+QTableWidgetItem * QTableWidget::​verticalHeaderItem(int row) const //获取指定行的垂直表头分段条目
+# QTableWidgetItem 既可以作为表格控件普通单元格的条目，也可以用来设置表头分段。
+    QTableWidgetItem 作为表头分段条目使用时，肯定是只读的，程序运行时不能双击编辑表头，
+而且也不能有复选框。表头分段条目支持显示文本、图标、工具提示信息，并能设置文本对齐、
+字体、前景 画刷和背景画刷等等，
+
+QTableWidgetItem * QTableWidget::​takeHorizontalHeaderItem(int column) //卸下指定列的水平表头条目
+QTableWidgetItem * QTableWidget::​takeVerticalHeaderItem(int row) //卸下指定行的垂直表头条目
+卸载下来的条目并不会自动删除，还存在内存中，如果希望彻底删除需要手动 delete
+
+基类 QTableView 有从宏观描述的整体表头，即：
+QHeaderView * QTableView::​horizontalHeader() const //获取整个的水平表头
+void QTableView::​setHorizontalHeader(QHeaderView * header) //设置整个的水平表头
+QHeaderView * QTableView::​verticalHeader() const //获取整个的垂直表头
+void QTableView::​setVerticalHeader(QHeaderView * header) //设置整个的垂直表头
+
+水平表头和垂直表头可以通过如下函数判断：
+Qt::Orientation QHeaderView::​orientation() const
+返回值如果是 Qt::Horizontal 表示水平表头，Qt::Vertical 是垂直表头，这个方向特性是在构造函数时指定的，之后不能进行修改。
+
+int QHeaderView::​count() const   // 获取当前表头的分段数目
+int QHeaderView::​length() const  // 显示整个表头显示的像素点长度
+
+属性                       QHeaderView类设置函数                  QHeaderView类获取函数       描述
+**visible                 setVisible(bool v)                      isVisible()                 是否显示表头。
+**cascadingSectionResizes setCascadingSectionResizes(bool enable) cascadingSectionResizes()   调整分段尺寸时是否仅相邻分段调整。
+**defaultSectionSize      setDefaultSectionSize(int size)         defaultSectionSize()        分段默认尺寸，水平表头是指分段宽度（默认100），垂直表头指分段高度（默认30）。
+**highlightSections       setHighlightSections(bool highlight)    highlightSections()         条目高亮选中时，其行首、列首是否也有高亮效果。一般不需要手动设置。
+**minimumSectionSize      setMinimumSectionSize(int size)         minimumSectionSize()        分段尺寸下限。水平表头分段默认最小宽度 21，垂直表头分段默认最小高度 21。
+**showSortIndicator       setSortIndicatorShown(bool show)        isSortIndicatorShown()      表头是否显示排序指示符。开启自动排序后通常自动显示排序指示符，一般不需要手动设置。
+**stretchLastSection      setStretchLastSection(bool stretch)     stretchLastSection()        是否自动拉伸末尾分段。
+
+ui->tableWidget->verticalHeader()->setVisible(false);
+ui->tableWidget->horizontalHeader()->setDefaultSectionSize(160);
+
+    QTableView 很多功能都是通过表头 QHeaderView 的函数实现的，如果表格控件需要设置特定的功能
+找不到直接的设置或获取函数，那么在 QHeaderView 类里面找函数是比较有效的方法。
+ui->tableWidget->horizontalHeader()->setDefaultSectionSize(150);
+ui->tableWidget->verticalHeader()->setDefaultSectionSize(50);
+
+表格控件所有的列显示顺序是固定的，如果用户希望可以自己调整列的顺序
+那么可以设置表头的分段是可移动的：
+void QHeaderView::​setSectionsMovable(bool movable)
+
+    QHeaderView 表头类其实也是通用控件和窗口类 QWidget 的派生类，QWidget 设置控件或
+窗口最小尺寸的函数对 QHeaderView 也适用，表头 QHeaderView 相当于是表格控件内嵌的子控件，
+表头 QHeaderView 还可以有自己独立的 QSS 样式表。
+
+================================================================================
+==== 选中区域和选中行为
+
+==== 选中区域
+获取选中的条目可以如下函数：
+QList<QTableWidgetItem *> QTableWidget::​selectedItems() const
+
+QList<QTableWidgetSelectionRange> QTableWidget::​selectedRanges() const
+void QTableWidget::​setRangeSelected(const QTableWidgetSelectionRange & range, bool select)
+
+# QTableWidgetSelectionRange 的构造函数
+QTableWidgetSelectionRange(int top, int left, int bottom, int right)
+QTableWidgetSelectionRange(const QTableWidgetSelectionRange & other) //复制构造函数
+# QTableWidgetSelectionRange 的公开函数
+int    topRow() const //最上面的行号
+int    bottomRow() const //最下面的行号
+int    leftColumn() const //最左边的列号
+int    rightColumn() const //最右边的列号
+int    rowCount() const //区域内行计数
+int    columnCount() const //区域内列计数
+
+==== 选中行为、选中模式和单次选中命令
+==== 选中行为
+获取和设置函数如下：
+QAbstractItemView::SelectionBehavior    selectionBehavior() const
+void    setSelectionBehavior(QAbstractItemView::SelectionBehavior behavior)
+
+调用设置函数就可以改变选中行为，具体的选中行为枚举常量如下表所示：
+
+QAbstractItemView::SelectionBehavior枚举常量    数值    描述
+QAbstractItemView::SelectItems                  0       鼠标点击时只选中该条目，这个是默认值。
+QAbstractItemView::SelectRows                   1       鼠标点击时选中整行的条目。
+QAbstractItemView::SelectColumns                2       鼠标点击时选中整列的条目。
+
+==== 选中模式
+selectionMode 属性，其获取和设置函数如下：
+QAbstractItemView::SelectionMode    selectionMode() const
+void    setSelectionMode(QAbstractItemView::SelectionMode mode)
+
+QAbstractItemView::SelectionMode枚举常量   数值  描述
+SingleSelection                            1     单选模式。用户点击选中新条目时，旧的选中条目取消选中状态。只用鼠标点击不
+                                                 能取消选中当前条目，鼠标点击总有一个条目是高亮选中的。
+ContiguousSelection                        4     连续多选模式。平常点击与单选模式特性一样；但如果用户按下 Shift 键同时点击条目，
+                                                 可以进行连续区域的选中或取消选中。
+ExtendedSelection                          3     扩展多选模式。平常点击与单选模式特性一样；但如果用户按下Shift键同时点击条目可以选中连续区域；
+                                                 如果用户按下Ctrl键可以选中或 取消选中离散条目的高亮选中状态。另外，鼠标左键按下后连续拖动也可以选中连续的区域。
+MultiSelection                             2     普通多选模式。用户点击某个条目时，该条目的选中状态取反：如果之前是选中就变为非选中，
+                                                 如果之前是非选中就变为选中。鼠标左键按下后连续 拖动可以选中或取消选中连续区域。
+NoSelection                                0     无选模式。不能选中条目，这个很少用到。
+
+==== 单次选中命令
+    不希望修改控件默认的选中行为和选中模式，但又想使 用默认选中行为和选中模式规定之外的选中操作，
+那就涉及到单次选中命令这一特性了。对于列表控件、表格控件以及后面的树形控件，都有类似下面的函数：
+void setCurrentItem(QTableWidgetItem * item, QItemSelectionModel::SelectionFlags command)
+
+setCurrentItem() 函数第一个参数是条目指针，第二个参数就是单次选中命令（可以是一个标志位或者多个选中标志位的或值），
+通过 setCurrentItem() 函数可以在控件默认的选中行为和选中模式之外进行一些特定的选中或取消选中的操作。
+
+当前条目通常是指鼠标最后一次点击的条目，这个条目是唯一的，在图形上用虚线框标记，当前条目可以处于非选中状态，也可以处于选中状态
+选中条目就是从图形界面上看到的有高亮背景的条目，选中条目可以没有，可以有一个，也可以有多个。
+
+    归纳一下就是：图形界面上虚线框包裹的唯一条目，是当前条目；拥有高亮选中背景的是选中条目，
+选中条目可以没有，也可以有一个或多个。当前条目与选中条目可以有重叠，也可以无重叠。
+
+==== 选中标志位
+一个选中标志位或者多个选中标志位的或值 构成单次选中命令。
+
+QItemSelectionModel:: SelectionFlag 枚举常量    数值                  描述
+NoUpdate                                       0x0000                保持旧的选中状态，不更新选中条目。
+Clear                                          0x0001                清除所有选中状态，没有选中条目了。
+Select                                         0x0002                选中指定的条目。
+Deselect                                       0x0004                指定的条目取消选中状态。
+Toggle                                         0x0008                指定条目的选中状态取反，原先选中就不选中，原先不选中就选中。
+Current                                        0x0010                将指定的条目设为当前条目。
+Rows                                           0x0020                对指定条目所在的整行进行选中或非选中。
+Columns                                        0x0040                对指定条目所在的整列进行选中或非选中。
+SelectCurrent                                  Select | Current      选中指定条目，并且将其设置为当前条目。
+ToggleCurrent                                  Toggle | Current      指定条目的选中状态取反，并将其设置为当前条目。
+ClearAndSelect                                 Clear | Select        先清除旧的选中状态，然后设置指定条目为选中状态。 
+
+ui->tableWidget->setCurrentItem(pItem , QItemSelectionModel::Select | QItemSelectionModel::Rows);
+ui->tableWidget->setCurrentItem(NULL, QItemSelectionModel::Clear);
+
+%% photos
+%% scores
+
+注意，对于水平表头，如果决定使用自动编号，那么就不要在编辑表格控件的对话框里额外添加列首；
+                    如果决定在编辑表格控件的对话框里手动编辑列首(即水平表头)，那么就不要再修改列计数 columnCount 。
+                    对于同一方向表头，不要既使用自动编号，又手动编辑表头，那样导致表头混乱而又无法修改自动表头文本，
+
+
+

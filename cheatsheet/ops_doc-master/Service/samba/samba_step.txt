@@ -1,0 +1,27 @@
+详细见 samba_desc.sh文档
+
+samba信息
+    基于C/S
+    服务smb/nmb
+        smb监听tcp139/445，nmb解析<工作组名-IP>，监听udp137
+    安装：yum install samba
+    配置：/etc/samba/*
+
+samba配置
+
+1.创建目录：mkdir /test && chmod -R 755 /test
+2.用户：useradd usertest && smbpasswd -a usertest && pdbedit -L
+3.配置：vim /etc/samba/smb.conf
+
+[test]
+    comment = 描述信息
+    path = /test
+    allow hosts = 123.123.123.0/24
+    user = usertest
+    writable = yes
+
+4.测试配置文件：testparm
+
+5.使用：yum install samba-clent smbclient -L //<ip addr> -U usertest
+smbclient -L 192.168.192.91 -U smbuser1%smbuser1
+mount -tcifs //192.168.192.91/yysmb01 /mnt/nfs/ -o username=smbuser1,password=smbuser1

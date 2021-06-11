@@ -1,0 +1,60 @@
+/*
+lua_load 加载一段chunk(但并不执行它)，并将编译后的代码作为一个函数压入堆栈，如果发生错误，则将错误消息压入堆栈；
+luaL_loadbuffer 从一个buffer中加载chunk；
+luaL_loadfile从文件加载chunk；
+luaL_loadstring从字符串加载chunk；
+
+luaL_dofile 加载并执行给定lua文件，成功返回0，错误返回1；
+    (luaL_loadfile(L, filename) || lua_pcall(L, 0, LUA_MULTRET, 0))
+luaL_dostring 加载并执行给定string，成功返回0，错误返回1；
+    (luaL_loadstring(L, str) || lua_pcall(L, 0, LUA_MULTRET, 0))
+*/
+
+
+#if 0
+int luaL_loadbuffer (lua_State *L,
+                     const char *buff,
+                     size_t sz,
+                     const char *name);
+等价于 luaL_loadbufferx， 其 mode 参数等于 NULL。
+
+int luaL_loadbufferx (lua_State *L,     // L Lua 状态
+                      const char *buff, // buff 待运行Lua脚本
+                      size_t sz,        // sz 该脚本的长度，一般使用 strlen() 来获取
+                      const char *name, // name 加载之后作为 chunk 的名字
+                      const char *mode);
+把一段缓存加载为一个 Lua 代码块。 这个函数使用 lua_load 来加载 buff 指向的长度为 sz 的内存区。
+这个函数和 lua_load 返回值相同。 name 作为代码块的名字，用于调试信息和错误消息。 mode 字符串的作用同函数 lua_load。
+#endif
+
+#if 0
+int luaL_loadfile (lua_State *L, const char *filename);
+等价于 luaL_loadfilex， 其 mode 参数等于 NULL。
+
+int luaL_loadfilex (lua_State *L, const char *filename,const char *mode);
+把一个文件加载为 Lua 代码块。 这个函数使用 lua_load 加载文件中的数据。 代码块的名字被命名为 filename。 
+如果 filename 为 NULL， 它从标准输入加载。 如果文件的第一行以 # 打头，则忽略这一行。
+
+mode 字符串的作用同函数 lua_load。
+此函数的返回值和 lua_load 相同， 不过它还可能产生一个叫做 LUA_ERRFILE 的出错码。这种错误发生于无法打开或读入文件时，或是文件的模式错误。
+和 lua_load 一样，这个函数仅加载代码块不运行。
+#endif
+
+#if 0
+int luaL_loadstring (lua_State *L, const char *s);
+将一个字符串加载为 Lua 代码块。 这个函数使用 lua_load 加载一个零结尾的字符串 s。
+此函数的返回值和 lua_load 相同。
+也和 lua_load 一样，这个函数仅加载代码块不运行。
+#endif
+
+#if 0
+int luaL_dofile (lua_State *L, const char *filename);
+加载并运行指定的文件。 它是用下列宏定义出来：
+     (luaL_loadfile(L, filename) || lua_pcall(L, 0, LUA_MULTRET, 0))
+如果没有错误，函数返回假； 有错则返回真。
+
+int luaL_dostring (lua_State *L, const char *str);
+加载并运行指定的字符串。 它是用下列宏定义出来：
+     (luaL_loadstring(L, str) || lua_pcall(L, 0, LUA_MULTRET, 0))
+如果没有错误，函数返回假； 有错则返回真。
+#endif

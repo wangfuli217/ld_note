@@ -1,0 +1,276 @@
+--[[
+原型：string.gsub(s, pattern, replace [, n]): 返回结果串+匹配数
+      s:gsub(pattern, replace [,n])
+   s:         源字符串
+   pattern:   即 pattern， 匹配模式
+   repl:      将 pat 匹配到的字串替换为 repl
+   [,n]:      可选， 表示只看源字符串的前 n 个字符
+
+   解释：这个函数会返回一个替换后的副本，原串中所有的符合参数pattern的子串都将被参数repl所指定的字符串所替换，如果指定了参数m，那么只替换查找过程的前m个匹配的子串，参数repl可以是一个字符串、表、或者是函数，并且函数可以将匹配的次数作为函数的第二个参数返回，接下来看看参数repl的含义：
+   如果参数repl是一个常规字符串，成功匹配的子串会被repl直接替换，如果参数repl中包含转移字符%，那么可以采用%n的形式替换，当%n中的n取值1-9时，表示一次匹配中的第n个子串，当其中的n为0时，表示这次匹配的整个子串，%%表示一个单独的%。
+   当repl为table时, 对每个成功配对的子字符串, 函数均会试图寻找以其为key值的table中的元素, 并返回该元素
+                    如果该配对包含任何捕获信息, 则以编号为1号的捕获作为key值进行查找.
+                    
+   如果参数repl是一个函数，那么每一次匹配的子串都将作为整个函数的参数，取function(匹配子串)来替换所匹配出来的子串，
+                     当匹配不成功时，函数会使用整个字符串来作为函数的参数。如果函数的返回值是一个数字或者是字符串，那么会直接拿来替换，如果它返回false或者nil，替换动作将不会发生，如果返回其他的值将会报错。
+   注意：如果函数的返回值为nil或表中不包含这个键或表中键的对应值是nil，那么gsub不改变这个匹配
+   注意：模式替换失败：返回字符串为匹配前的原始串，匹配数=0
+   注意：1. 字符串模式替换 -- 返回字符串
+         2. 字符串匹配次数 -- 返回匹配数
+         3. 字符串模式处理 -- repl为函数
+--]]
+
+print("string,         pattern, repl [,m] = \t\t", "output string, match count")
+print(string.rep('-', 80))
+
+_, count = string.gsub("hello world  ", " ", " ")                               -- 计算一个字符串中空格出现的次数
+
+print(string.gsub("hello, up-down!", "%A", '.'))                                -- 额外的括号会丢弃第二个结果
+print((string.gsub("hello, up-down!", "%A", '.')))
+
+-- 1. 字符串匹配
+x,t = string.gsub("hello, world", "o", "a")                                     -- 字符替换
+print('"hello, world", "o", "a" = \t\t\t', x,'\t\t\t"matchs="',t)
+x,t = string.gsub("Hello banana", "banana", "Lua user")                         -- 字符串替换
+print('"Hello banana", "banana" ,"Lua user"\t\t', x,'\t\t\t"matchs="',t)
+
+--[[ 1.1 字面字符串+位置替换 --]]
+x,t = string.gsub("banana", "(an)", "%1-")   -- 将"%1-"转换成"an-"更好理解
+print('"banana", "(an)", "%1-" = \t\t\t', x,'\t\t\t"matchs="',t)
+
+x,t = string.gsub("banana", "a(n)", "a(%1)") -- 将"a(%1)"转换成"a(n)"更好理解
+print('"banana", "a(n)", "a(%1)" = \t\t\t', x,'\t\t\t"matchs="',t)
+
+x,t = string.gsub("banana", "(a)(n)", "%2%1") -- 将"%2%1"转换成"na"更好理解
+print('"banana", "a(n)", "a(%1)" = \t\t\t', x,'\t\t\t\t"matchs="',t)
+
+--[[ 1.2 模式字符串+位置替换 --]]
+x,t = string.gsub("hello world", "(%w+)", "lua")                                -- 模式替换
+print('"hello world", "(%w+)", "lua" = \t\t', x,'\t\t\t\t"matchs="',t)
+
+-- 解释下，(%w+)%s*(%w+) 这个匹配字符集中(%w+)%s* 表示匹配字母+空格最短匹配(%w+)为第二次匹配
+x,t = string.gsub("hello world from Lua", "(%w+)%s*(%w+)", "%2 %1") -- 位置参数+模式替换
+print('"hello world from Lua", "(%w+)%s*(%w+)", "%2 %1" = ',x,'\t\t"matchs="',t)
+
+-- 使用一个完整匹配和一个匹配的第二个串来替换
+x,t = string.gsub("hello world from c to lua", "(%w+) (%a+)", "%0 %2")          -- %0表示一次匹配的全部
+print('"hello world from c to lua", "(%w+) (%a+)", "%0 %2" = ',x,'"matchs="',t)
+
+-- 都用匹配的第一个串*2来替换
+x,t = string.gsub("hello world", "(%w+)", "%1 %1")                              -- 位置参数
+print('"hello world", "(%w+)", "%1 %1" = \t\t',x,'\t\t"matchs="',t)
+-- 解释下，%w+最长匹配，分别匹配到 hello,world,后面参数%n 表示每一次匹配开始后，第n次匹配到的值，%0代表全匹配 
+-- 这样，第一次匹配为hello,此次匹配中就一次%1就是hello,%1 %1 就是hello hello
+
+-- 2. 限定次数
+-- 用匹配出的完成串*2来替换第一次匹配的结果
+x,t = string.gsub("hello world", "%w+", "%0 %0", 1)                             -- 限定替换次数 
+print('"hello world", "%w+", "%0 %0", 1 = \t\t',x,'\t\t"matchs="',t)
+-- 解释下，后面的参数1是匹配替换几次
+
+-- 调用系统函数来替换
+x,t = string.gsub("os = $OS, pathext = $PATHEXT", "%$(%w+)", os.getenv)         -- 函数替换 失败
+print('"os = $OS, pathext = $PATHEXT", "%$(%w+)" = \t', x,'\t"matchs="',t)
+
+x,t = string.gsub("home = $HOME, user = $USER", "%$(%w+)", os.getenv)           -- 函数替换 成功
+print('"home = $HOME, user = $USER" = \t\t\t', x,'\t"matchs="',t)
+-- 2. 调用自定义函数
+x,t = string.gsub("4 + 5 = $return 4+5$", "%$(.-)%$", function (s)              -- 自定义函数替换 成功
+      return loadstring(s)()
+    end)
+print("function(s) loadstring(s)() end = \t\t",x,'\t\t\t"matchs="',t)
+
+-- 3. 调用表来替换
+local t = {name="lua", version="5.1"}                                           -- 自定义表替换 成功
+x,c = string.gsub("$name-$version.tar.gz", "%$(%w+)", t)
+print('table {name="lua", version="5.1"} = \t\t',x,'\t\t\t"matchs="',c)
+
+-- 4. 替换失败
+x,t = string.gsub("hello, world", "b", "a")                                     -- 字符串替换失败
+print('"hello, world", "b", "a" = \t\t\t', x,'\t\t\t"matchs="',t)
+
+-- 5. "(.-)" "(.*)"                                                             -- 懒惰|贪婪匹配
+-- 懒惰匹配 "(.-)"
+-- 贪婪匹配 "(.*)"
+print("\nThe big {brown} fox jumped {over} the lazy {dog}.")
+print("1. lazy match, i.e. as few characters as possible")
+x,t = string.gsub("The big {brown} fox jumped {over} the lazy {dog}.","{(.-)}", function(a)  print(a) end )
+print("return string",x,'\t\t\t"matchs="',t)
+print("\n2. greedy match, i.e. as many characters as possible")
+x,t = string.gsub("The big {brown} fox jumped {over} the lazy {dog}.","{(.*)}", function(a)  print(a) end )
+print("return string",x,'\t\t\t"matchs="',t)
+
+-- 6. 模式替换调试方法
+print('\n\n"Hello Lua user", "(%w+)", print                       -- for debugging')
+string.gsub("Hello Lua user", "(%w+)", print)                                  -- print调试
+print('\n"banana", "(a)(n)", function(a,b) return print(b..a) end -- for debugging')
+string.gsub("banana", "(a)(n)", function(a,b) return print(b..a) end)          -- print调试
+
+
+--[[ LaTeX风格 -> XML风格
+\command{some text}
+将它们转换为XML风格的字符串：
+<command>some text</command>
+
+s = string.gsub(s, "\\(%a+){(.-)}", "<%1>%2</%1>")
+--]]
+print("latex format -> xml format")
+latex=[[the \quote{task} is to \em{change} that.]]
+latex="the \\quote{task} is to \\em{change} that." -- the <quote>task</quote> is to change that.
+xml = string.gsub(latex, "\\(%a+){(.-)}", "<%1>%2</%1>")  
+print("latex", string.format("%s", latex))
+print("xml  ", string.format("%s", xml))
+
+--[[
+  shell variable expand
+--]]
+print("\nshell variable expand in lua")
+function expand (s)
+    return (string.gsub(s, "$(%w+)", function (n)
+      return tostring(_G[n])
+    end))
+end
+
+name = "Lua"; status = "great"
+print(expand("$name is $status, isn't it?"))                                    -- _G表中有，返回key对应value
+print(expand("$othername is $status, isn't it?'"))                              -- _G表中没有，不改变匹配
+
+--[[
+ URL unescape 
+ HTTP在URL中用来发送消息的编码。
+这种编码方式将一些特殊字符(如 '=','&','+')表示为"%xx",xx为16进制中表示的字符，并且将空格转换为'+',
+例如，a+b = c 将会被表示为:a%2Bb+%3D+c。
+这种编码方式会将每一个参数名和这个参数的值使用一个等号连接起来，并且将所有的参数名及其值用'&'连接起来，例如：
+name = "al"; query = "a+b = c"; q = "yes or no" 将会被表示为 name=al&query=a%2Bb+%3D+c&q=yes+or+no
+
+注：=的ASCII十进制表示为61，对应的16进制表示为3D
+    +的ASCII十进制表示为43，对应的16进制表示为2B
+--]]
+-- decoding
+function unescape( s )
+     s = string.gsub(s,"+"," ")                   --将'+'替换为空格
+     s = string.gsub(s,"%%(%x%x)",function ( h )  --将捕获到的16进制数值先转换成10进制数，再将十进制数转换为转换为ASCII字符
+          return string.char(tonumber(h,16))
+     end)
+     return s
+end
+-- print(string.char(tonumber("2B",16)))          --这里将16进制表示的字符转换为十进制数
+str='name=al&query=a%2Bb+%3D+c&q=yes+or+no' -- name=al&query=a%2Bb+%3D+c&q=yes+or+no
+escape=unescape(str)                        -- name=al&query=a+b = c&q=yes or no
+print(escape)
+print(unescape("a%2Bb+%3D+c")) -- a+b = c
+
+-- decode pairs-name = value
+-- 键名和值都不能包含&或=，所以可以使用'[^&=]'来匹配
+cgi = {}
+function decode( s )
+     for name,value in string.gmatch(s,"([^&=]+)=([^&=]+)") do   --当gmatch的模式串里包含捕获值的时候，gmath将会返回每次捕获到的值
+          --这里有两个捕获列表，格式都是[^&=]+ 表示匹配所有非&和=格式的最长字符组
+          name = unescape(name)
+          value = unescape(value)
+          cgi[name] = value
+     end
+end
+
+--encoding
+function escape( s )
+     s = string.gsub(s,"[&=+%%%c]",function ( c )     --模式串匹配所有特殊字符
+          return string.format("%%%02X",string.byte(c))     --将字符转换成十六进制编码表示
+     end)
+     s = string.gsub(s," ","+")          --将所有的空格转换为'+'
+     return s
+end
+
+--encode
+function encode( t )
+     local b = {}
+     for k, v in pairs(t) do
+          b[#b + 1] = (escape(k) .. "=" .. escape(v))
+     end
+     return table.concat(b,"&")     --以字符'&'连接所有key-value
+end
+
+t = {name='al', query = "a+b = c", q = "yes or no"}
+print(encode(t))
+
+--[[
+ LaTeX风格 XML风格
+--]]
+function toxml( s )
+     s = string.gsub(s,"\\(%a+)(%b{})",function ( tag,body )
+          body = string.sub(body,2,-2)          --移除大括号
+          body = toxml(body)                    --处理嵌套情况
+          return string.format("<%s>%s</%s>",tag,body,tag)
+     end)
+     return s
+end
+LaTex = [[\title{The \bold{big} example}]]
+print(toxml(LaTex))
+
+
+--[[
+  Tab expansion
+--]]
+--expand tab in a string
+function expandTabs( s,tab )
+     tab = tab or 8     --tab 的大小默认为 8
+     local corr = 0
+     s = string.gsub(s,"()\t",function ( p )
+          local sp = tab - (p -1 + corr)%tab
+          corr = corr - 1 + sp
+          return string.rep(" ",sp)
+     end)
+     return s
+end
+print(expandTabs("x\txx\txx"))     --打印出来的值为:x       xx      xx间隔都是8个
+
+function unexpandTabs( s,tab )
+     tab = tab or 8
+     s = expandTabs(s)
+     local pat = string.rep(".",tab)  -- 辅助模式
+     s = string.gsub(s,pat,"%0\1")    -- 在每8个字符后添加一个标记\1
+     s = string.gsub(s," +\1","\1")   -- 将所有以此标记结尾的空格序列都替换为制表符\t
+     s = string.gsub(s,"\1","")       -- 将剩下的标记\1删除
+     return s
+end
+print(unexpandTabs("        x        "))     -- 打印为x
+
+
+--[[ 函数可以实现更强大的替换 --]]
+string.gsub("Hello Lua user", "(%w+)", function(w) return string.len(w) end) 
+string.gsub("banana", "(a)", string.upper)
+
+--[[ 扩展函数 --]]
+function trim (s) return (string.gsub(s, "^%s*(.-)%s*$", "%1")) end 
+-- 由于中间'.-'只会匹配尽可能少的内容，所有两个's*'便可匹配到首尾两端的空格
+
+--[[
+> = string.gsub("Hello banana", "banana", "Lua user")
+Hello Lua user  1
+> = string.gsub("banana", "a", "A", 2)  -- limit substitutions made to 2
+bAnAna  2
+
+> = string.gsub("banana", "(an)", "%1-")    -- capture any occurences of "an" and replace
+ban-an-a        2
+> = string.gsub("banana", "a(n)", "a(%1)")  -- brackets around n's which follow
+> a's
+ba(n)a(n)a      2
+> = string.gsub("banana", "(a)(n)", "%2%1") -- reverse any "an"s
+bnanaa  2
+
+> = string.gsub("Hello Lua user", "(%w+)", print)  -- print any words found
+Hello
+Lua
+user
+3
+> = string.gsub("Hello Lua user", "(%w+)", function(w) return
+> string.len(w) end) -- replace with lengths
+5 3 4   3
+> = string.gsub("banana", "(a)", string.upper)     -- make all "a"s
+> found uppercase
+bAnAnA  3
+> = string.gsub("banana", "(a)(n)", function(a,b) return b..a end) --
+> reverse any "an"s
+bnanaa  2
+
+]]

@@ -1,0 +1,289 @@
+我们在写程序，特别是嵌入式程序的时候，通常需要对程序的性能进行分析，以便程序能够更快更好地运行，达到实时（real-time）的目的。如果程序很大，分析起来就很困难。如果有个工具能够自动进行程序的性能分析，那就最好了。这里介绍一种Linux下程序的Profiling工具 ----GNU profiler。
+
+GNU gprof能够打印出程序运行中各个函数消耗的时间，可以帮助程序员找出众多函数中耗时最多的函数。产生程序运行时候的函数调用关系，包括调用次数，可以帮助程序员分析程序的运行流程。有了函数的调用关系，这会让开发人员大大提高工作效率，不用费神地去一点点找出程序的运行流程，这对小程序来说可能效果不是很明显，但对于有几万，几十万代码量的工程来说，效率是毋庸置疑的！而且这个功能对于维护旧代码或者是分析Open Source来说那是相当诱人的，有了调用图，对程序的运行框架也就有了一个大体了解，知道了程序的“骨架“，分析它也就不会再那么茫然，尤其是对自己不熟悉的代码和Open Source。
+
+gprof的基本用法：
+1． 使用 -pg 选项编译和链接你的应用程序
+   
+    在gcc编译程序的时候，加上-pg选项，例如：
+    gcc -pg -o test test.c
+    这样就生成了可执行文件test。如果是大项目，就在makefile里面修改编译选项，-pg放在那里都行。
+
+2． 执行你的应用程序使之生成供gprof 分析的数据
+
+    运行刚才的程序：./test，这样就生成了一个gmon.out文件，该文件就包含了profiling的数据。
+
+3． 使用gprof 分析你的应用程序生成的数据
+
+    gprof test gmon.out > profile.txt
+    使用上面的命令，gprof就可以分析程序test的性能，将profiling的结果放在profile.txt文件中，打开就可以看到分析的结果。通过对结果的分析来改进我们的程序，从而达到我们的目的。
+
+GNU gprof是个很不错的工具，大家写程序时可以多用用。我现在用gprof来profiling我的程序，把耗时最多的函数或运算找出来，用FPGA芯片实现，从而达到real-time的目的。
+
+gprof使用介绍
+
+gprof介绍
+gprof是GNU profiler工具。可以显示程序运行的“flat profile”，包括每个函数的调用次数，每个函数消耗的处理器时间。也可以显示“调用图”，包括函数的调用关系，每个函数调用花费了多少时间。还可以显示“注释的源代码”，是程序源代码的一个复本，标记有程序中每行代码的执行次数。
+
+ 
+
+为gprof编译程序
+在编译或链接源程序的时候在编译器的命令行参数中加入“-pg”选项，编译时编译器会自动在目标代码中插入用于性能测试的代码片断，这些代码在程序在运行时采集并记录函数的调用关系和调用次数，以及采集并记录函数自身执行时间和子函数的调用时间，程序运行结束后，会在程序退出的路径下生成一个gmon.out文件。这个文件就是记录并保存下来的监控数据。可以通过命令行方式的gprof或图形化的Kprof来解读这些数据并对程序的性能进行分析。另外，如果想查看库函数的profiling，需要在编译是再加入“-lc_p”编译参数代替“-lc”编译参数，这样程序会链接libc_p.a库，才可以产生库函数的profiling信息。如果想执行一行一行的profiling，还需要加入“-g”编译参数。
+例如如下命令行：
+gcc -Wall -g -pg -lc_p example.c -o example
+
+ 
+
+执行gprof
+执行如下命令行，即可执行gprof：
+gprof OPTIONS EXECUTABLE-FILE gmon.out BB-DATA [YET-MORE-PROFILE-DATA -FILES...] [> OUTFILE]
+
+ 
+
+gprof产生的信息
+ %                        the percentage of the total running time of the
+time                     program used by this function.
+                           函数使用时间占所有时间的百分比。
+cumulative          a running sum of the number of seconds accounted
+ seconds             for by this function and those listed above it.
+                           函数和上列函数累计执行的时间。
+ self                    the number of seconds accounted for by this
+seconds             function alone.  This is the major sort for this
+                          listing.
+                          函数本身所执行的时间。
+calls                   the number of times this function was invoked, if
+                          this function is profiled, else blank.
+                          函数被调用的次数
+ self                   the average number of milliseconds spent in this
+ms/call               function per call, if this function is profiled,
+                         else blank.
+                          每一次调用花费在函数的时间microseconds。
+ total                  the average number of milliseconds spent in this
+ms/call               function and its descendents per call, if this
+                          function is profiled, else blank.
+                          每一次调用，花费在函数及其衍生函数的平均时间microseconds。
+name                 the name of the function.  This is the minor sort
+                          for this listing. The index shows the location of
+                          the function in the gprof listing. If the index is
+                          in parenthesis it shows where it would appear in
+                          the gprof listing if it were to be printed.
+                          函数名
+
+ 
+
+O.S 使用Gnu gprof进行Linux平台下的程序分析
+
+Gprof 简介:
+Gprof功能：打印出程序运行中各个函数消耗的时间，可以帮助程序员找出众多函数中耗时最多的函数。产生程序运行时候的函数调用关系，包括调用次数，可以帮助程序员分析程序的运行流程。
+
+有了函数的调用关系，这会让开发人员大大提高工作效率，不用费心地去一点点找出程序的运行流程，这对小程序来说可能效果不是很明显，但对于有几万，几十万代码量的工程来说，效率是毋庸置疑的！而且这个功能对于维护旧代码或者是分析Open Source来说那是相当诱人的，有了调用图，对程序的运行框架也就有了一个大体了解，知道了程序的“骨架“，分析它也就不会再那么茫然，尤其是对自己不熟悉的代码和Open Source。费话不多说了，让我们开始我们的分析之旅吧！
+
+Gprof 实现原理：
+通过在编译和链接你的程序的时候（使用 -pg 编译和链接选项），gcc 在你应用程序的每个函数中都加入了一个名为mcount ( or “_mcount” , or “__mcount” , 依赖于编译器或操作系统)的函数，也就是说你的应用程序里的每一个函数都会调用mcount, 而mcount 会在内存中保存一张函数调用图，并通过函数调用堆栈的形式查找子函数和父函数的地址。这张调用图也保存了所有与函数相关的调用时间、调用次数等等的所有信息。
+
+Gprof基本用法：
+1． 使用 -pg 编译和链接你的应用程序。
+2． 执行你的应用程序使之生成供gprof 分析的数据。
+3． 使用gprof 程序分析你的应用程序生成的数据。
+
+Gprof 简单使用：
+让我们简单的举个例子来看看Gprof是如何使用的。
+1．打开linux终端。新建一个test.c文件，并生用-pg 编译和链接该文件。
+
+test.c 文件内容如下：
+引文:
+
+ 
+
+ 
+
+       #include "stdio.h"
+       #include "stdlib.h"
+
+void a(){
+    printf("\t\t+---call a() function\n");
+}
+
+void c(){
+    printf("\t\t+---call c() function\n");
+}
+
+int b() {
+    printf("\t+--- call b() function\n");
+    a();
+    c();
+    return 0;
+}
+
+int main(){
+    printf(" main() function()\n");
+    b();
+}
+
+ 
+
+ 
+
+命令行里面输入下面命令，没加-c选项，gcc 会默认进行编译并链接生成a.out:
+引文:
+
+[linux /home/test]$gcc -pg test.c
+
+如果没有编译错误，gcc会在当前目录下生成一个a.out文件，当然你也可以使用 –o 选项给生成的文件起一个别的名字，像 gcc –pg test.c –o test , 则gcc会生成一个名为test的可执行文件,在命令行下输入[linux /home/test]$./test , 就可以执行该程序了，记住一定要加上 ./ 否则程序看上去可能是执行，可是什么输出都没有。
+
+2．执行你的应用程序使之生成供gprof 分析的数据。 命令行里面输入:
+引文:
+
+[linux /home/test]$a.out
+main() function()
+    +--- call b() function
+        +---call a() function
+        +---call c() function
+[linux /home/test]$
+
+你会在当前目录下看到一个gmon.out 文件， 这个文件就是供gprof 分析使用的。
+
+3．使用gprof 程序分析你的应用程序生成的数据。
+命令行里面输入:
+引文:
+
+[linux /home/test]$ gprof -b a.out gmon.out | less
+
+由于gprof输出的信息比较多，这里使用了 less 命令，该命令可以让我们通过上下方向键查看gprof产生的输出，| 表示gprof -b a.out gmon.out 的输出作为 less的输入。下面是我从gprof输出中摘抄出的与我们有关的一些详细信息。
+引文:
+
+Flat profile:
+ 
+Each sample counts as 0.01 seconds.
+ no time accumulated
+ 
+  %   cumulative   self              self     total
+ time   seconds   seconds    calls  Ts/call  Ts/call  name
+  0.00      0.00     0.00        1     0.00     0.00  a
+  0.00      0.00     0.00        1     0.00     0.00  b
+  0.00      0.00     0.00        1     0.00     0.00  c
+
+
+                        Call graph
+ 
+
+granularity: each sample hit covers 4 byte(s) no time propagated
+ 
+index % time    self  children    called     name
+                0.00    0.00       1/1           b [2]
+[1]      0.0    0.00    0.00       1         a [1]
+-----------------------------------------------
+                0.00    0.00       1/1           main [10]
+[2]      0.0    0.00    0.00       1         b [2]
+                0.00    0.00       1/1           c [3]
+                0.00    0.00       1/1           a [1]
+-----------------------------------------------
+                0.00    0.00       1/1           b [2]
+[3]      0.0    0.00    0.00       1         c [3]
+-----------------------------------------------
+
+Index by function name
+ 
+   [1] a                       [2] b                       [3] c
+
+从上面的输出我们能明显的看出来，main 调用了 b 函数， 而b 函数分别调用了a 和 c 函数。由于我们的函数只是简单的输出了一个字串，故每个函数的消耗时间都是0 秒。
+
+ 
+
+ 
+
+使用gprof分析程序
+
+gprof介绍
+gprof是一个GNU profiler工具。可以显示程序运行的“flat profile”，包括每个函数的调用次数，每个函数消耗的处理器时间，也可以显示“调用图”，包括函数的调用关系，每个函数调用花费了多少时间。还可以显示“注释的源代码”－－是程序源代码的一个复本，标记有程序中每行代码的执行次数。
+
+基本用法：
+1．使用-pg选项编译和链接你的应用程序。
+2． 执行你的应用程序，使之运行完成后生成供gprof分析的数据文件（默认是gmon.out）。
+3． 使用gprof程序分析你的应用程序生成的数据，例如：gporf a.out gmon.out。
+
+gprof 实现原理：
+gprof并不神奇，在编译和链接程序的时候（使用 -pg 编译和链接选项），gcc 在你应用程序的每个函数中都加入了一个名为mcount（or“_mcount”, or“__mcount”）的函数，也就是说-pg编译的应用程序里的每一个函数都会调用mcount, 而mcount会在内存中保存一张函数调用图，并通过函数调用堆栈的形式查找子函数和父函数的地址。这张调用图也保存了所有与函数相关的调用时间，调用次数等等的所有信息。
+
+常用的gprof命令选项：
+-b            不再输出统计图表中每个字段的详细描述。
+-p            只输出函数的调用图（Call graph的那部分信息）。
+-q            只输出函数的时间消耗列表。
+-e Name       不再输出函数Name 及其子函数的调用图（除非它们有未被限制的其它父函数）。可以给定多个 -e 标志。一个 -e 标志只能指定一个函数。
+-E Name       不再输出函数Name 及其子函数的调用图，此标志类似于 -e 标志，但它在总时间和百分比时间的计算中排除了由函数Name 及其子函数所用的时间。
+-f Name       输出函数Name 及其子函数的调用图。可以指定多个 -f 标志。一个 -f 标志只能指定一个函数。
+-F Name       输出函数Name 及其子函数的调用图，它类似于 -f 标志，但它在总时间和百分比时间计算中仅使用所打印的例程的时间。可以指定多个 -F 标志。一个 -F 标志只能指定一个函数。-F 标志覆盖 -E 标志。
+-z           显示使用次数为零的例程（按照调用计数和累积时间计算）。
+
+使用注意：
+1）一般gprof只能查看用户函数信息。如果想查看库函数的信息，需要在编译是再加入“-lc_p”编译参数代替“-lc”编译参数，这样程序会链接libc_p.a库，才可以产生库函数的profiling信息。
+2） gprof只能在程序正常结束退出之后才能生成程序测评报告，原因是gprof通过在atexit()里注册了一个函数来产生结果信息，任何非正常退出都不会执行atexit()的动作，所以不会产生gmon.out文件。如果你的程序是一个不会退出的服务程序，那就只有修改代码来达到目的。如果不想改变程序的运行方式，可以添加一个信号处理函数解决问题（这样对代码修改最少），例如：
+static void sighandler( int sig_no )   
+{   
+      exit(0);   
+}   
+signal( SIGUSR1, sighandler )；
+当使用kill -USR1 pid 后，程序退出，生成gmon.out文件。
+
+ 
+
+使用gprof和oprofile查找性能瓶颈
+
+有些时候，我们特别关注程序的性能，特别是底层软件，比如驱动程序、OS等。为了更好的优化程序性能，我们必须找到性能瓶颈点，“好钢用在刀刃上”才能取得好的效果，否则可能白做工作。为了找到关键路径，我们可以使用profilng技术，在linux平台上，我们可以使用gprof和oprofile工具。
+
+    * gprof是GNU工具之一，它在编译的时候在每个函数的出入口加入了profiling的代码，运行时统计程序在用户态的执行信息，可以得到每个函数的调用次数、执行时间、调用关系等信息，简单易懂。适合于查找用户级程序的性能瓶颈，对于很多时间都在内核态执行的程序，gprof不适合。 
+    * oprofile也是一个开源的profiling工具，它使用硬件调试寄存器来统计信息，进行 profiling的开销比较小，而且可以对内核进行profiling。它统计的信息非常的多，可以得到cache的缺失率，memory的访存信息， 分支预测错误率等等，这些信息gprof是得不到的，但是对于函数调用次数，它是不能够得到的。。 
+
+    简单来说，gprof简单，适合于查找用户级程序的瓶颈，而oprofile稍显复杂，但是得到的信息更多，更适合调试系统软件。
+    我们以编译运行hello.c为例，来说明如何使用这两个工具，这里不解释具体结果的含义，要想详细了解每个结果代表什么意思，可以看一下参考资料中官方站点上的doc信息，里面会给你详尽的解释。
+
+gprof Quick Start
+
+    gprof是gnu binutils工具之一，默认情况下linux系统当中都带有这个工具。
+
+   1. 使用 -pg 选项来编译hello.c，如果要得到带注释的源码清单，则需要增加 -g 选项。运行： gcc -pg -g -o hello hello.c 
+   2. 运行应用程序： ./hello  会在当前目录下产生gmon.out文件 
+   3. 使用gprof来分析gmon.out文件，需要把它和产生它的应用程序关联起来： 
+         1. gprof hello gmon.out -p 得到每个函数占用的执行时间 
+         2. gprof hello gmon.out -q 得到call graph，包含了每个函数的调用关系，调用次数，执行时间等信息。 
+         3. gprof hello gmon.out -A 得到一个带注释的“源代码清单”，它会注释源码，指出每个函数的执行次数。这需要在编译的时候增加 -g选项。 
+
+oprofile Quick Start
+
+    oprofile是sourceforge上面的一个开源项目，在2.6内核上带有这个工具，好像只有smp系统才有。比较老的系统，需要自己安装，重新编译内核。
+    oprofile是一套工具，分别完成不同的事情。
+
+op_help：  列出所有支持的事件。
+opcontrol：设置需要收集的事件。
+opreport： 对结果进行统计输出。
+opannaotate：产生带注释的源/汇编文件，源语言级的注释需要编译源文件时的支持。
+opstack：    产生调用图profile，但要求x86/2.6的平台，并且linux2.6安装了call-graph patch
+opgprof：    产生如gprof相似的结果。
+oparchive：  将所有的原始数据文件收集打包，可以到另一台机器上进行分析。
+op_import：  将采样的数据库文件从另一种abi转化成本地格式。
+
+    运行oprofile需要root权限，因为它要加载profile模块，启动oprofiled后台程序等。所以在运行之前，就需要切换到root。
+
+   1. opcontrol --init  加载模块，mout /dev/oprofile 创建必需的文件和目录 
+   2. opcontrol --no-vmlinux 或者 opcontrol --vmlinux=/boot/vmlinux-`uname -r` 决定是否对kernel进行profiling 
+   3. opcontrol --reset 清楚当前会话中的数据 
+   4. opcontrol --start 开始profiling 
+   5. ./hello 运行应用程序，oprofile会对它进行profiling 
+   6. opcontrol --dump 把收集到的数据写入文件 
+   7. opcontrol --stop 停止profiling 
+   8. opcotrol -h 关闭守护进程oprofiled 
+   9. opcontrol --shutdown 停止oprofiled
+  10. opcontrol --deinit 卸载模块 
+
+常用的是3→7这几个过程，得到性能数据之后，可以使用opreport, opstack, opgprof, opannotate几个工具进行分析，我常用的是opreport, opannotate进行分析。
+
+   1. opreport使用 http://oprofile.sourceforge.net/doc/opreport.html 
+   2. opannotate使用 http://oprofile.sourceforge.net/doc/opannotate.html 
+   3. opgprof使用 http://oprofile.sourceforge.net/doc/opgprof.html 
+
+最常用的是opreport，这个可以给出image和symbols的信息，比如我想得到每个函数的执行时间占用比例等信息，用来发现系统性能瓶颈。opannotate可以对源码进行注释，指出哪个地方占用时间比较多。常用命令如下：
+
+    * opreport -l /bin/bash --exclude-dependent --threshold 1 , 用来发现系统瓶颈。
+      指定查看/bin/bash的profiling信息，占用总体执行时间1%以上的函数列表
+    * opannotate --source --output-dir=annotated /usr/local/oprofile-pp/bin/oprofiled 
+* opannotate --source --base-dirs=/tmp/build/libfoo/ --search-dirs=/home/user/libfoo/ --output-dir=annotated/ /lib/libfoo.so

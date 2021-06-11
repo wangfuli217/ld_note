@@ -1,0 +1,190 @@
+https://github.com/webpro/programming-principles
+https://github.com/frederic-perez/Good-Programming-Practices
+https://github.com/PansonPanson/Java-Notes
+https://github.com/futurice/backend-best-practices
+https://github.com/oldratlee/vim-practice
+
+
+    编程的核心是数据结构，而不是算法
+    接口 在模块间扮演双重角色，在 实现层 面，作为模块间的滞塞点(check point)，阻止各自的内部细节被相邻模块知晓；
+                               在 设计层 面，正是 接口 真正定义了整个体系。
+    用清晰的接口把若干简单的模块组合成一个复杂软件
+    
+unix系统调用API是半紧凑的，C标准库则不是紧凑的，C++是反紧凑的 --- 合理对待紧凑性，设计中尽量考虑，但不是一个绝对要求
+薄胶合层可看作是分离原则的升华，策略（应用逻辑）应与机制（域原语）清晰的分离，如果有许多代码即不属于策略又不属于机制，可能就有问题
+
+对与子程序而言，内聚性是指子程序中各个操作之间的联系的紧密程度。  --- 代码大全
+我们的目标是让子程序只把一件事情做好，不再做任何其他事情。
+内聚性是针对操作的概念。即操作具有内聚性。通常，一个操作指一个语句，或一个函数调用。一个是简单的操作，一个是复杂的操作。
+内聚性的一些概念，理解概念有助于思考如何让子程序尽可能的内聚。
+1、  功能的内聚性：让一个子程序仅执行一项操作。这是最强的也是最好的内聚性。其他的内聚性则不够理想。
+2、  顺序上的内聚性：子程序内包含按照特定顺序执行的操作，这些步骤需要共享数据，而只有全部执行完毕后，才完成了一下完整的功能。 顺序上的内聚性设计成功能上的内聚性需要对顺序进行分解，形成多个功能更加单一的子程序 。
+3、  通信上的内聚性：子程序中的不同操作使用了同样的数据，当不存在其他任何联系。 优化的方法是将子程序分解为多个子程序。
+4、  临时的内聚性：子程序中含有一些因为需要同时执行才放到一起的操作。 优化方法是把临时性的子程序看成是一系列事件的组织者，即让它直接调用其他的子程序，而不是直接执行所有的操作。另外，可以通过函数的命名，表达子程序完成的功能。避免使用多个操作叠加的方法命名，因为它暗示子程序只有巧合的内聚性。
+除功能的内聚性外，其他类型的内聚性都是不可取的。要想办法避免。
+1、  过程上的内聚性：子程序中的操作是按特定的顺序进行的，除此外没有任何联系。对子程序分解，把不同的功能纳入不同的子程序中，让调用方的子程序具有单一而完整的功能。
+2、  逻辑上的内聚性：若干操作被放入同一个子程序中，通过传入的控制标志选择执行其中的一项操作。各个操作间没有任何的逻辑关系，这些操作只是被包含在一个很大的case 或 if 语句中。如果此子程序只是分发命令，根据命令调用不同的子程序，则这种做法也是不错的。其他的不好的情况，可以通过分解来进行优化。分解为多个独立的子程序。
+3、  巧合的内聚性：子程序内部的各个操作间没有任何的关联。
+内聚性考虑的是在一个子程序内部，操作的关联程度。
+
+编写功能上的内聚性的子程序几乎总是可能的，因此把注意力集中于功能上的内聚性，从而得到最大的收获。
+
+接口设计的难点是：将阻塞型的同步调用，转变成非阻塞型的异步调用。而非阻塞型异步调用的难点在于多个接口之间的协议。
+模块设计的难点是：将流程型的输入和输出，转变成有状态的，接口正交的点。
+                  将业务和算法 正交到数据结构中，以输出为目标的代码设计。
+                  由于输入内容是不确定，所有，接口和数据结构需要有很大弹性。
+
+数据结构的设计：强调一主多从，对主可以配置管理，对从可以增删查管理。
+接口设计：1. 同步调用(系统调用)，
+          2，异步调用(chunk.c和matocsserv之间) 
+          3. 同步注册调用(闭包) 
+          4. 异步注册调用cb(privdata) 强调privdata或者cb函数； 回调函数是为了处理数据
+          5. 异步双注册调用 reg(desc,serve) 
+          6. 异步注册调用cb(privdata) 强调cb(privdata)返回值； 回调函数是为了分配释放或获得privdata值的排序关系
+有些时候，接口围绕 数据结构设计的(同步接口 pcqueue和squeue)；
+有些时候，数据结构 依赖注册接口进行处理(闭包，异步注册回调)；
+有些时候，数据结构 通过接口 与 数据结构 建立管理(chunks和matocsserv之间)。
+
+network(){
+1. moosefs(IO处理相关模块接口) [sockets.c] ---- 只提供系统接口封装，继承系统接口调用方式，增加超时读写连接
+  对sockaddr_in进行封装，sockaddrnumfill(struct sockaddr_in *sa,uint32_t ip,uint16_t port)
+                         sockaddrfill(struct sockaddr_in *sa,const char *hostname,const char *service,int family,int socktype,int passive)
+                         sockresolve(const char *hostname,const char *service,uint32_t *ip,uint16_t *port,int family,int socktype,int passive) 
+  实现从ip和port 或者 hostname,service,family,passive 到sockaddr_in。以及从sockaddr_in到 ip 和 port。
+  对sockaddr_un进行封装，sockaddrpathfill(struct sockaddr_un *sa,const char *path)  实现从path到 sockaddr_un
+  sockaddr_in 用于实现 tcp的绑定和连接，udp的绑定和发送。即sockaddrnumfill和sockaddrfill用于 tcp的绑定和连接，udp的绑定和发送
+  
+  对阻塞发送，接收和连接的超时化处理。streamtoread， streamtowrite， streamtoforward，streamtoaccept。
+  实现read, write, accept等非阻塞模式下，超时等待指定长度的数据返回。(非阻塞读写连接，超时读写连接，阻塞读写连接) 增加了一种IO操作模式。
+  
+  通过函数名减少通用函数的某些参数设置，udp(AF_INET,SOCK_DGRAM) unix(AF_UNIX,SOCK_STREAM) tcp(AF_INET,SOCK_STREAM)
+  
+# 该模块对系统级别的api进行封装，延续了系统api的参数传递和返回值
+  在strerr.h 中通过 宏 重新定义 错误宏值和宏值描述 之间对应关系。
+
+2. redis(IO处理相关模块接口) [anet.c]    --- 对系统接口进行封装，将系统接口errno错误作为字符串返回，自定义接口返回值
+  通过函数名减少阻塞和非阻塞连接接口调用，anetTcpConnect，anetTcpNonBlockConnect，anetTcpNonBlockBindConnect
+  通过函数名减少通用函数的某些参数设置，  anetUnixConnect(SOCK_STREAM,AF_LOCAL), anetTcpConnect(SOCK_STREAM,AF_INET), anetUnixServer(SOCK_STREAM,AF_LOCAL), anetTcpServer(SOCK_STREAM,AF_INET)
+
+# 该模块对系统级别的api进行封装，重定义了系统api的参数传递和返回值。返回值明示对错，返回参数明示错误原因。
+  这里出现err有值，则错误都是不可忽略的，直接导致进程崩溃。
+
+3. redis(模块化) 3. hiredis.c net.c ---- 基于上下文redisContext进行封装，重定义了系统api的参数传递和返回值。返回值明示对错，上下文暗示错误值和错误原因。
+  基于上下文redisContext进行封装，所有接口设计都以创建，使用(连接，读写，配置)，释放上下文为中心。
+  REDIS_ERR_IO        系统调用时出现错误，可使用errno获得真实错误。c->errstr可以字符串，也可以从errno获得
+  REDIS_ERR_EOF       文件结尾            "Server closed the connection"
+  REDIS_ERR_PROTOCOL  协议错误            c->errstr 协议错误原因
+  REDIS_ERR_OOM       内存不足错误        c-errstr = "Out of memory"
+  REDIS_ERR_OTHER     其他错误            c->errstr 得到真实错误原因
+  
+# 基于上下文redisContext进行封装，重定义了系统api的参数传递和返回值。返回值明示对错，上下文暗示错误值和错误原因。
+
+4. matoclserv ---- 被动应答管理(调用外部接口为主; 暴露内部接口为辅) : tcp 连接管理(服务器监听和客户端连接)，会话管理，数据包封装和解包
+  
+
+5. matocsserv ---- 主动请求管理(既要调用外部接口; 又要暴露内部接口) : tcp 连接管理(服务器监听和客户端连接)，会话管理，数据包封装和解包
+}
+
+resource(){
+1. 配置定义输出流及级别、类型
+日志
+
+
+2. 配置文件解析
+moosefs(cfg.c) 
+redis(confg.c)
+monit(p.y l.l)
+
+3. 命令行解析
+moosefs(main.c) 提供start | stop | restart | reload | info | test | kill
+monit(monit.c)  提供start | stop | monitor | unmonitor | restart | reload | summary | report | procmatch
+redis(config.c) 
+
+4. 线程相关
+4.1 消息队列
+pcqueue.c squeue.c
+
+4.2 线程池
+workers.c 
+readdata.c writedata.c
+libuv(workqueue)
+
+4.3 数据保护
+buckets_mt.h
+
+
+5. 连接管理(配置监听主机名和端口)
+matocsserv.c matoclserv.c matomlserv.c
+
+6. 缓存管理(配置缓存大小)
+conncache.c 
+chunksdatacache.c
+dirattrcache.c
+fdcache.c
+dirattrcache.c
+negentrycache.c
+xattrcache.c
+symlinkcache.c
+
+7. 磁盘数据管理(配置数据文件)
+metadata.c 
+hddspacemgr.c
+redis(rdb.c)
+
+8. 内存数据管理
+buckets.h
+adlist.c
+queue.h
+dict.c
+tree.h
+list.h
+rax.c -redis
+
+9. 实现回调函数
+mfs_fuse.c
+mfs_meta_fuse.c
+
+10. 粘合层
+monit.c   monit
+server.c  redis
+main.c    moosefs
+mfsmount.c  moosefs
+
+11. 专项功能
+charts.c
+liset64.c
+md5.c
+random.c
+crc.c
+sha1.c -redis
+md5.c -monit
+sha1.c -monit
+md5_crypt.c
+base64.c
+
+
+crc16.c
+crc64.c
+rand.c
+12. 系统接口封装
+clocks.c
+cpuusage.c
+memusage.c
+
+
+
+
+}
+
+
+ds(){
+sds
+adlist
+dict
+
+list
+
+
+}
+
+每个模块都有且只有一个核心结构，多实例的核心结构要考虑如何设计上行文。

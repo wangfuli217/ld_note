@@ -1,0 +1,149 @@
+elf(execute and link format)是一种文件格式,用于存储linux程序
+进程和虚拟内存：
+       linux系统给每个进程分配了4GB的空间，其中 0xC0000000到0xFFFFFFFF 这个地址段是留给系统使用的，主要用于系统（linux 内核)和进程通信和交换数据，   用户可以使用3GB的空间从(0x00000000-0xBFFFFFFF).
+	   
+进程的创建和运行进程的创建和运行：
+    大致经历了以下步骤
+     1.用户请求运行程序时，操作系统会读取存储在磁盘上的可执行文件，在linux系统上这个文件就是我们的elf格式文件，为用户分配4G的虚拟内存空间，
+     2. 根据文件的信息指示，把不同的文件内容放到为你分配的这3G虚拟内存
+     3. 然后根据文件的指示，系统设置设置代码段和数据段寄存器
+     4.然后根据文件的指示,    跳转到用户的代码的入口地址（一般就是我们的main函数)
+     5.从main开始，计算机就一条一条的执行我们给的指令，处理我们的数据了，直到我们程序结束。虽然在这个过程中，系统会多次切换到其他进程，但对用户程序来说没有影响，我们可以认为计算机只为我们服务。
+	 
+elf文件分三种类型： 1、目标文件（通常是.o); 2、可执行文件(我们的运行文件)   3、动态库(.so)
+
+可执行文件一般分成4个部分，能扩展，我们理解这4部分就够了。
+1、elf文件头 ，这个文件是对elf文件整体信息的描述，在32位系统下是56的字节，在64位系统下是64个字节。
+	对于可执行文件来说，文件头包含的一下信息与进程启动相关
+	e_entry      程序入口地址
+	e_phoff      segment偏移
+	e_phnum   segment数量
+2. segment表， 这个表是加载指示器，操作系统（确切的说是加载器，有些elf文件，比如操作系统内核，是由其他程序加载的）,该表的结构非常重要。
+	typedef struct
+	{
+	Elf64_Word    p_type;            /* Segment type */
+	Elf64_Word    p_flags;        /* Segment flags */  /*segment权限，6表示可读写，5表示可读可执行
+	Elf64_Off    p_offset;        /* Segment file offset */     /*段在文件中的偏移*/
+	Elf64_Addr    p_vaddr;        /* Segment virtual address */   /*虚拟内存地址，这个表示内存中的
+	Elf64_Addr    p_paddr;        /* Segment physical address  /*物理内存地址，对应用程序来说，这个字段无用*/
+	Elf64_Xword    p_filesz;        /* Segment size in file */        /*段在文件中的长度*/
+	Elf64_Xword    p_memsz;        /* Segment size in memory */       /在内存中的长度，一般和p_filesz的值一样*/
+	Elf64_Xword    p_align;        /* Segment alignment */                  /* 段对齐*/
+	} Elf64_Phdr;   
+3. elf的主题，对于可执行文件来说，最主要的就是数据段和代码段
+4. section表，对可执行文件来说，没有用，在链接的时候有用，是对代码段数据段在链接时的一种描述。
+
+一个可重定位(relocatable)文件保存着代码和适当的数据，用来和其他的object文件一起来创建一个可执行文件或者是一个共享文件。
+一个可执行(executable)文件保存着一个用来执行的程序；该文件指出了exec(BA_OS)如何来创建程序进程映象。
+一个共享object文件保存着代码和合适的数据，用来被下面的两个链接器链接。
+  第一个是连接编辑器[请参看ld(SD_CMD)]，可以和其他的可重定位和共享object文件来创建其他的object。
+  第二个是动态链接器，联合一个可执行文件和其他的共享object文件来创建一个进程映象
+
+segments(programs headers) 是从运行的角度来描述elf文件， sections是从链接的角度来描述elf文件的
+Linking 视角                      Execution 视角
+============                      ==============
+ELF header                        ELF header
+Program header table (optional)   Program header table
+Section 1                         Segment 1
+...                               Segment 2
+Section n                         ...
+Section header table              Section header table (optional)
+
+sections保存着object 文件的信息，从连接角度看：包括指令，数据，符号表，重定位信息等等。特别sections的描述会出项在以后的第一部分。
+第二部分讨论了段和从程序的执行角度看文件。
+假如一个程序头表（program header table）存在，那么它告诉系统如何来创建一个进程的内存映象。被用来建立进程映象(执行一个程序)的文件必须要有一个程序头表（program header table）；可重定位文件不需要这个头表。一个section头表（section header table）包含了描述文件sections的信息。
+每个section在这个表中有一个入口；每个入口给出了该section的名字，大小，等等信息。在联接过程中的文件必须有一个section头表；其他object文件可要可不要这个section头表。
+sections和段(segments)没有特别的顺序。只有ELF头（elf header）是在文件的固定位置。
+
+ELF Header
+  #define EI_NIDENT       16
+  typedef struct {
+      unsigned char       e_ident[EI_NIDENT];
+      Elf32_Half          e_type;
+      Elf32_Half          e_machine;
+      Elf32_Word          e_version;
+      Elf32_Addr          e_entry;
+      Elf32_Off           e_phoff;
+      Elf32_Off           e_shoff;
+      Elf32_Word          e_flags;
+      Elf32_Half          e_ehsize;
+      Elf32_Half          e_phentsize;
+      Elf32_Half          e_phnum;
+      Elf32_Half          e_shentsize;
+      Elf32_Half          e_shnum;
+      Elf32_Half          e_shstrndx;
+  } Elf32_Ehdr;
+* e_ident
+  这个最初的字段标示了该文件为一个object文件，提供了一个机器无关
+  的数据，解释文件的内容。在下面的ELF的鉴别（ELF Identification）
+  部分有更详细的信息。
+* e_type
+  该成员确定该object的类型。
+               Name        Value  Meaning
+               ====        =====  =======
+               ET_NONE         0  No file type
+               ET_REL          1  Relocatable file
+               ET_EXEC         2  Executable file
+               ET_DYN          3  Shared object file
+       ET_CORE         4  Core file
+       ET_LOPROC  0xff00  Processor-specific
+       ET_HIPROC  0xffff  Processor-specific
+  虽然CORE的文件内容未被指明，类型ET_CORE是保留的。
+  值从 ET_LOPROC 到 ET_HIPROC(包括ET_HIPROC)是为特殊的处理器保留的。
+  如有需要，其他保留的变量将用在新的object文件类型上。
+* e_machine
+  该成员变量指出了运行该程序需要的体系结构。
+                    Name      Value  Meaning
+            ====      =====  =======
+                    EM_NONE       0  No machine
+    EM_M32        1  AT&T WE 32100
+                    EM_SPARC      2  SPARC
+                    EM_386        3  Intel 80386
+                    EM_68K        4  Motorola 68000
+                    EM_88K        5  Motorola 88000
+                    EM_860        7  Intel 80860
+                    EM_MIPS       8  MIPS RS3000
+  如有需要，其他保留的值将用到新的机器类型上。特殊处理器名使用机器名来
+  区别他们。例如，下面将要被提到的成员flags使用前缀EF_;在一台EM_XYZ机器
+  上，flag称为WIDGET，那么就称为EF_XYZ_WIDGET。
+* e_version
+  这个成员确定object文件的版本。
+                 Name         Value  Meaning
+                 ====         =====  =======
+                 EV_NONE          0  Invalid version
+EV_CURRENT       1  Current version
+  值1表示原来的文件格式；创建新版本就用>1的数。EV_CURRENT值(上面给
+  出为1)如果需要将指向当前的版本号。
+* e_entry
+  该成员是系统第一个传输控制的虚拟地址，在那启动进程。假如文件没有
+  如何关联的入口点，该成员就保持为0。
+* e_phoff
+  该成员保持着程序头表（program header table）在文件中的偏移量(以字节计数)。
+  假如该文件没有程序头表的的话，该成员就保持为0。
+* e_shoff
+  该成员保持着section头表（section header table）在文件中的偏移量(以字节
+  计数)。假如该文件没有section头表的的话，该成员就保持为0。
+* e_flags
+  该成员保存着相关文件的特定处理器标志。
+  flag的名字来自于EF_<machine>_<flag>。看下机器信息“Machine Information”
+  部分的flag的定义。
+* e_ehsize
+  该成员保存着ELF头大小(以字节计数)。
+* e_phentsize
+  该成员保存着在文件的程序头表（program header table）中一个入口的大小
+  (以字节计数)。所有的入口都是同样的大小。
+* e_phnum
+  该成员保存着在程序头表中入口的个数。因此，e_phentsize和e_phnum
+  的乘机就是表的大小(以字节计数).假如没有程序头表（program header table），
+  e_phnum变量为0。
+* e_shentsize
+  该成员保存着section头的大小(以字节计数)。一个section头是在section
+  头表(section header table)的一个入口；所有的入口都是同样的大小。
+* e_shnum
+  该成员保存着在section header table中的入口数目。因此，e_shentsize和
+  e_shnum的乘积就是section头表的大小(以字节计数)。
+  假如文件没有section头表，e_shnum值为0。
+* e_shstrndx
+  该成员保存着跟section名字字符表相关入口的section头表(section header 
+  table)索引。假如文件中没有section名字字符表，该变量值为SHN_UNDEF。
+  更详细的信息 看下面“Sections”和字符串表(“String Table”) 。

@@ -1,0 +1,67 @@
+
+local function _instantiate(class, ...) -- 返回一个table，该table表示一个实例
+    local inst = setmetatable({}, {__index = class}) -- 通过__index实现对父类的继承
+    if inst.__init__ then   -- 对__call函数调用转移到对__init__函数的调用
+        inst:__init__(...)  
+    end
+    return inst
+end
+
+
+function class(base)   -- 返回一个table，该table表示一个类型
+    return setmetatable({}, {
+        __call  = _instantiate,
+        __index = base
+    })
+end
+
+function instanceof(object, class)
+    local meta = getmetatable(object)
+    while meta and meta.__index do
+        if meta.__index == class then
+            return true
+        end
+        meta = getmetatable(meta.__index)
+    end
+    return false
+end
+
+-- ---------------------------------------------------------- template
+defaults = util.class()
+function defaults.__init__(self)
+	uci_r:foreach("firewall", "defaults",
+		function(s)
+			self.sid  = s['.name']
+			return false
+		end)
+
+	self.sid = self.sid or uci_r:section("firewall", "defaults", nil, { })
+end
+
+function defaults.get(self, opt)
+	return _get("firewall", self.sid, opt)
+end
+
+function defaults.set(self, opt, val)
+	return _set("firewall", self.sid, opt, val)
+end
+
+function defaults.syn_flood(self)
+	return (self:get("syn_flood") == "1")
+end
+
+function defaults.drop_invalid(self)
+	return (self:get("drop_invalid") == "1")
+end
+
+function defaults.input(self)
+	return self:get("input") or "DROP"
+end
+
+function defaults.forward(self)
+	return self:get("forward") or "DROP"
+end
+
+function defaults.output(self)
+	return self:get("output") or "DROP"
+end

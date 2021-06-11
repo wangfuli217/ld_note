@@ -1,0 +1,146 @@
+http://c.biancheng.net/view/1827.html
+
+
+
+全局变量定义
+------------------------
+为了确保在各个平台上各数据类型都有统一确定的长度，Qt 为各种常见数据类型定义了类型符号，如 qint8 就是 signed char 的类型定义，即：
+
+typedef signed char qint8;
+<QtGlobal>中定义的数据类型见表 1。
+
+表 1 Qt 中的数据类型定义 
+Qt 数据类型 等效定义              字节数
+qint8       signed char             1
+qint16      signed short            2
+qint32      signed int              4
+qint64      long long int           8
+qlonglong   long long int           8
+quint8      unsigned char           1
+quint16     unsigned short          2
+quint32     unsigned int            4
+quint64     unsigned long long int  8
+qulonglong  unsigned long long int  8
+uchar       unsigned char           1
+ushort      unsigned short          2
+uint        unsigned int            4
+ulong       unsigned long           8
+qreal       double                  8
+qfloat16                            2
+
+其中 qreal 缺省是 8 字节 double 类型浮点数，如果 Qt 使用 -qreal float 选项进行配置，就是 4 字节 float 类型的浮点数。
+qfloat16 是 Qt 5.9.0 中新增的一个类，用于表示 16 位的浮点数，要使用 qfloat16，需要包含头文件 <QFloat16>。
+
+全局函数定义
+------------------------
+<QtGlobal> 头文件包含一些常用函数的定义，这些函数多以模板类型作为参数，返回相应的模板类型，模板类型可以用任何其他类型替换。
+若是以 double 或 float 类型数作为参数的，一般有两个参数版本的同名函数，如qFuzzyIsNull(double d) 和 qFuzzyIsNull(float f)。
+函数                                                        功能
+T qAbs(const T &value)                                      返回变量 value 的绝对值
+const T &qBound(const T &min, const T&value, const T &max)  返回 value 限定在 min 至 max 范围之内的値
+bool qFuzzyComparc(doublc p1, double p2)                    若 p1 和 p2 近似相等，返回 true
+bool qFuzzyIsNulI(double d)                                 如果参数 d 约等于 0，返回 true
+double qInf(()                                              返回无穷大的数
+bool qIsFinite(double d)                                    若 d 是一个有限的数，返回 true
+bool qIsInf(double d)                                       若 d 是一个无限大的数，返回 true
+bool qIsNaN(double d)                                       若 d 不是一个数，返回 true
+constT&qMax(const T&value1, const T&value2)                 返回 value1 和 value2 中较大的值
+const T &qMin(const T&value1, const T&value2)               返回 value1 和 value2 中较小的值
+qint64 qRound64(double value)                               将 value 近似为最接近的 qint64 整数
+int qRound(double value)                                    将 value 近似为最接近的 int 整数
+int qrand()                                                 标准 C++ 中 rand() 函数的线程安全型版本，返回 0 至 RAND_MAX 之间的伪随机数
+void qsrand(uint seed)                                      标准 C++ 中 srand() 函数的线程安全型版本，使用种子 seed 对伪随机数字序列初始化
+
+还有一些基础的数学运算函数在 <QtMath> 头文件中定义，比如三角运算函数、弧度与角度之间的转换函数等。
+
+全局宏定义
+------------------------
+<QtGlobal>中文件中定义了很多宏，以下一些是比较常用的：
+
+    QT_VERSION：这个宏展开为数值形式 0xMMNNPP (MM = major, NN = minor, PP = patch) 表示 Qt 编译器版本，例如 Qt 编译器版本为 Qt 5.9.1，则 QT_VERSION 为 0x050901。这个宏常用于条件编译设置，根据 Qt 版本不同，编译不同的代码段。
+
+    #if QT_VERSION >= 0x040100
+      QIcon icon = style()->standardIcon(QStyle::SP_TrashIcon);
+    #else
+      QPixmap pixmap = style()->standardPixmap(QStyle::SP_TrashIcon);
+      Qlcon icon(pixmap);
+    #endif
+
+    QT_VERSION_CHECK：这个宏展开为 Qt 版本号的一个整数表示，例如：
+
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+    #include <QtWidgets>
+    #else
+    #include <QtGui>
+    #endif
+
+    QT_VERSION_STR：这个宏展开为 Qt 版本号的字符串，如“5.9.0”。
+    Q_BYTE_ORDER、Q_BIG_ENDIAN 和 Q_LITTLE_ENDIAN：Q_BYTE_ORDER 表示系统内存中数据的字节序，Q_BIG_ENDIAN 表示大端字节序，Q_LITTLE_ ENDIAN 表示小端字节序。在需要判断系统字节序时会用到，例如：
+
+    #if Q_BYTE_ORDER == Q_LITTLE_ENDIAN
+      ...
+    #endif
+
+    Q_DECL_IMPORT 和 Q_DECL_EXPORT：在使用或设计共享库时，用于导入或导出库的内容，后续章节有其使用实例。
+    Q_DECL_OVERRIDE：在类定义中，用于重载一个虚函数，例如在某个类中重载虚函数 paintEvem()，可以定义如下：
+
+    void paintEvent(QPaintEvent*) Q_DECL_OVERRIDE;
+    使用 Q_DECL_OVERRIDE 宏后，如果重载的虚函数没有进行任何重载操作，编译器将会报错。
+    Q_DECL_FINAL：这个宏将一个虚函数定义为最终级别，不能再被重载，或定义一个类不能再被继承，示例如下：
+
+    Class QRect Q_DECL_FINAL { // QRect 不能再被继承
+        // ...
+    };
+
+    Q_UNUSED(name)：这个宏用于在函数中定义不在函数体里使用的参数，示例如下：
+
+    void MainWindow::on_imageSaved(int id, const QString &fileName)
+    {
+        Q_UNUSED(id);
+        LabInfo->setText ("图片保存为："+ fileName);
+    }
+
+    在这个函数里，id 参数没有使用。如果不用 QJJNUSED(id) 定义，编译器会出现参数未使用的警告。
+    foreach(variable, container)：foreach 用于容器类的遍历，例如：
+
+    foreach (const QString &codecName, recorder->supportedAudioCodecs())
+        ui->comboCodec->addItem(codecName);
+
+    forever：forever用于构造一个无限循环，例如：
+
+    forever {
+        ...
+    }
+
+    qDebug(const char * message,…）：在debugger窗体显示信息，如果编译器设置了 Qt_NO_DEBUG_OUTPUT，则不作任何输出，例如：
+
+    qDebug("Items in list: %d", myList.size());
+
+
+类似的宏还有 qWarning、qCritical、qFatal、qInfo 等，也是用于在 debugger 窗体显示信息。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,233 @@
+lxc(linux containers)
+
+LXC主要依赖Linux内核的3种隔离机制（isolation infrastructure）:
+
+Chroot 将应用隔离岛一个虚拟的私有root下
+Cgroups 实现资源控制，给每个用户实例可以按需提供其计算资源
+Namespaces 提供了隔离性，每个用户实例之间相互隔离，互不影响
+Linux的3.12内核支持6 种Namespace：
+
+UTS：隔离进程的hostname
+IPC：进程间通信
+PID：隔离进程间的PID namespace，clone新建的进程PID namespace中PID从 1 开始
+NS：mount挂载点
+NET：网络访问，包括接口
+USER：将本地的虚拟user-id映射到真实的user-id
+
+lxc-version 			用于显示系统LXC的版本号（可以通过此命令判断系统是否安装了lxc）
+lxc-checkconfig 		用于判断linux内核是否支持LXC
+lxc-create				用于创建一个容器
+用法：lxc-create -n name [-f config_file]
+			-n 	后面跟要创建的容器名字 例如：-n foo
+			-f 	后面跟容器配置文件的路径
+注：1.采用lxc-create创建的容器，在停止运行后，不会被销毁，要采用lxc-destroy命令才能销毁
+    2.容器命令空间是全局的，系统中不允许存在重名的容器，如果-n 后面跟一个已经存在的容器名，创建会失败
+	
+lxc-execute 			用于在一个容器执行应用程序
+用法： lxc-execute -n name [-f config_file] [ -s KEY=VAL ]command
+           -n 后面跟容器名字（容器名字用于管理容器）例如：-n foo
+           -f 后面跟容器配置文件的路径（如果没有配置文件，可以直接用-s指定配置选项，如果什么都没有，系统采用默认策略）例如：-f foo.conf
+           -s 后面跟配置键值对 例如：lxc.cgroup.cpu.shares=512
+		   command 为要执行的命令 例如：/bin/bash
+注：1.如果容器还不存在，lxc-execute会自动创建一个,容器停止运行后会被自动销毁
+    2.用lxc-execute启动应用程序，配置优先级如下：
+        如果指定-f选项，那么之前创建容器（如果容器是已存在的）的配置文件不会被使用
+        如果没有指定-f选项，那么将采用之前创建容器（如果容器已存在）的配置文件
+        如果指定-s选项，则在命令行中的配置键值对会覆盖配置文件（无论之前的还是-f指定的）相同配置
+		
+lxc-start 				用于在容器中执行给定命令
+用法：lxc-start  -n name [-f config_file] [-c console_file] [-d] [-s KEY=VAL] [command]
+	-d 将容器当做守护进程执行
+    -f 后面跟配置文件
+    -c 指定一个文件作为容器console的输出，如果不指定，将输出到终端
+    -s 指定配置
+注：1.如果容器还不存在，lxc-start会自动创建一个,容器停止运行后会被自动销毁
+    2.lxc-start配置优先级与lxc-execute相同
+    3.lxc-start 与lxc.execute的异同：
+      lxc-start 和 lxc-execute都可以在容器中启动进程，区别在于lxc-start直接创建进程，lxc-execute先创建lxc-init进程，然后在lxc-init中fork一个进程来执行。
+    4.lxc-start用于在容器启动system，lxc-execute用于在容器执行应用程序
+	
+lxc-kill 				发送信号给容器中的第一个用户进程（容器内部进程号为2的进程）
+用法：lxc-kil -n name SIGNUM
+      -n 后面跟容器名
+      SIGNUM  信号 （此参数可选，默认SIGKILL）
+	  
+lxc-stop 用于停止容器中所有的进程
+用法：lxc-stop -n name
+       -n后面跟要停止的容器名
+
+lxc-destroy 用于销毁容器
+用法：lxc-destroy -n name
+       -n后面跟要停止的容器名
+	   
+lxc-cgroup 用于获取或调整与cgroup相关的参数
+用法：lxc-cgroup -n name subsystem value
+        -n 后面跟要调整的容器名
+		
+lxc-info 用户获取一个容器的状态
+用法:lxc-info -n name
+       -n后面跟操作的容器名
+	   
+lxc-monitor 监控一个容器状态的变换，当一个容器的状态变化时，此命令会在屏幕上打印出容器的状态
+用法:lxc-monitor -n name
+
+lxc-ls 列出当前系统所有的容器
+
+lxc-ps 列出特定容器中运行的进程
+
+docker基于Linux内核的cgroup,namespace等技术,对进程进行封闭隔离,属于操作系统层面的虚拟化技术,docker没有自己的内核,也没有进行硬件虚拟,因此窗口要更轻便
+
+容器生命周期管理
+docker run	镜像名  进程(如:/bin/bash 启动docker容器执行/bin/bash这个进程,新建并启动一个容器)
+	它首先检测有没有对应的镜像名，如果没有就自动pull，如果有就利用这个镜像来启动一个容器
+	利用镜像创建并启动一个容器
+	分配一个文件系统,并在只读的镜像层外面挂载一层可读写层
+	从宿主机配置的网桥接口中桥接一个虚拟接口到容器中去
+	从地址池配置一个ip地址给容器
+	执行用户指定的应用程序
+	执行完毕后容器被终止
+	-i：交互式操作,进入镜像,让容器的标准输入保持打开
+	-t：让Docker分配一个伪终端(pseudo-tty)并绑定到容器的标准输入上
+	-d:	让Docker执行命令的结果在后台显示,别显示在宿主机上,如要查看,可以使用docker logs
+	--name name1：指定容器名称为name1；
+	--h hostname1：指定容器主机名为hostname1;
+	--dns ip:		指定容器的DNS,可以在启动docker服务时指定(即默认值),也可在容器启动时运行,会覆盖默认值
+	--rm:	容器退出后随之将其删除
+	-P:	表示让容器随机对应一个宿主机的端口,范围49000~49900
+	-p:	hostPort:containerPort(映射所有地址的端口) | ip:hostPort:containerPort(映射到指定地址的指定端口) | ip::containerPort(映射到指定地址的任意端口)
+	-p: ip:hostPort:containerPort
+	-p: ip::containerPort
+	-v:	containerDir 				将容器目录挂载到宿主机的随机目录
+	-v:	hostDir:containerDir		指定宿主目录挂载到容器固定目录,违背了docker一处部署,到处运行的原则
+	--mount: 						将数据卷挂载到容器里,可以挂载多个数据卷,如 --mount source=my-vol,target=/webapp,也可以挂载目录,如 --mount type=bind,source=/src/webapp,target=/opt/webapp
+									用-v来挂载如果本地目录不存在,会自动创建,挂载主机目录的默认权限是读写,可以增加readonly指定为只读,推荐使用--mount
+									可以只挂载单独文件
+	--net:	网络名					连接到一个网络
+			none				表示不需要网络
+			container:容器id	表示与另一个容器共享同一个网络
+			host				与主机共享同一个网络,容器有完整的权限可以操控主机的协议栈,路由表和防火墙等,因此是不安全的
+			bridge				docker设计的NAT网络模型
+			overlay				docker原生的跨主机多子网模型,较复杂,底层需要类似consul或etcd的kv存储系统进行消息同步,核心是通过linux网桥与vxlan隧道实现跨主机划分子网
+	--ip:	地址					指定地址
+	-H SOCKET... 或 --host=SOCKET..	Docker服务端接收命令的通道
+	--icc=true|false				是否支持容器间进行通信
+	--ip-forward=true|false			是否启用IP转发服务,默认开启,只能指定给docker服务
+	--iptables=true|false			是否允许docker添加iptables规则
+	--mtu=BYTES						容器网络中的MTU
+	--link=CONTAINER:ALIAS			添加到另一个容器的连接
+	--restart=no/on-failure/always	容器退出时重启容器,如果创建时未指定,可以通过docker update --restart=always xxx来指定
+	例:
+		docker run -d -p 80:80 --name nginx -v /home/hells/armDisk/schedulerTest/default.conf:/etc/nginx/conf.d/default.conf -v /home/hells/armDisk/schedulerTest/nginx:/usr/share/nginx/html nginx
+docker start/stop/restart		启动/停止/重启容器,后接容器id
+kill
+docker rm	容器id				删除一个处于终止状态的容器
+	-f  	发送SIGKILL信号给容器,可以删除位于运行状态的容器
+docker container ls				显示在后台运行的容器信息
+docker container prune 			删除所有处于终止状态的容器
+pause/unpause
+create
+docker exec		在运行的容器中执行命令,例如进入一个已启动的容器 docker exec -it 容器id  /bin/bash
+docker stats   容器id 			监控一个容器的资源使用
+
+容器操作
+docker ps	显示正在后台运行的容器
+	-a		显示所有容器
+	-q		只返回容器id
+docker inspect  容器id	查看容器详细信息
+top
+docker attach 容器id	容器启动时必须有-i -t,才可以attach进去,且ctrl-d或exit退出时,会导致容器退出
+events
+docker logs 容器id		显示容器后台输出的信息
+wait
+docker export 容器id > 名字.tar   导出某个容器快照到本地文件,后续可以使用cat 名字.tar | docker import - test/ubuntu:V1.0 导入为镜像
+			和docker load的区别是容器快照文件将丢弃所有的历史记录和元数据信息(即仅保存容器当时的快照状态)
+			而镜像存储文件将保存完整记录,体积也要大,此外,从容器快照文件导入时可以重新指定标签等元数据信息
+docker port  容器id		查看此容器端口映射配置
+	-a 		显示所有容器信息
+docker volume create name	创建一个数据卷
+docker volume ls			显示所有数据卷信息
+docker volume inspect name	查看一个数据卷的详细信息
+docker volume rm name		删除数据卷
+docker volume prune			无主的数据卷可能占用很多空间,可以使用此命令来清理掉无主的数据卷
+
+网络相关
+	当Docker启动时,会自动在主机创建一个docker0的虚拟网桥,可以理解为一个软件交换机,它会在挂载到它的风口之间进行转发
+	当创建一个Docker容器时,同时会创建一对veth pair接口(当数据包发到一个接口时,另外一个接口也可以收到相同的数据包),这对接口一端在容器内,即eth0,别一端在本地并被挂载到docker0网桥,名称以veth开头
+docker network create 名字	创建一个新的docker网络
+	-d 			指定网络类型,有bridge,overlay,其中overlay用于swarm mode
+	--subnet	指定网络,如 10.12.5.0/24
+
+容器rootfs命令
+docker commit	supermap/iserverdss:v1	创建一个新的image,后接容器id,仓库名/镜像名:TAG名。
+	-a, --author=""     Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
+	-m, --message=""    Commit message
+	-p, --pause=true    Pause container during commit
+
+镜像仓库
+docker login		登录
+docker pull	[选项] [Docker Registry 地址[:端口号]/]仓库名[:标签]		从docker镜像仓库获取镜像,这里的仓库名是两段式标签,即用户名/软件名,对于Docker Hub,如果不给出用户名,则默认为library,即官方镜像
+docker push username/ubuntu:17.10		推送镜像
+docker search	关键词					查找镜像
+
+本地镜像管理
+docker  images				查看本地所有镜像
+	-f  即--filters,根据某个条件过滤显示出来的镜像
+	-q	只显示镜像id
+docker  system 	df			查看本地镜像,容器,数据卷所占用的空间
+docker 	rmi					删除镜像,后接镜像id,并非所有的删除都会删除镜像,有可能只是删除某个标签
+docker  tag	 IMAGE[:TAG]	[REGISTRY_HOST[:REGISTRY_PORT]/]REPOSITORY[:TAG]	给镜像打标记
+docker  build [选项] 上下文件路径	在Dockerfile文件所在目录执行此命令,实际docker build是在服务端进行构建的,因此需要指定上下文路径,docker build会将此路径下的所有内容打包上传到docker服务端
+	-f  "路径"		指定Dockerfile路径,包含名称,并不要求一定文件名是Dockerfile
+history
+docker save					在其他已有镜像机器上执行此命令将此容器保存成tar文件镜像,例:docker save ubuntu:14.04 > ubuntu.14.04.tar或docker save alpine | gzip > alpine-latest.tar.gz
+docker load					加载镜像,例:docker load < ubuntu_14.04.tar 或 docker load -i alpine-latest.tar.gz
+	-i  	从tar归档文件读取镜像,而不是标准输入流
+docker import [选项]<文件>|<URL>|- [<仓库名><:<标签名>]]   从rootfs压缩包导入,压缩包可以是本地文件,远程web文件,甚至是从标准输入得到,压缩包将会在镜像/目录展开,并直接作为镜像第一层提交
+info|version
+info
+version
+
+Dockerfile		使用docker commit来生成镜像的话会有大量无关内容被添加进来,导致镜像越来越大,且生成镜像的步骤不清晰,所以使用Dockerfile是最好的
+				是一个文本文件,每一条指令构建一层,因此每一条指令的内容,就是描述该层应该如何创建
+	FROM	基础镜像		FROM是Dockerfile中必备的指令,并且必须是第一条指令,scratch表示一个空的镜像
+	RUN		用来执行命令行命令,有2种格式
+		shell格式:RUN<命令>,如 RUN echo '<h1>Hello, Docker!<!h1>' > /usr/share/nginx/html/index.xml
+		exec格式: RUN["可执行文件","参数1","参数2"],更低函数调用格式
+	COPY	<源路径> ... <目标路径>  复制上下文路径中的文件,如 COPY ./package.json /app/ 并不是复制运行docker build目录下的package.json,也不是复制Dockerfile目录下的package.json
+			["<源路径1>",..."<目标路径>"]	源路径可以是多个,可以是通配符
+			--from  	可以从其他镜像复制文件
+	ADD		更高级的复制文件,如果源路径是一个url,则会去下载,如果源文件是一个tar压缩文件,压缩格式为gzip,bzip2,以及xz的情况下则会自动解压缩到目标路径去,因此除了需要自动解压缩的地方,不推荐使用
+	CMD		shell格式: 		CMD <命令>
+			exec格式:  		CMD ["可执行文件","参数1","参数2"...]
+			参数列表格式:	CMD ["参数1","参数2"...],在指定了ENTRYPOINT指令后,用CMD指定具体参数
+			用于指定默认的容器主进程的启动命令,在运行时可以指定新命令来代替这个默认值
+	ENTRYPOINT		入口点,格式和RUN一样,目的和CMD一样,都是指定容器启动程序及参数,ENTRYPOINT在运行时也是可以替代的,不过比CMD繁琐,需要通过docker run --entrypoint来指定
+					当指定了ENTRYPOINT之后,CMD的含义就发生了改变,不再是直接的运行命令,而是将CMD的内容作为参数传给ENTRYPOINT
+	EVN		设置环境变量,格式:
+			ENV <key> <value>
+			ENV <key1>=<value1> <key2>=<value2>
+	ARG		构建参数,和ENV的效果一样,都是设置环境变量,所不同的是,ARG设置的环境变量,在将来容器运行时是不会存在这些环境变量的,可以在docker build时使用参数--build-arg <参数名>=<值>来覆盖,格式
+			ARG <参数名>[=<默认值>]
+	VOLUME	定义匿名卷,格式
+			VOLUME ["路径1","路径2"...]
+			VOLUME <路径>
+	EXPOSE	声明运行时容器提供服务端口,只是一个声明,在运行时并不会因为这个声明应用就会开启这个端口的服务,有2个好处,一是帮助镜像使用者理解这个镜像服务的守护端口,以方便配置映射,二是在运行期使用随便端口映射时,也就是docker run -P,会自动随机映射EXPOSE的端口,格式
+			EXPOSE <端口1> [<端口2>...]
+	WORKDIR	指定工作目录,以后各层的当前目录就被改为指定的目录了
+			WORKDIR <工作目录路径>
+	USER 	指定当前的用户,和WORKDIR差不多的是都是改变环境状态,并影响以后的层,改变之后层的执行RUN,CMD,以及ENTRYPOINT这类命令的身份
+			USER <用户名>
+	HEALTHCHECK		健康检查
+		HEALTHCHECK [选项] CMD <命令> : 设置检查容器健康状况的命令
+		HEALTHCHECK NONE:				如果基础镜像有健康检查命令,使用这行可以屏蔽掉其健康检查指令
+			参数:
+				--interval=<间隔>	两次健康检查的间隔,默认为30秒
+				--timeout=<时长>	健康检查命令运行超时时间,如果超过这个时间,本次健康检查就被视为失败,默认30秒
+				--retries=<次数>	当连续失败指定次数后,则将容器状态视为unhealthy,默认3次
+	ONBUILD		是一个特殊的指令,它后面跟的是其他指令,如RUN,COPY,而这些指令,在当前镜像构建时不会被执行,只有当以当前镜像为基础镜像,去构建下一层镜像时才会被创建
+		ONBUILD <其他指令>
+	as		只构建某一阶段的镜像,如 FROM golang:1.9-alpine as builder,在go build时可以指定--targets builder参数即可
+	
+dockerd		服务端命令
+	-b 		-b bridge 或 --bridge=BRIDGE 	指定容器挂载的网桥,也可在docker服务参数中指定
+	--bip=CIDR								定制docker0的掩码,ip地址加掩码格式,如192.168.1.5/24,与-b互斥

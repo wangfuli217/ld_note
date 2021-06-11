@@ -1,0 +1,50 @@
+怎样写一个有可变参数的函数？
+用 <stdarg.h> 提供的辅助设施。
+
+下面是一个把任意个字符串连接起来的函数, 结果存在 malloc 的内存中：
+
+    #include <stdlib.h>          /* 说明 malloc, NULL, size_t */
+    #include <stdarg.h>          /* 说明 va_ 相关类型和函数 */
+    #include <string.h>          /* 说明 strcat 等 */
+
+    char *vstrcat(const char *first, ...)
+    {
+        size_t len;
+        char *retbuf;
+        va_list argp;
+        char *p;
+
+        if(first == NULL)
+	    return NULL;
+
+        len = strlen(first);
+
+        va_start(argp, first);
+
+        while((p = va_arg(argp, char *)) != NULL)
+	    len += strlen(p);
+
+        va_end(argp);
+
+        retbuf = malloc(len + 1);   /* +1 包含终止符 \0 */
+
+        if(retbuf == NULL)
+	    return NULL;	    /* 出错 */
+
+        (void)strcpy(retbuf, first);
+
+        va_start(argp, first);	    /* 重新开始扫描 */
+
+        while((p = va_arg(argp, char *)) != NULL)
+	    (void)strcat(retbuf, p);
+
+        va_end(argp);
+
+        return retbuf;
+    }
+
+调用如下:
+
+	char *str = vstrcat("Hello, ", "world!", (char *)NULL);
+
+注意最后一个参数的类型重置; 参见问题 5.2, 15.3。 注意调用者要释放返回的存储空间, 那是用 malloc 分配的。

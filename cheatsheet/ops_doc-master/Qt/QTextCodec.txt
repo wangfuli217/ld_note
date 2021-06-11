@@ -1,0 +1,130 @@
+1. 概述
+    在 Qt 眼中只有两种编码：Unicode 和非 Unicode。Qt 自己内部都统一使用 Unicode 编码。
+要把非 Unicode 编码转换成 Qt 自己使用的 Unicode 编码，只需要设置下 QTextCodec 
+类采用什么非 Unicode 编码，然后一条函数代码即可搞定。
+
+
+2. 最常用的用法示例
+    我从来没见过比 QTextCodec 类更便捷的进行字符编码转换的类了。我们以俄语为例，
+想把一段俄文 KOI8-R 编码的字符串和 Unicode 编码的字符串相互转化，用区区几行代码就可以：
+
+俄文 KOI8-R -> Unicode
+    QByteArray encodedStr = "......";
+    QTextCodec *codec = QTextCodec::codecForName("KOI8-R");
+    QString str = codec->toUnicode(encodedStr);
+
+Unicode -> 俄文 KOI8-R
+    QString str = "......";
+    QTextCodec *codec = QTextCodec::codecForName("KOI8-R");
+    QByteArray encodedStr = codec->fromUnicode(str);
+
+有人问了，我想在俄文和中文之间进行转换，咋办？我就想说是不是傻？俄文 -> Unicode -> 中文不就可以了么。
+
+3. 支持的编码格式
+    Big5、Big5-HKSCS、CP949、EUC-JP、EUC-KR、GB18030、HP-ROMAN8、IBM 850、IBM 866、
+IBM 874、ISO 2022-JP、ISO 8859-1 to 10、ISO 8859-13 to 16、Iscii-Bng, Dev, Gjr, Knd, 
+Mlm, Ori, Pnj, Tlg, and Tml、KOI8-R、KOI8-U、Macintosh、Shift-JIS、TIS-620、TSCII、
+UTF-8、UTF-16、UTF-16BE、UTF-16LE、UTF-32、UTF-32BE、UTF-32LE、Windows-1250 to 1258。
+
+4. 如何按照某种编码格式读写文件？
+    因为上面我们举的例子适合一段短小的文本，如果想以某种编码格式读写文件，此时可以
+使用 QTextStream 和 setCodec() 函数。参考官方示例：Codecs。
+stream.setCodec("UTF-16");
+stream.setGenerateByteOrderMark(true);
+
+5. 网络传输中的编码问题
+    网络传输的数据都是 0101010101，那我们怎么知道到了哪一个数据段就是一个字呢？
+而且如果出现分包的情况下，如果数据收的不完整而直接用 QTextCodec 转换可能会失败。
+为了解决这个问题，我们需要为 QTextCodec 创建一个 QTextDecoder 对象，使用这个对象
+来完成整个转码过程。因为 QTextDecoder 这个类会维护“数据块”之间的状态，即使一段
+完整的数据被拆分开也可以正常把它们拼接起来。示例代码如下：
+
+QTextCodec *codec = QTextCodec::codecForName("KOI8-R");
+QTextDecoder *decoder = codec->makeDecoder();
+
+QString str;
+while (new_data_available()) {
+    QByteArray chunk = getNewData();
+    str += decoder->toUnicode(chunk);
+}
+
+delete decoder;
+
+6. 可以干什么？
+    基本信息[static]
+        可用的编/解码名称：QList<QByteArray> availableCodecs()
+        可用的编/解码Mib：QList<int> availableMibs()
+        设置本地编/解码：void setCodecForLocale(QTextCodec *c)
+    获取 QTextCodec[static]
+        适合某名称：QTextCodec * codecForName(......)
+        适合本地 Locale：QTextCodec * codecForLocale()
+        适合 BOM：QTextCodec * codecForUtfText(......)
+        适合 HTML：QTextCodec * codecForHtml(......)
+        适合 Mib：QTextCodec * codecForMib(int mib)
+    转码
+        Unicode->非Unicode：QByteArray fromUnicode(......) const
+        非Unicode->Unicode：QString toUnicode(......) const
+    网络传输
+        创建 QTextDecoder：QTextDecoder * makeDecoder(QTextCodec::ConversionFlags 
+        flags = DefaultConversion) const
+        创建 QTextEncoder：QTextDecoder * makeEncoder(QTextCodec::ConversionFlags 
+        flags = DefaultConversion) const
+    其他
+        转码设置：enum ConversionFlag { DefaultConversion, ConvertInvalidToNull, IgnoreHeader }
+        判断是否可以转码：bool canEncode(......) const
+        
+
+7. 一旦在Qt程序中出现latin1字符集以外的字符，几乎大家无一例外的会用到 QTextCodec。
+QTextCodec::setCodecForCStrings(textc);
+QTextCodec::setCodecForTr(textc);
+QTextCodec::setCodecForLocale(textc);
+
+7.1 字符串、字节流
+在C和C++中，我们一般都是将 "hello world!" 这种称为字符串(窄字符串、C传统字符串、char*字符串...)
+ANSI C、C++截止目前只有字节流，而缺乏对字符串的支持。
+
+QByteArray 和 QString <---> 字节流和字符串
+当我们涉及到IO时，比如读写文件、读写网络socket、控制台(终端)输入输出、读写串口... 操作的都是字节流，
+如果我们此时需要的操作的内容是字符串，则需要二者之间的相互转换。
+
+7.2 QTextCodec做什么？
+在java、C#、python等语言都内置支持unicode字符串的情况下，C、C++ 一直以来对unicode却没有提供任何直接的支持
+
+QTextCodec 提供的是 字符串 和 字节流 之间的相互转换(也就是字符的编解码)。
+
+7.3 QTextCodec::setCodecForCStrings(textc);
+将影响QString中
+    QString ( const char * str )
+    QString ( const QByteArray & ba )
+    QString & append ( const QByteArray & ba )
+    QString & append ( const char * str )
+    bool operator!= ( const QByteArray & other ) const
+    bool operator!= ( const char * other ) const
+    QString & operator= ( const QByteArray & ba )
+    QString & operator= ( const char * str )
+    QString fromAscii ( const char * str, int size = -1 )
+    QString fromAscii ( const char * str, int size = -1 )
+    ...
+等和字节流(QByteArray或char*)相关但有没有像fromUtf8等那样指定明确编码的成员函数。
+以及QByteArray类中涉及unicode字符串的那些成员函数
+    QByteArray & append ( const QString & str )
+    int indexOf ( const QString & str, int from = 0 ) const
+    bool operator< ( const QString & str ) const
+
+
+7.4 QTextCodec::setCodecForTr(textc);
+在 Qt中translate、tr关系 与中文问题 一文中我们过提到了一个问题。
+当我们使用
+QString QObject::tr ( const char * sourceText, const char * disambiguation = 0, int n = -1 ) [static]
+这种函数时，需要将 sourceText 这个字节流转换成一个QString字符串。
+如果我们已经加载了翻译文件，那么Qt将把该字节流作为一个key去查找相应的翻译好的字符串。
+如果没有加载翻译文件呢？Qt将需要某个codec将该字节流解码成unicode字符串。
+
+
+7.5 QTextCodec::setCodecForLocale(textc);
+这个应该没什么好说的，在绝大多数情况下，我们在代码中应该都用不到这个函数(默认的system应该比我们所能设置的要好)。
+    当我们从程序的命令行读取参数时int main(int argc, char *argv[])
+    当我们从往控制台输出内容时qDebug()<<QString(...)
+    使用 QString::fromLocal8Bit() 与 QString::toLocal8Bit()
+
+

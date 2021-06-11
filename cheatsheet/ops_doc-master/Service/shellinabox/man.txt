@@ -1,0 +1,60 @@
+shellinaboxd  [ -b | --background[=pidfile] ] [ -c | --cert=certdir ]
+[ --cert-fd=fd ] [ --css=filename ] [ --cgi[=portrange] ] [ -d | --debug ] 
+[ -f | --static-file=url:file ] [ -g | --group=gid ] [ -h | --help ] 
+[ --linkify=[none|normal|aggressive] ] [ --localhost-only ] [ --no-beep ] 
+[ -n | --numeric ] [ --pid-file=pidfile ] [ -p | --port=port ] 
+[ -s | --service=service ] [ -t | --disable-ssl ] [ --disable-ssl-menu ] 
+[ -q | --quiet ] [ -u | --user=uid ] [ --user-css=styles ] 
+[ -v | --verbose ] [ --version ]
+
+
+-b | --background[=pidfile] 设定任务后台运行，同时可以指定pidfile
+--pidfile=pidfile           pidfile
+-c | --cert=certdir         如果有Server Name Identification，可以指定certificate-SERVERNAME.pem_file文件
+                            否则指定certificate.pem文件
+                            没有certificate.pem，则会调用/usr/bin/openssl创建新证书；之后会放弃root用户权限，启动shellinabox
+--cert-fd=fd                提供证书的文件描述符
+--css=filename     可以使用--static-file代替。支持多个选项；默认使用styles.css
+--cgi[=portrange]  选项--cgi 与这些选项--background, --pidfile and --port options互斥
+-p | --port=port   监听端口
+
+-f | --static-file=url:file  
+  + **beep.wav** audio sample that gets played whenever the terminal BEL is sounded.
+  + **favicon.ico** favicon image file that is displayed in the browser's navigation bar.
+  + **ShellInABox.js** JavaScript file implementing the AJAX terminal emulator.
+  + **styles.css** CSS style file that controls the visual appearance of the terminal.
+  + **print-styles.css** CSS style file that controls the  visual  appearance of printed pages when using the VT100 transparent printing feature.
+-s | --service=service 
+  SERVICE := <url-path> ':' APPLICATION
+   'LOGIN' 触发 /bin/login 进行用户名密码认证  * 默认方式
+    'SSH'  通过ssh建立本地连接转发数据
+    APPLICATION := 'LOGIN' | 'SSH' [ ':' <host> ] | USER ':' CWD ':' CMD
+                              工作目录            用户描述   执行命令
+    USER := 'AUTH' | <username> ':' <groupname>
+    CWD := 'HOME' : <dir>
+    CMD := 'SHELL' : <cmdline>
+    cmdline: * ${columns}; * ${gid}; * ${group}; * ${home}; * ${lines} ; * ${peer} ; * ${uid}
+     * ${url} * ${user} 
+    --service=/:LOGIN, 或 --service=/:SSH, 
+--user-css=styles
+  STYLES := GROUP { ';' GROUP }*
+  GROUP := OPTION { ',' OPTION }*
+  OPTION := <label> ':' [ '-' | '+' ] <css-file>
+
+-g | --group=gid
+-u | --user=uid
+
+--linkify=[none|normal|aggressive] 识别这些协议头 http://, https://, ftp://, or mailto
+--localhost-only   只支持本地
+
+
+-t | --disable-ssl
+--disable-ssl-menu
+
+-n | --numeric     --verbose模式下，输出Apache形式log。
+-q | --quiet
+-d | --debug       调试模式；与--quiet 和 --verbose选项互斥
+--version
+-v | --verbose
+
+

@@ -1,0 +1,271 @@
+#!/usr/bin/env bash
+#
+# bash-utils - A *bash* library for better scripting
+# <http://github.com/e-picas/bash-utils>
+# Copyright (c) 2015 Pierre Cassat & contributors
+#
+# This program is free software: you can freely use it, redistribute it
+# and/or modify it according to your needs, for yourself or a commercial use,
+# under the terms of the Apache License version 2.0 (the "License") as
+# published by the Apache Software Foundation.
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# The sources of this program are hosted on a public repository.
+# You can modify it, to ameliorate a feature or correct an error,
+# inform about a bug and follow updates at <http://github.com/e-picas/bash-utils>.
+#
+# You should have received a copy of the License along with this program ;
+# please see the LICENSE file that was distributed with this source code.
+# If not, see <http://www.apache.org/licenses/LICENSE-2.0>.
+#
+# --------
+#
+# bash-utils-lib:   this is the Bash-Utils library
+#                   it embeds various useful functions and variables commonly used in bash scripts
+#                   it required the core to be loaded
+#
+set -e
+
+[ -z "$BASH_UTILS_VERSION" ] && { \
+    source "$(dirname "${BASH_SOURCE[0]}")/bash-utils-core" || \
+        { echo "> ${BASH_SOURCE[0]}:${LINENO}: bash-utils-core not found!" >&2; exit 1; }; \
+};
+
+#### CODING ####
+
+# test if a function exists - returns a boolean
+# usage: `function_exists <func_name>`
+function_exists()
+{
+    [ $# -eq 0 ] && return 1;
+    [ "$(type -t "$1")" == 'function' ]
+}
+
+#### BOOLEANS ####
+
+# echoes 'on' if bool=true, 'off' if it is false
+# usage: `onoff_bit <bool>`
+onoff_bit ()
+{
+    [ $# -lt 1 ] && return 0;
+    [ "$1" = 'true' ] &&  echo 'on' || echo 'off';
+    return 0
+}
+
+# echoes 'true' if bool=true, 'false' if it is false
+# usage: `onoff_bit <bool>`
+truefalse_bit ()
+{
+    [ $# -lt 1 ] && return 0;
+    [ "$1" = 'true' ] && echo 'true' || echo 'false';
+    return 0
+}
+
+#### INTEGERS ####
+
+# test if an integer is an odd number
+# usage: `is_odd <int>`
+is_odd()
+{
+    [ $# -lt 1 ] && return 0;
+    local var="$1"
+    [ $((var%2)) -eq 0 ] && return 1 || return 0;
+}
+
+# test if an integer is an even number
+# usage: `is_even <int>`
+is_even()
+{
+    [ $# -lt 1 ] && return 0;
+    local var="$1"
+    [ $((var%2)) -eq 0 ] && return 0 || return 1;
+}
+
+# test if an integer is a prime number
+# usage: `is_prime <int>`
+is_prime()
+{
+    [ $# -lt 1 ] && return 0;
+    local j=2 nb
+    nb="$1"
+    [ "$nb" -lt 2 ] && return 1;
+    while [ $((nb%j)) -ne 0 ]
+    do
+        ((j++))
+    done
+    [ "$j" -ne "$1" ] && return 1 || return 0;
+}
+
+#### ARRAYS ####
+
+# get the index of a value in an array
+# usage: `array_search <item> <$array[@]>`
+array_search ()
+{
+    [ $# -lt 2 ] && die 'usage: `array_search <item> <$array[@]>`';
+    local i=-1 j
+    local search="$1"
+    shift
+    declare -a args
+    if [ $# -gt 1 ]; then
+        args=("$@")
+    else
+        [[ -n "${!1:-}" ]] && args=("${!1}") || return 1;
+    fi
+    for ((j=0; j<"${#args[@]}"; j++)); do
+        [ "$search" = "${args[$j]}" ] && i="$j";
+    done
+    [[ $i -ne -1 ]] && echo "$i" && return 0
+    return 1
+}
+
+# test if a value is in an array ; returns 0 if it is found
+# usage: `in_array <item> <$array[@]>`
+in_array()
+{
+    [ $# -lt 2 ] && die 'usage: `in_array <item> <$array[@]>`';
+    local needle="$1"
+    shift
+    declare -a args
+    if [ $# -gt 1 ]; then
+        args=("$@")
+    else
+        [[ -n "${!1:-}" ]] && args=("${!1}") || return 1;
+    fi
+    for item in "${args[@]}"; do
+        [ "$needle" = "$item" ] && return 0
+    done
+    return 1
+}
+
+#### FILE SYSTEM ####
+
+# get the number of the line matching a mask in a file (empty result if not found)
+# usage: `get_line_number_matching <file_path> <mask>`
+get_line_number_matching()
+{
+    [ $# -lt 1 ] && die 'usage: `get_line_number_matching <file_path> <mask>`';
+    local path="$1"
+    [ ! -e "$path" ] && die "file '${path}' not found";
+    local match="$2"
+    grep -n "$match" "$path" | cut -f1 -d:
+    return 0
+}
+
+# read current `$PATH` values as human readable string
+# usage: `get_path`
+get_path()
+{
+    echo -e "$PATH" | tr ':' "\n";
+    return 0
+}
+
+# add an entry in `$CMD_LOGFILE`
+# usage: `log <message>`
+log()
+{
+    [ $# -eq 0 ] && return 0;
+    echo "$(date +'%x %R') ${USER}@${HOSTNAME} [$$]: $*" >> "$CMD_LOGFILE";
+    return 0
+}
+
+# create a temporary file named like '$$...'
+# usage: `make_tmp_file [suffix]`
+make_tmp_file()
+{
+    local suffix='' tmpfile
+    [ $# -gt 0 ] && suffix=".$1"
+    tmpfile="$(mktemp -t "$$${suffix}.XXXXXX")"
+    echo "$tmpfile"
+    return 0
+}
+
+# get absolute path of a dir
+# inspired by <https://github.com/sstephenson/bats>
+# usage: `real_path_dirname <path>`
+real_path_dirname()
+{
+    [ $# -lt 1 ] && die 'usage: `real_path_dirname <path>`';
+    local cwd="$(pwd)"
+    local path="$1"
+    while [ -n "$path" ]; do
+        cd "${path%/*}" 2>/dev/null
+        local name="${path##*/}"
+        path="$(resolve_link "$name" || true)"
+    done
+    pwd
+    cd "$cwd"
+    return 0
+}
+
+# resolve a system path replacing '~' and '.'
+# usage: `resolve <path>`
+resolve()
+{
+    [ $# -eq 0 ] && return 0;
+    local _path="$1"
+    if [ "${_path:0:1}" = '~' ]; then _path="${_path/\~/${HOME}}"; fi
+    if [ "${_path:0:1}" != '/' ]; then _path="$(pwd)/${_path}"; fi
+    echo "$_path"
+}
+
+# resolve symbolic link
+# inspired by <https://github.com/sstephenson/bats>
+# usage: `resolve_link <path>`
+resolve_link()
+{
+    [ $# -lt 1 ] && die 'usage: `resolve_link <path>`';
+    $(type -p greadlink readlink | head -1) "$1"
+    return 0
+}
+
+# delete eventual trailing slash
+# usage: `strip_trailing_slash <path>`
+strip_trailing_slash()
+{
+    [ $# -lt 1 ] && die 'usage: `strip_trailing_slash <path>`';
+    local path="$1"
+    echo "${1%/}"
+    return 0
+}
+
+#### STRINGS ####
+
+# transform a string in upper case
+# usage: `string_to_upper <string>`
+string_to_upper()
+{
+    [ $# -lt 1 ] && die 'usage: `string_to_upper <string>`';
+    echo "$@" | tr '[:lower:]' '[:upper:]';
+    return 0
+}
+
+# transform a string in lower case
+# usage: `string_to_lower <string>`
+string_to_lower()
+{
+    [ $# -lt 1 ] && die 'usage: `string_to_lower <string>`';
+    echo "$@" | tr '[:upper:]' '[:lower:]';
+    return 0
+}
+
+# list of Linux-like OSs
+declare -xa LINUX_OS=(Linux FreeBSD OpenBSD SunOS)
+set_env_array LINUX_OS LINUX_OS[@]
+
+# LOREMIPSUM (844 chars.) , LOREMIPSUM_SHORT (446 chars.) , LOREMIPSUM_MULTILINE (861 chars. / 5 lines) (read-only)
+readonly LOREMIPSUM="At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat.";
+readonly LOREMIPSUM_SHORT="Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+readonly LOREMIPSUM_MULTILINE="At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi. \n\
+Sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio. \n\
+Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus. Temporibus \n\
+autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur a sapiente delectus, \n\
+ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat.";
+
+[ "$(basename "$0")" = "$(basename "${BASH_SOURCE[0]}")" ] && exit 0 || return 0;
+# vim: autoindent tabstop=4 shiftwidth=4 expandtab softtabstop=4 filetype=sh

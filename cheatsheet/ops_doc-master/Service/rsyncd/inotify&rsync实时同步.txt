@@ -1,0 +1,34 @@
+inotify&rsync实时同步
+## 同步修改的文件
+
+#!/bin/bash
+# 先cd  inotify再监听 ./ 才能rsync同步后目录结构一致
+cd /path/data/ && inotifywait -mrq --format  '%Xe %w%f' -e modify,create,delete,attrib,close_write,move ./ | while read file
+do
+    INO_EVENT=$(echo $file | awk '{print $1}') # 事件类型部分赋值INO_EVENT
+    INO_FILE=$(echo $file | awk '{print $2}') # 文件路径部分赋值INO_FILE
+    echo "-------------------------------$(date +'%F %T'): $file------------------------------------"
+    # 增加、修改、写入完成、移动进事件
+    if [[ $INO_EVENT =~ ('CREATE'|'MODIFY'|'CLOSE_WRITE'|'MOVED_TO') ]] ; then
+        echo 'CREATE or MODIFY or CLOSE_WRITE or MOVED_TO'
+        rsync -avzR --password-file=/path/to/pwd_file $(dirname ${INO_FILE}) <u_name>@<ip>::<mod>
+        # INO_FILE表路径 每次同步发生改变的文件的目录 -R把源的目录结构递归到目标后,保证目录结构一致性
+    fi
+    # 删除、移动出事件
+    if [[ $INO_EVENT =~ ('DELETE'|'MOVED_FROM') ]] ; then
+        echo 'DELETE or MOVED_FROM'
+        rsync -avzR --delete --password-file=/path/to/pwd_file $(dirname ${INO_FILE}) <u_name>@<ip>::<mod>
+        # 同步已删除路径会报错 所以同步被删文件目录上一级 --delete删除目标有而源没有的文件
+    fi
+    #修改属性 touch chgrp chmod chown等
+    if [[ $INO_EVENT =~ 'ATTRIB' ]] ; then
+        echo 'ATTRIB'
+        if [ ! -d "$INO_FILE" ] ; then # 目录不同步，目录下文件同步时，rsync会更新目录
+            rsync -avzR --password-file=/path/to/pwd_file $(dirname ${INO_FILE}) <u_name>@<ip>::<mod>
+        fi
+    fi
+done
+
+## 定时全量同步
+# crond: * */2 * * * 每2h同步一次
+rsync -avz --password-file=/path/to/pwd_file /data/ <u_name>@<ip>::<mod>

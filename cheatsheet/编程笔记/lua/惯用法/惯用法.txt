@@ -1,0 +1,45 @@
+1. 尽可能使用local修饰变量
+  原因：
+  使用local的变量会在作用域结束时释放其内存
+  使用local的变量会比全局变量的存取更快
+  全局变量会污染全局的命名空间，可能会导致诡异的bug出现
+  
+2. 直接判断真假值
+  -- 不推荐
+  if obj ~= nil and willBreak == false then
+      -- ...
+  end
+   
+  -- 推荐
+  if obj and not willBreak then
+      -- ...
+  end
+  原因：Lua在逻辑判断时将所有false和nil的逻辑判断视为假，反之则全部视为真，不需要再与布尔值和nil进行显式比对。
+  
+  但是，在需要对false和nil进行区分时，需要写明==：obj == nil和obj == false。
+  
+3. 默认参数的实现
+  范式：param = param or defaultValue
+  function setName(name)
+      name = name or 'noName'
+      -- ...
+  end
+  原因：or会在第一次为true的时候断路，返回其判断的最后一个值。所以当name为空时，name or 'noName'返回为'noName'，
+        这会将name的值自动设置为noName。
+
+4. 一行代码实现表的拷贝
+  u = {unpack(t)}
+  需要注意的是此法在表内条目大于2000时会失效。
+
+5. 一行代码判断表是否为空
+  用#t == 0并不能判断表是否为空，因为#预算符会忽略所有不连续的数字下标和非数字下标。
+  正确做法是：
+  因为表的键可能为false，所以必须与nil比较，而不直接使用~next(t)来判断表是否空。
+
+6. 更快的插入代码
+  -- 更慢，不推荐
+  table.insert(t, value) 
+   
+  -- 更快，推荐
+  t[#t+1] = value 
+  原因：[]和#避免了高层的函数调用开销。

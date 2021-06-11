@@ -1,0 +1,418 @@
+
+原文地址：http://www.grymoire.com/Unix/Sed.html
+
+http://www.cnblogs.com/51linux/archive/2011/09/24/2189420.html
+
+
+	首先，应该明白模式空间的定义。模式空间就是读入行所在的缓存，sed对文本行进行的处理都是在这个缓存中进行的。这对接下来的学习是有
+帮助的。
+	在正常情况下，sed将待处理的行读入模式空间，脚本中的命令就一条接着一条的对该行进行处理，直到脚本执行完毕，然后该行被输出，模式
+空间请空；然后重复刚才的动作，文件中的新的一行被读入，直到文件处理完备。
+	但是，各种各样的原因，比如用户希望在某个条件下脚本中的某个命令被执行，或者希望模式空间得到保留以便下一次的处理，都有可能使得
+sed在处理文件的时候不按照正常的流程来进行。这个时候，sed设置了一些高级命令来满足用户的要求。
+
+总的来说，这些命令可以划分为以下三类：
+1. N、D、P：处理多行模式空间的问题；
+2. H、h、G、g、x：将模式空间的内容放入存储空间以便接下来的编辑；
+3. :、b、t：在脚本中实现分支与条件结构。
+
+多行模式空间的处理：
+-----------------------------------------------------------------------------------------------
+	由于正则表达式是面向行的，因此，如若某个词组一不分位于某行的结尾，另外一部分又在下一行的开始，这个时候用grep等命令来处理就
+相当的困难。然而，借助于sed的多行命令N、D、P，却可以轻易地完成这个任务。
+	多行Next(N)命令是相对于next(n)命令的，后者将模式空间中的内容输出，然后把下一行读入模式空间，但是脚本并不会转移到开始而是
+从当前的n 命令之后开始执行；而前者则保存原来模式空间中的内容，再把新的一行读入，两者之间依靠一个换行符"\n"来分隔。在N命令
+执行后，控制流将继续用N命令以后的命令对模式空间进行处理。
+
+值得注意的是，在多行模式中，特殊字符"^"和"$"匹配的是模式空间的最开始与最末尾，而不是内嵌"\n"的开始与末尾。
+例1：
+$ cat expl.1
+Consult Section 3.1 in the Owner and Operator
+Guide for a description of the tape drives
+available on your system.
+现在要将"Owner and Operator Guide"替换为"Installation Guide"：
+$ sed '/Operator$/{
+> N
+> s/Owner and Operator\nGuide/Installation Guide\
+> /
+> }' 
+
+在上面的例子中要注意的是，行与行之间存在内嵌的换行符；另外在用于替代的内容中要插入换行符的话，要用如上的"\"的转义。
+再看一个例子：
+例2：
+$ cat expl.2
+Consult Section 3.1 in the Owner and Operator
+Guide for a description of the tape drives
+available on your system.
+
+Look in the Owner and Operator Guide shipped with your system.
+
+Two manuals are provided including the Owner and
+Operator Guide and the User Guide.
+
+The Owner and Operator Guide is shipped with your system.
+$ sed 's/Owner and Operator Guide/Installation Guide/
+> /Owner/{
+> N
+> s/ *\n/ /
+> s/Owner and Operator Guide */Installation Guide\
+> /
+}' expl.2
+结果得到：
+Consult Section 3.1 in the Installation Guide
+for a description of the tape drives
+available on your system.
+
+Look in the Installation Guide shipped with your system.
+
+Two manuals are provided including the Installation Guide
+and the User Guide.
+
+The Installation Guide is shipped with your system.
+	看上去sed命令中作了两次替换是多余的。实际上，如果去掉第一次替换，再运行脚本，就会发现输出存在两个问题。一个是结果中最后
+一行不会被替换(在某些版本的sed中甚至不会被输出)。这是因为最后一行匹配了"Owner",执行N命令，但是已经到了文件末尾，某些版本
+就会直接打印这行再退出，而另外一些版本则是不作出打印立即退出。对于这个问题可以通过命令"$!N"来解决。这表示N命令对最后
+一行不起作用。另外一个问题是"look manuals"一段被拆为两行，而且与下一段的空行被删除了。这是因为内嵌的换行符被替换的结果。
+因此，sed中做两次替换一点也不是多余的。
+例3：
+$ cat expl.3
+<para>
+
+This is a test paragraph in Interleaf style ASCII. Another line
+in a paragraph. Yet another.
+
+<Figure Begin>
+
+v.1111111111111111111111100000000000000000001111111111111000000
+100001000100100010001000001000000000000000000000000000000000000
+000000
+
+<Figure End>
+
+<para>
+
+More lines of text to be found after the figure.
+These lines should print.
+我们的sed命令是这样的：
+$ sed '/<para>{
+> N
+> c\
+> .LP
+> }
+> /<Figure Begin>/,/<Figure End>/{
+> w fig.interleaf
+> /<Figure End>/i\
+> .FG\
+> <insert figure here>\
+> .FE
+> d
+> }
+> /^$/d' expl.3
+运行后得到的结果是：
+.LP
+This is a test paragraph in Interleaf style ASCII. Another line
+in a paragraph. Yet another.
+.FG
+<insert figure here>
+.FE
+.LP
+More lines of text to e found after the figure.
+These lines should print.
+而<Figure Begin>与<Figure End>之间的内容则写入文件"fig.interleaf"。值得注意的是命令"d"并不会影响命令i插入的内容。
+命令"d"作用是删除模式空间的内容，然后读入新的行，sed脚本从头再次开始执行。而命令"D"的不同之处在于它删除的是直到第一个内嵌换行符为止的模式空间的一部分，但是不会读入新的行，脚本将回到开始对剩下内容进行处理。
+例4：
+$ cat expl.4
+This line is followed by 1 blank line.
+
+This line is followed by 2 blank line.
+
+
+This line is followed by 3 blank line.
+
+
+
+This line is followed by 4 blank line.
+
+
+
+
+This is the end.
+不同的删除命令获得不同的结果：
+$ sed '/^$/{ $ sed '/^$/{
+> N > N
+> /^\n$/d > /^\n$/D
+> }' expl.4 > }' expl.4
+sed对文件中每一行(不管处理与否)的默认动作是将其输出，如果加上选项"-n"，则输出动作会被抑制，这时还希望输出就需要打印命令。单行模式空间的打印命令是"p"，多行模式空间的打印命令是"P"。P命令打印的是模式空间中直到第一个内嵌换行符为止的一部分。
+P命令通常出现在N命令之后D命令之前，由此构成一个输入输出循环。在这种情况下，模式空间中始终存在两行文本，而输出始终是一行文本。使用这种循环的目的在于输出模式空间中的第一行，然后脚本回到起始处，再对空间中的第二行进行处理。设想一下，如果没有这个循环，当脚本执行完备，模式空间中的内容都会被输出，可能就不符合使用者的要求或者降低了程序执行的效率。
+下面是一个例子：
+例5：
+$ cat expl.5
+Here are examples of the UNIX
+System. Where UNIX
+System appears, it should be the UNIX
+Operating System.
+$ sed '/UNIX$/{
+> N
+> /\nSystem/{
+> s// Operating &/
+> P
+> D
+> }
+> }' expl.5
+替换的结果是：
+Here are examples of the UNIX Operating
+System. Where UNIX Operating
+System appears, it should be the UNIX
+Operating System.
+可以将sed命令中的"P"、"D"换作小写，比较一下两种类型的命令的不同之处。
+下面的例子就有相当的难度了：
+例6：
+$ cat expl.6
+I want to see @fl(what will happen) if we put the
+font change commands @fl(on a set of lines). If I understand
+things (correctly), the @fl(third) line causes problems. (No?).
+Is this really the case, or is it (maybe) just something else?
+
+Let's test having two on a line @fl(here) and @fl(there) as
+well as one that begins on one line and ends @fl(somewhere
+on another line). What if @fl(it is here) on the line?
+Another @fl(one).
+现在要作的就是将"fl@(…)替换为"\fB(…)\fR。以下就是满足条件的sed命令：
+$ sed 's/@fl(\([^)]*\))/\\fB\1\\fR/g
+> /@fl(.*/{
+> N
+> s/@fl(\(.*\n[^)]*\))/\\fB\1\\fR/g
+> P
+> D
+> }' expl.6
+然而，如果不使用这种输入输出循环，而是单单用N来实现的话，就会出现问题：
+$ sed 's/@fl(\([^)]*\))/\\fB\1\\fR/g
+> /@fl(.*/{
+> N
+> s/@fl(\(.*\n[^)]*\))/\\fB\1\\fR/g
+> }' expl.6
+这样的sed脚本是有漏洞的。
+
+
+对行进行存储：
+前面已经解释了模式空间的定义，而在sed中还有一个缓存叫作存储空间。在模式空间和存储空间中的内容可以通过一组命令互相拷贝：
+命令 简写 功能
+Hold h或H 将模式空间的内容拷贝或附加到存储空间
+Get g或G 将存储空间的内容拷贝或附加到模式空间
+Exchange x 交换模式空间和存储空间中的内容
+命令的大小写的区别在于大写的命令是将源空间的内容附加到目标空间，而小写的命令则是用源空间的内容覆盖目标空间。值得注意的是，不管是Hold命令还是Get命令，都会在目的空间的原有内容之后加上一个换行符，然后才把源空间中的内容加到换行符的后面。
+从下面这个例子，可以体会这部分内容的初步应用：
+例7：
+$ cat expl.7
+1
+2
+11
+22
+111
+222
+我们要做的工作就是将第一行与第二行，第三行与第四行，第五行与第六行互换。sed的命令各式是：
+$ sed '
+> /1/{
+> h
+> d
+> }
+> /2/{
+> G
+> }' expl.7
+这个过程是这样的：首先，sed将第一行读入模式空间，然后h命令将其放入存储空间保存起来，一个d命令又把模式空间中的内容清空；接着sed把第二行读入模式空间，然后G命令把存储空间中的内容附加到模式空间(注意的是在模式空间的原内容末尾是加了一个换行符的)。
+最后得到的结果如下：
+2
+1
+22
+11
+222
+111
+使用H或h命令的时候，比较常见的是在这个命令之后加上d命令，这样一来，sed脚本不会到达最后，因而模式空间中的内容也就不会输出了。另外，如果把d换作n，或者把G换作g，都不会达到目的的。
+子母的大小写转换什么最方便，估计是tr了。
+$ tr "[a-z]" "[A-Z]" File
+很利害的是sed也可以完成这个转换。相应的命令是y：
+$ sed '
+> /[address]/y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' File
+然而y命令是对整个行完全进行修改，因此如果只是将行里面的几个字符变换大小写的话，这样做是行不通的。为完成这个工作，需要借助上面刚提到的Hold和Get命令了。
+cat expl.8
+find the Match statement
+Consult the Get statement
+using the Read statement to retrieve data
+$ sed '/the .* statement/{
+> h
+> s/.*the \(.*\) statement.*/\1/
+> y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/
+> G
+> s/\(.*\)\n\(.*the \).*\( statement.*\)/\2\1\3/
+> }' expl.8
+以第一行的处理过程来说明这段命令的含意：
+(1) "find the Match statement"被放入存储空间；
+(2) 替换改行得到：Match；
+(3) 将(2)的结果转换为大写：MATCH；
+(4) 从存储空间去处(1)保留的内容附加到模式空间，此时模式空间的内容为：
+MATCH\nfind the Match statement
+(5) 再次对模式空间的内容替换得到：find the MATCH statement。
+下面将举到的例子要用到比较扎实的正则表达式，不过没有关系，慢慢来，一切问题都是可以解决的。另外这个例子用到的文本主要是和编辑排版有关的，这方面我不大会，所以我就只是把sed脚本拿出来，抓住核心，省掉那些细枝末节的东西：
+例9：
+$ cat expl.9.sed
+h
+s/[][\\*.]/\\&/g
+x
+s/[\\&]/\\&/g
+s/^\.XX //
+s/$/\//
+x
+s/^\\\.XX \(.*\)$/\/^\\.XX \/s\/\1//
+G
+s/\n//
+(1) h：讲文本行放入存储空间。
+(2) s/[][\\*.]/\\&/g：这个表达式难度比较大，如果在类表达，也就是"[]"中的第一个字符是"]"的话，那么"]"就丧失了它的特殊含意；另外，唉"[]"中，仅仅只有"\"是有特殊含意的，言下之意就是"*"、"."都是理解为字面意思，要使他们具有特殊意义就必须使用"\"的转义了；虽然在表达式中没有出现，也要提一下，在"[]"中只有"^"出现在第一的位置时，表示"非"的含意，其余情况就是字面解释，而"$"仅仅是在正则表达式的末尾时才有特殊含意。"\\"去掉了"\"的特殊含意，"&"表示向前引用，因此，第二个命令的意思就是：将模式空间中的"["、"] "、"\"、"*"、"."依次用"\["、"\]"、"\\"、"\*"、"\."来替换。
+(3) x：交换模式空间和存储空间。执行这个命令后模式空间的内容是原文的内容，而存储空间中的内容发生变化，各个特殊字符都被替换成为了"\&"。
+(4) s/[\\&]/\\&/g：对模式空间处理，出现的"\"或者"&"都会替换为"\\"或者"\&"。
+(5) s/$/\//：这个好理解，就是在模式空间的结尾加上一个"/"。
+(6) x：再次交换两个空间的内容。
+(7) s/^\\\.XX \(.*\)$/\/^\\.XX \/s\/\1//：这个没有什么难度，就是那几个引用容易把人看晕了，仔细一点，不会有问题的，就略过吧。
+(Cool G：略了。
+(9) s/\n//：删除换行符。
+这个脚本有什么用呢？用以下的文本实验就清楚了：
+.XX "asterisk (*) metacharacter"
+下面是每次命令的结果，第一行和第二行分别表示模式空间和存储空间的内容：
+1. .XX "asterisk (*) metacharacter"
+.XX "asterisk (*) metacharacter"
+
+2. \.XX "asterisk (\*) metacharacter"
+.XX "asterisk (*) metacharacter"
+
+3. .XX "asterisk (*) metacharacter"
+\.XX "asterisk (\*) metacharacter"
+
+4. .XX "asterisk (*) metacharacter"
+\.XX "asterisk (\*) metacharacter"
+
+5. "asterisk (*) metacharacter"
+\.XX "asterisk (\*) metacharacter"
+
+6. "asterisk (*) metacharacter"/
+\.XX "asterisk (\*) metacharacter"
+
+7. \.XX "asterisk (\*) metacharacter"
+"asterisk (*) metacharacter"/
+
+8. /^\.XX /s/"asterisk (\*) metacharacter"/
+"asterisk (*) metacharacter"/
+
+9. /^\.XX /s/"asterisk (\*) metacharacter"/\n/"asterisk (*) metacharacter"/
+
+10./^\.XX /s/"asterisk (\*) metacharacter"/"asterisk (*) metacharacter"/
+
+看到没有，其实"s/[\\&]/\\&/"没有在我们的例子中没有起作用，但是它不可少，因为在s命令的第二部分，"\"和"&"都是有特殊含意的，所以要预先转义掉其特殊含意。
+明白了吗？当你希望用一个shell脚本自动生成一个主要是替换命令的sed脚本的时候，会发现这个以上的内容对特殊字符的处理是多么得关键。
+出了上面的应用，存储空间甚至还能够将很多行的内容存储起来供以后的输出。实际上，这一功能对html等具有非常明显的结构的文本非常有效。下面是相关的例子：
+例10
+cat expl.10
+<p>My wife won't let me buy a power saw. She is afraid of an
+accident if I use one.
+So I rely on a hand saw for a variety of weekend projects like
+building shelves.
+However, if I made my living as a carpenter, I would
+have to use a power
+saw. The speed and efficiency provided by power tools
+would be essential to being productive.</p>
+
+<p>For people who create and modify text files,
+sed and awk are power tools for editing.</p>
+
+<p>Most of the things that you can do with these programs
+can be done interactively with a text editor. However,
+using these programs can save many hours of repetitive
+work in achieving the same result.</p>
+
+$ sed '/^$/!{
+> H
+> d
+> }
+> /^$/{
+> x
+> s/^\n/<p>/
+> s/$/<\/p>/
+> G
+> }' expl.10
+运行一下这个命令，看看结果是怎样的。其实结果已经不重要了。通过这个子，应该学会的是脚本中体现的流程控制的思想。脚本的第一部分使用"!"表示对不匹配的行进行处理，但是这种处理因为"d"的存在，不会走脚本的底部，自然也就不会有任何的输出；在脚本的第二部分中，脚本的确是到了最后的，相应的也清除了模式空间和存储空间的内容，为读入下一段做好了准备。
+本来这个例子已经完了，但是还有种情况，如果文件的最后一行不是空行会出现什么结果？显然，文本的最后一段不会被输出。这种情况怎么处理呢？最明智的办法就是自己"制造"一个空行。新的脚本是这样的：
+$ sed '${
+> /^$/!{
+> H
+> s/.*//
+> }
+> }
+> /^$/!{
+> H
+> d
+> }
+> /^$/{
+> x
+> s/^\n/<p>/
+> s/$/<\/p>/
+> G
+> }' expl.10
+
+
+流程控制命令
+-----------------------------------------------------------------------------------------------
+为了使使用者在书写sed脚本的时候真正的"自由"，sed还允许在脚本中用":"设置记号，然后用"b"和"t"命令进行流程控制。顾名思义，
+"b"表示"branch"，"t"表示"test"；前者就是分支命令，后者则是测试命令。
+首先来看标签的各式是什么。这个标签放置在你希望流程所开始的地方，单独放一行，以冒号开始。冒号与变迁之间不允许有空格或者制表符，
+标签最后如果有空格的话，也会被认为是标签的一部分。
+
+再来说b命令。它的格式是这样的：
+[address]b[label]
+它的含意是，如果满足address，则sed流程跟随标签跳转：如果标签指明的话，脚本首先假设这个标签在b命令以下的某行，然后转入该行执行相应的命令；如果这个标签不存在的话，控制流程就直接跳到脚本的末尾。否则继续执行后续的命令。
+在某些情况下，b命令和!命令有些相似，但是!命令只能对紧挨它的{}中的内容起作用，而b命令则给予使用者足够的自由在sed脚本中选择哪些命令应该被执行，哪些命令不应该被执行。下面提供几种b命令的经典用法：
+(1) 创建循环：
+    :top
+    command1
+    command2
+    /pattern/b top
+    command3
+(2) 忽略某些不满足条件的命令：
+    command1
+    /patern/b end
+    command2
+    :end
+    command3
+(3) 命令的两个部分只能执行其中一个：
+    command1
+    /pattern/b dothere
+    command
+    b
+    :dothere
+    command3
+t命令的格式和b命令是一样的：
+[address]t[label]
+    它表示的是如果满足address的话，sed脚本就会根据t命令指示的标签进行流程转移。而标签的规则和上面讲的b命令的规则是一样的。
+下面也给出一个例子：
+	s/pattern/replacement/
+	t break
+	command
+	:break
+还是用例6的sed脚本为例子。其实仔细思考一下就会发现这个脚本不是足够强大：如果某个@fl结构跨越了两行，比如说三行怎么办？
+这就需要下面这个加强版的sed了：
+$ cat 
+expl.6.sed
+
+:begin
+/@fl(\([^)]*\))/{
+s//\\fB\1\\fR/g
+b begin
+}
+/@fl(.*/{
+N
+s/@f1(\([^)]*\n[^)]*\))/\\fB\1\\fR/g
+t again
+b begin
+}
+:again
+P
+D
+
+ 

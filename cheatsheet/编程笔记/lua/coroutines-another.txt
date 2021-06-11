@@ -1,0 +1,103 @@
+-- 创建协同程序
+local co = coroutine.create(function() print("hi") end)
+-- co 是一个 thread 类型的值
+print(co)
+
+-- 一个协同程序可以处在四种不同的状态
+-- 挂起（suspended），运行（running），死亡（dead），正常（normal）
+
+-- 启动或再次启动一个协程，将其状态从 挂起 改为 运行
+coroutine.resume(co) --> hi
+
+-- 程序执行结束后变为 死亡 状态
+assert(coroutine.status(co) == "dead")
+
+-- 强大之处：yield ，该函数可以让一个运行中的协同程序挂起，而之后可以恢复它的运行
+local co = coroutine.create(function ()
+    for i = 1, 10 do
+        print("co", i)
+        coroutine.yield()
+    end
+end)
+coroutine.resume(co)  --> 1
+-- 第一次唤醒后遇到 yield，变为 挂起 状态
+assert(coroutine.status(co) == "suspended")
+coroutine.resume(co)  --> 2
+coroutine.resume(co)  --> 3
+coroutine.resume(co)  --> 4
+coroutine.resume(co)  --> 5
+coroutine.resume(co)  --> 6
+coroutine.resume(co)  --> 7
+coroutine.resume(co)  --> 8
+coroutine.resume(co)  --> 9
+coroutine.resume(co)  --> 10
+coroutine.resume(co)  --> none
+-- 警告：如果在程序唤醒后的执行过程中出现任何错误，是不会打印出来的，而是直接返回false给调用者
+assert(coroutine.resume(co) == false)
+
+-- 当一个协同程序A唤醒另一个协同程序B时，A就会处于一种特殊状态-- normal，没有继续执行接下来的代码
+
+-- resume - yield 传参
+local co = coroutine.create(function(a, b, c)
+    print("co", a, b, c)
+end)
+coroutine.resume(co, 1, 2, 3)
+
+-- 再resume的返回值中，第一个表示是否错误，而后面所有值都是对应的yield传入的参数
+local co = coroutine.create(function(a, b)
+    coroutine.yield(a+b, a-b)
+end)
+local s0, s1, s2 = coroutine.resume(co, 1, 2)
+assert(s0 == true)
+assert(s1 == 3)
+assert(s2 == -1)
+
+--  生产者／消费者 模型
+local producer = coroutine.create(function()
+    while true do
+        local x = io.read()
+        coroutine.yield(x)
+    end
+end)
+function receive()
+    local status, value = coroutine.resume(producer)
+    return value
+end
+
+-- 实现过滤器 - filter
+function receive(prod)
+    local status, value = coroutine.resume(prod)
+    return value
+end
+function send(x)
+    coroutine.yield(x)
+end
+function producer()
+    return coroutine.create(function()
+        while true do
+            local x = io.read()
+            send(x)
+        end
+    end)
+end
+function filter(prod)
+    return coroutine.create(function ()
+        for line = 1, math.huge do
+            local x = receive(prod)
+            x = string.format("%5d %s", line, x)
+            send(x)
+        end
+    end)
+end
+function consumer(prod)
+    while true do
+        local x = receive(prod)
+        io.write(x, "\n")
+    end
+end
+-- 运行
+--local p = producer()
+--f = filter(p)
+--consumer(f)
+---- or
+--consumer(filter(producer()))

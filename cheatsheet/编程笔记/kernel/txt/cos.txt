@@ -1,0 +1,213 @@
+'uniform object oriented programming'(i.e. everything-is-an-object)
+
+<cos/Object.h> is a prefered alternative to <cos/cos/cos.h>
+base classes -> cos/Object.h -> cos/cos/cos.h
+
+/*
+ * --------------------------------------
+ * Standard markers used inside the code:
+ * --------------------------------------
+ * NOTE-USER: mark the presence of comments for user
+ * NOTE-INFO: mark the presence of comments for developer
+ * NOTE-CONF: mark where configuration matters
+ * NOTE-PORT: mark where portability matters
+ * NOTE-TODO: mark where something needs to be done
+ * --------------------------------------
+ */
+
+/* NOTE-USER: Predicate
+
+   Predicate is the "root" class of all predicate classes.
+      
+   Predicate classes are useful for dispatching on result of predicates
+   like "gisKindOf", "gisEqual" or "gcompare". This allow automatic branching
+   of execution flow based on results as well as storing predicates
+   results as objects.
+*/
+
+/* NOTE-USER: Proxy behavior
+
+   A proxy is an object which aims to be as 'transparent' as possible
+   while behaving on behalf of its delegate.
+
+   Derive your own proxy from the Proxy class to implement your
+   specific behaviors or hide its true nature.
+*/
+
+Nil and classes deriving from Nil cannot have instance, also called
+class-objects from which properties and predicates derive.
+
+Use Nil instead to set an object reference to a no-object state.
+Remember, message cannot be sent to (OBJ)0, but it can to Nil.
+
+// behavior max ranks
+#define COS_CLS_RNKMAX  31
+#define COS_GEN_RNKMAX  5
+#define COS_MTH_RNKMAX  128
+
+in cos/cos/cos.h:
+/* NOTE-USER: COS preprocessor headers
+ */
+#include <cos/cpp/narg.h>
+#include <cos/cpp/utils.h>
+#include <cos/cpp/tuple.h>
+#include <cos/cpp/logic.h>
+#include <cos/cpp/arith.h>
+#include <cos/cpp/algos.h>
+
+/* NOTE-USER: COS language headers
+ */
+#include <cos/cos/base.h>
+#include <cos/cos/class.h>
+#include <cos/cos/alias.h>
+#include <cos/cos/method.h>
+#include <cos/cos/generic.h>
+#include <cos/cos/property.h>
+#include <cos/cos/contract.h>
+#include <cos/cos/exception.h>
+
+/* NOTE-USER: COS library headers
+ */
+#include <cos/cos/cosdef.h>
+#include <cos/cos/coscls.h>
+#include <cos/cos/cosapi.h>
+
+/* NOTE-USER: COS inlined dispatch
+ */
+#include <cos/cos/dispatch.h>
+
+   - makgeneric is optional if you use the makefiles provided by COS.
+
+/* NOTE-INFO: Conventions
+   PS = all-parameters
+   CS = class-parameters (selectors)
+   AS = arg-parameters (non-selectors)
+   IS = class-indexes
+   C  = number of class-parameters
+   A  = number of arguments > 0 (bool)
+   R  = return-type is not void (bool)
+*/
+
+cos/cos/coscls.h:	class hierarchy
+cos/cos/cosdef.h:	all typedef
+
+// components tags
+enum {
+  cos_tag_invalid = 0,
+  cos_tag_class,
+  cos_tag_mclass,
+  cos_tag_pclass,
+  cos_tag_generic,
+  cos_tag_method,
+  cos_tag_alias,
+  cos_tag_last
+};
+
+cos/prp/object.h:
+#include <cos/Property.h>
+// object and class properties
+defproperty(class     );
+defproperty(error     );
+defproperty(name      );
+defproperty(signal    );
+defproperty(size      );
+defproperty(superClass);
+
+cos/File.h	(class declaration)
+cos/gen/file.h	(generic func)
+
+
+cosapi.h
+#undef  malloc
+#define malloc(s)    cos_mem_malloc (s  , __FUNC__, __FILE__, __LINE__)
+#undef  calloc
+#define calloc(n,s)  cos_mem_calloc (n,s, __FUNC__, __FILE__, __LINE__)
+#undef  realloc
+#define realloc(p,s) cos_mem_realloc(p,s, __FUNC__, __FILE__, __LINE__)
+#undef  free
+#define free(p)      cos_mem_free   (p  , __FUNC__, __FILE__, __LINE__)
+
+void* cos_mem_malloc (size_t, STR,STR,int);
+void* cos_mem_calloc (size_t, size_t, STR,STR,int);
+void* cos_mem_realloc(void*, size_t, STR,STR,int);
+void  cos_mem_free   (void*, STR,STR,int);
+BOOL  cos_mem_trace  (BOOL); // on/off memory trace
+U32   cos_mem_nalloc (void); // number of alloc modulo 2^32
+U32   cos_mem_nfree  (void); // number of free  modulo 2^32
+
+cos_memory.c
+
+self == self1
+
+it's a good idea that call super's method when over-writting it
+
+polymorphism -- lazy binding
+
+build collaboration between objects
+
+defclass(Object, _)	(_ represents nil, not the class Nil)
+	U32 id;		(class identity)
+	U32 rc;		(reference counting)
+endclass
+
+sending a msg to Nil is safe, but not nil
+
+defclass(A, B) == makclass(A, B) at compile time
+
+defclass(A) ... endclass		A.h
+makclass(A);				A.c
+defmethod	endmethod		
+useclass(A)				main.c
+
+若要在程序开始前初始化所有类，必须借助另外脚本，调用nm收集类库和用户目标文件中以init-开头的函数地址，放入全局数组initializer[]
+造个函数__attribute__ ((__constructor__))
+只要在类中判断父类的指针是否存在，(initCircle中，若Point不存在，说明其父类Point不存在，显式调用initPoint)
+advantage	不用显式__attribute__ ((__constructor__(0)))
+shortcoming	every class emits a init... func
+
+can't use macro to lazy binding, macro happens in compiling time
+
+What's the trigger to an OBJECT		
+1. static init	(can't only have data, no "if/while/for" ins)
+2. by a trigger func called explicitly/implicitly
+
+ctor default val
+
+如果仅提供不完全类型指针和填充结构，则子类初始化自己时必须先分配自己大小，再借助父类初始化继承自父类的部分，因为对父类结构信息完全不知
+无法借助编译器的帮助比如father->ctor。但这样的问题是子类无法使用me. me->调用从父类继承的函数(还是因为不知父类的结构)
+所以至少父类得让子类知道方法，这样子类也能直接初始化自己而无须父类帮助
+
+CHANGE LOG:
+kmalloc:	generics.c(galloc) omfc.h Bitvec.c
+free:		generics.c(gdelete)
+header file:	omfc.h(type.h proto.h)
+
+visible struct:
+	private_a	private_a_interface	a
+visible macro:
+	a_interface
+
+#include	<assert.h>                              /* assert */
+#include	<stdarg.h>                              /* va_... */
+#include	<stdbool.h>                             /* _Bool */
+#include	<string.h>                              /* memcpy memset */ 
+
+#include	<type.h>
+#include	<proto.h>
+#include	<kheap.h>
+
+/* all base header files */
+#include	<omfc/interface.h>
+#include	<omfc/generics.h>
+#include	<omfc/Class.h>
+
+no global vars
+method alias
+overwrite super method
+class property
+selected super method
+
+polymorphism 
+overload	+ 	1+1 1.0+1.0	original one could be overloaded
+
+static inline == static (interface)

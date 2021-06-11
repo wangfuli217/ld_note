@@ -1,0 +1,146 @@
+﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!-- saved from url=(0035)http://db.tt/ORtPX1Y3 -->
+<!-- 交流QQ群:26651479 -->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>计算器</title>
+    <META http-equiv='content-type' content="text/html; charset=utf-8"/>
+<style type="text/css">
+.btn {height:41px; width:67px; font-size:30px; font-weight:bolder;}
+.text{height:41px; width:100%; font-size:23px; font-weight:bolder;}
+</style>
+</head>
+<body>
+    <table align="center">
+        <tr><td colspan="4" style="text-align: center;"><input class="text" id='Text1' type="text"/></td></tr>
+        <tr>
+            <td><input class='btn' title="1" type="button" value="1"/></td>
+            <td><input class='btn' title="2" type="button" value="2"/></td>
+            <td><input class='btn' title="3" type="button" value="3"/></td>
+            <td><input class='btn' title="加" type="button" value="+"/></td>
+        </tr>
+        <tr>
+            <td><input class='btn' title="4" type="button" value="4"/></td>
+            <td><input class='btn' title="5" type="button" value="5"/></td>
+            <td><input class='btn' title="6" type="button" value="6"/></td>
+            <td><input class='btn' title="减" type="button" value="-"/></td>
+        </tr>
+        <tr>
+            <td><input class='btn' title="7" type="button" value="7"/></td>
+            <td><input class='btn' title="8" type="button" value="8"/></td>
+            <td><input class='btn' title="9" type="button" value="9"/></td>
+            <td><input class='btn' title="乘" type="button" value="*"/></td>
+        </tr>
+        <tr>
+            <td><input class='btn' title="小数点" type="button" value="."/></td>
+            <td><input class='btn' title="0" type="button" value="0"/></td>
+            <td><input class='btn' title="计算结果" type="button" value="=" onclick="ev()" /></td>
+            <td><input class='btn' title="除" type="button" value="/"/></td>
+        </tr>
+        <tr>
+            <td><input class='btn' title='开根号' type="button" value="√" onclick="SQRT()" /></td>
+            <td><input class="btn" title='平方' type="button" value="²" onclick="Pow()" /></td>
+            <td><input class="btn" title='清空' type="button" value="C" onclick="clean()" /></td>
+            <td><input class="btn" title='删除一位' type="button" value="←" onclick="del()" /></td>
+        </tr>
+    </table>
+
+    <div>运算记录：</div>
+    <textarea style="width:98%" rows="15" id="logText"></textarea>
+    注：输入框可键盘输入，也可用小键盘点击输入。输入框内按回车或者“=”会自动计算结果<br/>
+    交流QQ群:26651479
+</body>
+</html>
+
+
+<script language="javascript" type="text/javascript">
+// 输入框
+var inputText = document.getElementById('Text1');
+// 运算记录
+var logText = document.getElementById('logText');
+
+// 给文本框赋值
+function addText(event) {
+    event = event || window.event;
+    var element = event.target || event.srcElement;
+    inputText.value += element.value;
+    // 设置焦点
+    inputText.focus();
+}
+
+// 计算文本框内的表达式
+function ev() {
+    var value = inputText.value;
+    if (value) {
+        try {
+            var result = eval(value);
+            // 显示结果
+            inputText.value = result;
+
+            // 记录结果
+            logText.value = value + '=' + result + '\n' + logText.value;
+        }
+        catch (e) {
+            alert(e.description);
+        }
+    }
+    // 设置焦点
+    inputText.focus();
+}
+
+//把文本框内的内容清空
+function clean() {
+    inputText.value = '';
+    // 设置焦点
+    inputText.focus();
+}
+
+//开根号
+function SQRT() {
+    inputText.value = Math.sqrt(inputText.value);
+    // 设置焦点
+    inputText.focus();
+}
+
+//平方
+function Pow() {
+    inputText.value = Math.pow(inputText.value, 2);
+    // 设置焦点
+    inputText.focus();
+}
+
+//删除一位
+function del() {
+    var value = inputText.value;
+    if (value) inputText.value = value.substring(0, value.length - 1);
+    // 设置焦点
+    inputText.focus();
+}
+
+// 添加事件
+(function() {
+    var elements = document.getElementsByTagName('input');
+    for (var i=0, len=elements.length; i<len; i++) {
+        var element = elements[i];
+        // 按钮, 点击事添加一个符号到输入框(有 onclick 事件的表示有自己独特的事件,这里不处理)
+        if (element.type == 'button' && !element.onclick) {
+            element.onclick = addText;
+        }
+        // 输入框, 输入“=”号或者按回车, 则计算结果
+        else if (element.type == 'text') {
+            element.onkeydown = function(event) {
+                event = event || window.event;
+                var currentKey = event.keyCode || event.charCode;
+                // 13:回车键, “=”号在火狐是61,在IE是187
+                if (13==currentKey || (event.shiftKey === false && (61==currentKey || 187==currentKey))) {
+                    ev();
+                    return false;
+                }
+                return true;
+            }
+        }
+    }
+    // 设置焦点
+    inputText.focus();
+})();
+</script>

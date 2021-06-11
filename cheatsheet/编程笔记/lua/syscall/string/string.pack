@@ -1,0 +1,139 @@
+--[[ lua 5.3 才支持
+  string.pack的第一个参数叫fmt,它的作用类似于正则表达式中的模式用于指定压缩格式.
+  在fmt之后可以接受任意个参数,这些参数称为值.这个函数的作用就是依据fmt的格式把
+后边的值压缩到一个字符串中
+--]]
+str=string.pack('Jdb',120,120,120)
+print(str)
+
+-- 把同一格式应用于所有的元素则加个*号，如：
+data = pack ("C*", 0x61, 0x62, 0x63);
+echo bin2hex($data) -- . PHP_EOL;//616263
+
+-- '<'表示小端,'>'表示大端,'='表示使用默认.例如:
+string.pack('<hhh',11121,11121,11121)
+string.pack('>hhh',11121,11121,11121)
+
+-- 对齐压缩后的字符串，'x'进行占位，'x'会占用一个字节,但是,不用任何数据填充.
+-- 在一开头使用感叹号加一个整数,可以设置自动填充,例如:
+string.packsize('!2bh')
+string.packsize('bh')
+-- 第一句中要求把不足2字节的对齐到2字节,会补充一个空字节.所以会多占用一位.
+
+-- 'X'后边可以跟一种fmt中用到的字母.它的作用类似于打字时候的tab键. 'X'表示补充对齐到指定的类型
+-- 例如:
+string.packsize('!8bXfb')
+-- 其长度为5.首先第一个b占用1字节,Xf表示按照f对齐.f是4字节,所以在b后再补充3个空字节,补充到4.然后第二个b又占一个字节.
+
+
+--[[
+
+a: NUL-padded string
+  $data = pack("a4", 'abc');
+  echo bin2hex($data) . PHP_EOL;//61626300
+  61、62、63、00都是十六进制的，分别代表一个字节
+  a后面要跟一个数字，代表要写入的字符串的长度，不够就补0
+
+A: SPACE-padded string
+  同上，不够就补空格，空格的ascii码是32(0x20)
+
+h: Hex string, low nibble first
+  $data = pack("h3", 'abc');
+  echo bin2hex($data) . PHP_EOL;//ba0c
+  $data = pack("h3", 'xyz');
+  echo bin2hex($data) . PHP_EOL;//报错
+
+H:Hex string, high nibble first
+  $data = pack("H3", 'abc');
+  echo bin2hex($data) . PHP_EOL;//abc0
+  $data = pack("H3", 'xyz');
+  echo bin2hex($data) . PHP_EOL;//报错
+
+c: signed char
+  $data = pack("ccc", 0x61, 0x62, 0x63);
+  echo bin2hex($data) . PHP_EOL;//616263
+  signed char和unsigned char其实就是int8和uint8，所以后面的参数是0x61, 0x62, 0x63。
+
+C:unsigned char
+  s:signed short (always 16 bit, machine byte order)
+  int16，大小端依赖当前机器
+
+S:unsigned short (always 16 bit, machine byte order)
+  uint16，大小端依赖当前机器
+
+n:unsigned short (always 16 bit, big endian byte order)
+  uint16，大端
+
+v:unsigned short (always 16 bit, little endian byte order)
+  uint16，小端
+
+i:signed integer (machine dependent size and byte order)
+  int，字节数和大小端都依赖当前机器
+
+I:unsigned integer (machine dependent size and byte order)
+  uint，字节数和大小端都依赖当前机器
+
+l:signed long (always 32 bit, machine byte order)
+  int32，大小端依赖当前机器
+
+L:unsigned long (always 32 bit, machine byte order)
+  uint32，大小端依赖当前机器
+
+N:unsigned long (always 32 bit, big endian byte order)
+  uint32，大端
+
+V:unsigned long (always 32 bit, little endian byte order)
+  uint32，小端
+
+q:signed long long (always 64 bit, machine byte order)
+  int64，大小端依赖当前机器
+
+Q:unsigned long long (always 64 bit, machine byte order)
+  uint64，大小端依赖当前机器
+
+J:unsigned long long (always 64 bit, big endian byte order)
+  uint64，大端
+
+P:unsigned long long (always 64 bit, little endian byte order)
+  uint64，小端
+
+f:float (machine dependent size and representation)
+  float，字节数和浮点位数都依赖当前机器（一般都是ieee标准32位）
+
+d:double (machine dependent size and representation)
+  double，字节数和浮点位数都依赖当前机器（一般都是ieee标准64位）
+
+x:NUL byte
+  $data = pack("Cx2", 0x61);
+  echo bin2hex($data) . PHP_EOL;//610000
+  x2代表写入2个空字节(0x00)
+  对于unpack相当于游标向前或向后移动n个位置 
+
+X:Back up one byte
+  $data = pack("CCCX", 0x61,0x62,0x63);
+  echo bin2hex($data) . PHP_EOL;//616200
+  X把最后一个字节0x63被吃掉了
+  对于unpack相当于游标回退一个位置
+
+Z:NUL-padded string (new in PHP 5.5)
+  $data = pack("a3", 'abc');
+  echo bin2hex($data) . PHP_EOL;//616263
+  
+  $data = pack("Z3", 'abc');
+  echo bin2hex($data) . PHP_EOL;//616200
+  
+  $data = pack("Z4", 'abc');
+  echo bin2hex($data) . PHP_EOL;//6162300
+  Z跟a的区别是Z保证最后一个肯定是0x00，这是C语言风格的字符串
+
+@:NUL-fill to absolute position
+  $data = pack("cc@4", 0x61, 0x62);
+  echo bin2hex($data) . PHP_EOL;//61620000
+  
+  $data = pack("cc@1", 0x61, 0x62);
+  echo bin2hex($data) . PHP_EOL;//61
+  
+  @4表示后面补0直到第4位(从1开始)
+  @1表示后面补0直到第1位(从1开始)，第1位已经有数字了(0x61)，所以就不需要补0了
+  对于unpack相当于游标移动到绝对位置
+--]]

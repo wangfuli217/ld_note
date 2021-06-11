@@ -1,0 +1,24 @@
+--[[
+  coroutine.status(co)
+  以字符串形式返回协程 co 的状态：
+  当协程正在运行（它就是调用 status 的那个） ，返回 "running"；
+  如果协程调用 yield 挂起或是还没有开始运行，返回 "suspended"；
+  如果协程是活动的，都并不在运行（即它正在延续其它协程），返回 "normal"；
+  如果协程运行完主体函数或因错误停止，返回 "dead"。
+--]]
+
+local co
+local co2 = coroutine.create(function() print("3."..coroutine.status(co)) end)
+co = coroutine.create(
+    function ()
+        print("2."..coroutine.status(co))
+        coroutine.resume(co2)
+        coroutine.yield()
+    end)
+
+print("1."..coroutine.status(co))
+coroutine.resume(co)
+print("4."..coroutine.status(co))
+coroutine.resume(co)
+print("5."..coroutine.status(co))
+

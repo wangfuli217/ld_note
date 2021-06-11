@@ -1,0 +1,147 @@
+#include <syslog.h> 
+void openlog(const char *ident, int option, int facility);
+void syslog(int priority, const char *format, ...);
+void closelog(void); 
+int setlogmask(int mask);
+#include <stdarg.h> 
+void vsyslog(int priority, const char *format, va_list ap);
+
+
+#include <err.h>
+void err(int eval, const char *fmt, ...);            标准错误    errno信息         eval验证
+void errx(int eval, const char *fmt, ...);           标准错误    没有errno信息     eval验证
+void warn(const char *fmt, ...);                     标准错误    errno信息
+void warnx(const char *fmt, ...);                    标准错误    没有errno信息
+#include <stdarg.h>                                  标准错误
+void verr(int eval, const char *fmt, va_list args);  标准错误    errno信息         eval验证
+void verrx(int eval, const char *fmt, va_list args); 标准错误                      eval验证
+void vwarn(const char *fmt, va_list args);           标准错误    errno信息
+void vwarnx(const char *fmt, va_list args);          标准错误
+
+                                            char buffer[bufsize];  
+void arg_cnt(int cnt, ...)  {               int vspf(char *fmt, ...)  { 
+    int value=0;                                va_list argptr;  
+    int i=0;                                    int cnt;  
+    int arg_cnt=cnt;                              
+    va_list argptr;  
+    va_start(argptr, cnt);                     va_start(argptr, fmt);   // void va_start(va_list ap, last);
+    for(i = 0; i < cnt; i++)  {                cnt = vsnprintf(buffer,bufsize ,fmt, argptr); 
+        value = va_arg(argptr,int);            // type va_arg(va_list ap, type);
+        printf("value%d=%d\n", i+1, value);      
+    }                                           
+    va_end(argptr);                             va_end(argptr);   //void va_end(va_list ap);
+                                                return(cnt);
+}                                         } 
+
+int main(void)  {                         int main(void)  {  
+        arg_cnt(5,1,2,3,4,5);                 int inumber = 30;  
+        return 0;                             float fnumber = 90.0;  
+}                                             char string[4] = "abc";  
+                                              int cnt = 0;  
+                                              cnt = vspf("%d %f %s", inumber, fnumber, string); 
+                                              printf("%s\n", buffer);  
+                                              printf("cnt=%d\n", cnt);  
+                                              return 0;  
+                                          }
+
+va_list p;
+va_list p2;
+va_start(p, s);                     //void va_start(va_list ap, last);
+va_copy(p2, p);                     //void va_copy(va_list dest, va_list src);
+if (logmode & LOGMODE_STDIO) {
+    vprintf(s, p);
+    fputs(msg_eol, stdout);
+}
+if (ENABLE_FEATURE_SYSLOG && (logmode & LOGMODE_SYSLOG))
+    vsyslog(LOG_INFO, s, p2);
+va_end(p2);                        //void va_end(va_list ap);
+va_end(p);                         //void va_end(va_list ap);
+
+
+va_start va_arg va_end 的使用和原理
+---------------------------------------
+    func( Type para1, Type para2, Type para3, ... ){
+        /****** Step 1 ******/
+        va_list ap;
+        va_start( ap, para3 ); //一定要“...”之前的那个参数**ap指向para后的第一个可变参数。
+        
+        /****** Step 2 ******/
+        //此时ap指向第一个可变参数
+        //调用va_arg取得里面的值
+        
+        Type xx = va_arg( ap, Type ); 
+        
+        //Type一定要相同，如:
+        //char *p = va_arg( ap, char *);
+        //int i = va_arg( ap, int );
+        //如果有多个参数继续调用va_arg
+        /****** Step 3 ******/
+        va_end(ap); //For robust!
+    }
+◎研究：
+typedef char *    va_list;//va_list 等价于char*即字符指针。
+#define va_start _crt_va_start//注意下面的替代。
+#define va_arg _crt_va_arg
+#define va_end _crt_va_end
+#define  _crt_va_start(ap,v)   ( ap = (va_list)_ADDRESSOF(v) + _INTSIZEOF(v) )
+#define _crt_va_arg(ap,t)      ( *(t *)((ap += _INTSIZEOF(t)) - _INTSIZEOF(t)) )
+#define _crt_va_end(ap)        ( ap = (va_list)0 ) 
+va_list argptr;
+C语言的函数是从右向左压入堆栈的,调用va_start后，
+按定义的宏运算，_ADDRESSOF得到v所在的地址，然后这个
+地址加上v的大小，则使ap指向第一个可变参数如图:     
+
+    栈底 高地址
+    | .......     
+    | 函数返回地址
+    | .......      
+    | 函数最后一个参数
+    | ....                       
+    | 函数第一个可变参数       <--va_start后ap指向 
+    | 函数最后一个固定参数
+    | 函数第一个固定参数 
+    栈顶 低地址
+     
+    
+然后，用va_arg()取得类型t的可变参数值, 先是让ap指向下一个参数:
+ap += _INTSIZEOF(t)，然后在减去_INTSIZEOF(t)，使得表达式结果为
+ap之前的值，即当前需要得到的参数的地址，强制转换成指向此参数的
+类型的指针，然后用*取值
+最后，用va_end(ap)，给ap初始化，保持健壮性。
+---------------------------------------
+#include    <stdio.h>   
+   #include    <ctype.h>   
+   #include<stdlib.h>   
+   #include    <stdarg.h>   
+    
+   int    average(    int    first,    ...    )      //变参数函数,C++里也有  **…表明后面有好多可变的参数。 
+   {   
+         int    count=0,i=first,sum=0;   
+         va_list    maker;           //va_list    类型数据可以保存函数的所有参数,做为一个列表一样保存。Va_list即是char*表明maker是一个字符型的指针。   
+         va_start(maker,first);    //设置列表的起始位置   **frist只是和maker在一起做参数，这并不说明maker指向frist而是指向first之后的第一个可变的参数，而frist是作为一个固定参数，因为它在…之前。这时候frist指向3。
+         while(i!=-1)   
+         {   
+         sum+=i;   
+         count++;   
+         i=va_arg(maker,int);//返回maker列表的当前值,并指向列表的下一个位置   
+         }   
+//第一次：I=2，sum=2；
+//第二次：I=3，因为va_start(maker,first);则sum=2+3=5；同时i=va_arg(maker,int)又使I=4；
+//第三次：I=4，sum=5+4=9,同理I=4；
+//第四次I=4，sum=9+4=13同理I=-1
+
+         return    sum/count;   
+   }   
+    
+   void    main(void)   
+   {   
+   printf(    "Average    is:    %d\n",    average(    2,    3,    4,4,    -1    )    );   
+   }   
+---------------------------------------
+注意它们的头文件stdarg..h
+std很正常arg 是参数的意思；
+辅助理解：
+va_start(arg_ptr, argN)：使参数列表指针arg_ptr指向函数参数列表中的第一个可选参数，说明：argN是位于第一个可选参数之前的固定参数，（或者说，最后一个固定参数；…之前的一个参数），函数参数列表中参数在内存中的顺序与函数声明时的顺序是一致的。如果有一va函数的声明是void va_test(char a, char b, char c, …)，则它的固定参数依次是a,b,c，最后一个固定参数argN为c，因此就是va_start(arg_ptr, c)。
+va_arg(arg_ptr, type)：返回参数列表中指针arg_ptr所指的参数，返回类型为type，并使指针arg_ptr指向参数列表中下一个参数。
+va_copy(dest, src)：dest，src的类型都是va_list，va_copy()用于复制参数列表指针，将dest初始化为src。
+va_end(arg_ptr)：清空参数列表，并置参数指针arg_ptr无效。说明：指针arg_ptr被置无效后，可以通过调用 va_start()、va_copy()恢复arg_ptr。每次调用va_start() / va_copy()后，必须得有相应的va_end()与之匹配。参数指针可以在参数列表中随意地来回移动，但必须在va_start() … va_end()之内。

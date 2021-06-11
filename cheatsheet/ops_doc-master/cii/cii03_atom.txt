@@ -1,0 +1,29 @@
+原子(atom)是一个指针，指向一个唯一的、不可变的序列，序列中包含零或多个字节(字节值任意)。
+    大多数原子都指向 0 结尾字符串，但也可以是指向任一字节序列的指针。任一原子都只会出现一次，
+这也是它被称为原子的原因。如果两个原子指向相同的位置，那么两者是相同的。原子的一个优点是，
+只通过比较两个指针，即可比较两个字节序列是否相等。使用原子的另一个优点是节省空间，因为任一序列都只会出现一次。
+
+原子本质是指针(实现细节)，同时也代表所指向的字节序列。
+
+向任何atom函数传递值为NULL的str，都是已检查的运行时错误。修改原子，属于未检查的运行时错误
+
+const char * atom_new(const char *str, int len); 返回对应于str[0...len-1]的原子，如果有必要则创建一个原子。
+                                                 len < 0, 则为已检查的运行时错误。
+const char * atom_string(const char *str);       返回atom_new(str, strlen(str))
+const char * atom_int(long n);                   返回对应于n的十进制字符串表示的原子。
+
+int atom_length(const char *str); 返回其原子的长度。如果str不是原子，则造成已检查的运行时错误
+
+NEW   仅当需要分配的字节数在编译时已知，才能使用NEW
+ALLOC 参数是所需分配的字节数
+
+1. 分配空间、填充成员、插入链表
+
+for (h = 0, i = 0; i < len; i++) { 
+    h = (h<<1) + scatter[(unsigned char)str[i]] 
+}
+dcatter 是一个 256 项的数组，它将字节值映射到随机数，这些随机数是通过调用标准库函数 rand 生成的。
+经验表明，这种简单的方法有助于使哈希值分布更均匀。
+
+# 各种字符串Hash函数比较
+https://www.byvoid.com/zhs/blog/string-hash-compare

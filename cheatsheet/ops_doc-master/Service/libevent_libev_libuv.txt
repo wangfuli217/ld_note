@@ -1,0 +1,126 @@
+[异步事件循环]
+  1. 异步事件通知机制(Asynchronous Event Notification，AEN)就是根据发生的事件，调用相应的回调函数进行处理。
+    事件(Event)：事件是异步事件通知机制的核心，比如fd事件、超时事件、信号事件、定时器事件。
+    有时候也称事件为事件处理器(EventHandler)，这个名称更形象，因为 Handler 本身表示了包含处理所需数据
+  (或数据的地址)和处理的方法(回调函数)，更像是面向对象思想中的称谓。
+  2. 事件循环(EventLoop)：用于管理事件，包括添加/移除事件、等待和分发事件。
+    
+libevent :名气最大，应用最广泛，历史悠久的跨平台事件库；
+libev    :较libevent而言，设计更简练，性能更好，但对Windows支持不够好；
+libuv    :开发node的过程中需要一个跨平台的事件库，他们首选了libev，但又要支持Windows，故重新封装了一套，
+          linux下用libev实现，Windows下用IOCP实现；
+
+libevent
+优先级:
+激活的事件组织在优先级队列中，各类事件默认的优先级是相同的，可以通过设置事件的优先级使其优先被处理
+事件循环 :
+event_base用于管理事件
+线程安全: 
+event_base和loop都不是线程安全的，一个event_base或loop实例只能在用户的一个线程内访问（一般是主线程），
+注册到event_base或者loop的event都是串行访问的，即每个执行过程中，会按照优先级顺序访问已经激活的事件，
+执行其回调函数。所以在仅使用一个event_base或loop的情况下，回调函数的执行不存在并行关系.
+
+libev:
+优先级:
+也是通过优先级队列来管理激活的时间，也可以设置事件优先级
+事件循环 :
+激活的事件组织在优先级队列中，各类事件默认的优先级是相同的，可以通  过设置事件的优先级   使其优先被处理
+
+libuv
+优先级:
+没有优先级概念，按照固定的顺序访问各类事件
+事件循环 :
+激活的事件组织在优先级队列中，各类事件默认的优先级是相同的，可以通  过设置事件的优先级   使其优先被处理
+
+事件种类
+type      IO        计时器 计时器     信号    进程控制 文件stat  每次循环都会执行的Idle事件 循环block之前执行
+libevent  fd        timer  --         signal  --       --        --                         --
+libev     io        timer  periodic   signal  child    stat      idle                       prepare
+libuv     fs_event  timter --         signal  process  fs_poll   idle                       prepare
+
+type      循环blcck之后执行 嵌套loop  fork   loop销毁之前的清理工作  操作另一个线程中的loop  stream ( tcp, pipe, tty )
+libevent  --                --        --     --                      --                      stream ( tcp, pipe, tty )
+libev     check             embed     fork   cleanup                 async                   stream ( tcp, pipe, tty )
+libuv     check             --        --     --                      async                   stream ( tcp, pipe, tty )
+
+这个对比对于libev和libuv更有意义，对于libevent，很多都是跟其设计思想有关的。 libev中的embed很少用，libuv没有也没关系；
+cleanup完全可以用libuv中的async_exit来替代；libuv没有fork事件。
+
+
+异步架构程序设计原则
+1、回调函数不可以执行过长时间，因为一个loop中可能包含其他事件，尤其是会影响一些准确度要求比较高的timer。
+2、尽量采用库中所缓存的时间，有时候需要根据时间差来执行timeout之类的操作。当然能够利用库中的timer最好。
+
+libevent -> libev
+[设计哲学]
+    libev的诞生，是为了修复libevent设计上的一些错误决策。例如，全局变量的使用，让libevent很难在多线程环境中使用。
+    watcher结构体很大，因为它们包含了I/O，定时器和信号处理器。
+    额外的组件如HTTP和DNS服务器，因为拙劣的实现品质和安全问题而备受折磨。
+    定时器不精确，而且无法很好地处理时间跳变。
+    
+    例如避免使用全局变量，转而在所有函数中，使用上下文变量来代替。
+    每个事件类型，使用单独的watcher类型(一个I/O watcher在64位机器上，只需要56字节。而libevent需要136字节)。
+    允许额外的事件类型，例如基于挂钟的计时器，或者单调时间，线程内中断，准备并检查watchers来嵌入其他事件循环，或者被用于其他事件循环来嵌入。
+    
+    总而言之，libev试图做好一件事而已(目标是成为POSIX的事件库)，这是最高效的方法。
+    libevent则尝试给你全套解决方案(事件库，非阻塞IO库，http库，DNS客户端)
+    
+libev 
+[优点]
+    是系统异步模型的简单封装，基本上来说，它解决了 epoll ，kqueuq 与 select 之间 API 不同的问题。保证使用 livev 的 API 编写出的
+    程序可以在大多数 *nix 平台上运行。
+    例如：
+        libev 在 socket 发生读写事件时，只告诉你，“XX socket 可以读/写了，自己看着办吧”。往往我们需要自己申请内存并调用 read(3) 
+    或者 write(3) 来响应 I/O 事件。
+[缺点]
+    1、使用起来比较麻烦。
+        基本只是封装了 Event Library，用起来有诸多不便。
+        比如 accept(3) 连接以后需要手动 setnonblocking 。
+        从 socket 读写时需要检测 EAGAIN 、EWOULDBLOCK 和 EINTER。
+        这也是大多数人认为异步程序难写的根本原因。
+    2、没有异步 DNS 解析，这一点一直广为垢病。
+    3、完全是单线程的。
+
+libuv 
+[优点]
+    1、处处回调。只需要关注回调即可。底层处理逻辑已经封装好了。
+    libuv 是 joyent 给 Node 做的一套 I/O Library 。而这也导致了 libuv 最大的特点就是处处回调。基本上只要有可能阻塞的地方，libuv 
+都使用回调处理。这样做实际上大大减轻了程序员的工作量。因为当回调被 call 的时候，libuv 保证你有事可做，这样 EAGAIN 和 EWOULDBLOCK 
+之类的 handle 就不是程序员的工作了，libuv 会默默的帮你搞定。
+
+    当接口可读时，libuv 会调用你的 allocate callback 来申请内存并将读到的内容写入。当读取完毕后，libuv 会 call 你为这个 socket 
+设置的回调函数，在参数中带着这个 buffer 的信息。你只需要负责处理这个 buffer 并且free 掉就OK了。因为是从 buffer 中读取数据，
+在你的 callback 被调用时数据已经 ready 了，所以程序员也就不用考虑阻塞的问题了。
+
+    而对写的处理则更显巧妙。libuv 没有 write callback ，如果你想写东西，直接 generate 一个 write request 连着要写的 buffer 
+一起丢给 libuv ，libuv 会把你的 write request 加进相应 socket 的 write queue ，在 I/O 可写时按顺序写入。
+
+    2、有异步的 DNS 解析，解析结果也是通过回调的方式通知程序。
+    3、需要多线程库支持，因为其在内部维护了一个线程池来 handle 诸如 getaddrinfo(3) 这样的无法异步的调用。
+    
+[缺点]
+    C 没有闭包，所以确定读写上下文是 libuv 的使用者需要面对的问题。否则程序面对汹涌而来的 buffer 也不能分得清哪个是哪个的数据。
+在这一点的处理上，libuv 跟 libev 一样，都是使用了一个 void *data 来解决问题。你可以用 data 这个 member 存储任何东西，这样当 
+buffer 来的时候，只需要简单的把 data cast 到你需要的类型就 OK 了。
+
+
+
+--------------------------------------------------------------------------------
+ACE：所谓 java 化， 就是以对象代替接口， 以虚函数代替回调，以继承代替组合。以虚类代替模板。对象间关系错综复杂，牵一发而动全身。
+
+libevent:libevent把简单问题简单化，让异步网络编程反朴归真，应该来说，本是一个好库。
+然而 libevent 因为设计缺陷，例如使用全局变量，定时器无法处理时间跳变，诸如此类的设计缺陷导致了 libev 的出现。
+
+libev 还未来得及被C的缺点拖累，因为他不支持 IOCP. 于是 libuv 就出来给 libev 擦屁股了。 
+
+libuv: avplayer的大拿jackarain曾经说过，一个网络库好不好，就看他有没有正确的处理 TCP 关闭， read write 实现的ui不对。
+libuv 很遗憾的是，不合格。libuv 的 uv_write 没有返回值，允许空回调。也就是忽略write错误。
+网络出错的情况下， libuv 的用户只能稀里糊涂的知道出错了，
+
+ASIO 
+为什么 Proactor 会是最佳模型？
+    跨平台 许多操作系统都有异步API，即便是没有异步API的Linux, 通过 epoll 也能模拟 Proactor 模式。
+    支持回调函数组合 将一系列异步操作进行组合，封装成对外的一个异步调用。这个只有Proactor能做到，Reactor 做不到。意味着如果asio使用Reactor模式，就对不起他“库” 之名。
+    相比 Reactor 可以实现 Zero-copy
+    和线程解耦 长时间执行的过程总是有系统异步完成，应用程序无需为此开启线程
+

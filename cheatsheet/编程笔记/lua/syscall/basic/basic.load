@@ -1,0 +1,77 @@
+--[=[
+  原型：load (chunk [, chunkname [, mode [, env]]]) 协议型函数
+  解释：如果 chunk 是一个字符串，代码块指这个字符串。
+        如果 chunk 是一个函数，load 不断地调用它获取代码块的片断。每次对chunk
+        的调用都必须返回一个字符串紧紧连接在上次调用的返回串之后。
+        当返回空串、nil、或是不返回值时，都表示代码块结束。 -- io.lines()
+  注意：这里func的调用结束和file:lines函数的调用策略很相似，都是以nil或者""作为结尾的。
+        
+        如果没有错误函数会返回编译好的程序块作为一个函数，否则将会返回nil和错误信息，
+
+        如果结果函数有上值， env 被设为第一个上值。若不提供此参数，将全局环境替代它。
+        函数的运行环境是全局环境，参数chunkname通常被用来作为错误信息和调试信息使用，当省略时默认为"(load)"。
+        字符串 mode 用于控制代码块是文本还是二进制（即预编译代码块）。 它可以是字符串 "b" （只能是二进制代码块）， "t" （只能是文本代码块），或 "bt" （可以是二进制也可以是文本）。 默认值为 "bt"。
+        
+    Lua 不会对二进制代码块做健壮性检查。 恶意构造一个二进制块有可能把解释器弄崩溃。 
+E: too many nested functions
+E: reader function must return a string
+--]=]
+
+-- 用来计数调用次数
+local n = 0
+
+-- 用来作为可以影响的变量
+w = 0
+
+-- 被调函数
+local function test(w)
+    n = n + 1;
+    print("test load function "..n.." times")
+
+    if n > 10 then
+        return nil
+    else
+        return "w = w + 1; print(w)"
+    end
+end
+
+-- 输出被调函数
+print("\ntest function is", test, "\n")
+
+-- 运行load
+local retfunc = load(test, "use test")
+
+-- 输出结果函数
+print("\nretfunc function is", retfunc)
+
+-- 输出影响的变量
+print("\nbefore use function ret func, w = "..w)
+
+-- 调用结果函数
+retfunc()
+
+-- 输出影响的变量
+print("\nafter use function ret func, w = "..w)
+
+
+local function func_error()
+    -- return "w=w+1"
+    return nil
+end
+
+print("\nsecond load", load(func_error, "use func_error"))
+
+-- load函数把这个字符串当作脚本装载,并返回一个函数.以后执行这个函数就相当于执行chunk中的命令
+y=load('print("hello"')
+y()
+
+f=function (x) return x*x end
+strf=string.dump(f)
+y=load(strf)
+y(12)
+
+--[[
+1. 死循环的原因就是由于他的结束条件，它会不断的调用函数func，直到它返回空串、nil或者是不返回，可是一般写好的函数，怎么会突然不返回，结果一直返回就死循环了。
+2. 返回值中代码块使用的变量w居然得是全局变量，否则编译不过去，我不知道这么做有什么意义。
+3. 最后生成函数的代码里相当于有10句w = w +1;代码，由运行结果也证实了这一点。
+--]]

@@ -1,0 +1,118 @@
+snippet shebang "shebang for bash"
+#!/usr/bin/env bash
+# `bash --version | head -n 1`
+#
+# `copyright`
+# This work is distributed WITHOUT ANY WARRANTY whatsoever; without even the
+# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the README file for additional terms and conditions on your use of this
+# software.
+#
+endsnippet
+snippet usage "usage function" b
+# Usage {{{1
+usage() {
+cat <<EOD
+Usage: \$(basename \$0) [OPTION]
+
+Options
+  -?, --help                  print this help and exit
+  -v, --verbose               increase verbosity
+  -q, --quiet                 suppress all output (ignores -v)
+EOD
+exit 1
+}
+# Usage 1}}}
+endsnippet
+snippet functions "standard functions" b
+# Functions {{{1
+log() {
+  local msg=\${1:-}
+  local level="\${2:-INFO}"
+  now=$(date "+%Y-%m-%d %H:%M:%S%z")
+  echo "$now $(hostname) \$(basename "\$0"):$level $msg" 1>&2
+}
+# Functions 1}}}
+endsnippet
+snippet parameters "command-line arguments reader" b
+# Parameters {{{1
+#
+while :
+do
+  case \${1:-} in
+    --help | -\?)
+      usage
+      exit 0
+      ;;
+    -v | --verbose)
+      # Each instance of -v adds 1 to verbosity
+      verbose=\$((verbose+1))
+      shift
+      ;;
+    -q | --quiet)
+      quiet="1"
+      shift
+      ;;
+    --) # End of all options
+      shift
+      break
+      ;;
+    -*)
+      echo "FATAL: Unknown option : \$1" >&2
+      exit 1
+      shift
+      ;;
+    *)  # no more options. Stop while loop
+      break
+      ;;
+  esac
+done
+# Parameters 1}}}
+endsnippet
+snippet depends "template for dependency check"
+if ! command -v $1 >/dev/null 2>&1 ; then echo "Missing dependency: $1" 1>&2 ; exit 1 ; fi
+endsnippet
+snippet mktemp
+tmpfile="$(mktemp)"
+endsnippet
+snippet function
+# $1() {{{1
+$1() {
+  $2
+}
+# $1() 1}}}
+endsnippet
+snippet debugging
+# TODO: Debugging tools. REMOVE THIS LATER. {{{1
+set -o errexit  # exit on errors
+set -o nounset  # exit on use of uninitialized variable
+set -o errtrace # inherits trap on ERR in function and subshell
+
+trap 'traperror $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "::%s" ${FUNCNAME[@]:-})' ERR
+trap 'trapexit $? $LINENO' EXIT
+
+trapexit() {
+  log "EXIT on line \$2 (exit status \$1)" "INFO "
+}
+
+traperror () {
+  local err=\$1  # error status
+  local line=\$2  # LINENO
+  local linecallfunc=\$3
+  local command="\$4"
+  local funcstack="\$5"
+
+  log "'$command' failed at line $line - exited with status: $err" "ERROR"
+
+  if [ "$funcstack" != "::" ]; then
+    message="Error in $funcstack"
+    if [ "$linecallfunc" != "" ]; then
+      message="$message called at line $linecallfunc"
+    fi
+    log "$message" "DEBUG"
+  fi
+
+}
+
+# End debugging tools. 1}}}
+endsnippet

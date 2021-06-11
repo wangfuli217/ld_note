@@ -1,0 +1,33 @@
+1、创建目录
+struct proc_dir_entry *proc_mkdir(const char *name, struct proc_dir_entry *parent);
+类似于mkdir()函数，name是目录名，如“example_dir”，parent是要创建的目录的父目录名（若parent = NULL则创建在/proc目录下）。
+
+ 
+
+2.创建proc文件：
+struct proc_dir_entry *create_proc_entry( const char *name,  mode_t mode, struct proc_dir_entry *parent );
+create_proc_entry函数用于创建一个一般的proc文件，其中name是文件名，比如“hello”，mode是文件模式，parent是要创建的proc文件的父目录（若parent = NULL则创建在/proc目录下）。
+
+
+3.删除proc文件/目录：
+void remove_dir_entry(const char *name, struct proc_dir_entry *parent);
+参数同proc_mkdir()函数类似
+
+ 
+
+4.创建可读写的proc文件
+proc文件实际上是一个叫做proc_dir entry的struct(定义在proc_fs.h)，该struct中有int read_proc和int write_proc两个元素，要实现proc的文件的读写就要给这两个元素赋值。但这里不是简单地将一个整数赋值过去就行了，需要实现两个回调函数。
+读回调函数原型：int mod_read( char *page, char **start, off_t off, int count, int *eof, void *data );
+在用户或应用程序访问该proc文件时，就会调用这个函数，实现这个函数时只需将想要让用户看到的内容放入page即可。
+写回调函数原型：int mod_write( struct file *filp, const char __user *buff, unsigned long len, void *data );
+在用户或应用程序试图写入该proc文件时，就会调用这个函数，实现这个函数时需要接收用户写入的数据（buff参数）。
+
+ 
+
+5. 创建proc文件时赋给它mod_read函数。
+struct proc_dir_entry *create_proc_read_entry(const char *name, mode_t mode, struct proc_dir_entry *base, read_proc_t * proc_read, void * data)
+name : 要创建的文件名；
+mode : 文件掩码，为 0 则按照系统默认的掩码创建文件。
+base : 指定该文件所在的目录，如果为 NULL，则文件被创建在 /proc 根目录下。
+read_proc : 实现该文件的 read_proc 函数。也就是说，当我们读取 "name" 这个文件时(如 cat /proc/myproc_name) ，读取请求会通过这个函数发送到驱动模块，然后在函数里处理的数据会写到 myproc_name 文件中。
+data : 内核忽略此参数，但会把它当作参数传递给 read_proc 这个自定义函数。

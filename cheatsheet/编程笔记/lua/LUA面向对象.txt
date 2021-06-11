@@ -1,0 +1,168 @@
+序言：
+    Lua中的table就是一种对象，但是如果直接使用仍然会存在大量的问题，见如下代码：
+    Account = {balance = 0}
+    function Account.withdraw(v)
+        Account.balance = Account.balance - v
+    end
+    --下面是测试调用函数
+    Account.withdraw(100.00)
+    在上面的withdraw函数内部依赖了全局变量Account，一旦该变量发生改变，将会导致withdraw不再能正常的工作，如：
+    a = Account; Account = nil
+    a.withdraw(100.00)  --将会导致访问空nil的错误。
+
+
+    这种行为明显的违反了面向对象封装性和实例独立性。要解决这一问题，我们需要给withdraw函数在添加一个参数self，他等价于Java/C++中的this，见如下修改：
+
+    function Account.withdraw(self,v)
+        self.balance = self.balance - v
+    end
+    --下面是基于修改后代码的调用：
+    a1 = Account; Account = nil
+    a1.withdraw(a1,100.00)  --正常工作。
+
+    针对上述问题，Lua提供了一种更为便利的语法，即将点(.)替换为冒号(:)，这样可以在定义和调用时均隐藏self参数，如:
+
+    function Account:withdraw(v)
+        self.balance = self.balance - v
+    end
+    --调用代码可改为：
+    a:withdraw(100.00)
+    
+类
+    Lua在语言上并没有提供面向对象的支持，因此想实现该功能，我们只能通过table来模拟，见如下代码及关键性注释：
+    --[[
+    在这段代码中，我们可以将Account视为class的声明，如Java中的：
+    public class Account 
+    {
+        public float balance = 0;
+        public Account(Account o);
+        public void deposite(float f);
+    }
+    --]]
+    --这里balance是一个公有的成员变量。
+    Account = {balance = 0}
+    
+    --new可以视为构造函数
+    function Account:new(o)
+        o = o or {} --如果参数中没有提供table，则创建一个空的。
+        --将新对象实例的metatable指向Account表(类)，这样就可以将其视为模板了。
+        setmetatable(o,self)
+        --在将Account的__index字段指向自己，以便新对象在访问Account的函数和字段时，可被直接重定向。
+        self.__index = self
+        --最后返回构造后的对象实例
+        return o
+    end
+    
+    --deposite被视为Account类的公有成员函数
+    function Account:deposit(v)
+        --这里的self表示对象实例本身
+        self.balance = self.balance + v
+    end
+    
+    --下面的代码创建两个Account的对象实例
+    
+    --通过Account的new方法构造基于该类的示例对象。
+    a = Account:new()
+    --[[
+    这里需要具体解释一下，此时由于table a中并没有deposite字段，因此需要重定向到Account，
+    同时调用Account的deposite方法。在Account.deposite方法中，由于self(a对象)并没有balance
+    字段，因此在执行self.balance + v时，也需要重定向访问Account中的balance字段，其缺省值为0。
+    在得到计算结果后，再将该结果直接赋值给a.balance。此后a对象就拥有了自己的balance字段和值。
+    下次再调用该方法，balance字段的值将完全来自于a对象，而无需在重定向到Account了。
+    --]]
+    a:deposit(100.00)
+    print(a.balance) --输出100
+    
+    b = Account:new()
+    b:deposit(200.00)
+    print(b.balance) --输出200
+
+2. 继承：
+    继承也是面向对象中一个非常重要的概念，在Lua中我们仍然可以像模拟类那样来进一步实现面向对象中的继承机制，见如下代码及关键性注释：
+
+    --需要说明的是，这段代码仅提供和继承相关的注释，和类相关的注释在上面的代码中已经给出。
+    Account = {balance = 0}
+    
+    function Account:new(o)
+        o = o or {}
+        setmetatable(o,self)
+        self.__index = self
+        return o
+    end
+    
+    function Account:deposit(v)
+        self.balance = self.balance + v
+    end
+    
+    function Account:withdraw(v)
+        if v > self.balance then
+            error("Insufficient funds")
+        end
+        self.balance = self.balance - v
+    end
+    
+    --下面将派生出一个Account的子类，以使客户可以实现透支的功能。
+    SpecialAccount = Account:new()  --此时SpecialAccount仍然为Account的一个对象实例
+    
+    --派生类SpecialAccount扩展出的方法。
+    --下面这些SpecialAccount中的方法代码(getLimit/withdraw)，一定要位于SpecialAccount被Account构造之后。
+    function SpecialAccount:getLimit()
+        --此时的self将为对象实例。
+        return self.limit or 0
+    end
+    
+    --SpecialAccount将为Account的子类，下面的方法withdraw可以视为SpecialAccount
+    --重写的Account中的withdraw方法，以实现自定义的功能。
+    function SpecialAccount:withdraw(v)
+        --此时的self将为对象实例。
+        if v - self.balance >= self:getLimit() then
+            error("Insufficient funds")
+        end
+        self.balance = self.balance - v
+    end
+    
+    --在执行下面的new方法时，table s的元表已经是SpecialAccount了，而不再是Account。
+    s = SpecialAccount:new{limit = 1000.00}
+    --在调用下面的deposit方法时，由于table s和SpecialAccount均未提供该方法，因此访问的仍然是
+    --Account的deposit方法。
+    s:deposit(100)
+    
+    
+    --此时的withdraw方法将不再是Account中的withdraw方法，而是SpecialAccount中的该方法。
+    --这是因为Lua先在SpecialAccount(即s的元表)中找到了该方法。
+    s:withdraw(200.00)
+    print(s.balance) --输出-100
+    
+    
+3. 私密性：
+    私密性对于面向对象语言来说是不可或缺的，否则将直接破坏对象的封装性。
+    Lua作为一种面向过程的脚本语言，更是没有提供这样的功能，然而和模拟支持类与继承一样，
+    我们仍然可以在Lua中通过特殊的编程技巧来实现它，这里我们应用的是Lua中的闭包函数。
+    该实现方式和前面两个示例中基于元表的方式有着很大的区别，见如下代码示例和关键性注释：
+
+--这里我们需要一个闭包函数作为类的创建工厂
+function newAccount(initialBalance)
+    --这里的self仅仅是一个普通的局部变量，其含义完全不同于前面示例中的self。
+    --这里之所以使用self作为局部变量名，也是为了方便今后的移植。比如，以后
+    --如果改为上面的实现方式，这里应用了self就可以降低修改的工作量了。
+    local self = {balance = initialBalance} --这里我们可以将self视为私有成员变量
+    local withdraw = function(v) self.balance = self.balance - v end
+    local deposit = function(v) self.balance = self.balance + v end
+    local getBalance = function() return self.balance end
+    --返回对象中包含的字段仅仅为公有方法。事实上，我们通过该种方式，不仅可以实现
+    --成员变量的私有性，也可以实现方法的私有性，如：
+    --local privateFunction = function() --do something end
+    --只要我们不在输出对象中包含该方法的字段即可。
+    return {withdraw = withdraw, deposit = deposit, getBalance = getBalance}
+end
+
+--和前面两个示例不同的是，在调用对象方法时，不再需要self变量，因此我们可以直接使用点(.)，
+--而不再需要使用冒号(:)操作符了。
+accl = newAccount(100.00)
+--在函数newAccount返回之后，该函数内的“非局部变量”表self就不再能被外部访问了，只能通过
+--该函数返回的对象的方法来操作它们。
+accl.withdraw(40.00)
+print(acc1.getBalance())
+
+
+    事实上，上面的代码只是给出一个简单的示例，在实际应用中，我们可以将更多的私有变量存放于上例的局部self表中。

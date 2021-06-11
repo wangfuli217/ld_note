@@ -1,0 +1,127 @@
+https://wiki.ubuntu.com/DashAsBinSh
+https://en.wikipedia.org/wiki/Almquist_shell
+http://mywiki.wooledge.org/Bashism # 分类说明 bash和ash 差别
+https://www.debian.org/doc/manuals/debian-reference/index.zh-cn.html
+http://wiki.ubuntu.com.cn/UbuntuManual
+
+man dash
+
+Dash == ash == sh (bash: 1. 代码量大；2. 启动慢， 3. 操作复杂)
+Ubuntu 6.10(system shell: bash->ash)
+            login  shell: bash (crtl-alt-t)
+1. 不支持行编辑
+2. 不支持历史存储
+3. 不支持数组
+4. 不支持国际化和本地化，多字节编码
+
+脚本中      #! /bin/sh 替代  #! /bin/bash
+Makefile中  SHELL = /bin/bash 放在Makefile顶部
+
+sudo dpkg-reconfigure dash     # 将当前shell设置成dash
+sudo dpkg-reconfigure locales  # 配置语言
+
+[    (test) : 1. == 不再支持，仅支持= 2. 支持 -a 和 -o 在bash和dash中尽量避免使用，
+     [ \( "$foo" = "$bar" -a -f /bin/baz \) -o ! -x /bin/quux ] 
+     -> (([ "$foo" = "$bar" ] && [ -f /bin/baz ]) || [ ! -x /bin/quux ])
+     [ 用于检查简单的判断；使用 && 和 || 使之成组。
+     3. -nt 和 -ot 在POSIX中不支持
+[[   [[]] 需要使用[ 替换；
+((   ((...)) 用于数学扩展; 应该使用 $((n++)), $((--n)) 进行替换
+{     /usr/lib/libfoo.{a,so} 大括号扩展ash不支持
+$'...'  bash支持；使用 $'\t' 使用 "$(printf '\t')"替换
+$"..."  bash支持；
+${...} ${foo#bar}, ${foo##bar}, ${foo%bar} ${foo%%bar} ash也支持
+       ${!...}                     ash不支持  -> 使用eval 替换
+       ${parameter/pattern/string} ash不支持  -> echo, sed, grep, and/or awk 方法替换
+       数组 ash不支持             -> 使用一系列的 ${foo#bar} 替换
+       ${parameter:offset:length}  ash不支持
+        string_after="some string"
+        string=${string_after:0:3}
+        # awk
+        string=$(echo $string_after | awk  '{ string=substr($0, 1, 3); print string; }' )
+        echo $string
+[^]   [^f]* -> [!f]*
+    case "foo" in              case "foo" in
+        [^f]*)                     [!f]*)
+            echo 'not f*'              echo 'not f*'
+        ;;                         ;;
+    esac                       esac 
+
+$LINENO      ash不支持
+$PIPESTATUS  ash不支持
+$RANDOM      ash不支持  random=$(hexdump -n 2 -e '/2 "%u"' /dev/urandom)
+
+builtin 内建函数：type 实现which和commnad -v类似的功能
+                  type ash和bash都支持，只是两者功能不一样
+                  
+echo 不支持 -e -> printf
+
+flock: 不支持用多位数字引用文件描述； 最多支持9
+
+function： 不支持以function作为关键字定义函数；
+ash支持如下方式定义函数：
+       function_name () {
+           function body
+       }
+       
+let：用于数字运算，在此不支持；可以使用数学扩展 $(())
+
+local:
+-    local a=5 b=6; 在bash中，a,b 都是本地变量， 在ash中，a是本地变量，b是全局变量
++    local a=5;     在bash和ash中，a都是本地变量
++    local b=6;     在bash和ash中，b都是本地变量
+
+-    local a=$(someCommand) b=$?; 在bash中，该方式和下面方式得到的结果是不一样的；而ash没有说明
++    local a; local b
++    a=$(someCommand)
++    b=$?
+
+printf %q|%b  ash不支持
+    %b  使得  printf  展开相应  arguments  中的反斜杠转义序列，
+    %q 使得 printf 将 相应的argument 以一种可以重用为 shell 输入的格式输出
+    
+select ash不支持
+
+source ash不支持 使用 "." 代替
+
+dash doesn't expand '~' on path search 不支持~扩展和路径查询
+    PATH="~/bin:$PATH" -> PATH="$HOME/bin:$PATH"
+
+declare or typeset  ash不支持
+
+ulimit 在ash和bash中都支持，只是有些选项不支持
+
+time: 在bash是内建的，在ash不是内建的
+# simple one liner
+which time >/dev/null 2>&1 || { echo "time is not installed." && exit 1; }
+
+# if statement
+if [ ! "$(command -v time)" ]; then
+    echo "time is not installed"
+    exit 1
+fi
+
+kill -[0-9] or -[A-Z] 在ash中是内建的
+
+read without variable
+read with option other than -r
+# Bashism:
+read -p "Enter $user's real name: "
+# Replacement #1 (recommended):
+printf "Enter %s's real name: " "$user"
+read REPLY
+# Replacement #2:
+echo -n "Enter $user's real name: "
+read REPLY
+
+<<< "Here strings" are similar to "here docs," 
+$ cat <<<"$HOME is where the heart is."
+/home/ralph is where the heart is.
+$
+$ cat <<E
+> $HOME is where the heart is.
+> E
+/home/ralph is where the heart is.
+$ 
+
+String comparison with == in test

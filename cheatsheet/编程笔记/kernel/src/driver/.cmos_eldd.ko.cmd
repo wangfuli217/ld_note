@@ -1,0 +1,1 @@
+cmd_/home/hask/.src/driver/cmos_eldd.ko := ld -r -m elf_i386 -T /usr/src/linux-2.6.36-ARCH/scripts/module-common.lds --build-id  -o /home/hask/.src/driver/cmos_eldd.ko /home/hask/.src/driver/cmos_eldd.o /home/hask/.src/driver/cmos_eldd.mod.o

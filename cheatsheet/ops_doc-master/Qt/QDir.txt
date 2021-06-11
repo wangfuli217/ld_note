@@ -1,0 +1,280 @@
+1. QDir类提供了访问目录结构和它们的内容的与平台无关的方式。
+2. QDir用来操作路径名称、关于路径和文件的访问信息和操作底层文件系统。
+3. QDir使用相对或绝对文件路径来指向一个文件。绝对路径是从目录分隔符"/"或者带有一个驱动器标识
+  (除了在Unix下)。如果你总是使用"/"作为目录分隔符，Qt将会把你的路径转化为符合底层的操作系统的。
+  相对文件名是由一个目录名称或者文件名开始并且指定一个相对于当前路径的路径。
+4. "当前"路径是指应用程序的工作目录。QDir自己的路径可以通过setPath()设置并且通过path()获得。
+    [isRelative() convertToAbs() cleanDirPath() cannonicalPath() setPath() cd() cdUp()]
+5. 一个绝对路径的实例是字符串"/tmp/quartz"，相对路径看起来像是"src/fatlib"。你可以使用函数isRelative()
+   来检查一个QDir使用的是相对还是绝对文件路径。调用convertToAbs()可以把一个相对的QDir转化为绝对的。
+   使用cleanDirPath()可以得到一个简化的路径。为了获得没有符号连接或者多余的".."元素的路径，请使用canonicalPath()。
+   路径可以通过setPath()设置，或者使用cd()和cdUp()来改变。
+   [ setCurrent() currentDirPath() current() home() root() homeDirPath() rootDirPath() ]
+6. QDir提供了几个静态函数，例如，setCurrent()设置应用程序的工作目录并且currentDirPath()来获得应用程序的工作目录。
+   访问一些普通的路径是由以下一些静态函数提供的，current()、home()和root()返回QDir对象或者currentDirPath()、
+   homeDirPath()和rootDirPath()返回字符串路径。
+   [ count() entryList() entryInfoList() setNameFilter()、setFilter()和setSorting() ]
+7. count()返回目录中的条目数量。通过entryList()可以获得目录中的所有文件和目录的名称的字符串列表。
+   如果你希望得到QFileInfo指针的列表请使用entryInfoList()。这些函数都可以使用名称过滤器、属性过滤器
+   (例如只读、只要文件不要目录等等)和排列顺序。
+   过滤器和排序可以调用setNameFilter()、setFilter()和setSorting()来设置。它们可以通过entryList()和entryInfoList()的参数来指定。
+   [mkdir() rename() rmdir() remove() exists() isReadable() isRoot() ]  
+8. mkdir()可以创建一个新目录，rename()可以重命名一个目录并且rmdir()可以移除一个已经存在的目录。
+   remove()可以移除一个已经存在的文件。你可以通过exists()、isReadable()和isRoot()来询问一个目录。
+   [ filePath() dirName()  ]
+9. 使用filePath()可以得到一个带有文件名的路径，并且dirName()可以得到目录名称，这两个函数都不能检测文件或者目录是否存在。
+   [drives() ]
+10. drives()提供根目录的列表，在Unix系统上，这个返回一个只包含根目录“/”的列表，在Windows上，这个列表将包含“C:/”并且还有“D:/”等等。
+   如果你需要一个适应底层操作系统形式的路径，请使用convertSeparators()。
+
+实例：
+请参考一个目录是否存在。
+    QDir d( "example" );                        // “./example”
+    if ( !d.exists() )
+        qWarning( "Cannot find the example directory" );
+
+Traversing directories and reading a file.
+    QDir d = QDir::root();                      // “/”
+    if ( !d.cd("tmp") ) {                       // “/tmp”
+        qWarning( "Cannot find the \"/tmp\" directory" );
+    } else {
+        QFile f( d.filePath("ex1.txt") );       // “/tmp/ex1.txt”
+        if ( !f.open(IO_ReadWrite) )
+            qWarning( "Cannot create the file %s", f.name() );
+    }
+
+一个列出当前目录中所有文件(不包括符号连接)的程序，按大小排序，小的在前。
+    #include <stdio.h>
+    #include <qdir.h>
+
+    int main( int argc, char **argv )
+    {
+        QDir d;
+        d.setFilter( QDir::Files | QDir::Hidden | QDir::NoSymLinks );
+        d.setSorting( QDir::Size | QDir::Reversed );
+
+        const QFileInfoList *list = d.entryInfoList();
+        QFileInfoListIterator it( *list );
+        QFileInfo *fi;
+
+        printf( "     Bytes Filename\n" );
+        while ( (fi = it.current()) != 0 ) {
+            printf( "%10li %s\n", fi->size(), fi->fileName().latin1() );
+            ++it;
+        }
+        return 0;
+    }
+也可以参考输入/输出和网络。
+
+QDir QString bool QFileInfo QFileInfoList
+================================================================================
+https://qtguide.ustclug.org/ch07-01.htm
+1. QDir 类用于访问文件系统中的目录结构和文件等。
+   QDir 类的静态函数通常用于获取程序运行时系统相关的一些路径信息等，
+   而对于具体某一个目录的操作，需要新建 QDir 对象来实现。
+   QDir 用于操作路径文件名，访问关于目录路径、文件等信息，操作真实的底层文件系统。
+2. 绝对路径 和 相对路径 (相对路径的基准目录通常是应用程序的工作路径)
+  绝对路径举例：
+    QDir("/home/user/Documents")
+    QDir("C:/Documents and Settings")
+  相对路径举例：
+    QDir("images/landscape.png")
+  QDir 对象可以通过函数 isRelative() 判断自己包含的路径是否为相对路径，
+通过函数 isAbsolute() 判断自己包含的路径是否为绝对路径形式。另外可以通过 makeAbsolute() 函数
+  bool QDir::​makeAbsolute()
+  把自己的路径确切地转换为绝对路径，
+  [ isAbsolute() ​makeAbsolute() isAbsolute() ]
+3. QDir 构造函数可以指定该对象的起始浏览目录：
+  QDir(const QDir & dir)
+  QDir(const QString & path = QString())
+  QDir(const QString & path, const QString & nameFilter, SortFlags sort = SortFlags( Name | IgnoreCase ), Filters filters = AllEntries)
+  第一个构造函数是复制另一个 QDir 对象。
+  第二个是以路径字符串构造 QDir 对象，
+    如果参数里字符串是空的，那么就以应用程序当前工作目录 "." 作为起始目录。
+  第三个构造函数可以指定文件名过滤字符串 nameFilter、
+                                排序方式 sort ，以及
+                        文件类型过滤枚举 filters 。
+4. 获取该对象当前处于的目录：
+  QString QDir::​path() const    //可能是相对路径，也可能是绝对路径
+  QString QDir::​absolutePath() const    //一定返回绝对路径
+  void QDir::​setPath(const QString & path)
+  注意 ​setPath() 函数是不检查参数 path 是否存在，也不管是不是有 "./../.." 之类复杂的相对路径形式
+所以调用该函数可能进入一个不存在的目录，如果进一步操作可能导致出错，需要在调用该函数之前用 ​
+exists() 判断参数里的路径是否存在：
+   [path() absolutepath() setpath(const QString &path)]
+5. 如果要重新设置 QDir 对象的路径，那么可以通过如下函数设置：
+  bool QDir::​exists(const QString & name) const  //参数里既可以判断文件夹，也可以判断文件的存在性
+  bool QDir::​exists() const                      //不带参数，判断 QDir 对象自身路径是否为存在的文件夹，只管文件夹！
+  如果 QDir 对象自身路径是一个存在的文件，那么也会返回 false，只有是真实的文件夹 才返回 true。
+  [ exist(const QString &name) exists() ]
+6. QDir 对象可以用  dirName() 返回该层级目录的简短名字，不包含路径，通常就是绝对路径的最后一个子串：
+   QDir("Documents/Letters/Applications").dirName()   //返回 "Applications"
+   如果 QDir 构造函数里字符串为空，那么 dirName() 返回当前目录 "." ：
+   QDir().dirName()                                 //返回  "."
+   除了 QDir 构造函数和 setPath() 函数，更常用的修改 QDir 对象当前目录位置的函数是 cd()：
+   [ dirName() ]
+7. bool QDir::​cd(const QString & dirName)
+   cd() 函数比 setPath() 函数更智能，应该尽量用 cd() 函数，因为 cd() 函数会自动检查参数里的目录是否存在，
+   如果参数里路径不存在，那么该函数返回 false，QDir 对象原本的路径不变；如果切换目录成功就返回 true，并进 入新目录。
+   [ cd(const QString &dirName) ]
+8. QDir 对象有切换到父目录的快捷函数：
+  bool QDir::​cdUp()
+  切换成功就返回 true(有父目录)；切换失败就返回 false(没父目录，原本已经到根了)。
+9. QDir对象不仅能访问文件夹，还能在自己当前的目录里面进行创建、重命名和删除的操作：
+   bool QDir::​mkdir(const QString & dirName) const    //创建新目录
+   bool QDir::​rename(const QString & oldName, const QString & newName) //重命名旧的目录
+   bool QDir::​rmdir(const QString & dirName) const    //删除一个空目录
+ 这些操作如果成功就返回 true，失败就返回 false。
+   mkdir() 参数里的文件路径不能是已经有的（创建已有的会返回失败），必须是新的；
+   rename() 参数里，旧的目录名 oldName 必须存在，新的目录名 newName 不能与已有的重名；
+   rmdir() 函数只能删除空文件夹，如果文件夹里面有其他文件或子文件夹就不能删除。
+ 操作失败的原因，还有可能是没有权限，因为 Unix/Linux 普通用户经常没有写权限，这些操作就容易失败。
+   [ mkdir(const QString &dirName) rename(const QString &oldName, const QString &newName) rmdir(const QString &dirName) ]
+10. 对于递归创建新的长路径，QDir 提供了快捷函数：
+  bool QDir::​mkpath(const QString & dirPath) const
+  dirPath 可以是长路径，比如 "/home/suse132/Projects/a/b/c" ，对于路径上已有的文件夹"/home/suse132/"，不会构造新的，
+  而后半部不存在的 "Projects/a/b/c" ，该函数会逐级递归创建新文件夹，直到 "/home/suse132/Projects/a/b/c" 每一个层级文件夹都存在。
+  bool QDir::​rmpath(const QString & dirPath) const
+  注意 ​rmpath() 只能删除空的文件夹，如果参数里是 "Projects/a/b/c"，只要其中有一层的文件夹里面有其他子文件夹或文件，都会操作失败。
+  而且不要以绝对路径为参数调用 rmpath() 函数，因为文件系统根总是存在的，不能删除，不要这么干！
+  [ mkpath(const QString &dirPath) rmpath(const QString &dirPath) ]
+11. QDir对象可以对自己目录里的一些属性进行判断，比如：
+  bool QDir::​exists(const QString & name) const    //子文件夹或文件是否存在
+  bool QDir::​isReadable() const    //QDir对象当前目录是否有读权限，Linux系统有些目录普通用户不能读取
+  bool QDir::​isAbsolute() const    //QDir对象当前目录是否为绝对路径
+  bool QDir::​isRelative() const    //QDir对象当前目录是否为相对路径
+  bool QDir::​isRoot() const        //QDir对象当前目录是否为文件系统根
+  一般 QDir 对象会对先前的文件系统状态有个缓存，如果在程序运行时文件系统改变了，可以通过如下函数刷新一下缓存，重新访问文件系统：
+  void QDir::​refresh() const
+  [ exists(const QString &name) isReadable() isAbsolute() isRelateive() isRoot() refresh() ]
+  
+12. 文件和目录内容枚举
+  目录里面可以包含一大堆条目，每个条目可以是文件、子文件夹、符号链接（快捷方式）等，目录里面的条目计数为：
+  uint QDir::​count() const
+  如果要获取 QDir 对象当前目录所有子条目名称字符串列表，使用函数：
+  QStringList QDir::​entryList(Filters filters = NoFilter, SortFlags sort = NoSort) const
+  QStringList QDir::​entryList(const QStringList & nameFilters, Filters filters = NoFilter, SortFlags sort = NoSort) const
+  函数参数里的 filters 是指条目类型的过滤枚举类型，
+               sort 是指返回的条目列表的排序方式；
+  第二个 ​entryList() 函数里的 
+              nameFilters 是指条目名称的过滤字符串列表 。这几个参数都有专门对应的设置函数，
+  entryList() 函数返回的字符串列表打印出来就是得到的文件、子文件夹、符号链接(快捷方式)名字。
+  
+  QFileInfoList QDir::​entryInfoList(Filters filters = NoFilter, SortFlags sort = NoSort) const
+  QFileInfoList QDir::​entryInfoList(const QStringList & nameFilters, Filters filters = NoFilter, SortFlags sort = NoSort) const
+# QFileInfoList 列表当作数组来用就行了，序号从 0 到 count()-1 ，每个条目对应一个文件或子文件夹或符号链接。
+  在不过滤的情况下，entryList() 和 entryInfoList() 返回的列表包含 "." 和 ".." 目录，一个点代表当前目录自己，两个点代表父目录。
+  [ entryList() entryInfoList() ]
+  
+  注意 QDir 对象内部存储的当前目录，可以是真实存在的路径，也可以是虚假的不存在路径：
+  ◆ 实际存在的当前目录通常用于枚举或访问真实子文件夹、文件等，可以用 ​exists(const QString & name) 函数判断子文件 夹或文件是否存在。
+  ◆ 对于不存在的当前目录，QDir 对象也可以照常工作，但因为不存在，所以枚举子条目肯定是空的。如果 QDir 对象里面存储的是不存在的当前目录，
+     那么通常用于构造路径字符串，用于下一步构建路径，比如用于 mkpath() 函数。
+
+    QDir directory("Documents/Letters");
+    QString path = directory.filePath("contents.txt");
+    QString absolutePath = directory.absoluteFilePath("contents.txt");
+    qDebug()<<directory.exists(); // false 
+    qDebug()<<path;               // "Documents/Letters/contents.txt" 
+    qDebug()<<absolutePath;       // "E:/Qt/helloworld-build-Desktop_Qt_5_0_0_MSVC2010_32bit_SDK-Debug/Documents/Letters/contents.txt" 
+  在使用 QDir 对象时，一定要用 exists() 函数谨慎判断路径是否真实存在！
+  [ QDir() 真实路径 和 QDir() 路径字符串管理 ]
+  
+13. 如果要删除一个已存在的文件，使用如下函数：
+  bool QDir::​remove(const QString & fileName)
+  删除成功就返回 true，如果没有该文件或者没有删除权限等，删除失败返回 false。
+  删除一个空目录用之前说过的 ​rmdir() 函数。
+
+14. 过滤和排序，除了可以直接在 ​entryList() 和 ​entryInfoList() 指定各个参数
+14.1 名称字符串过滤设置
+  void QDir::​setNameFilters(const QStringList & nameFilters)
+  nameFilters 是针对子条目名称的过滤串，参考帮助文档主题  QRegExp wildcard matching 的内容，常用的就是 *，匹配任意个数字符，比如
+    QStringList filters;
+    filters << "*.cpp" << "*.cxx" << "*.cc";
+    dir.setNameFilters(filters);
+  这段代码就是过滤后得到 "*.cpp" 、 "*.cxx" 、 "*.cc" 三个扩展名的源代码文件。
+
+QDir 类另外提供了一个静态函数，用于判断某个文件名是否匹配某个名称过滤串：
+bool QDir::​match(const QString & filter, const QString & fileName)   //静态函数
+  [ setNameFilters(const QString &nameFilters) 和 match(const QString &filter, const QString &filename) ]
+  
+14.2 类型权限等过滤设置
+void QDir::​setFilter(Filters filters)
+这个 filters 与条目名称无关，它判断的是条目类型，Filters 枚举常量很多，根据 QDir 的帮助文档列举如下：
+
+Filters 枚举常量        数值            描述
+QDir::Dirs              0x001           列出匹配名称过滤串的目录
+QDir::AllDirs           0x400           列出所有目录，不管名称过滤串
+QDir::Files             0x002           列出文件
+QDir::Drives            0x004           列出磁盘分区盘符（Unix/Linux忽略这个值）
+QDir::NoSymLinks        0x008           不列举符号链接
+QDir::AllEntries        Dirs            |               Files
+QDir::NoDot             0x2000          不列举          "."
+QDir::NoDotDot          0x4000          不列举          ".."，当前的父目录
+QDir::NoDotAndDotDot    NoDot           |               NoDotDot
+QDir::NoFilter          -1              条目类型不做任何过滤，默认是这个
+空行                    空行            上面的常量比较常用，下面的枚举常量基本与文件系统权限有关：
+QDir::Readable          0x010           列出本应用程序可以读取的文件，注意              Readable
+QDir::Writable          0x020           列出本应用程序可以写入的文件，注意              Writable
+QDir::Executable        0x040           列出本应用程序具有执行权限的文件，注意          Executable
+QDir::Modified          0x080           只列出曾经被修改过的文件（Unix系统忽略这个值）
+QDir::Hidden            0x100           列出隐藏文件（Unix系统以                '.'
+QDir::System            0x200           列出系统文件（Unix系统中包含            FIFOs、套接字、设备文件等，Windows系统中包含
+QDir::CaseSensitive     0x800           名称过滤字符串中字母是大小写敏感的。
+    QDir::Readable、 QDir::Writable 、QDir::Executable 是 Unix/Linux 系统里常见的权限划分，
+需要与 QDir::Dirs 或者 QDir::Files 做按位或 | ，结合使用。
+
+14.3 排序设置
+void QDir::​setSorting(SortFlags sort)
+这个参数决定 ​entryList() 和 ​entryInfoList() 返回列表的排序方式，SortFlags 排序的枚举常量如下：
+SortFlags  枚举常量     数值            描述
+QDir::Name              0x00            按名称排序
+QDir::Time              0x01            按时间排序（修改时间）
+QDir::Size              0x02            按大小排序
+QDir::Type              0x80            按类型排序（扩展名）
+
+QDir::Unsorted          0x03            不排序
+QDir::NoSort            -1              不排序，默认是这个值
+QDir::DirsFirst         0x04            文件夹排在前面，文件排在后面
+QDir::DirsLast          0x20            文件夹排在后面，文件排在前面
+QDir::Reversed          0x08            逆序排列
+QDir::IgnoreCase        0x10            排序时大小写不敏感
+QDir::LocaleAware       0x40            根据当前本地化的设置进行恰当地排序（有些本地化语言从右往左读）
+注意前四个排序常量只能四选一，不能同时运用。一般在前四个选一个作为排序标准，后面的枚举常量与前面四选一的做 | 运算，
+后面的枚举常量就可以同时生效。
+无论是通过上面三个设置函数专门设置，还是直接在 ​entryList() 和 ​entryInfoList() 指定各个参数，都是可行的，效果是等价的。
+[​setFilter(Filters filters) ]
+
+15. 应用程序工作路径和其他特殊路径
+返回QDir对象    返回QString             静态函数描述
+current()       currentPath()           应用程序的工作目录(这个可以更改)
+home()          homePath()              用户的主文件夹，或叫家目录
+root()          rootPath()              操作系统的根分区，Unix          是"/"
+temp()          tempPath()              操作系统里默认的临时文件目录
+其中应用程序自己的工作路径是可以改的：
+bool QDir::​setCurrent(const QString & path)
+
+    应用程序的工作路径不等于可执行程序所在的目录，比如 QtCreator 调试运行程序时，工作路径是影子构建目录。
+获取可执行程序所在的目录使用另一个类的静态函数：
+QString QCoreApplication::​applicationDirPath()    //静态函数
+
+联合 QDir::​setCurrent() 和 QCoreApplication::​applicationDirPath() 就可以把程序的工作路径设置为与可执行文件相同的路径：
+    QDir::setCurrent( QCoreApplication::applicationDirPath() );
+    qDebug()<<QDir::currentPath();
+
+16. 如果要获取文件系统根的列表，使用 QDir::​drives() 静态函数，之前 Windows 和 Linux 文件系统截图都提到这个函数：
+QFileInfoList QDir::​drives()    //静态函数
+对于 Windows 系统，一般有多个文件系统根，如 C:/ ，D:/ 等等，对于 Unix 和 Linux 系统，只有一个根 / 。
+
+17. 路径操作和字符串
+    Qt 提供了如下函数对这些进行处理规约，得到绝对权威路径：
+QString QDir::​canonicalPath() const    //会自动判断路径是否真实存在
+如果规约后的当前路径是不存在的，那么该函数返回空串，如果规约后的当前路径是真实存在的，就返回最简化的绝对权威路径。
+
+    另一个弱化版的静态规约函数是 cleanPath()，它不检查路径是否真实存在，也不管是不是符号链接（快捷方式），
+它只对 "." 、 ".."  "/" 等做规约处理，去掉冗余的点号和斜杠：
+QString QDir::​cleanPath(const QString & path)    //静态函数
+
+QDir 提供一对静态函数实现这个转换：
+QString QDir::​fromNativeSeparators(const QString & pathName)    //静态函数，从本地化路径串转为 Qt 风格路径串
+QString QDir::​toNativeSeparators(const QString & pathName)      //静态函数，将 Qt 风格路径串转为本地化路径串

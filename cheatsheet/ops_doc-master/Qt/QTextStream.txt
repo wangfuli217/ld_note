@@ -1,0 +1,408 @@
+
+QTextStream in(stdin);    # 使用提取符从标准输入中提取输入数据
+QTextStream out(stdout);  # 使用插入符向标准输出中写数据
+
+    QTextStream类提供了使用QIODevice读写文本的基本功能。
+    文本流类的功能界面和标准的C++的iostream类非常相似。iostream和QTextStream的不同点是我们的
+流操作在一个很容易被继承的QIODevice上，而iostream只能操作一个不能被继承的FILE *指针。
+Qt提供了几个和iostream相似的全局函数：
+    bin设置QTextStream来读/写二进制数字
+    oct设置QTextStream来读/写八进制数字
+    dec设置QTextStream来读/写十进制数字
+    hex设置QTextStream来读/写十六进制数字
+    endl强制换行
+    flush强制QIODevice刷新任何被缓存的数据
+    ws作为任何可用的控制符（在输入的时候）
+    reset重新设置QTextStream为它的缺省模式（请见reset()）
+    qSetW(int)设置字段宽度作为指定参数
+    qSetFill(int)设置填充字符作为指定参数
+    qSetPrecision(int)设置精确度作为指定参数 
+
+    警告：默认情况下，QTextStream在读取流的时候，会自动地检测流中的数字是十进制、八进制、十六进制或者二进制格式。
+具体情况是，一个以"0"为开头的数字是八进制的，比如顺序为"0100"将会被解释为64。
+    QTextStream类读写文本，它不适合处理二进制数据(而QDataStream是适合的)。
+    默认情况下，输出的是使用本地8位编码后的Unicode文本(比如，QString)。这些可以使用setEncoding()方法进行改变。
+对于输入，QTextStream会自动检测标准Unicode"字节顺序标记的"文本文件，否则会使用本地8位编码。
+    QIODevice在构造函数中被设置，或者之后在setDevice()中使用。如果输入到达了atEnd()，返回真。
+数据可以使用operator>>()重载操作符读到适当类型的变量中，或者使用read()把它作为整个部分读到一个单一的字符串中，
+或者使用readLine()把一次读一行。使用skipWhiteSpace()可以忽略控制符。你可以使用flags()或setf()来设置流的标记。
+这个流也支持width()、precision()和 fill()，使用reset()可以重新恢复默认设置。
+
+
+可以使用QTextStream类的setNumberFlags方法，指定数字的输出格式，它的标志位含义介绍如下：
+    QTextStream::ShowBase 指定以哪一种进制进行显示，16 ("0x"), 8 ("0"), or 2 ("0b")。
+    QTextStream::ForcePoint 如果输出类型是double或float，
+      若这个数字不含小数部分，默认情况下不显示小数部分，
+      若设置了该标志位，则显示小数部分(.)。
+    QTextStream::ForceSign 在输出的数字前面加上正负号，即"+"或"-"。
+    QTextStream::UppercaseBase 在进制指示中，使用大写字母表示，如"0X", "0B"。
+    QTextStream::UppercaseDigits 使用大写字母来表示10到35位数字，而不是小写。
+      例如16进制中的a-f都用大写字母表示，或者科学计数法中的e使用大写E。
+int main()
+{
+    QTextStream out(stdout);
+    
+    int i = 60;
+    out.setIntegerBase(16);//设置16进制显示，所以使用输入输出流，也可以很容易的进行进制转换
+    out << i << endl; //output:3c
+    
+    
+    out.setNumberFlags(out.numberFlags()|QTextStream::ShowBase);
+    out << i << endl; //output: 0x3c
+    
+    out.setNumberFlags(out.numberFlags()|QTextStream::ForceSign);
+    out << i << endl; //output: +0x3c
+    
+    out.setNumberFlags(out.numberFlags()|QTextStream::UppercaseBase);
+    out << i << endl; //output: +0X3c
+    
+    out.setNumberFlags(out.numberFlags()|QTextStream::UppercaseDigits);
+    out << i << endl; //output: +0X3C
+    
+    double d = 100;
+    out << d << endl;//output: 100
+    
+    out.setNumberFlags(QTextStream::ForcePoint);
+    out << d << endl;//output: 100.000
+} 
+
+
+https://qtguide.ustclug.org/
+1.  标准 C++ 有三个常见的输入输出流：iostream 处理命令行输入输出、fstream 处理文件输出输出、sstream 处理内存字符串流的输入输出。
+通常将文本字符串转换成各种 C++ 变量的过程是输入，把内存中 C++ 变量表示成文本字符串的过程是输出。
+    Qt 提供了强大的文本流 QTextStream ，同时实现了三种 C++ 输入输出流的功能，并且还有功能增强，支持各种文本字符编码。
+QTextStream 一般用于操作各种编码格式的文本文件(QFile 对象)或字符串(QString、QByteArray)，
+也可以打开 stdin、stdout 和 stderr 命令行的输入输出，并自动处理本地化编码和 Unicode 编码。
+   
+2. QTextStream 构造函数和普通读写函数
+2.1 QTextStream 自己不会主动去打开一个文件，所以它的构造函数不接收文件名，而是接收 QFile 基类 QIODevice 的指针，
+    可以用 QFile 对象的指针构造 QTextStream ，但需要注意在构造 QTextStream 之前要调用 QFile 对象的 open()
+    
+   [ 普通文本读取 ] fstream
+   函数按需要的模式打开文件并检查是否正确打开。
+   QTextStream(QIODevice * device) // 设备指针 device 需要提前用 open() 函数打开。
+   
+   [ 命令行数据读写 ] iostream
+   对于文件设备，还有个不常用的构造函数：
+   QTextStream(FILE * fileHandle, QIODevice::OpenMode openMode = QIODevice::ReadWrite)
+   构造函数的用途主要是和命令行的 stdin、stdout、stderr 三个文件句柄协作，处理命令行的输入输出。
+   
+   [ 内存数据流 ] sstream
+   QTextStream(QString * string, QIODevice::OpenMode openMode = QIODevice::ReadWrite)
+   QTextStream(QByteArray * array, QIODevice::OpenMode openMode = QIODevice::ReadWrite)
+   QTextStream(const QByteArray & array, QIODevice::OpenMode openMode = QIODevice::ReadOnly)
+   注意后两个构造函数，如果传递 QByteArray 对象给构造函数，那么这个 QByteArray 对象是只读的。
+   如果传递 QByteArray 指针给构造函数，那么默认是可读可写的。
+   
+   [setDevice(QIODevice *device)  setString(QString *string, ...)]
+   除了可以在构造函数指定文件设备或内存字符串，还可以在运行时修改：
+   void QTextStream::​setDevice(QIODevice * device)
+   void QTextStream::​setString(QString * string, QIODevice::OpenMode openMode = QIODevice::ReadWrite)
+   目前没有重新设置 QByteArray 的函数，只有修改文件设备和 QString 的函数。
+    
+
+2.2  如果我们需要从文本流提取各种 C++ 基本数值类型，如 short、int、long、double ，这些读操作的操作子和运算符 <<、>>来实现，
+写入文本流时也一样。流操作子和运算符之外的读写函数就是本小节说的普通读写函数。
+   QString QTextStream::​readAll()                   // 要读取文本流中所有内容，
+   QString QTextStream::​readLine(qint64 maxlen = 0) // 读取一整行文本
+   QString QTextStream::​read(qint64 maxlen)         // 希望从文本流中读取指定长度的文本
+
+2.3 游标
+   qint64 QTextStream::​pos() const    //获取游标位置
+   bool QTextStream::​seek(qint64 pos)//移动游标到 pos
+   bool QTextStream::​atEnd() const    //是否到达文本流末尾
+   
+   
+3. QTextStream 流操作子和运算符
+   QTextStream 都是利用 >> 运算符进行输入，利用 << 运算符进行输出，
+   Qt 提供额外提供了三个带参数的全局操作子，
+   QTextStream 支持所有 C++ 基本类型变量输入输出，并支持 Qt 自家的 QChar、QString、QByteArray，举例来说：
+   QTextStream & QTextStream::​operator<<(signed int i)
+   QTextStream & QTextStream::​operator>>(signed int & i)
+   
+   例如：
+    QString strIn = tr("100  29.88");
+    QTextStream tsIn(&strIn);
+    int nNum;
+    double dblVal;
+    //输入
+    tsIn>>nNum>>dblVal;
+    //打印
+    qDebug()<<nNum<<dblVal;
+   
+   [ QString QByteArray char ]
+   QTextStream & QTextStream::​operator>>(QString & str)
+   QTextStream & QTextStream::​operator>>(QByteArray & array)
+   QTextStream & QTextStream::​operator>>(char * c)
+   QTextStream 对于字符串的读取，其实只读取一个单词，而不是一整行。比如如果文本流原始为 "Hello world, aha !"，
+如果用上面三个函数从头读取，那么读取的都只是第一个单词 "Hello" ，在源头的文件或内存字符串中，文本流中间都没有
+字符串终结符 '\0'，所以 QTextStream 在输入时按照空白字符切割单词，每个单词算作一个小字符串返回。空白字符包括空格
+制表符、换行符等等。
+   
+   [ WhiteSpace() ]
+   另外当文本流用 >> 读取逐个字符到 QChar 或 char 变量里面时，可以用
+void QTextStream::​skipWhiteSpace()
+跳过空白字符，如果不跳过空白字符，那么 QChar 和 char 也会接收到空白字符，如空格、制表符、换行符等等。
+   对于字符串的输出就没有上面那些问题了
+   
+   [ flush endl ]
+   输出文本流需要注意的是 QTextStream 有较大的输出缓冲区，如果用 stdout 或 stderr 构造 QTextStream 对象打印输出，
+要常用 flush  或 endl 操作子函数清空缓存，及时显示输出：
+  tsOut<<flush;
+  tsOut<<endl;
+  flush 和 endl 的区别是 endl 会换行，flush 不换行。
+   注: tsOut相当于实例; <<flush; 和<<endl; 相当于函数调用
+
+3.2 输出格式化操作子
+   操作子               描述
+bin                     读写二进制整数，等同于                                 setIntegerBase(2).
+oct                     读写八进制整数，等同于                                 setIntegerBase(8).
+dec                     读写十进制整数，等同于                                 setIntegerBase(10).
+hex                     读写十六进制整数，等同于                               setIntegerBase(16).
+showbase                输出时显示数值进制前缀，比如                           "0x"
+forcesign               强制显示正号（正数和0前面），等同于                    setNumberFlags(numberFlags())
+forcepoint              强制显示整数末尾的小数点，等同于                       setNumberFlags(numberFlags())
+noshowbase              不显示进制的前缀，等同于                               setNumberFlags(numberFlags())
+noforcesign             不强制显示正号，等同于                                 setNumberFlags(numberFlags())
+noforcepoint            不强制显示小数点，等同于                               setNumberFlags(numberFlags())
+uppercasebase           数值进制的前缀为大写，如                               "0X"
+uppercasedigits         基数大于10进制的数值里面的字母大写，比如16进制的       "FE00"，
+lowercasebase           数值进制的前缀小写，如                                  "0x"
+lowercasedigits         基数大于10进制的数值里面的字母小写，比如16进制的       "fe00"，
+   
+   
+浮点数格式
+操作子                                       描述
+fixed                                        以定点数显示实数（比如 float、double
+scientific                                   以科学计数法显示实数，比如 1.0241234e3，等同于 
+qSetRealNumberPrecision(int precision)       这是全局操作子，带一个整型参数，指定实数显示的精度位数，等同于
+    qSetRealNumberPrecision(int) 会对后续所有实数变量输出都生效，直到被改变为止，实数精度默认是6位，如果希望还原就设置精度为6。
+注意使用操作子 qSetRealNumberPrecision(int) 时最好一块明确指定使用 fixed 或者 scientific，这样显示结果才是符合预期的小数位精度。
+
+
+操作子                      描述
+qSetFieldWidth(int width)  全局操作子，带一个整型参数，设定变量输出后的显示宽度，不足的用填充字符补齐（默认用空格补），等同于
+qSetPadChar(QChar  ch)     全局操作子，带一个字符参数，如果设置的域宽比变量显示需要的宽度更宽，就用这个填充字符填补（默认是空格
+left                       设定域宽比变量显示需要的更宽时，变量显示时左对齐，右边空位补PadChar，
+right                      设定域宽比变量显示需要的更宽时，变量显示时右对齐，左边空位补PadChar，
+center                     设定域宽比变量显示需要的更宽时，变量显示时居中对齐，两边空位补PadChar，
+
+    注意：qSetFieldWidth(int) 设置域宽之后，如果不重新设置，它就一直生效， 对后续所有变量输出都管用，
+包括 endl 都会补齐变为 指定宽 度。 如果要还原成不设置域宽的状态，就调用操作子 qSetFieldWidth(0) 。
+    qSetPadChar(QChar) 设置填充字符之后也是一直持续生效，直到被重新设置，如果还原成空格，就调用操作子qSetPadChar(QChar(0x20)) 。
+   
+   
+其他操作子
+操作子   描述
+endl     添加换行符并清空输出缓存，把缓冲数据都写到输出文本流，等同于 stream << '\n' << flush;
+flush    清空输出缓冲区，把缓冲数据都写到输出文本流，等同于QTextStream::flush()
+reset    把之前操作子或格式函数设定的格式全部重置，还原到流对象构建时的默认格式，等同于QTextStream::​reset() 
+ws       跳过输入文本流里的空白字符(包括空格、制表符、换行符等)，直至遇到非空白字符，等同于 QTextStream::​skipWhiteSpace() 
+bom      除非确定是写入Unicode文本文件否则不要设置，如果要设置，必须在所有写入操作之前调用该操作子， 等同于 setGenerateByteOrderMark(true).
+    bom（Byte Order Mark）只用于 Unicode 编码的文本文件，如果不是写入 Unicode 的字符编码格式（UTF-8、UTF-16、UTF-32）文本，
+就不要用 bom，后面的小节会讲到文本流和字符编码格式。
+
+3. QTextStream 工作状态
+    //文本源
+    QString strSrc = "Hello world, aha !";
+    QTextStream tsIn( & strSrc );
+    //变量
+    QString strTemp;
+    tsIn>>strTemp;
+    qDebug()<<strTemp;
+  从文本流提取一个单词赋值给 strTemp ，这样的输入操作当然是对的。
+  但如果强行从非数值字符串提取数值到整型或浮点数类型
+    //文本源
+    QString strSrc = "Hello world, aha !";
+    QTextStream tsIn( & strSrc );
+    //变量
+    int nNum;
+    tsIn>>nNum;
+    qDebug()<<nNum;
+    qDebug()<<tsIn.status();
+strSrc 里面压根没有整型数值对应的字符串，上面代码执行之后 nNum 会被设置成默认的数值  0，而这时候 tsIn 应该报错才对，
+   输入流发生了错误，无法为整型数提供 nNum 提供数值。
+   
+   Status QTextStream::​status() const
+Status                          枚举常量           数值
+QTextStream::Ok                 0          正常操作状态，没出错。
+QTextStream::ReadPastEnd        1          底层设备已到达末尾，比如文件末尾，无数据可读了。
+QTextStream::ReadCorruptData    2          读入了腐化数据，典型的就是文本源内容与目标变量类型不匹配。
+QTextStream::WriteFailed        3          无法向底层设备写入数据，比如文件是只读的。
+   
+   编程时需要仔细考虑用户的输入和程序输出是否异常！
+   对于错误的输入或输出应该如何处理呢？简单方法就是跳过错误的部分或用消息框提示，然后可以重新设置流的状态：
+  void QTextStream::​setStatus(Status status)    //把文本流设为指定状态
+  void QTextStream::​resetStatus()               //把状态重置为初始的 Ok 状态
+   
+   
+4. QTextStream 与字符编码格式
+  对于 Unix/Linux 系统，默认的本地化文本字符编码是 UTF-8，
+  对于简体中文 Windows 默认文本字符编码是 GBK，繁体中文 Windows 默认是 Big5 。
+  QTextStream 类是比较智能的，它可以自动检测文本字符的本地化编码，在输入时，它自动把本地化编码字符串转成 Qt 需要的类型，
+  比如 QString 默认内码是 UTF-16 ；在输出时，QTextStream 也会把 QString 变量的内码 UTF-16 转成本地化的字符串写入输出文本流。
+  
+  QTextStream 不仅能对文本文件的本地化编码自动处理，也能与 操作系统本地的命令行交互，在交互过程中也会自动转码。
+  QTextStream 还能自动检测 UTF-8、UTF-16、UTF-32 这些编码的文本，自动转为 Qt 默认的编码格式。
+  使用 QTextStream 与操作系统里的文本文件、命令行等打交道，就不需要操心文本编码的问题。
+   
+   如果真的要手动指定 QTextStream 输入流或输出流的编码格式，那也是可行的。
+   
+   QTextCodec * QTextStream::​codec() const        // 获取当前文本流的字符编码格式
+   void QTextStream::​setCodec(QTextCodec * codec) // 设置文本字符编码格式
+   QTextCodec 对象指针一般都是用 QTextCodec 类的静态函数获取：
+   QTextCodec * QTextCodec::​codecForName(const char * name)    //静态函数
+   内部自己调用 QTextCodec 类的静态函数获取文本字符编码器。
+   
+   下面示范的就是按照 "UTF-8" 编码格式输出：
+    QString strSrc = tr("Hello world, aha !");
+    //输出
+    QFile fileOut("test.txt");
+    if( ! fileOut.open( QIODevice::WriteOnly ) )
+    {
+        return;
+    }
+    QTextStream tsOut( &fileOut);
+    tsOut.setCodec("UTF-8");
+    tsOut<<strSrc;
+通常 UTF-8 格式不需要 bom，如果要为 UTF-16 或 UTF-32 编码的文本加 bom 头，一定要在所有的输出操作之前调用 tsOut<<bom ;
+   改变 QTextStream 的文本字符编码格式只需要一句代码而已，但是要根据实际需求来定，一般不需要自己设定字符编码格式。
+   
+   QTextStream 还提供了与世界各国本地语言习惯 QLocale 相关的函数 locale() 和 setLocale(const QLocale & locale)，
+这个与各国的语言语种有关系，最好不要修改，用默认的即可，默认的 QLocale::C 不会影响数据输入输出。
+   
+================================================================================
+1. 设置数字的输出格式
+可以使用QTextStream类的setNumberFlags方法，指定数字的输出格式，它的标志位含义介绍如下：
+    QTextStream::ShowBase 指定以哪一种进制进行显示，16 ("0x"), 8 ("0"), or 2 ("0b")。
+    QTextStream::ForcePoint 如果输出类型是double或float，
+                            若这个数字不含小数部分，默认情况下不显示小数部分，
+                            若设置了该标志位，则显示小数部分(.)。
+    QTextStream::ForceSign 在输出的数字前面加上正负号，即"+"或"-"。
+    QTextStream::UppercaseBase 在进制指示中，使用大写字母表示，如"0X", "0B"。
+    QTextStream::UppercaseDigits 使用大写字母来表示10到35位数字，而不是小写。
+    例如16进制中的a-f都用大写字母表示，或者科学计数法中的e使用大写E。
+    
+    QTextStream out(stdout);
+
+    int i = 60;
+    out.setIntegerBase(16);//设置16进制显示，所以使用输入输出流，也可以很容易的进行进制转换
+    out << i << endl; //output:3c
+    
+    out.setNumberFlags(out.numberFlags()|QTextStream::ShowBase);
+    out << i << endl; //output: 0x3c
+    
+    out.setNumberFlags(out.numberFlags()|QTextStream::ForceSign);
+    out << i << endl; //output: +0x3c
+    
+    out.setNumberFlags(out.numberFlags()|QTextStream::UppercaseBase);
+    out << i << endl; //output: +0X3c
+    
+    out.setNumberFlags(out.numberFlags()|QTextStream::UppercaseDigits);
+    out << i << endl; //output: +0X3C
+    
+    double d = 100;
+    out << d << endl;//output: 100
+    
+    out.setNumberFlags(QTextStream::ForcePoint);
+    out << d << endl;//output: 100.000
+
+2. 宽度
+    可以调用setFieldWidth来设置输出流的宽度，所谓宽度是指，当在流中输出一个数时，
+至少产生宽度值所规定数量的字符。如果插入字符的个数小于宽度值，则用某个字符对空余的位置进行填充。
+
+    一定注意，这里的宽度是指定输出字符的最小数目，如果数目不够，则使用填充字符进行填充，
+而不会截断输出。如果你设置宽度为2时输出1234，仍会得到1234。
+
+3. 对齐方式
+对齐方式一般和宽度一起使用，
+    QTextStream::AlignLeft 左对齐
+    QTextStream::AlignRight 右对齐
+    QTextStream::AlignCenter 居中
+    QTextStream::AlignAccountingStyle 和AlignRight一样，只是数字的符号是左对齐的。
+    
+int i = 60; 
+out.setFieldWidth(6); 
+out << i << endl; //output:    60
+
+out.setPadChar('-'); 
+out << i << endl; //output:----60
+
+out.setFieldAlignment(QTextStream::AlignLeft); 
+out << i << endl; //output:60----
+
+out.setFieldAlignment(QTextStream::AlignRight); 
+out << i << endl; //output:----60
+
+out.setFieldAlignment(QTextStream::AlignCenter); 
+out << i << endl; //output:--60--
+
+out.setNumberFlags(QTextStream::ForceSign); 
+out.setFieldAlignment(QTextStream::AlignAccountingStyle); 
+out << i << endl; //output:+---60
+
+4. 精度
+QTextStream out(stdout);
+double d = 12.3456789;
+out << d << endl; //output:12.3457
+Q_ASSERT(d==12.3456789);
+此程序预想的输出结果应该是12.3456789，但实际的输出结果是12.3457，那么，是d的值改变了吗。
+当然没有，因为Q_ASSERT测试为真。
+
+这是因为QTextStream 的精度默认设置为6，而如果想要改变它的默认精度，则可以使用setRealNumberPrecision方法。
+QTextStream out(stdout);
+out.setRealNumberPrecision(10);
+
+double d = 12.3456789;
+out << d << endl; //output:12.3456789
+Q_ASSERT(d==12.3456789);
+
+5. 操纵算子
+int i = 60; 
+out.setIntegerBase(16);//设置16进制显示，所以使用输入输出流，也可以很容易的进行进制转换 
+out << i << endl; //output:3c
+
+out << dec << num
+        << bin << num
+        << oct << num
+        << hex << num << endl;
+
+Manipulator         Description
+bin                 Same as setIntegerBase(2).
+oct                 Same as setIntegerBase(8).
+dec                 Same as setIntegerBase(10).
+hex                 Same as setIntegerBase(16).
+showbase            Same as setNumberFlags(numberFlags() | ShowBase).
+forcesign           Same as setNumberFlags(numberFlags() | ForceSign).
+forcepoint          Same as setNumberFlags(numberFlags() | ForcePoint).
+noshowbase          Same as setNumberFlags(numberFlags() & ~ShowBase).
+noforcesign         Same as setNumberFlags(numberFlags() & ~ForceSign).
+noforcepoint        Same as setNumberFlags(numberFlags() & ~ForcePoint).
+uppercasebase       Same as setNumberFlags(numberFlags() | UppercaseBase).
+uppercasedigits     Same as setNumberFlags(numberFlags() | UppercaseDigits).
+lowercasebase       Same as setNumberFlags(numberFlags() & ~UppercaseBase).
+lowercasedigits     Same as setNumberFlags(numberFlags() & ~UppercaseDigits).
+fixed               Same as setRealNumberNotation(FixedNotation).
+scientific          Same as setRealNumberNotation(ScientificNotation).
+left                Same as setFieldAlignment(AlignLeft).
+right               Same as setFieldAlignment(AlignRight).
+center              Same as setFieldAlignment(AlignCenter).
+endl                Same as operator<<('\n') and flush().
+flush               Same as flush().
+reset               Same as reset().
+ws                  Same as skipWhiteSpace().
+bom                 Same as setGenerateByteOrderMark(true).
+
+
+
+
+
+
+
+   
+   
+   
+   
+   
+   
+   

@@ -1,0 +1,220 @@
+1. Tslib和Qt 4.8.4与在开发板上的移植 -> https://www.cnblogs.com/emouse/archive/2013/01/29/2881311.html
+
+1.1 tslib编译与安装
+    tslib是电阻式触摸屏用于校准的一个软件库，是一个开源的程序，能够为触摸屏驱动获得的
+采样提供诸如滤波、去抖、校准等功能，通常作为触摸屏驱动的适配层，为上层的应用提供了一个
+统一的接口。因此这里先编译安装tslib，这样在后面编译Qt的时候才能打包编译进去。
+
+sudo apt-get install automake
+sudo apt-get install autogen
+sudo apt-get install autoconf
+
+# tar -zxvf tslib-1.4.tar.gz
+# cd tslib
+# ./autogen.sh
+#./configure --host=arm-linux ac_cv_func_malloc_0_nonnull=yes --cache-file=arm-linux.cache -prefix=/usr/local/tslib
+
+# make
+# make install
+
+-prefix=/usr/local/tslib是指定安装路径，其实包括下文的安装配置，路径都可以不指定，默认就是安装到/usr/local/目录下
+
+1.2 tslib的开发板移植与测试
+    将交叉编译的tslib安装到开发板上其实就是拷贝相关的文件并添加系统环境变量而已，
+所以相对操作较为简单，主要的就是需要找对目录就行。
+
+按照上面的操作方法，交叉编译安装后的文件在/usr/local/tslib目录下，因此需要拷贝的文件如下：
+    /usr/local/tslib/lib文件下除去pkgconfig目录外其他所有文件拷贝到开发板/lib目录下
+    /usr/local/tslib/etc下的ts.conf拷贝到开发板的/etc下，在复制对应目录之前修改文件如下，也可以复制完成后修改。
+    
+下面是ts.conf文件的第一行与第二行
+# Uncomment if you wish to use the linux input layer event interface
+# module_raw input
+去掉# module_raw input前面的注释，一定要注意中间的空格也去掉，module顶格。
+
+    最后添加环境变量，通过超级终端在开发板系统中添加环境变量，可以在开发板文件系统的
+/etc/profile文件里添加，也可以直接添加。
+export TSLIB_TSDEVICE=/dev/input/touchscreen0
+export TSLIB_CONFFILE=/etc/ts.conf
+export TSLIB_PLUGINDIR=/lib/ts
+
+export TSLIB_CALIBFILE=/etc/pointercal
+export TSLIB_CONSOLEDEVICE=none
+export TSLIB_FBDEVICE=/dev/fb0
+export QWS_DISPLAY="linuxfb:mmWidth50:mmHeight130:0"  这是设置字体
+
+说明：
+    TSLIB_TSDEVICE        //触摸屏设备文件名。
+    TSLIB_CALIBFILE        //校准的数据文件，由ts_calibrate校准程序生成。
+    SLIB_CONFFILE        //配置文件名。
+    TSLIB_PLUGINDIR         //插件目录
+    TSLIB_CONSOLEDEVICE        //控制台设备文件名
+    TSLIB_FBDEVICE        //设备名
+    以上环境变量在实际开发中的实际配置可以根据实际情况决定。而这些指定的设备节点
+一定要和你的开发板上的/dev目录下的设备节点相对应。
+    
+最后运行测验程序
+    ts_calibrate 进行校验
+    ts_test      进行测试
+    
+driver --> raw read --> median --> dejitter --> linear --> application (using ts_read_mt()) 
+           module       module     module       module
+
+linear module + /etc/pointercal + ts_calibrate (A test program to calibrate a touch screen used by tslib.)
+                                + ts_test_mt (A basic multitouch test program for tslib.)
+                                + ts_uinput -d -v ()
+
+1.3 QT的交叉编译与安装
+    和PC平台下的编译类似，通过运行./configure进行配置生成makefile文件，然后编译安装，
+只是因为是针对嵌入式平台需要进行一些针对性配置，这里生成一个自动配置文件，可以通过
+修改文件来方便的更改配置。
+
+# cd qt-everywhere-opensource-src-4.8.4
+#sudo gedit autoconfig.sh
+加入以下内容保存.
+#!/bin/sh
+./configure \
+-opensource \
+-confirm-license \
+-release -shared \
+-embedded arm \
+-xplatform qws/linux-arm-g++ \
+-depths 16,18,24 \
+-fast \
+-optimized-qmake \
+-pch \
+-qt-sql-sqlite \
+-qt-libjpeg \
+-qt-zlib \
+-qt-libpng \
+-qt-freetype \
+-little-endian -host-little-endian \
+-no-qt3support \
+-no-libtiff -no-libmng \
+-no-opengl \
+-no-mmx -no-sse -no-sse2 \
+-no-3dnow \
+-no-openssl \
+-no-webkit \
+-no-qvfb \
+-no-phonon \
+-no-nis \
+-no-opengl \
+-no-cups \
+-no-glib \
+-no-xcursor -no-xfixes -no-xrandr -no-xrender \
+-no-separate-debug-info \
+-nomake examples -nomake tools -nomake docs \
+-qt-mouse-tslib \
+-I/usr/local/tslib/include \
+-L/usr/local/tslib/lib
+
+文件中的内容就是需要配置的内容,同样如果需要指定安装路径可以在开始加入-prefix=/usr/local/(自己的路径)
+上面的主要参数含义说明如下:
+
+-embedded arm: 表示将编译针对 arm 平台的 embedded 版本;
+-xplatform qws/linux-arm-g++: 表示使用 arm-linux 交叉编译器进行编译;
+-qt-mouse-tslib: 表示将使用 tslib 来驱动触摸屏;
+
+其他还有很多参数我也不太了解,后面使用的过程中再慢慢体会.
+运行./autoconfig.sh 生成makefile文件，
+
+如果编译出现缺少链接信息错误：
+warning: libts-0.0.so.0, needed by , not found (try using -rpath or -rpath-link)
+解决方法如下：
+
+修改qt-everywhere-opensource-src-4.8.4/mkspecs/qws/linux-arm-g++/qmake.conf 文件（添加lts参数）：
+QMAKE_CC                = arm-linux-gcc -lts
+QMAKE_CXX               = arm-linux-g++ -lts
+QMAKE_LINK              = arm-linux-g++ -lts
+QMAKE_LINK_SHLIB        = arm-linux-g++ -lts
+
+1.4 开发板配置
+root@emouse:/armnfs# cp -R /usr/local/Trolltech/QtEmbedded-4.8.4-arm/lib /armnfs/qt 
+设置环境变量：
+export QTDIR=/opt/qt484 
+export LD_LIBRARY_PATH=$QTDIRlib:$LD_LIBRARY_PATH 
+export PATH=$QTDIR/bin:$PATH 
+export QWS_MOUSE_PROTO=tslib:/dev/input/touchscreen0 
+export QWS_DISPLAY="LinuxFb:mmWidth100:mmHeight130:0" 
+export QT_QWS_FONTDIR=/opt/qt484/lib/fonts
+
+最后运行的程序就是我放在opt目录下的QC程序
+#!/bin/sh
+base1=qpe
+pid=`/bin/pidof $base1`
+if [ -n "$pid" ]; then
+    killall $base1
+fi
+
+base2=qss
+pid=`/bin/pidof $base2`
+if [ -n "$pid" ]; then
+    killall $base2
+fi
+
+base3=quicklauncher
+pid=`/bin/pidof $base3`
+if [ -n "$pid" ]; then
+    killall  $base3
+fi
+
+
+base4=fluidlauncher
+pid=`/bin/pidof $base4`
+if [ -n "$pid" ]; then
+    killall  $base4
+fi
+
+export TSLIB_ROOT=/usr/local/tslib
+export TSLIB_TSDEVICE=/dev/input/event2
+export TSLIB_TSEVENTTYPE=H3600
+export TSLIB_CONFFILE=/usr/local/tslib/etc/ts.conf
+export TSLIB_PLUGINDIR=/usr/local/tslib/lib/ts
+export TSLIB_CALIBFILE=/etc/pointercal
+export TSLIB_PLUGINDIR=$TSLIB_ROOT/lib/ts
+export TSLIB_CONSOLEDEVICE=none
+export TSLIB_FBDEVICE=/dev/fb0
+export QTDIR=/opt/qt-4.8.4/
+export QT_QWS_FONTDIR=/opt/qt-4.8.4/lib/fonts
+
+export LD_LIBRARY_PATH=$QTDIR/plugins/qtopialmigrate/:$QTDIR/qt_plugins/imageformats/:$QTDIR/lib:/root/tslib/build/lib:$LD_LIBRARY_PATH
+export PATH=/bin:/sbin:/usr/bin/:/usr/sbin:/root/tslib/build/bin
+
+
+if [ -c /dev/input/event2 ]; then
+        export QWS_MOUSE_PROTO="Tslib:${TSLIB_TSDEVICE}"
+        if [ -e /etc/pointercal -a ! -s /etc/pointercal ] ; then
+                rm /etc/pointercal
+                /root/tslib/build/bin/ts_calibrate
+        fi
+else
+        export QWS_MOUSE_PROTO="MouseMan:/dev/input/mice"
+        >/etc/pointercal
+fi
+export QWS_KEYBOARD=TTY:/dev/tty1
+
+
+
+FB_SIZE=$(cat /sys/class/graphics/fb0/virtual_size)
+
+#export QWS_DISPLAY="LinuxFb:mmWidth76:mmHeight44:1"
+case "$FB_SIZE" in
+800,480)
+export QWS_DISPLAY="LinuxFb:mmWidth91:mmHeight53:1"
+;;
+480,272)
+export QWS_DISPLAY="LinuxFb:mmWidth76:mmHeight44:1"
+;;
+*)
+export QWS_DISPLAY="LinuxFb:mmWidth91:mmHeight53:1"
+;;
+esac
+#export QWS_DISPLAY=:1
+
+
+
+export HOME=/root/QtE4Home
+
+cd /opt
+./QC -qws

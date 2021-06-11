@@ -1,0 +1,299 @@
+# https://www.linuxprobe.com/ntp-data-server.html
+# ntp_install.sh 中的server很重要
+
+NTP(Network Time Protocol) 网络时间协议，工作在UDP的123端口上。是用来使计算机时间同步化的一种协议，
+它可以使计算机对其服务器或时钟源(如石英钟，GPS等等)做同步化，它可以提供高精准度的时间校正
+(局域网上与标准间差小于1毫秒，互联网上几十毫秒)，且可介由加密确认的方式来防止恶毒的协议攻击。
+
+-------------------- NTP服务器 --------------------
+NTP服务器提供准确时间，首先要有准确的时间来源，这一时间应该是国际标准时间UTC。
+NTP获得UTC的时间来源可以是原子钟、天文台、卫星，也可以从Internet上获取。这样就有了准确而可靠的时间源。
+    时间按NTP服务器的等级传播。按照离外部UTC 源的远近将所有服务器归入不同的Stratum(层)中。
+Stratum-1在顶层，有外部UTC接入，而Stratum-2则从Stratum-1获取时间，Stratum-3从Stratum-2获取时间，以此类推，
+但Stratum层的总数限制在15以内。所有这些服务器在逻辑上形成阶梯式的架构相互连接，而Stratum-1的时间服务器是整个系统的基础。
+    计算机主机一般同多个时间服务器连接， 利用统计学的算法过滤来自不同服务器的时间，以选择最佳的路径和来源来校正主机时间。
+即使主机在长时间无法与某一时间服务器相联系的情况下，NTP服务依然有效运转。为防止对时间服务器的恶意破坏，NTP使用了识别
+(Authentication)机制，检查来对时的信息是否是真正来自所宣称的服务器并检查资料的返回路径，以提供对抗干扰的保护机制。
+
+-------------------- NTP校时方式 --------------------
+时间服务器可以利用以下三种方式与其他服务器对时：broadcast/multicast，client/server和Symmetric。
+    broadcast/multicast:方式主要适用于局域网的环境，时间服务器周期性的以广播的方式，将时间信息传送给其他网路中的时间服务器，
+其时间仅会有少许的延迟，而且配置非常的简单。但是此方式的精确度并不高，对时间精确度要求不是很高的情况下可以采用。
+    Symmetric:的方式得一台服务器可以从远端时间服务器获取时钟，如果需要也可提供时间信息给远端的时间服务器。此一方式适用于
+配置冗余的时间服务器，可以提供更高的精确度给主机。
+    client/server:方式与symmetric方式比较相似，只是不提供给其他时间服务器时间信息，此方式适用于一台时间服务器接收上层
+时间服务器的时间信息，并提供时间信息给下层的用户。
+    
+    上述三种方式，时间信息的传输都使用UDP协议。时间服务器利用一个过滤演算法，及先前八个校时资料计算出时间参考值，判断后
+续校时包的精确性，一个相对较高的离散程度，表示一个对时资料的可信度比较低。仅从一个时间服务器获得校时信息，不能校正通讯
+过程所造成的时间偏差，而同时与许多时间服务器通信校时，就可利用过滤算法找出相对较可靠的时间来源，然后采用它的时间来校时
+
+-------------------- NTP服务器配置 --------------------
+NTP的主配置文件，以下是NTP服务器可选的指令：
+
+# /etc/ntp.conf
+
+#系统时间与BIOS事件的偏差记录
+driftfile /etc/ntp/drift
+
+# 允许172.16.*.*的IP使用该时间服务器;
+restrict 172.16.0.0 mask 255.255.0.0 nomodify
+
+#允许任何人来同步;
+restrict default nomodify notrap
+
+#设置默认策略为允许任何主机进行时间同步
+restrict default ignore
+ 
+#此时表示限制向从192.168.0.1-192.168.254.254这些IP段的服务器提供NTP服务。
+restrict 192.168.0.0 mask 255.255.0.0 notrust nomodify notrap noquery
+
+# 屏蔽其他IP过来更新时间;
+restrict 0.0.0.0 mask 0.0.0.0 nomodify notrap noquery notrust 
+
+# 确保localhost(这个常用的IP地址用来指Linux服务器本身)有足够权限.使用没有任何限制关键词的语法：
+restrict 127.0.0.1
+restrict -6 ::1
+
+# 语法为：restrict IP地址 mask 子网掩码 参数
+# 其中IP地址也可以是default ，default 就是指所有的IP
+# ignore:关闭所有的NTP联机服务;
+# nomodify:表示Client端不能更改Server端的时间参数；不过Client端仍然可以透过Server端来进行网络校时;
+# notrust:该Client除非通过认证否则该Client来源将被视为不信任网域;
+# noquery:不提供Client端的时间查询;
+# notrap ：不提供trap远端登陆：拒绝为匹配的主机提供模式 6 控制消息陷阱服务。陷阱服务是 ntpdq 控制消息协议的子系统，用于远程事件日志记录程序
+# nopeer ：用于阻止主机尝试与服务器对等，并允许欺诈性服务器控制时钟
+# kod ： 访问违规时发送 KoD 包。
+# restrict -6 表示IPV6地址的权限设置。
+ 
+# 同步的上层服务器(210.72.145.44国家时间服务器),NTP服务器默认也有同步的时间服务器;
+server stdtime.gov.hk iburst 
+server cn.pool.ntp.org iburst
+server 0.asia.pool.ntp.org iburst 
+server 1.asia.pool.ntp.org iburst 
+server 2.asia.pool.ntp.org iburst 
+server 210.72.145.44
+
+# 同步本地时间;
+server 127.127.1.0 prefer
+ 
+# 本地服务器的stratum大小不能超过16;
+fudge 127.127.1.0 stratum 8
+
+-------------------- 启动NTP服务器 --------------------
+[root@localhost ~]# chkconfig ntpd on 
+[root@localhost ~]# service ntpd start
+
+-------------------- 查看NTP信息 --------------------
+[root@localhost ~]# ntpq -p
+NTP服务器配置完成启动之后；NTP自身或者与其server的同步需要一个时间段这个过程可能是5-10分钟；
+在这个时间段内客户端运行ntpdate命令时会产生no serversuitable for synchronization found的错误，
+上图表示210.72.145.44的reach为0不可用，LOCAL的reach为17可用。
+
+-------------------- 将时间同步到硬件时钟 --------------------
+[root@localhost ~]# vi /etc/sysconfig/ntpd    
+SYNC_HWCLOCK=yes
+
+-------------------- 客户端配置 --------------------
+[root@localhost ~]# ntpdate 172.16.16.1
+[root@localhost ~]# crontab -e    
+*/1 * * * * ntpdate 172.16.16.1
+
+# 外部同步
+crontab -e 
+58 23 * * * /usr/sbin/ntpdate -u 1.cn.pool.ntp.org /sbin/hwclock -w
+# 内部同步
+59 23 * * * /usr/sbin/ntpdate -u 192.168.5.119 ;/sbin/hwclock -w # 将系统时间同步至硬件
+
+conf(ntpd){
+1) 利用 server 设定上层 NTP 服务器  server [IP or hostname] [prefer]
+server  otherntp.server.org     # A stratum 1 server at server.org
+server  ntp.research.gov        # A stratum 2 server at research.gov
+
+2) 利用 restrict 来管理权限控制 restrict [你的IP] mask [netmask_IP] [parameter] 
+限制你允许的这些服务器的访问类型,在这个例子中的服务器是不容许修改运行时配置或查询您的Linux NTP服务器:
+restrict otherntp.server.org mask 255.255.255.255 nomodify notrap noquery
+restrict ntp.research.gov mask 255.255.255.255 nomodify notrap noquery
+
+parameter:
+ignore： 拒绝所有类型的 NTP 联机；
+nomodify： 客户端不能使用 ntpc 与 ntpq 这两支程序来修改服务器的时间参数， 但客户端仍可透过这部主机来进行网络校时的；
+noquery： 客户端不能够使用 ntpq, ntpc 等指令来查询时间服务器，等于不提供 NTP 的网络校时啰；
+notrap： 不提供 trap 这个远程事件登录 (remote event logging) 的功能。
+notrust： 拒绝没有认证的客户端。
+# 如果你没有在 parameter 的地方加上任何参数的话，这表示"该 IP 或网段不受任何限制"
+
+3)如果此服务器也是要提供时间给其他计算机,如PC,其他Linux服务器和网络设备,那么您必须界定网络从这个服务器接受NTP同步的请求。
+  你要修改restric语句，去掉noquery关键字，让网络查询您的NTP服务器。语法是：
+restrict 192.168.1.0 mask 255.255.255.0 nomodify notrap 
+在这种情况下，mask包括所有255个在本地网络内可能的IP地址.
+
+4) 还要确保localhost(这个常用的IP地址用来指Linux服务器本身)有足够权限.使用没有任何限制关键词的语法: 
+restrict 127.0.0.1
+
+5) 以 driftfile 记录时间差异  driftfile [可以被 ntpd 写入的目录与档案]
+ntpd 的 owner 是 ntp
+
+6) keys [key_file]
+除了以 restrict 来限制客户端的联机之外，我们也可以透过密钥系统来给客户端认证.
+
+[鸟]
+# 1. 先处理权限方面的问题，包括放行上层服务器以及开放区网用户来源：
+restrict default kod nomodify notrap nopeer noquery     <==拒绝 IPv4 的用户
+restrict -6 default kod nomodify notrap nopeer noquery  <==拒绝 IPv6 的用户
+restrict 220.130.158.71   <==放行 tock.stdtime.gov.tw 进入本 NTP 服务器
+restrict 59.124.196.83    <==放行 tick.stdtime.gov.tw 进入本 NTP 服务器
+restrict 59.124.196.84    <==放行 time.stdtime.gov.tw 进入本 NTP 服务器
+restrict 127.0.0.1        <==底下两个是默认值，放行本机来源
+restrict -6 ::1
+restrict 192.168.100.0 mask 255.255.255.0 nomodify <==放行区网来源
+
+# 2. 设定主机来源，请先将原本的 [0|1|2].centos.pool.ntp.org 的设定批注掉：
+server 220.130.158.71 prefer  <==以这部主机为最优先
+server 59.124.196.83
+server 59.124.196.84
+
+# 3.预设时间差异分析档案与暂不用到的 keys 等，不需要更动它：
+driftfile /var/lib/ntp/drift
+keys      /etc/ntp/keys
+
+# 通常启动 NTP 后约在 15 分钟内才会和上层 NTP 服务器顺利连接上。
+}
+# https://wiki.ubuntu.org.cn/NTP
+# https://www.pool.ntp.org/zone/cn
+ntpq(查看ntp服务器与上层ntp的状态){
+ntpq -p
+[root@localhost ~]# ntpq -p
+     remote           refid      st t when poll reach   delay   offset  jitter
+==============================================================================
+ 192.168.7.49    192.168.7.50     5 u    1   64    1    0.937   -9.570   0.000
+
+remote   - 本机和上层ntp的ip或主机名，“+”表示优先，“*”表示次优先
+refid    - 参考上一层ntp主机地址
+st       - stratum阶层
+when     - 多少秒前曾经同步过时间
+poll     - 下次更新在多少秒后
+reach    - 已经向上层ntp服务器要求更新的次数
+delay    - 网络延迟
+offset   - 时间补偿
+jitter   - 系统时间与bios时间差
+
+下表的迹象表明你没有得到适当的同步,因为所有远程服务器的jitter值为4000,delay和reach值为0
+remote refid st t when poll reach delay offset jitter
+ =============================================================================
+LOCAL(0) LOCAL(0) 10 l - 64 7 0.000 0.000 0.008
+ntp-cup.externa 0.0.0.0 16 u - 64 0 0.000 0.000 4000.00
+snvl-smtp1.trim 0.0.0.0 16 u - 64 0 0.000 0.000 4000.00
+nist1.aol-ca.tr 0.0.0.0 16 u - 64 0 0.000 0.000 4000.00
+可能的原因:
+    如果您使用的DNS名称做为NTP服务器时旧版本的的NTP包会工作不正常.在这样的情况下，您要使用的实际IP地址代替.
+    防火墙阻止访问NTP服务器.这可能是NTP服务器和它的时间源之间有防火墙软件如iptables的限制.
+        在NTP客户端的restrict字段里面有notrust nomodify notrap的关键字.
+    Fedora Core 2的某些版本中除非NTP客户端的restrict字段里面删除notrust nomodify notrap的关键字,否则不能执行NTP同步.
+
+    你的 NTP 服务器时间不可与上层差异太多。举例来说，鸟哥测试 NTP 服务器约在 2011/7/28 下午， 
+如果我的服务器时间原本是错误的 2010/7/28，足足差了一年，那么上层服务器恐怕就不会将正确的时间传给我！ 
+这时就会造成困扰了！
+}
+
+ntpstat(查看ntp服务器有无和上层ntp连通){
+ntpstat
+}
+
+ntpdate(){
+1. ntpd不仅仅是时间同步服务器，它还可以做客户端与标准时间服务器进行同步时间，而且是平滑同步，
+   并非ntpdate立即同步，在生产环境中慎用ntpdate，也正如此两者不可同时运行。
+2. ntpdate调整时间的方式就是我们所说的”跃变“：在获得一个时间之后，ntpdate使用settimeofday(2)设置系统时间，
+
+ntpdate -dv ntp.ubuntu.com
+ntpdate [-dv] [NTP IP/hostname]
+选项与参数：
+-d ：进入除错模式 (debug) ，可以显示出更多的有效信息。
+-v ：有较多讯息的显示。
+
+# 加入这一行去！ 
+10 5 * * * root (/usr/sbin/ntpdate tock.stdtime.gov.tw && /sbin/hwclock -w) &> /dev/null
+
+[ntpd 和 ntpdate 协同同步时间]
+[root@clientlinux ~]# ntpdate 192.168.100.254
+# 由于 ntpd 的 server/client 之间的时间误差不允许超过 1000 秒，
+# 因此你得先手动进行时间同步，然后再设定与启动时间服务器呦！
+[root@clientlinux ~]# vim /etc/ntp.conf
+#server 0.centos.pool.ntp.org
+#server 1.centos.pool.ntp.org
+#server 2.centos.pool.ntp.org
+restrict 192.168.100.254  <==放行服务器来源！
+server 192.168.100.254    <==这就是服务器！
+# 很简单，就是将原本的 server 项目批注，加入我们要的服务器即可
+
+[root@clientlinux ~]# /etc/init.d/ntpd start
+[root@clientlinux ~]# chkconfig ntpd on
+}
+
+tzselect(选择时区){
+}
+
+date(){
+date命令将日期设置为2014年6月18日
+ ----   date -s 06/18/14
+将时间设置为14点20分50秒
+ ----   date -s 14:20:50
+将时间设置为2014年6月18日14点16分30秒(MMDDhhmmYYYY.ss)
+----date 0618141614.30
+}
+
+主要时间服务器： http://support.ntp.org/bin/view/Servers/StratumOneTimeServers
+次要时间服务器： http://support.ntp.org/bin/view/Servers/StratumTwoTimeServers
+软件时钟：由 Linux 操作系统根据 1970/01/01 开始计算的总秒数；
+硬件时钟：主机硬件系统上面的时钟，例如 BIOS 记录的时间；
+
+hwclock(){
+hwclock/clock 命令查看、设置硬件时间
+查看系统硬件时钟
+hwclock  --show 或者
+clock  --show
+设置硬件时间
+hwclock --set --date="06/18/14 14:55" (月/日/年时:分:秒)或者# clock --set --date="06/18/14 14:55" （月/日/年时:分:秒)
+hwclock --set --date="9/22/96 16:45:05"
+
+硬件时钟与系统时钟同步：
+# hwclock --hctosys 或者 # clock --hctosys  hc代表硬件时间，sys代表系统时间，即用硬件时钟同步系统时钟
+系统时钟和硬件时钟同步：
+# hwclock --systohc或者# clock --systohc  即用系统时钟同步硬件时钟
+}
+
+require(){
+    ntp： 就是 NTP 服务器的主要软件啦，包括配置文件以及执行档等等。
+    tzdata： 软件名称为『 Time Zone data 』的缩写，提供各时区对应的显示格式。
+1. 与时间及 NTP 服务器设定相关的配置文件与重要数据文件有底下几个：
+1.1 /etc/ntp.conf： 就是 NTP 服务器的主要配置文件，也是唯一的一个；
+1.2 /usr/share/zoneinfo/： 
+由 tzdata 所提供，为各时区的时间格式对应档。 例如台湾地区的时区格式对应档案在 /usr/share/zoneinfo/Asia/Taipei 就是了！
+这个目录里面的档案与底下要谈的两个档案 (clock 与 localtime) 是有关系的！
+1.3 /etc/sysconfig/clock： 
+设定时区与是否使用 UTC 时间钟的配置文件。 每次开机后 Linux 会自动的读取这个档案来设定自己系统所默认要显示的时间说！
+举个例子来说， 在我们台湾地区的本地时间设定中，这个档案内应该会出现一行『ZONE="Asia/Taipei"』的字样， 
+这表示我们的时间配置文件案『要取用 /usr/share/zoneinfo/Asia/Taipei 那个档案』的意思！
+1.4 /etc/localtime： 
+这个档案就是『本地端的时间配置文件』啦！刚刚那个 clock 档案里面规定了使用的时间配置文件 
+(ZONE) 为 /usr/share/zoneinfo/Asia/Taipei ，所以说这就是本地端的时间了，此时 Linux 系统就会将 Taipei 那个档案复制一份成为
+/etc/localtime ，所以未来我们的时间显示就会以 Taipei 那个时间配置文件案为准。
+
+[如何手动的调整时间参数] 到New York
+[root@www ~]# date 
+Thu Jul 28 15:08:39 CST 2011 <==重点是 CST 这个时区喔！ 
+[root@www ~]# vim /etc/sysconfig/clock 
+ZONE="America/New_York" <==改的是这里啦！ 
+[root@www ~]# cp /usr/share/zoneinfo/America/New_York /etc/localtime 
+[root@www ~]# date 
+Thu Jul 28 03:09:21 EDT 2011 <==时区与时间都改变了！
+}
+    以格林威治时间为标准时间 (Greenwich Mean Time, GMT 时间)：格林威治以东的区域时间是比较快的(+小时)，以西的地方比较慢。
+台湾本地时间 (local time) 会比 GMT 时间快 8 小时 (GMT + 8)
+    夏季节约时间 (或称日光节约时间)：在夏天的时候某些地区会将他们的时间定早一小时。
+    什么是正确的时间？地球自转的轨道以及公转的轨道并非正圆，加上地球的自转速度好像有逐年递减的问题，所以这个 GMT 时间
+与我们目前计时的时间就有点不一样了。
+    Coordinated Universal Time (协和标准时间)：利用这种 Atomic Clock 为基准所定义出来的正确时间。
+UTC 标准时间 与 GMT 时间放在同一个时区为基准， 不过由于计时的方式不同，UTC 时间与 GMT 时间有差不多 16 分钟的误差。
+
+

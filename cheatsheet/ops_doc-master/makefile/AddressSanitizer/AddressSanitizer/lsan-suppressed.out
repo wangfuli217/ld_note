@@ -1,0 +1,19 @@
+$ clang++ lsan-suppressed.cc -fsanitize=address
+$ ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=suppr.txt ./a.out
+
+=================================================================
+==26475==ERROR: LeakSanitizer: detected memory leaks
+
+Direct leak of 5 byte(s) in 1 object(s) allocated from:
+    #0 0x44f2de in malloc /usr/home/hacker/llvm/projects/compiler-rt/lib/asan/asan_malloc_linux.cc:74
+    #1 0x464e86 in Baz() (/usr/home/hacker/a.out+0x464e86)
+    #2 0x464fb4 in main (/usr/home/hacker/a.out+0x464fb4)
+    #3 0x7f7e760b476c in __libc_start_main /build/buildd/eglibc-2.15/csu/libc-start.c:226
+
+-----------------------------------------------------
+Suppressions used:[design document](AddressSanitizerLeakSanitizerDesignDocument)
+  count      bytes template
+      1          7 FooBar
+-----------------------------------------------------
+
+SUMMARY: AddressSanitizer: 5 byte(s) leaked in 1 allocation(s).

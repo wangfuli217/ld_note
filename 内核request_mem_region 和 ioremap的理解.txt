@@ -1,0 +1,185 @@
+版权声明：本文为博主kerneler辛苦原创，未经允许不得转载。
+
+几乎每一种外设都是通过读写设备上的寄存器来进行的，通常包括控制寄存器、状态寄存器和数据寄存器三大类，外设的寄存器通常被连续地编址。根据CPU体系结构的不同，CPU对IO端口的编址方式有两种：
+　　（1）I/O映射方式（I/O-mapped）
+　　典型地，如X86处理器为外设专门实现了一个单独的地址空间，称为"I/O地址空间"或者"I/O端口空间"，CPU通过专门的I/O指令（如X86的IN和OUT指令）来访问这一空间中的地址单元。
+　　（2）内存映射方式（Memory-mapped）
+
+　　RISC指令系统的CPU（如MIPS ARM PowerPC等）通常只实现一个物理地址空间，像这种情况,外设的I/O端口的物理地址就被映射到内存地址空间中，外设I/O端口成为内存的一部分。此时，CPU可以象访问一个内存单元那样访问外设I/O端口，而不需要设立专门的外设I/O指令。
+　　但是，这两者在硬件实现上的差异对于软件来说是完全透明的，驱动程序开发人员可以将内存映射方式的I/O端口和外设内存统一看作是"I/O内存"资源。
+
+　　一般来说，在系统运行时，外设的I/O内存资源的物理地址是已知的，由硬件的设计决定。但是CPU通常并没有为这些已知的外设I/O内存资源的物理地址预定义虚拟地址范围，驱动程序并不能直接通过物理地址访问I/O内存资源，而必须将它们映射到核心虚地址空间内（通过页表），然后才能根据映射所得到的核心虚地址范围，通过访内指令访问这些I/O内存资源。Linux在io.h头文件中声明了函数ioremap（），用来将I/O内存资源的物理地址映射到核心虚地址空间。
+
+     但要使用I/O内存首先要申请,然后才能映射,使用I/O端口首先要申请,或者叫请求,对于I/O端口的请求意思是让内核知道你要访问这个端口,这样内核知道了以后它就不会再让别人也访问这个端口了.毕竟这个世界僧多粥少啊.申请I/O端口的函数是request_region, 申请I/O内存的函数是request_mem_region， 来自include/linux/ioport.h,  如下：
+
+  * Convenience shorthand with allocation */
+#define request_region(start,n,name)    __request_region(&ioport_resource, (start), (n), (name))
+#define request_mem_region(start,n,name) __request_region(&iomem_resource, (start), (n), (name))
+#define rename_region(region, newname) do { (region)->name = (newname); } while (0)
+extern struct resource * __request_region(struct resource *,
+                                         resource_size_t start,
+                                         resource_size_t n, const char *name);
+这里关键来解析一下request_mem_region函数。
+
+Linux把基于I/O映射方式的I/O端口和基于内存映射方式的I/O端口资源统称为“I/O区域”（I/O Region）。I/O Region仍然是一种I/O资源，因此它仍然可以用resource结构类型来描述。
+
+Linux是以一种倒置的树形结构来管理每一类I/O资源（如：I/O端口、外设内存、DMA和IRQ）的。每一类I/O资源都对应有一颗倒置的资源树，树中的每一个节点都是一个resource结构，而树的根结点root则描述了该类资源的整个资源空间。
+
+1.结构体
+   1.1>struct resource iomem_resource = { "PCI mem", 0x00000000, 0xffffffff, IORESOURCE_MEM };
+   1.2>struct resource {
+                const char *name;
+                unsigned long start, end;
+                unsigned long flags;
+                struct resource *parent, *sibling, *child;
+             };
+2.调用函数
+   request_mem_region(S1D_PHYSICAL_REG_ADDR,S1D_PHYSICAL_REG_SIZE, "EpsonFB_RG")
+#define request_mem_region(start,n,name) __request_region(&iomem_resource, (start), (n), (name))
+__request_region检查是否可以安全占用起始物理地址S1D_PHYSICAL_REG_ADDR之后的连续S1D_PHYSICAL_REG_SIZE字节大小空间
+
+struct resource * __request_region(struct resource *parent, unsigned long start, unsigned long n, const char *name)
+{
+    struct resource *res = kmalloc(sizeof(*res), GFP_KERNEL);
+
+    if (res) {
+        memset(res, 0, sizeof(*res));
+         res->name = name;
+         res->start = start;
+         res->end = start + n - 1;
+         res->flags = IORESOURCE_BUSY;
+
+         write_lock(&resource_lock);
+
+        for (;;) {
+            struct resource *conflict;
+
+             conflict = __request_resource(parent, res);    
+
+             //sibling parent下的所有单元,检测申请部分是否存在交叠冲突
+            if (!conflict)                                
+
+             //conflict=0;申请成功,正常安置了[start,end]到相应位置
+                break;
+            if (conflict != parent) {
+                 parent = conflict;
+                if (!(conflict->flags & IORESOURCE_BUSY))
+                    continue;
+            }
+              kfree(res);                                   
+
+             //检测到了资源交叠冲突,kfree归还kmalloc申请的内存
+             res = NULL;
+            break;
+        }
+         write_unlock(&resource_lock);
+    }
+    return res;
+}
+
+static struct resource * __request_resource(struct resource *root, struct resource *new)
+{
+    unsigned long start = new->start;
+    unsigned long end = new->end;
+    struct resource *tmp, **p;
+
+    if (end < start)
+        return root;
+    if (start < root->start)
+        return root;
+    if (end > root->end)
+        return root;
+     p = &root->child;                                     
+
+    //root下的第一个链表元素*p.[child链表是以I/O资源物理地址从低到高的顺序排列的]
+    for (;;) {
+         tmp = *p;
+        if (!tmp || tmp->start > end) {
+            new->sibling = tmp;
+            *p = new;
+//可以从root->child=null开始我们的分析考虑,此时tmp=null,那么第一个申请将以!tmp条件满足而进入
+//这时root->child的值为new指针,new->sibling = tmp = null;当第二次申请发生时:如果tmp->start > end成立,
+//那么,root->child的值为new指针,new->sibling = tmp;这样就链接上了，空间分布图如:
+//child=[start,end]-->[tmp->start,tmp->end](1);
+
+//如果条件tmp->start > end不成立，那么只能是!tmp条件进入
+//那么,root->child的值不变,tmp->sibling = new;new->sibling = tmp = null这样就链接上了，空间分布图如:
+//child=[child->start,child->end]-->[start,end](2);
+//当第三次申请发生时:如果start在(2)中的[child->end,end]之间,那么tmp->end < start将成立,继而continue,
+//此时tmp = (2)中的[start,end],因为tmp->start < end,所以继续执行p = &tmp->slibing = null,
+//因为tmp->end > start,所以资源冲突,返回(2)中的[start,end]域
+//综上的两个边界值情况和一个中间值情况的分析,可以知道代码实现了一个从地地址到高地址的顺序链表
+//模型图:childe=[a,b]-->[c,d]-->[e,f],此时有一个[x,y]需要插入进去,tmp作为sibling指针游动
+//tmp指向child=[a,b],
+//tmp指向[a,b],当tmp->start>y时,插入后的链接图为:child=[x,y]-->[a,b]-->[c,d]-->[e,f]-->null;当tmp->end>=x时,冲突返回tmp
+//tmp指向[c,d],当tmp->start>y时,插入后的链接图为:child=[a,b]-->[x,y]-->[c,d]-->[e,f]-->null;当tmp->end>=x时,冲突返回tmp
+//tmp指向[e,f],当tmp->start>y时,插入后的链接图为:child=[a,b]-->[c,d]-->[x,y]-->[e,f]-->null;当tmp->end>=x时,冲突返回tmp
+//tmp指向null                  ,插入后的链接图为:child=[a,b]-->[c,d]-->[e,f]-->[x,y]-->null;
+//顺利的达到了检测冲突,顺序链接的目的
+            new->parent = root;    
+            return NULL;
+        }
+         p = &tmp->sibling;
+        if (tmp->end < start)
+            continue;
+        return tmp;
+    }
+}
+
+
+其实说白了，request_mem_region函数并没有做实际性的映射工作，只是告诉内核要使用一块内存地址，声明占有，也方便内核管理这些资源。
+
+
+重要的还是ioremap函数，ioremap主要是检查传入地址的合法性，建立页表（包括访问权限），完成物理地址到虚拟地址的转换。
+
+void * ioremap(unsigned long phys_addr, unsigned long size, unsigned long flags);
+
+　　iounmap函数用于取消ioremap（）所做的映射，原型如下：
+
+void iounmap(void * addr);
+
+　　这两个函数都是实现在mm/ioremap.c文件中。
+
+　　在将I/O内存资源的物理地址映射成核心虚地址后，理论上讲我们就可以象读写RAM那样直接读写I/O内存资源了。为了保证驱动程序的跨平台的可移植性，我们应该使用Linux中特定的函数来访问I/O内存资源，而不应该通过指向核心虚地址的指针来访问。如在x86平台上，读写I/O的函数如下所示：
+
+#define readb(addr) (*(volatile unsigned char *) __io_virt(addr))
+#define readw(addr) (*(volatile unsigned short *) __io_virt(addr))
+#define readl(addr) (*(volatile unsigned int *) __io_virt(addr))
+
+#define writeb(b,addr) (*(volatile unsigned char *) __io_virt(addr) = (b))
+#define writew(b,addr) (*(volatile unsigned short *) __io_virt(addr) = (b))
+#define writel(b,addr) (*(volatile unsigned int *) __io_virt(addr) = (b))
+
+#define memset_io(a,b,c) memset(__io_virt(a),(b),(c))
+#define memcpy_fromio(a,b,c) memcpy((a),__io_virt(b),(c))
+#define memcpy_toio(a,b,c) memcpy(__io_virt(a),(b),(c))
+
+　　最后，特别强调驱动程序中mmap函数的实现方法。用mmap映射一个设备，意味着使用户空间的一段地址关联到设备内存上，这使得只要程序在分配的地址范围内进行读取或者写入，实际上就是对设备的访问。
+
+
+
+
+void * __ioremap(unsigned long phys_addr, unsigned long size, unsigned long flags)
+　　void *ioremap(unsigned long phys_addr, unsigned long size)
+　　入口： phys_addr：要映射的起始的IO地址；
+　　size：要映射的空间的大小；
+　　flags：要映射的IO空间的和权限有关的标志；
+　　phys_addr：是要映射的物理地址，
+　　size：是要映射的长度，
+　　S3C2410的long是32位而非64位。
+　　功能：将一个IO地址空间映射到内核的虚拟地址空间上去，便于访问；
+　　实现：对要映射的IO地址空间进行判断，低PCI/ISA地址不需要重新映射，也不允许用户将IO地址空间映射到正在使用的RAM中，
+           最后申请一个 vm_area_struct结构，调用remap_area_pages填写页表，若填写过程不成功则释放申请的vm_area_struct空间；
+　　ioremap 依靠 __ioremap实现,它只是在__ioremap中以第三个参数为0调用来实现.
+　　ioremap是内核提供的用来映射外设寄存器到主存的函数，我们要映射的地址已经从pci_dev中读了出来（上一步），这样就水到渠成的成功映射
+    了而不会和其他地址有冲突。映射完了有什么效果呢，我举个例子，比如某个网卡有100 个寄存器，他们都是连在一块的，位置是固定的，
+    假如每个寄存器占4个字节，那么一共400个字节的空间被映射到内存成功后，ioaddr就是这段地址的开头（注意ioaddr是虚拟地址，
+    而mmio_start是物理地址，它是BIOS得到的，肯定是物理地址，而保护模式下CPU不认物理地址，只认虚拟地址），ioaddr+0就是第一个寄存器
+    的地址，ioaddr+4就是第二个寄存器地址（每个寄存器占4个字节），以此类推，我们就能够在内存中访问到所有的寄存器进而操控他们了。
+
+
+
+
+
+
+

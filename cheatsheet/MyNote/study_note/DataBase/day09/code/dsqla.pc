@@ -1,0 +1,18 @@
+#include<stdio.h>
+exec sql include sqlca;
+int main(void)
+{
+	exec sql begin declare section;
+		char userpasswd[30]="tarena/tarena";
+		char sqlstr[100];
+	exec sql end   end	   section;
+	exec sql connect:userpasswd;
+	sprintf(sqlstr,"%s","create table test1503928(id number primary key,name varchar2(30))");
+	exec sql execute immediate :sqlstr;
+	if(!sqlca.sqlcode)
+		printf("create table success!\n");
+	else
+		printf("%s\n",sqlca.sqlerrm.sqlerrmc);
+	exec sql commit work release;
+	return 0;
+}

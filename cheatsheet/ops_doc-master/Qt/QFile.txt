@@ -1,0 +1,266 @@
+QFile类是一个操作文件的输入/输出设备。
+
+1. QFile是用来读写二进制文件和文本文件的输入/输出设备。QFile可以自己单独被使用，
+   但是如果和QDataStream或QTextStream一起使用将更加方便。
+2. 文件名通常可以通过构造函数来传递，但也可以使用setName()来设置。
+   你可以通过exists()来检查一个文件是否存在并且可以通过remove()来移去一个文件。
+3. 文件可以用open()来打开、用close()来关闭、用flush()来刷新。
+   数据通常可以使用QDataStream或者QTextStream进行读写，但你也可以使用readBlock()和readLine()来读，使用writeBlock()来写。
+   QFile也支持getch()、 ungetch()和putch()。
+4. size()可以返回文件的大小。你可以通过使用at()函数得到当前文件位置或者移到一个新的文件位置。
+   如果你到了文件的末尾，atEnd()返回真。handle()返回文件句柄。 -- FILE *fp --> fd --> poll
+   
+这里是一个使用QTextStream来一行一行地读取一个文本文件的代码段。它会把每一行带上一个行号打印出来。
+    QStringList lines;
+    QFile file( "file.txt" );
+    if ( file.open( IO_ReadOnly ) ) {
+        QTextStream stream( &file );
+        QString line;
+        int n = 1;
+        while ( !stream.eof() ) {
+            line = stream.readLine(); // 不包括"\n"的一行文本
+            printf( "%3d: %s\n", n++, line.latin1() );
+            lines += line;
+        }
+        file.close();
+    }
+  
+写文本也很容易(假设我们有一个行的字符串列表要写)：
+    QFile file( "file.txt" );
+    if ( file.open( IO_WriteOnly ) ) {
+        QTextStream stream( &file );
+        for ( QStringList::Iterator it = lines.begin(); it != lines.end(); ++it )
+            stream << *it << "\n";
+        file.close();
+    }
+QFileInfo类控制文件的详细信息，比如访问权限、文件日期和文件类型。 
+   
+   
+   
+https://qtguide.ustclug.org/
+Qt 常见的文件读写类有三个 QFile、QTextStream 和 QDataStream
+
+    [ 面向字节数据进行读写 ]
+    QFile 是基本的文件读写类，它的主要功能其实就是负责打开文件，虽然它自己有读写文件中字节、字节数组的函数，
+但是直接用 QFile 类的接口函数读写文件的情况是相对少见的，因为 QFile 的读写函数功能比较简单，就是面向字节数据进行读写。
+    C++ 和 Qt 常用的类型比如 int、double、QString、QRect等，都不是简单 char * 和 char 类型，如果用 QFile 
+读写这些常用数据类型，要手动转成 char * 来读写，比较麻烦。
+    [QTextStream QDataStream]
+    QTextStream 专门用于读写文本形式的文件，并且自动对文本字符的本地化编码做转换，
+1. 在简体中文 Windows 系统它默认按照 GBK 的中文编码读写文本文件
+2. 在 Unix/Linux 系统自动以 UTF-8 编码读写文本文件，所以几乎不需要操心文本字符编码的问题。
+    QDataStream 是 Qt 独有的"串行化数据流"，可以用于文件读写和网络数据流读写。
+对于文件或网络数据的读写，可以自己定义数据结构体封装不同基本类型的数据，然后作为一个整体数据块读写，
+但 这种方式不通用，因为数据类型一旦变化，就得重新定义结构体，读写代码也要大幅度变动，效率很低。
+
+    [ QIODevice ]
+    QIODevice 类是对输入输出设备的抽象建模，涉及到读写的文件类 QFile 、网络收发QTcpSocket/QUdpSocket、
+进程输入输出 QProcess，都是从 QIODevice 类派生的。QIODevice 是非常重要的基类，
+    [ QFileDevice ]
+    QFileDevice 是对文件设备的抽象，其实在 Unix 和 Linux 系统中所有东西都是文件设备，就连硬件设备也抽象成文件设备，
+比如 /dev/usb0 是代表 USB 设备的文件，QFileDevice 就是描述文件设备的类，QFileDevice 这一层基类的接口函数比较少，可以不 用管的。
+    [ QSaveFile ]
+    从 QFileDevice 派生的还有个 QSaveFile ，这个保存文件类，就为了安全地保存文件 而设计的，
+因为程序运行时可能有 bug 导致崩溃，如果崩溃时正在写入文件，那么文件被改写了一部分，但又没修改完全，会导致原始文件的损坏。
+QSaveFile 就是为了解决文件的不安全读写，避免出现半吊子问题，QSaveFile 有两个重要函数：cancelWriting() 函数取消写入操作，
+commit() 提交所有写入操作，知道 QSaveFile 有这两个函数就差不多了
+
+1. QFile功能函数 
+  [普通的文件系统 内嵌资源文件]
+1.1 QFile 不仅适合于普通的文件系统，而且对 Qt 程序内嵌的资源文件也是通用的，区别只是内嵌资源文件全是只读的。
+1.2 构造函数和打开函数
+   QFile 通常在构造函数里指定需要打开的文件名：
+       QFile(const QString & name)
+       QFile(QObject * parent)
+       QFile(const QString & name, QObject * parent)
+   参数 name 就是需要打开的文件名，注意必须是实际的文件路径，不能是只有文件夹路径。parent 是父对象指针。
+   对于第二个构造函数，没有指定文件名，必须在之后的代码里用如下函数设置文件名：
+   void QFile::​setFileName(const QString & name)
+   设置了文件名之后才能打开文件进行读写。获取文件名就用 fileName() 函数，
+
+1.3 可以使用多种模式打开文件，比如只读模式、只写模式、读写模式等，最常用的打开函数为：
+   bool QFile::​open(OpenMode mode)
+OpenMode                枚举常量                数值
+QIODevice::NotOpen      0x0000          用于表示设备或文件尚未打开。
+QIODevice::ReadOnly     0x0001          按读取模式打开。
+QIODevice::WriteOnly    0x0002          按写入模式打开，注意单独用这个模式会暗含Truncate。
+QIODevice::ReadWrite    ReadOnly                |
+QIODevice::Append       0x0004          按追加模式打开，文件以前存在的内容不会被覆盖，新数据从文件末尾开始写入。
+QIODevice::Truncate     0x0008          强制清空文件里以前存的旧数据，新数据从零开始写入。
+QIODevice::Text         0x0010          在读取时，把行尾结束符修改为
+QIODevice::Unbuffered   0x0020          忽略缓冲区，直接读写设备或文件。除非是实时性很强的程序，否则用不到。
+   文件读取时，常见组合如下面两句：
+   file.open(QIODevice::ReadOnly);    //以只读方式打 开文件
+   file.open(QIODevice::ReadOnly | QIODevice::Text);    //确定是读取文本文件，并且自动把换行符修改为 '\n'
+    注意以 QIODevice::Text 模式打开文件时，读写的数据不一定是原始数据，因为 QFile 自动把换行符做了转换，
+读取得到的缓冲区数据与原始文件是可能不一样的，
+  比如 Windows 文本，换行符是 "\r\n" 两个字符，用 QIODevice::Text 读取时只会看到 '\n' 一个字符；
+  写入时就反过来，代码写入一个 '\n'，实际文件就是两个连续字符 "\r\n"，
+   
+   对于文件写入时，其常用打开模式如下：
+   file.open(QIODevice::WriteOnly);    //以只写模式打开，这个模式暗含 Truncate，会清空旧数据
+   file.open(QIODevice::WriteOnly | QIODevice::Truncate);    //只写模式，清空旧数据
+   file.open(QIODevice::WriteOnly | QIODevice::Append);     //只写和追加模式，不会清空旧数据
+   
+   如果文件打开时既要读，又要写，那么建议用如下模式：
+   file.open(QIODevice::ReadWrite);    //读写模式，旧数据不会清空，可以读出来
+   
+可以用从 QIODevice 继承来的读写函数操作文件，或者用 QFile 对象指针构造 QTextStream 或 QDataStream 来读写文件。
+
+1.4 [重定向流]
+不太常用的打开函数：
+bool QFile::​open(FILE * fh, OpenMode mode, FileHandleFlags handleFlags = DontCloseHandle)
+bool QFile::​open(int fd, OpenMode mode, FileHandleFlags handleFlags = DontCloseHandle)
+    上面第一个不常用打开函数可以打开标准输入流 stdin、标准输出流 stdout、标准错误流 stderr ，或者
+其他文件句柄(Windows系统中参数里的 fh 句柄必须以二进制模式打开，打开句柄时要带 'b' 模式)
+    最后的参数 handleFlags 一般就用不关闭的 DontCloseHandle 就可以了，如果希望 QFile 
+对象析构时自动关闭文件或流，那么可以用 QFileDevice::AutoCloseHandle 。
+    对于 Windows 平台，如果希望在图形界面程序里面用标准的输入输出和错误流，那么必须在项目文件加一句：
+CONFIG += console
+
+    第二个不常用 open() 函数是以 fd 文件描述符参数，与 C 语言里面的文件读写用到的文件描述符类似，
+如果 fd 为 0 是标准输入流，为 1 是标准输出流，为 2 是标准错误流。
+
+open() 函数打开正确就返回 true，否则返回 fasle，注意判断该函数的返回值，然后再进行文件读写操作！
+
+2. 读写函数
+   首先是简单的字节读写函数：
+   bool QIODevice::​getChar(char * c)
+   参数指针 c 就是读取的一个字节将要存到的变量指针，程序员需要自己先定义一个 char 变量，把这个变量地址传递给 ​getChar() 函数，
+如果读取一字节成功就返回 true；如果之前已经到了文件末尾，没有字节可以读了，就返回 false。 ​
+   
+   getChar() 函数有一个逆操作函数：
+   void QIODevice::​ungetChar(char c)
+   这个函数就是把之前读取的字节 c (这次是变量，不是指针)放回去，并且当前读取游标减一，还原到读取之前状态。
+注意，如果 c 字节不等于之前读取的字节数值，那么 ​ungetChar() 函数操作结果无法预知，所以不要使用 ​ungetChar() 函数修改文件！
+
+   写入一个字节到文件中，应该使用函数：
+   bool QIODevice::​putChar(char c)
+   这个函数会把字节 c 写入文件，并将文件游标加一。
+
+2.1 [游标]
+  qint64 QFile::​size() const // 文件的大小
+  qint64 QFileDevice::​pos() const // 当前游标
+  对于按字节读取的函数 ​getChar() ，每调用一次，文件游标就加 1
+  getChar()、​putChar() ，如果读写正确都会使 pos 自动加 1，ungetChar() 函数如果操作正确，
+那么会使 pos 自动减一，这个游标都是 QFile 自动控制，一般不需要手动移动游标。
+
+  QFile 基类有快捷函数判断文件游标是否已到达文件末尾：
+  bool QFileDevice::​atEnd() const    
+  
+  bool QFileDevice::​seek(qint64 pos)
+  seek 函数如果成功移动游标，那么会返回 true，否则返回 false。
+  最好不要用 seek 函数移动游标到超出文件尺寸的位置，这样会导致无法预料 的结果。
+  
+  bool QFile::​resize(qint64 sz)
+  参数 sz 就是新的文件大小，如果新大小比旧的大，那么新增空间内容是随机的，需要程序员以后手动填充数据。
+  重置大小成功就返回 true，否则返回 false。
+  
+2.2 [ read:2 readAll readLine:2 ]
+  qint64 QIODevice::​read(char * data, qint64 maxSize)
+  data 通常是程序员手动分配的缓冲区，比如 char *buff =  new char[256];
+  maxSize 就是最多读取的字节数目，一般是手动分配的缓冲区大小，比如 256。
+  该函数返回值一般就是正确读取的字节数目，因为如果文件后面如果没有 256 字节，那么有几个字节读几个字节。
+
+  如果 read() 函数在读取之前就到了文件末尾或者读取错误，那么返回值是 -1 。
+
+  手动分配缓冲区其实是比较麻烦的事情，我们 Qt 原生态的读取函数应该用下面这个：
+  QByteArray QIODevice::​read(qint64 maxSize)
+  read() 函数会把读取的字节数组存到 QByteArray 对象并返回，参数里的 maxSize 就是最多读取的字节数目。
+返回的 QByteArray 对象里面，可以用 QByteArray 自己的 QByteArray::​size() 函数判断读了多少字节，
+如果文件后面没字节可读或读取错误，那么 QByteArray 尺寸就是 0 。
+
+  QByteArray QIODevice::​readAll()
+  readAll() 函数看名字就知道，把文件的全部内容直接读取到 QByteArray 对象然后返回。
+
+  qint64 QIODevice::​readLine(char * data, qint64 maxSize)
+  QByteArray QIODevice::​readLine(qint64 maxSize = 0)
+  第一个 ​readLine() 是程序员手动分配缓冲区，第二个不需要手动分配缓冲区。
+  readLine()从文件或设备里面读取一行 ASCII 字符，最多读取 maxSize-1 字节，因为最后一个字节预留给字符串结尾NULL字符 。
+  返回值是真实读取的字节数目，如果读取出错或无数据可读就返回 -1。
+  readLine() 总会在实际读取的字符串末尾会自动添加一个字符串终结符 0 。
+  
+  ​readLine() 会一直读取数据直到如下三个条件之一满足：
+    1. 第一个 '\n' 字符读取到缓冲区。
+    2. maxSize - 1 字节数已读取，最后一个字节预留给 0 。
+    3. 文件或设备读取已经到末尾。
+  read() 和 readAll() 、​readLine() 函数都会移动文件游标，具体是看真实读了多少字节。
+
+2.3 [ write:3 ]
+  qint64 QIODevice::​write(const char * data, qint64 maxSize)
+  data 就是缓冲区数据指针，maxSize 是最多写入的字节数。
+  返回值是真实写入的字节数，因为可能出现磁盘不够的情况。
+  如果返回值是 -1，那么可能是写入出错或者无写入权限。
+  这个写函数不区分 data 缓冲区里面的 '\0' 字符和普通字符串字符，都一股脑写进去。
+
+  qint64 QIODevice::​write(const char * data)
+  这第二个函数参数没指定缓冲区大小，会将参数里的 data 当作 '\0' 结尾的普通字符串，写入该字符串。
+  QIODevice::write(data, qstrlen(data));
+  
+  qint64 QIODevice::​write(const QByteArray & byteArray)
+  byteArray 里面有多少字节就写入多少，这个也是不区分 '\0' 字符和普通字符串字符，都一股脑写进去。
+
+3. [ close() flush() ]
+  void QFileDevice::​close()
+  bool QFileDevice::​flush()    //这个函数很少用到，文件 关闭时自动会执行 flush
+  
+4. 文件属性和权限等函数 
+  bool QFile::​copy(const QString & newName)
+  把当前文件复制到新文件 newName，复制成功就返回 true，否咋返回 false。
+  注意如果 newName 新文件之前已经存在，那么 copy() 函数返回 false，它不会覆盖旧文件。
+  # 当复制文件时，源文件自动会被关闭，以后使用源文件最好再重新打开。
+
+  bool QFile::​exists() const // 判断当前文件是否存在。
+  bool QFile::​link(const QString & linkName) // 为当前文件创建一个新的快捷方式 linkName ，
+  创建成功返回 true，创建失败返回 false。
+  link() 函数也不会覆盖之前已存在的快捷方式。对于 Windows 系统，快捷方式名必须以 .lnk 结尾，否则会出错。
+  
+  bool QFile::​remove()
+  删除当前文件，删除之前文件会自动被关闭，然后删除。
+  
+  bool QFile::​rename(const QString & newName) // 把当前文件重命名为新名字 newName，
+  如果成功返回 true，失败返回 false。
+  如果 newName 文件之前已存在，那么重命名会失败，旧文件不会被覆盖。文件重命名之前，该文件也会自动关闭。
+  
+  QString QFile::​symLinkTarget() const
+  如果当前文件是快捷方式文件，那么​ symLinkTarget() 返回原始文件的完整路径文件名，否则返回空字符串。
+  
+  Permissions QFile::​permissions() const
+  bool QFile::​setPermissions(Permissions permissions)
+  获取和设置文件权限的函数，
+  
+5. QFile 类静态函数
+# 有好几个静态函数与上面 (4) 里的函数重名，只是参数通常比上面同名函数多一个，多的参数是源文件名，
+  QString QFile::​decodeName(const QByteArray & localFileName)
+  QString QFile::​decodeName(const char * localFileName)
+  这两个文件名解码函数把操作系统本地化的路径文件名转为 Qt 标准的 QString 路径文件名（路径分隔符是 '/'）。
+
+  当然也有文件名编码函数：
+  QByteArray QFile::​encodeName(const QString & fileName)
+  
+  fileIn.errorString() 函数获取。
+  
+  
+  
+QFile fileIn( ":/position.txt" );
+//资源文件打开一般不需要判断，只要文件名对就可以打开
+fileIn.open( QIODevice::ReadOnly );
+//定义文本流
+QTextStream tsIn(&fileIn);
+tsIn.setCodec( "UTF-8" ); //该文件使用 UTF-8 文本编码
+tsIn>>strProvCur>>strCity
+            >>nLatD>>nLatM
+            >>nLonD>>nLonM ;
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  

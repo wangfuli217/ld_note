@@ -1,0 +1,228 @@
+1)
+Sizeof_type(x) -->	#define Sizeof_type(type) (char *)(&type+1)-(char*)(&type)
+							OR
+			Priintf("SizeOf->%li\n", (void *)(&x + 1) - (void *)(&x));
+
+
+2)
+fun_ptr is a pointer to function fun()
+					// Defination
+				--->	void fun(int a)
+						{
+						    printf("Value of a is %d\n", a);
+						} 
+					// Assignment
+				--->	void (*fun_ptr)(int) = &fun;
+					// Usage
+				--->	(*fun_ptr)(10);
+
+3)
+different storage class specifiers
+				--->	auto, register, static, extern
+
+4)
+print anything without semicolon
+				--->	void main(void)
+					{
+					    if (printf("Hello World"))
+						{}
+					}
+
+5)
+NULL is used to indicate that the pointer doesn’t point to a valid location.
+
+
+6)
+Dangling Pointer is a pointer that doesn’t point to a valid memory location. 
+Dangling pointers arise when an object is deleted or deallocated, without modifying the value of the pointer, so that the pointer still points to the memory location of the deallocated memory.
+				--->	int *ptr = (int *)malloc(sizeof(int));
+					.............
+					.............
+					free(ptr); 
+ 
+					*ptr = 10;  //Dangling Pointer
+
+				--->	int *ptr = NULL
+					{
+					   int x  = 10;
+					   ptr = &x;
+					}
+					// x goes out of scope and memory allocated to x is free now.
+
+7)
+Memory leak occurs when programmers create a memory in heap and forget to delete it. 
+Memory leaks are particularly serious issues for programs like daemons and servers which by definition never terminate.
+				--->	void f()
+					{
+					   int *ptr = (int *) malloc(sizeof(int));
+					   /* Do some work */
+					   return; /* Return without freeing ptr*/
+					}
+
+8)
+print numbers from 1 to 100 without using loop   Hint: Using Recursive functions
+				--->	void printNos(unsigned int n)
+					{
+					  if(n > 0)
+					  {
+					    printNos(n-1);
+					    printf("%d ",  n);
+					  } 
+					}
+
+9)
+volatile keyword is intended to prevent the compiler from applying any optimizations on objects that can change in ways that cannot be determined by the compiler.
+Objects declared as volatile are omitted from optimization because their values can be changed by code outside the scope of current code at any time.
+
+10)
+A variable can be both const and volatile, the const means that the variable cannot be assigned a new value. The value can be changed by other code or pointer.
+				--->	const volatile int local = 10;
+    					int *ptr = (int*) &local; 
+    					printf("Initial value of local : %d \n", local); 
+    					*ptr = 100; 
+    					printf("Modified value of local: %d \n", local); 
+
+11)
+int i = 1, 2, 3;    // Compiler Error
+
+12)
+int i = (1, 2, 3);  // Assign 'i' with 3
+
+13)
+int i;
+i = 1, 2, 3;	// Assign 'i' with 1
+
+14)
+int i = 3;
+printf("%d", (++i)++);	// Compiler Time Error
+
+15)
+printf("%d", sizeof(printf("GeeksQuiz")));   // 4 Output
+
+16)
+Structure padding is required for in order to align the data in memory, one or more empty bytes (addresses) are inserted (or left empty) between memory addresses which are allocated for other structure members while memory allocation.
+
+17)
+Structure Packing, on the other hand prevents compiler from doing padding - this has to be explicitly requested - under GCC it's __attribute__((__packed__))
+				--->	struct node {
+						    char x;
+						    short y;
+						    int z;
+					} __attribute__((packed));
+		---> Use '-fpack-struct' flag while compiling c code. for eg.
+
+				--->	$ gcc -fpack-struct -o tmp tmp.c
+
+18)
+Structure packing suppresses structure padding, padding used when alignment matters most, packing used when space matters most.
+
+Some compilers provide #pragma to suppress padding or to make it packed to n number of bytes. Some provide keywords to do this. Generally pragma which is used for modifying structure padding will be in the below format (depends on compiler):
+
+				--->	#pragma pack(n)
+
+For example ARM provides the __packed keyword to suppress structure padding.
+
+19)
+Clear the nth bit in p
+				--->	#define CLR_BIT(p,n) ((p) &= ~((1) << (n)))
+Set the nth bit in x number
+				--->	static inline void set_bit(long *x, int n) {
+					    *x |= (1L << n);
+					}
+20)
+The macro are just symbolic representations and cannot contain data type differentiations within the parameters that we give. The inline functions can have the data types too defined as a part of them. The disadvantage in using both is that the inclusion of condition checks may lead to increase in code space if the function is called many times.
+
+
+21)
+The hard real time systems are the one that depend on the output very strictly on time. Any late response or delay cannot be tolerated and will always be considered a failure. The soft real time systems on the other are not very rigid as the hard real time systems. The performance of the system degrades with the lateness of response, but it is bearable and can be optimized to a certain level for reuse of the result.
+
+22)
+The little endian memory representation allocates the least address to the least significant bit and the big endian is where the highest significant bit takes up the least addressed memory space. We can identify the system’s usage by defining an integer value and accessing it as a character.
+
+				--->	int p=0x2; 
+					if(* (char *) &p == 0x2) printf (“little endiann”); 
+					else printf (“big endiann”);
+23)
+If n is the given number, then the expression (n & (n-1)) = 0 gives the logical output depicting if it is a power of 2 or not, if (n & (n-1) == 0) printf (“The given number is a power of 2”);
+
+24)
+To Reduce Function Call Overhead In Arm Based Systems:
+
+     Try to ensure that small functions take four or fewer arguments. These will not use the stack for argument passing. It will copy into registers.
+     If a function needs more than four arguments, try to ensure that it does a significant amount of work, so that the cost of passing the stacked arguments is outweighed.
+     Pass pointers to structures instead of passing the structure itself.
+     Put related arguments in a structure, and pass a pointer to the structure to functions. This will reduce the number of parameters and increase readability.
+     Minimize the number of long long parameters, as these take two argument words. This also applies to doubles if software floating-point is enabled.
+     Avoid functions with a parameter that is passed partially in a register and partially on the stack (split-argument). This is not handled efficiently by the current compilers: all register arguments are pushed on the stack.
+     Avoid functions with a variable number of parameters. Varargs functions.
+
+25)
+Pure functions are those which return a result which depends only on their arguments. They can be thought of as mathematical functions: they always return the same result if the arguments are the same. To tell the compiler that a function is pure, use the special declaration keyword __pure.
+
+				--->	__pure int square(int x)
+					{
+					    return x * x;
+					}
+
+26)
+Data declarations:
+
+	a) int a;
+	An integer
+
+	b) int *a;
+	A pointer to an integer
+
+	c) int **a;
+	A pointer to a pointer to an integer
+
+	d) int a[10];
+	An array of 10 integers
+
+	e) int *a[10];
+	An array of 10 pointers to integers
+
+	f) int (*a)[10];
+	A pointer to an array of 10 integers
+
+	g) int (*a)(int);
+	A pointer to a function a that takes an integer argument and returns an integer
+
+	h) int (*a[10])(int);
+	An array of 10 pointers to functions that take an integer argument and return an integer
+
+27)
+Uses Of The Keyword Static:
+    A variable declared static within the body of a function maintains its value between function invocations .
+    A variable declared static within a module, (but outside the body of a function) is accessible by all functions within that module. It is not accessible by functions within any other module. That is, it is a localized global.
+    Functions declared static within a module may only be called by other functions within that module. That is, the scope of the function is localized to the module within which it is declared.
+
+28)
+Accessing Fixed Memory Locations:
+
+	Embedded systems are often characterized by requiring the programmer to access a specific memory location. On a certain project it is required to set an integer variable at the absolute address 		0x67a9 to the value 0xaa55. The compiler is a pure ANSI compiler. Write code to accomplish this task.
+
+	This problem tests whether you know that it is legal to typecast an integer to a pointer in order to access an absolute location. The exact syntax varies depending upon one's style. However, I 		would typically be looking for something like this:
+
+		--->	int *ptr;
+			ptr = (int *)0x67a9;
+			*ptr = 0xaa55;  
+
+	A more obscure approach is:
+
+		--->	*(int * const)(0x67a9) = 0xaa55;
+
+29)
+Preprocessor is a Program That processes its input data to produce output that is used as input to another program. The output is said to be a pre processed form of the input data, which is often used by some subsequent programs like compilers. The amount and kind of processing done depends on the nature of the pre processor.
+
+Some Pre-processors Are Only Capable Of Performing Relatively Simple Textual Substitutions And Macro Expansions, while others have the power of full-fledged programming languages.
+
+A Common Example From Computer programming is the processing performed on source code before the next step of compilation. In some computer languages (e.g., C and PL/I) there is a phase of translation known as preprocessing. It can also include macro processing, file inclusion and language extensions.
+
+30)
+What happens when Recursion Functions Are Declared Inline:
+	Inline functions property says whenever it will called, it will copy the complete definition of that function. Recursive function declared as inline creates the burden on the compilers execution. The size of the stack may/may not be overflow if the function size is big.
+
+
+
+

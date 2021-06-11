@@ -1,0 +1,44 @@
+ QTemporaryDir 
+ 
+ 临时文件操作 
+ 
+1. 临时文件夹和临时文件在网络传输、数据处理等方面的程序应用较多，比如网页浏览器常使用临时文件夹和临时文件缓存页面。
+  Qt 提供 QTemporaryDir 类支持临时文件夹，提供 QTemporaryFile 类支持临时文件
+  
+2. 构造函数
+2.1 默认构造函数
+  临时文件夹类有两个构造函数，首先看第一个：
+  QTemporaryDir()
+  第一个无参数的构造函数较为常用，它会自动根据当前应用程序名字和操作系默认统的临时文件路径构造唯一的临时文件夹，
+  比如应用程序名字为 "testtemp"，操 作系统默认的临时文件路径为
+  "C:/Documents and Settings/Administrator/Local Settings/Temp"
+  那么生成的临时文件夹就可能为：
+  "C:/Documents and Settings/Administrator/Local Settings/Temp/testtemp-P1XkOA"
+  临时文件夹末尾是六个随机字母或数字，用于确保该临时文件夹的唯一性，不会与现有文件夹重名。
+  
+2.2 指定路径构造函数
+  QTemporaryDir(const QString & templatePath)
+  templatePath 是路径模板，如果路径模板是相对路径形式，那么生成的临时文件夹就是相对于应用程序工作路径，
+如果路径模板是绝对路径形式，那么就是绝 对路劲里面创建临时文件夹。一般使用相对路径形式即可，比如：
+  QTemporaryDir td("abcd");
+  
+  那么生成的临时文件夹就在工作路径（QtCreator调试时为影子构建路径）里面：
+  "abcdl9Mfi9"
+  这个文件夹名中，"abcd" 是打头的模板，后面接六个随机的字母或数字确保唯一性。
+
+3. 临时文件夹管理
+  构造临时文件夹之后，一般需要判断该临时文件夹是否可用：
+  bool QTemporaryDir::​isValid() const
+  程序运行时可以用如下函数获取该临时文件夹的名称：
+  QString QTemporaryDir::​path() const
+  可以在临时文件夹内部新建文件或者做其他操作，但要是注意，QTemporaryDir 对象生命期结束时，
+析构函数会将该临时文件夹内所有东西清空并删除该临时文件夹，这也是临时文件夹本身的意义所在，
+
+  程序运行时也可以手动删除正在使用的临时文件夹：
+  bool QTemporaryDir::​remove()
+  如果希望改变临时文件夹在析构时自动删除的特性，可以用如下函数：
+  void QTemporaryDir::​setAutoRemove(bool b)  //设置是否自动删除
+  bool QTemporaryDir::​autoRemove() const    //判断是否会自动删除，默认是析构函数自动删除临时文件夹
+
+
+

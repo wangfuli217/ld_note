@@ -1,0 +1,82 @@
+Path 类简介
+    文件路径存在于文件系统中。文件系统可以通过 java.nio.file.FileSystems 这个 final 类来进行访问，从这个类中可以获取 
+    java.nio.file.FileSystem 类的对象。
+    
+    FileSystems 类提供了下面两个很重要的方法，同时也提供了 newFileSystem() 方法，用来创建一个新的文件系统：
+    
+    getDefault()：这个静态方法返回 JVM 默认的 FileSystem – 一般说来，也就是操作系统的默认文件系统。
+    getFileSystem(URI uri)：这个静态方法从一组文件系统提供者中返回一个与 URI 匹配的文件系统（FileSystem）。Path 类可以在任何文件系统
+    （FileSystem）和任何存储空间（java.nio.file.FileStore; 这个类反应了底层的存储）上操作文件。默认情况下（最常用），Path 类引用
+    默认文件系统（计算机的文件系统）的文件，但是 NIO.2 是完全模块化的—— FileSystem 的具体实现是在内存中的一组数据，因此在网络环境或
+    在虚拟文件系统中，NIO.2 也完全适用。NIO.2 提供给我们在文件系统中操作文件、文件夹或链接的所有方法。
+    
+    
+定义绝对路径   
+    绝对路径（有时也成为全路径）是指包含了根目录以及所有子目录以及文件名的文件路径。
+    Path path=Paths.get("C:/rafaelnadal/tournaments/2009/BNP.txt");
+get() 方法也支持将文件路径分块。NIO 将会自动重建文件路径。如果你将文件路径分块，那么你就不用再考虑文件路径分隔符。
+前面的绝对路径例子中的路径可以被分块改写为：
+
+    Path path=Paths.get("C:/rafaelnadal/tournaments/2009","BNP.txt");
+    Path path=Paths.get("C:","rafaelnadal/tournaments/2009","BNP.txt");
+    Path path=Paths.get("C:","rafaelnadal","tournaments","2009","BNP.txt");
+
+定义根目录的相对路径
+    相对路径是绝对路径中的一部分。相对路径经常在创建 web 页面的时候使用。相对路径比绝对路径使用更广泛。
+    如果当前文件存储的根 目录是 C: ，那么文件的绝对路径就是 C:\rafaelnadal\tournaments\2009\BNP.txt：
+    
+    Path path=Paths.get("/rafaelnadal/tournaments/2009/BNP.txt");
+    Path path=Paths.get("/rafaelnadal","tournaments/2009/BNP.txt");
+    
+定义工作目录的相对路径
+    当你定义当前工作目录的相对路径的时候，此路径不需要由文件分隔符开始。假设你的工作目录是 C: 根目录下的 /ATP 目录，
+    那么下面的代码片段定义的文件是 C:\ATP\rafaelnadal\tournaments\2009\BNP.txt：
+    
+    Path path=Paths.get("rafaelnadal/tournaments/2009/BNP.txt");
+    Path path=Paths.get("rafaelnadal","tournaments/2009/BNP.txt");
+
+使用通配符定义路径
+    一般情况下，使用一个点“.”表示当前目录，使用两个点“..”表示父目录这是公认的做法。在 NIO.2 中可以使用 Path.normalize() 
+    方法来消除路径中的冗余（即删除路径中的 /. 或 /..）：
+    Path path=Paths.get("C:/rafaelnadal/tournaments/2009/dummy/../BNP.txt").normalize();
+    Path path=Paths.get("C:/rafaelnadal/tournaments/./2009/dummy/../BNP.txt").normalize();   
+    
+使用 URI 定义路径
+    在有的情况下，你可能需要从 URI 创建 Path 对象。可以通过 URI.create() 从给定的字符串创建 URI 对象，然后将 URI 对象作为参数传给 Paths.get() 方法。
+    如果你需要将浏览器的地址栏输入的信息封装进字符串的话，这一招非常有用：
+    import java.net.URI;
+    …
+    Path path=Paths.get(URI.create("file:///rafaelnadal/tournaments/2009/BNP.txt"));
+    Path path=Paths.get(URI.create("file:///C:/rafaelnadal/tournaments/2009/BNP.txt"));
+    
+使用 FileSystems.getDefault().getPath() 定义路径    
+    另一个创建 Path 对象的通用方法是通过 FileSystem 类。首先调用 getDefault() 方法获得默认 FileSystem—— NIO.2 将会生成可以访问默认文件系统的通用对象。
+    然后，调用 getPath() 方法（前面例子中使用的 Paths.get() 方式是这种方式的简写形式）：
+   import java.nio.file.FileSystems;
+…
+Path path=FileSystems.getDefault().getPath("/rafaelnadal/tournaments/2009","BNP.txt");
+Path path=FileSystems.getDefault().getPath("/rafaelnadal/tournaments/2009/BNP.txt");
+Path path=FileSystems.getDefault().getPath("rafaelnadal/tournaments/2009","BNP.txt");
+Path path=FileSystems.getDefault().
+                       getPath("/rafaelnadal/tournaments/./2009","BNP.txt").normalize(); 
+    
+获取 Home 目录的路径
+    当你在需要获得 Home 目录的路径的时候，可以使用下面的样例代码（返回的 Home 目录依赖不同的机器和不同的操作系统）：
+    Path path = Paths.get(System.getProperty("user.home"), "downloads", "game.exe");
+
+    Path path=Paths.get(System.getProperty("user.home"),"downloads","game.exe");
+
+    在我的 Windows 7 机器上，将会返回 C:\Users\Terry\downloads\game.exe，在我的 Linux 上，将会返回 /home/Terry/downloads/game.exe。
+
+
+
+
+
+
+
+
+
+
+
+
+    

@@ -1,0 +1,142 @@
+QMenuBar 菜单栏 管理水平菜单对象QMenu                    形式
+QMenu    菜单项 管理垂直菜单项QAction                    形式
+QAction  菜单操作对象 最后关联到 connect(信号和槽)       形式
+                                                         形式
+QAction有Alt选择键，快捷键和connect处理函数,             形式
+a = new QAction( newIcon, tr("&New"), this);             形式
+a->setPriority(QAction::LowPriority);                    形式
+a->setShortcut(QKeySequence::New);                       形式
+
+connect(a, SIGNAL(triggered()), this, SLOT(fileNew()));  实质
+
+形式的起点
+1. [QMenuBar] QMainWindow::menuBar()->addMenu(menu); [QMenu]
+2. mainLayout->setMenuBar(menuBar = new QMenuBar);   [QMenu] ; menuBar->addMenu(fileMenu); [QMenu] addAction
+-------------
+    Qt 使用 QMenu 来实现单个菜单，然后使用 QMenuBar 来将这些菜单联合起来，形成一个水平的菜单栏。
+    当 QMainWindow 实例的 QMenuBar 不存在时，调用 QMainWindow::menuBar() 会创建并返回一个空的以该 QMainWindow 实例为父对象的菜单栏，
+否则返回已存在的 QMenuBar。当然，如果你想创建一个独立的菜单栏，可以使用 QMainWindow::setMenuBar。
+QMenuBar 会自动将自己放置在其父对象的最上方，并随着父对象 size 的变化而变化。
+
+    一个菜单包含一个操作选项(action item)列表，该列表垂直排列，每个操作选项可以拥有一个文本标签、
+位于左侧的图标和一个快捷键，它可以是位于菜单栏的下拉菜单、也可以是点击右键或某个特定按钮出现的
+独立上下文菜单。QMenu 还支持撕下菜单(tear-off menu)，撕下菜单是一个顶层窗口，它是对应菜单的一个拷贝，
+如果对这种菜单有所需求的话，一般将其实现为 QToolBar。
+
+    操作列表(action item)包含四种类型：分割线(separator)、子菜单(QMenu)、部件(QWidgetAction)或触发
+某个命令的操作(QAction)。其中 QWidgetAction 继承自 QAction，你可以继承并重新实现 QWidgetAction::createWidget 
+或使用 QWidgetAction::setDefaultWidget(QWidget*)，然后再使用 QMenu::addAction(QAction*) 添加一个自定义组件到某个菜单；
+
+1. 菜单操作对象的形式  QAction
+--------------------------
+    QAction 包含图标(QIcon)、菜单文本(menu text)、快捷键(shortcut)、状态栏文本(status text)、"What's this" 文本
+和工具提示文本(tooltip)，这些内容都可以使用如下函数进行设置：
+void setIcon(const QIcon &icon);                 在构造函数参数中也有
+void setText(const QString &text);               在构造函数参数中也有
+void setShortcut(const QKeySequence &shortcut);  使用函数调用设置
+void setStatusTip(const QString &statusTip);     使用函数调用设置
+void setWhatsThis(const QString &what);          使用函数调用设置
+void setToolTip(const QString &tip);             使用函数调用设置
+
+2. 水平菜单栏的形式
+--------------------------
+你可以使用如下函数来对 QMenuBar 进行操作：
+QAction *addAction(const QString &text);
+QAction *addAction(const QString &text, const QObject *receiver, const char* member);
+QAction *addMenu(QMenu *menu);
+QMenu *addMenu(const QString &title);
+QMenu *addMenu(const QIcon &icon, const QString &title);
+QAction *addSeparator();
+QAction *insertSeparator(QAction *before);
+QAction *insertMenu(QAction *before, QMenu *menu);
+void clear();
+
+3. 垂直菜单项的形式
+--------------------------
+你也可以使用如下函数来对 QMenu 进行操作：
+QAction *addMenu(QMenu *menu);
+QMenu *addMenu(const QString &title);
+QMenu *addMenu(const QIcon &icon, const QString &title);
+QAction *addSeparator();
+QAction *insertMenu(QAction *before, QMenu *menu);
+QAction *insertSeparator(QAction *before);
+void addAction(QAction *action);
+void addActions(QList<QAction*> actions);
+void insertActions(QAction *before, QList<QAction*> actions);
+void insertAction(QAction *before, QAction *action);
+void removeAction(QAction *action);
+QList<QAction*> actions() const;
+void clear();
+// 使能撕下菜单
+void setTearOffEnabled(bool);
+// 要想QMenu可见，必须调用popup或exec而不是show
+void popup(const QPoint &pos, QAction *at = Q_NULLPTR);
+QAction *exec();
+QAction *exec(const QPoint &pos, QAction *at = Q_NULLPTR);
+
+
+https://blog.csdn.net/swartz_lubel/article/details/54985130
+Qt中要建立菜单，有三个类很重要：
+    QMenuBar(QWidget * parent = 0)
+    QMenu(QWidget * parent = 0) 
+    QMenu(const QString & title, QWidget * parent = 0)
+    QAction(QObject * parent) 
+    QAction(const QString & text, QObject * parent) 
+    QAction(const QIcon & icon, const QString & text, QObject * parent)
+QMenuBar    就是所有窗口的菜单栏，在此基础上添加不同的QMenu和QAction
+QMenu       菜单栏里面菜单，可以显示文本和图标，但是并不负责执行操作，有点类似label的作用
+QAction     Qt 将用户与界面进行交互的元素抽象为一种“动作”，使用QAction类表示。QAction才是真正负责执行操作的部件。
+                                   -->  addAction() --+ QAction --> connect(QAction, SIGNAL(triggered()), this, SLOT(accept()))
+         --> addMenu()   --+ QMenu
+QMenuBar                           -->  addMenu()   --+ QAction --> connect(QAction, SIGNAL(triggered()), this, SLOT(accept()))
+         --> addAction() --+ QAction --> connect(QAction, SIGNAL(triggered()), this, SLOT(accept()))
+
+// (widgets\richtext\textedit\textedit.cpp)  基于QMainWindow 的菜单
+void TextEdit::setupFileActions()
+void TextEdit::setupEditActions()
+void TextEdit::setupTextActions()
+
+// 创建QToolBar 设置QToolBar名称和将QToolBar对象添加到QMainWindow中
+QToolBar *tb = new QToolBar(this);
+tb->setWindowTitle(tr("File Actions"));
+addToolBar(tb);
+
+// 创建QMenu 和 将QMenu对象添加到QMainWindow中
+QMenu *menu = new QMenu(tr("&File"), this);
+menuBar()->addMenu(menu);
+
+// 创建QAction，并设置QAction的Icon\快捷键\信号处理函数。将QAction添加到QToolBar和QMenu中。
+QAction *a;
+QIcon newIcon = QIcon::fromTheme("document-new", QIcon(rsrcPath + "/filenew.png"));
+a = new QAction( newIcon, tr("&New"), this);
+a->setPriority(QAction::LowPriority);
+a->setShortcut(QKeySequence::New);
+connect(a, SIGNAL(triggered()), this, SLOT(fileNew()));
+tb->addAction(a);
+menu->addAction(a);
+
+// 添加分隔符
+menu->addSeparator();
+// 设置菜单不使能
+a->setEnabled(false);
+
+// 快捷键，一种是Ctrl+Q自定义，一种是遵循系统标准
+a->setShortcut(Qt::CTRL + Qt::Key_Q);
+a->setShortcut(QKeySequence::Print);
+a->setShortcut(QKeySequence::Cut);
+
+
+//  (widgets\layouts\basiclayouts\dialog.cpp) 基于QDialog的菜单
+// 创建MenuBar，创建Menu，创建Action，关联Menu和Action，关联Action的信号和槽(回调函数)
+menuBar = new QMenuBar;
+
+fileMenu = new QMenu(tr("&File"), this);
+exitAction = fileMenu->addAction(tr("E&xit"));
+menuBar->addMenu(fileMenu);
+
+connect(exitAction, SIGNAL(triggered()), this, SLOT(accept()));
+
+// 创建 QVBoxLayout, 将QMenuBar添加到QVBoxLayout
+QVBoxLayout *mainLayout = new QVBoxLayout;
+mainLayout->setMenuBar(menuBar);
+

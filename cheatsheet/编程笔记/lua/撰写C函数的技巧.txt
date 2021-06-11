@@ -1,0 +1,104 @@
+1. 数组操作
+  API提供了下面两个数组操作函数：
+  void lua_rawgeti (lua_State *L, int index, int key);
+  void lua_rawseti (lua_State *L, int index, int key);
+  调用lua_rawgeti(L,t,key)等价于：
+  lua_pushnumber(L, key);
+  lua_rawget(L, t);
+  调用lua_rawseti(L, t, key)（也要求t使用负索引）等价于：
+  lua_pushnumber(L, key);
+  lua_insert(L, -2);   /* put 'key' below previous value */
+  lua_rawset(L, t);
+  注意这两个函数都是用raw操作，他们的速度较快，总之，用作数组的table很少使用metamethods。
+ 
+  下面看如何使用这些函数的具体的例子，我们将前面的l_dir函数的循环体：
+  lua_pushnumber(L, i++);             /* key */
+  lua_pushstring(L, entry->d_name);  /* value */
+  lua_settable(L, -3);
+  改写为：
+  lua_pushstring(L, entry->d_name);  /* value */
+  lua_rawseti(L, -2, i++);           /* set table at key 'i' */
+ 
+  以数组的每一个元素为参数调用一个指定的函数，并将数组的该元素替换为调用函数返回的结果。
+  int l_map (lua_State *L) {
+      int i, n;
+      /* 1st argument must be a table (t) */
+      luaL_checktype(L, 1, LUA_TTABLE);
+  
+      /* 2nd argument must be a function (f) */
+      luaL_checktype(L, 2, LUA_TFUNCTION);
+      n = luaL_getn(L, 1);  /* get size of table */
+      for (i=1; i<=n; i++) {
+         lua_pushvalue(L, 2);     /* push f */
+         lua_rawgeti(L, 1, i);    /* push t[i] */
+         lua_call(L, 1, 1);       /* call f(t[i]) */
+         lua_rawseti(L, 1, i);    /* t[i] = result */
+      }
+  
+      return 0;  /* no results */
+  }
+  luaL_checktype（在lauxlib.h中定义）用来检查给定的参数有指定的类型；否则抛出错误。
+  luaL_getn函数栈中指定位置的数组的大小（table.getn是调用luaL_getn来完成工作的）。
+  lua_call的运行是无保护的，他与lua_pcall相似，但是在错误发生的时候她抛出错误而不是返回错误代码。当你在应用程序中写主流程的代码时，不应该使用lua_call，因为你应该捕捉任何可能发生的错误。
+
+2. 字符串处理
+  当C函数接受一个来自lua的字符串作为参数时，有两个规则必须遵守：当字符串正在被访问的时候不要将其出栈；永远不要修改字符串。
+  当C函数需要创建一个字符串返回给lua的时候，情况变得更加复杂。
+  这样需要由C代码来负责缓冲区的分配和释放，负责处理缓冲溢出等情况。然而，Lua API提供了一些函数来帮助我们处理这些问题。
+
+  标准API提供了对两种基本字符串操作的支持：子串截取和字符串连接。
+  记住，lua_pushlstring可以接受一个额外的参数，字符串的长度来实现字符串的截取，
+  所以，如果你想将字符串s从i到j位置（包含i和j）的子串传递给lua，
+  lua_pushlstring(L, s+i, j-i+1);
+
+  split("hi,,there", ",")
+  
+  应该返回表{"hi", "", "there"}。
+  我们可以简单的实现如下，下面这个函数不需要额外的缓冲区，可以处理字符串的长度也没有限制。
+  static int l_split (lua_State *L) {
+      const char *s = luaL_checkstring(L, 1);
+      const char *sep = luaL_checkstring(L, 2);
+      const char *e;
+      int i = 1;
+  
+      lua_newtable(L);  /* result */
+  
+      /* repeat for each separator */
+      while ((e = strchr(s, *sep)) != NULL) {
+         lua_pushlstring(L, s, e-s);  /* push substring */
+         lua_rawseti(L, -2, i++);
+         s = e + 1;  /* skip separator */
+      }
+      /* push last substring */
+      lua_pushstring(L, s);
+      lua_rawseti(L, -2, i);
+  
+      return 1;  /* return the table */
+  }
+
+  lua_concat：等价于Lua中的..操作符：自动将数字转换成字符串，如果有必要的时候还会自动调用metamethods。
+  她可以同时连接多个字符串。调用lua_concat(L,n)将连接(同时会出栈)栈顶的n个值，并将最终结果放到栈顶。
+
+  lua_pushfstring：
+  const char *lua_pushfstring (lua_State *L, const char *fmt, ...);
+    根据格式串fmt的要求创建一个新的字符串。与sprintf不同的是，你不需要提供一个字符串缓冲数组，
+  Lua为你动态的创建新的字符串，按他实际需要的大小。也不需要担心缓冲区溢出等问题。
+  这个函数会将结果字符串放到栈内，并返回一个指向这个结果串的指针。
+  %%（表示字符 '%'）、
+  %s（用来格式化字符串）、
+  %d（格式化整数）、
+  %f（格式化Lua数字，即 doubles）
+  %c（接受一个数字并将其作为字符）不支持宽度和精度等选项
+  
+3. Registry
+  registry 一直位于一个由LUA_REGISTRYINDEX定义的值所对应的假索引(pseudo-index)的位置。一个假索引除了他对应的值不在栈中之外，其他都类似于栈中的索引
+  Lua API中大部分接受索引作为参数的函数，也都可以接受假索引作为参数—除了那些操作栈本身的函数，比如lua_remove，lua_insert
+  lua_pushstring(L, "Key");
+  lua_gettable(L, LUA_REGISTRYINDEX);
+
+4. References
+  你应该记住，永远不要使用数字作为registry 的key，因为这种类型的key是保留给reference系统使用。Reference系统是由辅助库中的一对函数组成，这对函数用来不需要担心名称冲突的将值保存到registry 中去。（实际上，这些函数可以用于任何一个表，但他们典型的被用于registry）
+  调用
+  int r = luaL_ref(L, LUA_REGISTRYINDEX);
+
+

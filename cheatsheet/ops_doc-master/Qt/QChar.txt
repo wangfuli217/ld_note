@@ -1,0 +1,87 @@
+
+    QChar 类是 Qt 中用于表示一个字符的类，实现在 QtCore 共享库中。QChar 类内部用2个
+字节的Unicode编码来表示一个字符。
+
+http://www.unicode.org/standard
+str[0] = 'A';
+str[0] = QChar(0x41);
+str[0] = QChar(0xD1);
+str[0] = QChar(0x03A3);
+str[0] = QChar(0x20AC);
+
+为了获得一个QChar的数字值，可以对它调用unicode(),
+为了获得一个(作为一个char)的ASCII或者Latin-1的值，则要对它调用toLatin1()，对于那些非Latin-1的字符，toLatin1()将会返回'\0'.
+如果我们知道一个程序中的所有字符都是ASCII字符，那么可以在toLatin1()的返回值上使用像isalpha(),isdigit(),isspace()这样的<cctype>函数。
+QChar的成员变量函数更好用 ---- 处理isalpha() -- isLetter().
+
+1. 与操作系统交互
+应用程序在和操作系统对话时负责把它转换成响应的编码格式。  
+2. QTextStream
+当读取和写入文本文件时，需要给予特殊关注 。文本文件可以使用很多编码格式，并且通常很有可能需要从文本文件的内容来猜测
+它的编码格式。默认情况下，QTextStream对于读取和写入都使用系统的本地8位编码格式(这可以通过QTextCodec::codecForLocale()函数获得)。
+对于美国和西欧的本地设置，这种做法通常获得的就是Latin-1
+
+如果要设计自己的文本格式，并且希望能够读取和写入任意的unicode字符，那么可以在开始写入QTextStream之前调用以下代码:
+stream.setCodec("UTF-16");
+stream.setGenerateByteOrderMark(true);
+把数据保存为unicode格式。 UTF-16和QString的内存表示形式一致。
+
+QTextCodec是一个可以在Unicode和给定编码格式之间进行转换的对象。
+QT在很大范围的上下文关系上都使用了QTextCodec。在QT内部，把它们用于对字体、输入法、剪贴板、拖放和文件名的支持中。
+
+setAutoDetectUnicode(false) BOM的检测。
+setCodec("UTF-16"); setCodec("UTF-8"); 
+
+QPushButton *button = new QPushButton(tr("日诺"));
+QTextCodec::setCodecForTr(QTextCodec::codecForName("EUC-JP")); 这个调用必须在第一次对tr()的调用之前完成。
+QString text = japaneseCodec->toUnicode("海鲜料理");
+QTextCodec::setCodecForCStrings(QTextCodec::codeForName("EUC-JP"));
+
+
+
+1. 构造函数
+QChar 类提供了多个不同原型的构造函数以方便使用，如：
+QChar();                   // 构造一个空字符，即'\0'
+QChar(char ch);            // 由字符数据ch构造
+QChar(uchar ch);           // 由无符号字符数据ch构造
+QChar(ushort code);        // 由无符号短整形数据code构造，code是Unicode编码
+QChar(short code);         // 由短整形数据code构造，code是Unicode编码
+QChar(uint code);          // 由无符号整型数据code构造，code是Unicode编码
+QChar(int code);           // 由整型数据code构造，code是Unicode编码
+
+    实际使用时很少直接构造 QChar 类的对象，而是把这些构造函数当做类型转换来用，
+让编译器自动构造所需的QChar类对象。也就是说，在所有需要QChar类作为参数的地方都
+可以安全地使用各种整数类型。
+
+2. 判断
+    QChar 类提供了很多成员函数，可以对字符的类型进行判断，如：
+    bool isDigit() const;           // 判断是否是十进制数字（'0' - '9'）
+    bool isLetter() const;          // 判断是否是字母
+    bool isNumber() const;          // 判断是否是数字，包括正负号、小数点等
+    bool isLetterOrNumber();        // 判断是否是字母或数字
+    bool isLower() const;           // 判断是否是小写字母
+    bool isUpper() const;           // 判断是否是大写字母
+    bool isNull() const;            // 判断是否是空子符'\0'
+    bool isPrint() const;           // 判断是否是可打印字符
+    bool isSpace() const;           // 判断是否是分隔符，包括空格等
+    
+3. 转换
+    QChar 类提供了一些成员函数进行数据的转换，如：
+    char toAscii() const;     // 得到字符的ASCII码
+    QChar toLower() const;    // 转换成小写字母
+    QChar toUpper() const;    // 转换成大写字母
+    ushort unicode() const;   // 得到Unicode编码
+注意这几个函数都不会改变对象自身，转换的结果通过返回值反映出来。
+
+4. 比较
+    Qt 中定义了一些与 QChar 类相关的比较操作符， 如：
+    bool operator != (QChar c1, QChar c2);    // 判断 c1 是否不等于 c2
+    bool operator < (QChar c1, QChar c2);     // 判断  c1 是否小于 c2
+    bool operator <= (QChar c1, QChar c2);    // 判断 c1 是否小于等于 c2
+    bool operator == (QChar c1, QChar c2);    // 判断 c1
+    是否等于c2                                
+    bool operator > (QChar c1, QChar c2);     // 判断 c1 是否大于 c2
+    bool operator >= (QChar c1, QChar c2);    // 判断  c1
+    是否大于等于 c2
+
+

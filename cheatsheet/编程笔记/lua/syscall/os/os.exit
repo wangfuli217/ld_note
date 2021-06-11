@@ -1,0 +1,35 @@
+--
+-- os.exit()##
+-- 原型：os.exit ([code [, close]])
+-- 解释：相当于C的exit函数,终止主程序,code为返回值。
+-- code:number  -> echo $?
+--
+
+function func_testexit()
+    print("lua --> func_testexit start");
+    io.read();
+    os.exit(2);     -->os.exit() == os.exit(0)
+                    --> 
+    print("lua --> func_testexit end");
+    io.read();
+end
+
+func_testexit()
+--[[
+然后来编写c++调用函数
+    lua_State *L = lua_open();
+    luaL_openlibs(L);
+    printf("c++ --> before call func_testexit\n");
+    luaL_dofile(L,"exittest.lua");              // 加载执行lua文件
+    lua_getglobal(L, "func_testexit");          // 函数入栈
+    lua_pcall(L, 0, 0, 0);                      // 打印信息
+    printf("c++ --> after call func_testexit\n");
+    lua_close(L);                               // 关闭lua环境
+
+--]]
+
+--[[
+需要注意的是，os.exit()不仅仅会退出lua运行环境，连宿主程序也会退出，代码中的io.read();仅仅为了可以看到打印信息，否则宿主程序直接退出就什么也看不到了。
+我们可以发现代码print("lua --> func_testexit end");和printf("c++ --> after call func_testexit\n");是无论如何也执行不到的。
+利用os.exit()可以退出宿主程序，我们可以在lua解释器中使用这个函数已退出解释器
+--]]

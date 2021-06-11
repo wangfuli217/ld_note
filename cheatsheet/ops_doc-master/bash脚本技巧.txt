@@ -1,0 +1,95 @@
+###1. 用&&简化if else
+  gzip -t a.tar.gz
+  if [[ 0 == $? ]]; then
+      echo "good zip"
+  else
+      echo "bad zip"
+  fi
+  可以简化为：
+  gzip  -t a.tar.gz && echo "good zip" || echo "bad zip"
+
+###2. 判断文件非空
+  if [[ -s $file ]]; then
+      echo "not empty"
+  fi
+
+###3. 获取文件大小
+    stat -c %s $file
+    stat --printf='%s\n' $file
+    wc -c $file
+    
+###5. Contains 子字符串？
+    string="My string"
+    if [[ $string == *My* ]]; then
+        echo "It's there!"
+    fi
+    
+###6. 备份
+  rsync -r -t -v /source_folder /destination_folder
+  rsync -r -t -v /source_folder [user@host:/destination_folder
+   
+###8. for/while 循环
+  for ((i=0; i < 10; i++)); do echo $i; done 
+  for line in $(cat a.txt); do echo $line; done 
+  for f in *.txt; do echo $f; done 
+  while read line ; do echo $line; done < a.txt 
+  cat a.txt | while read line; do echo $line; done
+    
+###9. 删除空行
+  cat a.txt | sed -e '/^$/d'
+  (echo "abc"; echo ""; echo "ddd";) | awk '{if (0 != NF) print $0;}'
+    
+###10. 比较文件的修改时间
+  [[ file1.txt -nt file2.txt ]] && echo true || echo false
+  [[ file1.txt -ot file2.txt ]] && echo true || echo false
+    
+###16. 遍历数组
+  array=( one two three ) 
+  for i in ${array[@]} 
+      do 
+      echo $i 
+  done
+    
+###35. 删除0 字节文件或垃圾文件
+  find . -type f -size 0 -delete
+  find . -type f -exec rm -rf {} \;
+  find . -type f -name "a.out" -exec rm -rf {} \;
+  find . type f -name "a.out" -delete
+  find . type f -name "*.txt" -print0 | xargs -0 rm -f
+  
+###40. 清除僵尸进程
+  ps -eal | awk '{ if ($2 == "Z"){ print $4}}' | kill -9
+  
+###42. 打印奇数行
+  awk 'i=!i' file
+  awk 'NR%2' file
+  
+###44. 打印某行后后面的10行
+  cat file | grep -A100 string
+  cat file | grep -B100 string #前面
+  cat file | grep -C100 string #前后
+  
+  sed -n '/string/,+100p'
+  
+  awk '/string/{f=100}--f>=0' 
+  
+### 向函数传递数组
+  #!/bin/bash
+  #adding values in an array
+	
+  function addarray {
+      local sum=0
+      local newarray
+      newarray=(`echo "$@"`)
+      for value in ${newarray[*]}
+      do
+          sum=$[ $sum+$value ]
+      done
+      echo $sum
+  }
+	
+  myarray=(1 2 3 4 5)
+  echo "The original array is: ${myarray[*]}"
+  arg1=`echo ${myarray[*]}`
+  result=`addarray $arg1`
+  echo "The result is $result"

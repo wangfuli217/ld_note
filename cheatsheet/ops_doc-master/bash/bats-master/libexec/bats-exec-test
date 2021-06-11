@@ -1,0 +1,352 @@
+#!/usr/bin/env bash                                                                # &解释器说明
+set -e   # 管道返回值不等于0，则退出                                               # &解释器配置
+set -E   # 捕获ERR信号的注册命令会被继承                                           
+set -T   # 捕获'DEBUG' and 'RETURN'信号的注册命令会被继承
+
+BATS_COUNT_ONLY=""                                                                 # &命令行解析(先判断在shift)
+if [ "$1" = "-c" ]; then
+  BATS_COUNT_ONLY=1   # 使用大写还是小写，从可读性上而言，小写较好
+  shift            # 内建命令
+fi
+
+BATS_EXTENDED_SYNTAX=""
+if [ "$1" = "-x" ]; then
+  BATS_EXTENDED_SYNTAX="$1"
+  shift            # 内建命令
+fi
+
+BATS_TEST_FILENAME="$1"
+if [ -z "$BATS_TEST_FILENAME" ]; then # 字符串为空
+  echo "usage: bats-exec <filename>" >&2
+  exit 1           # 内建命令
+elif [ ! -f "$BATS_TEST_FILENAME" ]; then # 文件不存在
+  echo "bats: $BATS_TEST_FILENAME does not exist" >&2
+  exit 1           # 内建命令
+else
+  shift            # 内建命令
+fi
+
+BATS_TEST_DIRNAME="$(dirname "$BATS_TEST_FILENAME")"
+BATS_TEST_NAMES=()
+#核心功能就是调用了source命令，导入函数和环境变量。
+load() {                         # &函数
+  local name="$1"
+  local filename
+
+  if [ "${name:0:1}" = "/" ]; then #如果指定路径为绝对路径直接赋值
+    filename="${name}"
+  else #如果指定路径为相对路径，则附加当前文件对应目录，并且指定文件扩展名为".bash"
+    filename="$BATS_TEST_DIRNAME/${name}.bash"
+  fi
+
+  [ -f "$filename" ] || { #文件不存在则返回错误，错误码为1
+    echo "bats: $filename does not exist" >&2
+    exit 1
+  }
+
+  source "${filename}"
+}
+#关闭自己设定的bash配置，恢复bash的默认配置
+run() { 
+  local e E T oldIFS       # 记录当前shell的e E T环境设置，用于将来恢复
+  [[ ! "$-" =~ e ]] || e=1 #"$-"表示bash的选项-irsD 或[?+]O [shopt_option]
+  [[ ! "$-" =~ E ]] || E=1
+  [[ ! "$-" =~ T ]] || T=1
+  set +e
+  set +E
+  set +T
+  output="$("$@" 2>&1)"
+  status="$?"
+  oldIFS=$IFS
+  IFS=$'\n' lines=($output)
+  [ -z "$e" ] || set -e
+  [ -z "$E" ] || set -E
+  [ -z "$T" ] || set -T
+  IFS=$oldIFS
+}
+
+setup() {    #每次test之前调用，此函数可以被外部函数重载
+  true
+}
+
+teardown() { #每次test之后调用，此函数可以被外部函数重载
+  true
+}
+
+skip() { #忽略当前的test测试
+  BATS_TEST_SKIPPED=${1:-1}
+  BATS_TEST_COMPLETED=1
+  exit 0 #这是由于在bats_perform_tests函数中会回调bats-exec-test脚本，重新创建shell，退出shell的内建命令是exit 
+}
+
+bats_test_begin() { #每次测试前被调用
+  BATS_TEST_DESCRIPTION="$1"
+  if [ -n "$BATS_EXTENDED_SYNTAX" ]; then
+    echo "begin $BATS_TEST_NUMBER $BATS_TEST_DESCRIPTION" >&3
+  fi
+  setup #调用test之间初始化函数
+}
+
+bats_test_function() { # 注册bats的测试函数名称到BATS_TEST_NAMES数组中
+  local test_name="$1"
+  BATS_TEST_NAMES["${#BATS_TEST_NAMES[@]}"]="$test_name"
+}
+
+bats_capture_stack_trace() {
+  BATS_PREVIOUS_STACK_TRACE=( "${BATS_CURRENT_STACK_TRACE[@]}" )
+  BATS_CURRENT_STACK_TRACE=()
+
+  local test_pattern=" $BATS_TEST_NAME $BATS_TEST_SOURCE"
+  local setup_pattern=" setup $BATS_TEST_SOURCE"
+  local teardown_pattern=" teardown $BATS_TEST_SOURCE"
+
+  local frame
+  local index=1
+
+  while frame="$(caller "$index")"; do  # 见bash中caller 
+    BATS_CURRENT_STACK_TRACE["${#BATS_CURRENT_STACK_TRACE[@]}"]="$frame"
+    if [[ "$frame" = *"$test_pattern"     || \
+          "$frame" = *"$setup_pattern"    || \
+          "$frame" = *"$teardown_pattern" ]]; then
+      break
+    else
+      let index+=1
+    fi
+  done
+
+  BATS_SOURCE="$(bats_frame_filename "${BATS_CURRENT_STACK_TRACE[0]}")"
+  BATS_LINENO="$(bats_frame_lineno "${BATS_CURRENT_STACK_TRACE[0]}")"
+}
+
+bats_print_stack_trace() {
+  local frame
+  local index=1
+  local count="${#@}"
+
+  for frame in "$@"; do
+    local filename="$(bats_trim_filename "$(bats_frame_filename "$frame")")"
+    local lineno="$(bats_frame_lineno "$frame")"
+
+    if [ $index -eq 1 ]; then
+      echo -n "# ("
+    else
+      echo -n "#  "
+    fi
+
+    local fn="$(bats_frame_function "$frame")"
+    if [ "$fn" != "$BATS_TEST_NAME" ]; then
+      echo -n "from function \`$fn' "
+    fi
+
+    if [ $index -eq $count ]; then
+      echo "in test file $filename, line $lineno)"
+    else
+      echo "in file $filename, line $lineno,"
+    fi
+
+    let index+=1
+  done
+}
+
+bats_print_failed_command() {
+  local frame="$1"
+  local status="$2"
+  local filename="$(bats_frame_filename "$frame")"
+  local lineno="$(bats_frame_lineno "$frame")"
+
+  local failed_line="$(bats_extract_line "$filename" "$lineno")"
+  local failed_command="$(bats_strip_string "$failed_line")"
+  echo -n "#   \`${failed_command}' "
+
+  if [ $status -eq 1 ]; then
+    echo "failed"
+  else
+    echo "failed with status $status"
+  fi
+}
+
+bats_frame_lineno() { #行号
+  local frame="$1"
+  local lineno="${frame%% *}"
+  echo "$lineno"
+}
+
+bats_frame_function()  #函数名
+  local frame="$1"
+  local rest="${frame#* }"
+  local fn="${rest%% *}"
+  echo "$fn"
+}
+
+bats_frame_filename() { #文件名
+  local frame="$1"
+  local rest="${frame#* }"
+  local filename="${rest#* }"
+
+  if [ "$filename" = "$BATS_TEST_SOURCE" ]; then
+    echo "$BATS_TEST_FILENAME"
+  else
+    echo "$filename"
+  fi
+}
+
+bats_extract_line() { #输出第几行
+  local filename="$1"
+  local lineno="$2"
+  sed -n "${lineno}p" "$filename"
+}
+
+bats_strip_string() { #去除字符串头尾空格、制表符
+  local string="$1"
+  printf "%s" "$string" | sed -e "s/^[ "$'\t'"]*//" -e "s/[ "$'\t'"]*$//"
+}
+
+bats_trim_filename() { #去除BATS_CWD
+  local filename="$1"
+  local length="${#BATS_CWD}"
+
+  if [ "${filename:0:length+1}" = "${BATS_CWD}/" ]; then
+    echo "${filename:length+1}"
+  else
+    echo "$filename"
+  fi
+}
+# 捕获debug信号
+bats_debug_trap() { 
+  if [ "$BASH_SOURCE" != "$1" ]; then
+    bats_capture_stack_trace
+  fi
+}
+# 捕获error信号
+bats_error_trap() { 
+  BATS_ERROR_STATUS="$?"
+  BATS_ERROR_STACK_TRACE=( "${BATS_PREVIOUS_STACK_TRACE[@]}" )
+  trap - debug                         # 恢复默认执行
+}
+
+bats_teardown_trap() { # 捕获exit信号
+  trap "bats_exit_trap" exit           #执行退出时执行
+  local status=0
+  teardown >>"$BATS_OUT" 2>&1 || status="$?"
+
+  if [ $status -eq 0 ]; then
+    BATS_TEARDOWN_COMPLETED=1
+  elif [ -n "$BATS_TEST_COMPLETED" ]; then
+    BATS_ERROR_STATUS="$status"
+    BATS_ERROR_STACK_TRACE=( "${BATS_CURRENT_STACK_TRACE[@]}" )
+  fi
+
+  bats_exit_trap
+}
+
+bats_exit_trap() {
+  local status
+  local skipped
+  trap - err exit
+
+  skipped=""
+  if [ -n "$BATS_TEST_SKIPPED" ]; then
+    skipped=" # skip"
+    if [ "1" != "$BATS_TEST_SKIPPED" ]; then
+      skipped+=" ($BATS_TEST_SKIPPED)"
+    fi
+  fi
+
+  if [ -z "$BATS_TEST_COMPLETED" ] || [ -z "$BATS_TEARDOWN_COMPLETED" ]; then # 每当函数异常执行结束的输出打印信息
+    echo "not ok $BATS_TEST_NUMBER $BATS_TEST_DESCRIPTION" >&3
+    bats_print_stack_trace "${BATS_ERROR_STACK_TRACE[@]}" >&3
+    bats_print_failed_command "${BATS_ERROR_STACK_TRACE[${#BATS_ERROR_STACK_TRACE[@]}-1]}" "$BATS_ERROR_STATUS" >&3
+    sed -e "s/^/# /" < "$BATS_OUT" >&3
+    status=1
+  else
+    echo "ok ${BATS_TEST_NUMBER}${skipped} ${BATS_TEST_DESCRIPTION}" >&3 # 每当函数正常执行结束的输出打印信息
+    status=0
+  fi
+
+  rm -f "$BATS_OUT"
+  exit "$status"
+}
+
+# 参数为注册的测试集合
+bats_perform_tests(执行@test测试集合) {
+  echo "1..$#"
+  test_number=1
+  status=0
+  # "$@" 指示的应该是 函数名称
+  for test_name in "$@"; do #$0为bats-exec-test $0表示当前运行命令的名称，这个其实是特殊的参数，但是往往很少用到。
+    "$0" $BATS_EXTENDED_SYNTAX "$BATS_TEST_FILENAME" "$test_name" "$test_number" || status=1
+    let test_number+=1
+  done
+  exit "$status"
+}
+
+bats_perform_test() {
+  BATS_TEST_NAME="$1"
+  if [ "$(type -t "$BATS_TEST_NAME" || true)" = "function" ]; then
+    BATS_TEST_NUMBER="$2"
+    if [ -z "$BATS_TEST_NUMBER" ]; then
+      echo "1..1"
+      BATS_TEST_NUMBER="1"
+    fi
+
+    BATS_TEST_COMPLETED=""
+    BATS_TEARDOWN_COMPLETED=""
+    trap "bats_debug_trap \"\$BASH_SOURCE\"" debug   #debug   脚本退出函数打印
+# 如果参数是DEBUG，则每次执行简单命令、for命令、case命令、select命令、算术for命令的每个算术
+# 表达式，以及shell函数的第一个命令之前，都会执行命令参数。
+    trap "bats_error_trap" err                       #err     脚本出错打印
+    trap "bats_teardown_trap" exit                   #exit    脚本退出打印
+    "$BATS_TEST_NAME" >>"$BATS_OUT" 2>&1             # 调用某个可执行函数，将输出写到$BATS_OUT
+    BATS_TEST_COMPLETED=1
+
+  else
+    echo "bats: unknown test name \`$BATS_TEST_NAME'" >&2
+    exit 1
+  fi
+}
+
+if [ -z "$TMPDIR" ]; then                                                        # &调试环境变量
+  BATS_TMPDIR="/tmp"
+else
+  BATS_TMPDIR="${TMPDIR%/}"
+fi
+
+BATS_TMPNAME="$BATS_TMPDIR/bats.$$"            # bats.${pid}
+BATS_PARENT_TMPNAME="$BATS_TMPDIR/bats.$PPID"  # bats.${ppid}
+BATS_OUT="${BATS_TMPNAME}.out"                 # bats.${pid}.out
+
+bats_preprocess_source() {                               # 由输入文件导出临时文件
+  BATS_TEST_SOURCE="${BATS_TMPNAME}.src"
+  { tr -d '\r' < "$BATS_TEST_FILENAME"; echo; } | bats-preprocess > "$BATS_TEST_SOURCE" #echo命令只是在输出尾部添加一个空行。
+  trap "bats_cleanup_preprocessed_source" err exit       #err和exit退出执行，-> 删除临时文件
+  trap "bats_cleanup_preprocessed_source; exit 1" int    #int退出执行        -> 删除临时文件然后退出
+}
+
+# 信号名称对大小写不敏感，其前面的SIG可以省略
+# bash增减了DEBUG, exit, err
+bats_cleanup_preprocessed_source() {
+  rm -f "$BATS_TEST_SOURCE"
+}
+
+bats_evaluate_preprocessed_source() {                    # 导入 由输入文件导出临时文件
+  if [ -z "$BATS_TEST_SOURCE" ]; then
+    BATS_TEST_SOURCE="${BATS_PARENT_TMPNAME}.src"
+  fi
+  source "$BATS_TEST_SOURCE"
+}
+
+exec 3<&1                                                                      # &重定向 赋值文件符
+# [] 即使是数值比较也用""括起来
+if [ "$#" -eq 0 ]; then                                                        # &数据处理
+  bats_preprocess_source
+  bats_evaluate_preprocessed_source
+
+  if [ -n "$BATS_COUNT_ONLY" ]; then
+    echo "${#BATS_TEST_NAMES[@]}"
+  else
+    bats_perform_tests "${BATS_TEST_NAMES[@]}"
+  fi
+else
+  bats_evaluate_preprocessed_source
+  bats_perform_test "$@"
+fi

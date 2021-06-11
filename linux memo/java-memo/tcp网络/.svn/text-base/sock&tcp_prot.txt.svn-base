@@ -1,0 +1,135 @@
+struct sock
+
+struct sock {
+    /*
+     * 结构 inet_timewait_sock 也会使用 sock_common, 所以
+     * 不要在__sk_common前面添加任何内容。
+     */ 
+    struct sock_common    __sk_common;                              //与inet_timewait_sock共享使用
+#define sk_family        __sk_common.skc_family                     //协议族
+#define sk_state        __sk_common.skc_state                       //连接状态
+#define sk_reuse        __sk_common.skc_reuse                       //确定复用地址
+#define sk_bound_dev_if        __sk_common.skc_bound_dev_if         //绑定设备ID
+#define sk_node            __sk_common.skc_node                     // 用于连入主hash表
+#define sk_bind_node        __sk_common.skc_bind_node               //连入绑定hash表
+#define sk_refcnt        __sk_common.skc_refcnt                     //使用计数器
+#define sk_hash            __sk_common.skc_hash                     //查找hash表时hash值
+#define sk_prot            __sk_common.skc_prot                     //协议函数表
+    unsigned char        sk_shutdown : 2,                           //是否关闭
+                sk_no_check : 2,                                    //是否检查数据包
+                sk_userlocks : 4;                                   //用户锁
+    unsigned char        sk_protocol;                               //使用协议族的那一协议
+    unsigned short        sk_type;                                  //sock的类型:SOCK_STREAM
+    int            sk_rcvbuf;                                       //接收数据缓冲区长度
+    socket_lock_t        sk_lock;                                   //用于同步
+    wait_queue_head_t    *sk_sleep;                                 //sock等待队列
+    struct dst_entry    *sk_dst_cache;                              //路由缓存项
+    struct xfrm_policy    *sk_policy[2];                            //流策略
+    rwlock_t        sk_dst_lock;                                    //路由项缓存锁
+    atomic_t        sk_rmem_alloc;                                  //接收队列字节数
+    atomic_t        sk_wmem_alloc;                                  //发送队列字节数   [提交给IP层的发送数据大小(累加skb->truesize)]
+    atomic_t        sk_omem_alloc;                                  //其他队列字节数
+    struct sk_buff_head    sk_receive_queue;                        //接收到的数据包队列
+    struct sk_buff_head    sk_write_queue;                          //发送数据包队列    [发送队列]
+    struct sk_buff_head    sk_async_wait_queue;                     //DMA复制的数据包
+    int            sk_wmem_queued;                                  //全部数据包占用内存计数 [发送队列的总大小，包含发送队列中skb负荷大小，以及sk_buff、sk_shared_info结构体、协议头的额外开销。]
+    int            sk_forward_alloc;                                //记录可用内存长度     [预分配缓存大小，是已经分配但尚未使用的部分]
+    gfp_t            sk_allocation;                                 //分配模式
+    int            sk_sndbuf;                                       //                     [发送缓冲区大小的上限]
+    int            sk_route_caps;                                   //路由的兼容性标志位
+    int            sk_gso_type;                                     //gso通用分段的类型
+    int            sk_rcvlowat;                                     // SO_RCVLOWAT设置
+    unsigned long         sk_flags;                                 //SO_LINGER, SO_BROADCAST, SO_KEEPLIVE, SO_OOBINLINE设置
+    unsigned long            sk_lingertime;                         // 停留时间，确定关闭时间
+    /*
+     * The backlog queue is special, it is always used with
+     * the per-socket spinlock held and requires low latency
+     * access. Therefore we special case it's implementation.
+     */
+    struct {
+        struct sk_buff *head;                                       // 记录最先接收到的数据包
+        struct sk_buff *tail;                                       //记录最后接收到的数据包
+    } sk_backlog;
+    struct sk_buff_head    sk_error_queue;                          //很少使用
+    struct proto        *sk_prot_creator;                           //sock创建接口
+    rwlock_t        sk_callback_lock;                               //为后半部处理使用的锁
+    int            sk_err,                                          //出错码
+                sk_err_soft;                                        //持续出现的错误
+    unsigned short        sk_ack_backlog;                           //当前监听到的连接数
+    unsigned short        sk_max_ack_backlog;                       //在listen中监听的连接数量
+    __u32            sk_priority;                                   //优先级
+    struct ucred        sk_peercred;                                //SO_PEERCRED设置
+    long            sk_rcvtimeo;                                    //SO_RCVTIMEO设置接收超时时间
+    long            sk_sndtimeo;                                    //SO_SNDTIMEO设置发送超时时间
+    struct sk_filter          *sk_filter;                           //sock的过滤器
+    void            *sk_protinfo;                                   //私有区域
+    struct timer_list    sk_timer;                                  //sock的冲刷定时器
+    struct timeval        sk_stamp;                                 //最后接收数据包时间
+    struct socket        *sk_socket;                                //对应的socket指针
+    void            *sk_user_data;                                  //RPC提供的数据
+    struct page        *sk_sndmsg_page;                             //发送数据所在的缓冲页
+    struct sk_buff        *sk_send_head;                            //发送数据包的队列头
+    __u32            sk_sndmsg_off;                                 //发送数据快在缓冲页的结尾
+    int            sk_write_pending;                                //等待发送的数据
+    void            *sk_security;                                   //用于安全模式
+    void            (*sk_state_change)(struct sock *sk);            //在sock状态改变后会调用的函数
+    void            (*sk_data_ready)(struct sock *sk, int bytes);   //在数据处理后要调用的函数
+    void            (*sk_write_space)(struct sock *sk);             //在发送空间可以使用后，调用的函数
+    void            (*sk_error_report)(struct sock *sk);            //处理错误的函数
+      int            (*sk_backlog_rcv)(struct sock *sk,             //处理库存数据包的函数
+                          struct sk_buff *skb);  
+    void                    (*sk_destruct)(struct sock *sk);        //sock的销毁函数
+};
+
+
+struct proto tcp_prot = {
+    .name            = "TCP",
+    .owner            = THIS_MODULE,
+    .close            = tcp_close,
+    .connect        = tcp_v4_connect,
+    .disconnect        = tcp_disconnect,
+    .accept            = inet_csk_accept,
+    .ioctl            = tcp_ioctl,
+    .init            = tcp_v4_init_sock,
+    .destroy        = tcp_v4_destroy_sock,
+    .shutdown        = tcp_shutdown,
+    .setsockopt        = tcp_setsockopt,
+    .getsockopt        = tcp_getsockopt,
+    .sendmsg        = tcp_sendmsg,
+    .recvmsg        = tcp_recvmsg,
+    .backlog_rcv        = tcp_v4_do_rcv,
+    .hash            = tcp_v4_hash,
+    .unhash            = tcp_unhash,
+    .get_port        = tcp_v4_get_port,
+    .enter_memory_pressure    = tcp_enter_memory_pressure,  [设置TCP的内存压力标志，把tcp_memory_pressure置为1]
+    .stream_memory_free = tcp_stream_memory_free,           [检查sock是否有剩余的发送缓存(sk_wmem_queued < sk_sndbuf)。值得注意的是，用户可以使用TCP_NOTSENT_LOWAT选项来避免占用过多的发送缓存。]
+    
+    .sockets_allocated    = &tcp_sockets_allocated,         [到目前为止，整个tcp协议中创建的socket的个数，由mytcp_prot的成员 sockets_allocated指向。可以在/proc/net/sockstat文件中查看，这只是一个供统计查看用的数据，没有任何实际的限制作用。]
+    .orphan_count        = &tcp_orphan_count,               [mytcp_orphan_count表示整个tcp协议中待销毁的socket的个数(已无用的socket)，由mytcp_prot的成员orphan_count指向，也可以在/proc/net/sockstat文件中查看。]
+    
+    .memory_allocated    = &tcp_memory_allocated,           [TCP目前已经分配的内存 ]
+    .memory_pressure    = &tcp_memory_pressure,             [TCP内存压力标志，超过tcp_mem[1]后设置，低于tcp_mem[0]后清除]
+    全局变量mytcp_memory_pressure是一个标志，在tcp缓冲大小进入警告状态时，它置1，否则置0。
+    
+    .sysctl_mem        = sysctl_tcp_mem,                    [TCP内存使用的最小值、压力值、最大值，单位为页]
+    mysysctl_tcp_mem[0]表示对缓冲区总的可用大小的最低限制，当前总共分配的缓冲区大小低于这个值，则没有问题，分配成功。 
+    mysysctl_tcp_mem[2]表示对缓冲区可用大小的最高硬性限制，一旦总分配的缓冲区大小超出这个值，我们只好把tcp socket 的发送缓冲区的预设大小sk_sndbuf减小为已分配缓冲队列大小的一半，但不能小于SOCK_MIN_SNDBUF(2K)，但保证这一次的分配成功。
+    mysysctl_tcp_mem[1]介于前面两个值的中间，这是一个警告值，一旦超出这个值，进入警告状态，这个状态下，根据调用参数来决定此次分配是否成功。
+    这三个值的大小是根据所在系统的内存大小，在初始化时决定的，在我的实验环境中，内存大小为256M，这三个值分配是：96K，128K，192K。它们可以通过/proc文件系统，在/proc/sys/net/ipv4/tcp_mem中进行修改。
+    
+    .sysctl_wmem        = sysctl_tcp_wmem,                  [每个sock写缓存的最小值、默认值、最大值，单位为字节]
+    mysysctl_tcp_wmem也是一个同样结构的数组，表示发送缓冲区的大小限制，由mytcp_prot的成员sysctl_wmem指向，其缺省值分别是4K，16K，128K。可以通过/proc文件系统，在/proc/sys/net/ipv4/tcp_wmem中进行修改。struct sock的成员sk_sndbuf的值是真正的发送缓冲队列的预设大小，其初始值取中间一个16K。
+    
+    .sysctl_rmem        = sysctl_tcp_rmem,                  [每个sock读缓存的最小值、默认值、最大值，单位为字节]
+    mysysctl_tcp_rmem是跟mysysctl_tcp_wmem相同结构的数组，表示接收缓冲区的大小限制，由mytcp_prot的成员 sysctl_rmem指向，其缺省值分别是4096bytes，87380bytes，174760bytes。它们可以通过/proc文件系统，在 /proc/sys/net/ipv4/tcp_rmem中进行修改。struct sock的成员sk_rcvbuf表示接收缓冲队列的大小，其初始值取mysysctl_tcp_rmem[1],成员sk_receive_queue 是接收缓冲队列，结构跟sk_write_queue相同。
+    
+    
+    .max_header        = MAX_TCP_HEADER,                    [协议头的最大长度]
+    .obj_size        = sizeof(struct tcp_sock),             
+    .twsk_prot        = &tcp_timewait_sock_ops,             
+    .rsk_prot        = &tcp_request_sock_ops,               
+#ifdef CONFIG_COMPAT                                        
+    .compat_setsockopt    = compat_tcp_setsockopt,          
+    .compat_getsockopt    = compat_tcp_getsockopt,          
+#endif
+};

@@ -1,0 +1,46 @@
+static void tcp_push(struct sock *sk, int flags, int mss_now, int nonagle, int size_goal)
+{
+    struct tcp_sock *tp = tcp_sk(sk);
+    struct sk_buff *skb;
+
+    /* 如果没有未发送过的数据 */
+    if (! tcp_send_head(sk))
+        return;
+ 
+    /* 发送队列的最后一个skb */
+    skb = tcp_write_queue_tail(sk);
+ 
+    /* 如果接下来没有更多的数据需要发送，或者距离上次PUSH后又有比较多的数据，
+     * 那么就需要设置PSH标志，让接收端马上把接收缓存中的数据提交给应用程序。
+     */
+    if (! (flags & MSG_MORE) || forced_push(tp))
+        tcp_mark_push(tp, skb);
+ 
+    /* 如果设置了MSG_OOB标志，就记录紧急指针 */
+    tcp_mark_urg(tp, flags);
+
+    /* 如果需要自动阻塞小包 */
+    if (tcp_should_autocork(sk, skb, size_goal)) {
+        /* avoid atomic op if TSQ_THROTTED bit is already set, 设置阻塞标志位 */
+        if (! test_bit(TSQ_THROTTLED, &tp->tsq_flags)) {
+            NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAUTOCORKING);
+            set_bit(TSQ_THROTTLED, &tp->tsq_flags);
+        }
+       
+        /* It is possible TX completion already happened before we set TSQ_THROTTED.
+         * 我的理解是，当提交给IP层的数据包都发送出去后，sk_wmem_alloc的值就会变小，
+         * 此时这个条件就为假，之后可以发送被阻塞的数据包了。
+         */
+        if (atomic_read(&sk->sk_wmem_alloc) > skb->truesize)
+            return;
+    }
+
+    /* 如果之后还有更多的数据，那么使用TCP CORK，显式地阻塞发送 */
+    if (flags & MSG_MORE)
+        nonagle = TCP_NAGLE_CORK;
+
+    /* 尽可能地把发送队列中的skb发送出去。
+     * 如果发送失败，检查是否需要启动零窗口探测定时器。
+     */
+    __tcp_push_pending_frames(sk, mss_now, nonagle);
+}

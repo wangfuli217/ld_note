@@ -1,0 +1,187 @@
+文件路径：kernel/kernel/workqueue.c
+                 include/linux/workqueue.h
+
+入口函数：init_workqueues() ->    创建每个CPU的workqueue
+													    ->    创建每个workqueue的调度员create_worker()
+													      ->    创建系统开机后一系列默认的workqueue。
+													      			如默认使用的schedule_work()即使用system_wq这个workqueue。
+		调用
+					create_worker()   ->    为调度员worker分配内存
+					                    ->    根据on_unbound_cpu标志位确定采用依赖CPU的kthread_create_on_node()
+					                    			还是不依赖CPU的kthread_create()来创建worker_thread，
+					                      ~>    依赖CPU，则再绑定一下。
+		调用
+          worker_thread()   ->    通过goto woke_up做死循环，确保该thread一直运行。无任务时转至空载(Idle)状态。
+                              ->    通过need_more_worker()函数来确定当前是否有高优先级任务需要新开thread来执行。
+                                ->    通过manage_workers()进行检查，调整创建worker时必须的两个条件，
+                                      need_to_create_worker为真和may_start_working为假。
+                                	->    执行核心process_one_work()。
+                                	      PS，根据标志位优先执行高优先级任务所开辟的thread，也通过process_one_work()。
+    调用                            	      
+          process_one_work()->    通过work_func_t f = work->func;取得用户驱动设置的处理函数
+                              ->    如果全局的gcwq有高优先级的work需要执行，唤醒执行。
+                                ->    使用f(work);来执行调用点的处理函数。即用户驱动的处理函数在这里将被执行。
+                                  ->    最后进行一些清理标记位，释放资源，删除work的工作。
+		结束
+
+Workqueue.h
+				create_workqueue()以及create_singlethread_workqueue()采用的是宏定义，调用宏alloc_workqueue()。
+				实际实现函数为__alloc_workqueue_key()函数。在__alloc_workqueue_key()中，主要就是分配内存，初始
+				化List，初始化worker，create worker thread等工作。
+				
+CWQ ：某个CPU的全局队列
+
+
+struct work_struct {}   直接供用户使用的结构体
+
+struct worker {}        工作线程使用的结构体，主要是是用来管理加入到队列中的工作，
+                        决定是否需要开辟新线程开执行队列中的任务等，决定了worker_struct是将由那个线程执行。
+
+struct global_cwq {}    每个CPU都有一个gcwq，主要完成除了内存回收的紧急工作队列任务，
+														和在CPU下线过程中的工作任务这两个任务外的所有任务。
+														这两个任务是极高优先级和极紧迫任务，他们将会被worker直接执行，避免被管理。
+
+struct cpu_workqueue_struct {}   特定CPU上的工作队列
+
+struct wq_flusher {}          刷新清空结构体，不重要。   
+
+struct workqueue_struct {}   工作队列结构体，直接由work_struct结构体构成，如果是多个CPU，
+                               则先由work_struct构成cpu_workqueue_struct，然后再构成该workqueue_struct。
+                               
+
+
+系统在启动是，启动了六个公共的默认共享工作队列。
+队列结构体名称              接口名称                  作用
+system_wq                   events                    供schedule[_delayed]_work[_on]()使用，支持多核多线程，
+                                                      适合于那些可以被快速执行的任务。所以不要把耗时的任务放到该队列中。
+system_long_wq              events_long               和system_wq类似，差别在于主要用来放置较耗时的任务。
+system_nrt_wq               events_nrt                这个队列可以确保任务不重入，并且在多核CPU中，可以确保任务不会
+                                                      被并发执行，所以队列的执行耗时会比较久。
+system_unbound_wq           events_unbound            这是一个未绑定的队列，任务不会被绑定到任何CPU上，且不采用并发控制，
+                                                      所有的任务在最大活跃期限内只要资源可用，都会被立即执行。
+system_freezable_wq         events_freezable          不常用，主要用于系统挂起时。
+system_nrt_freezable_wq     events_nrt_freezable      更不常用。
+
+接口函数（部分）：
+				创建工作队列：
+        #define create_workqueue(name)	   	        alloc_workqueue((name), WQ_MEM_RECLAIM, 1)
+        				用该宏创建一个队列。 --> alloc_workqueue() --> __alloc_workqueue_key()    位置：workqueue.h
+        #define create_freezable_workqueue(name)		alloc_workqueue((name), WQ_FREEZABLE | WQ_UNBOUND | WQ_MEM_RECLAIM, 1)
+        				同上，极少用。
+        #define create_singlethread_workqueue(name)	alloc_workqueue((name), WQ_UNBOUND | WQ_MEM_RECLAIM, 1)
+                同create_workqueue()类似，区别之处在于create_workqueue()会在一个多CPU的系统中，会在每个活动的CPU上都创建一个worker_thread。
+                而他只会创建一个不绑定cpu的thread，这个thread会cpu的开关迁移。增加了一个WQ_UNBOUND标记。
+
+				extern void destroy_workqueue(struct workqueue_struct *wq);
+				        销毁一个队列
+
+				将工作项加入到工作队列中：
+        extern int queue_work(struct workqueue_struct *wq, struct work_struct *work);
+                任务进到自定义的队列中。其实质也是调用了一个queue_work_on。
+        extern int queue_work_on(int cpu, struct workqueue_struct *wq, struct work_struct *work);
+			          将任务入自定义队列，并且指定到CPU上。
+        extern int queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *work, unsigned long delay);
+        extern int queue_delayed_work_on(int cpu, struct workqueue_struct *wq, struct delayed_work *work, unsigned long delay);
+
+        extern int schedule_work(struct work_struct *work);
+                将任务加入到系统默认的队列system_wq中，本质就是调用queue_work()，将参数wq设为system_wq。
+        extern int schedule_work_on(int cpu, struct work_struct *work);
+                指定CPU来进行调度运行。
+        extern int schedule_delayed_work(struct delayed_work *work, unsigned long delay);
+        extern int schedule_delayed_work_on(int cpu, struct delayed_work *work, unsigned long delay);
+        extern int schedule_on_each_cpu(work_func_t func);
+                顾名思义，每个CPU上都跑一遍。
+
+        extern void flush_workqueue(struct workqueue_struct *wq);
+        extern void drain_workqueue(struct workqueue_struct *wq);
+        extern void flush_scheduled_work(void);
+                主要用来刷工作队列。
+                
+        创建工作项：
+        INIT_WORK(_work, _func)
+        INIT_DELAYED_WORK(_work, _func)
+                创建工作项，并指定处理函数。
+
+Flag：
+        指明工作队列的属性，可以设定的标记如下：
+        WQ_NON_REENTRANT：     默认情况下，工作队列只是确保在同一 CPU 上不可重入，即工作项不能在同一 CPU 上被多个工作者线程并发执行，
+                               但容许在多个 CPU 上并发执行。但该标志标明在多个 CPU 上也是不可重入的，工作项将在一个不可重入工作队列中
+                               排队，并确保至多在一个系统范围内的工作者线程被执行。
+
+        WQ_UNBOUND：           工作项被放入一个由特定 gcwq 服务的未限定工作队列，该客户工作者线程没有被限定到特定的 CPU，这样，未限定
+                               工作者队列就像简单的执行上下文一般，没有并发管理。未限定的 gcwq 试图尽可能快的执行工作项。
+
+        WQ_FREEZEABLE：        可冻结 wq 参与系统的暂停操作。该工作队列的工作项将被暂停，除非被唤醒，否者没有新的工作项被执行。
+
+        WQ_MEM_RECLAIM：       所有的工作队列可能在内存回收路径上被使用。使用该标志则保证至少有一个执行上下文而不管在任何内存压力之下。
+
+        WQ_HIGHPRI：           高优先级的工作项将被排练在队列头上，并且执行时不考虑并发级别；换句话说，只要资源可用，高优先级的工作项
+                               将尽可能快的执行。高优先工作项之间依据提交的顺序被执行。
+
+        WQ_CPU_INTENSIVE：     CPU 密集的工作项对并发级别并无贡献，换句话说，可运行的 CPU密集型工作项将不阻止其它工作项。这对于限定得
+                               工作项非常有用，因为它期望更多的 CPU 时钟周期，所以将它们的执行调度交给系统调度器。
+
+        WQ_DRAINING：          清空一个WQ。
+
+        WQ_RESCUER ：          如果Worker的内存分配失败，通过该标志位执行一个挽救操作，避免紧急任务被遗漏。
+
+        WQ_MAX_ACTIVE：        见max_active。
+
+        WQ_MAX_UNBOUND_PER_CPU:    未被使用，原解释为： 4 * #cpus for unbound wq
+
+        WQ_DFL_ACTIVE：        等于WQ_MAX_ACTIVE / 2,
+
+        PS： max_active：      决定了一个 wq 在 per-CPU 上能执行的最大工作项。比如 max_active 设置为 16 表示一个工作队列上最多 16 个
+                               工作项能同时在 per-CPU 上同时执行。当前实行中，对所有限定工作队列，max_active 的最大值是 512，而设定
+                               为 0 时表示是 256；而对于未限定工作队列，该最大值为：MAX[512，4 * num_possible_cpus() ]，除非有特别的
+                               理由需要限流或者其它原因，一般设定为 0 就可以了
+        
+工作队列的工作机制：
+        当Create workqueue时，如果没有指定singlethread，那么创建出来的Workqueue在所有的Active态CPU上都会有一个内核线程，反之只会有一个内核线程。
+        如果一个CPU，拥有了内核线程，那么他就会有一个自己的CWQ（全局队列），这个CWQ中包含了所有的的Work，并且被Worker所create的至少一个thread所
+        执行。Worker会依据work的重要性以及时间紧迫度来决定是否create一个新的worker线程来优先执行个别work。也因此，当指定一个work到一个workqueue
+        时，可以指定某一个CPU上。
+
+工作队列的使用过程：
+				创建/不创建(使用系统提供的默认)工作队列(create_workqueue)  -->> 创建工作项(INIT_WORK) 
+				-->> 工作项加入工作队列(queue_work) -->> 销毁(destroy)
+
+特点:
+				早期（Kernel Version < 2.6.36）版本中，工作队列create_workqueue是必须步骤，因此，内核中的模块都会自由的根据自己的需要来创建内核线程，
+				这些内核线程会在每个CPU上都挂一遍，而大部分的workqueue上挂载的work数量一般都很少，工作也很少，但他们又占用了内核资源。并且同一个queue
+				上的work只能被线性的执行，所以如果其中某一个work占用了大量时间，其后的work即便有较高的紧迫度，也只能被动等待。
+				新的机制下，一般的，大部分的模块都直接调用了INIT_WORK接口，这样，去掉了create_workqueue这个必须步骤，将大部分的模块所需要的work集中到
+				了系统默认提供的workqueue中，就使得内核线程被大大减少。同时，为了确保需要，又保留了create_workqueue的接口，供确有需要的模块调用。其次，
+				queue中的调度办法升级了，不再线性的执行，而是根据条件，优先执行，这样就确保了高优先级任务的执行效率。
+
+
+
+Workqueue.txt：
+
+在原始的工作队列实现中，一个多线程的Workqueue(Multi threaded (MT))在每个CPU上有一个工作者线程。
+而单线程的workqueue(Single threaded(ST))则在全系统范围内只有一个工作者线程。每个MT-WQ都有着和
+CPU数量一致的工作者线程。随着MT-WQ被使用的越来越广泛，以及CPU内核数量的增加，一部分系统所使用
+的32K的PID空间逐渐饱和，不够用了。
+解释：MT_WQ：如4核CPU，每个CPU上都要有一个worker-thread，每个任务，都必须在这四个thread上占用
+             一个PID，所以32K的PID空间，假设全部用来处理WQ工作，实际能使用的只有8K。其中的24K
+             的PID资源都被白白浪费掉了。
+
+尽管MT-WQ这种机制浪费了很大的资源，但是他们提供并发执行的效果并不理想。这个问题对于ST-WQ和MT-WQ
+都基本一样，尽管MT-WQ要稍微好点。每个工作队列都保持着自己的工作者线程池，一个MT-WQ能够为每一个
+CPU提供一个可执行的内容，而ST-WQ则只能在全系统范围内提供一个。工作项对有限的可执行内容的竞争会
+导致一系列的问题，如死锁。
+解释：假如4核CPU执行一个队列上的A、B、C、D个任务，最理想情况下，MT-WQ是能够在某一个时刻做到
+      CPU-1执行A任务，CPU-2执行B任务，CPU-3执行C任务，CPU-4执行D任务，依次类推。虽然这在实际
+      中不可能出现。但比较起ST-WQ，ST-WQ就根本没有这个可能。ST-WQ就只能先在四个CPU中的某一
+      个上执行完A任务，然后再用其中一个CPU来执行B任务，以此类推。所以，MT-WQ明显在并发执行的
+      效果上要好于ST-WQ，而且，对于高优先级任务处理也会比较适合。但是高并发性又意味着很有
+      可能导致死锁。
+
+这种并发程度和资源之间的矛盾关系迫使使用者必须去做出权衡。所以，Libata（内核维护者）选择了使用
+ST-WQ来执行拉PIO操作，其结果就是使用时必须接受不能同时对两个PIO进行操作这样的限制条件。因为MT-WQ
+当前还不能提供一个更好的并发性，所以如果用户需要更高的并发性，如异步或者文件缓存，则必须实现
+自己的线程池。
+并发控制的队列在实现时一定要达到以下目标：
+*保持与原工作队列API的兼容性。
+*让每个CPU都使用统一的一个Worker-Pool，这样工作队列就可以按需提供并发程度，从而避免浪费资源。
+*自动调节并发性程度的Worker-Pool，使使用该API的用户不必担心这些细节。

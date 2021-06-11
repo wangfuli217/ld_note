@@ -1,0 +1,57 @@
+-- all/pattern.lua (all.pattern)
+-- A Lua Library (ALL) - pattern utility functions.
+-- This is compatible with Lua 5.1.
+-- Licensed under the same terms as Lua itself.--DavidManura
+module("all.pattern", package.seeall)
+
+function import()
+  local env = getfenv(2)
+  for k,v in pairs(all.pattern) do env[k] = v end
+end
+
+-- Remove whitespace from pattern.
+-- Patterns may be expressed more readably with
+-- extra whitespace and then filtered through this function
+-- to remove this whitespace for processing.
+-- This function is inspired by the //x regex option in Perl.
+-- If the final pattern requires whitespace, escape it (e.g. "% ").
+-- Example: ("(x y)"):gsub(px" ^ %( . % . %) $ ", "t") --> "t"
+function px(s)
+  local n = 1
+  while true do
+    while true do -- removes spaces
+      local _, ne, np = s:find("^[^%s%%]*()%s*", n)
+      n = np
+      if np - 1 ~= ne then s = s:sub(1, np - 1) .. s:sub(ne + 1)
+      else break end
+    end
+    local m = s:match("%%(.?)", n) -- skip magic chars
+    if m == "b" then n = n + 4
+    elseif m then n = n + 2
+    else break end
+  end
+  return s
+end
+
+-- Lua pattern for matching Lua identifier.
+-- Warning: wrongly matches Lua keywords too.
+pat_id = "([%a_][%w_]*)"
+
+-- Lua pattern for matching Lua single line comment.
+pat_scomment = "(%-%-[^\n]*)"
+
+-- Lua pattern for matching Lua multi-line comment.
+pat_mcomment = "(%-%-%[(=*)%[.-%]%2%])"
+
+-- Other ideas....
+
+-- Possibly add more Lua parsing like in Perl Text-Balanced.
+-- Note: not all fragments can be parsed with plain Lua patterns,
+-- though regexes maybe.  There could possibly be a series of
+-- find_* functions.  For example, find_luastring(s, n) to find
+-- Lua syntax string at index n in string s.
+
+-- Possibly add a pure Lua implementation for matching patterns
+-- with alternations as in the regex "(yes|no)+" construct.
+-- Or maybe add a gmatch that takes multiple patterns and matches
+-- any of the patterns.

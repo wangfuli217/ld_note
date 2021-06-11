@@ -1,0 +1,146 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>第 9 章 使用lookupfile插件</title><link rel="stylesheet" href="http://easwy.com/blog/uploads/css/style.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.73.2"><link rel="start" href="index.html" title="vim使用进阶"><link rel="up" href="index.html" title="vim使用进阶"><link rel="prev" href="file_buf_explorer.html" title="第 8 章 文件浏览和缓冲区浏览"><link rel="next" href="filetype_on.html" title="第 10 章 开启文件类型检测"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">第 9 章 使用lookupfile插件</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="file_buf_explorer.html">上一页</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="filetype_on.html">下一页</a></td></tr></table><hr></div><div class="chapter" lang="zh-CN"><div class="titlepage"><div><div><h2 class="title"><a name="use_lookupfile_plugin"></a>第 9 章 使用lookupfile插件</h2></div></div></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p>
+    本节所用命令的帮助入口：
+  </p><pre class="programlisting">
+:help lookupfile
+</pre><p>
+    在文章<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-session-file-and-viminfo/">保存项目相关配置</a>中，我们讲过通过"<span class="emphasis"><em>:find</em></span>"命令打开指定的文件，不过使用"<span class="emphasis"><em>:find</em></span>"命令并不是非常的方便：一是如果项目比较大、文件比较多，find查找起来很慢；二是必须输入全部的文件名，不能使用正则表达式(regex)查找。
+  </p><p>
+    我们也介绍过vim提供的<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-netrw-bufexplorer-winmanager-plugin/">文件浏览插件</a>，你可以在浏览器中根据目录去查找，但这种方式在浏览目录时比较方便，查找一个已知名字（或知道部分名字）的文件效率就比较低了。
+  </p><p>
+    相比之下，在source insight中查找文件非常简单，只要输入部分的文件名，就可以找到符合条件的文件。
+  </p><p>
+    我一直被这个问题所困扰，直到有一天，在<a class="link" href="http://www.vim.org/">http://www.vim.org/</a>上发现了一个非常出色的插件，才彻底解决了查找文件效率低下的问题，它的功能毫不逊于source insight。在给该插件投票时，我选择了"<span class="bold"><strong>Life Changing</strong></span>"。是的，它改变了我的生活！
+  </p><p>
+    这个插件的名字是：<span class="bold"><strong>lookupfile</strong></span>！
+  </p><p>
+    Lookupfile插件可以在下面的链接下载：<a class="link" href="http://www.vim.org/scripts/script.php?script_id=1581">http://www.vim.org/scripts/script.php?script_id=1581</a>
+  </p><p>
+    它使用vim 7.0中插入模式下的下拉菜单补全功能，因此只能在vim 7.0及以上版本中使用。
+  </p><p>
+    下载该插件后，把它解压到你的~/.vim目录中，就完成了安装。然后在vim中执行"<span class="command"><strong>:helptags ~/.vim/doc</strong></span>"命令，生成help文件索引，然后就可以使用"<span class="command"><strong>:help lookupfile</strong></span>"命令查看lookupfile插件的帮助文件了。
+  </p><p>
+    <span class="bold"><strong>注：</strong></span>windows用户需要把这个插件解压在你的$vim/vimfiles或$HOME/vimfiles目录。
+  </p><p>
+    Lookupfile插件还需要最新的genutils支持，因此，需要下载genutils：<a class="link" href="http://www.vim.org/scripts/script.php?script_id=197">http://www.vim.org/scripts/script.php?script_id=197</a> 
+  </p><p>
+    这个插件提供了一些通用的函数，可供其它的脚本使用。它的安装方法也是在~/.vim目录解压就可以了。需要注意的是，最新版本的genutils使用了新的自动加载方式，所以和以前的版本不兼容。如果你的其它插件需要使用genutils的旧版本的话，你需要参照genutils的说明进行配置，以便使新旧两个版本能协同工作。
+  </p><p>
+    现在我们介绍lookupfile插件。虽然名字为lookupfile，其实这个插件它不仅能用来查找文件，还可以在打开的缓冲区中查找，按目录查找，等等。
+  </p><p>
+    <span class="bold"><strong>[项目文件查找]</strong></span>
+  </p><p>
+    Lookupfile在查找文件时，需要使用tag文件。它可以使用<span class="command"><strong>ctags</strong></span>命令生成的tag文件，不过查找效率会比较低。因此我们会专门为它生成一个包含项目中所有文件名的tag文件。
+  </p><p>
+    我编写了下面的shell脚本，为vim70的源代码，生成一个文件名tag文件。
+  </p><pre class="programlisting">
+#!/bin/sh
+# generate tag file for lookupfile plugin
+echo -e "!_TAG_FILE_SORTED\t2\t/2=foldcase/" &gt; filenametags
+find . -not -regex '.*\.\(png\|gif\)' -type f -printf "%f\t%p\t1\n" | \
+    sort -f &gt;&gt; filenametags </pre><p>
+    回想一下我们在"<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-use-ctags-tag-file/">使用标签(tag)文件</a>"一文中介绍的tag文件的格式。再对照脚本命令来看：
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      echo命令用来生成filenametags文件中的"!_TAG_FILE_SORTED"行，表明此tag文件是经过排序的。
+    </li><li>
+      find命令用来查找所有类型为普通文件，文件后缀名不是.png和.gif的文件，找到的文件按"文件名\t文件路径\t1"的格式输出出来。
+    </li><li>
+      sort命令则把find命令的输出重新排序，然后写入filenametags文件中
+    </li></ul></div><p>
+    在~/src/vim70/目录下运行该脚本，会生成一个名为filenametags的文件，包含了vim70目录下的所有文件的名字及其所在目录。
+  </p><p>
+    现在我们需要让lookupfile插件知道到哪去找文件名tag文件。我们假定vim当前工作目录为~/src/vim70/，执行下面的命令：
+  </p><pre class="programlisting">
+:let g:LookupFile_TagExpr = '"./filenametags"' </pre><p>
+    <span class="blod">注：</span>如果不设定<span class="emphasis"><em>g:LookupFile_TagExpr</em></span>的值，那么lookupfile插件会以tags选项定义的文件作为它的tag文件。
+  </p><p>
+    现在我们就可以使用lookupfile来打开文件了，按"<span class="command"><strong>&lt;F5&gt;</strong></span>"或输入"<span class="command"><strong>:LookupFile</strong></span>"在当前窗口上方打开一个lookupfile小窗口，开始输入文件名（至少4个字符），随着你的输入，符合条件的文件就列在下拉列表中了。文件名可以使用vim的正则表达式，这大大方便了文件的查找。你可以用"<span class="command"><strong>CTRL-N</strong></span>"和"<span class="command"><strong>CTRL-P</strong></span>"（或者用上、下光标键）来在下拉列表中选择你所需的文件。选中文件后，按回车，就可以在之前的窗口中打开此文件。
+  </p><p>
+    下图是使用lookupfile插件查找文件的一个例子：
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/02/lookupfile-300x225.jpg" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/02/lookupfile.jpg">点击查看大图</a></div></div><p>
+    在屏幕最上方的窗口就是lookupfile窗口，在这个窗口中输入"gui.*x11"几个字符，查找到6个匹配文件，使用<span class="command"><strong>CTRL-N</strong></span>选中gui_x11.c文件，然后按回车，就会在前一个vim窗口中打开src/gui_x11.c文件，lookupfile窗口也自动关闭了。是不是非常方便？！
+  </p><p>
+    <span class="bold"><strong>[缓冲区查找]</strong></span>
+  </p><p>
+    在开发过程中，我经常会同时打开数十甚至上百个文件。即使是使用BufExplorer插件，想在这么多buffer中切换到自己所要的文件，也不是件容易的事。
+  </p><p>
+    Lookupfile插件提供了一个按缓冲区名字查找缓冲区的方式，只要输入缓冲区的名字（可以是正则表达式），它就可以把匹配的缓冲区列在下拉列表中，同时还会列出该缓冲区内文件的路径，当你的buffer中有多个同名文件时，这可以帮你迅速找到你想要的文件。
+  </p><p>
+    使用"<span class="command"><strong>:LUBufs</strong></span>"命令开始在缓冲区中查找，输入缓冲区的名字，在你输入的过程中，符合条件的缓冲区就显示在下拉列表中了，选中所需缓冲区后，按回车，就会切换你所选的缓冲区。下图是一个示例：
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/02/lubufs-300x225.jpg" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/02/lubufs.jpg">点击查看大图</a></div></div><p>
+    <span class="bold"><strong>[浏览目录]</strong></span>
+  </p><p>
+    Lookupfile插件还提供了目录浏览的功能，使用"<span class="command"><strong>:LUWalk</strong></span>"打开lookupfile窗口后，就可以输入目录，lookupfile会在下拉列表中列出这个目录中的所有子目录及文件供选择，如果选择了目录，就会显示这个目录下的子目录和文件；如果选择了文件，就在vim中打开这个文件。
+  </p><p>
+    下图是使用LUWalk的一个抓图：
+  </p><div class="informalfigure"><div class="mediaobject" align="center"><img src="http://easwy.com/blog/uploads/2009/02/luwalk-300x225.jpg" align="middle"></div><div class="caption" align="center"><a class="link" href="http://easwy.com/blog/uploads/2009/02/luwalk.jpg">点击查看大图</a></div></div><p>
+    Lookupfile插件还提供了LUPath和LUArgs两个功能，这两个功能我用的不多，就不在这里介绍了。感兴趣的朋友读一下lookupfile的手册。
+  </p><p>
+    <span class="bold"><strong>[Lookupfile配置]</strong></span>
+  </p><p>
+    Lookupfile插件提供了一些配置选项，通过调整这些配置选项，使它更符合你的工作习惯。下面是我的vimrc中关于lookupfile的设置，供参考：
+  </p><pre class="programlisting">
+""""""""""""""""""""""""""""""
+" lookupfile setting
+""""""""""""""""""""""""""""""
+let g:LookupFile_MinPatLength = 2               "最少输入2个字符才开始查找
+let g:LookupFile_PreserveLastPattern = 0        "不保存上次查找的字符串
+let g:LookupFile_PreservePatternHistory = 1     "保存查找历史
+let g:LookupFile_AlwaysAcceptFirst = 1          "回车打开第一个匹配项目
+let g:LookupFile_AllowNewFiles = 0              "不允许创建不存在的文件
+if filereadable("./filenametags")                "设置tag文件的名字
+let g:LookupFile_TagExpr = '"./filenametags"'
+endif
+nmap &lt;silent&gt; &lt;leader&gt;lk &lt;Plug&gt;LookupFile&lt;cr&gt;   "映射LookupFile为,lk
+nmap &lt;silent&gt; &lt;leader&gt;ll :LUBufs&lt;cr&gt;            "映射LUBufs为,ll
+nmap &lt;silent&gt; &lt;leader&gt;lw :LUWalk&lt;cr&gt;            "映射LUWalk为,lw </pre><p>
+    有了上面的定义，当我输入"<span class="command"><strong>,lk</strong></span>"时，就会在tag文件中查找指定的文件名；当输入"<span class="command"><strong>,ll</strong></span>"时，就会在当前已打开的buffer中查找指定名字的buffer；当输入"<span class="command"><strong>,lw</strong></span>"时，就会在指定目录结构中查找。
+  </p><p>
+    另外，我还在项目相关的配置文件vim70sx.vim（参考<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-save-project-configuration/">保存项目相关配置</a>）中加入了lookupfile所使用的tag文件的信息：
+  </p><pre class="programlisting">
+" lookup file tag file
+let g:LookupFile_TagExpr = '"filenametags"' </pre><p>
+    这样，在恢复前次会话时就给lookupfile插件定义了tag文件。
+  </p><p>
+    在用lookupfile插件查找文件时，是区分文件名的大小写的，如果想进行忽略大小写的匹配，可以使用vim忽略大小写的正则表达式，即在文件名的前面加上"\c"字符。举个例子，当你输入"\cab.c"时，你可能会得到"ab.c"、"Ab.c"、"AB.c"...
+  </p><p>
+    <span class="bole">注：</span>如果想加快lookupfile忽略大小写查找的速度，在生成文件名tag文件时，使用混合大小写排序。这在文章<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-use-ctags-tag-file/">使用标签(tag)文件</a>有所提及。
+  </p><p>
+    通常情况下我都进行忽略大小写的查找，每次都输入"\c"很麻烦。没关系，lookupfile插件提供了扩展功能，把下面这段代码加入你的vimrc中，就可以每次在查找文件时都忽略大小写查找了：
+  </p><pre class="programlisting">
+" lookup file with ignore case
+function! LookupFile_IgnoreCaseFunc(pattern)
+    let _tags = &amp;tags
+    try
+        let &amp;tags = eval(g:LookupFile_TagExpr)
+        let newpattern = '\c' . a:pattern
+        let tags = taglist(newpattern)
+    catch
+        echohl ErrorMsg | echo "Exception: " . v:exception | echohl NONE
+        return ""
+    finally
+        let &amp;tags = _tags
+    endtry
+
+    " Show the matches for what is typed so far.
+    let files = map(tags, 'v:val["filename"]')
+    return files
+endfunction
+let g:LookupFile_LookupFunc = 'LookupFile_IgnoreCaseFunc' </pre><p>
+    有时在LUBufs时也需要忽略缓冲区名字的大小写，我是通过直接修改lookupfile插件的方法，在LUBufs查找的字符串前都加上"\c"，使之忽略大小写。如果你不想这样，可以每次在缓冲区名字前手动加上"\c"。
+  </p><p>
+    本文关于Lookupfile插件就介绍这么多，请阅读手册获取更多的信息。
+  </p><p>
+    这是一个非常好的插件，希望能为更多人喜爱！
+  </p><p>
+    也欢迎大家多交流使用中的心得和疑问。
+  </p><p>
+    <span class="bold"><strong>[参考文档]</strong></span>
+  </p><div class="itemizedlist"><ul type="disc"><li>
+      vim手册
+    </li><li><a class="link" href="http://vimcdoc.sourceforge.net/">vim中文手册</a></li></ul></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p><span class="bold"><strong>原创文章，转载请注明：</strong></span>转载自<a class="link" href="http://easwy.com/blog/">Easwy的博客</a> [  <a class="link" href="http://easwy.com/blog/">http://easwy.com/blog/</a> ]</p><p>
+    <span class="bold"><strong>　　　　本文链接地址:</strong></span> <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-lookupfile-plugin/">http://easwy.com/blog/archives/advanced-vim-skills-lookupfile-plugin/</a>
+  </p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="file_buf_explorer.html">上一页</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="filetype_on.html">下一页</a></td></tr><tr><td width="40%" align="left" valign="top">第 8 章 文件浏览和缓冲区浏览 </td><td width="20%" align="center"><a accesskey="h" href="index.html">起始页</a></td><td width="40%" align="right" valign="top"> 第 10 章 开启文件类型检测</td></tr></table></div></body></html>

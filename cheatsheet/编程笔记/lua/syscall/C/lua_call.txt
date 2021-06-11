@@ -1,0 +1,29 @@
+#if 0
+lua_call: [-(nargs+1), +nresults, e]
+
+void lua_call (lua_State *L, int nargs, int nresults);调用一个函数。
+要调用一个函数请遵循以下协议： 
+首先，要调用的函数应该被压入栈； 
+接着，把需要传递给这个函数的参数按正序压栈；这是指第一个参数首先压栈。 
+最后调用一下 lua_call； 
+
+nargs 是你压入栈的参数个数。当函数调用完毕后，所有的参数以及函数本身都会出栈。 
+而函数的返回值这时则被压栈。返回值的个数将被调整为 nresults 个， 除非 nresults 被设置成 LUA_MULTRET。
+在这种情况下，所有的返回值都被压入堆栈中。 Lua 会保证返回值都放入栈空间中。 
+函数返回值将按正序压栈(第一个返回值首先压栈)，因此在调用结束后，最后一个返回值将被放在栈顶。
+
+被调用函数内发生的错误将(通过 longjmp)一直上抛。
+下面的例子中，这行 Lua 代码等价于在宿主程序中用 C 代码做一些工作：
+     a = f("how", t.x, 14)
+这里是 C 里的代码：
+
+     lua_getglobal(L, "f");                  /* function to be called */
+     lua_pushliteral(L, "how");                       /* 1st argument */
+     lua_getglobal(L, "t");                    /* table to be indexed */
+     lua_getfield(L, -1, "x");        /* push result of t.x (2nd arg) */
+     lua_remove(L, -2);                  /* remove 't' from the stack */
+     lua_pushinteger(L, 14);                          /* 3rd argument */
+     lua_call(L, 3, 1);     /* call 'f' with 3 arguments and 1 result */
+     lua_setglobal(L, "a");                         /* set global 'a' */
+注意上面这段代码是 平衡 的： 到了最后，堆栈恢复成原有的配置。 这是一种良好的编程习惯。
+# endif

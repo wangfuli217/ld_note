@@ -1,0 +1,109 @@
+多线程的概念和基本操作
+	基本概念
+		目前主流的操作系统支持多进程,而在每一个进程的内部,可以支持多线程,也就是说线程是进程中的一个程序
+		进程是重量级单位,每个进程都需要独立的内存空间,启动新的进程对资源是很大的消耗,而线程是轻量级单位,线程共享所在进程的内存空间,但是每个线程都有一块很小的独立栈区
+
+线程的创建
+	pthread_create函数
+	    #include <pthread.h>
+	    int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+		void *(*start_routine) (void *), void *arg);
+		Compile and link with -pthread.
+		第一个参数:用于存储新线程的ID
+		第二个参数:线程的属性,给NULL即可,表示默认属性
+		第三个参数:函数指针,表示新线程执行的处理函数
+		第四个参数:作为第三个参数函数指针的参数
+		返回值:成功返回0,失败直接返回错误编号
+		函数功能:主要用于在正在运行的进程中启动新的线程
+		注意:
+			编译连接时,记得加上选项,-pthread
+			当启动新线程之后,子线程和主线程各自独立运行,每个线程内部的代码按照次序执行;也就是多线程之间相互独立,又相互影响,主线程结束,进程结束,进程中所有的子线程随之结束
+
+		练习:
+			编程实现启动一个子进程,要求子线程和主线程各自打印0~99之间的数,并且观察结果
+
+	 #include <pthread.h>
+	 pthread_t pthread_self(void);
+		函数功能:
+			主要用于获取正在运行的线程的ID,通常都是成功的,通过返回值返回获取到的ID
+
+		练习:
+			在进程中申请int类型的动态内存,然后进行初始化,保存一个圆的半径,启动一个子进程,在子线程中计算圆的周长和面积,并且打印,主线程等待子线程处理完毕之后,再释放申请的动态内存
+
+线程的等待和分享
+	pthread_join函数
+		#include<pthread.h>
+		int pthread_join(pthread_t thread,void **retval);
+		第一个参数:线程的ID
+		第二个参数:二级指针,用于获取线程的退出码
+		函数功能:主要用于等待一个线程的结束,并且获取退出码
+		注意:
+			该函数根据参数thread指定的线程进行等待,将目标线程中止时的退出状态信息拷贝到*retval这个参数指定的位置上
+
+	pthread_detach函数
+	   #include <pthread.h>
+	   int pthread_detach(pthread_t thread);
+	   函数功能:
+			主要用于将参数指定的线程标记为分离状态,对于分离状态的线程来说,当该线程终止时会自动将资源释放给系统,不需要其它线程的加入/等待,也就是说分离的线程无法被其它线程使用pthread_join等待
+	   建议:
+			对于新启动的线程来说,要么使用pthread_detach设置为分离状态,要么使用pthread_join设置为可加入状态
+
+线程的终止和取消
+	pthread_exit函数
+	  #include <pthread.h>
+	  void pthread_exit(void *retval);
+	  函数功能:
+			主要用于终止正在运行的线程,通过参数retval来带出线程的退出状态信息,在同一进程中的其他线程可以通过调用pthread_join函数来获取退出状态信息
+
+	pthread_cancel函数
+		#include <pthread.h>
+	 	int pthread_cancel(pthread_t thread);
+			函数功能:
+				主要用于对参数指定的线程发送取消的请求,目标线程是否会被取消以及何时被取消,主要依赖于两个属性:state和type的值
+
+	  #include <pthread.h>
+		int pthread_setcancelstate(int state, int *oldstate);
+			第一个参数:新的取消状态
+			PTHREAD_CANCEL_ENABLE - 允许被取消(默认的状态)
+			PTHREAD_CANCEL_DISABLE - 不允许被取消
+			第二个参数:获取之前的取消状态,不想获取给NULL即可
+			函数功能:
+				主要用于设置新的取消状态,返回之前的取消状态
+		int pthread_setcanceltype(int type, int *oldtype);
+			第一个参数:设置新的取消类型
+			PTHREAD_CANCEL_DEFERRER - 延迟取消(默认的取消类型)
+			PTHREAD_CACEL_ASYNCHRONOUS - 立即取消
+			第二个参数:获取旧的取消类型,不获取则给NULL即可
+			函数功能:
+				主要用于设置新的取消类型,获取之前的取消类型
+
+线程的同步问题
+	基本概念
+		多线程共享进程中的资源,多线程同时访问相同的共享资源时需要相互的协调,以避免出现数据的不一致和混乱问题,而线程之间的协调和通信叫做线程的同步问题
+
+线程同步的思想
+	多线程访问共享资源时,应该进行串行,而不是并行
+
+线程同步的解决方案
+	线程中提供了互斥量(互斥锁)的机制来实现线程的同步
+
+互斥量的使用步骤
+	定义互斥量
+		pthread_mutex_t mutex;
+	初始化互斥量(下面这种方式称为动态初始化,静态初始化可以写成pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER)
+		动态初始化需要调用销毁函数手动释放内存
+		pthread_mutex_init(&mutex,0);
+	使用互斥量进行加锁
+		pthread_mutex_lock(&mutex);
+	使用共享资源
+	使用互斥量进行解锁
+		pthread_mutex_unlock(&mutex);
+	如果不再使用,则销毁互斥量
+		pthread_mutex_destory(&mutex);
+
+作业:
+	复习前面学过的文件操作,网络编程以及多线程知识
+
+明日预报:
+	线程的同步问题
+	综合小项目:基于TCP模型的聊天室

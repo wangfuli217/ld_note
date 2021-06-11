@@ -1,0 +1,292 @@
+##########################################################
+#                   变量检查
+#
+# 检查设置的变量是否正确
+#
+##########################################################
+
+## Check ACTION
+ifeq ($(MAKECMDGOALS),)
+ACTION := $(strip $(ACTION))
+ifeq ($(ACTION),)
+$(error "ACTION is not set!")
+endif
+ifneq ($(words $(ACTION)),1)
+$(error "ACTION's value is too many!")
+endif
+allact = ar so lib app export
+ifeq ($(allact),$(filter-out $(ACTION),$(allact)))
+$(error "ACTION's value ($(ACTION)) is invalid!")
+endif
+endif
+
+## Check CC
+ifneq ($(ACTION), export)
+CC := $(strip $(CC))
+ifeq ($(CC),)
+$(error "CC is not set!")
+endif
+endif
+
+## Check LD
+ifneq ($(ACTION), export)
+LD := $(strip $(LD))
+ifeq ($(LD),)
+$(error "LD is not set!")
+endif
+endif
+
+## Check AR, when ACTION's value is ar
+ifeq ($(ACTION),ar)
+AR := $(strip $(AR))
+ifeq ($(AR),)
+$(error "AR is not set!")
+endif
+endif
+
+## Check SUFFIX
+
+ifneq ($(ACTION), export)
+SUFFIX := $(strip $(SUFFIX))
+SUFFIX := $(sort $(SUFFIX))
+ifeq ($(SUFFIX),)
+$(error "SUFFIX is not set!")
+endif
+ifeq ($(SUFFIX),d)
+$(error "SUFFIX's value (d) is invalid!")
+endif
+ifeq ($(SUFFIX),o)
+$(error "SUFFIX's value (o) is invalid!")
+endif
+endif
+
+## Check SUB_SRC_DIR
+SUB_SRC_DIR := $(strip $(SUB_SRC_DIR))
+ifneq ($(SUB_SRC_DIR),)
+$(foreach var,$(SUB_SRC_DIR),$(call check_dir2,SUB_SRC_DIR,$(var)))
+endif
+
+## Check TARGET
+ifneq ($(ACTION), export)
+TARGET := $(strip $(TARGET))
+ifeq ($(TARGET),)
+$(error "TARGET is not set!")
+endif
+endif
+
+## Check CFLAGS
+CFLAGS := $(strip $(CFLAGS))
+
+## Check LDFLAGS
+LDFLAGS := $(strip $(LDFLAGS))
+
+## Check OBJ_DIR
+OBJ_DIR := $(strip $(OBJ_DIR))
+ifeq ($(OBJ_DIR),)
+OBJ_DIR=./
+endif
+ifneq ($(words $(sort $(OBJ_DIR))),1)
+$(error "OBJ_DIR's value is too many!")
+endif
+ifneq ($(call check_dir,$(OBJ_DIR)),)
+$(error "OBJ's value ($(OBJ_DIR)) does not exist!")
+endif
+
+## Check HEAD_DIR
+ifneq ($(ACTION), export)
+HEAD_DIR := $(strip $(HEAD_DIR))
+ifneq ($(HEAD_DIR),)
+$(foreach var,$(HEAD_DIR),$(call check_dir2,HEAD_DIR,$(var)))
+endif
+endif
+
+## Check LIB_DIR
+ifneq ($(ACTION), export)
+LIB_DIR := $(strip $(LIB_DIR))
+ifneq ($(LIB_DIR),)
+$(foreach var,$(LIB_DIR),$(call check_dir2,LIB_DIR,$(var)))
+endif
+endif
+
+## Check DY_LIB
+DY_LIB := $(strip $(DY_LIB))
+
+## Check ST_LIB
+ST_LIB := $(strip $(ST_LIB))
+
+## Check TARGET_DIR
+ifneq ($(ACTION), export)
+TARGET_DIR := $(strip $(TARGET_DIR))
+ifneq ($(TARGET_DIR),)
+$(foreach var,$(TARGET_DIR),$(call check_dir2,TARGET_DIR,$(var)))
+endif
+endif
+
+## Check EXPORT_FILE
+EXPORT_FILE := $(strip $(EXPORT_FILE))
+EXPORT_FILE := $(sort $(EXPORT_FILE))
+EXPORT_FILE_DIR := $(strip $(EXPORT_FILE_DIR))
+EXPORT_FILE_DIR := $(sort $(EXPORT_FILE_DIR))
+ifneq ($(EXPORT_FILE),)
+$(foreach var,$(EXPORT_FILE_DIR),$(call check_dir2,EXPORT_FILE_DIR,$(var)))
+$(foreach var,$(EXPORT_FILE),$(call check_file2,EXPORT_FILE,$(var)))
+endif
+
+## Check SUB_MAKE_DIR
+SUB_MAKE_DIR := $(strip $(SUB_MAKE_DIR))
+$(foreach var,$(SUB_MAKE_DIR),$(call check_dir2,SUB_MAKE_DIR,$(var)))
+
+## Check LAST_SUB_MAKE_DIR
+LAST_SUB_MAKE_DIR := $(strip $(LAST_SUB_MAKE_DIR))
+$(foreach var,$(LAST_SUM_MAKE_DIR),$(call check_dir2,LAST_SUB_MAKE_DIR,$(var)))
+
+##########################################################
+#                   根据配置生成需要的变量
+#
+#
+#
+##########################################################
+
+#所有.SUFFIX文件
+all_src = $(foreach i,$(SUFFIX),$(wildcard ./*.$(i) $(patsubst %,./%/*.$(i),$(SUB_SRC_DIR))))
+
+#定义了obj-X变量,x是SUFFIX中的值
+$(eval $(foreach i,$(SUFFIX),$(call set_obj_x,$i,$(OBJ_DIR),$(all_src))))
+
+#所有.SUFFIX文件对应的.o文件
+all_obj = $(foreach i,$(SUFFIX),$(obj-$i))
+
+#头文件路径
+head_dir = $(foreach d,$(HEAD_DIR),-I$d)
+
+#连接库路径
+lib_dir = $(foreach d,$(LIB_DIR),-L$d)
+
+#动态连接库
+dy_lib	= $(foreach d,$(DY_LIB),-l$d)
+
+#静态连接库
+st_lib	= $(foreach d,$(ST_LIB),-l$d)
+
+#最终的编译选项
+cflags = $(head_dir) $(CFLAGS) 
+
+#最终的连接选项
+ldflags = $(lib_dir) -Wl,-Bstatic $(st_lib) -Wl,-Bdynamic $(dy_lib) $(LDFLAGS)
+
+#静态库目标
+static_target = lib$(TARGET).a
+
+#动态库目标
+dynamic_target = lib$(TARGET).so
+
+##########################################################
+#                   开始编译
+#
+# 将所有.SUFFIX的文件先获取对应的依赖关系.d文件
+# 然后编译成.o文件
+# 最后将所有的.o文件连接成目标文TARGET
+#
+##########################################################
+ifeq ($(MAKECMDGOALS),dynamic)  #动态库
+all = $(dynamic_target)
+cflags += -fpic -shared
+endif
+
+ifeq ($(MAKECMDGOALS),static)   #静态库
+all = $(static_target)
+endif
+
+ifeq ($(ACTION),ar)    #静态库
+all = $(static_target)
+endif
+
+ifeq ($(ACTION),so)    #动态库
+all = $(dynamic_target)
+cflags += -fpic -shared
+endif
+
+ifeq ($(ACTION),lib)   #动态库和静态库
+all = lib
+endif
+
+ifeq ($(ACTION),app)   #可执行程序
+all = $(TARGET)
+endif
+
+ifeq ($(ACTION), export)  #只导出文件
+all =
+endif
+
+.PHONY = export unexport lib clean 
+export: $(all) $(EXPORT_FILE) 
+	for i in $(EXPORT_FILE); do for d in $(EXPORT_FILE_DIR);do path=$$d/`dirname $$i`;mkdir -p $$path;cp -rf $$i $$path;echo "$$i --> $$path";done;done
+	for d in $(LAST_SUB_MAKE_DIR);do make -C $$d;done;
+
+unexport:
+	for i in $(EXPORT_FILE); do for d in $(EXPORT_FILE_DIR);do path=$$d/`dirname $$i`;rm -rf $$path/$$i;done;done
+	for i in $(TARGET_DIR);do rm -rf $$i/$(static_target);done
+	for i in $(TARGET_DIR);do rm -rf $$i/$(dynamic_target);done
+	for i in $(TARGET_DIR);do rm -rf $$i/$(TARGET);done
+	for d in $(LAST_SUB_MAKE_DIR);do make unexport -C $$d;done;
+	
+
+#动态库和静态库
+lib: 
+	make static
+	make clean
+	make dynamic
+	make clean
+
+#静态库
+static : $(static_target)
+$(static_target):$(all_obj)
+	for d in $(SUB_MAKE_DIR);do make -C $$d; done;
+	$(AR) rcvs $@ $^
+	for i in $(TARGET_DIR);do if [ -d $$i ];then cp $@ $$i;fi;done
+
+#动态库
+dynamic : $(dynamic_target) 
+$(dynamic_target): $(all_obj)
+	for d in $(SUB_MAKE_DIR);do make -C $$d; done;
+	$(CC) -o $@ $^ $(ldflags) -shared
+	for i in $(TARGET_DIR);do if [ -d $$i ];then cp $@ $$i;fi;done
+
+#应用程序
+app : $(TARGET)
+$(TARGET): $(all_obj)
+	for d in $(SUB_MAKE_DIR);do make -C $$d; done;
+	$(CC) -o $@ $^ $(ldflags) 
+	for i in $(TARGET_DIR);do if [ -d $$i ];then cp $@ $$i;fi;done
+
+clean:
+	rm -f $(TARGET) $(static_target) $(dynamic_target)
+	for d in $(SUB_MAKE_DIR);do make clean -C $$d; done;
+	for d in $(LAST_SUB_MAKE_DIR);do make clean -C $$d; done;
+	find $(OBJ_DIR) -name "*.o" -exec rm -f {} +
+	find $(OBJ_DIR) -name "*.d" -exec rm -f {} +
+
+#obj文件生成规则
+#例:
+#  cmd_o  文件后缀($1) obj文件存放的路径($2) 编译器($3) 编译选项($4) 
+#$(call cmd_o,c,obj,gcc,-g -O1)第一次展开后:
+#   $(obj-c): obj%.o:%.c MAKEFILE_LIST
+#   	gcc -g -O1 -Wp,-MT,$@ -Wp,-MMD,$@.d -c -o $@ $<
+#  这里的目标文件使用了Makefile的静态模式，可以指定多个目标
+#  obj%.o:%.c说明了每一个目标文件的依赖关系
+#
+#  MAKEFIL_LIST是make的内置变量,是make读取的文件的列表
+#  这样确保了Makefile被修改后也会进行重新编译
+define cmd_o
+$$(obj-$1): $2/%.o:%.$1 $(MAKEFILE_LIST)
+	mkdir -p `dirname $$@`
+	$3 $4 -Wp,-MT,$$@ -Wp,-MMD,$$@.d -c -o $$@ $$<
+endef
+
+#给出了obj-(SUFIX)分别对应的编译规则
+#当前是对所有类型后缀的文件使用相同的编译规则$(CC) $(cflags)
+#以后有需要的时候需要改成对不同后缀的文件使用不同的编译规则
+$(eval $(foreach i,$(SUFFIX),$(call cmd_o,$i,$(OBJ_DIR),$(CC),$(cflags))))
+
+#引入gcc自动生成的依赖文件
+-include $(patsubst %.o,%o.d,$(all_obj))

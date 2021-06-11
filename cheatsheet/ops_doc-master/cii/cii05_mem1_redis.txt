@@ -1,0 +1,80 @@
+    接口Mem用一系列宏指令和例程重新包装了标准库中提供的四个内在管理全程
+malloc、calloc、realloc和free，使得这些例程错误更少，并且还提供了一些其他的功能。
+
+    Mem的分配函数与标准库中的函数类似，但是它们不接收大小为0的分配，也不会返回空指针，而是产生异常。
+    
+    extern const Except_T Mem_Failed;
+    extern void *Mem_alloc (long nbytes, const char *file, int line);
+    extern void *Mem_calloc(long count, long nbytes, const char *file, int line);
+
+#define ALLOC(nbytes) \
+    Mem_alloc((nbytes), __FILE__, __LINE__)
+#define CALLOC(count, nbytes) \
+    Mem_calloc((count), (nbytes), __FILE__, __LINE__)
+#define NEW(p) ((p) = ALLOC((long)sizeof *(p))) 
+#define NEW0(p) ((p) = CALLOC(1, (long)sizeof *(p)))
+
+extern void Mem_free(void *ptr, const char *file, int line); 
+#define FREE(ptr) ((void)(Mem_free((ptr), __FILE__, __LINE__), (ptr) = 0))
+
+#define RESIZE(ptr, len)    ((ptr) = mem_resize((len), \
+    (ptr), __FILE__, __func__, __LINE__)) 
+-------------------
+NEW(p)  分配一个未初始化的内存块以容纳*p，并将p设置为该块的地址。
+NEW0(p) 完成工作类似于NEW，还将内存块清零。
+
+malloc和calloc的参数类型为size_t，sizeof得到的常数，其类型也是size_t。
+size_t类型是一个无符号整数类型，能够表示可声明的最大对象的大小，在标准库中指定对象大小是都会使用该类型。
+
+mem_free 需要一个指向被释放内存块的指针作为参数。
+如果ptr不为NULL指针，那么mem_free将释放该内存块；
+如果ptr是NULL指针，mem_free没有效果。
+FREE 宏也需要一个指向内存块的指针作为参数，他调用mem_free释放该块，并将ptr设置为NULL指针。
+
+捕获错误
+-------------------
+RESIZE 实现了一些已检查的运行时错误，有助于捕获内存访问错误。在该实现中
+将并非由mem_alloc mem_calloc或mem_resize返回的非NULL指针ptr传递给mem_free是一个已检查的运行时错误，
+将已经传递给mem_free或mem_resize的指针ptr再次传递给mem_free也是已检查的运行时错误。
+mem_free的file和line参数的值用于报告这些已检查的运行时错误。
+
+void *mem_resize(ssize_t len,                                                                        
+                void *ptr, 
+                const char *file,                                                                    
+                const char *func,                                                                    
+                int line); 
+#define RESIZE(ptr, len)    ((ptr) = mem_resize((len), \                                             
+    (ptr), __FILE__, __func__, __LINE__))  
+将修改上一次调用mem_alloc mem_calloc或mem_resize分配的内存块的长度。
+
+MEM API
+-------------------
+    向mem接口中任何函数或宏传递nbytes=0，则为已检查的运行时错误。
+    
+ALLOC(nbytes) 分配nbytes个字节并返回指向第一个字节的指针。分配的nbytes个字节是未初始化的。
+CALLOC(count, nbytes) 为一个count个元素的数组分配空间，每个数组元素占nbytes字节，并返回一个指针指向第一个元素
+count=0则造成已检查的运行时错误。各个元素都被请零。
+FREE(ptr)     如果ptr不是NULL，释放ptr，则将ptr清零。作为表达式,ptr会被求值多次。
+
+void *mem_alloc(long nbytes, const char *file, int lint) 分配nbytes个字节并返回指向第一个字节的指针。分配的nbytes
+个字节是未初始化的，如果mem_alloc引发mem_failed异常，则则将file和line作为出错的源代码位置报告。
+void *mem_calloc(long nbytes, const char *file, int lint) 为一个count个元素的数组分配空间，每个数组元素占nbytes字节，
+并返回第一个指针指向第一个元素。count=0则造成已检查的运行时错误。各个元素都被清零，这不见得会将指针初始化为NULL
+或将浮点值初始化为0.0.如果mem_calloc引发mem_failed异常，则将line和file作为出错的源代码位置报告。
+
+void mem_free(void *ptr, const char *file, int line) 如果ptr不是NULL，则释放ptr。如果ptr指针不是此前调用mem分配返回返回的
+则造成未检查的运行时错误。接口的实现可使用file和line来报告内存使用错误
+
+void *mem_resize(void *ptr, long nbytes, const char *file, int line) 变更ptr指向的内存块的长度，使之包含nbytes字节，
+并返回指向新内存块第一个字节的指针。
+如果nbytes大于原来的内存块的长度，新增的字节将是未初始化的。
+如果nbytes小于原来的内存块的长度，则原来的内存块中仅有前nbytes个字节出现在新内存块中。
+如果mem_resize引发mem_failed异常，则将file和line作为出错的源代码位置报告。
+如果ptr == NULL，则为已检查的运行时错误，如果ptr指针不是此前调用mem分配函数返回的，则为未检查的运行时错误
+
+NEW(p)
+NEW0(p) 分配一个足够大、空容纳*p的内存块，将p设置为该内存块的地址，并返回该地址。
+        NEW0(p)将所分配内存块的各个字节清零，而NEW分配的内存块则不进行初始化，各个字节的内容是未初始化的。
+        两个宏都只对ptr求值一次
+RESIZE(ptr,nbytes) 变更ptr指向的内存块的长度，使之包含nbytes字节，将ptr重新指向调整大小之后的内存块，
+并返回该内存块的地址。作为表达式，ptr会被求值多次。

@@ -1,0 +1,36 @@
+--[[
+  coroutine.wrap(f)
+  创建一个主体函数为 f 的新协程。 f 必须是一个 Lua 的函数。 返回一个函数， 每次调用该函数都会延续该协程。 
+  传给这个函数的参数都会作为 resume 的额外参数。 和 resume 返回相同的值， 只是没有第一个布尔量。
+--]]
+
+local wrap = coroutine.wrap(
+    function (input)
+        print("input : "..input)
+        local param1, param2 = coroutine.yield("yield")
+        print("param1 is : "..param1)
+        print("param2 is : "..param2)
+        -- return 也会将结果返回给 resume
+        return "return"
+    end)
+
+--第一次执行,将参数传给input
+print(wrap("function input"))
+print("this is main chunk")
+--第二次执行,将参数作为yield的返回值,传给param1 param2
+print(wrap("param1", "param2"))
+
+--[[
+coroutine.wrap不是保护模式运行,如果发生任何错误，抛出这个错误。
+--]]
+
+local wrap = coroutine.wrap(
+    function()
+        print("error test")
+        --调用一个空值得属性
+        coroutine.yield(a.a)
+    end)
+-- 返回结果为 false 以及错误信息
+print(coroutine.resume(co))
+
+-- 这段代码在运行时,会抛出异常。

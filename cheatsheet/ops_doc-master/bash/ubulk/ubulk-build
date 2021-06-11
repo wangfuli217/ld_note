@@ -1,0 +1,273 @@
+#!/bin/sh
+
+set -o nounset
+set -o errexit
+
+#-------------------------------------------------------------------------
+### ARG HANDLING ###
+usage() {
+	cat << EOF >&2
+usage: ${0##*/} [<arg1> ...]
+
+args (all optional, listed in execution order):
+
+    ARGUMENT               VAR       DESCRIPTION
+    ---------------------- --------- --------------------------------------
+    -h                               This help
+    -v                               Verbose mode
+    -C /path/to/ubulk.conf CONFIG    Alternate path to ubulk.conf
+    -p (yes|no)            DOPKGSRC  Update pkgsrc
+    -k (yes|no)            DOPKGCHK  Run pkg_chk -q
+    -s (yes|no)            DOSANDBOX Create, mount, & unmount a sandbox dir
+    -c (yes|no)            DOCHROOT  Chroot (you want this!)
+	-i (yes|no)            INSTPBULK Install pbulk (in the chroot)
+EOF
+	exit ${1:-1}
+}
+
+# a trick to delay setting variables based on the command-line args, so they
+# can trump the defaults and the config file, later
+stashArg() {
+	ARG_STASH="${ARG_STASH:-} $1=\"${OPTARG}\" ;"
+}
+
+while getopts C:c:hi:k:p:s:v opt; do
+    case $opt in
+		C)  ARG_CONFIG="${OPTARG}" ;; # this one needs special handling
+		c)  stashArg "DOCHROOT" ;;
+		h)  usage 0 ;;
+		i)  stashArg "INSTPBULK" ;;
+		k)  stashArg "DOPKGCHK" ;;
+		p)  stashArg "DOPKGSRC" ;;
+		s)  stashArg "DOSANDBOX" ;;
+		v)  set -x ;;
+		\?) usage ;;
+    esac
+done
+shift $(expr $OPTIND - 1)
+if [ $# != 0 ]; then usage; fi
+
+#-------------------------------------------------------------------------
+### UTILITY FUNCTIONS ###
+
+# these can't be in util.sh because we need them to find util.sh
+check_for_relative_path() {
+	echo "$1" | grep "^[^/]" >/dev/null 2>&1
+	echo $?
+}
+
+find_script_real_dir() {
+	set -e
+	if [ -n "$BASH_SOURCE" ]; then
+		# this is really only used in test code, but just in case we ever
+		# switch to an explicit bash script, it will also work then
+		SOURCE="${BASH_SOURCE}"
+	else
+		SOURCE="$0"
+	fi
+	while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+		DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+		SOURCE="$(readlink "$SOURCE")"
+		if [ $(check_for_relative_path $SOURCE) -eq 0 ]; then
+			# if $SOURCE was a relative symlink, we need to resolve it relative to the
+			# path where the symlink file was located
+			SOURCE="$DIR/$SOURCE"
+		fi
+	done
+	echo "$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+}
+
+
+#-------------------------------------------------------------------------
+### SETTINGS AND SETUP ###
+
+SCRIPT_DIR=$(find_script_real_dir)
+LIB_DIR="$SCRIPT_DIR/lib"
+
+# load the defaults
+. "$LIB_DIR/defaults.conf"
+
+# process a command-line-specified CONFIG
+if [ -n "${ARG_CONFIG:-}" ]; then
+	if [ $(check_for_relative_path $ARG_CONFIG) -eq 0 ]; then
+		ARG_CONFIG="$(pwd)/$ARG_CONFIG"
+	fi
+	if [ ! -f "$ARG_CONFIG" ]; then
+		echo >&2 "ERROR: Specified config file '$ARG_CONFIG' not found"
+		exit 1
+	fi
+	CONFIG="$ARG_CONFIG"
+fi
+
+# load the config file
+if [ -f "$CONFIG" ]; then
+	. "$CONFIG"
+fi
+
+# override with the command-line args
+eval "${ARG_STASH:-}"
+
+# load the utility functions (now that we know where the log should go)
+. "$LIB_DIR/util.sh"
+
+# install our special stdout / logging stuff
+setup_console_and_logging "${BUILDLOG:?}"
+# from here forward we have to use 'console' and 'console_err' and 'die'
+# to get output to the console
+
+
+#=========================================================================
+### START DOING ACTUAL WORK ###
+
+#-------------------------------------------------------------------------
+### UPDATE PKGSRC ###
+if [ "yes" = "$DOPKGSRC" ]; then
+	console "Updating pkgsrc ($PKGSRC)"
+	# in a subshell, to preserve pwd
+	(cd "$PKGSRC" && git pull) || die $?
+else
+	console "Skipping pkgsrc update"
+fi
+
+#-------------------------------------------------------------------------
+### RUN PKG_CHK ###
+if [ "yes" = "$DOPKGCHK" ]; then
+	console "Checking for missing, out-of-date, or extra packages"
+	if command -v $PKGCHK >/dev/null 2>&1 ; then
+		CHKRESULTS=$($PKGCHK -a -u -r -q -B -C $PKGLIST) || die $?
+		if [ "" = "$CHKRESULTS" ]; then
+			console_err "$PKGCHK says everything is in sync, exiting"
+			exit 0
+		else
+			console "$(echo "$CHKRESULTS" | sed 's/^/  /')" || die $?
+		fi
+	else
+		console "Can't find $PKGCHK; skipping"
+	fi
+else
+	console "Skipping $PKGCHK"
+fi
+
+#-------------------------------------------------------------------------
+### BUILD AND MOUNT (AND UNMOUNT) THE SANDBOX ###
+MOUNTGREPSTR="on $SANDBOXDIR.\+ type null"
+trap_cleanup() {
+	console
+	console "---------------------"
+	if [ $TRAP_NAME != 'EXIT' ]; then
+		console_err "Caught signal '$TRAP_NAME', cleaning up"
+	fi
+
+	if mount | grep "$MOUNTGREPSTR" >/dev/null 2>&1 ; then
+		console "Unmounting sandbox ($SANDBOXDIR)"
+		"$SANDBOXDIR/sandbox" umount  # this doesn't emit an appropriate return code
+		if mount | grep "$MOUNTGREPSTR" >/dev/null 2>&1 ; then
+			console_err "Problem unmounting sandbox - exiting"
+			exit 1
+		fi
+	fi
+	console "Deleting sandbox ($SANDBOXDIR)"
+	rm -rf "$SANDBOXDIR" || die $?
+}
+if [ "yes" = "$DOSANDBOX" -o "create" = "$DOSANDBOX" ]; then
+	console "Mounting sandbox ($SANDBOXDIR)"
+	if echo "$SANDBOXDIR" | grep "^[^/].*" >/dev/null 2>&1 ; then
+		console_err "SANDBOXDIR must be an absolute path ($SANDBOXDIR)"
+		exit 1
+	fi
+	if mount | grep "$MOUNTGREPSTR" >/dev/null 2>&1 ; then
+		console_err "$SANDBOXDIR is already mounted"
+		exit 1
+	fi
+	if command -v "$MKSANDBOX" >/dev/null 2>&1 ; then
+		if [ "create" = "$DOSANDBOX" ]; then
+			console "Sandbox will not be unmounted when the script ends"
+		else
+			# set up traps so we can clean up the sandbox no matter how we end
+			register_traps 'trap_cleanup' || die $?
+		fi
+		# make the sandbox
+		"$MKSANDBOX" $MKSANDBOXARGS "$SANDBOXDIR" || die $?
+	else
+		console_err "Can't find $MKSANDBOX, please install it and/or set MKSANDBOX"
+		exit 1
+	fi
+else
+	console "Skipping sandbox creation"
+	: ${MAKECONF:=/etc/mk.conf}
+	if [ "$MAKECONF" -nt "$SANDBOXDIR/$MAKECONF" ]; then
+		console_err "WARNING: $MAKECONF is newer than $SANDBOXDIR/$MAKECONF"
+	fi
+fi
+
+#-------------------------------------------------------------------------
+### BUILD UP AN IN-CHROOT SCRIPT ###
+
+# give ourselves a workspace
+mkdir -p "$SANDBOXDIR/$CHROOTWORKDIR" || die $?
+
+# create a script to run in the chroot
+CHROOTSCRIPT="$CHROOTWORKDIR/$CHROOTSCRIPTNAME"
+echo "#!/bin/sh" > "$SANDBOXDIR$CHROOTSCRIPT" || die $?
+
+if [ "yes" = "$DOCHROOT" ]; then
+	for CHROOT_VAR in PKGLIST PKGSRC ${EXTRACHROOTVARS:-} ; do
+		if [ ! -z "$(eval "echo \${${CHROOT_VAR}+x}")" ]; then
+			eval "CHROOT_VAR_VALUE=\"\${${CHROOT_VAR}}\"" || die $?
+			echo "Extra chroot var $CHROOT_VAR is set: '$CHROOT_VAR_VALUE'"
+			echo "$CHROOT_VAR='$CHROOT_VAR_VALUE'" >> "$SANDBOXDIR$CHROOTSCRIPT" || $?
+		else
+			echo "Extra chroot var $CHROOT_VAR is unset, and won't be passed in" >&2
+		fi
+	done
+fi
+
+# start with util.sh
+cat "$LIB_DIR/util.sh" >> "$SANDBOXDIR$CHROOTSCRIPT" || die $?
+
+# tell the user that we've begun
+cat <<- EOF >> "$SANDBOXDIR$CHROOTSCRIPT" || die $?
+	console "Starting chroot script"
+EOF
+
+if [ "yes" = "$INSTPBULK" ]; then
+	if [ "yes" = "$DOSANDBOX" -o "create" = "$DOSANDBOX" ]; then
+		# prep for pbulk
+		cat <<- EOF >> "$SANDBOXDIR$CHROOTSCRIPT" || die $?
+			console "Creating work directories and users"
+			mkdir -p /bulklog || die \$?
+			mkdir -p /scratch || die \$?
+			id -u pbulk >/dev/null 2>&1 || useradd pbulk || die \$?
+			chown pbulk /scratch || die \$?
+
+			console "Bootstrapping pkgsrc for pbulk"
+			cd /usr/pkgsrc/bootstrap || die \$?
+			$BOOTSTRAP --prefix=/usr/pkg_bulk --pkgdbdir=/usr/pkg_bulk/.pkgdb --workdir=/tmp/work\$\$ || die \$?
+			$CLEANUP # no die; we don't care if this fails
+		EOF
+	fi
+else
+	cat <<- EOF >> "$SANDBOXDIR$CHROOTSCRIPT" || die $?
+		console "Skipping pbulk setup"
+	EOF
+fi
+
+chmod +x "$SANDBOXDIR$CHROOTSCRIPT" || die $?
+
+
+#-------------------------------------------------------------------------
+### ENTER THE CHROOT ###
+
+if [ "yes" = "$DOCHROOT" ]; then
+	console "Entering chroot ($SANDBOXDIR)"
+	"$CHROOT" "$SANDBOXDIR" "$CHROOTSCRIPT" || die $?
+else
+	console "WARNING: Not using chroot"
+	cd "$SANDBOXDIR" && ".$CHROOTSCRIPT" || die $?
+fi
+
+#-------------------------------------------------------------------------
+### DONE ###
+console
+console "Done!"
+

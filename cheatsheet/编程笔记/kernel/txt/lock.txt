@@ -1,0 +1,137 @@
+almost all locks are implemented in userspace, for efficient
+
+donw() <-> down_interrupible()
+The interruptible version is almost always the one you will want; it allows a user-space process that is waiting on a semaphore to be interrupted by the user. 
+You do not, as a general rule, want to use noninterruptible operations unless there truly is no alternative. 
+Non-interruptible operations are a good way to create unkillable processes (the dreaded "D state" seen in ps), and annoy your users.
+
+multithread then fork, child process clones all locks but discards all threads
+多线程程序 fork 前，应该由发起 fork 的线程 lock 所有子进程可能用到的锁，fork 后，把它们一一 unlock 
+当然，这样的做法就隐含了锁的次序。如果次序和平时不同，那么就会死锁。
+
+all mutual:
+    spinlock        spin
+    semaphore       block then process context switch
+writer to reader:
+    rwlock          spin, equality, but writer may spin if there's at least one reader
+    seqlock         spin, equality, reader won't be blocked, writing and reading may happen simultanously, if changed during reading, read again
+    rcu             spin, reader is prior, just for pointed contents, not pointer itself
+
+spin_lock_irq & spin_lock_irqsave:
+在使用spin_lock_irq和spin_unlock_irq的情况下，完全可以用spin_lock_irqsave和spin_unlock_irqrestore取代，那具体应该使用哪一个也需要依情况而定，
+如果可以确信在对共享资源访问前中断是使能的，那么使用spin_lock_irq更好一些，因为它比spin_lock_irqsave要快一些，但是如果你不能确定是否中断使能，
+那么使用spin_lock_irqsave和spin_unlock_irqrestore更好，因为它将恢复访问共享资源前的中断标志而不是直接使能中断。
+当然，有些情况下需要在访问共享资源时必须中断失效，而访问完后必须中断使能，这样的情形使用spin_lock_irq和spin_unlock_irq最好
+
+单CPU 情况: 
+假设 内核线程 A 持有spin lock L。 然后在持有锁的时候，来了中断。 
+中断结束后，如果 允许内核抢占，这个时候 调度了 另外一个 内核线程 B 执行。 而内核线程B 也想 持有 spin lock L。 可是 spin lock L 已经被 A 持有，于是 B 自旋，等待 锁 L 被A 释放。 然后由于 B 优先级比A 高，所以中断结束后，总是调度B运行， A 没有机会释放锁。。。。 
+除非你不能承受不可抢占期带来的损失   比如Montavista linux里就把大部分的spinlock替换成了mutex 
+
+用spin lock的情况下你当然可以使用 信号量（中断内除外）。但是 信号量很贵的，需要上下文切换
+
+cpu0 spin_lock -> sleep -> schedule -> cpu1 lock -> wait -> cpu0 killed -> cpu1 wait forever ??
+如果进程被kill了，内核部分的函数是会被执行的
+//kernel部分代码片段:
+xxx_read () 
+{ 
+    spin_lock(); 
+    ...... xxxxxx--->假设此处被休眠，后来该进程被kill了。那么后面的部分会执行的。 
+    spin_unlock(); //因此这句会被执行。 
+} 
+都是发kill信号，然后在回用户态的时候响应SIGKILL信号，而退出
+
+
+rcu: 
+from Documentation/RCU/whatisRCU.txt
+more example in listRCU.txt arrayRCU.txt checklist.txt
+	         CPU 0                  CPU 1                 CPU 2
+	     ----------------- ------------------------- ---------------
+	 1.  rcu_read_lock()
+	 2.                    enters synchronize_rcu()
+	 3.                                               rcu_read_lock()
+	 4.  rcu_read_unlock()
+	 5.                     exits synchronize_rcu()
+	 6.                                              rcu_read_unlock()
+
+	To reiterate, synchronize_rcu() waits only for ongoing RCU
+	read-side critical sections to complete, not necessarily for
+	any that begin after synchronize_rcu() is invoked.
+
+	The call_rcu() API is a callback form of synchronize_rcu(),
+	and is described in more detail in a later section.  Instead of
+	blocking, it registers a function and argument which are invoked
+	after all ongoing RCU read-side critical sections have completed.
+	This callback variant is particularly useful in situations where
+	it is "illegal to block" or where "update-side performance is
+	critically important".
+
+    rcu_assign_pointer(p, v);
+ * this call documents which pointers will be dereferenced by RCU read-side code.
+    rcu_assign_pointer() is most frequently used indirectly, via
+    the _rcu list-manipulation primitives such as list_add_rcu().
+
+    rcu_dereference(p)
+	Common coding practice uses rcu_dereference() to copy an
+	RCU-protected pointer to a local variable, then dereferences
+	this local variable, for example as follows:
+
+		p = rcu_dereference(head.next);
+		return p->data;
+
+	However, in this case, one could just as easily combine these
+	into one statement:
+
+		return rcu_dereference(head.next)->data;
+
+    /* write part also need lock for concurrence */
+	void foo_update_a(int new_a)
+	{
+		struct foo *new_fp;
+		struct foo *old_fp;
+
+		new_fp = kmalloc(sizeof(*new_fp), GFP_KERNEL);
+		spin_lock(&foo_mutex); 
+		old_fp = gbl_foo;
+		*new_fp = *old_fp;
+		new_fp->a = new_a;
+		rcu_assign_pointer(gbl_foo, new_fp);
+		spin_unlock(&foo_mutex);
+		synchronize_rcu();
+		kfree(old_fp);
+	}
+    /* read part need no lock */
+	int foo_get_a(void)
+	{
+		int retval;
+
+		rcu_read_lock();
+		retval = rcu_dereference(gbl_foo)->a;
+		rcu_read_unlock();
+		return retval;
+	}
+
+#define preempt_disable() \
+do { \          
+    inc_preempt_count(); \
+    barrier(); \
+} while (0)
+#define inc_preempt_count()    add_preempt_count(1)
+#define add_preempt_count(val) do { preempt_count() += (val); } while (0)
+#define preempt_count()        (current_thread_info()->preempt_count)
+
+dead lock:
+1.  simplest circumstance
+    Try to aquire the same lock on the same core. If 2 cores compete, one executes the other waits, no problem.
+    Avoid interrupting by another executing thread, like hard-int, softirqs, higher-priority processes, they may try to aquire the locked spinlock leading to dead lock.
+    spin_lock may disable preemption whatever in UP or SMP, so if share sth. with interrupts, spin_lock_bh/spin_lock_irq/spin_lock_irqsave.
+    The last possibility is, direct or indirect schedule during lock() and unlock(), for example del_timer_sync().
+
+    Mutex doesn't have this issue in process context, the second time the same core try to lock the locked mutex, sleep rather than spin, which avoid dead lock.
+
+    Make a conclusion, using spin_lock in process context should be paid more attention, because of the indirect process schedule. That's why mutex are always prefered in 
+    process context.
+
+    Spinlock can avoid priority-inversion, use priority-ceiling, in reality when preempt_disable(), there's only 1 priority level in the system.
+
+2.  fatal hug

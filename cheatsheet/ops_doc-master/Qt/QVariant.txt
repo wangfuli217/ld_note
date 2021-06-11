@@ -1,0 +1,48 @@
+QVariant类作为一个最为普遍的Qt数据类型的联合。
+
+    因为c++禁止没有构造函数和析构函数的联合体，许多继承的Qt类不能够在联合体当中使用。
+没有了联合变量，我们在物体属性以及数据库的工作等方面受到很多的困扰。
+    一个QVariant对象在一个时间内只保留一种类型的值。我们可以使用canConvert来查询
+是否能够转换当前的类型。转换类型一般以toT()命名。
+
+
+
+摘录了一个example来说明QVariant的使用方法：
+    QDataStream out(...);
+     QVariant v(123);                // The variant now contains an int
+     int x = v.toInt();              // x = 123
+     out << v;                       // Writes a type tag and an int to out
+     v = QVariant("hello");          // The variant now contains a QByteArray
+     v = QVariant(tr("hello"));      // The variant now contains a QString
+     int y = v.toInt();              // y = 0 since v cannot be converted to an int
+     QString s = v.toString();       // s = tr("hello")  (see QObject::tr())
+     out << v;                       // Writes a type tag and a QString to out
+     ...
+     QDataStream in(...);            // (opening the previously written stream)
+     in >> v;                        // Reads an Int variant
+     int z = v.toInt();              // z = 123
+     qDebug("Type is %s",            // prints "Type is int"
+             v.typeName());
+     v = v.toInt() + 100;            // The variant now hold the value 223
+     v = QVariant(QStringList());
+     
+================================================================================
+    你甚至可以存储QList<QVariant>和QMap<QString ,QVariant>.所以你可以构造任意复杂的任意的数据类型。这个是非常强大而且又有
+    用的。QVariant也支持null值，你可以定义一个没有任何值的类型，然而，也要注意QVariant类型只能在他们有值的时候被强制转换。
+
+    QVariant x, y(QString()), z(QString(""));
+     x.convert(QVariant::Int);
+     // x.isNull() == true
+     // y.isNull() == true, z.isNull() == false
+     
+================================================================================
+    因为QVariant是QtCore库的一部分，它不能够提供定义在QtGui当中的类型的转换，如QColor,QImage,he QPixmap等。换句话说，没
+有toColor()这样的函数。取代的，你可以使用QVariant::value()或者qVariantValue()这两个模板函数。
+     QVariant variant;
+     ...
+     QColor color = variant.value<QColor>();
+    反向转换（如把QColor转成QVariant）是自动完成的。也包含了GUI相关的那些数据类型。
+    QColor color=palette().background().color();
+    QVariant variant=color;
+
+

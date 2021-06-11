@@ -1,0 +1,88 @@
+异常模式：crosstool\cheatsheet\ops_doc-mstaer\cii\Exception使用方法实例.txt
+
+程序中会发生三种错误: 用户错误、运行时错误和异常。
+1. 用户错误:    是指预期发生的；因为错误的用户输入就可能会导致用户错误，程序必须计划并处理这类错误。
+                通常，函数必须处理用户错误并返回错误代码，这些错误是计算过程中很正常的一部分。(命令行错误提示和协议交互错误提示)
+2. 运行时错误 : 运行时错误从来都是非预期的
+                因而程序无法从这种错误恢复过来，必须优雅的结束。
+                可以使用断言来结束运行。
+3. 异常: 介于用户错误和程序错误之间的一类错误。异常是很少出现且可能不可预测的错误，但是从异常中恢复是可能的。
+         异常并不会经常发生，因此可能会发生异常的函数通常不会返回错误代码。
+         一些异常反应了机器的能力，如算术运算上溢或下溢以及栈溢出。
+         其他异常表明操作系统检测到的状况，这些状况也许是用户发起的，如按下一个"中断"键或写文件时遇到写入错误。
+         
+C语言没有异常,更不要提异常处理了,一般来说是通过自己规定的返回码来标识异常的。 # errno.h
+  标准库函数setjmp和longjmp形成了结构化异常工具的基础。即setjmp实例化处理程序，而longjmp产生异常。
+  异常处理程序处理的是异常的地址。异常必须是全局的或静态的变量，因此它们的地址惟一地标识了它们。
+如果把异常声明成一个局部变量或参数就会产生不可检查的运行期错误。
+  
+  Except_T结构只有一个字段，它可以初始化为一个描述异常的字符串。当发生一个未处理的异常时，
+才会把该字符串打印出来。
+  处理程序是由TRY-EXCEPT和TRY-FINALLY语句来实例化的。这两个语句用宏指令实现，可以处理嵌套异常，
+也可以管理异常状态的数据。
+  RETURN宏用在TRY语句内部，用来替代return语句，直接使用return语句是一个不可检查的运行错误。
+
+setjmp状态
+  Except_entered    setjmp的第一次返回将except_flag设置为Except_entered，表示已经进入TRY语句并将一个异常帧压入异常栈
+                    Except_entered必须为零，因为第一调用setjmp返回零，此后从setjmp返回时会将该标识设置为Except_raised，表示异常
+  Except_raised     
+  Except_handled    处理程序将except_flag设置为Except_handled，表示它们已经处理了异常
+  Except_finalized  
+
+except宏说明
+  TRY将一个新的Except_Frame帧压栈，并调用setjmp。
+  RAISE和RERAISE调用Except_raise填充栈顶帧的各字段并出栈，然后调用longjmp。
+  EXCEPT检查exception字段，决定应用哪个处理程序。
+  FINALLY执行清除代码，并重新产生已弹出的异常帧中存储的异常。
+  如果发生了异常却没有执行处理控制就达到了END_TRY，将会重新触发异常。
+
+宏指令TRY、EXCEPT、ELSE、FINALLY和END_TRY一起将TRY-EXCEPT语句转化为如下形式：
+do {
+    create and push an Except_Frame
+    if (first return from setjmp) {
+        S
+    } else if (exception is e1 ) {
+        S1
+    …
+    } else if (exception is en ) {
+        Sn
+    } else {
+        S0
+    }
+    if (an exception occurred and wasn’t handled)
+        RERAISE;
+} while (0)   
+
+# TRY-END_TRY 模式使得，代码的执行不再连续，调用THROW(A, "A cause");使得代码执行流程变的跳跃。
+# END_TRY;    TRY，CATCH(A), ELSE, FINALLY, RETHROW, RETURN后面都不要分号，而END_TRY之后需要分号。END_TRY与TRY视作捕获异常作用域。
+# THROW(A)    抛出操作之后的代码将不再连续执行，或者被CATCH(A)有条件捕获执行，或者被ELSE无条件捕获执行，
+# FINALLY     CATCH(A)和ELSE是异常的有条件捕获执行和无条件捕获执行，即CATCH(A)和ELSE都是处理异常的，而FINALLY是正常和异常无条件执行。
+# CATCH(A)    底层没有捕获的异常，会抛掷到上层的TRY-END_TRY作用域，最上层如果未对异常进行捕获，则异常转变成"运行时错误"。
+# RETHROW     用于将内层TRY-END_TRY作用域的异常，抛掷到外层   在已确定捕获了异常块内执行
+# RETURN      相当于C语言的return关键字。退出TRY-END_TRY      在未确定捕获了异常块内执行
+
+throw 不捕获就是一种巧妙的断言
+THROW(AssertException, "The control file '%s' is not a file", Str_trunc(f, 80));
+THROW(AssertException, "The control file '%s' is not readable", Str_trunc(f, 80));
+
+断言
+-------------------
+    一般标准要求头文件assert.h把assert(e)定义成一个提供诊断信息的宏指令。assert(e)对e求值，
+如果e为0，那么在标准错误上写上诊断信息并调用标准库函数abort中断执行。
+    assert.h也使用了宏指令NDEBUG，如果定义了宏指令NDEBUG，那么assert(e)与空表达式((void)0)等价。
+因此，程序员可以通过定义NDEBUG并重新编译来关掉断言。
+    "C语言接口与实现"一书中提供了一个标准库"assert.h"的替代,用它的好处是如果断言失败
+不会向stderr打印消息,也不会跳出程序,也不会提供表达式e的文本,而是抛出上文中定义的Assert_Failed异常.
+
+assert(0) 是一个很好的方法，用于指明"不可能发生"的情况。
+assert(!"ptr==NULL -- can not hanppen") 特很好
+
+#undef assert
+#ifdef NDEBUG
+#define assert(e) ((void)0)
+#else
+extern void assert(int e);
+#define assert(e) ((void)((e) || \
+        (fprintf(stderr, "%s:%d Assertion Failed:%s\n", \
+        __FILE__, (int)__LINE__, #e), abort(), 0)))
+#endif

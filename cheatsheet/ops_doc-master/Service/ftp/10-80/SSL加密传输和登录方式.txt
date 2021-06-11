@@ -1,0 +1,78 @@
+SSL加密传输
+===============================================================================
+# 是否启用 SSL,默认为no
+ssl_enable=yes/no 
+# 如果为true，则将OpenSSL连接诊断转储到vsftpd日志文件。(在v2.0.6中添加)
+debug_ssl=YES
+
+======================================= 匿名用户
+# 仅在ssl_enable 处于活动状态时适用 。如果设置为YES，则允许匿名用户使用安全SSL连接。
+allow_anon_ssl=yes/no
+# 仅在激活ssl_enable时适用 。如果激活，则强制所有匿名登录使用安全SSL连接以发送密码。
+force_anon_logins_ssl=yes/no
+# 仅在激活ssl_enable时适用 。如果激活，则强制所有匿名登录使用安全SSL连接，以便在数据连接上发送和接收数据。
+force_anon_data_ssl=yes/no  
+
+======================================= 非匿名用户
+# 仅 在激活ssl_enable时适用 。如果激活，则强制所有非匿名登录使用安全SSL连接以发送密码。
+force_local_logins_ssl=yes/no
+# 仅 在激活ssl_enable时适用 。如果激活，则强制所有非匿名登录使用安全SSL连接，以便在数据连接上发送和接收数据。
+force_local_data_ssl=yes/no
+
+======================================= SSL 协议配置
+# rsa证书的位置
+rsa_cert_file=/path/to/file
+# dsa证书的位置
+dsa_cert_file=/path/to/file
+# 是否激活sslv2加密,默认no  
+ssl_sslv2=yes/no
+# 是否激活sslv3加密,默认no 
+ssl_sslv3=yes/no 
+# 是否激活tls v1加密,默认yes
+ssl_tlsv1=yes/no
+# 默认是DES-CBC3-SHA
+ssl_ciphers=加密方法
+
+# 如果设置为yes，则收到的所有SSL客户端证书都必须验证OK。自签名证书不构成OK验证。(v2.0.6中的新功能)。
+validate_cert
+
+
+# 如果启用，则需要通过SSL终止SSL数据上载，而不是套接字上的EOF。需要此选项以确保攻击者未使用伪造的TCP FIN过早终止上载。
+# 不幸的是，默认情况下它没有启用，因为很少有客户端能够正确使用它。(v2.0.7中的新功能)。
+# 默认值：NO
+strict_ssl_read_eof
+
+# 如果启用，则需要通过SSL终止SSL数据下载，而不是套接字上的EOF。默认情况下这是关闭的，因为我无法找到执行此操作的单个FTP客户端。
+# 这是次要的。它影响的是我们判断客户是否确认完全收到该文件的能力。即使没有此选项，客户端也能够检查下载的完整性。(v2.0.7中的新功能)。
+# 默认值：NO
+strict_ssl_write_shutdown
+
+
+
+# 如果启用，则SSL握手是所有连接(FTPS协议)的首要任务。要支持显式SSL和/或纯文本，还应运行单独的vsftpd侦听器进程。
+implicit_ssl
+
+
+如果设置为yes，则需要所有SSL客户端连接来提供客户端证书。应用于此证书的验证程度由validate_cert控制(在v2.0.6中添加)。
+默认值：NO
+require_cert
+
+如果设置为yes，则需要所有SSL数据连接以展示SSL会话重用(这证明它们知道与控制通道相同的主密钥)。虽然这是一个安全的默认设置，但它可能会破坏许多FTP客户端，因此您可能希望禁用它。有关后果的讨论，请参阅 http://scarybeastsecurity.blogspot.com/2009/02/vsftpd-210-released.html (在v2.1.0中添加)。
+默认值：YES
+require_ssl_reuse
+
+ssl(){
+[root@localhost ~]# cd /etc/pki/tls/certs/
+[root@localhost ~]# openssl req -new -x509 -nodes -out vsftpd.pem -keyout vsftpd.pem
+[root@localhost ~]#vi /usr/local/etc/vsftpd.conf
+ssl_enable=YES(开启vsftpd对ssl协议的支持)
+ssl_sslv2=YES（支持SSL v2 protocol）
+ssl_sslv3=YES（支持SSL v3 protocol）
+ssl_tlsv1=YES（支持TSL v1）
+rsa_cert_file=/etc/pki/tls/certs/vsftpd.pem（证书的路径）
+
+ssl_enable=YES
+ssl_sslv2=YES
+ssl_sslv3=YES
+ssl_tlsv1=YES
+}

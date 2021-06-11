@@ -1,0 +1,151 @@
+红黑树：定义
+-------------------
+    平衡二叉树中，根到任一叶的路径一样长。由此搜任一节点，各分支的最坏情形恒定。
+然而插入或删除节点会破坏平衡，故需恢复平衡。恢复平衡较大代价使得平衡二叉树对插入和删除等"写操作"不喜。
+与之相对应的，红黑树中也是根到任一叶的"路径长度"一样。此处"路径长度"，计颜色为"黑"的节点数。
+红黑树的"平衡"定义相对宽松，故而回复平衡代价相对小，对"写操作"也容悦。
+    红黑树活跃在许多软件中，比如需排序的场合(如著名的内存分配例程 jemalloc)，或是需唯一性(如 std::map 的实现)。
+
+红黑树有 5 个约束条件：    
+1. 红黑树中的节点，非黑即红
+2. 红黑树根节点为黑色
+3. 红色节点，其子节点必为黑色
+4. 所有叶子节点(null)都为黑色
+5. 由根节点到各叶子节点，路径上的黑色节点一样多
+
+红黑树 rb_node
+-------------------
+struct rb_node {
+    unsigned long  __rb_parent_color;
+    struct rb_node *rb_right;
+    struct rb_node *rb_left;
+} __attribute__((aligned(sizeof(long))));
+    对于rb-tree 中每一个节点，都需要标记一个颜色(只有两种选择:红 vs 黑),而这里的技巧
+就在"__attribute__((aligned(sizeof(long))))",因为红黑树的每个节点都用rb_node结构来表示，
+利用字节对齐技巧，任何rb_node结构体的地址的低两位肯定都是零，与其空着不用，还不如用
+它们表示颜色，反正颜色就两种，其实一位就已经够了。
+
+1.存储父节点的地址（注意IA32父节点的地址为4的倍数，地址后面的2位没有用上 ,IA64则父节点的地址为8的倍数，地址后面的3位没有用上）。
+2.用后2位，标识此节点的color(:红 vs 黑 )
+
+1. 操作rb_parent_color的函数： 
+#define rb_parent(r)   ((struct rb_node *)((r)->rb_parent_color & ~3))  //获得其双亲结点的首地址
+#define rb_color(r)   ((r)->rb_parent_color & 1)                        //获得颜色属性
+#define rb_is_red(r)   (!rb_color(r))                                   //判断颜色属性是否为红
+#define rb_is_black(r) rb_color(r)                                      //判断颜色属性是否为黑
+#define rb_set_red(r)  do { (r)->rb_parent_color &= ~1; } while (0)     //设置红色属性
+#define rb_set_black(r)  do { (r)->rb_parent_color |= 1; } while (0)    //设置黑色属性
+ 
+static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)  //设置其双亲结点首地址的函数
+{
+	rb->rb_parent_color = (rb->rb_parent_color & 3) | (unsigned long)p;
+}
+static inline void rb_set_color(struct rb_node *rb, int color) //设置结点颜色属性的函数
+{
+	rb->rb_parent_color = (rb->rb_parent_color & ~1) | color;
+}
+
+2.初始化新结点： 
+static inline void rb_link_node(struct rb_node * node, struct rb_node * parent,
+				struct rb_node ** rb_link)
+{
+	node->rb_parent_color = (unsigned long )parent;   //设置其双亲结点的首地址(根结点的双亲结点为NULL),且颜色属性设为黑色
+	node->rb_left = node->rb_right = NULL;            //初始化新结点的左右子树
+ 
+	*rb_link = node;  //指向新结点
+}
+3.指向红黑树根结点的指针： 
+struct rb_root
+{
+	struct rb_node *rb_node;
+};
+#define RB_ROOT	(struct rb_root) { NULL, }  //初始化指向红黑树根结点的指针
+#define	rb_entry(ptr, type, member) container_of(ptr, type, member) //用来获得包含struct rb_node的结构体的首地址
+ 
+#define RB_EMPTY_ROOT(root)	((root)->rb_node == NULL) //判断树是否为空
+#define RB_EMPTY_NODE(node)	(rb_parent(node) == node)  //判断node的双亲结点是否为自身
+#define RB_CLEAR_NODE(node)	(rb_set_parent(node, node)) //设置双亲结点为自身
+ 
+4. 插入
+首先像二叉查找树一样插入一个新结点，然后根据情况作出相应的调整，以使其满足红黑树的颜色属性(其实质是维持红黑树的平衡)。
+    函数rb_insert_color使用while循环不断地判断双亲结点是否存在，且颜色属性为红色。
+    若判断条件为真，则分成两部分执行后续的操作：
+    (1)、当双亲结点是祖父结点左子树的根时，则：
+
+
+Linux 中的红黑树特点：
+-------------------
+augment：augment 是补充的意思，即将每个节点，关联他处的某变量 -- 红黑树发生变化时，通过回调同步调整关联变量。
+
+augment
+-------------------
+    augment 是附加在节点上的额外数据成员，并在树的增删操作中，同步更新此额外数据成员。 
+augment 可视作本节点、及子孙节点的"摘要"，比如在前文 unmapped_area() 例子中，augment
+(实际的数据成员叫做 rb_subtree_gap)记为 节点名下最大空隙的尺寸。于是，在分配 vma
+(遍寻 目标空隙)的过程中，能有效跳过名下空隙均太小的节点。
+
+augment 是一个附加到 rb_node 上的外部变量，当红黑树发生变化(插入/删除节点)时，会通过下述回调，同步 augment：
+struct rb_augment_callbacks {
+	void (*propagate)(struct rb_node *node, struct rb_node *stop);
+	void (*copy)(struct rb_node *old, struct rb_node *new);
+	void (*rotate)(struct rb_node *old, struct rb_node *new);
+};
+来看下 rb_augment_callbacks 是如何介入到插入节点(左边)和删除节点(右边)操作的：
+
+
+可以看到 插入的核心实现函数(__rb_insert)和 删除的核心实现函数(__rb_erase_augmented 和 ____rb_erase_color)，
+都是接收augment相关回调作为参数。如不需要，传入dummy_*回调，由于是内联函数，dummy的回调在编译时刻就被移除了。
+
+RB_DECLARE_CALLBACKS(static, vma_gap_callbacks, struct vm_area_struct, vm_rb,
+                     unsigned long, rb_subtree_gap, vma_compute_subtree_gap)
+    rb_augment_callbacks 是通过宏 RB_DECLARE_CALLBACKS 来定义的。其中，传给宏的参数 rb_subtree_gap 指出了在
+"内嵌 vm_rb 的结构体"中，对应的 augment 是哪个成员；vma_compute_subtree_gap 则是个实实在在的函数。
+
+vma_gap_callbacks_propagate
+vma_gap_callbacks_copy
+vma_gap_callbacks_rotate
+
+
+两个基本操作：左旋与右旋
+-----------------------------
+    __rb_rotate_left是把以root为根的树中的node结点进行左旋，__rb_rotate_right是进行右旋。
+这两个函数是为后面的插入和删除服务，而不是为外部提供接口。
+
+其余的几个接口就比较简单了
+struct rb_node *rb_first(struct rb_root *root);
+在以root为根的树中找出并返回最小的那个结点，只要从根结点一直向左走就是了。如图中的3
+
+struct rb_node *rb_last(struct rb_root *root);
+是找出并返回最大的那个，一直向右走。如图中的47
+
+struct rb_node *rb_next(struct rb_node *node);//注意这里next的概念，不是根据节点的位置，而是由其key域决定的，
+//rbtree本身是有序的，所以可以有前序，中序，后续遍历方式
+返回node在树中的后继，这个稍微复杂一点。如果node的右孩子不为空，它只要返回node的右子树中最小的结点即可（如图中17的next是19）；如果为空，它要向上查找，找到迭带结点是其父亲的左孩子的结点，返回父结点（如图中16的next是17）。如果一直上述到了根结点，返回NULL。
+
+struct rb_node *rb_prev(struct rb_node *node);
+返回node的前驱，和rb_next中的操作对称。
+
+void rb_replace_node(struct rb_node *victim, structrb_node *new, struct rb_root *root);
+用new替换以root为根的树中的victim结点。
+
+
+key域为字符串如何构建rbtree？
+-----------------------------
+当key域为字符串时，其可以构建rbtree的基础是字符串也是可以比较大小的。
+先从strcmp函数说起，strcmp函数是比较两个字符串的大小,返回比较的结果。一般形式是： 
+         i=strcmp(字符串1，字符串2);
+        其中，字符串１、字符串２均可为字符串常量或变量；i是用于存放比较结果的整型变量。比较结果是这样规定的： 
+①字符串1小于字符串2,strcmp函数返回一个负值;
+②字符串1等于字符串2,strcmp函数返回零;
+③字符串1大于字符串2,strcmp函数返回一个正值;
+那么,字符中的大小是如何比较的呢?来看一个例子。 
+    实际上,字符串的比较是比较字符串中各对字符的ASCII码。首先比较两个串的第一个字符，
+若不相等，则停止比较并得出大于或小于的结果；如果相等就接着比较第二个字符然后第三个字符等等。
+如果两上字符串前面的字符一直相等,像"disk"和"disks"那样, 前四个字符都一样,
+然后比较第五个字符, 前一个字符串"disk"只剩下结束符'/0',后一个字符串"disks"剩下
+'s','/0'的ASCII码小于's'的ASCII 码,所以得出了结果。因此无论两个字符串是什么样，
+strcmp函数最多比较到其中一个字符串遇到结束符'/0'为止，就能得出结果。
+注意:字符串是数组类型而非简单类型，不能用关系运算进行大小比较。 
+       if("ABC">"DEF")  /*错误的字符串比较*/
+       if(strcmp("ABC","DEF")   /*正确的字符串比较*/ 
+                

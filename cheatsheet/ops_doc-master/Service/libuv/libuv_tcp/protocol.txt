@@ -1,0 +1,61 @@
+一、本人设想的TCP服务器有如下特性：
+1.启动服务，一直监听端口。
+2.有新连接(客户端)就通知用户。并把连接接收到的数据回调给用户。
+3.客户端连接上后用户可在任意时间发送数据给它。
+4.客户端断开时关闭或用户可手动关掉。
+以上操作都可以不同线程在完成。
+
+ 
+二、使用libuv遇到的问题
+由于对libuv不熟悉+其文档，调用其函数时吃了不少苦头。
+1.libuv的特性
+    libuv是基于event驱动的，当调用uv_run后就会一直启动event循环，阻塞其线程(event loop thread)直到没有事件了uv_run返回。
+除了uv_async_send函数外，其他函数都是非线程安全的。即其他函数只能在event loop thread里调用，在其他线程调用libuv不保证其正确性。
+libuv处处回调，多数有回调的函数都是直到回调函数被触发时才算调用完成，而非该函数返回就算调用完成。
+
+2.遇到的问题
+libuv的这点特性对于我想通过多线程调用tcp sever中的不同操作是一大麻烦事。
+
+2.1.我在另一线程里调用了uv_write发送数据，结果总提示Assertion failed: handle->write_queue_size >= req->queued_bytes, 
+    file src/win/tcp.c
+最后在google group（ https://groups.google.com/forum/#!msg/libuv/iHzv3x-VOr4/KzhJymI6lRkJ ）中找到方法：
+    内部开辟一线程用于发送数据。用户调用发送函数时把数据压入队列，发送线程从队列中循环取数据，然后调用uv_async_send触发真正
+的发送数据函数。数据参数可以通过uv_handle_t.data传输。可用uv_sem_wait/ uv_sem_post来控制数据发送先后。
+
+
+2.2.对于想要关闭一个客户端，可使用uv_close关闭其所关联的uv_handle_t,然后把客户端参数从客户端队列中删除。
+但是libuv这种处处回调的函数，调用uv_close返回后并不意味着真正close成功了，此时若把客户端删除，则会调用客户端的析构函数，
+    客户端的所有变量地址都是未知的了。因为uv_close后对客户端继续操作，所以访问这些未知变量地址会出错。真正close成功是在
+uv_close_cb被触发时。
+所以想要delete掉一个客户端，得调用uv_close，然后在uv_close_cb等待并判断是哪个客户端，再把客户端删除。
+
+2.3 同uv_close, uv_tcp_connect也一样，不能uv_tcp_connect就想发送数据，得等其回调函数触发后才能进行发送数据操作。uv_write也一样。
+总结：libuv好不好，会用才好，不会用坑一大堆。
+
+
+三、传输规则定义
+网络传输中不能只接受裸流，必须对数据进行卦包与拆包，一来可防止数据被篡改与丢失，二来方便数据解析。
+CSDN上对网络数据如何定义有讨论过：http://bbs.csdn.net/topics/380167545
+
+本人定义的包结构如下：
+// 一个数据包的内存结构
+//增加包头与包尾数据，用于检测包的完整性。检验值用于检测包的完全性。
+//|-----head----|--------------------------pack header-------------------|--------------------pack data------------|-----tail----|
+
+//|--包头1字节--|--[version][head][tail][check][type][datalen][reserve]--|--datalen长度的内存数据(根据type去解析)--|--包尾1字节--|
+#pragma pack(1)//将当前字节对齐值设为1
+
+#define NET_PACKAGE_VERSION 0x01
+typedef struct _NetPacket{//传输自定义数据包头结构
+    int32_t version; //封包的版本号，不同版本包的定义可能不同 :0-3
+    unsigned char header; //包头-可自定义，例如0x02 :4
+    unsigned char tail; //包尾-可自定义，例如0x03 :5
+    unsigned char check[16];//pack data校验值-16字节的md5二进制数据 :6-21
+    int32_t type; //包数据的类型 :22-25
+    int32_t datalen; //包数据的内容长度-不包括此包结构和包头尾 :26-29
+    int32_t reserve; //包数据保留字段-暂时不使用 :30-33
+}NetPacket;
+
+#define NET_PACKAGE_HEADLEN sizeof(NetPacket)//包头长度，为固定大小34字节
+
+同时进行了封包与折包工作，详见packet.h

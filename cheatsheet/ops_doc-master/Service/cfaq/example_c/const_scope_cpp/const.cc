@@ -1,0 +1,1 @@
+const int aa = 100;

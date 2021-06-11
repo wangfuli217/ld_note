@@ -1,0 +1,51 @@
+序列定义
+-------------------
+    序列包含N个值，分别关联到整数索引0到N-1(当N为正值时)。
+    空序列不包含任何值。类似数组，序列中的只可以通过索引访问，还可以从序列的两端添加或删除值。
+    序列可以根据需要自动扩展。
+    
+    序列可以用过数组、链表、栈、队列和双端队列。
+    
+序列接口
+------------------- 
+    序列索引从0到N-1，其中N是序列的长度。空序列没有元素。可以在序列低端(索引0)或高端(索引N-1)处
+添加或删除指针，序列会自动扩展。向任何seq函数传递的T值为NULL，均为已检查的运行时错误。
+
+    T seq_new(int hint)    创建并返回一个空序列。hint是对新序列将包含值的最大数目的估计。
+                           如果该数值是未知的，可以用0作为hint，以创建一个较小的序列。
+                           无论hint值如何，序列都会根据需要扩展以容纳其内容。
+                           传递负的hint值，是一个已检查的运行时错误。
+    T seq_seq(void *x,...)  创建并返回一个序列，其元素来自参数的可变部分，直至遇到第一个NULL指针为止
+    void seq_free(T *seq)   释放*seq并将其清零。如果seq或*seq是NULL，则为已检查的运行时错误
+    
+    int seq_length(T seq)  返回seq中元素的数目。
+    void *seq_get(T seq,int i) 返回seq中第i个元素。i<0或i>=N，则为已检查的运行时错误，其中N是seq的长度。
+    void *seq_put(T seq,int i,void *x) 将seq中第i个元素改为x，并返回原值。已检查的运行时错误。
+    
+    void *seq_addstart(T seq,void *x) 向x添加到seq的高端并返回x
+    void *seq_addend(T seq,void *x)   向x添加到seq的低端并返回x
+    void *seq_removestart(T seq)      删除并返回seq高端的元素，如果seq为空，则为已检查的运行时错误
+    void *seq_removeend(T seq)        删除并返回seq低端的元素，如果seq为空，则为已检查的运行时错误
+
+length字段包含了序列中的值的数目，而array字段保存了这些值的数组。该数组总是至少包含length个元素
+当length小于array.length时，其中一些元素是不使用的。该数组用作一个环形缓冲区，以容纳序列中的值。
+
+序列中索引为0的值保存在数组中索引为head的元素处，序列中索引号连续的值，也保存在数组的"连续"元素中。
+即如果序列中第i个值保存在数组元素array.length-1中，那么i+1个值保存在数组元素0中。
+
+算法
+---------
+在序列开始处添加值时，需要将head减1，而后对数组长度求模，在序列开始处删除值时，需要将head加1，而后对长度求模，
+序列总是会包含一个数组，即使空序列也是如此。
+
+struct T{
+	struct array_t array;
+	int length;
+	int head;
+};
+
+
+icon语言
+http://www2.cs.arizona.edu/icon/docs/ipd266.htm
+
+序列与icon中的列表几乎是相同的，但相关操作的名称则取自DEC实现的Modula-3附带的库中Sequence接口

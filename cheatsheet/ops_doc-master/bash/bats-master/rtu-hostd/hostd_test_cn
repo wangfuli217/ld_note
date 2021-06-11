@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# hostd_test 1.1 - hostd test program
+# Copyright (C) 2017-2020 wangfuli
+#
+# depend on https://github.com/sstephenson/bats
+# depend on hostd program run in Centos from rtud project 
+#           svn://192.168.10.107/lmsom/code/rtu_mcu/mcu-card/src
+# depend on rtud program run in rtu from rtud project     
+#           svn://192.168.10.107/lmsom/code/rtu_mcu/mcu-card/src
+#
+# include hostd.bats for unit testting 
+# 
+# mail contract: wangfl217@126.com
+#
+# This software is the project which include the source and binary code 
+# are private and protected by law. if you get they from anywhere you 
+# should destroy it, please don't distribute it! you can't use this 
+# software for any purpose. if you see this page in any other place please 
+# let'us to know. if you want to get this software and its documentation 
+# agreement you can contact our company. However, this notice must not be 
+# changed or removed and no warranty is either expressed or implied by its 
+# publication or distribution.
+
+
+RTU_HOST='127.0.0.1'
+RTU_PORT='5000'
+
+LANG=C
+export LANG
+
+version()
+{
+    echo "hostd_test_cn 版本号 1.0.1"
+}
+
+usage()
+{
+    echo "hostd_test_cn rtu主机IP rtu主机端口"
+    echo "例如：bash hostd_test_cn 192.168.1.232 5000"
+    echo ""
+}
+
+help()
+{
+    version
+    usage
+}
+
+if [ $# == 2 ] ; then
+    RTU_HOST="$1"
+    RTU_PORT="$2"
+else
+    help
+    exit 0
+fi
+
+export RTU_HOST
+export RTU_PORT
+
+IPADDRESS=$(ifconfig | grep "inet addr" | grep -v "127.0.0.1"| grep "192.168")
+IPADDRESS=$(echo $IPADDRESS | awk '{ print $2 }' | awk -F ':'  '{ print $2 }')
+export IPADDRESS
+
+SERIAL_FILE="./serial"
+echo  $(ftp -n <<END
+open "$1"
+user "root" "123456"
+get "/etc/rtud/serial" "${SERIAL_FILE}"
+quit
+END
+) >& /dev/null
+RTU_SERIAL=$(cat $SERIAL_FILE)
+rm -f "${SERIAL_FILE}"
+export RTU_SERIAL
+
+RET=$(hostd -h "$RTU_HOST" -p "$RTU_PORT" rtu_conf)
+[ $(echo $RET | grep "failure" > /dev/null 2>&1) ] && { echo "TCP连接rtud[$RTU_HOST:$RTU_PORT] 失败"; exit 1 ;}; 
+
+RET=$(hostd -h "$RTU_HOST" -p "$RTU_PORT" rtu_conf)
+while [ "$?" -eq 1 ]; do
+    sleep 1
+    RET=$(hostd -h "$RTU_HOST" -p "$RTU_PORT" rtu_conf)
+done
+
+hostd -h "$RTU_HOST" -p "$RTU_PORT" rtu_conf -t "test_helper.bash" > .rtu_conf
+
+source test_helper.bash
+if [ "x$OPM_SLOT" = "x" -o "y$OSW_SLOT" = "y" -o "z$OTDR_SLOT" = "z" ]; then
+    echo "OPM板卡槽位=$OPM_SLOT OSW板卡槽位=$OSW_SLOT OTDR板卡槽位=$OTDR_SLOT 某个板卡可能不存在"
+    exit 1 
+fi
+
+if pidof hostd > /dev/null 2>&1 ; then
+  pidof hostd | xargs kill
+fi
+bats hostd_cn.bats
+
+rm -f test_helper.bash
+rm -f .opm_test
+rm -f .rtu_conf

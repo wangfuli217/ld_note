@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -e
+
+version() {
+  echo "Bats 0.4.0"
+}
+
+usage() {
+  version
+  echo "Usage: bats [-c] [-p | -t] <test> [<test> ...]"
+}
+
+help() {
+  usage
+  echo
+  echo "  <test> is the path to a Bats test file, or the path to a directory"
+  echo "  containing Bats test files."
+  echo
+  echo "  -c, --count    Count the number of test cases without running any tests"
+  echo "  -h, --help     Display this help message"
+  echo "  -p, --pretty   Show results in pretty format (default for terminals)"
+  echo "  -t, --tap      Show results in TAP format"
+  echo "  -v, --version  Display the version number"
+  echo
+  echo "  For more information, see https://github.com/sstephenson/bats"
+  echo
+}
+
+resolve_link(解析greadlink和readlink命令完整命令，如果greadlink或readlink不存在，则不输出) {
+  $(type -p greadlink readlink | head -1) "$1"
+}
+
+abs_dirname(通过pwd返回参数1所在父目录的绝对路径) {
+  local cwd="$(pwd)"
+  local path="$1"
+
+  while [ -n "$path" ]; do
+    cd "${path%/*}"
+    local name="${path##*/}"
+    path="$(resolve_link "$name" || true)" # true保证set -e的情况下，不返回异常
+  done                                     
+
+  pwd                                      # 返回参数1文件所在目录的绝对路径
+  cd "$cwd"
+}
+
+expand_path(参数1文件-文件夹-所在的绝对路径) {
+  { cd "$(dirname "$1")" 2>/dev/null
+    local dirname="$PWD"
+    cd "$OLDPWD"
+    echo "$dirname/$(basename "$1")"
+  } || echo "$1"
+}
+
+BATS_LIBEXEC="$(abs_dirname "$0")"                   # /usr/local/libexec/
+export BATS_PREFIX="$(abs_dirname "$BATS_LIBEXEC")"  # /usr/local
+export BATS_CWD="$(abs_dirname .)"                   # 当前目录的父目录绝对路径
+export PATH="$BATS_LIBEXEC:$PATH"                    # 添加可执行查找目录
+
+options=()     # bats命令参数
+arguments=()   # bats命令执行文件
+for arg in "$@"; do
+  if [ "${arg:0:1}" = "-" ]; then
+    if [ "${arg:1:1}" = "-" ]; then
+      options[${#options[*]}]="${arg:2}"
+    else
+      index=1
+      while option="${arg:$index:1}"; do
+        [ -n "$option" ] || break          # break为内建命令
+        options[${#options[*]}]="$option"
+        let index+=1                       # let为内建命令
+      done
+    fi
+  else
+    arguments[${#arguments[*]}]="$arg"
+  fi
+done
+
+unset count_flag pretty
+[ -t 0 ] && [ -t 1 ] && pretty="1"    # 文件操作符0和1都存在的情况下，设置pretty为字符串"1"
+[ -n "$CI" ] && pretty=""             # 环境变量CI不为空的情况下，设置pretty为字符串""
+
+for option in "${options[@]}"; do
+  case "$option" in
+  "h" | "help" )
+    help
+    exit 0
+    ;;
+  "v" | "version" )
+    version
+    exit 0
+    ;;
+  "c" | "count" )
+    count_flag="-c"
+    ;;
+  "t" | "tap" )
+    pretty=""         # 按照tap协议格式打印
+    ;;
+  "p" | "pretty" )
+    pretty="1"        # 按照pretty格式打印
+    ;;
+  * )
+    usage >&2
+    exit 1
+    ;;
+  esac
+done
+
+if [ "${#arguments[@]}" -eq 0 ]; then
+  usage >&2
+  exit 1
+fi
+
+filenames=()
+for filename in "${arguments[@]}"; do
+  if [ -d "$filename" ]; then
+    shopt -s nullglob       # 如果设置的话，bash将允许不匹配任何文件的模式扩展为空字符串而不是它们自身
+    for suite_filename in "$(expand_path "$filename")"/*.bats; do
+      filenames["${#filenames[@]}"]="$suite_filename"
+    done
+    shopt -u nullglob       # 如果设置的话，bash将允许不匹配任何文件的模式扩展为空字符串而不是它们自身
+  else
+    filenames["${#filenames[@]}"]="$(expand_path "$filename")"
+  fi
+done
+
+if [ "${#filenames[@]}" -eq 1 ]; then
+  command="bats-exec-test"
+else
+  command="bats-exec-suite"
+fi
+
+if [ -n "$pretty" ]; then
+  extended_syntax_flag="-x"            # tap协议格式
+  formatter="bats-format-tap-stream"   
+else                                   
+  extended_syntax_flag=""              # pretty格式
+  formatter="cat"                      
+fi
+
+set -o pipefail execfail # pipefail，管道命令返回值：第一个命令返回值为非0；或者成功执行为0的最后一个命令
+                         # execfail  非交互式shell情况下，exec作为参数的命令不能执行，不中断shell执行；交互式shell情况下，exec执行失败不中断。
+exec "$command" $count_flag $extended_syntax_flag "${filenames[@]}" | "$formatter"

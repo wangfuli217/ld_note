@@ -1,0 +1,232 @@
+IRQ 为具有I/O位址的硬件到CPU的连接，支持15个，所以当硬件外设很多时需要先去掉暂时不用的
+
+Alt+Ctrl+Backspace 快速注销
+
+进x-window前在session中选择KDE或GNOME或命令行
+
+file:///可打开 directory tree
+
+[ctrl]+d = exit EOF 可退出terminal中程序或退出terminal
+[ctrl]+c 强行中断某进程  比如du
+
+whatis [指令或者是資料] = man -f [指令或者是資料]
+apropos [指令或者是資料] = man -k [指令或者是資料] 关键字查询
+
+exit 可以離開 su 的功能
+
+linux中文件分为:ASCII Binary Data(用last访问)
+
+每一個檔案或目錄的檔名最長可以到達 255 的字元，加上完整路徑時，最長可達4096 個字元
+
+/目錄是開機的時候系統第一個掛載的 partition，所有開機過程會用到的檔案， 應該都要放置在這個partition當中。 /etc, /bin, /dev, /lib, /sbin 這五個次目錄都應該要與根目錄連在一起，不可獨立成為某個 partition
+
+Linux以 $ 為斷行字元(\n)，Windows以 ^M$為斷行字元(\r\n)      ==>    ^M=\r
+
+umask 為 003 ，所以拿掉的屬性為 --------wx，因此：
+檔案： (-rw-rw-rw-) - (--------wx) = -rw-rw-r--  目录和档案都有初始默认属性
+目錄： (drwxrwxrwx) - (--------wx) = drwxrwxr--
+
+SUID可用於 binary file，不能用在批次檔 (shell script) 上面！因為shell script只是將很多的 binary執行檔叫進來執行而已！所以 SUID 的權限部分，還是得要看shell script呼叫進來的程式的設定， 而不是shell script本身。當然，SUID對於目錄也是無效的
+SGID对档案目录都可
+SBIT只可目录
+
+touch :1.建立新档案  2.修改时间戳
+
+whereis與locate 利用資料庫來搜尋資料，所以快速而且沒有實際的搜尋硬碟
+find 操硬盘，在上2者不行的情况下使用
+
+Linux系統將系統內的所有檔案都記錄在一個資料庫檔案裡面，而當使用 whereis或者locate時，會以資料庫檔案的內容為準， 因此，有時後會找到已經被殺掉的檔案！ 而且也找不到最新的剛剛建立的檔案！ 這是因為這兩個指令是由資料庫當中的結果去搜尋檔案的所在   而資料庫的建立預設是每天執行一次 (每個 distribution都不同， FC4是每天更新資料庫一次！)，所以當您新建立起來的檔案， 卻還在資料庫更新之前搜尋該檔案，那麼 locate會告訴您『找不到！』
+
+查看档案属性 用ls -al(常规) file(文件类型) lsattr(隐藏属性)
+
+inode 本身並不紀錄檔名，而是記錄檔案的相關屬性，至於檔名則是記錄在目錄所屬的 block 區域
+
+目錄的最大功能就是在提供檔案的關連性
+
+ext2 與 ext3 檔案在建立時 (format) 就已經設定好固定的 inode 數與 block 數目了
+
+ 一個 partition (filesystem) 所能容許的最大檔案數，與 inode 的數量有關， 因為一個檔案至少要佔用一個 inode
+
+ 一般來說，每 4Kbytes 的硬碟空間分配一個 inode
+
+關於單一檔案：
+若 block size=1024，最大容量為 16GB，若 block size=4096，容量最大為 2TB；
+關於整個 partition ：
+若 block size=1024，則容量達 2TB，若 block size=4096，則容量達 32TB。
+
+目錄可以記錄檔名與 inode 的相關資訊
+
+掛載點一定是『目錄』而不是檔案
+
+文件系统              容量   已用          可用    已用%      挂载点
+/dev/sdb7  40G  8.0G   32G  21%   /media/FUN
+
+hard link 是在同一個 partition 上面進行資料關連的建立，所以 hard link 是有限制的：
+不能跨 Filesystem； 不能 link 目錄
+
+hard link 改连结档  原档不变
+symbolic link 改连结档 改原档
+
+當我們建立一個新的目錄時， 『新的目錄的 link 數為 2 (./自己和../上层)，而上層目錄的 link 數則會增加 1
+－
+只有掛載 partition 的目錄 (就是掛載點) 才會有目录lost+found
+
+同步寫入 (sync) 
+非同步 (async)
+
+fsck檢查partition 必须保证该磁区未被使用，即未被挂载(umount) 否则会损毁filesystem
+
+mount 將某個目錄掛載到另外一個目錄去   mount --bind
+
+df 磁盘使用情况(整体)
+du 磁盘具体被什么文件使用了多大
+
+系统出现问题，无法正常开机，只能单人维护模式进入 －－ 开机kernel选择处按‘e’，在kernel行输入‘single’，再回车，再‘boot’。此时/为只读，無法修改 /etc/fstab，無法更新 /etc/mtab，尝试
+mount -n(不更新/etc/mtab) -o(额外参数设定) remount,rw/  就可让/读写
+
+最多還是僅能建立到 32 個 swap 的數量！而且，由於目前 x86_64 (64位元) 最大記憶體定址到 64GB， 因此， swap 總量最大也是僅能達 64GB
+
+tar只打包无压缩
+
+gzip = GNU Zip
+
+                                      解压缩但不显示         把压缩包内容读出显示在terminal中，实际没有解压缩
+gzip     -d = gunzip         zcat
+bzip2    -d = bunzip2        bzcat
+compress -d = uncompress
+
+備份 /dev/hda 的 MBR
+[root@linux ~]# dd if=/dev/hda of=/tmp/mbr.back bs=512 count=1  很巧妙的方法
+
+dd -- disk 2 disk 所以功力在备份
+
+tar 可以用來備份關鍵資料，而 dd 則可以用來備份整顆 partition 或 整顆 disk
+
+-r--r--r-- 時，無法寫入  :wq! 强制写入 『您的權限可以改變』的情況下才能成立的
+
+DOS 格式當中多了 CR(Carriage Return \r) 字符，所以，檔案比較大
+
+alias lm='ls -al' 设定命令别名 命令可带参数  类似变量
+
+type 也可以用來作為類似 which 指令的用途  当然还有whereis find
+
+\ 符號來跳脫后续符号  是跳脱字符
+若指令过长 则\后必无空格直接［enter］ 否则跳脱的是空格
+
+a=b b=c
+echo $a (b)
+unset $a = unset b
+
+a=jedi name
+echo $a  --command not found
+a=jedi\ name (转义空格)
+echo $a  --jedi name
+a='jedi name'
+echo $a  --jedi name
+
+取得一個 bash 之後，亦即得到了一個程序了，但是若你再次的執行一次 bash ，那麼你將進入『子程序』
+
+declare -x = export
+
+[root@linux ~]# sum=100+300+50
+[root@linux ~]# echo $sum
+100+300+50   <==咦！怎麼沒有幫我計算加總？因為這是文字型態的變數屬性啊！
+[root@linux ~]# declare -i sum=100+300+50
+[root@linux ~]# echo $sum
+450
+
+使用 ls -al 時會出現兩個一定存在的目錄，分別是『.』與『..』，分別代表是『這個路徑』，與『上一層路徑』 ,都是目录
+
+執行檔案的時候，基本上，並不會主動搜尋目前目錄下的檔案，就是『.』。『 安全』的考量      P279
+在/usr/local/squid/bin 下達 squid，则command not found，应该用./squid  新手特別容易犯這個錯誤呢
+
+开机后：
+  1. 先讀取 /etc/profile ，再根據 /etc/profile 的內容去讀取其他額外的設定檔， 例如 /etc/profile.d 與 /etc/inputrc 等等
+     設定檔；
+  2. 根據不同的使用者，到使用者家目錄去讀取 ~/.bash_profile 或 ~/.bash_login 或 ~/.profile 等設定檔；
+  3. 根據不同使用者，到他家目錄去讀取 ~/.bashrc 。
+所以囉，當我登入 bash 後，最終讀取的設定檔竟然是 ~/.bashrc 呢！ 也就是說，在 ~/.bashrc 裡面的設定會是最終的
+設定值！所以囉， 通常鳥哥我喜歡將個人的一些常用 alias 或 PATH 等環境變數或自訂變數都寫到這個檔案去， 如
+此一來，不論原來系統幫我們做了什麼設定值，我都可以使用屬於自己熟悉的環境
+
+先由 /etc/passwd 取得 bash 這個 shell ，再到 /etc/profile 讀取主要的環境變數，同時亦會將 /etc/inputrc 及 /etc/profile.d
+內容均讀入。之後，再到個人的家目錄讀取 ~/.bash_profile 及 ~/.bashrc 等檔案！
+
+source可让对系统配置文件的改动立即生效不需注销后再登入
+
+万用字元于符号    P285
+
+cd /lib/modules/$(uname -r)/kernel  =  cd /lib/modules/`uname -r`/kernel
+
+资料流重定向  > (取代)   >> (增加)  定向后不在屏幕显示。若又要显示，用tee
+該檔案 (本例中是 ~/rootfile) 若不存在，系統會自動的將他建立起來
+
+/dev/null 垃圾箱，可把output error 重定向到这里
+
+[dmtsai@linux ~]$ find /home -name testing > list 2> list <==錯誤寫法
+[dmtsai@linux ~]$ find /home -name testing > list 2>&1 <==正確寫法
+同時寫入同一個檔案需要使用 2>&1 
+
+重定向的目的：
+當螢幕輸出的資訊很重要，而且我們需要將他存下來的時候；
+背景執行中的程式，不希望他干擾螢幕正常的輸出結果時；
+一些系統的例行命令（例如寫在 /etc/crontab 中的檔案）的執行結果，希望他可以存下來時；
+一些執行命令，我們已經知道他可能的錯誤訊息，所以想以『 2> /dev/null 』將他丟掉時；
+錯誤訊息與正確訊息需要分別輸出時。
+
+1. 標準輸入(stdin) ：           代碼為 0 ，使用 <               或 << (结束输入eof)
+2. 標準輸出(stdout)：         代碼為 1 ，使用 > (覆盖)            或 >>  (添加)
+3. 標準錯誤輸出(stderr)：代碼為 2 ，使用 2>             或 2>> 
+
+cut -d':' -f1 < /etc/passwd 反向的好处：不用写指令拿出文件内容。正向>右边是文件而无法对重定向的资料流操作
+
+[root@linux ~]# cat > catfile        ＝          [root@linux ~]# cat > catfile <<eof
+testing                                          > testing
+<==這裡按下 [ctrl]+d 結束輸入來離開！                                                 >    eof <==輸入這個玩意兒，嘿！立刻就結束了！
+
+echo $? 判断上个指令是否成功－－成功返回0，错误有起错误代码
+
+[root@linux ~]# ls /tmp/vbirding && touch /tmp/testingagin 指令1正确，则执行指令2
+[root@linux ~]# ls /tmp/vbirding || touch /tmp/vbirding    指令1错误，则执行指令2
+
+ls /tmp/vbirding && echo "exist" || echo "not exist" 指令是1个个往后执行
+一般來說，判斷式最多會有三個，也就是：    
+command1 && command2 || command3   而且順序通常不會變，因為， command2 與 command3 會放置肯定可以執行成功的指令
+
+P291 管線命令『 | 』僅能處理經由前面一個指令傳來的正確資訊，也就是 standard output ( STDOUT ) 的資訊，對於 stdandard error 並沒有直接處理的能力  
+前後部分都是『指令』呢！而後一個指令的輸入乃是由前一個指令的輸出而來  	－－这就是与‘连续下达命令的区别’
+
+cut 在處理多空格相連的資料時，可能會比較吃力一點
+
+排序時，建議使用 LC_ALL=C 來讓語系統一，資料排序比較好一些
+
+使用 join 之前，你所需要處理的檔案應該要事先經過排序 (sort) 處理！ 否則有些比對的項目會被略過
+
+某些指令需要用到檔案名稱來進行處理時，該 stdin 與 stdout 可以利用減號 "-" 來替代
+[root@linux ~]# tar -cvf - /home | tar -xvf -
+上面這個例子是說：『我將 /home 裡面的檔案給他打包，但打包的資料不是紀錄到檔案，而是傳送到 stdout； 經過
+管線後，將 tar -cvf - /home 傳送給後面的 tar -xvf - 』。後面的這個 - 則是取用前一個指令的 stdout
+
+env环境变量
+set所有变量
+
+unset   取消变量 
+unalias 取消指令别名
+
+不同用户环境变量PATH区别：
+/usr/kerberos/bin:/usr/local/bin:/usr/bin:/bin:/usr/X11R6/bin:/home/jedi/bin                                              jedi
+/usr/kerberos/bin:/usr/local/bin:/usr/bin:/bin:/usr/X11R6/bin:/home/jedi/bin:/usr/kerberos/sbin                           su root
+/usr/kerberos/bin:/usr/local/bin:/usr/bin:/bin:/usr/X11R6/bin:/usr/kerberos/sbin:/usr/local/sbin:/usr/sbin:/sbin:         root
+/usr/kerberos/bin:/usr/local/bin:/usr/bin:/bin:/usr/kerberos/sbin:/usr/local/sbin:/usr/sbin:                              su -l
+
+vi ~/.bashrc
+PATH=$PATH:/a
+:wq
+再vi ~/.bashrc
+PATH=$PATH:/a/b (此时/a已经入PATH)
+echo $PATH --/a/a/b (2个/a)
+
+保存在win下的文件用linux挂载后打开 属性为715 且所有者和组群是root，用chmod后可以成功(再输入echo $?返回0)，但属性无法变更 ？？？
+
+用户命令		/bin 和/usr/bin  任何用户
+系统管理命令      /sbin和/usr/sbin root权限

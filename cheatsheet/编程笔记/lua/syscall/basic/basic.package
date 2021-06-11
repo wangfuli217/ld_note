@@ -1,0 +1,221 @@
+--[[
+    通常，Lua语言不会设置规则。相反，Lua语言提供的是足够强大的机制供不同的开发者
+实现最适合自己的规则。然而，这种方法对于模块而言并不是特别合适。模块系统的主要
+目标之一就是允许不同的人共享代码，缺乏公共规则就无法实现这样的共享。
+    从用户观点看，一个模块就是一些代码(要么是Lua语言编写的，要么是C语言编写的)，
+这些代码可以通过函数require加载，然后创建和返回一个表。这个表就像是某种命名空间，
+其中定义的内容是模块要导出的东西，比如函数和变量。
+    1. 所有的标准库都是模块。
+    2. 独立解释器会使用更如下代码等价的方式提前加载所有的标准库
+        math = require "math"
+        string = require "string"
+        ...      ...
+    模块
+    local mod = require("mod")
+    local mod = require 'mod'
+    local mod = require "mod" -- 当函数的参数只有一个字符串常量时括号是可以省略的
+    mod.foo()
+    
+    local m = require "mod"  -- 为模块设置一个局部的名称
+    m.foo()
+    
+    local m = require "mod"  -- 为个别函数提供不同的名称
+    local f = m.foo
+    f()
+    
+    locl f = require "mod".foo -- 只引入特定的函数
+    f()
+    
+注意：一个模块就是一个程序库，通过require函数加载，可以得到一个全局变量，这个
+全局变量是一个table，就像是一个名称空间，其内容就是模块中导出的所有东西，
+--]]
+
+--[[  函数require
+    首先，函数require在表package.loaded中检查模块是否已被加载。如果模块已经被加载
+函数require就返回相应的值。因此，一旦一个模块被加载过，后续的对于同一模块的所有
+require调用都将返回同一个值。而不会再运行任何代码。
+    如果模块尚未加载，那么函数require则搜索具有指定模块名的Lua文件(搜索路径由变量
+package.path指定)。如果函数require找到了相应的文件，那么就用函数loadfile将其进行
+加载，结果是一个我们称之为加载器的函数(加载器就是一个被调用时加载模块的函数)。
+    如果函数require找不到指定模块名的Lua文件，那么它就搜索相应名称的C标准库(在
+这种情况下，搜索路径由变量package.cpath指定)。如果找到一个C标准库，则使用底层函数
+package.loadlib进行加载，这个底层函数会查找名为luaopen_modname的函数。在这种情况
+下，加载函数就是loadlib的执行结果，也就是一个被表示为Lua函数的C语言函数luaopen_modname.
+    不管模块是在Lua文件还是C标准库中找到的，函数require此时都具有了用于加载它的
+加载函数。为了最终加载模块，函数require带着两个参数调用加载函数：模块名和加载函数
+所在文件的名称。如果加载函数有返回值，那么函数require会返回这个值，然后将其保存在表
+package.loaded中，以便于将来在加载同一模块时返回相同的值。如果加载模块函数没有返回值且
+表中的package.loaded[@rep{modname}]为空，函数require就假设模块的返回值是true。如果
+没有这种补偿，那么后续调用函数require时将会重复加载模块。
+
+    要强制函数require加载同一模块两次，可以先将模块从package.loaded中删除；
+    package.loaded.modname = nil
+    
+    函数require的主要目的之一就是避免重复加载模块。
+    请记住：模块在任何情况下只加载一次；至于如何处理冲突的加载，取决于模块自己。
+--]]
+
+
+--[[  模块重命名
+  如果一个模块名中包含连字符，那么函数require就会用连字符之前的内容来创建luaopen_*函数的名称。
+    例如：如果一个模块的名称为mod-v3.4，那么函数require会认为该模块的加载函数应该是
+luaopen_mod而不是luaopen_mod-v3.4。因此，如果需要使用两个名称均为mod的模块，那么
+可以对其中的一个进行重命名，例如：mod-v1。当调用m1=require "mod-v1"时，函数require
+会找到改名后的文件mod-v1并将其中原名为luaopen_mod的函数作为加载函数。
+--]]
+
+--[[ 搜索路径
+package.path 1. LUA_PATH_5_3 2. LUA_PATH 3. 默认路径 4. 从lua 5.2开始，独立解释器可以通过命令行参数-E
+             来阻止使用这些环境变量而强制使用默认值。
+luci:   ./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua
+ubuntu: /usr/local/share/lua/5.2/?.lua;/usr/local/share/lua/5.2/?/init.lua;/usr/local/lib/lua/5.2/?.lua;/usr/local/lib/lua/5.2/?/init.lua;./?.lua
+
+package.cpath 1. LUA_CPATH_5_3 2. LUA_CPATH 
+luci:   ./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so
+ubuntu: /usr/local/lib/lua/5.2/?.so;/usr/local/lib/lua/5.2/loadall.so;./?.so
+
+package.searchpath 中实现了搜索库的所有规则，该函数的参数包括模块名和路径，然后遵循
+        上述规则来搜索文件。函数package.searchpath要么返回第一个存在的文件的文件名，
+        要么返回nil外加描述所有文件都无法成功打开的错误信息。
+        path = 
+        print(package.searchpath("X", path))
+        print(package.searchpath("log", path))
+低版本不支持package.searchpath函数。
+--]]
+
+function searchpath(modname, path)
+  modname = string.gsub(modname, '%.', '/')
+  local msg = {}
+  for c in string.gmatch(path, "[^;]+") do
+    local fname = string,gsub(c, "?", modname)
+    local f = io.open(fname)
+    if f then 
+      f:close()
+      return fname
+    else
+      msg[msg# + 1] = string.format("\n\t no file '%s'", fname)
+    end
+  end
+  return nil, table.concat(msg)
+end
+
+--[[ 搜索器
+package.searchers 列出了函数require使用的所有搜索器。在寻找模块时，函数require
+        传入模块名并调用列表中的每一个搜索器直到它们其中的一个找到了指定模块的
+        加载器。如果所有搜索器都被调用完后还找不到，那么函数require就抛出一个异常。
+第一个：预加载搜索器； 第二个：Lua脚本搜索器； 第三个：C语言动态库搜索器。
+第四个：与子模块有关。
+
+    预加载搜索器使得我们能够为要加载的模块定义任意的加载函数。预加载搜索器使用一个
+名为package.preload的表来映射模块名称和加载函数。当搜索指定的模块名时，该搜索器
+只是简单地在表中搜索指定的名称。如果它找到了对应的函数，那么就将该函数作为相应
+模块的加载函数返回；否则，则返回nil。
+    预加载搜索器为处理非标场景提供了一种通用的方式。
+    例如：一个静态链接到Lua中C标准库可以将其luaopen_函数注册到表preload中，这样
+luaopen_函数只有当用户加载这个模块才会被调用。用这种方式，程序不会为没有用到的模块
+浪费资源
+--]]
+
+-- (1)最简单的方法。
+complex = {}
+function complex.new (r, i) return {r = r, i = i } end
+complex.i = complex.new(0, 1)
+function complex.add (c1, c2) return complex.new(c1.r + c2.r, c1.i + c2.i) end
+function complex.sub (c1, c2) return complex.new(c1.r - c2.r, c1.i - c2.i) end
+function complex.mul (c1, c2) return complex.new(c1.r * c2.r - c1.i * c2.i, c1.r * c2.i + c1.i * c2.r) end
+local function inv (c) return complex.new(c.r/(c.r^2 + c.i ^2), -c.i/(c.r^2 + c.i ^2)) end
+function complex.div (c1, c2) return complex.mul(c1, inv(c2)) end
+return complex
+
+-- (2)只有一处依赖模块名。
+local M = {}
+complex = M
+function M.new (r, i) *** end
+M.i = M.new(0, 1)
+function M.add (c1, c2) *** end
+function M.sub (c1, c2) *** end
+function M.mul (c1, c2) *** end
+local function inv(c) *** end
+function M.div (c1, c2) *** end
+return M
+
+-- (3)可以完全避免写模块名，require会将模块名作为参数传入，只需让模块名与文件名保持一致就可以了。
+local modname = ...    -- "..."为变参。
+local M = {} 
+_G[modname] = M
+function M.new (r, i) *** end
+M.i = M.new(0, 1)
+function M.add (c1, c2) *** end
+function M.sub (c1, c2) *** end
+function M.mul (c1, c2) *** end
+local function inv(c) *** end
+function M.div (c1, c2) *** end
+return M
+
+-- (4)消除return语句，让所有与模块相关的设置任务都集中在模块开头。
+local modname = ...
+local M = {}
+_G[modname] = M
+package.loaded[modname] = M    -- 如果一个模块没有返回值，require就会返回package.loaded[modname]的值。
+function M.new (r, i) *** end
+M.i = M.new(0, 1)
+function M.add (c1, c2) *** end
+function M.sub (c1, c2) *** end
+function M.mul (c1, c2) *** end
+local function inv(c) *** end
+function M.div (c1, c2) *** end  
+
+-- (5)删除前缀，第14章介绍的“函数环境”是一种有趣的技术，它可以解决这个问题，让模块的主程序块拥有自己的环境，所有公有函数都可以声明为全局变量，它们会自动记录在一个独立的table中。
+local modname = ...
+local M = {}
+_G[modname] = M
+package.loaded[modname] = M
+setfenv(1, M)
+function add (c1, c2) *** end
+i = new(0, 1)
+function sub (c1, c2) *** end
+function mul (c1, c2) *** end
+local function inv(c) *** end
+function div (c1, c2) *** end
+
+-- (6)访问前一个环境中的全局变量。
+local modname = ...
+local M = { }
+_G[modname] = M
+package.loaded[modname] = M
+--方法一：会产生形如complex.math.sin(x)的语法。
+--sermetatable(M, {__index = _G})
+--方法二：之后所有全局变量必须加"_G."前缀。
+--_G = _G
+--方法三：将需要用到的全局变量声明为局部变量，依赖性清晰，速度也更快。
+local sqrt = math.sqrt
+local io = io
+***
+setfenv(1, M) 
+
+-- (7)使用module函数。
+module(...)
+等价于
+local modname = ...
+local M = {}
+_G[modname] = M
+package.loaded[modname] = M
+<setup for external access>
+setfenv(1, M)
+默认情况下，module不提供外部访问，所以必须在调用它之前，为需要访问的外部函数或模块声明适当的局部变量。也可以在调用module时加一个选项package.seeall，通过继承实现外部访问：
+module(..., package.seeall)
+等价于
+setmetatable(M, {__index = _G})
+在一个模块文件的开头有了这句调用，后续所有的代码都可以像普通的Lua代码那样编写了，不需要限定模块名和外部名字，同样也不需要返回模块table。
+
+>module在创建模块table之前，会先检查package.loaded是否已经包含了这个模块，或者是否已经存在与模块同名的变量，如果有，就覆盖原有的值，如果没有，就创建一个新的模块table，然后在这个table中设置一些预定义的变量，包括：_M（模块table本身）、_NAME（模块名）、_PACKAGE（包名）。
+
+>Lua支持层级结构的模块名，用"."分隔不同层级的名称，如mod.sub，它是mod模块的一个子模块。一个包(package)就是一个完整的模块树，它是Lua发行的单位。
+
+>require一个子模块mod.sub时，会用原始的模块名"mod.sub"作为key查询table package.loaded和package.preload。当搜索定义该子模块的文件时，require会将点转换为目录分隔符（UNIX为"/"，Windows为"\"），然后像搜索其他名称一样搜索该名称。例如，假设路径为：
+./?.lua;/usr/local/lua/?.lua;/usr/local/lua/?/init.lua
+调用require "a.b"会尝试打开以下文件：
+./a/b.lua
+/usr/local/lua/a/b.lua
+/usr/local/lua/a/b/init.lua
+通过这样的加载策略，就可以将一个包的所有模块组织到一个目录中。例如，一个包有模块p、p.a和p.b，对应的文件分别为：p/init.lua, p/a.lua, p/b.lua，它们都是目录p下的文件。Lua使用的目录分隔符是编译时配置的，可以是任意的字符串（Lua没有“目录”的概念），例如，在没有目录层级的系统中，就可以使用"_"作为目录分隔符，那么require "a.b"就会搜索a_b.lua文件。

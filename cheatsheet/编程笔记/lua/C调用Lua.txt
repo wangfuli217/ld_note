@@ -1,0 +1,178 @@
+-< Lua-CAPI简介
+1. 基础： redis dnsmasq 
+    Lua的一项重要用途就是作为一种配置语言。现在从一个简单的示例开始吧。
+    --这里是用Lua代码定义的窗口大小的配置信息
+    width = 200
+    height = 300
+    下面是读取配置信息的C/C++代码：   
+    
+#include <stdio.h>
+#include <string.h>
+#include <lua.hpp>
+#include <lauxlib.h>
+#include <lualib.h>
+
+void load(lua_State* L, const char* fname, int* w, int* h) {
+    if (luaL_loadfile(L,fname) || lua_pcall(L,0,0,0)) {
+        printf("Error Msg is %s.\n",lua_tostring(L,-1));
+        return;
+    }
+    lua_getglobal(L,"width");
+    lua_getglobal(L,"height");
+    if (!lua_isnumber(L,-2)) {
+        printf("'width' should be a number\n" );
+        return;
+    }
+    if (!lua_isnumber(L,-1)) {
+        printf("'height' should be a number\n" );
+        return;
+    }
+    *w = lua_tointeger(L,-2);
+    *h = lua_tointeger(L,-1);
+}
+
+
+int main()
+{
+    lua_State* L = luaL_newstate();
+    int w,h;
+    load(L,"D:/test.lua",&w,&h);
+    printf("width = %d, height = %d\n",w,h);
+    lua_close(L);
+    return 0;
+}
+
+下面是针对新函数的解释：
+lua_getglobal是宏，其原型为：#define lua_getglobal(L,s)  lua_getfield(L, LUA_GLOBALSINDEX, (s))。
+每次调用这个宏的时候，都会将Lua代码中与之相应的全局变量值压入栈中，第一次调用时将全局变量"width"的值压入栈中，
+之后再次调用时再将"height"的值也压入栈中。
+    
+    
+2. table操作：
+    我们可以在C语言的代码中操作Lua中的table数据，这是一个非常非常方便且实用的功能。这样不仅可以使Lua代码的结构更加清晰，也可以在C语言代码中定义等同的结构体与之对应，从而大大提高代码的可读性。见如下代码：
+
+#include <stdio.h>
+#include <string.h>
+#include <lua.hpp>
+#include <lauxlib.h>
+#include <lualib.h>
+
+void load(lua_State* L) {
+
+    if (luaL_loadstring(L,"background = { r = 0.30, g = 0.10, b = 0 }") 
+        || lua_pcall(L,0,0,0)) {
+        printf("Error Msg is %s.\n",lua_tostring(L,-1));
+        return;
+    }
+    lua_getglobal(L,"background");
+    if (!lua_istable(L,-1)) {
+        printf("'background' is not a table.\n" );
+        return;
+    }
+    lua_getfield(L,-1,"r");
+    if (!lua_isnumber(L,-1)) {
+        printf("Invalid component in background color.\n");
+        return;
+    }
+    int r = (int)(lua_tonumber(L,-1) * 255);
+    lua_pop(L,1);
+    lua_getfield(L,-1,"g");
+    if (!lua_isnumber(L,-1)) {
+        printf("Invalid component in background color.\n");
+        return;
+    }
+    int g = (int)(lua_tonumber(L,-1) * 255);
+    lua_pop(L,1);
+
+    lua_pushnumber(L,0.4);
+    lua_setfield(L,-2,"b");
+
+    lua_getfield(L,-1,"b");
+    if (!lua_isnumber(L,-1)) {
+        printf("Invalid component in background color.\n");
+        return;
+    }
+    int b = (int)(lua_tonumber(L,-1) * 255);
+    printf("r = %d, g = %d, b = %d\n",r,g,b);
+    lua_pop(L,1);
+    lua_pop(L,1);
+    return;
+}
+
+int main()
+{
+    lua_State* L = luaL_newstate();
+    load(L);
+    lua_close(L);
+    return 0;
+}
+
+
+    void lua_getfield(lua_State *L, int idx, const char *k); 第二个参数是table变量在栈中的索引值，最后一个参数是table的键值，该函数执行成功后会将字段值压入栈中。
+    void lua_setfield(lua_State *L, int idx, const char *k); 第二个参数是table变量在栈中的索引值，最后一个参数是table的键名称，而字段值是通过上一条命令lua_pushnumber(L,0.4)压入到栈中的，该函数在执行成功后会将刚刚压入的字段值弹出栈。
+   
+    下面的代码示例是在C语言代码中构造table对象，同时初始化table的字段值，最后再将table对象赋值给Lua中的一个全局变量。
+
+#include <stdio.h>
+#include <string.h>
+#include <lua.hpp>
+#include <lauxlib.h>
+#include <lualib.h>
+
+void load(lua_State* L) 
+{
+    lua_newtable(L);
+    lua_pushnumber(L,0.3);
+    lua_setfield(L,-2,"r");
+
+    lua_pushnumber(L,0.1);
+    lua_setfield(L,-2,"g");
+
+    lua_pushnumber(L,0.4);
+    lua_setfield(L,-2,"b");
+    lua_setglobal(L,"background");
+
+    lua_getglobal(L,"background");
+    if (!lua_istable(L,-1)) {
+        printf("'background' is not a table.\n" );
+        return;
+    }
+    lua_getfield(L,-1,"r");
+    if (!lua_isnumber(L,-1)) {
+        printf("Invalid component in background color.\n");
+        return;
+    }
+    int r = (int)(lua_tonumber(L,-1) * 255);
+    lua_pop(L,1);
+    lua_getfield(L,-1,"g");
+    if (!lua_isnumber(L,-1)) {
+        printf("Invalid component in background color.\n");
+        return;
+    }
+    int g = (int)(lua_tonumber(L,-1) * 255);
+    lua_pop(L,1);
+
+    lua_getfield(L,-1,"b");
+    if (!lua_isnumber(L,-1)) {
+        printf("Invalid component in background color.\n");
+        return;
+    }
+    int b = (int)(lua_tonumber(L,-1) * 255);
+    printf("r = %d, g = %d, b = %d\n",r,g,b);
+    lua_pop(L,1);
+    lua_pop(L,1);
+    return;
+}
+
+int main()
+{
+    lua_State* L = luaL_newstate();
+    load(L);
+    lua_close(L);
+    return 0;
+}
+
+    上面的代码将输出和之前代码相同的结果。
+    lua_newtable是宏，其原型为：#define lua_newtable(L) lua_createtable(L, 0, 0)。调用该宏后，Lua会生成一个新的table对象并将其压入栈中。
+    lua_setglobal是宏，其原型为：#define lua_setglobal(L,s) lua_setfield(L,LUA_GLOBALSINDEX,(s))。调用该宏后，Lua会将当前栈顶的值赋值给第二个参数指定的全局变量名。该宏在执行成功后，会将刚刚赋值的值从栈顶弹出。
+    

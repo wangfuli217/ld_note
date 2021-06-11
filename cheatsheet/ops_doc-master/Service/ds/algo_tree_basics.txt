@@ -1,0 +1,339 @@
+
+Taxicab metric: (also known as rectilinear distance, city block distance, Manhattan distance, or Manhattan length)
+	- http://en.wikipedia.org/wiki/Rectilinear_distance
+
+Bloom filter 
+	-a space-efficient probabilistic data structure that is used to test whether an element is a member of a set.
+	- False positive matches are possible, but false negatives are not; 
+		- i.e. a query returns either "possibly in set" or "definitely not in set". 
+		- Elements can be added to the set, but not removed (though this can be addressed with a "counting" filter). The more elements that are added to the set, the larger the probability of false positives.
+	- Bloom proposed the technique for applications where the amount of source data would require an impracticably large hash area in memory if "conventional" error-free hashing techniques were applied. 
+	      Example:  a dictionary of 500,000 words, of which 90% could be hyphenated by following simple rules but all the remaining 50,000 words required expensive disk access to retrieve their specific patterns. 
+	        * With unlimited core memory, an error-free hash could be used to eliminate all the unnecessary disk access. 
+		* But if core memory was insufficient, a smaller hash area could be used to eliminate most of the unnecessary access. 
+		* For example, a hash area only 15% of the error-free size would still eliminate 85% of the disk accesses (Bloom (1970)).
+	- Example:
+		* The Google Chrome web browser uses a Bloom filter to identify malicious URLs.
+		* Any URL is first checked against a local Bloom filter 
+		* only upon a hit a full check of the URL is performed.
+
+
+Bloom filter implementation
+	- An empty Bloom filter is a bit array of m bits, all set to 0. 
+	- There must also be k different hash functions defined
+		* each maps or hashes some set element to one of the m array positions with a uniform random distribution.
+	- Add element:
+		*feed the element to each of the k hash functions to get k array positions. Set the bits at all these positions to 1.
+	- Search elemen (test whether it is in the set)
+		* feed the element to each of the k hash functions to get k array positions. 
+		* If any of the bits at these positions are 0, the element is definitely not in the set – if it were, then all the bits would have been set to 1 when it was inserted. If all are 1, then either the element is in the set, or the bits have by chance been set to 1 during the insertion of other elements, resulting in a false positive. 
+
+Bloom filter (Pros and Cons)
+	- Space: 
+		* Bloom filters have a strong space advantage over other data structures for representing sets
+		  - such as self-balancing binary search trees, tries, hash tables, or simple arrays or linked lists of the entries. 
+		  ** Most of these require storing at least the data items themselves
+		  	- which can require anywhere from a small number of bits, for small integers, to an arbitrary number of bits, such as for strings 
+		  	(tries are an exception, since they can share storage between elements with equal prefixes).
+		  - Linked structures incur an additional linear space overhead for pointers.
+	- Cons: If the number of potential values is small and many of them can be in the set
+		* the Bloom filter is easily surpassed by the deterministic bit array, which requires only one bit for each potential element.
+
+Red-black Trees
+	- Red-black trees are an evolution of binary search trees that aim to keep the tree balanced without affecting the complexity of the primitive operations. 
+	- This is done by coloring each node in the tree with either red or black and 
+	  preserving a set of properties that guarantee that the deepest path in the tree is not longer than twice the shortest one.
+	- A red-black tree is a binary search tree with the following properties:
+		* Every node is colored with either red or black.
+		* All leaf (nil) nodes are colored with black; if a node’s child is missing then we will assume that it has a nil child in that place and this nil child is always colored black.
+		* Both children of a red node must be black nodes.
+		* Every path from a node n to a descendent leaf has the same number of black nodes (not counting node n). 
+		 	- We call this number the black height of n, which is denoted by bh(n).
+
+B+ tree
+	-  B+ tree is an n-ary tree with a variable but often large number of children per node.
+	- B+ tree consists of a root, internal nodes and leaves
+	- The primary value of a B+ tree is in storing data for efficient retrieval in a block-oriented storage context - in particular, filesystems. 
+	- This is primarily because unlike binary search trees, B+ trees have very high fanout 
+		* (number of pointers to child nodes in a node,typically on the order of 100 or more)
+		* which reduces the number of I/O operations required to find an element in the tree.
+
+B+ tree search
+	- The root of a B+ Tree represents the whole range of values in the tree, where every internal node is a subinterval.
+	- An internal B+ Tree node has at most b children, where every one of them represents a different sub-interval. 
+	- If the table had 1,000,000 (1M) records, then a specific record could be located with at most 20 comparisons.  2^20 = 1M
+	
+B+ tree insert
+	- Perform a search to determine what bucket the new record should go into.
+	- If (the bucket is not full (at most b - 1 entries after the insertion)) 
+		add the record.
+	  else 
+	  	split the bucket.
+		* Allocate new leaf and move half the bucket's elements to the new bucket.
+		* Insert the new leaf's smallest key and address into the parent.
+		* If the parent is full, split it too. Add the middle key to the parent node. 
+		* Repeat until a parent is found that need not split.
+	- If the root splits, create a new root which has one key and two pointers. 
+	  (That is, the value that gets pushed to the new root gets removed from the original node)
+
+B+ tree Deletion
+	- Start at root, find leaf L where entry belongs.
+	- Remove the entry.
+	- If L is at least half-full, done! 
+	- If L has fewer entries than it should, 
+	  Try to re-distribute, borrowing from sibling (adjacent node with same parent as L).
+	- If re-distribution fails, merge L and sibling. 
+	  If merge occurred, must delete entry (pointing to L or sibling) from parent of L. 
+	  Merge could propagate to root, decreasing height.
+
+How index speeds the search?
+	- Initial disk reads narrowed the search range by a factor of two. 
+	- That can be improved substantially by creating an auxiliary index that contains the first record in each disk block (sometimes called a sparse index). 
+	- This auxiliary index would be 1% of the size of the original database, but it can be searched more quickly. 
+	- Finding an entry in the auxiliary index would tell us which block to search in the main database; 
+	  after searching the auxiliary index, we would have to search only that one block of the main database.
+
+Best-first search 
+	- a search algorithm which explores a graph by expanding the most promising node chosen according to a specified rule.
+	- Best-first search estimates the promise of node n by a "heuristic evaluation function  which, in general, may depend on the description of n, the description of the goal, 
+	  the information gathered by the search up to that point, and most important, on any extra knowledge about the problem domain.
+
+A* search
+	- uses a best-first search and finds a least-cost path from a given initial node to one goal node (out of one or more possible goals). 
+	- As A* traverses the graph, it follows a path of the lowest expected total cost or distance, keeping a sorted priority queue of alternate path segments along the way.	
+	- It uses a knowledge-plus-heuristic cost function of node x (usually denoted f(x)) to determine the order in which the search visits nodes in the tree. 
+	- The cost function is a sum of two functions:
+		* the past path-cost function: the known distance from the starting node to the current node x (usually denoted g(x))
+		* a future path-cost function: an admissible "heuristic estimate" of the distance from x to the goal (usually denoted h(x)).
+
+Breath-first search
+	- The algorithm uses *queue* to store intermediate results as it traverses the graph, as follows:
+		1. Enqueue the root node
+		2. Dueue a node and examine it
+		3. If the element sought is found in this node, quit the search and return a result.
+		4. Otherwise enqueue any successors (the direct child nodes) that have not yet been discovered.
+			- If the queue is empty, every node on the graph has been examined – quit the search and return "not found".
+			- If the queue is not empty, repeat from Step 2.
+	- * Using a stack instead of a queue would turn this algorithm into a depth-first search
+
+Beam search
+	- Heuristic search algorithm that explores a graph by expanding the most promising node in a limited set. 
+	- Beam search is an optimization of best-first search that reduces its memory requirements. 
+	- Best-first search is a graph search which orders all partial solutions (states) according to some heuristic which attempts to predict how close a partial solution is to a complete solution (goal state). 
+	- But in beam search, only a predetermined number of best partial solutions are kept as candidates
+
+
+Dijkstra's algorithm
+	- is a graph search algorithm that solves the single-source shortest path problem for a graph with non-negative edge path costs
+		* producing a shortest path tree. 
+	- This algorithm is often used in routing and as a subroutine in other graph algorithms.
+	- For a given source vertex (node) in the graph, the algorithm finds the path with lowest cost 
+	  (i.e. the shortest path) between that vertex and every other vertex. 
+	- It can also be used for finding costs of shortest paths from a single vertex to a single destination vertex by stopping the algorithm once the shortest path to the destination vertex has been determined. 
+	  * For example, if the vertices of the graph represent cities and edge path costs represent driving distances between pairs of cities connected by a direct road, 
+	    Dijkstra's algorithm can be used to find the shortest route between one city and all other cities. 
+	    As a result, the shortest path first is widely used in network routing protocols, most notably IS-IS and OSPF (Open Shortest Path First).
+
+Skip list 
+	- a data structure for storing a sorted list of items using a hierarchy of linked lists that connect increasingly sparse subsequences of the items. 
+	- These auxiliary lists allow item lookup with efficiency comparable to balanced binary search trees 
+	  (that is, with number of probes proportional to log n instead of n).
+	- A skip list is built in layers. 
+	   * The bottom layer is an ordinary ordered linked list. 
+	   * Each higher layer acts as an "express lane" for the lists below
+	   * where an element in layer i appears in layer i+1 with some fixed probability p 
+	     (two commonly used values for p are 1/2 or 1/4).
+	- skip list search
+	   * A search for a target element begins at the head element in the top list
+	   * It proceeds horizontally until the current element is greater than or equal to the target. 
+
+Hash table basics:
+	- load factor: 
+		* the number of entries divided by the number of buckets 
+	- load factor = (n/k) 
+		* n is the number of entries(keys) 
+		* k is the number of buckets.
+
+Examples of non-cryptographic hash function
+	- MurmurHash:
+		- a non-cryptographic hash function suitable for general hash-based lookup
+		- used in Redis, nginx, memcached
+	- SipHash
+
+
+Collision in Hash Table
+	- One of the biggest problems with hash tables are collisions. 
+	  * They yeild a worst case performance of O(N), require constant re-hashing, and can be attack vectors
+	- DoS attack caused by forced hash collison:
+	   - hash key to the same bucket into an hash table in order to turn the O(1) expected time (the average time) to the O(N) worst case, consuming more CPU than expected, and ultimately causing a DoS. 
+	   - To prevent this specific attack, Redis uses a per-execution pseudo-random seed to the hash function.
+	   	* but still seed-independent collisions exist!
+
+List
+	- (Pro) Lists are good when you are likely to touch only the extremes of the list: near tail, or near head. 
+	- (Con) Lists are not very good to paginate stuff, because random access is slow, O(N). So good uses of lists are plain queues and stacks, or processing items in a loop using RPOPLPUSH with same source and destination to "rotate" a ring of items.
+	- (Pro) Lists are also good when we want just to create a capped collection of N items where usually we access just the top or bottom items, or when N is small.
+
+Zip List (Redis)
+	- A Zip List is like a doubly linked list, except it does not use pointers and stores the data inline. 
+	- Each node in a doubly linked list has at 3 pointers
+		* one forward pointer
+		* one backward pointer
+		* one pointer to reference the data stored at that node. 
+		- Pointers require memory (8 bytes on a 64 bit system)
+			* so for small lists, a doubly linked list is very inefficient.
+	- A Zip List stores elements sequentially in a Redis String. 
+		* Each element in Zip List 
+			* a small header that stores the length and data type of the element, 
+			* the offset to the next element and 
+			* the offset to the previous element. 
+				- These offsets replace the forward and backward pointers. 
+				  Since the data is stored inline, we don't need a data pointer.
+	- Finding an element in the skip list O(n). 
+	- Inserting a new element requires reallocating memory. 
+	     * Because of this, Redis uses this encoding only for small lists, hashes and sorted sets
+
+Suffix tree
+	- a compressed trie containing all the suffixes of the given string.
+	- it means I could determine if the word BANANAS was in the collected works of William Shakespeare by performing just 7 character comparisons. 
+	  * Of course, we also need to consider the time to construct the trie.
+
+Suffix tree construction:
+	- Linear suffix tree construction by *path compression* (Ukkonen's algorithm) 
+		- Starts with an empty tree, then progressively adds each of the N prefixes of T to the suffix tree. 
+			* For example, when creating the suffix tree for BANANAS, B is inserted into the tree, then BA, then BAN, and so on. When BANANAS is finally inserted, the tree is complete.
+		- constructing one requires O(N) time and space
+	- *path compression* 
+		- individual edges in the tree now may represent sequences of text instead of single characters.
+	- the reduction in the number of nodes by path compression leads to 
+		* the time and space requirements for constructing a suffix tree are reduced from O(N^2) to O(N)
+	- Worst case, a suffix tree can be built with a maximum of 2N nodes, where N is the length of the input text.
+
+Ukkonen's algorithm: Linear Suffix tree construction
+	// http://stackoverflow.com/questions/9452701/ukkonens-suffix-tree-algorithm-in-plain-english?rq=1
+	// http://marknelson.us/1996/08/01/suffix-trees/
+	- Algorithm begins with an implicit suffix tree containing the first character of the string. Then it steps through the string adding successive characters until the tree is complete. 
+	* Example: 
+		- when creating the suffix tree for BANANAS, 
+		    * insert_to_tree("B") 
+		    * insert_to_tree("BA")
+		    * insert_to_tree("BAN") and so on. 
+		    * When "BANANAS" is finally inserted, the tree is complete.
+	- This order addition of characters gives Ukkonen's algorithm its "on-line" property.
+
+		
+Trie
+	- A trie is a type of tree that has N possible branches from each node, where N is the number of characters in the alphabet. 
+
+T-tree
+	- a type of binary tree data structure that is widely used by main-memory databases
+		* such as Datablitz, EXtremeDB, MySQL Cluster, Oracle TimesTen and MobileLite
+	- T-tree is a balanced index tree data structure optimized for cases where both the index and the actual data are fully kept in memory
+	- T-trees do not keep copies of the indexed data fields within the index tree nodes themselves. 
+	  ** Instead, they take advantage of the fact that the actual data is always in main memory together with the index 
+	     so that they just contain pointers to the actual data fields.
+	- 'T' refers to the shape of the node data structures in the original paper that first described this type of index.
+
+T_Node	{
+	T_Node* parent;
+	T_Node* left;
+	T_Node* right;
+	
+	data[1...N];		// kepted in sorted order
+	min_data_in_arr;
+	max_data_in_arr;
+}
+
+k-d tree (short for k-dimensional tree) 
+	- a space-partitioning data structure for organizing points in a k-dimensional space. 
+	- k-d trees are a useful data structure for several applications, such as searches involving a multidimensional search key (e.g. range searches and nearest neighbor searches). 
+	- k-d trees are a special case of binary space partitioning trees.
+
+T-tree's balance
+	- T-tree balanced like an AVL tree
+	- it becomes out of balance when a node's child trees differ in height by at least two levels. This can happen after an insertion or deletion of a node. After an insertion or deletion, the tree is scanned from the leaf to the root. If an imbalance is found, one tree rotation or pair of rotations is performed, which is guaranteed to balance the whole tree.
+
+B-Tree vs T-Tree
+	- B-tree is an index structure optimized for storage on block oriented secondary storage devices like hard disks. 
+	- T-trees seek to gain the performance benefits of in-memory tree structures such as AVL trees while avoiding the large storage space overhead which is common to them.
+
+AVL tree (Adelson-Velskii and Landis' tree, named after the inventors) 
+	- a self-balancing binary search tree
+	- was the first such data structure to be invented.
+	- In an AVL tree, the heights of the two child subtrees of any node differ by at most one
+		* if at any time they differ by more than one, rebalancing is done to restore this property.
+	- Lookup, insertion, and deletion all take O(log n) time in both the average and worst cases (n: number of nodes)
+
+AVL tree vs Red-black tree
+	- AVL trees are often compared with red-black trees because both support the same set of basic operations and take O(log n) time
+	- Both AVL trees and red-black trees are self-balancing binary search trees and they are very similar mathematically.
+	- AVL trees are more rigidly balanced than red-black trees, leading to slower insertion and removal but faster retrieval.
+	- For lookup-intensive applications, AVL trees are faster than red-black trees because they are more rigidly balanced.
+	- Similar to red-black trees, AVL trees are height-balanced but in general not weight-balanced
+		* sibling nodes can have hugely differing numbers of descendants.
+
+splay tree 
+	- a self-adjusting binary search tree with the additional property that recently accessed elements are quick to access again. 
+	- It performs basic operations such as insertion, look-up and removal in O(log n) amortized time.
+	- Frequently accessed nodes will move nearer to the root where they can be accessed more quickly. 
+	- When a node x is accessed, a splay operation is performed on x to move it to the root.
+	
+
+Disjoint set:
+	- two sets are disjoint if they have no element in common. 
+	- For example, {1, 2, 3} and {4, 5, 6} are disjoint sets.
+	- A disjoint-set data structure is a data structure that keeps track of a set of elements partitioned into a number of disjoint (non-overlapping) subsets. 
+
+Union-Find algorithm
+	- an algorithm that performs two useful operations on such a data structure
+	- Find: 
+		* Determine which subset a particular element is in. 
+		* This can be used for determining if two elements are in the same subset.
+	- Union: 
+		* Join two subsets into a single subset.
+
+threaded binary tree
+	- "A binary tree is threaded
+		* all right child pointers that would normally be null point to the inorder successor of the node
+		* all left child pointers that would normally be null point to the inorder predecessor of the node."
+	- Pro: 
+		1. makes the tree traversal a linear traversal
+			* more rapid than a recursive in-order traversal. 
+		2. Easier to discover the parent of a node from a threaded binary tree
+			* without explicit use of parent pointers or a stack, albeit slowly
+			* This can be useful where stack space is limited, or where a stack of parent pointers is unavailable 
+			(for finding the parent pointer via DFS).
+
+
+n&(n-1)
+    - it will be 0 if it's 1, 2, 4, 8, 16, 32 (2^0, 2^1, 2^2 ....)
+ 
+ AVL tree (Adelson-Velskii and Landis' tree, named after the inventors) 
+	- self-balancing binary search tree
+	- In an AVL tree, the heights of the two child subtrees of any node differ by at most one 
+	- if at any time they differ by more than one, rebalancing is done to restore this property. 
+	- Lookup, insertion, and deletion all take O(log n) time in both the average and worst cases, where n is the number of nodes in the tree prior to the operation.	
+	- insertions and deletions may require the tree to be rebalancled by one or more tree rotations.
+	- For each node checked, if the balance factor remains -1, 0, or +1 then no rotations are necessary. 
+	  However, if balance factor becomes less than -1 or greater than +1, the subtree rooted at this node is unbalanced.
+
+AVL tree vs. red-black tree
+	- similarity:
+		* both support the same set of operations and take O(log n) time for the basic operations. 
+		* both are height-balanced, not weight balanced
+	- Diff:
+		* For lookup-intensive applications, AVL trees are faster than red-black trees because they are more rigidly balanced
+
+Binary Tree vs Binary Search Tree
+    - Binary tree:
+        * a tree data structure in which each node has at most two child nodes, 
+    - Binary Search Tree:
+        * binary search tree (BST) (sometimes also called an ordered or sorted binary tree)
+            - The left subtree of a node contains only nodes with keys less than the node's key.
+            - The right subtree of a node contains only nodes with keys greater than the node's key.
+            - The left and right subtree must each also be a binary search tree.
+            - There must be no duplicate nodes.
+
+How to balance the tree:
+	- tree rotation is an operation on a binary tree that changes the structure without interfering with the order of the elements. 
+	- balanceFactor = height(left-subtree) - height(right-subtree). 

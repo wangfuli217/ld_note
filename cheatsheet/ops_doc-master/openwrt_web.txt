@@ -1,0 +1,570 @@
+http://luci.subsignal.org/trac/wiki/Documentation/ModulesHowTo    # HowTo: Write Modules
+
+https://github.com/seamustuohy/luci_tutorials                     # 继续学习
+https://github.com/seamustuohy/luci-commotion                     # luci-commotion 
+
+https://www.openwrtdl.com/wordpress/luci-app-resource             # luci Web资源
+
+https://lists.subsignal.org/pipermail/luci/
+http://luci.subsignal.org/api/                                 -- {The LuCI API}
+
+http://luci.subsignal.org/api/nixio/                           -- Networking and I/O library for Lua {API}
+http://luci.subsignal.org/trac/browser/luci/trunk/libs/nixio   --                                    {source}
+
+openwrt-15.05-release/feeds/luci 存储了luci所有信息：应用程序，支撑库，主题，构建脚本等等
+
+官方说明文档： http://lucii.org
+LuCI上配置Makefile： http://luci.subsignal.org/trac/wiki/Documentation/Modules
+CBI文档： http://luci.subsignal.org/trac/wiki/Documentation/CBI
+Luci模块说明文档： http://luci.subsignal.org/trac/wiki/Documentation/ModulesHowTo
+Luci类库的函数定义和使用说明： http://luci.subsignal.org/api/luci/index.html
+UCI接口在脚本文件中的官方说明： http://wiki.openwrt.org/doc/devel/config-scripting
+
+http://see.sl088.com/wiki/Openwrt_Luci # 聊聊而已
+opkg install luasql-sqlite3
+
+
+lua learning link:  http://www.runoob.com/lua/lua-tutorial.html
+html learning link: http://www.w3school.com.cn/jsref/dom_obj_password.asp
+
+for k, v in pairs(package) do
+    print(k,v)
+end
+
+cpath   ./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so
+path    ./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua
+
+lua -l luci.sys -e 'for k, v in pairs(luci.sys.getenv()) do print(k, v) end'
+
+lua -l luci.sys -e 'ipt = require "luci.sys.iptparser".IptParser() for k, v in pairs(getmetatable(getmetatable(ipt).__index)) do print(k, v) end ' -- __call()
+lua -l luci.sys -e 'ipt = require "luci.sys.iptparser".IptParser() for k, v in pairs(getmetatable(ipt).__index) do print(k, v) end '               -- 实例函数 
+lua -l luci.sys -e 'ipt = require "luci.sys.iptparser".IptParser() for k, v in pairs(ipt) do print(k, v) end '                                     -- 实例数据
+lua -l luci.sys -e 'ipt = require "luci.sys.iptparser".IptParser for k, v in pairs(ipt) do print(k, v) end '
+
+lua -ltrace-calls printf.lua -- trace-calls.lua printf.lua 
+
+lua -l luci.sys -e 'hostname = luci.model.uci.cursor():get_first("system", "system", "hostname") print(hostname)'
+lua -l luci.sys -e 'community = luci.model.uci.cursor():get_all("system", "ntp") for k,v in pairs(community) do print(k,v) end'
+
+lua -l luci.sys -e 'for k, v in pairs(luci.sys.getenv()) do print(k, v) end'
+lua -l luci.sys -e 'for k, v in pairs(luci.sys) do print(k, v) end'
+lua -l luci.sys -e 'for k, v in pairs(luci) do print(k, v) end'
+lua -l luci.sys -e 'for k, v in pairs(luci.util) do print(k, v) end' -- debug、jsonc、sys、model、utils、ip
+
+lua -l luci.sys -e 'for k, v in pairs(_G) do print(k, v) end' -- string uci package os setmetatable io getmetatable
+-- luci __ubus_cb  __ubus_cb_event template nixio math debug table coroutine ubus _G 
+
+root@openwrt:/# luci-bwc
+Usage:
+    luci-bwc [-t timeout] -i ifname             // ifname为接口名字
+    luci-bwc [-t timeout] -r radiodev
+    luci-bwc [-t timeout] -c
+    luci-bwc [-t timeout] -l
+例如：
+root@openwrt:/# luci-bwc  -c
+
+ubus call session list
+ubus call session get  '{"ubus_rpc_session": "72c9303cc3dce366b30aaab84d500a4e" }'
+
+https://github.com/seamustuohy/luci_tutorials/blob/master/06-debugging.md debug
+通过增加中间脚本luci.dbg进行测试 
+
+debug(调试){
+uci set luci.ccache.enable=0; 
+uci commit luci
+
+log.lua # chmod u=rw log.lua
+
+local log = require "luci.log" 
+log.print("Hello World") 
+log.print_r({"Hello", "World"})
+
+# samba
+没有编译通过，找安装包也好
+192.168.100.1上debug
+
+# see.lua
+~/lua/see.lua
+he = require "see"
+print(he(string))  # OK
+}
+debug(隐藏){
+entry({"admin", "testnet"}, cbi("admin_test/net"), nil) -- 参见openwrt_cbi.txt 中的实例
+order: 这个是排序，为子菜单进行排序，序号以1开始，最大不限。该项也可以忽略，表示为不在菜单栏显示。
+}
+
+
+
+https://github.com/openwrt/luci/wiki/DevelopmentEnvironmentHowTo  # 开发环境搭建
+1. Required Software  (开发环境)
+    opkg update
+    opkg install luci
+    
+    /etc/init.d/uhttpd enable
+    /etc/init.d/uhttpd start
+    
+    openssh-sftp-server
+    
+# opkg update && opkg list luci-* -- 检查
+# opkg install luci     -- 完整安装一个不需要HTTPS支持的LuCI:
+# opkg install luci-ssl -- 完整安装一个需要HTTPS支持的LuCI:
+
+本地语言支持                   # http://i18n.luci.subsignal.org/pootle/
+opkg list | grep luci-i18n-
+opkg install luci-i18n-chinese   # 支持中文 
+opkg install luci-i18n-hungarian # 安装语言包
+语言切换                       # /etc/config/luci
+依赖ipk
+    uhttpd
+    uhttpd-mod-ubus
+    luci-mod-admin-full
+    luci-theme-bootstrap
+    luci-app-firewall
+    luci-proto-core
+    luci-proto-ppp
+    libiwinfo-lua
+
+docroot在/www下边，index-html指向了/cgi-bin/luci，注意这是相对于docroot而言的路径。
+    /www/index.html -> /www/cgi-bin/luci目录 -> 
+    
+工作框架
+    Client端和serv端采用cgi方式交互，uhttpd服务器的cgi方式中，fork出一个子进程，子进程利用execl替换为luci进程空间，
+    并通过setenv环境变量的方式，传递一些固定格式的数据（如PATH_INFO）给luci。另外一些非固定格式的数据（post-data）
+    则由父进程通过一个w_pipe写给luci的stdin，而luci的返回数据则写在stdout上，由父进程通过一个r_pipe读取。
+                        |-- 环境变量                               |         -<-->- Linux system
+    client -- uhttpd -- |                                          | -- luci -<-->- uci
+                        |-<-->- PIPE  post-data <--> response-data |         -<-->- upgrade
+/www/cgi-bin/luci 内容 # http://www.cnblogs.com/gnuhpc/archive/2013/08/31/3293643.html
+    #!/usr/bin/lua
+    require "luci.cacheloader"                           # -- 导入 cacheloader 包
+    require "luci.sgi.cgi"                               # -- 导入 sgi.cgi 包 
+    luci.dispatcher indexcache = "/tmp/luci-indexcache"  # -- cache 缓存路径地址 
+    luci.sgi.cgi.run()                                   # -- 执行run方法，此方法位于 /usr/lib/lua/luci/sgi/cgi.lua中
+
+    GET /               -> 通过file方式得到docroot下的的index.html
+    200 OK index.html   <- http-equiv="refresh" content="0; URL=/cgi-bin/luci"
+    GET /cgi/luci       -> 执行cgi程序下的luci，path_info = /alisa到/admin，需要认证。 -> /luci/controller/admin/index.lua
+    200 OK sysauth.html <- /usr/lib/lua/luci/view/sysauth.htm
+    POST /cgi-bin/luci  ->        POST 用户登录信息，serve执行luci,path_info = /alisa到/admin，
+    & username=root&passwd=chenhao -> 已认证过，返回fistchild-status.html,并且以登录信息生成session，
+    200 OK admin/status.html & set_cookie:sysauth=xxx <- 以cookie形式返回给client
+    GET /cgi/luci;stok=xxx/admin/network & cookiesys:auth=xxx -> 以后的request请求，url会携带stok，并且
+    200 OK admin/network.html <-  以cookie的形式发给session，供srv端联合认证
+    
+    首次运行时，是以普通的file方式获得docroot/index.html，该文件中以meta的方式自动跳转到cgi的url，这是web服务器的一般做法。
+    然后第一次执行luci，path_info='/'，会alisa到'/admin'（'/'会索引到 tree.rootnode，并执行其target方法，即alisa('/admin')，即重新去索引adminnode，这在后面会详细描述），该节点需要认证，所以返回一个登录界面。
+    第3次交互，过程同上一次的，只是这时已post来了登录信息，所以serv端会生成一个session值，然后执行'/admin'的target（它的target为firstchild，即索引第一个子节点），最终返回/admin/status.html，同时会把session值以cookie的形式发给client。这就是从原始状态到得到显示页面的过程，之后主要就是点击页面上的连接，产生新的request。
+    每个链接的url中都会带有一个stok值（它是serv生成的，并放在html中的url里），并且每个新request都要带有session值，它和stok值一起供serv端联合认证。
+
+    http://192.168.100.1/cgi-bin/luci/;stok=643def19fb5c70d20a10d4e6c21b5804/admin/network/dhcp
+    http://192.168.100.1/cgi-bin/luci/;stok=643def19fb5c70d20a10d4e6c21b5804/admin/network/hosts
+    http://192.168.100.1/cgi-bin/luci/;stok=643def19fb5c70d20a10d4e6c21b5804/admin/system/admin
+    
+节点树node-tree # http://www.cnblogs.com/gnuhpc/archive/2013/08/31/3293643.html
+        在controller目录下，每个.lua文件中，都有一个index()函数，其中主要调用entry()函数，形如entry(path,target,title,order)，
+    path形如{admin,network,wireless}，entry()函数根据这些创建一个node，并把它放在全局node-tree的相应位置，后面的参数都是
+    该node的属性，还可以有其他的参数。其中最重要的就是target。
+        Createtree()函数就是要找到controller目录下所有的.lua文件，并找到其中的index()函数执行，从而生成一个node-tree。这样做的
+    io操作太多，为了效率，第一次执行后，把生成的node-tree放在/tmp/treecache文件中，以后只要没有更新（一般情况下，服务器里的
+    .lua文件是不会变的），直接读该文件即可。生成的node-tree如下：
+        每次dispatch()会根据path_info逐层索引，且每一层都把找到的节点信息放在一个变量track中，这样做使得上层node的信息会影响下层node，
+    而下层node的信息又会覆盖上层node。比如{/admin/system}，最后的auto=false，target=aa，而由于admin有sysauth值，它会遗传给它的
+    子节点，也即所有admin下的节点都需要认证。
+        
+target简介 # http://www.cnblogs.com/gnuhpc/archive/2013/08/31/3293643.html
+        对每个节点，最重要的属性当然是target，这也是dispatch()流程最后要执行的方法。target主要有：
+    alisa、firstchild、call、cbi、form、template。这几个总体上可以分成两类，
+    前两种主要用于链接其它node，后一个则是主要的操作、以及页面生成。下面分别描述。
+        链接方法：在介绍初始登录流程时，已经讲到了这种方法。比如初始登录时，url中的path_info仅为'/'，
+    这应该会索引到rootnode节点。而该节点本身是没有内容显示的，所以它用alias('admin')方法，自动链接到admin节点。
+    再比如，admin节点本身也没有内容显示，它用firstchild()方法，自动链接到它的第一个子节点/admin/status。
+        操作方法：这种方法一般用于一个路径的叶节点leaf，它们会去执行相应的操作，如修改interface参数等，
+    并且动态生成页面html文件，传递给client。这里实际上是利用了所谓的MVC架构，这在后面再描述，这里主要描述luci怎么
+    把生成的html发送给client端。
+        Call、cbi、form、template这几种方法，执行的原理各不相同，但最终都会生成完整的http-response报文（包括html文件），
+    并调用luci.template.render()，luci.http.redirect()等函数，它们会调用几个特殊的函数，把报文内容返回给luci.running()流程。
+
+    status(code, msg)       -> yeild(1,...)              -- response line
+    header(key,valud)       -> yeild(2,...)              -- prepare header
+    write(content, src_err) -> yeild(3,...) yeild(4,...) -- write header; write content
+    close()                 -> yeild(5,...)              -- io.close
+    splice()                -> yeild(6,...)              -- 
+    
+sysauth用户认证 # http://www.cnblogs.com/gnuhpc/archive/2013/08/31/3293643.html
+    由于节点是由上而下逐层索引的，所以只要一个节点有sysauth值，那么它所有的子节点都需要认证。不难想象，
+    /admin节点有sysauth值，它以下的所有子节点都是需要认证才能查看、操作的；
+    /mini节点没有sysauth值，那么它以下的所有子节点都不需要认证。
+    luci中关于登陆密码，用到的几个函数为： 
+    user.setpasswd(username, password) -> os.execute(user, passwd)
+    user.getpasswd(username)           -> getspnam | getpwnam
+    user.checkpasswd(username, pass)   -> crypt(pass, pwh)
+    可以看出它的密码是用的linux的密码，而openwrt的精简内核没有实现多用户机制，只有一个root用户，
+    且开机时自动以root用户登录。要实现多用户，必须在web层面上，实现另外一套（user、passwd）系统。
+    另外，认证后，serv端会发给client一个session值，且它要一直以cookie的形式存在于request报文中，供serv端来识别用户。
+    这是web服务器的一般做法，这里就不多讲了。
+    
+    当点击登录后，页面会跳转到/,接着/admin,如果需要认证，那么接下来会弹出htmlauth.htm页面，
+然后如果没有验证成功，则继续本页面，如果成功了，那么继续跳转/,然后admin/，此时post来了信息，
+然后alias到entry.order最小的那个node，很显然是/admin/status.lua,然后status这个node会alias到
+overview这个node。最主要的还是在diapatcher.lua文件中的dispatch()的认证部分。
+
+root和mini登录的问题？
+    方法：
+    将admin文件夹拷贝一份给mini，将mini中index.lua中将page.sysauth = "root"和page.sysauth_authenticator = "htmlauth"注释掉，
+    那么在弹出的页面上点击User按钮，会直接进入到系统中。
+    
+ubus call session list
+ubus call session get  '{"ubus_rpc_session": "72c9303cc3dce366b30aaab84d500a4e" }'
+
+配置环境
+    默认Web服务器uhttpd的配置文件为/etc/config/uhttpd。
+    该LuCI的Web界面配置文件为/etc/config/luci。
+
+开发实例： http://blog.csdn.net/iohboel/article/details/52149985   # 说明
+           http://www.cnblogs.com/mayswind/p/3468124.html          # 说明
+           https://github.com/mayswind/luci-app-njitclient         # 源码
+# 采用MVC架构，只需要写一些lua脚本，剩下的部分openwrt可以自动完成。
+│   │   └── etc  
+│   │   │    ├── config  
+│   │   │    │  └── 配置文件名称  
+│   │   │    ├── init.d  
+│   │   │        └──执行初始化的脚本  
+│   │   └── usr  
+│   │     └── lib  
+│   │       └── lua  
+│   │         └── luci  
+│   │           ├── controller  
+│   │           │ └── lua脚本名称  
+│   │           ├──  model  
+│   │           │ └── cbi  
+│   │           │   └── lua脚本名称  
+│   │           ├──view  
+│   │             └── htm文件名称
+第1步：
+     在\usr\lib\lua\luci\controller\下建立一个lua脚本，脚本内容示例如下：
+--[[ 模块入口 ]] 
+-- 程序模块名 /usr/lib/lua/luci/controller/njitclient.lua
+module("luci.controller.njitclient", package.seeall) 
+function index()
+-- 添加一个新的模块(Page)入口
+-- entry(路径, 调用目标, _("显示名称"), 显示顺序)
+-- 路径 以字符串数组给定 {"admin", "network", "njitclient"} -> http://ip/cgi-bin/luci/admin/network/njitclient
+-- 调用目标：
+-- 执行指定方法（Action）：                         call("function_name")
+-- 访问指定页面（Views）：                          template("myapp/mymodule") 访问/usr/lib/lua/luci/view/myapp/mymodule.htm
+-- 调用CBI(Configuration Binding Interface) Module：cbi("myapp/mymodule") 调用/usr/lib/lua/luci/model/cbi/myapp/mymodule.lua
+-- 重定向：alias("admin", "status", "overview")
+entry({"admin", "network", "njitclient"}, cbi("njitclient"), _("NJIT Client"), 100)
+end
+     
+第2步：
+    UCI是openwrt的配置管理机制，将配置统一放到/etc/config文件夹下。示例如下：
+    config login  
+        option username ''  
+        option password ''  
+        option ifname 'eth0'  
+        option domain ''
+第3步：
+      在controller里采用cbi调用Model文件夹里的lua脚本，所以此步需要在\usr\lib\lua\luci\model\cbi文件夹下建立如下lua脚本
+        --[[ 配置模块实际的代码 ]]   
+        require("luci.sys")  
+        -- 映射与存储文件的关系  
+        -- m = Map("配置文件文件名", "配置页面标题", "配置页面说明")  
+        -- 配置文件文件名：配置文件存储的文件名，不包含路径 /etc/config/xxx  
+        m = Map("njitclient", translate("NJIT Client"), translate("Configure NJIT 802.11x client."))  
+        -- 配置文件中对应的section  
+        s = m:section(TypedSection, "login", "")  
+        -- 不允许增加或删除  
+        s.addremove = false  
+        -- 不显示Section的名称  
+        s.anonymous = true  
+        -- 配置文件中section的交互(创建Option)  
+        -- Value（文本框）  
+        -- ListValue（下拉框）  
+        -- Flag（选择框）  
+        enable = s:option(Flag, "enable", translate("Enable"))  
+        name = s:option(Value, "username", translate("Username"))  
+        pass = s:option(Value, "password", translate("Password"))  
+        pass.password = true  
+        domain = s:option(Value, "domain", translate("Domain"))  
+        ifname = s:option(ListValue, "ifname", translate("Interfaces"))  
+        for k, v in ipairs(luci.sys.net.devices()) do  
+        if v ~= "lo" then  
+        ifname:value(v)  
+        end  
+        end  
+        -- 判断是否点击了“应用”按钮  
+        local apply = luci.http.formvalue("cbi.apply")  
+        if apply then  
+        io.popen("/etc/init.d/njitclient restart")  
+        end  
+        return m
+第4步：
+    读写配置完成之后，如何根据配置进行操作？编辑/etc/init.d/下相应的文件，并添加执行权限
+    #!/bin/sh /etc/rc.common  
+    START=50  
+    run_njit()  
+    {  
+    local enable  
+    # 获取变量值  
+    # config_get_bool 变量名 Section名 Section参数名  
+    config_get_bool enable $1 enable  
+      
+    if [ $enable ]; then  
+    local username  
+    local password  
+    local domain  
+    local ifname  
+    # 获取变量值  
+    # config_get 变量名 Section名 Section参数名  
+    config_get username $1 username  
+    config_get password $1 password  
+    config_get domain $1 domain  
+    config_get ifname $1 ifname  
+    if [ "$domain" != "" ]; then  
+    <span style="white-space:pre">    </span>njit-client $username@$domain $password $ifname &  
+    else  
+    <span style="white-space:pre">    </span>njit-client $username $password $ifname &  
+    fi  
+    echo "NJIT Client has started."  
+    fi  
+    }  
+    start()  
+    {  
+        # 读取配置文件  
+        config_load njitclient  
+        # 遍历配置文件中的Section  
+        # config_foreach 遍历函数名 Section类型  
+        config_foreach run_njit login  
+    }  
+       
+    stop()  
+    {  
+        killall njit-client  
+        killall udhcpc  
+        echo "NJIT Client has stoped."  
+    }
+第5步：
+     此部分可选，在\usr\lib\lua\luci\view页面下添加相应的htm文件。
+     由于示例程序在controller文件下的lua脚本中并没有使用template访问相应的htm脚本，故此部分可以略去。
+     以上就是全部的luci添加页面的操作。各步骤不分先后，但每部分之间参数及调用必须保持一致。
+    
+2. Filesystem paths   (代码调试)
+    /usr/lib/lua/luci (JavaScript, CSS, etc)
+    /www
+    
+    uci set luci.ccache.enable=0; 
+    uci commit luci
+    
+3. Integrating changes (代码合并)
+    /usr/lib/lua ->  luasrc/
+    /www         ->  htdocs/
+    root/
+
+https://github.com/openwrt/luci/wiki/ThemesHowTo                   # 页面主题
+1. Creating the structure
+themes/luci-theme-mytheme. # 新建 {feeds/luci/themes/luci-theme-mytheme/}
+
+Makefile                   # 新建 {feeds/luci/themes/luci-theme-mytheme/Makefile}
+include $(TOPDIR)/rules.mk
+
+LUCI_TITLE:=Title of mytheme
+LUCI_DEPENDS:=
+
+include ../../luci.mk
+
+# 创建目录架构
+ipkg
+htdocs
+    luci-static
+        mytheme     # 用于存放静态stylesheets, Javascripts, images
+luasrc
+    view
+        themes
+            mytheme # 用于存放header.htm 和 footer.htm
+root
+    etc
+        uci-defaults
+        
+2. Designing
+luasrc/view/themes/mytheme/{header.htm | footer.htm} # 创建header.htm和footer.htm
+
+header.htm # 设计
+    a DOCTYPE description, 
+    headers
+    the menu 
+    layout of the page
+    
+<% require("luci.http").prepare_content("text/html") -%>
+
+htdocs/luci-static/mytheme # stylesheets, Javascripts, images
+
+htdocs/luci-static/mytheme/cascade.css 中包含
+    <link rel="stylesheet" type="text/css" href="<%=media%>/cascade.css" />
+
+footer.htm # 设计    
+    footer bar
+
+3. Making the theme selectable
+root/etc/uci-defaults/luci-theme-mytheme
+#!/bin/sh
+uci batch <<-EOF
+        set luci.themes.MyTheme=/luci-static/mytheme
+        commit luci
+EOF
+exit 0
+
+https://github.com/openwrt/luci/wiki/ModulesHowTo  # 创建模块
+
+lucidir -> (/usr/lib/lua/luci)
+/cgi-bin/luci
+
+1. Show me the way (The dispatching process)
+protocols contrib modules libs build applications # 存储着lua处理文件
+
+PATH_INFO # /cgi-bin/luci/foo/bar/baz 被解释为 foo.bar.baz
+
+luci.dispatcher.entry # 
+entry(path, target, title=nil, order=nil)
+path：
+target：(call, template, cbi)
+title：菜单标题
+order：菜单顺序
+返回值
+i18n
+dependent 
+leaf 
+sysauth 
+
+2. It's all about names (Naming and the module file)
+application "myapp"                     # ./modules/luci-mod-rpc/luasrc/controller
+lucidir/controller/myapp                # ./applications/luci-app-minidlna/luasrc/controller
+lucidir/controller/myapp/mymodule.lua
+
+module("luci.controller.myapp.mymodule", package.seeall) # 标识模块，创建空间; mymodule要与文件名一致
+function index()
+    ... ...
+end
+
+3. Teaching your new child (Actions)
+代码库路径: feeds/lluci/applications/luci-myapp/luasrc/controller/myapp.lua
+设备上路径: /usr/lib/lua/luci/controller/myapp.lua
+>>
+module("luci.controller.myapp.mymodule", package.seeall)
+
+function index()
+    entry({"click", "here", "now"}, call("action_tryme"), "Click here", 10).dependent=false
+end
+ 
+function action_tryme()
+    luci.http.prepare_content("text/plain")
+    luci.http.write("Haha, rebooting now...")
+    luci.sys.reboot()
+end
+<<
+/cgi-bin/luci/click/here/now # http://192.168.1.1/luci/click/here/now
+
+注册URL:
+    entry(path, target, title=nil, order=nil)
+target分别有:
+    actions
+    使用函数直接输出内容
+        call("my_fun")
+    views
+    使用html
+        template("mymodule/myview")
+    cbi
+        cbi("mymodule/mycbi")
+
+例如
+function index()
+    entry({"admin", "services", "mymodule", "mycbi"}, 
+            cbi("mymodule/mycbi"),
+            _("CBI")).leaf = true
+
+    entry({"admin", "services", "mymodule", "myview"},
+            template("mymodule/myview"),
+            _("View")).leaf = true
+
+    entry({"admin", "services", "mymodule", "myfun"},
+            call("my_fun"),
+            _("FUN")).leaf = true
+end
+        
+4. Views
+lucidir/view/myapp-mymodule/helloworld.htm
+>>
+<%+header%>
+<h1><%:Hello World%></h1> 
+<%+footer%>
+<<
+
+entry({"my", "new", "template"}, template("myapp-mymodule/helloworld"), "Hello world",20).dependent=false
+
+/cgi-bin/luci/my/new/template # http://192.168.1.1/luci/my/new/template
+
+5. CBI models
+lucidir/model/cbi/myapp-mymodule/netifaces.lua
+
+with the following contents:
+
+m = Map("network", "Network") -- We want to edit the uci config file /etc/config/network
+
+s = m:section(TypedSection, "interface", "Interfaces") -- Especially the "interface"-sections
+s.addremove = true -- Allow the user to create and remove the interfaces
+function s:filter(value)
+   return value ~= "loopback" and value -- Don't touch loopback
+end 
+s:depends("proto", "static") -- Only show those with "static"
+s:depends("proto", "dhcp") -- or "dhcp" as protocol and leave PPPoE and PPTP alone
+
+p = s:option(ListValue, "proto", "Protocol") -- Creates an element list (select box)
+p:value("static", "static") -- Key and value pairs
+p:value("dhcp", "DHCP")
+p.default = "static"
+
+s:option(Value, "ifname", "interface", "the physical interface to be used") -- This will give a simple textbox
+
+s:option(Value, "ipaddr", translate("IP Address")) -- Ja, das ist eine i18n-Funktion ;-)
+
+s:option(Value, "netmask", "Netmask"):depends("proto", "static") -- You may remember this "depends" function from above
+
+mtu = s:option(Value, "mtu", "MTU")
+mtu.optional = true -- This one is very optional
+
+dns = s:option(Value, "dns", "DNS-Server")
+dns:depends("proto", "static")
+dns.optional = true
+function dns:validate(value) -- Now, that's nifty, eh?
+    return value:match("[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+") -- Returns nil if it doesn't match otherwise returns match
+end
+
+gw = s:option(Value, "gateway", "Gateway")
+gw:depends("proto", "static")
+gw.rmempty = true -- Remove entry if it is empty
+
+return m -- Returns the map
+
+entry({"admin", "network", "interfaces"}, cbi("myapp-mymodule/netifaces"), "Network interfaces", 30).dependent=false
+
+
+https://github.com/openwrt/luci/wiki/JsonRpcHowTo # 使用JSONRPC API
+opkg install luci-mod-rpc 
+/etc/init.d/uhttpd restart
+
+/cgi-bin/luci/rpc/LIBRARY.
+
+1. Authentication
+entry 说明
+entry(path, target[[, title][, order]])
+    path: 即路由规则，格式是{"admin","testnet","index"[[,"..."][,"..."]]}基本上可以无限延伸，但一般不建议这么干，到五六层已经很深了，再潜就不好了。
+    target: 即页面指向，格式是cbi("admin_test/net")。这里的cbi的函数指的是调用/luci/model/cbi/里的admin_test/里的net.lua文件。它还有其他的使用方法：
+        cbi("...")：调用/luci/model/cbi/文件夹中的指定lua文件，这里指向的文件相当于指向一个处理函数。使用的是LUCI自带逻辑的处理方法，本文就是使用这种方法来生成的页面。
+        template("...")：调用/luci/view/文件夹里指定的.htm视图文件。这个方法是直接调用视图。在视图里我们也可以嵌入代码读取配置。
+        alias("..."): 这个是重定向函数， 一般用于顶级菜单上，使其重定向到指定的子菜单。
+        call("..."): 这个函数的作用是将该路由指向控制下的某个函数，一般用于处理数据，作用与指向模型层的cbi("...")函数类似，只是一个指向到其他文件，一个仍是存在于控制层文件内。
+        post("..."): 这个函数在openwrt里的其他模块有使用过，本人研究了一下，其作用于call方法类似，但在使用的时候似乎没有成功，若是有成功使用过的猿友，欢迎交流探讨。
+
+*　title: 即标题展示，这个是设置在菜单里显示的内容项。格式有_("Test Net")或translate("Test Net")，前一个使用我也没有成功（有点摸不清楚），后一个是调用translate('...')函数，用于与后期的语言包进行适配。该项可以用nil代替，表示为不在菜单栏显示。
+
+    order: 这个是排序，为子菜单进行排序，序号以1开始，最大不限。该项也可以忽略，表示为不在菜单栏显示。

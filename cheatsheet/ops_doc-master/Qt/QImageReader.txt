@@ -1,0 +1,108 @@
+https://blog.csdn.net/liang19890820/article/details/51746874
+
+    QImageReader类为从文件或设备读取图像提供了一个独立的接口。
+    读取图像最常用的方法是通过构造QImage和QPixmap，或通过调用QImage::load()和QPixmap::load()。
+QImageReader是一个专业读取图像的类，可以有更多的控制，例如，可以通过调用setScaledSize()读取图像成特定的大小，
+通过调用setClipRect()可以选择一个剪辑矩形，有效地只加载图像的一部分。取决于底层支持的图片格式，这可以节省内存，加快加载图片。
+
+公共函数
+-----------------
+    void setFileName(const QString & fileName)
+    为fileName设置文件名。在内部，QImageReader将创建一个QFile，以只读模式(QIODevice::ReadOnly)打开它，并使用此文件写入图像。
+
+    void setFormat(const QByteArray & format)
+    设置写入图像时的格式，格式不区分大小写。
+
+QImageReader reader;
+reader.setFormat("png");  
+// 同reader.setFormat("PNG");
+
+    QStringList textKeys() const
+    返回此图片的所有keys。可以通过使用text()列出了这些key对应的文本。
+    
+    QString text(const QString & key) const
+    返回与key对应的文本。
+    
+    bool supportsOption(QImageIOHandler::ImageOption option) const
+    如果reader支持选项option，返回true；否则返回false。
+    不同的图像格式支持不同的选项。调用此函数，可以确定当前格式是否支持一个特定的选项。
+例如：PNG格式允许嵌入文字到图像的元数据(见text())。
+QImageReader reader(":/image.png"); 
+if (reader.supportsOption(QImageIOHandler::Size)) 
+qDebug() << "Size:" << reader.size();
+
+    void setQuality(int quality)
+    设置图像格式的质量。
+    quality的取值范围依赖于图像格式。例如：JPEG格式支持从0（低视觉质量，高压缩率）到100（高视觉质量，低压缩率）范围。
+
+    bool supportsAnimation() const
+    如果图像格式支持动画，则返回true；否则，返回false。
+
+    int loopCount() const
+    对于支持动画的图像格式，返回动画循环的次数。如果返回-1，意味着动画应永远循环下去，或者发生了错误。如果出现错误，
+ canRead() 将返回false。
+
+    int nextImageDelay() const
+    对于支持动画的图像格式，返回下一帧动画等待的毫秒数；如果不支持动画，则返回0；如果发生错误，返回-1。
+
+    int imageCount() const
+    对于支持动画的图像格式，返回动画图像的总数；如果不支持动画，则返回0；如果发生错误，返回-1。
+
+    int currentImageNumber() const
+    对于支持动画的图像格式，返回当前帧的序号；如果不支持动画，则返回0；如果发生错误，返回-1。
+
+    bool jumpToImage(int imageNumber)
+    对于支持动画的图像格式，将跳到顺序号为imageNumber的图像，如果成功返回true，如果相应的图像没找到则返回false。
+接下来调用read()将尝试读取这个图像。
+
+    bool jumpToNextImage()
+    对于支持动画的图像格式，跳到当前图像的下一个图像处，如果成功返回true，如果动画没有下一个图像则返回false。
+
+    bool canRead() const
+    如果QImageReader可以读取图像(即：图像格式支持，同时设备也包含有效数据)调用canRead() 时会返回true
+
+    bool read(QImage *image)
+    从设备读取图像，必须指向QImage图像。成功返回true；否则，返回false。
+    如果图像格式和大小和将要读取的图像数据一样，这个函数可能不需要在读取之前分配一个新图像。
+正因为如此，它可以比其它read()重载函数(需要构建新图像)更快，尤其是读取具有相同的格式和大小的多个图像时。
+QImage icon(64, 64, QImage::Format_RGB32);
+QImageReader reader("icon_64x64.bmp");
+if (reader.read(&icon)) {
+    // 显示图标
+}
+
+    ImageReaderError error() const
+    返回上次发生的错误 - 错误类型。
+
+常量                                值  描述
+QImageReader::FileNotFoundError      1  QImageReader使用了一个文件名，而对应的文件不存在。或文件名中不含有扩展名（比如.png）、或存在Qt不支持的扩展名。
+QImageReader::DeviceError            2  QImageReader读取图像数据时遇到设备错误，详细请查看设备问题。
+QImageReader::UnsupportedFormatError 3  Qt不支持的请求图像格式。
+QImageReader::InvalidDataError       4  图像数据无效，并且QImageReader无法从图像中读取。可能是图像文件被损坏。
+QImageReader::UnknownError           0  未知错误。如果调用read()后得到这个值，最有可能是 QImageReader的一个Bug。
+
+    QString errorString() const
+    返回上次发生的错误 - 可读描述。
+
+静态函数
+    QByteArray imageFormat(const QString & fileName)
+    获取文件名对应的图片格式
+
+    QByteArray imageFormat(QIODevice * device)
+    获取设备对应的图片格式
+
+    QList<QByteArray> supportedImageFormats()
+    获取支持的图片格式
+    
+    QList<QByteArray> supportedMimeTypes()
+    获取支持的Mime类型
+
+QByteArray imageFormat = QImageReader::imageFormat("AuthorLogo.jpeg");
+QList<QByteArray> imageFormats = QImageReader::supportedImageFormats();
+QList<QByteArray> mimeTypes = QImageReader::supportedMimeTypes();
+
+
+
+
+ 
+

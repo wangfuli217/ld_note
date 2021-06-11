@@ -1,0 +1,69 @@
+--[[
+  tostring (e)
+  解释：这个函数能接收任何类型的参数，并且将参数转换成一个合理格式的字符串，
+        如果想要完全的控制转换的逻辑，可以尝试使用string.format函数。另外，
+        如果被传入的参数是一个包含元表的table，并且这个元表还正确的包含__tostring字段，
+        那么当这个table被作为参数传入函数的时候就会调用__tostring对应的函数，
+        同时使用e作为函数参数，并且将函数的返回值作为'tostring'的返回值。
+--]]
+
+-- 定义一个等待转换的列表
+local wait_list = { 
+    a = 13,
+    b = "36",
+    c = "52s",
+    d = false,
+    e = function() print("e") end,
+}
+
+-- 转换已经是数字的变量
+print("\nwait_list.a(13) =", tostring(wait_list.a))         -- 13
+                                                            
+-- 转换全是数字的字符串                                     
+print("\nwait_list.b('36') =", tostring(wait_list.b))       -- 36
+                                                            
+-- 转换包含字母的字符串                                     
+print("\nwait_list.c('52s') =", tostring(wait_list.c))      -- 52s
+                                                            
+-- 转换值为false的变量                                      
+print("\nwait_list.d(false) =", tostring(wait_list.d))      -- false
+                                                            
+-- 转换保存着函数的变量                                     
+print("\nwait_list.e(function) =", tostring(wait_list.e))   -- function: 0xda8a00
+                                                            
+-- 转换一个为nil的变量                                      
+print("\nwait_list.f(undefined) =", tostring(wait_list.f))  -- nil
+
+
+-- 转换一个不存在元表的table
+print("\nwait_list(table) =", tostring(wait_list))          -- table: 0xda8c70
+
+-- 设置一个不包含__tostring字段的元表
+setmetatable(wait_list, {__index = {g = "index"}})
+print("\nwait_list(undefined __tostring) =", tostring(wait_list))   -- table: 0xda8c70
+
+-- 查看元表是否生效
+print("\nwait_list.g =", tostring(wait_list.g))            -- index
+
+-- 设置一个包含__tostring字段的元表
+setmetatable(wait_list, {__tostring = function (param) 
+    return "this is a table named wait_list!" 
+end})
+print("\nwait_list(defined __tostring) =", tostring(wait_list))   -- this is a table named wait_list!
+
+
+setmetatable(wait_list, {__tostring = function (param) 
+    local tabstr = ""
+    local key, val
+    for key, val in pairs(param) do
+       tabstr = tabstr.."key="..tostring(key).."\tvalue="..tostring(val).."\n"
+    end
+    return tabstr
+end})
+print("\nwait_list(defined __tostring) =", tostring(wait_list))   -- 输出所有信息
+
+--[[
+1. 通过给表wait_list设置包含__tostring字段的元表，可以通过自定义函数来决定返回的字符串内容。
+2. 尝试了给元表的__tostring字段设置一个table，但是会报错，貌似这里只能是一个函数。
+3. 注意在__tostring字段的函数中，不能再使用tostring(param)，这样会死循环造成堆栈溢出。
+--]]

@@ -1,0 +1,69 @@
+parser(parse){
+  + parser:parse (json) : Parses one chunk of JSON data.
+  # json: String containing the JSON fragment to parse
+  
+  $ true if a complete JSON object has been parsed and no further input is expected.
+  $ false if further input is required
+  $ nil if an error was encountered while parsing the current chunk. In this case a string describing the parse error is returned as second value.
+
+  parser = luci.jsonc.new() 
+  while true do 
+        chunk = ...  -- fetch a cunk of data, e.g. from a socket 
+        finish, errmsg = parser.parse(chunk) 
+    
+        if finish == nil then 
+            error("Cannot parse JSON: " .. errmsg) 
+        end 
+    
+        if finish == true then 
+            break 
+        end 
+  end
+
+  
+}
+
+
+parser(get){
+  + parser:get () : Convert parsed JSON data into Lua table.
+  $ Parsed JSON object converted into a Lua table or nil if the parser didn't finish or encountered an error.
+  
+  parser = luci.jsonc.new() 
+  parser:parse('{ "example": "test" }') 
+   
+  data = parser:get() 
+  print(data.example)  -- "test"
+}
+
+parser(set){
+  + parser:set (data) : Put Lua data into the parser.
+  # data: Lua data to put into the parser object. 
+    The data is converted to an internal JSON representation that can be dumped with stringify(). 
+    The conversion follows the rules described in luci.jsonc.stringify.
+  $ Nothing is returned.
+  
+  parser = luci.jsonc.new() 
+  parser:set({ "some", "data" })
+}
+
+parser(sink){
+  + parser:sink () : Generate an ltn12-compatible sink.
+  $ Returns a function that can be used as an ltn12 sink.
+  
+  parser = luci.jsonc.new() 
+  ltn12.pump.all(ltn12.source.file(io.input()), parser:sink()) 
+  print(parser:get())
+}
+
+parser(stringify){
+  + parser:stringify (pretty) ： Serialize current parser state as JSON.
+  # pretty: A boolean value indicating whether the resulting JSON should be pretty printed.
+  $ Returns the serialized JSON data of this parser instance.
+  
+  parser = luci.jsonc.new() 
+  parser:parse('{ "example": "test" }') 
+  print(parser:serialize())  -- '{"example":"test"}'
+}
+
+
+

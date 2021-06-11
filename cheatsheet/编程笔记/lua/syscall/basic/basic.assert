@@ -1,0 +1,40 @@
+--[[
+  原型：assert(v [, message])
+  解释：当参数v的值是false或者nil的时候展示一个错误，否者返回所有的参数值。
+        其中参数message表示一个错误信息，这个参数的默认值是assertion failed。
+
+    注意:断言并不适合用于处理用户输入错误之类的问题.因为不论如何,只要它生效就会
+    产生错误信息,这就会终止程序运行.一般来说,处理用户输入错误之类的问题,不应当让程序终止.
+E: assertion failed!
+--]]
+
+-- 由于今天的测试函数比较个别
+-- 没办法一次执行完成，一次错误就中断了
+-- 所以今天的测试分组进行，每一组执行一次
+-- 执行这一组，其他组代码注释
+
+-- 第一组，assert 最常使用方法
+local isplayer = false;
+assert(isplayer)
+
+-- 第二组，添加自定义提示
+assert(100 > 99, "that is right")
+assert(100 > 199, "compare fail")
+
+-- 第三组，判断返回值
+local ret, ret2 = assert(100 > 99, "I can't believe")
+print ("ret is", ret, ret2) -- true    I can't believe
+
+ret, ret2 = assert(100<99, "I can't believe") -- exception then it is not assigned
+print ("ret is", ret, ret2) -- true    I can't believe
+
+local status, aret, aret2 = pcall(assert, 100>99, "I can't beleve")
+print(status, aret, aret2) -- true    true    I can't beleve
+
+local status, aret, aret2 = pcall(assert, 100<99, "I can't beleve")
+print(status, aret, aret2) -- false   I can't beleve  nil
+--[[
+1. 由第一组运行结果可以看出，参数message的默认值确实是assertion failed。
+2. 由第二组运行结果可以看出，参数message设置的值生效了。
+3. 由第三组运行结果可以看出，当判断条件不为false时，函数将所有参数都返回了。
+--]]

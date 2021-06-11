@@ -1,0 +1,39 @@
+环索引定义
+-------------------
+    环与序列非常相似：它包含N个值，分别关联到整数索引0到N-1。空的环不包含任何值。
+其中的值都是指针。与序列中的值相似，环的值也可以用索引访问。
+    不同于序列的是，值可以添加到环中任意位置，而环中的任何值都可以被删除。此外，
+环中的值还可以重新编号:将环左"旋"，会将每个值的索引减1并对环的长度取模，将环右"旋"
+则将各个索引值加1并对环的长度取模。
+    虽然在环中可以在任意位置添加/删除值,但这种灵活性的代价是，访问第i个值不保证在常数时间内完成。
+    
+环索引接口
+-------------------  
+    环索引是双向列表的抽象。
+    环索引从0到N-1，其中N是环的长度。空环没有元素。可以在环中任何位置添加或删除指针，环会自动扩展。
+旋转环将改变其起点。向任何Ring函数传递为NULL的T值，均为已检查的运行时错误。
+    T ring_new(void)           创建并返回一个空环
+    T ring_ring(void *x, ...)  创建并返回一个环，用函数的非NULL指针参数来初始化环中的值，
+                               参数列表结束于第一个NULL指针参数。
+                               
+    void ring_free(T *ring)    释放*ring并将其清零。如果ring或*ring为NULL，则造成已检查的运行时错误。
+    int ring_length(T ring)    返回ring中元素的数目
+    
+    void *ring_get(T ring, int i) 返回ring中第i个元素。i<0或i>=N，则为已检查的运行时错误，其中N是ring的长度
+    void *ring_put(T ring, int i, void *x) 将ring中第i个元素改为x，并返回原值。已检查的运行时错误，请参见ring_get
+    
+    void *ring_remove(T ring, int i) 删除并返回ring中的元素i。i<0或i>=N，则为已检查的运行时错误，其中N是ring的长度
+    void *ring_remhi(T ring)
+    void *ring_remlo(T ring) 删除并返回ring高端(索引N-1)或低端(索引0)出的元素。如果ring为空环，则为已检查的运行时错误。
+    
+    void *ring_add(T ring, int pos, void *x) 在环中位置pos插入x并返回x。位置标识了元素之间的点，
+参见str接口。pos<-N或pos>N+1，则为已检查的运行时错误，其中N是ring的长度。
+    void *ring_addhi(T ring, void *x)
+    void *ring_addlo(T ring, void *x) 将x添加到ring的高端(索引N-1)或低端(索引0)并返回x
+    
+    void ring_rotate(T ring, int n) 将ring的起点向左(n<0)或向右(n>=0)旋转n个元素。
+    如果|n|>N，则为已检查的运行时错误，其中N是ring的长度。
+    
+icon语言
+http://www2.cs.arizona.edu/icon/docs/ipd266.htm
+icon中提供的一些向列表删除和添加值的操作，与Ring提供的操作类似。

@@ -1,0 +1,76 @@
+explain.sh工具的特性
+    易嵌入代码。
+    不需要安装第三方工具。
+    在解释过程中输出恰到好处的信息。
+    需要网络连接才能工作。
+    纯命令行工具。
+    可以解释bash shell里面的大部分shell命令。
+    无需使用root账户。
+	
+先决条件
+唯一的条件就是'curl'包了。 在如今大多数Linux发行版里面已经预安装了curl包， 如果没有你可以按照下面的命令来安装。	
+# apt-get install curl 	[On Debian systems]
+# yum install curl 		[On CentOS systems]
+
+
+我们要将下面这段代码插入'~/.bashrc'文件（LCTT译注: 若没有该文件可以自己新建一个）中。我们要为每个用户以及对应的'.bashrc'文件插入这段代码，但是建议你不要加在root用户下。
+
+
+~/.bashrc 
+
+# explain.sh begins
+explain () {
+  if [ "$#" -eq 0 ]; then
+    while read  -p "Command: " cmd; do
+      curl -G --ciphers ecdhe_ecdsa_aes_128_sha "https://www.mankier.com/api/explain/?cols="$(tput cols) --data-urlencode "q=$cmd"
+    done
+    echo "Bye!"
+  elif [ "$#" -eq 1 ]; then
+    curl -G --ciphers ecdhe_ecdsa_aes_128_sha "https://www.mankier.com/api/explain/?cols="$(tput cols) --data-urlencode "q=$1"
+  else
+    echo "Usage"
+    echo "explain                  interactive mode."
+    echo "explain 'cmd -o | ...'   one quoted command to explain it."
+  fi
+}
+
+man帮助文件需要有颜色其实很简单
+下面是我的必备设置（追加到~/.bashrc文件中，然后直接source ~/.bashrc即可生效）
+
+man() {
+  env \
+  LESS_TERMCAP_mb=$(printf "\e[1;31m") \
+  LESS_TERMCAP_md=$(printf "\e[1;31m") \
+  LESS_TERMCAP_me=$(printf "\e[0m") \
+  LESS_TERMCAP_se=$(printf "\e[0m") \
+  LESS_TERMCAP_so=$(printf "\e[1;44;33m") \
+  LESS_TERMCAP_ue=$(printf "\e[0m") \
+  LESS_TERMCAP_us=$(printf "\e[1;32m") \
+  man "$@"
+}
+
+
+命令行日常系快捷键
+
+如下的快捷方式非常有用，能够极大的提升你的工作效率：
+
+    CTRL + U - 剪切光标前的内容
+    CTRL + K - 剪切光标至行末的内容
+    CTRL + Y - 粘贴
+    CTRL + E - 移动光标到行末
+    CTRL + A - 移动光标到行首
+    ALT + F - 跳向下一个空格
+    ALT + B - 跳回上一个空格
+    ALT + Backspace - 删除前一个单词
+    CTRL + W - 剪切光标前一个单词
+    Shift + Insert - 向终端内粘贴文本
+	
+	
+CTRL + Z - 暂停应用程序
+fg - 重新将程序唤到前台
+
+使用nohup在登出SSH会话后仍运行命令
+
+at 10:38 PM Fri
+at> cowsay 'hello'
+at> CTRL + D	

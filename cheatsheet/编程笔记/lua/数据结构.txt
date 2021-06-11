@@ -1,0 +1,218 @@
+1 数组
+    使用整数来索引table即可在Lua中实现数组。因此，Lua中的数组没有固定的大小，如：
+    a = {}
+    for i = 1, 1000 do
+        a[i] = 0
+    end
+    print("The length of array 'a' is " .. #a)
+    --The length of array 'a' is 1000
+
+    在Lua中，可以让任何数作为数组的起始索引，但通常而言，都会使用1作为其起始索引值。
+    而且很多Lua的内置功能和函数都依赖这一特征，因此在没有充分理由的前提下，尽量保证这一规则。
+    
+    使用整数来索引table 即可在Lua 中实现数组。（没有一个固定的大小，按需增长）
+2 矩阵与多维数组
+    --两种方式表示矩阵
+    --1. 数组的数组
+    mt={}               -- create the matrix
+    for i = 1, N do
+        mt[i] = {}      -- create a new row
+        for j = 1, M do
+            mt[i][j] = 0
+        end
+    end
+    --2. 一维数组模拟二维数组
+    mt={} -- create the matrix 
+    for i = 1, N do
+        for j = 1, M do
+            mt[(i - 1)*M + j] = 0
+        end 
+    end
+    
+    -- 如果索引是字符串，可以拼接 m[s .. ":" .. t],但是 s，t 不能包含冒号
+    -- 对于稀疏矩阵，不能使用长度操作符。要遍历一般使用pairs 遍历非nil 元素
+        
+3 链表
+    由于table是动态的实体，所以在Lua中实现链表是很方便的。
+    其中，每个结点均以table来表示，一个"链接"只是结点中的一个字段，该字段包含对其它table的引用，如：
+
+    list = nil
+    for i = 1, 10 do -- 从标准输入读进每行，然后反序形成链表。
+        list = { next = list, value = i}
+    end
+    
+    local l = list
+    while l do
+        print(l.value)
+        l = l.next
+    end
+        
+4 队列与双向队列
+    可以使用Lua的table库提供的insert和remove操作来实现队列，但这种方式实现的队列针对大数据量时效率太低，
+  有效的方式是使用两个索引下标，一个表示第一个元素，另一个表示最后一个元素。
+
+    List = {}
+    function List.new ()
+        return {first = 0, last = -1}
+    end
+    
+    function List.pushfirst (list, value)
+        local first = list.first - 1
+        list.first = first
+        list[first] = value
+    end
+    
+    function List.pushlast (list, value)
+        local last = list.last + 1
+        list.last = last
+        list[last] = value
+    end
+        
+    function List.popfirst (list)
+        local first = list.first
+        if first > list.last then error("list is empty") end
+        local value = list[first]
+        list[first] = nil        -- to allow garbage collection
+        list.first = first + 1
+        return value
+    end
+        
+    function List.popLast (list)
+        local last = list.last
+        if list.first > last then error("list is empty") end
+        local value = list[last]
+        list[last] = nil         -- to allow garbage collection
+        list.last = last - 1
+        return value
+    end
+> l = List.new()  
+> List.pushFront(l,"hello")
+> List.pushFront(l,"world")
+> List.pushBack(l, "wangfuli")
+> List.pushBack(l, "wangwenli")
+> List.pushBack(l, "wangqiuli")
+> List.pushBack(l, "wangjianli")
+> print(List.popFront(l))
+> print(List.poplast(l))
+
+5 集合与无序组
+    使用table索引实现集合
+    function Set (list)
+        local set = {}
+        for _, l in ipairs(list) do set[l] = true end
+        return set
+    end
+    
+    reserved = Set{"while", "end", "function", "local", }
+    包： 多重集合（每个元素可以出现多次）。
+    用计数器与table 的key 关联
+
+    function insert (bag, element)
+        bag[element] = (bag[element] or 0) + 1
+    end
+    
+    function remove (bag, element)
+        local count = bag[element]
+        bag[element] = (count and count > 1) and count - 1 or nil
+    end
+
+6. 字符串缓冲区
+    local buff = ""
+    for line in io.lines() do
+        buff = buff .. line .. "\n"
+    end
+    -- 这种写法对大文件来说，性能损耗巨大
+    -- 只要字符串是不可变的，都有类似的问题
+    
+    在Lua 中使用table 作为字符缓冲区。使用table.concat 将给定列表中的所有字符串连接起来，并返回连接的结果。
+    local t = {}
+    for line in io.lines() do
+        t[#t + 1] = line .. "\n"
+    end
+    
+    local s = table.concat(t)
+    concat函数第二个参数，用于指定插在字符串间的分隔符
+    
+    local t = {}
+    for line in io.lines() do
+        t[#t + 1] = line
+    end
+    
+    s = table.concat(t, "\n") .. "\n"    --此处有进行了复制
+    
+    -- 给table 加一个元素来优化
+    t[#t + 1] = ""
+    s = table.concat(t, "\n")
+    
+ 7 图
+    此处使用 table表示节点，其下的 name（节点名称）、adj（与此节点邻接的节点集合）
+    
+    local function name2node (graph, name)
+        local node = graph[name]
+        if not node then
+            -- node does not exist; create a new one
+            node = {name = name, adj = {}}
+            graph[name] = node
+        end
+        return node
+    end
+    
+    function readgraph ()        -- 从文件读图
+        local graph = {}
+        for line in io.lines() do
+        -- split line in two names
+        local namefrom, nameto = string.match(line, "(%S+)%s+(%S+)")
+        -- find corresponding nodes
+        local from = name2node(graph, namefrom)
+        local to = name2node(graph, nameto)
+        -- adds 'to' to the adjacent set of 'from'
+        from.adj[to] = true
+        end
+        return graph
+    end
+    
+    -- cur : 当前节点
+    -- to  : 目标节点
+    -- path: 保存从起点到当前节点的路径
+    -- visited: 所有已访问过节点的集合
+    function findpath (curr, to, path, visited)        
+        path = path or {}
+        visited = visited or {}
+        if visited[curr] then        -- node already visited?
+            return nil                -- no path here
+        end
+        visited[curr] = true        -- mark node as visited
+        path[#path + 1] = curr        -- add it to path
+        if curr == to then            -- final node?
+            return path
+        end
+        
+        -- try all adjacent nodes
+        for node in pairs(curr.adj) do
+            local p = findpath(node, to, path, visited)
+            if p then return p end
+        end
+        path[#path] = nil         -- remove node from path
+    end
+    
+    function printpath (path)
+        for i = 1, #path do
+            print(path[i].name)
+        end
+    end
+    
+    
+    g = readgraph()
+    a = name2node(g, "a")
+    b = name2node(g, "b")
+    p = findpath(a, b)
+    if p then printpath(p) 
+    
+字符串缓冲
+    Concat接受第二个可选的参数，代表插入的字符串之间的分隔符。通过使用这个参数，我们不需要在每一行之后插入一个新行：
+    local t = {}
+    for line in io.lines() do
+        table.insert(t, line)
+    end
+    s = table.concat(t, "\n") .. "\n"
+

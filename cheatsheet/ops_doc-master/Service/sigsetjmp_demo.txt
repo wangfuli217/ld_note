@@ -1,0 +1,75 @@
+#include <stdio.h>  
+#include <signal.h>  
+#include <setjmp.h>  
+#include <time.h>  
+#include <errno.h>  
+  
+static void sig_usr1(int);  
+static void sig_alarm(int);  
+static sigjmp_buf jmpbuf;  
+static volatile sig_atomic_t canjump;  
+void pr_mask(const char* str);  
+  
+int main()  
+{  
+        signal(SIGUSR1, sig_usr1);  
+        signal(SIGALRM, sig_alarm);  
+        pr_mask("starting main:");  
+        if (sigsetjmp(jmpbuf,1))  
+        {  
+                pr_mask("ending main:");  
+                exit(0);  
+        }  
+        canjump = 1;  
+        for (; ;)  
+                pause();  
+}  
+  
+static void sig_usr1(int signo)  
+{  
+        time_t starttime;  
+  
+        if (canjump == 0)  
+                return;  
+        pr_mask("starting sig_usr1: ");  
+        alarm(3);  
+        sleep(5);  
+        pr_mask("finishing sig_usr1: ");  
+        canjump = 0;  
+        siglongjmp(jmpbuf, 1);  
+}  
+static void sig_alarm(int signo)  
+{  
+        pr_mask("in sig_alrm: ");  
+}  
+  
+void pr_mask(const char *str)  
+{  
+        sigset_t sigmask;  
+        sigprocmask(0, NULL, &sigmask);  
+        printf("%s", str);  
+        if (sigismember(&sigmask, SIGINT))  
+                printf(" SIGINT");  
+        if (sigismember(&sigmask, SIGALRM))  
+                printf(" SIGALRM");  
+        if (sigismember(&sigmask, SIGUSR1))  
+                printf(" SIGUSR1");  
+        if (sigismember(&sigmask, SIGQUIT))  
+                rintf(" SIGQUIT");  
+        printf("\n");  
+}  
+
+结果：
+分析：
+1.打印信号屏蔽字pr_mask("starting main:")，无
+2.调用sigsetjmp，在jmpbuf中保存进程当前的信号屏蔽字
+3.发送SIGUSR1信号给进程
+4.接收到信号，进入信号处理程序，打印此时的信号屏蔽字，pr_mask("starting sig_usr1"); 
+注：当调用一个信号处理程序时，被捕捉到的信号加到进程的当前信号屏蔽字中。 SIGUSR1  
+5. 3秒后，产生信号SIGALRM，进入另一个信号处理程序，打印此时信号屏蔽字pr_mask("in sig_alrm:");
+注：当调用一个信号处理程序时，被捕捉到的信号加到进程的当前信号屏蔽字中。 SIGUSR1  SIGALRM
+6.返回上一层信号处理程序，打印信号屏蔽字，pr_mask("ending sig_usr1");
+注：当从信号处理程序返回时，恢复原来的信号屏蔽字 SIGUSR1
+7.调用siglongjmp，返回sigsetjmp位置，siglongjmp从jmpbuf中恢复之前的信号屏蔽字。打印此时信号屏蔽字 pr_mask("ending main:")，无
+注：当从信号处理程序返回时，恢复原来的信号屏蔽字 无
+本程序还利用了canjump为1从而确保sigsetjmp已经将当前的信号屏蔽字保存到jmpbuf中了；否则不执行信号处理程序，直接返回。

@@ -1,0 +1,161 @@
+https://blog.csdn.net/luotuo44/article/details/16970841
+
+
+一、编译不同目录下的多个文件
+各个文件的布局如下:
+main.cpp
+function/head.cpp 
+        /head.h
+
+main.cpp文件的代码(head.h头文件还没包含)
+
+1)  以相对路径的方式直接包含头文件
+为了能够使用add函数，必须包含add所在的头文件。 最简单的方法是直接在main.cpp文件中，
+用相对路径包含head.h文件.即 #include "function/head.h"。完整代码为
+    #include  <iostream>
+    #include    "function/head.h"
+
+g++ main.cpp function/head.cpp -o main
+    这种用相对路径包含头文件的方式有很多弊端。当function目录改成其它名字，
+或者head.h文件放到其它目录了，这时都要对main.cpp文件进行修改，如果head.h
+头文件被很多其它文件包含的话，这个工作量就大多了。
+
+
+2)  用编译选项 –I(大写i)
+    其实，可以想一下，为什么iostream文件不在当前目录下，就可以直接使用呢？
+这是因为，编译器会在一些默认的目录下(/usr/include，/usr/inlucde/c++/4.4.3等目录)搜索头文件。
+所以，iostream头文件不用添加。但我们不能每写一个头文件就放到那里。
+
+知道了原理，现在来用一下一个编译选项 –I（include的缩写）用来告诉编译器，还可以去哪里找头文件。
+g++ main.cpp function/head.cpp -Ifunction -o main
+此时main.cpp文件写成
+    #include  <iostream>
+    #include  <head.h>
+可以看到head.h文件是用<>而不是""。这说明，用-I选项，相当于说明了一条标准路径。
+
+
+3)  使用.o文件
+    对于head.cpp文件，在编译命令中，还是要用到路径function/head.cpp。现在的想法是去掉这个。
+这时可以先根据head.cpp文件生成一个.o文件，然后就可以了去掉那个路径了。
+
+先cd 到function目录。
+输入命令：$g++ -c head.cpp -o head.o
+生成一个head.o目标文件，
+此时把生成的head.o文件复制到function的父目录，就是main.cpp所在的目录。
+然后回到function的父目录，输入命令$g++ main.cpp head.o -Ifunction -o main
+
+    此时，直接使用head.o即可，无需head.cpp了。但头文件head.h还是要的。因为编译的时候要用到。
+链接的时候不用头文件。这个可以拆分成两条命令
+$g++ -c main.cpp -Ifunction -o main.o
+$g++ main.o head.o -o main
+第一条是编译命令，后一条是链接命令。
+
+
+二、  静态库
+各个文件的布局如下:
+main.cpp
+func/add.cpp 
+    /sub.cpp
+    /head.h
+
+首先，生成.o目标文件。
+cd进入func目录，
+输入命令 $g++ -c sub.cpp add.cpp  
+这会分别为两个源文件目标文件，即生成sub.o和add.o文件。
+
+然后，打包生成静态库，即.a文件。
+输入命令 $ar -cr libhead.a add.o sub.o
+注意：
+  1)  命令中，.a文件要放到 .o文件的前面
+  2)  .a文件的格式。要以lib作为前缀, .a作为后缀。
+选项 c是代表create，创建.a文件。
+     r是代表replace，如果之前有创建过.a文件，
+     
+命令$ar -t libhead.a 查看libhead.a文件里面包含了哪些目标文件。其执行结果自然为add.o  sub.o
+
+
+输入命令:$g++ main.cpp -Ifunction -Lfunction -lhead -o main 生成可执行程序
+-L表示要使用的静态库的目录。这和前面所讲的-I(大写i)差不多，就是用来告诉编译器去哪里找静态库
+-L所指明的目录下有很多静态库，所以除了要告诉去哪里找之外，还要告诉编译器，找哪一个静态库。
+此时，就要用到-l(小写L)了。它用来说明链接的时候要用到哪个静态库。
+
+注意：
+  1. 注意是使用-lhead,而不是-llibhead
+  2. 要把-l放到命令的尽可能后的位置，必须放到源文件的后面。
+  
+
+三、  动态库
+使用命令$g++ -c -fPIC add.cpp sub.cpp生成位置无关的目标文件。
+使用命令$g++ -shared -fPIC add.o sub.o -o libhead.so 生成.so动态链接库。
+
+利用动态库生成可执行文件 $g++ -Ifunction -Lfunction -lhead main.cpp -o main
+
+尝试运行. $./main 得到下面错误
+./main: error while loading shared libraries: libhead.so: cannot open shared object file: No such file or directory  
+
+
+这说明加载的时候没有找到libhead.so动态库。这是因为，Linux查找动态库的地方依次是
+  环境变量LD_LIBRARY_PATH指定的路径
+  缓存文件/etc/ld.so.cache指定的路径
+  默认的共享库目录，先是/lib，然后是/usr/lib
+
+运行./main时，明显这三个地方都没有找到。因为我们没有把libhead.so文件放到那里
+
+其实，我们可以在生成可执行文件的时候指定要链接的动态库是在哪个地方的。
+  $g++ -Ifunction ./libhead.so main.cpp -o main
+  这个命令告诉可执行文件，在当前目录下查找libhead.so动态库。注意这个命令不再使用-L 和 -l了。
+  另外，还可以使用选项-Wl,-rpath,XXXX.其中XXXX表示路径。
+  
+  
+四、  打造自己的库目录和头文件目录
+三个要解决的东西：指定编译时的头文件路径、指定链接时的动态库路径、指定运行时Linux加载动态库的查找路径
+
+1.指定运行时Linux加载动态库的查找路径
+利用前面所说的Linux程序运行时查找动态库的顺序，让Linux在运行程序的时候，去自己指定的路径搜索动态库。
+
+可以修改环境变量LD_LIBRARY_PATH或者修改/etc/ld.so.cache文件。这里选择修改/etc/ld.so.cache文件。
+1)  创建目录/mylib/so。这个目录可以用来存放自己以后写的所有库文件。由于是在系统目录下创建一个目录，所以需要root权限
+2)  创建并编辑一个mylib.conf文件。输入命令$sudo vim /etc/ld.so.conf.d/mylib.conf
+在mylib.conf文件中输入 /mylib/so 
+保存，退出。
+3)  重建/etc/ld.so.cache文件。输入命令$sudo ldconfig
+输入下面命令，生成main文件。注意，其链接的时候是用function目录下的libhead动态库。
+$g++  -Ifunction -Lfunction -lhead main.cpp 
+直接运行./main。并没有错误。可以运行。说明，Linux已经会在运行程序时自动在/mylib/so目录下找动态链接库了。
+
+
+2. 指定编译时的头文件路径
+先弄清编译器搜索头文件的顺序。
+1.先搜索当前目录（使用include ""时）
+2.然后搜索-I指定的目录
+3.再搜索环境变量CPLUS_INCLUDE_PATH、 C_INCLUDE_PATH。两者分别是g++、gcc使用的。
+4.最后搜索默认目录 /usr/include  和 /usr/local/include等
+
+知道这些就简单了。输入下面命令。编辑该文件。
+$sudo vim /etc/bash.bashrc  这个文件是作用了所有Linux用户的，如果不想影响其他用户，那么就编辑~/.bashrc文件。
+打开文件后，去到文件的最后一行。输入下面的语句。
+
+C_INCLUDE_PATH=/usr/include/libxml2:/mylib export C_INCLUDE_PATH                              #gcc找到头文件的路径 
+CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:/usr/include/libxml2:/mylib export CPLUS_INCLUDE_PATH  #g++找到头文件的路径 
+
+修改环境变量。然后保存并推出。
+此时，可以看到 已经可以不用-I选项 下面编译命令能通过了。
+$g++ -Lfunction -lhead mian.cpp -o main
+
+
+3.指定链接时的动态库路径
+需要注意的是，链接时使用动态库和运行时使用动态库是不同的。
+同样先搞清搜索顺序：
+1. 编译命令中-L指定的目录
+2. 环境变量LIBRARY_PATH所指定的目录
+3. 默认目录。/lib、/usr/lib等。
+接下来和指定头文件路径一样。输入命令$sudo vim /etc/bash.bashrc   在文件的最后一行输入
+
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/MyLib export LD_LIBRARY_PATH #找到动态链接库的路径 
+LIBRARY_PATH=$LIBRARY_PATH:/MyLib export LIBRARY_PATH          #找到静态库的路径     
+
+保存，退出。
+同样，输入bash，使得配置信息生效。
+这是终极目标了。其中-lhead是不能省的。因为，编译器要知道，你要链接到哪一个动态库。当然，
+如果想像C运行库那样，链接时默认添加的动态库，那么应该也是可以通过设置，把libhead.so库作
+为默认库。但并不是所有的程序都会使用这个库。要是设置为默认添加的，反而不好。

@@ -1,0 +1,32 @@
+## makefile
+
+# 如果已定义KERNELRELEASE，则说明是从内核构造系统调用的，
+# 因此可利用其内建语句。
+ifneq ($(KERNELRELEASE),)
+	obj-m := hello.o
+	module-objs := hello.o
+# 否则，是直接从命令行调用的
+# 这时要调用内核构造系统
+else
+	KERNELDIR ?= /lib/modules/$(pwd uname -r)/build
+	PWD := $(shell pwd)
+	default:
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
+	
+endif
+
+# 如果读者实际运行的内核并不是要构造的内核，则可以在命令行提供KERNELDIR=选项或者设置KERNELDIR环境变量，也可以修改来设置KERNELDIR的行。
+# 在找到内核源代码数之后，这个makefile会调用default目标。
+# 在第二次调用makefile文件时，它设置了obj-m，而内核的Makefie负责真正的构造模块。
+
+
+obj-m := hello.o  
+module-objs := hello.o
+KERNELDR := /usr/src/linux-2.6.26  
+PWD := $(shell pwd)  
+modules:  
+	$(MAKE) -C $(KERNELDR) M=$(PWD) modules  
+moduels_install:  
+	$(MAKE) -C $(KERNELDR) M=$(PWD) modules_install  
+clean:  
+	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions  

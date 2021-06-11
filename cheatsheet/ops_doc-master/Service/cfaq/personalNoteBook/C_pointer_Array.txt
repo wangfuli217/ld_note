@@ -1,0 +1,53 @@
+
+引用本质上是个const pointer, 所以必须初始化，而且一旦初始化后，就和对象绑定了；
+
+数组可以看做是个结构体，只不过结构体里面的member都是一样的类型，所以：
+int a[10]; 把int [10]看做一个具有10个member的结构体，a是这个结构体定义的一个变量；
+typeof(a)=int*， 所以a++是偏移sizeof(*a)=sizeof(int)；
+&a是这个结构体的地址，数值上和第1个member的地址&a[0]是一样的，但类型不同，前者的类型是int[10],后者的类型是int;
+另外，a == &a[0]，这是数组特殊的地方；
+*p 语法解析：先找到p指向的内存，然后根据(*p)的类型获取内容；切记：是根据(*p)的类型，不是p的类型； 
+p++ 语法解析：先找到p指向的内存，然后在那块内存上偏移到下一块内存，偏移的大小=sizeof(*p),  切忌：不是在p自身的内存地址偏移；
+typeof(P++)==typeof(p), (*p)++移动的内存大小是sizeof(**p);
+eg: function(structA*& p){p++;} typeof(p)=typeof(structA*), so p++ move over sizeof(structA);
+最基本的恒等式：*(&A) = A
+
+///////////////////////////////////////////////////
+5. 用变量a给出下面的定义(http://mypyg.iteye.com/blog/845911)
+a) 一个整型数（An integer）
+b) 一个指向整型数的指针（A pointer to an integer）
+c) 一个指向指针的的指针，它指向的指针是指向一个整型数（A pointer to a pointer to an integer）
+d) 一个有10个整型数的数组（An array of 10 integers）
+e) 一个有10个指针的数组，该指针是指向一个整型数的（An array of 10 pointers to integers）
+f) 一个指向有10个整型数数组的指针（A pointer to an array of 10 integers）
+g) 一个指向函数的指针，该函数有一个整型参数并返回一个整型数（A pointer to a function that takes an integer as an argument and returns an integer）
+h) 一个有10个指针的数组，该指针指向一个函数，该函数有一个整型参数并返回一个整型数（ An array of ten pointers to functions that take an integer argument and return an integer ）
+
+答案是：
+a) int a; // An integer
+b) int *a; // A pointer to an integer
+c) int **a; // A pointer to a pointer to an integer
+d) int a[10]; // An array of 10 integers
+e) int *a[10]; // An array of 10 pointers to integers；however, int& a[10] is InValid definition. since array can't contain many reference. 
+f) int (*a)[10]; // A pointer to an array of 10 integers； eg: int b[5][10], a=b=&b[0]; this define occupy only sizeof(*)=4bytes memory;
+g) int (*a)(int); // A pointer to a function a that takes an integer argument and returns an integer
+h) int (*a[10])(int); // An array of 10 pointers to functions that take an integer argument and return an integer
+i) int (&a)[10]; //reference of an array of 10 integers, often used in function parameter or class member; eg: int b[10], a refer to b; this define Not occupy memory;
+
+总结：理解数组的定义，应该“由内而外”，“从右向左”；
+///////////////////////////////////////////////////////////
+1.指针地址：指针自身的地址，即内存中用于存放指针变量的内存地址；相当于汇编语言中的内存寻址；
+2.指针保存的地址：指针取值，通俗讲就是指针所指向的对象的内存地址；
+3.指针所保存的对象的值：指针所指对象的数值；
+4.数组大小2种方式确定：a）定义时显示指出大小；b）定义时通过赋值表达式隐示给定大小；
+5.注意当函数参数定义为数组时，该参数其实是个指针（sizeof得到的是指针本身大小，不是数组大小），不是真的数组，所以参数中指定数组大小是没有意义的，其作用只是告诉别人最好传个数组过来，例如，函数入参定义为int *p 和 int p[]是完全等同的；一般还需要传人length参数。
+6.局部数组占用临时栈内存，全局数组占用全局内存；
+7.假设在函数内定义char p[]="hello";  char* q="hello"; 前者系统只分配一块栈内存给数组p（p是数组，不是指针），存储的内容是hello,内容可以修改，而后者系统分配2块内存，全局常量内存存储  hello,栈内存存储指针变量q（q是指针，不是数组）;所以p[0]='X'是ok的，而q[0]='X'就不行，因为常量不能修改；
+8.数组可以看做是个结构体，只不过结构体里面的member都是一样的类型，数组具有“大小”属性，可以用sizeof计算大小，指针就不行；
+9.将绝对地址赋值给指针时，要强制类型转换；
+10.“野指针”的成因主要有两种:        1)指针定义后没有被初始化，这时指针不是null,而是有值的，只不过会乱指一气，所以如果类成员里面有指针，必须在构造函数里面为其赋值，一般赋值为NULL，如果没有初始化对象指针就用来获取成员变量或函数，是可以编译通过的，但结果是垃圾的；
+ 2）指针p被free或者delete之后，没有置为NULL，让人误以为p是个合法的指针；
+ 11.指针消亡了，并不表示它所指的内存会被自动释放。反之，内存被释放了，并不表示指针会消亡或者成了NULL指针；
+12.“野指针”不是NULL指针，是指向“垃圾”内存的指针。人们一般不会错用NULL指针，因为用if语句很容易判断。但是“野指针”是很危险的，if语句对它不起作用。
+13.指针符->的含义：等价于 *(p+Delta)，也就是结构体起始地址加上成员的偏移量，再解引用；
+14.修改值的2种方式：1）直接给变量赋值；2）通过内存地址+解引用，解引用时如果是结构里的member用->,如果是基本数据类型用*

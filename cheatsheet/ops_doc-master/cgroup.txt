@@ -1,0 +1,37 @@
+1. 是Linux内核提供的一种可以限制,记录,隔离进程组 (process groups) 所使用的物力资源 (如 cpu memory i/o 等等) 的机制
+---------------------
+CGroup功能及组成
+---------------------
+CGroup支持的文件种类
+文件名              R/W     用途
+Release_agent       RW      删除分组时执行的命令,这个文件只存在于根分组
+Notify_on_release   RW      设置是否执行 release_agent.为 1 时执行
+Tasks               RW      属于分组的线程 TID 列表
+Cgroup.procs        R       属于分组的进程PID列表.仅包括多线程leader的 TID
+Cgroup.event_control  RW    监视状态变化和分组删除事件的配置文件
+
+相关概念
+  1. TASK: TASK就是系统的一个进程
+  2. control group: 控制族群就是一组按照某种标准划分的进程,Cgroups 中的资源控制都是以控制族群为单位实现
+  3. Hierarchy(层级): 既一颗控制族群树,子节点可继承父控制族群的特定的属性
+  4. subsystem: 一个子系统就是一个资源控制器,比如 cpu 子系统就是控制 cpu 时间分配的一个控制器.
+             子系统必须附加(attach)到一个层级上才能起作用,一个子系统附加到某个层级以后,这个层级上的所有控制族群都受到这个子系统的控制
+      
+相关关系
+  1. 每次在系统中创建新层级时,该系统中的所有任务都是那个层级的默认 cgroup（我们称之为 root cgroup,此 cgroup 在创建层级时自动创建,后面在该层级中创建的 cgroup 都是此 cgroup 的后代）的初始成员
+  2. 一个子系统最多只能附加到一个层级
+  3. 一个层级可以附加多个子系统
+  4. 一个任务可以是多个 cgroup 的成员,但是这些 cgroup 必须在不同的层级
+  5. 系统中的进程(任务)创建子进程(任务)时,该子任务自动成为其父进程所在 cgroup 的成员.然后可根据需要将该子任务移动到不同的 cgroup 中,但开始时它总是继承其父任务的 cgroup
+
+
+CGroup 层级关系显示,CPU 和 Memory 两个子系统有自己独立的层级系统,而又通过 Task Group 取得关联关系
+        Hierarchy                                     Hierarchy
+        (cpu)                                         (mem)
+      /        \          ---- Task group -----       /       \
+   cgroup1    cgroup2    /       |     |       \-- cgroup5   cgroup6
+             /       \  /      task1  task2                   /    \
+          cgroup3   cgroup4                              cgroup7  cgroup8
+
+
+https://github.com/ucrux/notes/tree/master/%E7%B3%BB%E7%BB%9F%E7%AE%A1%E7%90%86/linux

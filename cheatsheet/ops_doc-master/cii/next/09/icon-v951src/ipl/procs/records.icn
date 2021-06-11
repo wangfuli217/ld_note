@@ -1,0 +1,56 @@
+############################################################################
+#
+#	File:     records.icn
+#
+#	Subject:  Procedures to manipulate records
+#
+#	Authors:  Ralph E. Griswold and Gregg M. Townsend
+#
+#	Date:     November 4, 2002
+#
+############################################################################
+#
+#  This file is in the public domain.
+#
+############################################################################
+#
+#  Contributor:  Paul Abrahams
+#
+############################################################################
+#
+#  field(R, i)	returns the name of the ith field of R.
+#
+#  fieldnum(R, s)  returns the index of the field named s in record R.
+#
+#  movecorr(R1, R2) copies values from the fields of record R1 into
+#  fields of the same names (if any) in record R2, and returns R2.
+#
+############################################################################
+
+procedure field(R, i)			#: return name of field R[i]
+
+   name(R[i]) ? {
+      tab(upto('.') + 1)
+      return tab(0)
+      }
+
+end
+
+procedure fieldnum(R, s)		#: return index of field R.s
+   local i
+
+   R := copy(R)
+   every i := 1 to *R do
+      R[i] := i
+   return R[s]
+end
+
+procedure movecorr(R1, R2)		#: move corresponding record fields
+   local s
+   static name
+   initial name := proc("name", 0)	# protect attractive name
+
+   every s := (name(!R1) ? (tab(upto('.') + 1) & tab(0))) do
+      R2[s] := R1[s]
+   return R2
+end

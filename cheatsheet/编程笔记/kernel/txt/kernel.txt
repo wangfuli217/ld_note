@@ -1,0 +1,687 @@
+http://www.kernel.org/pub/linux/kernel/v2.6/
+http://kernelnewbies.org/Linux_2_6_33
+
+内核抢占只是增加调度点
+
+/var/spool/abrt/kereloops for debug info
+
+obj-m := mmiotool.o (module name)
+mmiotool-objs := mmiotool_test.o xxx.o yyy.o (module components)
+make -C build/linux-board-compiled
+make ARCH=arm CROSS_COMPILE=armv6jel-target-linux-gnueabi- (essetial '-')
+#include <march/comcerto-1000.h>    arch/arm/mach-comcerto/include/mach/comcerto-1000.h
+
+module.c
+    #include <linux/init.h>
+    #include <linux/module.h>
+    static int __init count_init(void){return 0;}
+    static void __exit count_exit(void){}
+    module_init(count_init);
+    module_exit(count_exit);
+    MODULE_LICENSE("GPL");
+Makefile
+    obj-m := module.o
+    all:
+            make -C /lib/modules/`uname -r`/build M=`pwd` modules
+
+if return -ENOMEM other than 0, 
+    % sudo insmod ./b.ko
+    insmod: error inserting './b.ko': -1 Cannot allocate memory
+
+memmap=256M@0x80000000      make kernel only use 256M base on 0x80000000
+mem=256M@0x80000000         make kernel ignore 256M base on 0x80000000
+
+physdev match: using --physdev-out in the OUTPUT, FORWARD and POSTROUTING chains for non-bridged traffic is not supported anymore
+
+CONFIG_LOCALVERSION="-kdump" to make product kernel as vmlinuz-2.6.31.14-kdump & /lib/modules/2.6.31.14-kdump
+
+CONFIG_PAE <-> HIGHMEM4G    mutual exclusive
+    but only recognize 1G after reboot...
+    because HIGHMEM64G must be set with PAE
+
+kexec-kdump:
+ CONFIG_KEXEC=y 
+ CONFIG_CRASH_DUMP=y 
+ CONFIG_DEBUG_INFO=Y 
+ CONFIG_SYSFS=y 
+ CONFIG_PROC_VMCORE=y 
+ CONFIG_PHYSICAL_START=0x1000000 (16M)
+ CONFIG_RELOCATABLE=y 
+ optional:
+     CONFIG_SMP=n (but capture kernel must have maxcpus=1)
+     CONFIG_HIGHMEM64G=y (if physical mem >= 4G)
+ crashkernel=128M@16M (match with CONFIG_PHYSICAL_START) to boot args
+
+/etc/sysctl.conf        /proc/sys/kernel/...
+    kernel.panic = n
+    kernel.panic_on_oops = n
+    kernel.softlockup_panic = 1 or 0
+# setup timeout for hung task to n seconds
+    kernel.hung_task_timeout_secs = n
+# panic if a hung task was found
+    kernel.hung_task_panic = 1(true) or 0(false)
+
+a模块用b模块函数 只需包含头文件 .ko就是.o 可以有未解析的符号
+
+watchdog 是一种以 NMI 方式检查 CPU 死锁的机制
+    ps aux | grep watchdog
+    root         5  0.0  0.0      0     0 ?        S    08:53   0:00 [watchdog/0]
+    root         8  0.0  0.0      0     0 ?        S    08:53   0:00 [watchdog/1]
+
+only same thing is NAME, file name, func name (ioctl), implementation is different.
+every device has it's own implementation of ioctl/read/write (file_operations)
+
+make oldconfig  make sure .config exists
+    grep --color -n X86_PAT arch/x86/* || / to search in menuconfig
+    no prompt in menuconfig, edit arch/x86/Kconfig to set default to n
+ccache to HOSTCC & CC
+make -j8
+make modules
+make modules_install    add /lib/modules/`uname -r`/*
+make install
+cp arch/x86/boot/bzImage /boot/vmlinuz-2.6.38.i686
+mkinitcpio dracut initramfs-2.6.38.img
+
+if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
+
+debug trace:
+    start_kernel
+    cpu_idle
+    mwait_idle
+    common_interrupt
+    do_IRQ
+    irq_exit
+    do_softirq
+    __do_softirq
+    net_rx_action
+    e1000_clean
+    e1000_clean_rx_irq
+    netif_receive_skb
+    br_handle_frame_finish
+    br_handle_frame
+    br_handle_frame_finish
+    nf_hook_slow
+    br_handle_frame_finish
+    nf_iterate
+    hook_counter
+    do_page_fault
+    error_code
+    bad_area_nosemaphore
+    do_page_fault
+    release_console_sem
+
+docbook-utils
+yum install jadetex
+make pdfdocs
+
+内核提供一个内核线程keventd，用来提供进程上下文。 schedule_work()，如果你的内核是2.6的 或者schedule_task()，如果你的内核是2.4的
+已被workqueue取代
+
+有以一般一般额已被已被workqueue的大的去去驱动去打取代取代
+有以一般一般额已被已被workqueue的大的去去驱动去打取代取代ry
+no PAE: 3.3g in total; PAE: 8.2g in total
+
+arch/xxx/include/asm/unistd.h   all syscall num
+
+open file in kernel
+filp_open, sys_open is a wrapper of filp_open
+
+block layer -> IO scheduler
+APM (Advanced Power Management) no used, nowadays we have ACPI (Advanced Configuration and Power Interface)
+file system -> psudo file system 	/proc/kcore /proc/vmcore shmfs
+
+/proc is a window of kernel data structure/mem, when u need to know some area, he tells u
+
+主要是硬件的问题，3G-4G的物理内存被PCI设备占了。
+64位的主板支持PCI hole memory remapping，可以把这部分内存重新影射到高位的物理地址空间
+WIN系统也是这样的
+但貌似打开 PAE 后的 32bit 系统内存存取效率效率远不如 64bit 系统
+
+cat /proc/meminfo	4g:
+1。你的机器是64位的，主板支持remapping, 你只是运行了32位OS，这个是没问题的
+2。只是报告了装机内存, redhat的patch
+微软就因为客户抱怨太多，给Windows做了一个patch就是让OS报告实际装机内存，哪怕是有内存根本被浪费了
+
+sysfs	-- user space device fs
+sysfs mounted on /sys
+
+内联(inlined)方式编译到内核映像文件(vmlinuz)中还是编译为外部模块(ko文件)，都可能会出现在 /sys/module中
+
+/sys/module/printk/parameters/time 这个可读写参数控制着内联模块 printk 在打印内核消息时是否加上时间前缀；
+所有内联模块的参数也可以由 "<module_name>.<param_name>=<value>" 的形式写在内核启动参数上，如启动内核时加上参数 "printk.time=1" 与 向 "/sys/module/printk/parameters/time" 写入1的效果相同；
+
+在一个典型的 PC 系统中，中央处理器(CPU)能直接控制的是 PCI 总线设备，而 USB 总线设备是以一个 PCI 设备(PCI-USB桥)的形式接入在 PCI 总线设备上，外部 USB 设备再接入在 USB 总线设备上
+
+计算机执行挂起(suspend)操作时， Linux 内核应该以 “外部USB设备->USB总线设备->PCI总线设备” 的顺序通知每一个设备将电源挂起；执行恢复(resume)时则以相反的顺序通知
+
+sysfs 是一种基于 ramfs 实现的内存文件系统，与其它同样以 ramfs 实现的内存文件系统(configfs,debugfs,tmpfs,...)类似， sysfs 也是直接以 VFS 中的 struct inode 和 struct dentry 等 VFS 层次的结构体直接实现文件系统中的各种对象
+
+.init.text 区段包含 module_init 代码，.exit.text 区段包含 module_exit 代码
+
+大多数UNIX变种不支持preemptive
+
+illegal mem access (user space)		sigsegv
+		 (kernel space)		oops
+
+no page in kernel space, so 1 more byte used, 1 less byte left
+
+kernel stack only has 2 frames, so 32b - 8k, 64b - 16k
+
+task_struct 	1.7k, be at corresponding tail of it's kernel stack
+
+PID pid_t(int) max == 32768
+enough in desktop but not at workstation
+modify /proc/sys/kernel/pid_max
+
+2 types of context:
+process context
+interrupt context
+
+kexec-tools 	directly boot into a new kernel
+egrep /boot/config-2.6.32.11-99.fc12.i686.PAE		
+CONFIG_KEXEC=y
+
+(sys-call) clone() -> (func) fork()
+
+clone(SIGCHLD, 0);						process
+clone(CLONE_VFORK | CLONE_VM | SIGCHLD, 0);			vfork()
+clone(CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND, 0);	
+
+kernel stack / thread_info / task_struct(slab high speed cache)
+
+preeption 	enfored hang on
+
+I/O consuptive	use most time on apply I/O requestion & waiting requestion (all interactive prog, high priority, short time-slice)
+CPU consuptive	most time on executing codes
+
+(nice-priority)20 < -19 < (real-time-priority) 0 < 99
+
+x86 bsfl 	find_first_set, byte manipulation
+
+new child share father's time-slice left with his father
+
+static prio -> time-slice (scalar enlarge)
+
+task_state(5 types)
+TASK_UNINTERRUPTIBLE ignores all signals, only difference with TASK_INTERRUPTIBLE
+
+user preemption: (if need_resched set, call schedule())
+1. return from sys-call
+2. return from int
+
+user preemption always exists, but kernel preemption achieved in 2.6
+locks are used as markers of regions of non-preemptibility
+
+thread_info->preempt_count  
+increments once for each lock that is acquired and decrements once for each lock that is released
+When the counter is zero, the kernel is preemptible
+
+asmlinkage long sys_getpid()
+{
+	return current->tgid;
+}
+every syscall should use asmlinkage;
+"long" is for 64b compatible
+
+call *sys_call_table(, %eax, 4)
+
+new syscall must be compiled as kernel image, not module, just put the .c into kernel/
+asmlinkage long sys_get_stack_size() 	(kernel stack size)
+{
+	return THREAD_SIZE;
+}
+
+Interrupts associated with devices on the PCI bus, for example, generally can be dynamically assigned
+
+分配大块内存，malloc直接通过系统调用mmap实现，分配得到的地址在文件映射区，所以其地址大于0x4000 0000
+主线程的栈空间最大为126M，而普通线程的栈空间仅为10M，超这个范围就会造成栈溢出
+
+frame:	函数内的局部变量以及其调用下一级函数的参数，所占用的内存空间作为一个基本的单元
+GDB中 两个frame之间通过还存有其它信息，比如上一层frame的分界地址(EBP)等
+
+/proc/pid/maps	/proc/self/maps
+
+module programming	event drive
+
+obj-m	:=	hello.o
+all: make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) module's' (not module)
+
+758 (low mem) < 896
+
+/etc/inittab - init - /etc/rc5.d - Starting udev [OK]
+
+Processes contexts are not tied to any interrupt context and vice versa
+
+Kernel code running in process context is preemptible
+
+linux/kernel.h:
+#define	KERN_EMERG	"<0>"	/* system is unusable			*/
+#define	KERN_ALERT	"<1>"	/* action must be taken immediately	*/
+#define	KERN_CRIT	"<2>"	/* critical conditions			*/
+#define	KERN_ERR	"<3>"	/* error conditions			*/
+#define	KERN_WARNING	"<4>"	/* warning conditions			*/
+#define	KERN_NOTICE	"<5>"	/* normal but significant condition	*/
+#define	KERN_INFO	"<6>"	/* informational			*/
+#define	KERN_DEBUG	"<7>"	/* debug-level messages			*/
+
+用.ko作后缀而不是原来的.o
+这是因为有附加的.modinfo段， 那里存放着关于模块的附加信息
+modinfo xxx.ko
+
+/proc/kallsyms		all symbols provided by kernel			(System.map)
+
+not necessary put a new device into /dev, u can put it anywhere
+
+mknod /dev/coffee c 12(major, kernel cares) 2(minor, module cares)
+
+uname -r	2.6.32.11-99.fc12.i686.PAE
+uname -a	Linux zy.asm 2.6.32.11-99.fc12.i686.PAE #1 SMP Mon Apr 5 16:15:03 EDT 2010 i686 i686 i386 GNU/Linux
+
+cat /proc/modules
+vfat 6740 1(num of referenced process, if non 0, can't remove this module) - Live 0xef7db000
+
+		C语言应用程序	内核模块程序
+使用函数	Libc库		内核函数
+运行空间	用户空间	内核空间
+运行权限	普通用户	超级用户
+入口函数	main()		module_init()
+出口函数	exit()		module_exit()
+编译		Gcc –c		Makefile
+连接		Gcc		insmod
+运行		直接运行	insmod
+调试		Gdb		kdbug, kdb,kgdb等
+
+NOTE: for convenience, there is no difference between _ and - in  module  names.
+
+EXPORT_SYMBOL(schedule);
+EXPORT_SYMBOL(jiffies);
+EXPORT_SYMBOL(xtime);
+EXPORT_SYMBOL() 	本身的含义是“移出符号”。为什么说是“移出”呢？
+因为这些符号本来是内核内部的符号，通过这个宏放在一个公开的地方，使得装入到内核中的其他模块可以引用它们。
+
+struct module_symbol
+{
+	unsigned long value; /* 符号在内核地址空间中的地址 */
+	const char *name;    /* 符号名 */
+};
+
+
+linux/module.h:
+	/* Startup function. */
+	int (*init)(void);
+	/* Destruction function. */
+	void (*exit)(void);
+	/* If this is non-NULL, vfree after init() returns */
+	void *module_init;
+
+	/*
+	 * We keep the symbol and string tables for kallsyms.
+	 * The core_* fields below are temporary, loader-only (they
+	 * could really be discarded after module init).
+	 */
+	Elf_Sym *symtab, *core_symtab;
+
+arch/x86/kernel/syscall_table_32.S:
+	.long sys_init_module
+	.long sys_delete_module
+
+/var/log/messages	details about error or module output
+
+use our own error code, in <linux/errno.h>
+
+interface between kernel & chrdev	struct cdev <linux/cdev.h>
+
+dev_t == u32 == major(24) | minor(8)
+
+scull_dev - cdev - file_operations
+
+inode(file_operations * f_op, dev_t i_rdev, cdev * i_cdev)
+file (file_operations * f_op)
+
+struct file_operations {
+	struct module *owner;
+	loff_t (*llseek) (struct file *, loff_t, int);
+	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
+	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
+	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
+	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
+	int (*readdir) (struct file *, void *, filldir_t);
+	unsigned int (*poll) (struct file *, struct poll_table_struct *);
+	int (*ioctl) (struct inode *, struct file *, unsigned int, unsigned long);
+	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
+	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
+	int (*mmap) (struct file *, struct vm_area_struct *);
+	int (*open) (struct inode *, struct file *);
+	int (*flush) (struct file *, fl_owner_t id);
+	int (*release) (struct inode *, struct file *);
+	int (*fsync) (struct file *, struct dentry *, int datasync);
+	int (*aio_fsync) (struct kiocb *, int datasync);
+	int (*fasync) (int, struct file *, int);
+	int (*lock) (struct file *, int, struct file_lock *);
+	ssize_t (*sendpage) (struct file *, struct page *, int, size_t, loff_t *, int);
+	unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
+	int (*check_flags)(int);
+	int (*flock) (struct file *, int, struct file_lock *);
+	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
+	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
+	int (*setlease)(struct file *, long, struct file_lock **);
+};
+
+struct file {
+	/*
+	 * fu_list becomes invalid after file_free is called and queued via
+	 * fu_rcuhead for RCU freeing
+	 */
+	union {
+		struct list_head	fu_list;
+		struct rcu_head 	fu_rcuhead;
+	} f_u;
+	struct path		f_path;
+#define f_dentry	f_path.dentry
+#define f_vfsmnt	f_path.mnt
+	const struct file_operations	*f_op;
+	spinlock_t		f_lock;  /* f_ep_links, f_flags, no IRQ */
+	atomic_long_t		f_count;
+	unsigned int 		f_flags;
+	fmode_t			f_mode;
+	loff_t			f_pos;
+	struct fown_struct	f_owner;
+	const struct cred	*f_cred;
+	struct file_ra_state	f_ra;
+
+	u64			f_version;
+#ifdef CONFIG_SECURITY
+	void			*f_security;
+#endif
+	/* needed for tty driver, and maybe others */
+	void			*private_data;
+
+#ifdef CONFIG_EPOLL
+	/* Used by fs/eventpoll.c to link all the hooks to this file */
+	struct list_head	f_ep_links;
+#endif /* #ifdef CONFIG_EPOLL */
+	struct address_space	*f_mapping;
+#ifdef CONFIG_DEBUG_WRITECOUNT
+	unsigned long f_mnt_write_state;
+#endif
+};
+
+struct inode {
+	struct hlist_node	i_hash;
+	struct list_head	i_list;		/* backing dev IO list */
+	struct list_head	i_sb_list;
+	struct list_head	i_dentry;
+	unsigned long		i_ino;
+	atomic_t		i_count;
+	unsigned int		i_nlink;
+	uid_t			i_uid;
+	gid_t			i_gid;
+	dev_t			i_rdev;
+	unsigned int		i_blkbits;
+	u64			i_version;
+	loff_t			i_size;
+#ifdef __NEED_I_SIZE_ORDERED
+	seqcount_t		i_size_seqcount;
+#endif
+	struct timespec		i_atime;
+	struct timespec		i_mtime;
+	struct timespec		i_ctime;
+	blkcnt_t		i_blocks;
+	unsigned short          i_bytes;
+	umode_t			i_mode;
+	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
+	struct mutex		i_mutex;
+	struct rw_semaphore	i_alloc_sem;
+	const struct inode_operations	*i_op;
+	const struct file_operations	*i_fop;	/* former ->i_op->default_file_ops */
+	struct super_block	*i_sb;
+	struct file_lock	*i_flock;
+	struct address_space	*i_mapping;
+	struct address_space	i_data;
+#ifdef CONFIG_QUOTA
+	struct dquot		*i_dquot[MAXQUOTAS];
+#endif
+	struct list_head	i_devices;
+	union {
+		struct pipe_inode_info	*i_pipe;
+		struct block_device	*i_bdev;
+		struct cdev		*i_cdev;
+	};
+
+	__u32			i_generation;
+
+#ifdef CONFIG_FSNOTIFY
+	__u32			i_fsnotify_mask; /* all events this inode cares about */
+	struct hlist_head	i_fsnotify_mark_entries; /* fsnotify mark entries */
+#endif
+
+#ifdef CONFIG_INOTIFY
+	struct list_head	inotify_watches; /* watches on this inode */
+	struct mutex		inotify_mutex;	/* protects the watches list */
+#endif
+
+	unsigned long		i_state;
+	unsigned long		dirtied_when;	/* jiffies of first dirtying */
+
+	unsigned int		i_flags;
+
+	atomic_t		i_writecount;
+#ifdef CONFIG_SECURITY
+	void			*i_security;
+#endif
+#ifdef CONFIG_FS_POSIX_ACL
+	struct posix_acl	*i_acl;
+	struct posix_acl	*i_default_acl;
+#endif
+	void			*i_private; /* fs or device private pointer */
+};
+
+struct cred {
+	atomic_t	usage;
+#ifdef CONFIG_DEBUG_CREDENTIALS
+	atomic_t	subscribers;	/* number of processes subscribed */
+	void		*put_addr;
+	unsigned	magic;
+#define CRED_MAGIC	0x43736564
+#define CRED_MAGIC_DEAD	0x44656144
+#endif
+	uid_t		uid;		/* real UID of the task */
+	gid_t		gid;		/* real GID of the task */
+	uid_t		suid;		/* saved UID of the task */
+	gid_t		sgid;		/* saved GID of the task */
+	uid_t		euid;		/* effective UID of the task */
+	gid_t		egid;		/* effective GID of the task */
+	uid_t		fsuid;		/* UID for VFS ops */
+	gid_t		fsgid;		/* GID for VFS ops */
+	unsigned	securebits;	/* SUID-less security management */
+	kernel_cap_t	cap_inheritable; /* caps our children can inherit */
+	kernel_cap_t	cap_permitted;	/* caps we're permitted */
+	kernel_cap_t	cap_effective;	/* caps we can actually use */
+	kernel_cap_t	cap_bset;	/* capability bounding set */
+#ifdef CONFIG_KEYS
+	unsigned char	jit_keyring;	/* default keyring to attach requested
+					 * keys to */
+	struct key	*thread_keyring; /* keyring private to this thread */
+	struct key	*request_key_auth; /* assumed request_key authority */
+	struct thread_group_cred *tgcred; /* thread-group shared credentials */
+#endif
+#ifdef CONFIG_SECURITY
+	void		*security;	/* subjective LSM security */
+#endif
+	struct user_struct *user;	/* real user ID subscription */
+	struct group_info *group_info;	/* supplementary groups for euid/fsgid */
+	struct rcu_head	rcu;		/* RCU deletion hook */
+};
+
+errno.h - bits/errno.h - linux/errno.h - asm-generic/errno.h
+
+static inline struct task_struct *get_current(void) __attribute_const__;
+static inline struct task_struct *get_current(void)
+{
+	return current_thread_info()->task;
+}
+#define		current		(get_current())
+可见，current其实是一个“伪全局变量”，是函数get_current()的宏定义。当access.c中使用current->uid时，
+就调用了get_current()函数，从而返回task_struct结构的task，因此current->uid就相当于 task->uid。
+
+modprobe 是 insmod 的一个更智能的版本，它通过分析 /lib/modules/X.Y.Z/modules.dep 文件来加载相关模块
+
+every spinlocks has corresponding irq variants
+spin_lock();		spin_lock_irqsave();
+spin_unlock();		spin_unlock_irqrestore();
+
+seq lock	writer >> reader
+RCU		writer << reader
+
+Certain kernel parameters can be changed at runtime by writing to files under (/proc/sys/)
+
+GFP	get free page
+
+VA == kernel VA(logical addr, constant offset, low 896m) + user VA
+
+void * kmalloc(int count, GFP_KERNEL);	process context
+void * kmalloc(int count, GFP_ATOMIC);	interrupt context
+void * vmalloc(unsigned long int);		process context (use kmalloc(GFP_KERNEL) to acquire storage for the page tables)
+
+sleep == interruptible(when signals comes) + uninterruptible
+
+较新的新机器没有ISA设备
+
+kobject_register() == kobject_init() + kobject_add()
+
+udev (自动设备发现程序)
+
+#define 	__user		__attribute__((noderef, address_space(1)))
+
+% cat sections/.strtab                                                                                                                        /sys/module/test
+0xef69d35c
+% cat sections/.rodata.str1.1                                                                                                                 /sys/module/test
+0xef69104c
+% cat sections/.bss                                                                                                                           /sys/module/test
+0xef691250
+% cat sections/.data                                                                                                                          /sys/module/test
+0xef691080
+
+./linux/kernel/kmod.c 中找到内核自动加载函数（可以根据需要从内核自动加载模块）。这个功能可以通过 CONFIG_KMOD 配置选项启用。
+
+CONFIG_LGUEST=m
+
+The staprun program is the back-end of the Systemtap tool.
+It expects a kernel module produced by the front-end stap tool
+staprun		back-end
+stap		front-end
+
+EXPORT_UNUSED_SYMBOL	vmlinux 	0x00000000	init_mm
+EXPORT_UNUSED_SYMBOL	vmlinux 	0x00000000	simple_prepare_write
+
+EXPORT_SYMBOL_GPPL	vmlinux		0xfdf1c041	per_cpu__gdt_page
+EXPORT_SYMBOL_GPPL	vmlinux		0x00000000	per_cpu__softirq_work_list
+EXPORT_SYMBOL_GPPL	vmlinux		0x037a0cba	kfree
+EXPORT_SYMBOL_GPPL	vmlinux		0x03fcfe5b	kobject_init
+EXPORT_SYMBOL_GPPL	vmlinux		0x03fd2572	vm_unmap_ram
+EXPORT_SYMBOL_GPPL	vmlinux		0x04219014	register_sysrq_key
+
+hardware breakpoints require special debug registers in the processor
+When programmers talk of breakpoints they usually are referring to software breakpoints
+
+feel free to choose your own location for Debugfs
+
+选择 tracer 的控制文件叫作 current_tracer 
+
+
+timer_list:
+    del_timer_syn();  may release some resources which timer is using, so del_timer_syn() instead of del_timer()
+    kfree(xxx);
+    
+retrieve huge memory:
+    contineous physical memory:
+        1. kmalloc at max 4M;
+        2. boot args; io_request_region(); ioremap() at max 16M;
+        3. an_export_symbol = alloc_bootmem() (init/main.c:start_kernel(), before mm_init())
+    discontinuous:
+        1. vmalloc, boot arg vmalloc=xxM to increase high mem, insmod/modprobe use it to alloc space for a module
+           test_bit() set_bit() will crash kernel, also tried non-asm version (from arch alpha), 
+           because of page_fault (do_page_fault) ?
+           inefficient, memset(48M) 0.014s, while memset(512M) on contineous mem only 0.002s, TLB miss alot
+        2. kmap
+
+中断发生以后，CPU跳到内核设置好的中断处理代码中去，由这部分内核代码来处理中断。这个处理过程中的上下文就是中断上下文。
+为什么可能导致睡眠的函数都不能在中断上下文中使用呢？ 首先睡眠的含义是将进程置于“睡眠”状态，在这个状态的进程不能被调度执行。然后，在一定的时机，这个进程可能会被重新置为“运行”状态，从而可能被调度执行。 可见，“睡眠”与“运行”是针对进程而言的，代表进程的task_struct结构记录着进程的状态。内核中的“调度器”通过task_struct对进程进行调度。
+但是，中断上下文却不是一个进程，它并不存在task_struct，所以它是不可调度的。所以，在中断上下文就不能睡眠。
+那么，中断上下文为什么不存在对应的task_struct结构呢？ 
+中断的产生是很频繁的（至少每毫秒（看配置，可能10毫秒或其他值）会产生一个时钟中断），并且中断处理过程会很快。如果为中断上下文维护一个对应的task_struct结构，那么这个结构频繁地分配、回收、并且影响调度器的管理，这样会对整个系统的吞吐量有所影响。
+但是在某些追求实时性的嵌入式linux中，中断也可能被赋予task_struct结构。这是为了避免大量中断不断的嵌套，导致一段时间内CPU总是运行在中断上下文，使得某些优先级非常高的进程得不到运行。这种做法能够提高系统的实时性，但是代价中吞吐量的降低。
+
+1.进入中断处理程序--->2.保存关键上下文---->3.开中断（sti指令）--->4.进入中断处理程序的handler--->5.关中断（cli指令）---->6.写EOI寄存器（表示中断处理完成）---->7.开中断。
+硬中断：
+对应于上图的1、2、3步骤，在这几个步骤中，所有中断是被屏蔽的，如果在这个时候睡眠了，操作系统不会收到任何中断（包括时钟中断），
+系统就基本处于瘫痪状态（例如调度器依赖的时钟节拍没有等等……）
+软中断：
+对应上图的4（当然，准确的说应该是4步骤的后面一点，先把话说保险点，免得思一克又开始较真 ）。这个时候不能睡眠的关键是因为上下文。
+大家知道操作系统以进程调度为单位，进程的运行在进程的上下文中，以进程描述符作为管理的数据结构。进程可以睡眠的原因是操作系统可以切换不同进程的上下文，进行调度操作，这些操作都以进程描述符为支持。
+中断运行在中断上下文，没有一个所谓的中断描述符来描述它，它不是操作系统调度的单位。一旦在中断上下文中睡眠，首先无法切换上下文（因为没有中断描述符，当前上下文的状态得不到保存），其次，没有人来唤醒它，因为它不是操作系统的调度单位。
+此外，中断的发生是非常非常频繁的，在一个中断睡眠期间，其它中断发生并睡眠了，那很容易就造成中断栈溢出导致系统崩溃。
+如果上述条件满足了（也就是有中断描述符，并成为调度器的调度单位，栈也不溢出了，理论上是可以做到中断睡眠的），中断是可以睡眠的，但会引起很多问题.例如，你在时钟中断中睡眠了，那操作系统的时钟就乱了，调度器也了失去依据；例如，你在一个IPI（处理器间中断）中，其它CPU都在死循环等你答复，你确睡眠了，那其它处理器也不工作了；例如，你在一个DMA中断中睡眠了，上面的进程还在同步的等待I/O的完成，性能就大大降低了……还可以举出很多例子。所以，中断是一种紧急事务，需要操作系统立即处理，不是不能做到睡眠，是它没有理由睡眠。
+
+如果持续处理再生的softirq, 将会使用户进程饿死. 如果不处理再生的softirq bh, 进行用户进程调度, 将会积累大量softirq等待处理，需要等待下一次中断响应之后才会去do_softirq进行bh的处理。这个问题可以使用具有最低优先级的内核线程ksoftirqd避免这一问题. 没有用户进程需要调度的时候就调度ksoftirqd处理积累得bh任务。ksoftirqd执行一次do_softirq之后, 会检测是否有更重要的用户进程需要调度, 没有的话才会进行下一次迭代, 直到所有bh任务全部处理完毕才sleep. 
+内核进程不能访问用户内存, 内核只有在执行syscall的时候才可以访问用户内存, 此时代表用户进程运行。
+linux对底半部处理的准则是：虽然是延迟处理，但是能提前还是尽量提前。 
+所以在上半部返回的时候会check一下，如果没有嵌套的中断，就直接执行了底半部代码，这个时候确实是中断上下文的，还有些底半部这个时候由于某些原因没有处理，会由linux内核线程ksoftirqd来处理，这个时候底半部处理是在进程上下文中。。
+
+CONFIG_X86_PAT(page table cache) &    
+CONFIG_STRICT_DEVMEM(cat /var/log/messages | grep "tried to access" to check)
+to n, hack menuconfig & arch/x86/Kconfig
+/dev/mem        physical mem, only 1M, cat /dev/mem | strings > a.txt, maybe the first 1M of physical mem
+/dev/kmem       kernel virtual mem
+前者用来访问物理IO设备，比如X用来访问显卡的物理内存，或嵌入式中访问GPIO。
+用法一般就是open，然后mmap，接着可以使用map之后的地址来访问物理内存。这其实就是实现用户空间驱动的一种方法。
+后者一般可以用来查看kernel的变量，或者用作rootkit之类的。参考1和2描述了用来查看kernel变量这个问题。
+/proc/kcore     a mem core dump, as large as the total mem has. But has ELF struct at the beginning
+                so all /proc files are empty is wrong
+ * On x86, access has to be given to the first megabyte of ram because that area
+ * contains bios code and data regions used by X and dosemu and similar apps.
+ * Access has to be given to NON-KERNEL-RAM areas as well, these contain the PCI
+ * mmio resources as well as potential bios/acpi data regions.
+ 2 implementation pairs of range_is_allowed() x86/mm/pat.c drivers/char/mem.c
+ in pat, if NO STRICT set, do strict; in mem, if STRICT set do strict. so if only disset STRICT, X86_PAT also does strict.
+ in strict check, use:
+    int devmem_is_allowed(unsigned long pagenr)
+    {
+        if (pagenr <= 256)  first 1M
+            return 1;
+        if (iomem_is_exclusive(pagenr << PAGE_SHIFT))  PCI io remap to physical mem
+            return 0;
+        if (!page_is_ram(pagenr))  kernel ram
+            return 1;
+        return 0;
+    }
+
+static int mmap_mem(struct file *file, struct vm_area_struct *vma)
+{
+    size_t size = vma->vm_end - vma->vm_start;
+
+    if (!valid_mmap_phys_addr_range(vma->vm_pgoff, size)) -> x86 has no, use default in drivers/char/mem.c, arm has, use what in arm/mm/mmap.c
+        return -EINVAL;
+
+    if (!private_mapping_ok(vma))
+        return -ENOSYS;
+
+    if (!range_is_allowed(vma->vm_pgoff, size)) -> devmem_is_allowed()
+        return -EPERM;
+
+ERROR
+    insmod      
+        -1 Unknown symbol in module     http://blogold.chinaunix.net/u/12592/showart_1671442.html
+            not set CONFIG_MODVERSIONS & CONFIG_MODULE_FORCE_LOAD
+                the situation is we write several modules, do EXPORT_SYMBOL() alot, 
+                it's ok to insert the base one, but relying ones can't be inserted.
+            dmesg to show details
+        -1 Invalid module format (diff kernel version between compiled & running)
+    make
+        warning: function declaration isn’t a prototype  a() -> a(void)
+
+        "__fixdfsi" [a.ko] undefined!
+        "__muldf3" [a.ko] undefined!
+        "__extendsfdf2" [a.ko] undefined!
+        This's happening coz we're trying to do some floating point values. Use inline assembly to get read of it,
+        use only FPU instructions.

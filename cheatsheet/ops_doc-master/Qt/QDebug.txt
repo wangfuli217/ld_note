@@ -1,0 +1,31 @@
+1 qDebug()的最常用法
+qDebug() << "Hello" << 123;
+QString，QByteArray，QDate，QRectF，QVariantHash，QFont等等，关于Qt中的基本类型，大家可以在帮助文档中搜索关键字QMetaType
+qDebug() << QString("Hello") << QPoint(10, 10);
+
+2. 不包含头文件，直接使用qDebug()
+qDebug("如果只写在括号里，是不需要QDebug头文件的 %d %s", num, str);
+
+3 为自定义类添加qDebug()打印
+#include <QDebug>
+class Student
+{
+public:
+    Student(const QString& nm){name = nm;}
+    QString getName() const{return name;}
+private:
+    QString name;
+};
+QDebug operator<<(QDebug debug, const Student &c)
+{
+    debug << c.getName();
+    return debug;
+}
+int main(int argc, char *argv[])
+{
+    Student student("John");
+    qDebug() << student;
+}
+
+4 消除qDebug()打印
+DEFINES += QT_NO_DEBUG_OUTPUT

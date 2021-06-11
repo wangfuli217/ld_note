@@ -1,0 +1,872 @@
+https://wiki.shileizcc.com/confluence/display/firewall/Firewall
+https://wiki.nftables.org/wiki-nftables/index.php/Main_Page
+
+nftables = iptables + ip6tables + arptables + etables
+nftables 拥有使用额外脚本的能力。 
+         原生支持集合、字典和映射。
+         支持定义变量和包含外部文件。
+         初始不包含任何内置表。
+         当没有指定地址族时，默认的是IP
+         特定的地址族包含特定的钩子
+         
+表 -> 链 -> 规则 # table -> chain -> rule
+没有预定义的表: 没有 filter，raw，mangle，nat 和 security 表。
+
+$NFT add rule filter input iif $INTERNET ct state new tcp dport $XWINDOW_PORTS drop
+              表     链 规则(元表达式    conntrack    协议表达式               裁决)
+# RULESET
+{list | flush} ruleset [family]
+# TABLES
+{add | delete | list | flush} table [family] {table}
+# CHAINS
+{add | create} chain [family] table chain [ { {type} {hook} [device] {priority ;} [policy ;] } ]
+                                             # type [filter|route|nat] hook [prerouting|input|forward|output|postrouting] priority 0
+{delete | list | flush} chain [family] {table} {chain}
+{rename} chain [family] {table} {chain} {newname}
+# RULES
+[add | insert] rule [family] {table} {chain} [ {handle | position} handle ] {statement}...
+{replace} rule [family] {table} {chain} {handle handle} {statement}...
+{delete} rule [family] {table} {chain} {handle handle}
+
+### View current configuration: 
+sudo nft list ruleset
+### Add a new table with family "inet" and table "filter": 
+sudo nft add table inet filter
+### Add a new chain to accept all inbound traffic: 
+sudo nft add chain inet filter input \{ type filter hook input priority 0 \; policy accept \}
+### Add a new rule to accept several TCP ports: 
+sudo nft add rule inet filter input tcp dport \{ telnet, ssh, http, https \} accept
+### Show rule handles: 
+sudo nft --handle --numeric list chain family table chain
+### Delete a rule: 
+sudo nft delete rule inet filter input handle 3
+### Save current configuration: 
+sudo nft list ruleset > /etc/nftables.conf
+
+nft -f setup-tables # 命令行级别   执行指定文件
+include "nft-vars"  # 配置文件级别 执行指定文件
+define variable = expr 
+$variable
+
+
+nft <command> <subcommand> <chain> <rule definition>
+典型的命令有: add list insert delete flush 表|链|规则 相同命令不同对象，参数不同。
+典型的子命令有: table chain rule
+
+nftables 可以用于多种地址族的过滤和处理
+ip      IPv4 address family.
+ip6     IPv6 address family.
+inet    Internet (IPv4/IPv6) address family.
+arp     ARP address family, handling IPv4 ARP packets.
+bridge  Bridge address family, handling packets which traverse a bridge device.
+netdev  Netdev address family, handling packets from ingress.
+
+
+
+
+内核实现、libnl netlink通信和nftables用户空间前端。 
+    内核提供了一个netlink配置接口以及运行时规则集评估，
+        lsmod | grep '^nf'
+    libnl包含了与内核通信的基本函数，
+    nftables前端是用户通过nft交互。
+        默认配置文件是/etc/nftables.conf     # nft list ruleset > /etc/nftables.conf
+                      /etc/nftables/
+                      /etc/modules-load.d/nftables.conf
+        systemctl enable nftables.service
+          # Created symlink from /etc/systemd/system/multi-user.target.wants/nftables.service to /usr/lib/systemd/system/nftables.service
+        systemctl start nftables.service
+
+iptables 有内置的链，即使你只需要一条链，其他的链也会跟着注册；而 nftables 不存在内置的链，你可以按需注册。
+检查规则集：
+# nft list ruleset
+
+
+nftables.conf(){
+nftables区分命令行输入的临时规则和从文件加载或保存到文件的永久规则。
+默认配置文件是/etc/nftables.conf，其中已经包含一个名为"inet filter"的简单ipv4/ipv6防火墙列表。
+
+nft list ruleset > /etc/nftables.conf
+nft -f filename # 从文件读取输入
+}
+
+nft list ruleset  # 检查规则集
+
+要使systemd服务正确运行，可能需要创建包含nftables所有相关模块的/etc/modules-load.d/nftables.conf文件。
+可以用以下命令获取模块列表：
+$ lsmod | grep '^nf'
+
+
+{add | create} table [family] table [{ flags flags ; }] 
+{delete | list | flush} table [family] table 
+list tables [family] 
+delete table [family] handle handle
+
+{ flags dormant \; } # 创建临时表
+
+tables(){ include chain, sets and stateful objects
+每个表只有一个地址簇，并且只适用于该簇的数据包。
+nftables簇   iptables实用程序
+ip           iptables
+ip6          ip6tables
+inet         iptables和ip6tables
+arp          arptables
+bridge       ebtables
+
+1. ip(即IPv4)是默认簇，如果未指定簇，则使用该簇。
+2. 要创建同时适用于IPv4和IPv6的规则，请使用inet
+3. inet不能用于nat类型的链，只能用于filter类型的链
+
+
+nft add table [<family>] <name> # 创建表
+nft add table inet filter       # Add a new table with family "inet" and table "filter"
+
+
+nft add table family table    # 创建表
+nft delete table family table # 删除表
+nft flush table family table  # 清空表
+nft list tables               # 列出表，显示所有表简要信息，包括 family 和 table
+nft list table family table   # 列出表中的链和规则，显示指定表详细信息，包括链和规则。family 和 table 可以从 nft list tables获取
+nft list table inet filter    # 要列出inet簇中filter表中的所有规则
+创建表命令和列出表链、规则的命令除了命令 add 和 list 命令不一样外，其他都一样。
+
+[root@localhost ~]# nft add table ip foo   # 创建表
+[root@localhost ~]# nft add table ip6 bar  # 创建表
+[root@localhost ~]# nft list tables        # 列出表
+table ip foo
+table ip6 bar
+table inet my_table
+[root@localhost ~]# nft list tables ip     # 列出指定表
+table ip foo
+[root@localhost ~]# nft list table inet my_table # 列出表内容
+
+nft flush table ip filter # 这删除了表中每一个你注册的链中的所有规则
+}
+
+
+[root@localhost ~]# nft add table inet my_table   # 新建表
+[root@localhost ~]# nft list ruleset              # 查看新建表
+table inet my_table {
+}
+
+table(interactive){
+Add, change, delete a table.
+
+# start nft in interactive mode
+nft --interactive
+
+# create a new table.
+create table inet mytable
+
+# add a new base chain: get input packets
+add chain inet mytable myin { type filter hook input priority 0; }
+
+# add a single counter to the chain
+add rule inet mytable myin counter
+
+# disable the table temporarily -- rules are not evaluated anymore
+add table inet mytable { flags dormant; }
+
+# make table active again:
+add table inet mytable
+
+}
+
+{add | create} chain [family] table chain [{ type type hook hook [device device] priority priority ; [policy policy ;] }]
+{delete | list | flush} chain [family] table chain
+list chains [family]
+delete chain [family] table handle handle
+rename chain [family] table chain newname
+
+chain(){ include rules
+规则链的钩子特性: type [filter|route|nat] hook [prerouting|input|forward|output|postrouting] priority 0
+                  type, hook and priority 关键字是必要的
+type and hook
+TYPE   Families       HOOK
+filter  all           all
+nat     ip, ip6, inet prerouting, input, output, postrouting
+route   ip, ip6       output
+
+priority and chain
+NAME        VALUE   Families        HOOK
+raw         300     ip, ip6, inet   all
+mangle      -150    ip, ip6, inet   all
+dstnat      -100    ip, ip6, inet   prerouting
+filter      0       ip, ip6, inet, arp, netdev	all
+security    50      ip, ip6, inet   all
+srcnat      100     ip, ip6, inet   postrouting
+
+Name    Value   Hooks
+dstnat  -300    prerouting
+filter  -200    all
+out     100     output
+srcnat  300     postrouting
+
+add     将在一条规则链添加到一个表中。
+create  在一个表中创建一条规则链，除非该表中已经存在同名的规则链。
+delete  删除一条规则链。
+flush   清除一条规则链中的所有规则。
+list    显示一条规则链中的所有规则。
+rename  修改一条规则链的名称。
+在添加一条规则链时，可以定义钩子。而且，可以将选择的优先级添加到规则链的定义中。
+
+
+
+    有三种基本的规则链类型，它们可以包含规则而且可以连接到之前描述过的钩子。规则链类型和钩子类型需要在规则链创建期间被定义，
+在通常的防火墙情境中，它们对规则链操作来说至关重要。如果规则链类型和钩子类型未被定义，数据包将不会被路由到此规则链。
+三种基本的规则链类型如下：
+    filter：用于数据包过滤层。
+    route：用于数据包路由。
+    nat：用于网络地址转换(Network Address Translation，NAT)。
+
+链是用来保存规则的，和表一样，链也需要被显示创建，因为 nftables 没有内置的链。链有以下两种类型：
+    常规链 : 不需要指定钩子类型和优先级，可以用来做跳转，从逻辑上对规则进行分类。
+    基本链 : 数据包的入口点，需要指定钩子类型和优先级。
+
+    
+[root@localhost ~]# nft add chain inet    my_table my_utility_chain                                          # 创建常规链
+[root@localhost ~]# nft add chain inet    my_table my_filter_chain { type filter hook input priority 0 \; }  # 创建基本链
+                                  faimly  表名     链名              钩子
+                    iptables -A INPUT(my_filter_chain) -t filter(my_table)  # my_filter_chain使用 hook input修饰
+                                                                            # my_table使用type filter修饰
+[root@localhost ~]# nft list chain inet my_table my_utility_chain
+table inet my_table {
+        chain my_utility_chain {
+        }
+}
+[root@localhost ~]# nft list chain inet my_table my_filter_chain
+table inet my_table {
+        chain my_filter_chain {
+                type filter hook input priority 0; policy accept;
+        }
+}
+
+
+nft add chain filter input { type filter hook input priority 0 \; }   # 进入主机过滤表
+nft add chain filter input { type filter hook output priority 0 \; }  # 离开主机过滤表
+}
+
+
+{add | insert} rule [family] table chain [handle handle | index index] statement ... [comment comment]
+replace rule [family] table chain handle handle statement ... [comment comment]
+delete rule [family] table chain handle handle
+
+rule(){
+add：添加一条规则。
+insert：在规则链中加入一个规则，可以添加在规则链开头或指定的地方。
+delete：删除一条规则。
+    在规则中需要指定匹配的准则，以及对于匹配此规则的数据包应采取的裁决或决定。
+nftables 和在其中创建的规则使用各种各样的声明和表达式来创建定义。
+
+accept      接受数据包并且停止处理
+continue    继续处理此数据包
+drop        停止处理并静默的丢弃此数据包
+goto        发送到指定的规则链进行处理但不返回到调用的规则链
+jump        放到指定的规则链进行处理而且当完成时或执行了返回的声明时返回到调用的规则链
+limit       如果达到了接受数据包的匹配限制，则根据规则处理数据包
+log         日志记录该数据包并继续处理
+queue       停止处理并发送数据包到用户空间的程序
+reject      停止处理并驳回数据包
+return      发送到调用的规则链进行处理
+
+    nftables 表达式中可以指定地址族或所处理的数据包类型。nftables 使用有效载荷表达(palyload expressions)式以及元表达式
+(meta expressions)。有效载荷表达式是从数据包信息那里收集的。一些特定的报头表达式，例如，sport 和 dport
+(分别是源端口和目的端口)会被应用到 TCP 和 UDP 数据包，但它们对于 IPv4 和 IPv6 层来说没有意义，因为这些层不使用端口。
+}
+
+variable(){
+Using symbolic variables.
+define int_if1 = eth0
+define int_if2 = eth1
+define int_ifs = { $int_if1, $int_if2 }
+filter input iif $int_ifs accept
+}
+
+expression(meta){
+iif         接受数据包的接口和索引
+iifname     接收数据包的接口的名称
+iiftype     接受数据包的接口的类型
+length      数据包的字节长度
+mark        数据包标记
+oif         传出数据包的接口和索引
+oifname     传出数据包的接口的名称
+oiftype     传出数据包的接口的类型
+prority     TC 数据包的优先级
+protocol    以太网类型的协议
+rtclassid   路由数据包的领域
+skgid       原始套接字的组标识符
+skuid       原始套接字的用户标识符
+}
+expression(ct){
+ct {state | direction | status | mark | expiration | helper | label} 
+ct [original | reply] {l3proto | protocol | bytes | packets | avgpkt | zone} 
+ct {original | reply} {proto-src | proto-dst} ct {original | reply} {ip | ip6} {saddr | daddr}
+
+    连接跟踪表达式可以通过关键字 ct 后跟一个下面的选项被包含进来：daddr、direction、expiration、helper、
+l3proto、mark、protocol、proto-stc、proto-dst、saddr、state 和 status。
+
+状态表达式是防火墙使用中重要的一项。普通的数据包检查和规则处理时无状态的，这意味着处理过程不知道之前处理过
+的数据包的任何信息。每个数据包都是依据其自身的源和目的地址、端口以及其他标准被检查的。下面列出的状态表达式
+使得与数据包相关的信息被记录，因此，进行处理的规则会得到相关流量正在进行交换的上下文。
+    new：一个新的数据包到达防火墙，例如，一个设置了 SYN 标志的 TCP 数据包。
+    established：数据包是已经被处理或跟踪的连接的一部分。
+    invalid：一个不符合协议规则的数据包。
+    related：一个数据包与某个连接相关，该连接的协议不使用其他手段跟踪其状态，例如 ICMP 或被动 FTP。
+    untracked：一个用于绕开连接跟踪的管理员状态，典型用于特殊情况。
+实际上，new、related、established 状态的使用都很频繁，invalid 状态会在适合的地方被使用。
+nft add rule filter input tcpdport 22 ct state established,related accept
+
+#### CT Helper
+Keyword     Description                     Type
+type        name of helper type             quoted string (e.g. "ftp")
+protocol    layer 4 protocol of the helper  string (e.g. ip)
+l3proto     layer 3 protocol of the helper  address family (e.g. ip)
+
+ct helper helper { type type protocol protocol ; [l3proto family ;] }
+#### ftp
+table inet myhelpers {
+  ct helper ftp-standard {
+        type "ftp" protocol tcp
+  }
+  chain prerouting {
+        type filter hook prerouting priority 0;
+        tcp dport 21 ct helper set "ftp-standard"
+  }
+}
+
+#### CT Timeout
+ct timeout name { protocol protocol ; policy = { state: value [, ...] } ; [l3proto family ;] }
+
+Keyword     Description                             Type
+protocol    layer 4 protocol of the timeout object  string (e.g. ip)
+state       connection state name                   string (e.g. "established")
+value       timeout value for connection state      unsigned integer
+l3proto     layer 3 protocol of the timeout object  address family (e.g. ip)
+
+#### l3proto
+table ip filter {
+    ct timeout customtimeout {
+        protocol tcp;
+        l3proto ip
+        policy = { established: 120, close: 20 }
+    }
+    
+    chain output {
+        type filter hook output priority filter; policy accept;
+        ct timeout set "customtimeout"
+    }
+}
+
+#### CT Expectation
+ct expectation name { protocol protocol ; dport dport ; timeout timeout ; size size ; [*l3proto family ;] }
+
+
+Keyword     Description                                     Type
+protocol    layer 4 protocol of the expectation object      string (e.g. ip)
+dport       destination port of expected connection         unsigned integer
+timeout     timeout value for expectation                   unsigned integer
+size        size value for expectation                      unsigned integer
+l3proto     layer 3 protocol of the expectation object      address family (e.g. ip)
+
+table ip filter {
+    ct expectation expect {
+        protocol udp
+        dport 9876
+        timeout 2m
+        size 8
+        l3proto ip
+    }
+    
+    chain input {
+        type filter hook input priority filter; policy accept;
+        ct expectation set "expect"
+    }
+}
+
+####  Counter
+counter [packets bytes]
+
+Keyword     Description                 Type
+packets     initial count of packets    unsigned integer (64 bit)
+bytes       initial count of bytes      unsigned integer (64 bit)
+Quota
+
+####  quota [over | until] [used]
+quota [over | until] [used]
+Keyword     Description     Type
+quota       quota limit, used as the quota name	Two arguments, unsigned integer (64 bit) and string: bytes, kbytes, mbytes. "over" and "until" go before these arguments
+used        initial value of used quota	Two arguments, unsigned integer (64 bit) and string: bytes, kbytes, mbytes
+}
+
+describe(){
+nft describe tcp flags    # 获取tcp状态标识字
+nft describe udp sport
+nft describe udp length
+nft describe ip ttl
+nft describe ip6 length
+}
+
+datatype(){
+1. Integer Type
+
+2. Bitmask Type
+
+3. String Type
+# Interface name
+filter input iifname eth0
+
+# Weird interface name
+filter input iifname "(eth0)"
+
+4. Link Layer Address Type
+# dotted decimal notation
+filter output ip daddr 127.0.0.1
+
+# host name
+filter output ip daddr localhost
+
+5. IPv6 Address Type
+IPv6 address specification.
+
+# abbreviated loopback address
+filter output ip6 daddr ::1
+
+IPv6 address specification with bracket notation.
+
+# without [] the port number (22) would be parsed as part of the
+# ipv6 address
+ip6 nat prerouting tcp dport 2222 dnat to [1ce::d0]:22
+
+6. Boolean Type
+exists      1
+missing     0
+
+Expression  Behaviour
+fib         Check route existence.
+exthdr      Check IPv6 extension header existence.
+tcp option  Check TCP option header existence.
+
+# match if route exists
+filter input fib daddr . iif oif exists
+
+# match only non-fragmented packets in IPv6 traffic
+filter input exthdr frag missing
+
+# match if TCP timestamp option is present
+filter input tcp option timestamp exists
+
+7. ICMP Type Type
+ICMP Type   icmp_type   8 bit   integer
+Keywords may be used when specifying the ICMP type
+Keyword                 Value
+echo-reply              0
+destination-unreachable 3
+source-quench           4
+redirect                5
+echo-request            8
+router-advertisement    9
+router-solicitation     10
+time-exceeded           11
+parameter-problem       12
+timestamp-request       13
+timestamp-reply         14
+info-request            15
+info-reply              16
+address-mask-request    17
+address-mask-reply      18
+
+# match ping packets
+filter output icmp type { echo-request, echo-reply }
+
+8. ICMP Code Type
+ICMP Code   icmp_code   8 bit   integer
+Keyword             Value
+net-unreachable     0
+host-unreachable    1
+prot-unreachable    2
+port-unreachable    3
+net-prohibited      9
+host-prohibited     10
+admin-prohibited    13
+
+9. Conntrack Types
+
+Name                    Keyword	Size    Base type
+conntrack state         ct_state        4 byte	bitmask
+conntrack direction     ct_dir          8 bit	integer
+conntrack status        ct_status       4 byte	bitmask
+conntrack event bits    ct_event        4 byte	bitmask
+conntrack label         ct_label        128 bit	bitmask
+
+For each of the types above, keywords are available for convenience:
+Table 23. conntrack state (ct_state)
+Keyword         Value
+invalid         1
+established     2
+related         4
+new             8
+untracked       64
+
+Table 24. conntrack direction (ct_dir)
+Keyword     Value
+original    0
+reply       1
+
+Table 25. conntrack status (ct_status)
+Keyword     Value
+expected        1
+seen-reply      2
+assured         4
+confirmed       8
+snat            16
+dnat            32
+dying           512
+
+Table 26. conntrack event bits (ct_event)
+Keyword	Value
+new         1
+related     2
+destroy     4
+reply       8
+assured     16
+protoinfo   32
+helper      64
+mark        128
+seqadj      256
+secmark     512
+label       1024
+}
+
+payload(){
+ether {daddr | saddr | type}
+vlan {id | cfi | pcp | type}
+arp {htype | ptype | hlen | plen | operation | saddr { ip | ether } | daddr { ip | ether }
+ip {version | hdrlength | dscp | ecn | length | id | frag-off | ttl | protocol | checksum | saddr | daddr }
+icmp {type | code | checksum | id | sequence | gateway | mtu}
+igmp {type | mrt | checksum | group}
+ip6 {version | dscp | ecn | flowlabel | length | nexthdr | hoplimit | saddr | daddr}
+icmpv6 {type | code | checksum | parameter-problem | packet-too-big | id | sequence | max-delay}
+tcp {sport | dport | sequence | ackseq | doff | reserved | flags | window | checksum | urgptr}
+udp {sport | dport | length | checksum}
+udplite {sport | dport | checksum}
+sctp {sport | dport | vtag | checksum}
+dccp {sport | dport}
+ah {nexthdr | hdrlength | reserved | spi | sequence}
+esp {spi | sequence}
+comp {nexthdr | flags | cpi}
+
+Raw Payload Expression
+@base,offset,length
+ll      Link layer, for example the Ethernet header
+nh      Network header, for example IPv4 or IPv6
+th      Transport Header, for example TCP
+
+Matching destination port of both UDP and TCP.
+inet filter input meta l4proto {tcp, udp} @th,16,16 { 53, 80 }
+The above can also be written as
+inet filter input meta l4proto {tcp, udp} th dport { 53, 80 }
+
+
+}
+expression(ip){
+checksum        IP 报头的校验和
+daddr           目的 IP 地址
+frag-off        分片偏移
+hdrlength       包括选择项在内的 IP 报头长度
+id              IP 标识符
+length          数据包的总长度
+protocol        IP 层以上的层所使用的协议
+saddr           源 IP 地址
+tos             服务类型值
+ttl             生存期值
+version         IP 报头版本，在 IPv4 表达式中该值总是 4
+}
+expression(ip6){
+daddr       目的 IP 地址
+flowlabel   流标签
+hoplimit    跳数限制
+length      负载的长度
+nexthdr     下一报头协议
+priority    优先级值
+saddr       源 IP 地址
+version     IP 报头版本，在 IPv6 表达式中该值总是 6
+}
+expression(tcp){
+ackseq      确认号
+checksum    数据包的效验和
+doff        数据偏移
+dport       数据包所发往的端口（目的端口）
+flags       TCP 标志
+sequence    序列号
+sport       数据包发出的端口（源端口）
+urgptr      紧急指针值
+window      TCP 窗口值
+}
+expression(udp){
+checksum    数据包的效验和
+dport       数据包所发往的端口（目的端口）
+length      数据包的总长度
+sport       数据包发出的端口（源端口）
+}
+expression(arp){
+hlen    硬件地址长度
+htype   ARP 硬件类型
+op      操作
+plan    协议地址长度
+ptype   以太网类型
+}
+
+
+nft add filter input dport 22 accept
+        表     链    规则     裁决
+    nftables 中的日志记录需要 nfnetlink_log 或 xt_LOG 内核模块或内核的支持。而且，需要通过将 "ipt_LOG"
+写入 proc 文件中的 nf_log 以启动日志记录：
+$ echo "ipt_LOG" > /proc/sys/net/netfilter/nf_log/2
+
+记录新 SSH 连接(频率限制)的 nftables 命令最终看起来是这样的：
+$ nft add filter input tcp dport 22 ct state new limit rale 3/second log
+
+元表达式，比如那些选择传入或传出接口的元表达式，被用作一个规则中更进一步的选择器。例如，记录到达 eth0 接口的新连接的命令看起来是这样的：
+$ nft add filter input iif eth0 ct state new limit rate 10/minute log
+
+
+rule(add){
+有了表和链之后，就可以创建规则了，规则由语句或表达式构成，包含在链中。下面添加一条规则允许 SSH 登录
+[root@localhost ~]# nft add rule inet my_table my_filter_chain tcp dport ssh accept
+[root@localhost ~]# nft insert rule inet my_table my_filter_chain tcp dport http accept
+[root@localhost ~]# nft list ruleset
+table inet my_table {
+        chain my_utility_chain {
+        }
+
+        chain my_filter_chain {
+                type filter hook input priority 0; policy accept;
+                tcp dport http accept
+                tcp dport ssh accept
+        }
+}
+
+--------------------------------------------------------------------------------
+1、 使用 index 来指定规则的索引。add 表示新规则添加在索引位置的规则后面，insert 表示新规则添加在索引位置的规则前面。
+index 的值从 0 开始增加。
+
+$ nft insert rule inet my_table my_filter_chain index 1 tcp dport nfs accept
+$ nft list ruleset
+table inet my_table {
+     chain my_filter_chain {
+             type filter hook input priority 0; policy accept;
+             tcp dport http accept
+             tcp dport nfs accept
+             tcp dport ssh accept
+     }
+}
+
+$ nft add rule inet my_table my_filter_chain index 0 tcp dport 1234 accept
+$ nft list ruleset
+table inet my_table {
+     chain my_filter_chain {
+             type filter hook input priority 0; policy accept;
+             tcp dport http accept
+             tcp dport 1234 accept
+             tcp dport nfs accept
+             tcp dport ssh accept
+     }
+}
+
+index 类似于 iptables 的 -I 选项，但有两点需要注意：一是 index 的值是从 0 开始的；
+二是 index 必须指向一个存在的规则，比如 nft insert rule … index 0 就是非法的。
+
+--------------------------------------------------------------------------------
+使用 handle 来指定规则的句柄。add 表示新规则添加在索引位置的规则后面，inser 表示新规则添加在索引位置的规则前面。handle 的值可以通过参数 --handle 获取。
+
+$ nft --handle list ruleset
+table inet my_table { # handle 10
+     chain my_filter_chain { # handle 2
+             type filter hook input priority 0; policy accept;
+             tcp dport http accept # handle 4
+             tcp dport 1234 accept # handle 6
+             tcp dport nfs accept # handle 5
+             tcp dport ssh accept # handle 3
+     }
+}
+
+$ nft add rule inet my_table my_filter_chain handle 4 tcp dport 1234 accept
+$ nft insert rule inet my_table my_filter_chain handle 5 tcp dport nfs accept
+$ nft --handle list ruleset
+table inet my_table { # handle 10
+     chain my_filter_chain { # handle 2
+             type filter hook input priority 0; policy accept;
+             tcp dport http accept # handle 4
+             tcp dport 2345 accept # handle 8
+             tcp dport 1234 accept # handle 6
+             tcp dport 3456 accept # handle 9
+             tcp dport nfs accept # handle 5
+             tcp dport ssh accept # handle 3
+     }
+}
+
+    在 nftables 中，句柄值是固定不变的，除非规则被删除，这就为规则提供了稳定的索引。而 index 的值是可变的，
+只要有新规则插入，就有可能发生变化。一般建议使用 handle 来插入新规则。
+也可以在创建规则时就获取到规则的句柄值，只需要在创建规则时同时加上参数 --echo 和 --handle。
+}
+
+rule(remove){
+[root@localhost ~]# nft --handle list ruleset
+table inet my_table {
+        chain my_utility_chain {
+        }
+
+        chain my_filter_chain {
+                type filter hook input priority 0; policy accept;
+                tcp dport http accept # handle 5
+                tcp dport ssh accept # handle 4
+        }
+}
+[root@localhost ~]# 
+[root@localhost ~]# 
+[root@localhost ~]# 
+[root@localhost ~]# 
+[root@localhost ~]# nft delete rule inet my_table my_filter_chain handle 5
+[root@localhost ~]# nft delete rule inet my_table my_filter_chain handle 4
+[root@localhost ~]# nft --handle list ruleset                             
+table inet my_table {
+        chain my_utility_chain {
+        }
+
+        chain my_filter_chain {
+                type filter hook input priority 0; policy accept;
+        }
+}
+}
+
+
+rule(list){
+列出某个表中的所有规则：
+$ nft list table inet my_table
+列出某条链中的所有规则：
+$ nft list chain inet my_table my_other_chain
+
+当要列出规则时，添加-a选项以查看句柄号是很有用的。句柄号可以很容易地被用于修改或删除一条规则。
+当要列出防火墙规则时，nftables将执行地址和端口解析。-n选项可以防止地址和端口解析。
+}
+
+command(){
+--debug <level, [level]>        在 <level> 处(例如：scanner、parser、eval、netlink、mnl、segtree、porto-ctx、或全部)添加调试。
+-h | --help                     显示基本帮助。
+-v | --version                  显示 nft 的版本号。
+-n | --numeric                  以数字方式显示地址和端口号信息而不执行名称解析。
+-a | --handle                   显示规则句柄。
+-I | --includepath <directory>  将 <directory> 添加到包含文件的搜索路径中。
+-f | --file <filname>           将 <filename> 文件的内容包含进来。
+-i | --interactive              从命令行读取输入。
+}
+
+ruleset(){
+{list | flush} ruleset [family]
+nft -f
+等价于 iptables-save and iptables-restore.
+}
+inet(){
+Hook名称        描述
+prerouting      所有进入到系统的包都会被prerouting hook进行处理. 它在routing流程之前就被发起，用于靠前阶段的包过滤或者更改影响routing的包属性.
+input           发往本地系统的包将被input hook处理.
+forward         被转发到其他主机的包会经由forward hook处理.
+output          由本地进程发送出去的包将被output hook处理.
+postrouting     所有离开系统的包都将被postrouting hook处理.
+}
+
+arp(){
+Hook        描述
+input       分发到本机的包会经过input hook.
+output      由本机发出的包会经过output hook.
+}
+
+bridge(){
+Bridge address family
+bridge地址族处理通过桥接设备的ethernet包。
+}
+
+netdev(){
+Netdev address family
+Netdev地址族处理从ingress过来的包。
+Hook        Description
+ingress     所有进入系统的包都将被ingress hook处理。它在进入layer 3之前的阶段就开始处理。
+}
+
+sets(){
+                                   匿名set                                  匿名set
+nft add rule filter input ip saddr { 10.0.0.0/8, 192.168.0.0/16 } tcp dport { 22, 443 } accept
+                                   命名set                  命名set
+nft add rule filter input ip saddr @allowed_hosts tcp dport @allowed_ports accept
+
+
+add set [family] table set { type type ; [flags flags ;] [timeout timeout ;] [gc-interval gc-interval ;] [elements = { element[, ...] } ;] [size size ;] [policy policy ;] [auto-merge ;] }
+{delete | list | flush} set [family] table set
+list sets [family]
+delete set [family] table handle handle
+{add | delete} element [family] table set { element[, ...] }
+
+关键字          描述                                                类型
+type            元素的数据类型                                      string: ipv4_addr, ipv6_addr, ether_addr, inet_proto, inet_service, mark
+flags           set flags                                           string: constant, interval, timeout
+timeout         元素在set中的存活时间                               string, 带单位的小数. 单位: d, h, m, s
+gc-interval     垃圾回收间隔, 仅当timeout或flag timeout设置时生效   string, decimal followed by unit. Units are: d, h, m, s
+elements        set中包含的元素                                     set data type
+size            set可存放的最大元素个数                             unsigned integer (64 bit)
+policy          set policy                                          string: performance [default], memory
+}
+
+maps(){
+add map [family] table map { type type [flags flags ;] [elements = { element[, ...] } ;] [size size ;] [policy policy ;] }
+{delete | list | flush} map [family] table map
+list maps [family]
+{add | delete} element [family] table map { elements = { element[, ...] } ; }
+
+Map specifications
+Keyword     Description                             Type
+type        data type of map elements               string ‘:’ string: ipv4_addr, ipv6_addr, ether_addr, inet_proto, inet_service, mark, counter, quota. Counter and quota can’t be used as keys
+flags       map flags                               string: constant, interval
+elements    elements contained by the map           map data type
+size        maximum number of elements in the map   unsigned integer (64 bit)
+policy      map policy                              string: performance [default], memory
+}
+
+
+flowtable(){ accelerate packet forwarding
+{add | create} flowtable [family] table flowtable { hook hook priority priority ; devices = { device[, ...] } ; }
+list flowtables [family]
+{delete | list} flowtable [family] table flowtable
+delete flowtable [family] table handle handle
+}
+
+stateful(){
+{add | delete | list | reset} type [family] table object
+delete type [family] table handle handle
+list counters [family]
+list quotas [family]
+
+
+}
+
+jump(){
+accept      接受数据包并且停止处理
+continue    继续处理此数据包
+drop        停止处理并静默的丢弃此数据包
+goto        发送到指定的规则链进行处理但不返回到调用的规则链
+jump        放到指定的规则链进行处理而且当完成时或执行了返回的声明时返回到调用的规则链
+limit       如果达到了接受数据包的匹配限制，则根据规则处理数据包
+log         日志记录该数据包并继续处理
+queue       停止处理并发送数据包到用户空间的程序
+reject      停止处理并驳回数据包
+return      发送到调用的规则链进行处理
+}
+
+nat(){
+snat to address [:port] [persistent, random, fully-random]
+snat to address - address [:port - port] [persistent, random, fully-random]
+dnat to address [:port] [persistent, random, fully-random]
+dnat to address [:port - port] [persistent, random, fully-random]
+masquerade to [:port] [persistent, random, fully-random]
+masquerade to [:port - port] [persistent, random, fully-random]
+redirect to [:port] [persistent, random, fully-random]
+redirect to [:port - port] [persistent, random, fully-random]
+}

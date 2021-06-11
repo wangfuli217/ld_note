@@ -1,0 +1,90 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>第 19 章 vim编译中遇到的问题及解决方法</title><link rel="stylesheet" href="http://easwy.com/blog/uploads/css/style.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.73.2"><link rel="start" href="index.html" title="vim使用进阶"><link rel="up" href="index.html" title="vim使用进阶"><link rel="prev" href="vimgdb.html" title="第 18 章 在vim中使用gdb调试"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">第 19 章 vim编译中遇到的问题及解决方法</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="vimgdb.html">上一页</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> </td></tr></table><hr></div><div class="chapter" lang="zh-CN"><div class="titlepage"><div><div><h2 class="title"><a name="solve_compile_problem"></a>第 19 章 vim编译中遇到的问题及解决方法</h2></div></div></div><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p>
+    在文章<a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-vim-gdb-vimgdb/">在vim中使用gdb调试</a>中，我介绍了如何编译vim。
+  </p><p>
+    不过有网友在编译vim时遇到问题，问如何解决vim编译中出现的问题，我把解决方法总结在这里。
+  </p><p>
+    一个比较常见的问题就是在编译gvim不成功。vim编译完了，却发现图形化的gvim没有被编译出来。
+  </p><p>
+    vim在编译时，缺省会尝试编译gvim，但如果需要的图形库或其它库文件没有找到，就会略过gvim的编译。
+  </p><p>
+    出现这个问题，首先检查你的图形库是否存在。通常我们所用的图形库都是gtk2，如果你的计算机上安装上gnome，那么肯定已经安装了gtk的图形库。如果确是因gtk库没有安装，可以先安装gtk库，网上关于gtk安装的文章很多，在此不再赘述了。
+  </p><p>
+    如果你的计算机已经安装了gtk2，但gvim还是编译失败，就需要查看一下<span class="command"><strong>configure</strong></span>的输出，看看为什么不能编译gvim。configure的输出为vim72/src/auto/config.log。
+  </p><p>
+    例如，在我的<a class="link" href="http://easwy.com/blog/archives/tag/debian/">debian</a>计算机上，编译gvim失败，在config.log中，可以看到：
+  </p><div class="blockquote"><blockquote class="blockquote"><p>
+      1. configure:7601: checking if X11 header files can be found
+    </p><p>
+      2. configure:7627: gcc -c -O2 -fno-strength-reduce -Wall    conftest.c &gt;&amp;5
+    </p><p>
+      3. conftest.c:16:27: error: X11/Intrinsic.h: No such file or directory
+    </p><p>
+      4. configure:7634: $? = 1
+    </p><p>
+      5. configure: failed program was:
+    </p><p>
+      6. | /* confdefs.h.  */
+    </p><p>
+      7. | #define PACKAGE_NAME “”
+    </p><p>
+      8. | #define PACKAGE_TARNAME “”
+    </p><p>
+      9. | #define PACKAGE_VERSION “”
+    </p><p>
+      10. | #define PACKAGE_STRING “”
+    </p><p>
+      11. | #define PACKAGE_BUGREPORT “”
+    </p><p>
+      12. | #define UNIX 1
+    </p><p>
+      13. | #define STDC_HEADERS 1
+    </p><p>
+      14. | #define HAVE_SYS_WAIT_H 1
+    </p><p>
+      15. | #define FEAT_NORMAL 1
+    </p><p>
+      16. | #define USE_XSMP_INTERACT 1
+    </p><p>
+      17. | #define HAVE_LIBNSL 1
+    </p><p>
+      18. | #define FEAT_NETBEANS_INTG 1
+    </p><p>
+      19. | /* end confdefs.h.  */
+    </p><p>
+      20. | #include &lt;X11/Xlib.h&gt;
+    </p><p>
+      21. | #include &lt;X11/Intrinsic.h&gt;
+    </p><p>
+      22. | int
+    </p><p>
+      23. | main ()
+    </p><p>
+      24. | {
+    </p><p>
+      25. | 
+    </p><p>
+      26. |   ;
+    </p><p>
+      27. |   return 0;
+    </p><p>
+      28. | }
+    </p><p>
+      29. configure:7645: result: no
+    </p><p>
+      30. configure:7978: checking –enable-gui argument
+    </p><p>
+      31. configure:8038: result: no GUI support
+    </p></blockquote></div><p>
+    我们可以看到在第30行和31行显示没有GUI支持，而原因则在第3行："<span class="emphasis"><em>conftest.c:16:27: error: X11/Intrinsic.h: No such file or directory</em></span>"，也就是说找不到文件 X11/Intrinsic.h。
+  </p><p>
+    在网上搜索后得知，这个库在debian的<span class="emphasis"><em>libdevel/libxt-dev</em></span>包中，安装此包后，gvim就编译成功了。
+  </p><p>
+    另外还有一个朋友问，如何使vim支持<span class="bold"><strong>+signs</strong></span>功能，signs功能是在big版本中才被包含进来的功能，如果想在normal版本的vim中包含此功能，就需要修改vim72/src/feature.h文件，在此文件中把：
+  </p><pre class="programlisting">
+# define FEAT_SIGNS </pre><p>
+    打开，然后再编译就可以了。
+  </p><p>
+    <span class="bold"><strong>&lt;&lt; </strong></span><a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-catalog/">返回vim使用进阶: 目录</a>
+</p><p><span class="bold"><strong>原创文章，转载请注明：</strong></span>转载自<a class="link" href="http://easwy.com/blog/">Easwy的博客</a> [  <a class="link" href="http://easwy.com/blog/">http://easwy.com/blog/</a> ]</p><p><span class="bold"><strong>　　　　本文链接地址:</strong></span> <a class="link" href="http://easwy.com/blog/archives/advanced-vim-skills-solve-compile-problem/">http://easwy.com/blog/archives/advanced-vim-skills-solve-compile-problem/</a></p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="vimgdb.html">上一页</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> </td></tr><tr><td width="40%" align="left" valign="top">第 18 章 在vim中使用gdb调试 </td><td width="20%" align="center"><a accesskey="h" href="index.html">起始页</a></td><td width="40%" align="right" valign="top"> </td></tr></table></div></body></html>

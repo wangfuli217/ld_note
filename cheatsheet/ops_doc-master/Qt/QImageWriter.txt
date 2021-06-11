@@ -1,0 +1,65 @@
+https://blog.csdn.net/liang19890820/article/details/51746576
+
+d
+    QImageWriter类为写入图像至文件或设备提供了一个独立的接口。QImageWriter支持格式特定的选项
+可以在存储图像之前进行设置。如果不需要这些选项，可以使用QImage::save()或QPixmap::save()代替。
+
+公共函数
+------------------------------
+    void setFileName(const QString & fileName)
+    为fileName设置文件名。在内部，QImageWriter将创建一个QFile，以只写模式（ QIODevice::WriteOnly）打开它，并使用此文件写入图像。
+
+    void setFormat(const QByteArray & format)
+    设置写入图像时的格式，格式不区分大小写。
+
+QImageWriter writer;
+writer.setFormat("png");  
+// 同writer.setFormat("PNG");
+
+    void setText(const QString & key, const QString & text)
+    设置与key相关的文本。用于一些有用的信息，例如：版权信息、关于图像的其它描述信息。
+
+    bool supportsOption(QImageIOHandler::ImageOption option) const
+    如果writer支持选项option，返回true；否则返回false。
+
+    不同的图像格式支持不同的选项。调用此函数，可以确定当前格式是否支持一个特定的选项。例如：PNG格式允许嵌入文字到图像的元数据（见text()）。
+
+QImageWriter writer(fileName);
+if (writer.supportsOption(QImageIOHandler::Description))
+    writer.setText("Author", "Mr Wang");
+
+    void setQuality(int quality)
+    设置图像格式的质量。
+
+    quality的取值范围依赖于图像格式。例如：JPEG格式支持从0（低视觉质量，高压缩率）到100（高视觉质量，低压缩率）范围。
+
+    bool canWrite() const
+    如果QImageWriter可以写入图像（即：图像格式支持，同时设备也可以写入）调用canWrite() 时会返回true
+
+    bool write(const QImage & image)
+    将图像写入文件或设备，如果写入时出现任何错误，将返回false，可以调用error() 来查找发生错误的类型，或者通过errorString()获取可读性的描述。
+
+    ImageWriterError error() const
+    返回上次发生的错误 - 错误类型。
+
+QImageWriter::ImageWriterError枚举值：
+常量            值              描述
+QImageWriter::DeviceError               1   QImageWriter写入图像数据时遇到设备错误，详细请查看设备问题。
+QImageWriter::UnsupportedFormatError    2   Qt不支持的请求图像格式。
+QImageWriter::UnknownError              0   未知错误。如果调用write()后得到这个值，最有可能是QImageWriter的一个Bug。
+
+- QString errorString() const
+返回上次发生的错误 - 可读描述。
+
+静态函数
+--------------------
+    QList<QByteArray> supportedImageFormats()
+    获取支持的图片格式
+
+    QList<QByteArray> supportedMimeTypes()
+    获取支持的Mime类型
+
+QList<QByteArray> imageFormats = QImageWriter::supportedImageFormats();
+QList<QByteArray> mimeTypes = QImageWriter::supportedMimeTypes();
+
+

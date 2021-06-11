@@ -1,0 +1,268 @@
+
+《Effective STL》 中文版翻译的非常棒, 不过这本书里面有些内容过时了，在C++11里面已经得到了支持；
+
+
+  使用STL的代码在编译时会把STL的源码特化后重新编译的，因为模板必须特化后才会参与编译。也就是说STL头文件里面包含的都是STL源码.
+
+0.C++标准库不包含网络，数据库，窗口，boost第3方库可能支持， C++11才有了标准线程库，但是STL容器接口/算法 绝对不是线程安全的！！
+   STL的接口是标准规定的，但STL的实现取决于厂商，有时候不是编译器不够好，而是STL的库实现不好；
+   STL容器没有定义virtual析构函数，所以尽量不要把STL容器作为基类，但是如果要继承STL容器的话，不能使用基类定义的指针指向派生类对象，否则会delete不干净，导致内存泄露，不过可以使用派生类定义指针；
+   使用bitset代替vector<bool>,因为vector<bool>不是STL容器，不是vector<T>的特化版本，而是专门用bitmap实现的，是一个遗留的废弃品；
+    map/set是有序容器，且元素key不重复，如果要允许重复key元素可以使用multimap/multiset 或者排序的vector, C++11支持unordered_map/set(散列容器)
+    每个STL容器本身的大小都是固定的sizeof(container) = fixedValue，元素动态的增减不改变容器本身的大小，因为这些动态元素在容器内只占用一个指针的大小(该指针指向保存元素的堆内存)，并不占用容器本身的内存，如果容器为空，指针值为NULL，所以1)可以用forward declare T 来定义类成员container<T>; 2)如果在函数内定义一个容器对象，消耗栈空间大小 = 容器静态部分 = sizeof(container)，消耗堆内存 = 动态元素部分；
+
+1.STL容器都是用堆内存来保存元素（除了array容器），所以在函数内定义局部vector实例不会导致stack overflow,实际占用的stack size = sizeof(vector<T>)=24bytes 非常小;
+   如果直接用局部array会导致stack overflow, 如果用new array[]需要在函数返回前手动释放内存，而用容器会自动销毁实例并自动释放堆内存；
+
+1.仔细选择容器类型：连续容器，节点容器，考虑效率和支持的接口，
+   标准序列容器:vector, string, deque, list，其中list是节点容器，其它3个是连续内存容器， stack(LIFO)/queue(FIFO)是deque的适配器容器；
+   deque:内部实现用循环buffer, head+free, 两种实现方式：1)用flag标记当前状态是empty还是full, 不会浪费内存；2)不需要flag, 但是会浪费1个元素的内存；
+   deque相比vector的优势是在头部插入删除很快。
+   stack的接口是在一端插入删除，所以内部实现可以用vector/deque/forward_list; 对于forward_list, 只能在表头插入删除，行为就和stack一样；
+
+
+2.不要试图写一个适用于各种容器的代码，注定是失败的或者性能非常差；
+
+3.只有vector/string 可以兼容C语言的API，其它容器必须转换为vector才能使用（利用区间构造可以在不同容器间转换）；
+   C_func(&vector[0], vector.size());//if !vector.empty()
+   C_func(string.c_str() ,  string.size());//string.size() = string.length()
+
+3.vector: 记住vector的内部结构是“固定部分”+“1个指针”， 该指针指向动态元素，如果没有元素，则指针值为NULL且vec.size()=0，但是sizeof(vector)永远是个大于0的常量。 
+vector<vector<T>> var = {}; var.size() == 0, sizeof(var) >0;  对于var,其指向动态元素的指针为NULL；
+vector<vector<T>> var = {{}}; var.size() == 1 对于var,其指向动态元素的指针不为NULL，指向了一个空的vector（这个空的vector是有内存的）  
+vector.data() == &(*vector.begin());
+连接2个vector:  vec.insert(vec.end(),   vec2.begin(),  vec2.end() ); 
+
+4.常用容器函数:  
+   vector: push_back(), clear(), insert();  erase(iter), pop_back(),resize()构造默认对象, reserve()预留空间, assign(iter, len);
+   list:  splice(pos, list&)剪切,  clear(),push_back(),  erase(),  remove_if(value),  remove(val)删除所有val
+   forward_list: remove(value): remove all the elements=value,   erase_after(position):erase one element after position
+   forward_list: sort,reverse, 单向链表的插入删除在表头，行为类似stack;
+   map: erase(iter++); swap(),  
+   同样的接口对不同的容器用法不同，原型也不一定相同，iter = vector.erase(iter); VS void map.erase(iter++); 
+   只有list的remove()是成员函数，其它容器没有remove函数，每个容器都有erase成员函数；
+
+5.常用算法: <algorithm>
+5.1) 算法参数中的迭代器分为普通迭代器和插入迭代器，不要混淆。
+5.2) 有些算法要求有序区间，那提供给这些算法的比较函数 必须和 这些有序区间排序时使用的比较函数 保持一致，否则结果不对。
+5.3)算法中如果需要传入函数对象，记住函数对象本身是以value的形式拷贝；
+   if( find(b,e,val) != e ); [b, e)
+copy(begin(), end(), back_inserter(dstvec));
+   unique();//only used for sorted container;
+   remove(b, e, value): 删除容器中所有等于value的元素，并返回第1个无效元素。
+   v.erase(remove_if(b,e, boolfunc),v.end());
+   remove_copy_if(b,e, inserter(c, c.end()), func);
+   copy(b, e, inserter); copy_if(),
+   reverse(),
+  count_if(), find_if(), binary_search(),
+   min_element(b, e),max_element(b, e), equal(b,e,b2);
+   for_each(b,e, mem_fun(&class::fun));// 第3个参数可以是“带1个参数的C函数” 或者 “mem_fun修饰的成员函数不带参数”，返回结果是一个函数对象。
+                                                              普通C函数封装成函数对象很简单:struct{T operator()(args){return fun(args);}};
+   auto   iter = find(b, e, value); //return end() if can't find
+   迭代器运算函数：  
+auto length = distance(iter1, iter2); //两个迭代器的距离；
+auto iter4 = next(iter3, length = 1);
+advance(iter&, n);
+
+  堆操作函数：
+   make_heap (b,e,Compare); //maxHeap: make_heap(b,e,less<T>()); 构建最大堆，会改变输入的容器
+   push_heap(b,e, Compare); //插入1个新元素到容器尾部，然后重新调整堆:
+        refer: http://www.cplusplus.com/reference/algorithm/push_heap/
+   pop_heap(first, last); 弹出堆顶元素到vector[last-1];
+   sort_heap(b,f)默认按升序对堆进行排序；
+
+ 堆容器(priority_queue): 没有迭代器，每次只能访问堆顶，类似栈；
+  priority_queue<int> maxHeap(b,e);
+  priority_queue<int,vector<int>,greater<int> > minHeap(b,e);
+
+5.用accumulate 来统计区间，比如求和，累积//include<numeric>
+  accumulate(b,e,initial_value),  结果=区间的元素和+initial_value, 如果元素是double,initial_value=0.0
+  accumulate(istream_iterator<int>(cin), istream_iterator<int>(),  0) 累加cin中的数字和
+  accumulate(b,e,initaValue,multiplies<>());求元素的累积,multiplies(x,x)接收2个实参，第2个实参表示当前元素。
+
+6.使用容器接口时要特别注意迭代器失效的问题，对于节点容器list，删除iter节点后，iter之后的迭代器还是有效的，对于顺序容器，删除元素会导致内存移动，导致后续的迭代器失效；
+   所以在遍历容器期间，绝对不要去更新容器大小；
+
+7.当容器元素是通过new得到的rawptr,一定要在删除元素或销毁容器前 手动delete掉那些指针，如果保留的是shared_ptr<T>, 容器析构时会调用shared_ptr的析构函数（使计数减1），如果计数减值0则调用T的析构函数；
+   容器析构时，会自动析构里面的对象（也就是调用每个元素的析构函数），raw ptr的析构函数do nothing,因为本质类型是long;
+   remove()函数只是用障眼法删除对象，元素个数不变，c.erase()才把元素真正删除，并析构对象(rawPtr要手动delete, shared_ptr会自动递减引用计数)；
+
+
+8.Vector/String 用来传递给标准C API的方式: if(!vector.empty() ) func(  &vector[0] , vector.size() );  char* ptr = string.c_str();//ok for empty string;
+   其它的容器要使用C API，必须以Vector为桥梁，利用区间构造，vector(c.begin(), c.end());
+   好的代码应该用Vector/String 代替动态数组(new T[]);
+
+9.关联容器：只关系2个元素是否在key上等价，不关心是否等值，不要求两个对象的所有字段都相等，只要对象的key字段相同，就不能重复插入；
+                   等价说明在排序时需要占用同一个位置，那自然是不能重复插入的。
+当使用map/set包含自定义类型时，需要定义operator<成员函数，而且这个比较函数对于相同key对象必须返回false,  compareFunc(obja, obja) == false;
+   不能返回true, 关联容器判断2个对象是否等价(保证插入元素的唯一性)是利用: (!compareFunc(a,b) ) && (!compareFunc(b,a) ), 不是利用operator==;
+如果要使用map/set,必须要定义operator<(key1,key2)用于二叉搜索树排序,不需要定义operator==也可以保证元素的唯一性;
+如果要使用unordered_map/set, 必须要提供3个东西：size_t hash(key),InitalBucketSize 和 operator==(key1,key2); 如果Key使用的是STL元素则可以使用默认的operator==,
+提供operator==的目的是在hashIndex冲突时用于在链表中查找元素，提供initialBucketSize是为了改善性能，因为用户可以根据hashIndex的取值范围确定一个合适的容量尽量保证不冲突；
+因为unordered_map/set是散列存储，也就是随机无序存储；
+   不要去修改map/set的key,因为它们是排序好的，如果直接修改，会破坏容器结构。map的元素类型是pair<const key, value>;
+    对于set, 可以修改对象的非key字段。
+
+10.C++11的map分为有序map（平衡二叉搜索树实现）, 无序map(即unordered_map, 也是hash_map):数组链表实现散列表 ，尽管map的元素类型是pair<key,value>, 但是标识元素是否重复是用key来比较的，和value无关，hash函数也是只和key有关。 
+性能比较： map是二分查找，unordered_map 取决于hash冲突概率和hash函数，一般来说，hash函数复杂则冲突小，hash函数简单冲突大，所以需要实际测试来选取数据结构。
+STL的map/set容器就是用红黑树实现的！
+
+11.用容器array<T,size_t>定义二维数组a[M][N]: using arrN = array<T, N>; using arrMN = array<arrN, M>; arrMN arr;arr[i][j] = i;
+    array容器在编译期就分配了内存，而vector 是运行时分配的堆内存，从两者的模板参数定义就可以看出。
+    因为array的模板参数给定了元素个数，所以array只支持无参构造，所以用array时元素T必须支持无参构造，填充元素值用obj.fill(value), eg: array<int, 5> obj, obj.fill(10);
+
+12.使用迭代器的地方尽量用iterator代替const_iterator,reverse_iterator.  const_iterator转换为iterator是不能直接转换的，要用到distance/advance;
+
+13.调用STL算法时，确保目标区间足够大，要充分了解该算法的内部实现机制。
+eg: transform(b,e,  r.end(),    transFun);//错误的代码.  因为transform是把元素转换后赋值给第3个参数，而r.end()不含对象，不能调用operator=操作。
+transform(string.begin(), string.end(), string.begin(), std::toupper); 
+transform(v.begin(),v.end(),ostream_iterator<int>(cout),print);//static int print(int v){return v;} 对于static函数或C函数可直接传入；
+transform(s.begin(), s.end(),
+                 inserter(c, c.begin()), //这个参数通常是一个插入迭代器，比如ostream_iterator, inserter(),
+            mem_fun(&string::size));//成员函数用mem_fun修饰，如果c是vector,string, 调用transform前一般会调用reserve()来预留空间，提升插入性能；
+
+14.remove()函数并不是真的删除元素，只是被覆盖了，容器的元素个数并未改变，remove()是非成员函数，通常紧接着还要调用容器的erase成员函数来真正的把元素删除，erase()成员函数会析构被删除的对象。
+    如果容器元素是原始指针，调用remove会导致内存泄露，元素改用shared_ptr就不存在内存泄露问题，但也要调用erase()把尾后元素删除。
+remove()是通过赋值把元素覆盖掉，容器尾部的内存是垃圾值。    
+auto iter = remove(b, e, value); //iter指向新的逻辑end(), [iter, end)这些元素仍然存在，必须使用c.erase(iter,end)删除。
+v.erase(remove(b,e,value), v.end());//建议风格。
+所有STL容器中，只有List.remove()/List.unique()是真的把元素删除了，不需再调用erase. 其它的容器，必须成对调用remove&&erase, remove_if&&erase, unique&&erase.
+string ignoreSpace(string str) //删除字符串中的空格
+{
+  auto pend = std::remove(str.begin(),  str.end(), ' ');
+  str.erase(pend,str.end());
+  return str;
+}
+
+15.排序算法选择：
+15.1）partition(), stable_partition()//对vector,deque,string, array 容器的元素根据某个条件分成2组
+15.2) nth_element()//在vector,deque,string, array 挑选前K大的元素，或者第K大元素，但不关心他们的顺序，返回第K大元素位置
+15.3)partial_sort(), //在vector,deque,string, array 只排序最大的K个元素
+15.4)sort(), stable_sort() //在vector,deque,string, array 上进行完全排序
+list有sort, partition成员函数， 如果list要使用partial_sort/nth_element,可以转换为vector,或者构造一个vector<list::iterator>容器,对这个容器使用算法，然后通过list::iterator访问元素。
+
+
+16.适用有序区间的算法：这些算法默认都是用的operator< 来比较元素，可以显示传入比较函数。
+   特别注意，提供给这些算法的比较函数 必须和 这些有序区间排序时使用的比较函数 保持一致，
+   比如提供一个降序区间，那binary_search(b,e,value, great<T>()) 必须传入great 而不是默认的less<>;
+    binary_search(),  二分查找
+    lower_bound, upper_bound, equal_range, //关联容器map的操作, map是二叉搜索树
+    set_union, set_intersection, set_difference, //set容器就是有序的二叉搜索树
+    merge, inplace_merge, //合并有序容器
+    unique, unique_copy //对有序容器去除重复元素，
+   总结： unique 使用的是等值运算符operator== , 其它的都是用等价运算符operator<, 这就是等值和等价的区别；
+
+17.通过mismatch, lexicographical_compare 实现忽略大小写字符串比较
+lexicographical_compare 是 strcmp 的泛型版，可以传入一个二元判断式，对任何值都适用；
+
+18.容器成员：
+     a)value_type:  eg: auto iter = map.insert(map::value_type(key, value)); 元素类型, 
+        reference ==  value_type&
+     b)iterator: eg: using iter = vector<int>::iterator;  迭代器
+     c)size_type: 元素个数的类型
+     d)operator= ,
+     e)begin(), end(), rbegin(), rend(); 
+     f)capacity(), empty(), size(), resize(), reserve(), 对于List不提供；
+     g)push_back(), insert(), erase(), clear(),swap() ,
+        emplace():不支持区间输入？
+     h)区间构造函数,如果用vec构造set会去掉重复元素；
+     i)对于map/unordered_map, value_type=pair<const key_type, mapped_type>
+     j)对于map容器，for(iter = map.begin(); iter != map.end(); iter++) 遍历是按照中序遍历的；
+    k)stack不支持initializer_list构造，stack不支持迭代器操作，不支持range-for, stack不支持遍历操作，因为要弹出元素才能看到后面的元素；
+     
+
+19.容器定义：STL容器都是用allocator<T>来管理内存的（内存分配与对象构造分离),
+                       priority_queue,set,map 的比较函数默认都是less<T>;
+template < class T, size_t N > class array; 固定数组，C++11才支持的,   array<int,3> arr; arr.fill(0);对于基本类型，必须调用fill()赋初值，不然都是未初始化的；
+template < class T, class Alloc = allocator<T> > class vector; 动态数组
+template < class T, class Alloc = allocator<T> > class list; 双向链表
+template < class T, class Alloc = allocator<T> > class forward_list; 单向链表
+template < class T, class Alloc = allocator<T> > class deque;
+template <class T, class Container = deque<T> > class stack;
+template <class T, class Container = deque<T> > class queue;
+template <class T, class Container = vector<T>, class Compare = less<T> > class priority_queue; ==> maxHeap;  
+template < class T,class Compare = less<T>, class Alloc = allocator<T> > class set; //必须提供比较函数用于排序
+template < class Key,                                     // map::key_type 如果Key是自定义类型，需要提供运算符: bool operator< (Key1,Key2)) 
+           class T,                                       // map::mapped_type
+           class Compare = less<Key>,                     // map::key_compare，
+           class Alloc = allocator<pair<const Key,T> >    // map::allocator_type, 
+           > class map; 有序关联数组,默认升序,二叉搜索树(每个node存储一个pair<key,T>)
+template < class Key,                                    // unordered_map::key_type 如果key是自定义类型，要提供成员函数(size_t hash()),然后传递函数对象mem_fun(hash);
+           class T,                                      // unordered_map::mapped_type
+           class Hash = hash<Key>,                       // unordered_map::hasher
+           class Pred = equal_to<Key>,                   // unordered_map::key_equal 判断重复（因为不同的key可以hash为相同的index，所以需要提供equal来查找元素），自定义Key类型，提供operator==(Key)
+           class Alloc = allocator< pair<const Key,T> >  // unordered_map::allocator_type
+           > class unordered_map;哈希表，内部实现是数组链表(bucketIndex=hash(key)%buckedSize)，单个元素的查找性能优于map;
+
+对于有序容器，判断重复和查找元素用less<key>, 和T无关；
+对于无序容器， 判断重复和查找元素用equal<Key>, 和T无关，两个不等的元素的hash值可以相同；
+set/map 内部实现的数据结构和逻辑都是一样的，唯一的区别是存储的data，理论上可以用set代替map: set<pair<key,value>>, 那为什么C++还需要map呢？更方便使用。
+
+template < class Key,                        // unordered_set::key_type/value_type
+           class Hash = hash<Key>,           // unordered_set::hasher
+           class Pred = equal_to<Key>,       // unordered_set::key_equal
+           class Alloc = allocator<Key>      // unordered_set::allocator_type
+           > class unordered_set; 
+eg:
+multiset<T, decltype(compareFun)*> m(compareFun); //bool compareFun(const T& lhs, const T& rhs);
+
+
+20.函数对象：定义了operator() 的类，  <functional>
+  建议风格： 如果函数对象是无状态的，用struct, 否则用class;
+  自定义函数对象时，operator()(xx)接口是由用户决定的，如果用户只能传入1个参数，而又想依赖多个参数，那剩余的参数可以通过构造函数注入；
+  对STL的函数对象特化时，可以重新实现函数体，只要接口保持不变，eg: template<> hash<Mykey>{size_t operator()(const MyKey&) { ....  }};
+  使用这些类时，只需要构造一个匿名对象就行了,eg: if(less<int>()(a,b))
+  a)bind(),mem_fn(),function() 都可以用于生成函数对象;
+  b)less<T>,greater<T>,less_equal<T>, equal_to<>,greater_equal<>
+  c)hash<T>,
+  d)plus<>,minus<>,multiplies<>,divides<>,modulus<>,
+  g)bit_and, bit_or, bit_xor, logical_and, logical_or, logical_not;
+
+//////////////////////////STL基础
+  基本上每个STL容器都支持拷贝构造和拷贝赋值函数（深拷贝），容器都是用堆内存，而且container<T>的 T 可以用forward declare;
+a)vector、string、deque和list被称为标准序列容器(但list不是连续存储)。标准关联容器被是set、multiset、map和multimap。新标准支持unorderedmap/set;
+b)迭代器被分成五个种类，1）输入迭代器是每个迭代位置只能“被读一次”的只读迭代器，istream_iterator iter(cin)
+2）输出迭代器是每个迭代位置只能“被写一次”的只写迭代器，ostream_iterator iter(cout)
+3）前向迭代器可以“反复读或写一个位置”，它们只支持operator++,但不支持iter+=1,因为没有重载operator+; 单向链表只支持iter++,不支持iter--;
+4)双向迭代器, 支持operator++, operator--;
+5)随机访问迭代器:  提供“迭代器算术”，支持operator+=, vector、string和deque都提供随机访问迭代器, begin()/end()/rbegin()/rend();
+总结：插入迭代器和普通迭代器的区别是：
+5.1)对插入迭代器赋值真正含义是向其关联的容器插入元素，stream_iterator/inserter()/back_inserter()/front_inserter() 都是插入迭代器, front_insert会导致逆序，所以没有back_insert()更常用。
+5.2)对普通迭代器赋值的含义就是更新所指对象的值，是真的赋值；
+
+c) 重载了函数调用操作符（即，operator()）的任何类叫做函数类，从这样的类建立的对象称为函数对象, 返回值为bool的函数对象必须保持纯函数性质，即返回结果只依赖于输入参数和const成员，一般实现为const函数: bool operator()(args)const;  STL算法中的函数对象默认都是以值传入的。
+STL中大部分可以使用函数对象的地方也都可以用真函数，不过尽量用函数对象。
+d) 新标准支持std::bind，函数适配器，代替旧的bind1st和bind2nd；
+
+//////////////////////////////STL 效率提升的条款
+常数时间：时间不随问题的规模N而变化，不是说时间的绝对值很小；
+
+条款1：选择合适的容器，节点容器适合频繁的插入删除，顺序容器适合查找；
+条款4：用empty来代替检查size()是否为0, 因为对任何容器，empty都是常数时间，而size()对list是线性时间；
+条款5：尽量使用std区间函数 来代替 自己写的单元素循环操作，这样性能更好，更安全，eg: vector.assign(v2.begin()+v2.size()/2, v2.end()); for_each..
+条款14：对于vector/string, 在插入元素前使用reserve来避免内存频繁扩张时的内存拷贝,因为STL容器的内存扩张策略是翻倍;
+条款15：string实现: pointer--->struct:pointer--->char[]
+条款23：如果只是查询，很少插入删除，考虑用有序vector<pair>代替关联容器map/set，因为关联容器采用二叉搜索树实现，每个节点要包含额外的left/right/parent内存，可能影响cache；二叉搜索树结合了二分查找和链表更新的优势。
+条款24：当关乎效率时应该在map::operator[]和map-insert之间仔细选择，map[]用来修改value,insert用来插入新元素。
+条款25：熟悉散列容器，unorderedmap/set,对于要求常数时间的算法一般会优先考虑散列容器；
+条款29：需要一个一个字符输入时考虑使用istreambuf_iterator, 而不是istream_iterator,因为前者没有格式化，会把所有字符都获取到，包括空格,换行；
+条款43：操作容器时，尽量使用STL算法 代替 手写循环，因为STL算法的实现者比你更懂容器的内部结构；
+条款44：尽量用成员函数代替同名的算法，因为前者更了解内部实现；
+条款46：考虑使用函数对象代替函数 作STL算法的参数，因为编译器在对STL模板函数编译时会对funcObj()做内联优化，而如果直接传递函数的话实际上是传递的函数指针，不能做内联；
+
+btw: 如果关键字本来就是无序的，或者性能测试发现问题可以用哈希技术解决，就用无序容器；
+
+//////////////////////其它资源：
+
+<C++标准程序库> 这本书描述了STL的内部实现机制，非常有助于学习STL算法的思想
+  [STL design documents, STL source code](http://www.sgi.com/tech/stl/)    
+  
+  [provide debug mode to detect STL error runtime](http://www.stlport.org/)  
+  
+  [pre-library for future C++ STL(eg:c++17)](http://www.boost.org/)    
+  
+[boost-doc-chinese](https://code.google.com/archive/p/boost-doc-zh/downloads) 
+
+[The Boost C++ Libraries](https://theboostcpplibraries.com/)  学习boost有助于深入理解C++特性的本质；
+
+[Better use of STL containter](http://sean-parent.stlab.cc/papers-and-presentations#title-better-code-data-structures)  

@@ -1,0 +1,362 @@
+第一步: BootLoader -- U boot
+  1 在cpu/arm926ejs/start.s中
+   a) b reset ; //jump to reset
+   b) set cpsr ;svc mode ,disable I,F interrupt
+   c)调用lowlevel_init  (在board\xxxx\lowlevel_init.S中
+       将调用 __platform_cmu_init (设置cpu时钟，启动那些模块等）  
+            __platform_mpmc_init (mpmc初始化，配置SDRAM时序）
+            __platform_static_memory_init
+            __platform_static_uart_init
+            __platform_mpmc_clear
+       
+   d) 用LDMIA,STMIA命令 copy uboot 到内存中
+   e) ldr pc ,_start_armboot
+      执行start_armboot
+  2 start_armboot 在 lib-arm中
+    a)根据init_sequence 执行初始化序列
+         包括：cpu_init
+               board_init
+               中断初始化
+               initialize environment
+               initialze baudrate settings
+               serial communications setup
+               打印uboot 版本
+               display_dram_config (打印DRAM大小）
+    而在board_init中
+        将打印公司名称 ，前后还加了delay
+        timer 初始化
+        dw_init --- I2C 设置
+        验证时钟来源 （来自wifi还是DECT)
+        LCD初始化
+        键盘初始化
+        Flash 初始化  (空函数）
+        网卡初始化   （其中有个udelay(1000) 1ms的delay )
+    b)  NOR FLASH 初始化
+        display_flash_config （打印Flash大小）
+    c) nand 初始化 （将scan整个nand chip,建立 bbt table)
+    d)  env_relocate 环境变量重新定位到内存中
+    e) 得到IP 地址和网卡 MAC地址
+    f)  devices_init
+    g) 中断enable
+         
+然后：    start_armboot --> main_loop
+ 3 main_loop在 common/main.c中
+   getenv("bootdelay")
+   
+     --> 循环 readline
+             run_command
+ 
+ 
+第二步: Kernel
+a) Kernel自解压 arch\arm\boot\compressed\head.S中调用decompress_kernel(misc.c),完了打印出"done,booting the kernel"
+然后根据arch_id = 多少,打印出 arch_id
+b) 在arch\arm\kernel\head.S中
+  check cpu 以及 machine ID
+  build the initial 页表
+  _switch_data (arm\kernel\head_common.s中) 将process id存入process_id变量中
+  start_kernel
+ 
+c) start_kernel
+ 1) 打印Linux version information
+ 2) call setup_arch,(它将打印cpu特定的信息,machine
+look_machine_type ->arm\tools\mach_types
+look_processor_type --> .proc.info.init. -->arm\mm\proc_arm926.S
+在 /arm\mach_xx\xx.c中,有MACHINE_START(....)
+ 3) 打印commnad_line
+ 4) 初始化
+ 
+ 
+vfs_caches_init
+虚拟文件系统VFS初始化,主要初始化dentry等,它将调用 mnt_init. 而mnt_init将调用init_rootfs,注册rootfs文件系统,init_mount_tree()创建rootfs文件系统,会把rootfs挂载到/目录.
+ 
+5) rest_init
+  启动init kernel thread
+在init 线程中:
+   1)populate_rootfs()
+    函数负责加载initramfs.
+    我们的系统没有定义CONFIG_BLK_DEV_INITRD,因此populate_rootfs什么也没做
+ 
+  2) do_basic_setup
+  -->driver_init()->platform_bus_init()->...初始化platform bus(虚拟总线)
+这样以后设备向内核注册的时候platform_device_register()->platform_device_add()->...内核把设备挂在虚拟的platform bus下,
+驱 动注册的时候 platform_driver_register()->driver_register()->bus_add_driver()->driver_attach()->bus_for_each_dev() 对每个挂在虚拟的platform bus的设备作 __driver_attach()->driver_probe_device()->drv->bus->match()==platform_match()-& gt;比较strncmp(pdev->name, drv->name, BUS_ID_SIZE)，如果相符就调用platform_drv_probe()->driver->probe()，如果probe成 功则绑定该设备到该驱动.
+ 好象声卡怎么先注册驱动,再注册设备呢?反了?
+    
+      -->do_initcalls
+   而do_initcalls将调用__initcall_start到__initcall_end中的所有函数
+__initcall_start和__initcall_end定义在arch/arm/kernel/vmlinux.lds.S中
+它是这样定义的:
+ __initcall_start = .;
+   *(.initcall1.init)
+   *(.initcall2.init)
+   *(.initcall3.init)
+   *(.initcall4.init)
+   *(.initcall5.init)
+   *(.initcall6.init)
+   *(.initcall7.init)
+  __initcall_end = .;
+而在include/linux/init.h中
+#define core_initcall(fn)  __define_initcall("1",fn)
+#define postcore_initcall(fn)  __define_initcall("2",fn)
+#define arch_initcall(fn)  __define_initcall("3",fn)
+#define subsys_initcall(fn)  __define_initcall("4",fn)
+#define fs_initcall(fn)   __define_initcall("5",fn)
+#define device_initcall(fn)  __define_initcall("6",fn)
+#define late_initcall(fn)  __define_initcall("7",fn)
+其中
+#define __define_initcall(level,fn) \
+ static initcall_t __initcall_##fn __attribute_used__ \
+ __attribute__((__section__(".initcall" level ".init"))) = fn
+这说明core_initcall宏的作用是将函数指针(注意不是函数体本身)将放在.initcall1.init section 中,而device_initcall宏将函数指针将放在.initcall6.init section 中.
+  函数本身用_init标识,在include/linux/init.h中
+#define __init  __attribute__ ((__section__ (".init.text")))
+  这些_init函数将放在.init.text这个区段内.函数的摆放顺序是和链接的顺序有关的，是不确定的。
+  因此函数的调用顺序是:
+core_initcall
+postcore_initcall 如amba_init
+arch_init         如
+subsys_initcall  
+fs_initcall
+device_initcall ---> module_init
+late_initcall
+ 先调用core_initcall区段中的函数,最后调用late_initcall中的函数,而对于上述7个区段中每个区段中的函数指针,由于其摆放顺序和链接的顺序有关的，是不确定的,因此其调用顺序也是不确定的.
+ 
+ 3) rootfs 加载
+  prepare_namespace 挂载真正的根文件系统,
+  在do_mounts.c中:
+static int __init root_dev_setup(char *line)
+{
+ strlcpy(saved_root_name, line, sizeof(saved_root_name));
+ return 1;
+}
+__setup("root=", root_dev_setup);
+也就是说:在bootargs中root=/dev/nfs rw 或者root=/dev/mtdblock4等将传入saved_root_name.
+void __init prepare_namespace(void)
+{
+ int is_floppy;
+ mount_devfs();
+ if (root_delay) {
+  printk(KERN_INFO "Waiting %dsec before mounting root device...\n",
+         root_delay);
+  ssleep(root_delay);
+ }
+ md_run_setup();
+ if (saved_root_name[0]) {
+  root_device_name = saved_root_name; //保存在root_device_name中
+  ROOT_DEV = name_to_dev_t(root_device_name);
+//在root_dev.h中定义了Root_NFS,Root_RAM0等结点号
+  if (strncmp(root_device_name, "/dev/", 5) == 0)
+   root_device_name += 5;
+ }
+ is_floppy = MAJOR(ROOT_DEV) == FLOPPY_MAJOR;
+ if (initrd_load())
+  goto out;
+ if (is_floppy && rd_doload && rd_load_disk(0))
+  ROOT_DEV = Root_RAM0;
+ mount_root();                     //加载rootfs
+out:
+ umount_devfs("/dev");
+ sys_mount(".", "/", NULL, MS_MOVE, NULL);
+ sys_chroot(".");
+ security_sb_post_mountroot();
+ mount_devfs_fs ();
+}
+ 
+4)yaffs2_read_super被调用来建立文件系统,它scan所有的block
+ 
+ 5) free_initmem
+   释放init 内存
+ 6)打开/dev/console
+失败则会打印:
+ printk(KERN_WARNING "Warning: unable to open an initial console.\n");
+ 
+ 7) 判断是否有execute_command,这个参数是在uboot参数的bootargs中init=xxx ,如果定义了的话 则执行 run_init_process(execute_command).
+  可以通过这种方法实现自己的init process,
+ 或者可以init=/linuxrc ,这样执行linuxrc
+ 
+8) 如果没有execute_command,init kernel线程缺省的也是最后的步骤是:
+ run_init_process("/sbin/init");
+ run_init_process("/etc/init");
+ run_init_process("/bin/init");
+ run_init_process("/bin/sh");
+如果/sbin/init没有,则执行/etc/init. /etc/init没有则执行/bin/init ,如果这四者都没有,则Linux打印
+panic("No init found.  Try passing init= option to kernel.");
+ 
+ 
+第三步: Init Process
+run_init_process也就是调用execve,这样就启动了init process
+上面的/sbin/init,/etc/init,/bin/init,/bin/sh这四者都指向busybox ,但对于/bin/sh则只是打开shell,然后等待用户命令.
+ 而对于/sbin/init ,将分析/etc/inittab.
+在/etc/inittab中,
+  1) id:5:initdefault:        缺省的runlevel x
+  2) si::sysinit:/etc/init.d/rcS
+       执行 rcS脚本
+
+ 3) l5:5:wait:/etc/init.d/rc 5
+4)S:2345:respawn:/sbin/getty 38400 ttyDW0
+getty 提示用户输入username ,然后调用login,login的参数为username ，登录后启动了shell
+ 如果修改为 /bin/sh 则直接启动shell,此时你可以输入命令 比如ls
+
+在/etc/init.d/rcS中 
+   a) mount proc 文件系统
+  b) /etc/default/rcS (设置一些参数）
+ c)exec /etc/init.d/rc S 
+     执行 /etc/init.d/rc S -->这样将执行/etc/rcS.d中以S开头的脚本  
+     S00psplash.sh                psplash 
+    S02banner.sh                  make node /dev/tty
+   S03sysfs.sh                    mount sysfs 
+    S03udev                       启动udev
+   S06alignment.sh              为什么为3？
+  S10checkroot.sh               读取fatab ,mount 这些文件系统
+  S20modutils.sh                加载module 
+ S35mountall.sh                  不做什么事情
+S37populate-volatile.sh
+S38devpts.sh                     mount devpts File System
+S39hostname.sh                  set hostname to /etc/hostname
+S40networking                   ifup -a to up the lo interface
+S45mountnfs.sh                  read /etc/fstab to whether  NFS exists
+                                  and then mount the NFS
+S55bootmisc.sh                   调用/etc/init.d/hwclock.sh去设置时间,日期等
+S60ldconfig.sh                   ldconfig建立库的路径
+
+ l5:5:wait:/etc/init.d/rc 5将执行 /etc/rc5.d/ 依次为：
+S00qpe                                启动qpe
+S02dbus-1                          D_BUS  dameon 
+S10dropbear                      SSH service
+S20cron                             自动执行指定任务的程序 cron , in etc/crontab , ntpd will run to get the NTP time
+S20ntpd                              Not used ,  should delete
+S20syslog                          run /sbin/klogd
+S39wifiinit.sh                 wifi init and calibration 
+S70regaccess                  mknod regaccess.ko
+S99rmnologin.sh              do nothing since DELAYLOGIN = no in /etc/default/rcS
+
+整个系统启动后 ，将有 25 个进程 ：其中12个内核的进程 ，13个用户进程
+  1 root       1488 S   init [5]   
+    2 root            SWN [ksoftirqd/0]
+    3 root            SW< [events/0]
+    4 root            SW< [khelper]
+    5 root            SW< [kthread]
+   12 root            SW< [kblockd/0]
+   13 root            SW< [kseriod]
+   41 root            SW  [pdflush]
+   42 root            SW  [pdflush]
+   43 root            SW  [kswapd0]
+   44 root            SW< [aio/0]
+  152 root            SW  [mtdblockd]
+  208 root       1700 S < /sbin/udevd -d 
+  343 root      36104 S   qpe 
+  357 messagebus   2080 S   /usr/bin/dbus-daemon --system 
+  361 root       2072 S   /usr/sbin/dropbear -r /etc/dropbear/dropbear_rsa_host
+  364 root       1656 S   /usr/sbin/cron 
+  369 root       2712 S   /sbin/klogd -n 
+  394 root       2884 S   -sh 
+  400 root      20396 S   /opt/Qtopia/bin/MainMenu -noshow 
+  401 root      19196 S   /opt/Qtopia/bin/Settings -noshow 
+  402 root      20504 S   /opt/Qtopia/bin/Organizer -noshow 
+  403 root      20068 S   /opt/Qtopia/bin/Photo -noshow 
+  404 root      34488 S N /opt/Qtopia/bin/quicklauncher 
+  411 root      34488 S N /opt/Qtopia/bin/quicklauncher 
+
+
+ 
+优化：
+uboot :
+1) setenv bootcmd1 "nand read.jffs2 0x62000000 kernel 0x180000 ; bootm 62000000"
+这样 load内核的时候 从以前0x300000的3M->1.5M 省1S
+2)setenv bootdelay 1 从2变为0 加上CONFIG_ZERO_BOOTDELAY_CHECK 
+3) quiet=1
+bootargs=root=/dev/mtdblock4 rootfstype=yaffs2 console=ttyDW0 mem=64M mtdparts=dwnand:3m(kernel),3m(splash),64m(rootfs),-(userdata);dwflash.0:384k(u-boot),128k(u-boot_env) quiet
+加上quiet 省不到1S
+4)启动的时候不扫描整个芯片的坏块，因为uboot只会用到kernel和splash区，只需要检验这两个区的坏块。
+  可以省不到 0.2s ,没什么明显的改进 
+5) 将环境变量verify 设置为n ,这样load kernel 后，不会去计算校验 kernel image的checksum 
+6)开始打印公司 这些可以去掉 ，在这里还有delay ,以及其他的一些不必要的打印 ,一起去掉
+7)修改memcpy函数 在./lib_generic/string.c下：
+/* Nonzero if either X or Y is not aligned on a "long" boundary.  */
+#define UNALIGNED(X, Y) \
+  (((long)X & (sizeof (long) - 1)) | ((long)Y & (sizeof (long) - 1)))
+
+/* How many bytes are copied each iteration of the 4X unrolled loop.  */
+#define BIGBLOCKSIZE    (sizeof (long) << 2)
+
+/* How many bytes are copied each iteration of the word copy loop.  */
+#define LITTLEBLOCKSIZE (sizeof (long))
+
+/* Threshhold for punting to the byte copier.  */
+#define TOO_SMALL(LEN)  ((LEN) < BIGBLOCKSIZE)
+void * memcpy(void * dst0,const void *src0,size_t len0)
+{
+  char *dst = dst0;
+  const char *src = src0;
+  long *aligned_dst;
+  const  long *aligned_src;
+  int   len =  len0;
+  /* If the size is small, or either SRC or DST is unaligned,
+     then punt into the byte copy loop.  This should be rare.  */
+  if (!TOO_SMALL(len) && !UNALIGNED (src, dst))
+    {
+      aligned_dst = (long*)dst;
+      aligned_src = (long*)src;
+
+      /* Copy 4X long words at a time if possible.  */
+      while (len >= BIGBLOCKSIZE)
+        {
+          *aligned_dst++ = *aligned_src++;
+          *aligned_dst++ = *aligned_src++;
+          *aligned_dst++ = *aligned_src++;
+          *aligned_dst++ = *aligned_src++;
+          len -= BIGBLOCKSIZE;
+        }
+
+      /* Copy one long word at a time if possible.  */
+      while (len >= LITTLEBLOCKSIZE)
+        {
+          *aligned_dst++ = *aligned_src++;
+          len -= LITTLEBLOCKSIZE;
+        }
+
+       /* Pick up any residual with a byte copier.  */
+      dst = (char*)aligned_dst;
+      src = (char*)aligned_src;
+    }
+
+  while (len--)
+    *dst++ = *src++;
+
+  return dst0;
+}
+(在linux 中，arm 的memcpy 有优化的版本 ， 在/arch/arm/lib/memcpy.S中）
+
+下面2个建议，没试过：
+8）在环境变量区的末尾， 存有CRC，启动的时候会校验CRC ,去掉可以省一些时间
+9）把一些驱动的初始化在正常启动的时候不执行，当用户按了键，进入uboot命令模式的时候执行
+10) 修改SDRAM控制器时序
+
+ 
+Kernel :
+启动时间 有两种方法 ：
+1 在u-boot的 bootargs 中加上参数 time 
+2 在内核的 kernel hacking 中 选择 PRINTK_TIME
+方法2的好处是可以得到内核在解析command_line 前所有信息的时间,而之前会有：打印linux 版本信息，CPU D cache , I cache 等等 。。。
+
+启动完后 用 ：
+dmesg -s 131072 > ktime
+然后用 ：
+/usr/src/linux-x.xx.xx/scripts/show_delta ktime > dtime
+这样得到启动内核时间的报告 
+
+
+1)修改Nand驱动 提高读速度
+2）从 JFFS2 换成 yaffs
+3)kernel变为非压缩的image ,但这样的话内核变大了，从NAND中搬运内核的时间将变长 ，所以需要测试是否
+   使得时间变短
+
+ 建议：
+4)把delay的 calibration 去掉 
+ 
+
+上面改动后 基本上8s从开机到 Freeing init memory 
+
+Application :
+1 udev 启动 很花时间
+2 安排好启动顺序。

@@ -1,0 +1,57 @@
+Out of memory: Kill process
+
+内核检测到系统内存不足、挑选并杀掉某个进程的过程可以参考内核源代码 linux/mm/oom_kill.c，
+oom_kill.c 代码里可以看到 oom_badness() 给每个进程打分，根据 points 的高低来决定杀哪个进程。
+这个 points 可以根据 adj 调节，root 权限的进程通常被认为很重要，不应该被轻易杀掉，
+所以打分的时候可以得到 3% 的优惠(adj -= 30; 分数越低越不容易被杀掉)。
+
+解决这个问题最简单的办法就是增加内存，或者想办法优化 MySQL 使其占用更少的内存，
+除了优化 MySQL 外还可以优化系统，让系统尽可能使用少的内存以便应用程序(如MySQL)能使用更多的内存，
+还有一个临时的办法就是调整内核参数，让 MySQL 进程不容易被 OOM killer 发现。
+
+我们可以通过一些内核参数来调整 OOM killer 的行为，避免系统在那里不停的杀进程。
+比如我们可以在触发 OOM 后立刻触发 kernel panic，kernel panic 10秒后自动重启系统。
+# sysctl -w vm.panic_on_oom=1
+vm.panic_on_oom = 1
+
+
+# sysctl -w kernel.panic=10
+kernel.panic = 10
+
+# echo "vm.panic_on_oom=1" >> /etc/sysctl.conf
+# echo "kernel.panic=10" >> /etc/sysctl.conf
+
+方法1: 调低mysql被杀死的条件
+# cat /proc/[mysqlpid]/oom_score_adj
+0
+# echo -15 > /proc/[mysqlpid]/oom_score_adj
+
+方法1: 关闭oom killer功能
+当然，如果需要的话可以完全关闭 OOM killer(不推荐用在生产环境)：
+# sysctl -w vm.overcommit_memory=2
+# echo "vm.overcommit_memory=2" >> /etc/sysctl.conf
+
+下面这个 bash 脚本可用来打印当前系统上 oom_score 分数最高（最容易被 OOM Killer 杀掉）的进程：
+# vi oomscore.sh
+#!/bin/bash
+for proc in $(find /proc -maxdepth 1 -regex '/proc/[0-9]+'); do
+    printf "%2d %5d %s\n" \
+        "$(cat $proc/oom_score)" \
+        "$(basename $proc)" \
+        "$(cat $proc/cmdline | tr '\0' ' ' | head -c 50)"
+done 2>/dev/null | sort -nr | head -n 10
+
+# chmod +x oomscore.sh
+
+# ./oomscore.sh
+  981 /usr/sbin/mysqld
+31359 -bash
+31056 -bash
+31358 sshd: root@pts/6
+31244 sshd: vpsee [priv]
+31159 -bash
+31158 sudo -i
+31055 sshd: root@pts/3
+30912 sshd: vpsee [priv]
+29547 /usr/sbin/sshd -D
+

@@ -1,0 +1,173 @@
+一、使用 Bison 的流程
+1. 创建语言描述文件 (.y 文件)
+2. 编写词法分析器函数 yylex()
+3. 编写错误报告函数 yyerror()
+4. 在 main() 中调用分析器函数 yyparse()
+5. 执行 bison -d，由 .y 文件 产生 .tab.c 和 .tab.h 文件
+6. 执行 gcc，把 .tab.c 文件编译和链接成可执行程序
+
+例. 计算器项目 calc。
+calc.y
+   |  bison -d calc.y
+calc.tab.c
+calc.tab.h
+   |  gcc calc.tab.c -o calc
+calc
+
+二、语言描述文件的组成
+%{
+1. 序言 (Prologue)
+声明全局标识符，定义数据类型、变量和宏，包含头文件，等。
+%}
+
+2. 声明 (declarations)
+声明终结符，非终结符，运算符的优先级，符号语义值的各种类型。
+
+%%
+
+3. 文法 (Grammar rules)
+定义每一非终结符的文法规则。
+
+%%
+
+4. 结言 (Epilogue)
+定义序言中声明的函数，以及剩余的所有程序。如 yylex(), yyerror(), main(), 等。
+
+
+三、语言描述文件中的声明
+1. 语素类型的结合性
+%left       声明左结合操作符
+%right      声明右结合操作符
+%token      声明无结合性的语素类型
+单字符语素原本不用声明，声明它们是指出其结合性。
+
+2. token 的语义值
+若有，存储在全局变量 yylval (类型 YYSTYPE) 中。
+
+四、词法分析器函数 yylex()
+该函数实现功能：读入下一 token，返回它的编号。
+例. 对于简化的 C语言。
+1. 对于各种各样的数，编号 NUM。
+2. 对于各种各样的字符串，编号 STR。
+3. 对于各种各样的名称, 编号 ID。
+4. 每一关键字有唯一的编号。
+例.
+关键字      编号
+int         INT
+double      DOUBLE
+if          IF
+while       WHILE
+return      RETURN
+说明：这里把编号取为相应的大写，是为了方便记忆，并非必须。
+
+5. 单字符 token 包括运算符和分隔符，如 '+', '-', ';', ',', 等。它们的编号为其自身，直接返回即可。
+6. 输入结束，编号为 0。
+如果把 token 的编号视作符号的分类，那么每个单字符自成一类。
+    编号是一个整数，定义在 .tab.h 文件中，形如
+    #define NUM 257
+    #define ID  258
+    ...
+
+如果把 token 的编号视作符号的分类，那么每个单字符自成一类。
+    编号是一个整数，定义在 .tab.h 文件中，形如
+    #define NUM 257
+    #define ID  258
+    ...
+
+五、基本概念
+1. BNF (Backus-Naur Form, 或 Backus Normal Form)
+John Backus 提出的描述上下文无关文法的范式。在 Peter Naur 的 Algol60 报告中做了少许改进。
+
+2. 上下文无关文法 (Context-free grammars)
+描述不考虑上下文的规则的文法。如某规则说整数是表达式，那么，整数在任何地方都是一个允许的表达式。
+
+3. 左递归 (Left recursion)
+规则中，右端的第一个符号与左端相同。如
+exprs:    exprs ',' expr
+    ;
+
+4. 右递归 (Right recursion)
+规则中，右端的最后一个符号与左端相同。如
+exprs:    expr ',' exprs
+    ;
+辨析：左递归比右递归更为自然，分析时占用内存也更少些。
+
+5. 符号表 (Symbol table)
+用来存储和查询已存在符号的名称和相关数据的数据结构。
+
+6. 终结符 (Terminal symbol)
+不可再分的文法符号。也称 token，中文称作语素、词法记号、记号、单词、符号等。
+
+7. 非终结符 (Nonterminal symbol)
+可以表达为更小结构的文法结构。每一非终结符用一条规则来定义。
+
+8. 开始符号 (Start symbol)
+一个特殊的非终结符，代表语言的开始。通常作为文法中的第一个规则。
+
+9. LR(1)
+一种用于自底向上分析的上下文无关文法，大多数时侯需要一个预读语素来消除任何输入片段的歧义。
+
+10. LALR(1)
+LR(1)的子集。Bison 采用的文法。
+
+11. parser stack  分析栈
+自底向上分析算法用到的栈。
+
+12. shift  移进
+把输入流中的下一个 token 移入分析栈。
+
+13. reduce  归约
+归约分析栈顶中已识别的规则。当分析栈顶的符号序列匹配某规则右端时，用该规则的左端替换之。
+
+14. look-ahead token  预读语素
+已读取、尚未移进的 token。
+
+
+五、Bison 分析器算法
+bison 采用自底向上 (bottom-up) 的分析方法。它用到一个分析栈 (parser stack)，关键有两个动作：
+
+1. 移进 (shift)
+读取的 token 移进到分析栈中。
+
+2. 归约 (reduce)
+当分析栈顶的 n 个符号匹配某规则的右端时，用该规则的左端取代之。
+
+自底向上算法要做的事情是，对于一个接一个读入的 token，何时移进，何时归约。LR(1) 中的 1表示，只需预读 1个语素，
+就可以确定是移进，还是归约。
+在移进和归约的过程中，可能出现两类冲突。
+
+1. 移进/归约冲突 (shift/reduce conflicts)
+在某一时刻，可以移进，也可以归约。是选择移进，还是归约？这就是移进/归约冲突。这种冲突可以接受。
+在出现移进/归约冲突时，bison 选择移进。
+
+例. if 语句的文法。
+stmt_if:  IF expr THEN stmt
+    | IF expr THEN stmt ELSE stmt
+    ;
+分析栈顶的符号序列是 IF expr THEN stmt，而当前符号是 ELSE。是移进？还是归约？bison 选择移进。
+
+2. 归约/归约冲突 (Reduce/Reduce Conflicts)
+    当分析栈顶的符号序列可归约到多于一个规则时，选择哪一个规则？这就是归约/归约冲突。这种冲突不可接受。
+这是文法中的严重错误，必须修改文法。
+在出现归约/归约冲突时，bison 选择归约到第一个匹配的规则。这十分冒险。
+
+例. 定义包含 word 或 redirect 的序列。
+sequence: /* empty */
+    | sequence words
+    | sequence redirects
+    ;
+
+words:    /* empty */
+    | words word
+    ;
+
+redirects: /* empty */
+    | redirects redirect
+    ;
+
+sequence, words 和 redirects 的定义单独来看没问题，但放在一起产生了歧义：一个空输入可以归约到这三个规则中的任何一个。
+
+
+
+
+

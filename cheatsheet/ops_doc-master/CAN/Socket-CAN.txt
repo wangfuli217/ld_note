@@ -1,0 +1,593 @@
+cat /proc/net/can/rcvlist_all
+应用程序接收所有vcan0上传输的数据.
+     rcvlist_all - 没有过滤规则的队列
+     rcvlist_eff - 扩展帧（EFF）的队列
+     rcvlist_err - 错误帧队列
+     rcvlist_fil - 通过过滤规则的队列
+     rcvlist_inv - 未通过过滤规则的队列
+     rcvlist_sff - 标准帧的队列
+device   can_id   can_mask  function  userdata   matches  ident
+vcan0     000    00000000  f88e6370  f6c6f400         0       raw
+     
+can.ko
+
+在/proc/net/can中还有另外一些文件：
+     stats - CAN套接字核心的统计信息（接收/发送的帧数，匹配率等）
+     reset_stats - 复位统计信息
+     version - 打印CAN套接字核心的版本和ABI的版本
+     
+ip link set can0 type can help
+
+
+
+这篇文章包含以下内容：
+===============
+1 概述--什么是Socket CAN？
+2 动机--为什么使用socket API接口？
+3 Socket CAN详解
+     3.1 接收队列
+     3.2 发送帧的本地回环
+     3.3 网络安全相关
+     3.4 网络故障监测
+4 如何使用Socket CAN
+     4.1 使用can_filter的原始套接字 (RAW socket)
+          4.1.1 原始套接字选项 CAN_RAW_FILTER
+          4.1.2 原始套接字选项 CAN_RAW_ERR_FILTER
+          4.1.3 原始套接字选项 CAN_RAW_LOOPBACK
+          4.1.4 原始套接字选项 CAN_RAW_RECV_OWN_MSGS
+     4.2 广播管理协议套接字 (SOCK_DGRAM)
+     4.3 面向连接的传输协议 (SOCK_SEQPACKET)
+     4.4 无连接的传输协议  (SOCK_DGRAM)
+5 Socket CAN核心模块
+     5.1 can.ko模块的参数
+     5.2 procfs接口
+     5.3 写一个自己的CAN协议模块
+6 CAN网络驱动
+     6.1 常见设置
+     6.2 发送帧的本地回环
+     6.3 CAN控制器的硬件过滤
+     6.4 虚拟的CAN驱动 (vcan)
+     6.5 CAN网络设备驱动接口
+          6.5.1 Netlink接口--设置/获取设备属性
+          6.5.2 设置CAN的比特_时序
+          6.5.3 启动和停止CAN网络设备
+     6.6 支持Socket CAN的硬件
+
+7 学习Socket CAN的相关资源
+
+8 贡献者名单
+https://blog.csdn.net/zhangxiaopeng0829/article/details/7646639                 翻译
+
+http://lxr.linux.no/linux+v2.6.34/Documentation/networking/can.txt              原文
+http://www.brownhat.org/docs/socketcan/llcf-api.html#SECTION00051000000000000000 扩展
+
+==============现在开始===================
+1. 概述--什么是Socket CAN？
+==================
+    socketcan子系统是在Linux下CAN协议(Controller Area Network)实现的一种实现方法。 
+CAN是一种在世界范围内广泛用于自动控制、嵌入式设备和汽车领域的网络技术。Linux下最早
+使用CAN的方法是基于字符设备来实现的，与之不同的是Socket CAN使用伯克利的socket接口
+和linux网络协议栈，这种方法使得can设备驱动可以通过网络接口来调用。Socket CAN的接口
+被设计的尽量接近TCP/IP的协议，让那些熟悉网络编程的程序员能够比较容易的学习和使用。
+
+2. 动机--为什么使用socket API接口？
+=======================
+    在Socket CAN之前Linux中已经有了一些CAN的实现方法，那为什么还要启动Socket CAN这个项目呢？
+大多数已经存在的实现方法仅仅作为某个具体硬件的设备驱动，它们往往基于字符设备并且提供的功能很少。
+那些方案通常是由一个针对具体硬件的设备驱动提供的字符设备接口来实现原始can帧的发送和接收，
+并且直接和控制器硬件打交道。帧队列和ISO-TP这样的高层协议必须在用户空间来实现。就像串口设备
+接口一样，大多数基于字符设备的实现在同一时刻仅仅支持一个进程的访问。如果更换了CAN控制器，
+那么同时也要更换另一个设备驱动，并且需要大多数应用程序重新调整以适应新驱动的API。
+
+    Socket CAN被设计用来克服以上种种不足。这种新的协议族实现了用户空间的socket接口，
+它构建于Linux网络层之上，因此可以直接使用已有的队列功能。CAN控制器的设备驱动将自己
+作为一个网络设备注册进Linux的网络层，CAN控制器收到的CAN帧可以传输给高层的网络协议
+和CAN协议族，反之，发送的帧也会通过高层给CAN控制器。
+    传输协议模块可以使用协议族提供的接口注册自己，所以可以动态的加载和卸载多个传输协议。
+事实上，CAN核心模块不提供任何协议，也不能在没有加载其它协议的情况下单独使用。
+同一时间可以在相同或者不同的协议上打开多个套接字，可以在相同或者不同的CAN ID上
+同时监听和发送(listen/send)。几个同时监听具有相同ID帧的套接字可以在匹配的帧到来后
+接收到相同的内容。
+    如果一个应用程序希望使用一个特殊的协议(比如ISO-TP)进行通信，只要在打开套接字的时候
+选择那个协议就可以了，接下来就可以读取和写入应用数据流了，根本无需关心CAN-ID和帧的结构等信息。
+
+
+使用字符设备也可以让用户空间获得类似的便利，但是这中解决方案在技术上不够优雅，原因如下：
+    *复杂的操作。使用Socket CAN，只需要向socket(2)函数传递协议参数并使用bind(2)选择
+CAN接口和CAN ID，基于字符设备实现这样的功能却要使用ioctl(2)来完成所有的操作。
+    *无法代码复用。字符设备无法使用Linux的网络队列代码，所以必须为CAN 网络重写这部分功能。
+    *缺乏抽象性。在大多数已经实现的字符设备方案中，硬件相关的CAN控制器设备驱动直接提供
+应用程序需要的字符设备。在Unix系统中，无论对于字符设备还是块设备，这都是不常见的。
+比如，你不会为某个串口、电脑上的某个声卡、访问磁带和硬盘的SCSI/IDE控制器直接创建一个字符设备。
+相反，你会将向应用程序提供统一字符设备/块设备接口的功能交给一个抽象层来做，
+你自己仅仅提供硬件相关的设备驱动接口。这种抽象是通过子系统来完成的，
+比如tty层子系统、声卡子系统和SCSI/IDE子系统。
+
+    实现CAN设备驱动最简单的办法就是直接提供一个字符设备而不使用(或不完全使用)抽象层，
+大多数已经存在的驱动也是这么做的。但是正确的方法却要增加抽象层以支持各种功能，如注册
+一个特定的CAN-ID，支持多次打开的操作和这些操作之间的CAN帧复用，支持CAN帧复杂的队列功能，
+还要提供注册设备驱动的API。然而使用Linux内核提供的网络框架将会大大简化，这就是Socket CAN要做的。
+
+在Linux中实现CAN功能最自然和合适的方式就是使用内核的网络框架。
+3. Socket CAN详解
+============
+    就像第二章所讲的那样，使用Socket CAN的主要目的就是为用户空间的应用程序提供基于
+Linux网络层的套接字接口。与广为人知的TCP/IP协议以及以太网不同，CAN总线没有类似以太网
+的MAC层地址，只能用于广播。CAN ID仅仅用来进行总线的仲裁。因此CAN ID在总线上必须是唯一的。
+当设计一个CAN-ECU(Electronic Control Unit 电子控制单元)网络的时候，CAN-ID可以映射到具体的ECU。
+因此CAN-ID可以当作发送源的地址来使用。
+
+3.1 接收队列
+---------------
+    允许多个应用程序同时访问网络导致了新的问题出现，那就是不同的应用程序可能会在
+同一个CAN网络接口上对具有相同CAN-ID的帧感兴趣。Socket CAN的核心部分实现了Socket CAN的协议族，
+通过高效的接收队列解决了这个问题。比如一个用户空间的程序打开了一个原始CAN套接字，
+原始协议模块将向CAN套接字的核心模块申请用户空间需要的一系列CAN-ID。Socket CAN的核心
+向CAN协议模块提供预约和解约CAN-ID的接口--can_rx_(un)register()，无论这个CAN-ID是
+针对一个具体的CAN接口还是所有已知的CAN接口（参考第5章）。
+
+    为了优化CPU的运行效率，每个设备都对应一个接收队列，这样比较容易实现各种报文过滤规则。
+
+3.2 发送帧的本地回环
+-----------------
+在其它种类的网络中，在相同或者不同网络节点上的应用程序都可以相互交换数据。
+
+         ___   ___   ___                   _______   ___
+        | _ | | _ | | _ |                 | _   _ | | _ |
+        ||A|| ||B|| ||C||                 ||A| |B|| ||C||
+        |___| |___| |___|                 |_______| |___|
+          |     |     |                       |       |
+        -----------------(1)- CAN bus -(2)---------------
+
+    请看上图的两个例子。为了保证应用程序A在两个例子中能够接收到同样的例子(例2中A和B在同一个CAN设备上)，
+发送出去的CAN帧需要能够在本地回环。
+
+    Linux下的网络设备仅仅处理物理媒介上帧的发送和接受。总线仲裁机制下，高优先级的帧会将低优先级的帧延后。
+为了正确反映实际的通信活动，回环必须在正确传输成功之后进行。
+    如果CAN网络的硬件不支持回环功能，一种低效的方案是使用Socket CAN核心部分来实现软件回环。
+具体的情况请参考6.2小节。
+
+    CAN网络的回环功能是默认开启的。由于RT-SocketCAN 的特殊需求，每个套接字的回环功能可以被独立关闭。
+CAN原始套接字的控制选项请参考4.1小节。
+
+*当你在同一个节点上运行CAN分析命令"candump"或者"cansniffer"的时候就会发现回环功能真的很有用。
+
+3.3 网络安全相关
+--------------------
+    CAN网络是一种现场总线，仅仅支持没有路由和安全控制的广播传输。大部分应用程序都需要要直接处理原始CAN帧，
+所以和其它类型的网络一样，CAN网络对所有的用户(而不仅仅是root用户)访问没有任何限制。由于当前CAN_RAW和CAN_BCM
+的实现仅仅支持对CAN接口的读写，所以允许所有的用户访问CAN并不影响其它类型网络的安全性。为了使能非root用户对
+CAN_RAW和CAN_BCM协议套接字的访问，必须在编译内核的时候选上Kconfig的CAN_RAW_USER/CAN_BCM_USER选项。
+
+3.4 网络故障监测
+--------------------
+    使用CAN总线的时候，可能会遇到物理和MAC(media access control)层的问题。为了方便用户分析物理收发器的硬件错误、
+总线仲裁错误和不同的ECU(Electrical Conversion Unit,电气转换装置)引起的错误，对于底层(物理和mac层)的监测和记录是至关重要的。
+拥有精确时间戳的错误监测对于诊断错误是非常重要的。基于以上原因，CAN接口的驱动可以可以选择性的产生所谓的错误帧，
+这些帧以和其它的CAN帧一样的方式传递给用户程序。当一个物理层或者MAC层的错误被(CAN控制器)检测到之后，
+驱动创建一个相应的错误帧。错误帧可以被应用程序通过CAN的过滤机制请求得到。过滤机制允许选择需要的错误帧的类型。
+默认情况下，接收错误帧的功能是禁止的。
+
+CAN错误帧的详细格式定义在linux头文件中：include/linux/can/error.h。
+
+4. 如何使用Socket CAN
+===============
+    就像TCP/IP协议一样，在使用CAN网络之前你首先需要打开一个套接字。CAN的套接字使用到了一个新的协议族，
+所以在调用socket(2)这个系统函数的时候需要将PF_CAN作为第一个参数。当前有两个CAN的协议可以选择，
+一个是原始套接字协议（raw socket protocol），另一个是广播管理协议BCM（broadcast manager）。你可以这样来打开一个套接字：
+
+     s = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+或者
+     s = socket(PF_CAN, SOCK_DGRAM, CAN_BCM);
+
+在成功创建一个套接字之后，你通常需要使用bind(2)函数将套接字绑定在某个CAN接口上（这和TCP/IP使用不同的IP地址不同，参见第3章）。
+在绑定 (CAN_RAW)或连接(CAN_BCM)套接字之后，你可以在套接字上使用read(2)/write(2)，也可以使用send(2)/sendto(2)/sendmsg(2)和
+对应的recv*操作。当然也会有CAN特有的套接字选项，下面将会说明。
+
+基本的CAN帧结构体和套接字地址结构体定义在include/linux/can.h：
+
+/*
+* 扩展格式识别符由 29 位组成。其格式包含两个部分：11 位基本 ID、18 位扩展 ID。
+* Controller Area Network Identifier structure
+*
+* bit 0-28     : CAN识别符 (11/29 bit)
+* bit 29     : 错误帧标志 (0 = data frame, 1 = error frame)
+* bit 30     : 远程发送请求标志 (1 = rtr frame)
+* bit 31     : 帧格式标志 (0 = standard 11 bit, 1 = extended 29 bit)
+*/
+typedef __u32 canid_t;
+
+struct can_frame { 
+     canid_t can_id;  /* 32 bit CAN_ID + EFF/RTR/ERR flags */
+      __u8    can_dlc; /* 数据长度: 0 .. 8 */
+      __u8    data[8] __attribute__((aligned(8))); 
+ };
+
+    结构体的有效数据在data[]数组中，它的字节对齐是64bit的，所以用户可以比较方便的在data[]
+中传输自己定义的结构体和共用体。CAN总线中没有默认的字节序。在CAN_RAW套接字上调用read(2)，
+返回给用户空间的数据是一个struct can_frame结构体。
+
+就像PF_PACKET套接字一样，sockaddr_can结构体也有接口的索引，这个索引绑定了特定接口：
+    struct sockaddr_can { 
+          sa_family_t can_family;
+          int         can_ifindex;
+          union { 
+                    /* transport protocol class address info (e.g. ISOTP) */
+                    struct { canid_t rx_id, tx_id; } tp;
+                    /* reserved for future CAN protocols address information */ 
+          } can_addr; 
+    };
+
+指定接口索引需要调用ioctl()（比如对于没有错误检查CAN_RAW套接字）:
+    int s;
+    struct sockaddr_can addr;
+    struct ifreq ifr;
+
+    s = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+
+    strcpy(ifr.ifr_name, "can0" );
+    ioctl(s, SIOCGIFINDEX, &ifr);
+
+    addr.can_family = AF_CAN;
+    addr.can_ifindex = ifr.ifr_ifindex;
+
+    bind(s, (struct sockaddr *)&addr, sizeof(addr));
+
+    (..)
+
+    为了将套接字和所有的CAN接口绑定，接口索引必须是0。这样套接字便可以从所有使能的CAN接口接收CAN帧。
+recvfrom(2)可以指定从哪个接口接收。在一个已经和所有CAN接口绑定的套接字上，sendto(2)可以指定从哪个接口发送。
+
+从一个CAN_RAW套接字上读取CAN帧也就是读取struct can_frame结构体:
+    struct can_frame frame;
+
+    nbytes = read(s, &frame, sizeof(struct can_frame));
+
+    if (nbytes < 0) {
+            perror("can raw socket read");
+            return 1;
+    }
+
+    /* paranoid check ... */
+    if (nbytes < sizeof(struct can_frame)) {
+            fprintf(stderr, "read: incomplete CAN frame\n");
+            return 1;
+    }
+
+    /* do something with the received CAN frame */
+
+写CAN帧也是类似的，需要用到write (2)函数：
+
+    nbytes = write(s, &frame, sizeof(struct can_frame)); 
+
+如果套接字跟所有的CAN接口都绑定了（addr.can_index = 0），推荐使用recvfrom(2)获取数据源接口的信息：
+
+    struct sockaddr_can addr;
+    struct ifreq ifr;
+    socklen_t len = sizeof(addr);
+    struct can_frame frame;
+
+    nbytes = recvfrom(s, &frame, sizeof(struct can_frame),
+                      0, (struct sockaddr*)&addr, &len);
+
+    /* get interface name of the received CAN frame */
+    ifr.ifr_ifindex = addr.can_ifindex;
+    ioctl(s, SIOCGIFNAME, &ifr);
+    printf("Received a CAN frame from interface %s", ifr.ifr_name);
+
+对于绑定了所有接口的套接字，向某个端口发送数据必须指定接口的详细信息：
+    strcpy(ifr.ifr_name, "can0");
+    ioctl(s, SIOCGIFINDEX, &ifr);
+    addr.can_ifindex = ifr.ifr_ifindex;
+    addr.can_family  = AF_CAN;
+
+    nbytes = sendto(s, &frame, sizeof(struct can_frame),
+                    0, (struct sockaddr*)&addr, sizeof(addr));
+
+4.1 使用can_filter的原始套接字 (RAW socket)
+----------------------------------------------------
+
+CAN_RAW套接字的用法和CAN字符设备的用法是类似的。为了使用CAN套接字的新特性，在绑定原始套接字的时候将会默认开启以下特性：
+
+- filter将会接收所有的数据
+- 套接字仅仅接收有效的数据帧（=> no error frames）
+- 发送帧的回环功能被开启（参见 3.2节）
+- （回环模式下）套接字不接收它自己发送的帧
+
+这些特性的设置可以在绑定之前和之后修改。为了使用CAN_RAW套接字相关的选项，必须包含<linux/can/raw.h>。
+
+    4.1.1 原始套接字选项 CAN_RAW_FILTER
+
+CAN_RAW套接字的接收可以使用CAN_RAW_FILTER套接字选项指定的多个过滤规则（过滤器）来过滤。
+
+过滤规则（过滤器）的定义在 include/linux/can.h中:
+
+    struct can_filter {
+            canid_t can_id;
+            canid_t can_mask;
+    };
+
+过滤规则的匹配：
+
+    <received_can_id> & mask == can_id & mask
+
+/*
+#define CAN_INV_FILTER 0x20000000U /* to be set in can_filter.can_id */
+#define CAN_ERR_FLAG   0x20000000U /* error frame */
+*/
+这和大家所熟知的CAN控制器硬件过滤非常相似。可以使用 CAN_INV_FILTER这个宏将can_filter结构体的成员can_id中的比特位反转。和CAN控制器的硬件过滤形成鲜明对比的是，用户可以为每一个打开的套接字设置多个独立的过滤规则（过滤器）:
+
+/*
+ /* valid bits in CAN ID for frame formats */
+#define CAN_SFF_MASK 0x000007FFU /* 标准帧格式 (SFF) */
+#define CAN_EFF_MASK 0x1FFFFFFFU /* 扩展帧格式 (EFF) */
+#define CAN_ERR_MASK 0x1FFFFFFFU /* 忽略EFF, RTR, ERR标志 */
+ */
+
+    struct can_filter rfilter[2];
+
+    rfilter[0].can_id   = 0x123;
+    rfilter[0].can_mask = CAN_SFF_MASK;
+    rfilter[1].can_id   = 0x200;
+    rfilter[1].can_mask = 0x700;
+
+    setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, &rfilter, sizeof(rfilter));
+
+为了在指定的CAN_RAW套接字上禁用接收过滤规则，可以这样：
+  setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, NULL, 0);
+
+在一些极端情况下不需要读取数据，可以把过滤规则清零（所有成员设为0），这样原始套接字就会忽略接收到的CAN帧。
+在这种仅仅发送数据（不读取）的应用中可以在内核中省略接收队列，以此减少CPU的负载（虽然只能减少一点点）。
+
+    4.1.2 原始套接字选项 CAN_RAW_ERR_FILTER
+正如3.4节所说，CAN接口驱动可以选择性的产生错误帧，错误帧和正常帧以相同的方式传给应用程序。
+可能产生的错误被分为不同的种类，使用适当的错误掩码可以过滤它们。为了注册所有可能的错误情况，
+CAN_ERR_MASK（0x1FFFFFFFU）这个宏可以用来作为错误掩码。这个错误掩码定义在linux/can/error.h。
+
+    can_err_mask_t err_mask = ( CAN_ERR_TX_TIMEOUT | CAN_ERR_BUSOFF );
+    setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER,
+               &err_mask, sizeof(err_mask));
+
+    4.1.3 原始套接字选项 CAN_RAW_LOOPBACK
+为了满足众多应用程序的需要，本地回环功能默认是开启的（详细情况参考3.2节）。
+但是在一些嵌入式应用场景中（比如只有一个用户在使用CAN总线），回环功能可以被关闭（各个套接字之间是独立的）：
+
+    int loopback = 0; /* 0 = disabled, 1 = enabled (default) */
+
+    setsockopt(s, SOL_CAN_RAW, CAN_RAW_LOOPBACK, &loopback, sizeof(loopback));
+
+    4.1.4 原始套接字选项 CAN_RAW_RECV_OWN_MSGS
+在本地回环功能开启的情况下，所有的发送帧都会被回环到在相应CAN接口上注册了同样CAN-ID（和发送帧的相同）的套接字上。
+发送CAN帧的套接字被假设不想接收自己发送的CAN帧，因此在发送套接字上的回环功能默认是关闭的。可以在需要的时候改变这一默认行为：
+    int recv_own_msgs = 1; /* 0 = disabled (default), 1 = enabled */
+    setsockopt(s, SOL_CAN_RAW, CAN_RAW_RECV_OWN_MSGS,
+               &recv_own_msgs, sizeof(recv_own_msgs));
+
+（yll:下面三小节没有内容）
+4.2 广播管理协议套接字 (SOCK_DGRAM)
+-----------------------------------------------
+
+4.3 面向连接的传输协议 (SOCK_SEQPACKET)
+----------------------------------------------------
+
+4.4 无连接的传输协议  (SOCK_DGRAM)
+---------------------------------------------
+
+5. Socket CAN核心模块
+==============
+
+CAN套接字的核心模块实现了PF_CAN协议族。CAN协议模块在核心模块运行后加载。CAN核心模块为协议模块提供了申请需要的ID的接口（参考3.1小节）。
+
+5.1 can.ko模块的参数
+-------------------------
+
+- stats_timer: 为了计算CAN套接字的统计信息（比如最近一秒的帧数和每秒最大的帧数），can.ko调用一个定时间隔为1秒的定时器，默认情况下这个定时器是开启的。这个定时器也可以在模块参数中传入stattimer=0来禁止。
+
+- debug :  (removed since SocketCAN SVN r546)
+
+5.2 procfs接口
+-----------------
+
+就像3.1节描述的那样，CAN套接字核心借助于一些带有过滤规则的队列向CAN协议模块传递接收到的CAN帧。可以在procfs中查看这些接收队列的的过滤规则和匹配规则的次数。所有的条目都包了设备名和协议模块标识：
+
+    foo@bar:~$ cat /proc/net/can/rcvlist_all
+    
+    receive list 'rx_all': (vcan3: no entry)
+      (vcan2: no entry)
+      (vcan1: no entry)
+      device   can_id   can_mask  function  userdata   matches  ident
+      vcan0     000    00000000  f88e6370  f6c6f400         0       raw
+     (any: no entry)
+     （yll补充：function是一个函数指针，userdata是一个void *指针，所以这两个值打印出来没有太大意义）
+
+在这个例子中，这个应用程序接收所有vcan0上传输的数据.
+
+     rcvlist_all - 没有过滤规则的队列
+     rcvlist_eff - 扩展帧（EFF）的队列
+     rcvlist_err - 错误帧队列
+     rcvlist_fil - 通过过滤规则的队列
+     rcvlist_inv - 未通过过滤规则的队列
+     rcvlist_sff - 标准帧的队列
+
+在/proc/net/can中还有另外一些文件：
+
+     stats - CAN套接字核心的统计信息（接收/发送的帧数，匹配率等）
+     reset_stats - 复位统计信息
+     version - 打印CAN套接字核心的版本和ABI的版本
+
+5.3 写一个自己的CAN协议模块
+-----------------------------------
+
+要在PF_CAN中增加一个新的协议，必须在include/linux/can.h中为新的协议增加相应的定义。包含include/linux/can.h这个文件便可以使用增加的原型和定义。内核除了提供了注册CAN协议和CAN设备的通知列表的功能，也提供了在一个特定CAN接口上注册感兴趣的CAN帧或者发送CAN帧的功能。
+
+    can_rx_register   - 在一个特定接口上注册希望接收到的CAN帧的信息  （yll:这个函数的定义在内核的net/can/af_can.c中）
+    can_rx_unregister - 注销上面的申请 
+    can_send          - 发送CAN帧（可以选择是否开启本地回环） 
+
+详细的信息请参考内核中的源码net/can/af_can.c、net/can/raw.c、net/can/bcm.c。
+
+6. CAN网络驱动
+==========
+编写一个CAN网络设备驱动要比写一个CAN字符设备驱动要容易的多。和编写其它网络设备驱动类似，你只要处理以下事宜：
+
+- TX :将套接字缓冲区的CAN帧发送到CAN控制器
+- RX :从CAN控制器的CAN帧读取到套接字缓冲区
+
+Documentation/networking/netdevices.txt中是网络设备驱动的例子。下面将会介绍CAN网络设备驱动的一些独有特性。
+
+6.1 常见设置
+---------------
+
+    dev->type  = ARPHRD_CAN; /* the netdevice hardware type */
+    dev->flags = IFF_NOARP;  /* CAN has no arp */
+    dev->mtu   = sizeof(struct can_frame);
+
+结构体can_frame是PF_CAN协议族套接字缓冲区的数组载体。
+
+6.2 发送帧的本地回环
+-------------------------
+
+如3.2小节所述，CAN网络设备驱动应该支持类似TTY设备回显功能的本地回环功能。如果驱动支持这个功能，则要设备IFF_ECHO标志来防止PF_CAN核心回显发送帧（又称回环）。
+
+    dev->flags = (IFF_NOARP | IFF_ECHO);
+
+6.3 CAN控制器的硬件过滤
+------------------------------
+
+为了减小一些嵌入式系统的中断负载，一些CAN控制器支持多个CAN-ID或者多个CAN-ID区间的过滤功能。硬件过滤功能在不同的控制器之间差异很大，并且不能同时满足多个用户的不同过滤需求。在单用户应用中使用控制器的硬件过滤或许还有意义，但是在一个多用户系统中驱动层的过滤将会影响所有用户。PF_CAN核心内置的过滤规则集合允许对每个套接字独立的设置多个过滤规则。因此使用硬件过滤属于嵌入式系统中“手动调整”的范畴。从2002年开始笔者一直使用拥有四路SJA1000 CAN控制器的MPC603e @133MHz，总线负载虽然很高，但是到目前为止还没有什么问题。
+
+6.4 虚拟的CAN驱动 (vcan)
+------------------------------
+
+和网络回环设备一样，vcan提供一个虚拟的本地CAN接口。CAN中一个有效的地址包括：
+
+- 一个有效的CAN标识符（CAN ID）
+- 这个CAN标识符将要发往的总线（比如 can0）.
+
+所以在一般的应用场景中往往需要多个vcan接口。
+
+vcan接口允许在没有控制器硬件的情况下进行发送和接收。vcan网络设备的命名一般采用‘vcanX’,比如can1 vcan2等。当编译为单独的模块的时候，vcan驱动的模块名为vcan.ko。
+
+vcan驱动从linux2.6.24开始支持netlink接口，使得创建vcan网络设备变的可能。可以使用ip(8)命令工具管理vcan网络设备的创建和移除：
+
+ - 创建一个vcan网络接口：
+        $ ip link add type vcan
+
+- 使用给定的名字 'vcan42'创建 一个vcan网络接口：
+       $ ip link add dev vcan42 type vcan
+
+- 移除vcan网络接口'vcan42':
+       $ ip link del vcan42  
+
+6.5 CAN网络设备驱动接口
+------------------------------
+ 
+CAN网络设备驱动提供了进行安装、配置和监控CAN网络设备的接口。可以使用IPROUTE2工具集中的“ip”命令通过netlink接口配置CAN设备，比如设置波特率。本章剩余的部分将会简介如何使用这一工具。另外这些接口使用一些通用的数据结构并且提供了一系列常用的功能，这些功能都是CAN网络设备驱动需要用到的。请参考SJA1000或者MSCAN的驱动去了解如何使用它们。模块的名字是can-dev.ko。
+
+    6.5.1 Netlink接口--设置/获取设备属性
+
+CAN设备必须使用netlink来配置。在"include/linux/can/netlink.h"有对netlink消息类型的定义和简短描述。IPROUTE2工具集中的“ip”命令可以使用CAN的netlink支持，下面是使用示例：
+
+- 设置CAN设备属性：
+
+    $ ip link set can0 type can help
+    Usage: ip link set DEVICE type can [ bitrate BITRATE [ sample-point SAMPLE-POINT] ] |
+    [ tq TQ prop-seg PROP_SEG phase-seg1 PHASE-SEG1 phase-seg2 PHASE-SEG2 [ sjw SJW ] ]
+    [ loopback { on | off } ]
+    [ listen-only { on | off } ]
+    [ triple-sampling { on | off } ]
+    [ restart-ms TIME-MS ]
+    [ restart ]
+    Where: BITRATE       := { 1..1000000 } SAMPLE-POINT  := { 0.000..0.999 }
+          TQ            := { NUMBER }
+          PROP-SEG      := { 1..8 }
+          PHASE-SEG1    := { 1..8 }
+          PHASE-SEG2    := { 1..8 }
+          SJW           := { 1..4 }
+          RESTART-MS    := { 0 | NUMBER }
+
+- 显示CAN设备的详情和统计信息：
+
+    $ ip -details -statistics link show can0
+ 2: can0: <NOARP,UP,LOWER_UP,ECHO> mtu 16 qdisc pfifo_fast state UP qlen 10 
+     link/can
+      can <TRIPLE-SAMPLING> state ERROR-ACTIVE restart-ms 100
+      bitrate 125000 sample_point 0.875
+      tq 125 prop-seg 6 phase-seg1 7 phase-seg2 2 sjw 1
+      sja1000: tseg1 1..16 tseg2 1..8 sjw 1..4 brp 1..64 brp-inc 1
+      clock 8000000
+      re-started bus-errors arbit-lost error-warn error-pass bus-off 
+      41         17457      0          41         42         41
+      RX: bytes  packets  errors  dropped overrun mcast 
+      140859     17608    17457   0       0       0
+      TX: bytes  packets  errors  dropped carrier collsns 
+      861        112      0       41      0       0
+
+下面是上面一些名词的解释：
+
+    "<TRIPLE-SAMPLING>"
+表示选中的CAN控制器的模式：LOOPBACK, LISTEN-ONLY, or TRIPLE-SAMPLING。
+
+    "state ERROR-ACTIVE"
+CAN控制器的当前状态："ERROR-ACTIVE", "ERROR-WARNING", "ERROR-PASSIVE", "BUS-OFF" or "STOPPED"
+
+    "restart-ms 100"
+自动重启的延时时间。如果设为非零值， 在总线关闭的情况下，在设定的数量毫秒后CAN控制器被自动触发。这个功能默认是关闭的。
+
+    "bitrate 125000 sample_point 0.875"
+使用bits/sec作为单位显示位时间并显示0.000～0.999的采样点位置。如果内核中使能了统计位时间的功能(CONFIG_CAN_CALC_BITTIMING=y)，位时间可以使用"bitrate"参数来设置。可选的"sample-point"也是可以配置的。默认使用0.000这个推荐值。
+
+    "tq 125 prop-seg 6 phase-seg1 7 phase-seg2 2 sjw 1"
+以ns为单位显示时间份额（tq-time quanta）、传播段（prop-seg ： propagation segment）、相位缓冲段1和2（phase-seg：phase buffer），以tq为单位显示同步跳转宽度（sjw：synchronisation jump width）。这些变量允许定义与硬件无关的位时序，这也是Bosch CAN 2.0 spec所推荐的（参考第八章http://www.semiconductors.bosch.de/pdf/can2spec.pdf）。
+
+    "sja1000: tseg1 1..16 tseg2 1..8 sjw 1..4 brp 1..64 brp-inc 1 clock 8000000"
+显示CAN控制器的比特时序常量，这里的例子以sja1000为例。时间段（tseg -time segment）1和2的最小和最大值，以tq为单位的同步跳转宽度，比特速率的预分频器（brp--pre-scaler）和CAN系统时钟（以HZ为单位）。这些常量可以被用户空间的比特时序统计算法所使用。
+
+    "re-started bus-errors arbit-lost error-warn error-pass bus-off"
+显示重启的次数、总线和仲裁丢失错误，错误主动（error-warning）、错误被动（error-passive）、和总线关闭的状态变化。接收的过载错误在 统计信息的"overrun"域下面列出。
+
+    6.5.2 设置CAN的比特时序
+
+CAN比特时序参数可以使用硬件无关的定义方法。这些参数是： "tq", "prop_seg", "phase_seg1", "phase_seg2" 和 "sjw":
+
+    $ ip link set canX type can tq 125 prop-seg 6 \
+                    phase-seg1 7 phase-seg2 2 sjw 1
+
+在内核选项CONFIG_CAN_CALC_BITTIMING被使能的情况下，如果比特率（波特率）参数 "bitrate"被设置了，CAN的这些参数将会生效：
+    
+$ ip link set canX type can bitrate 125000 
+
+请注意，这条命令在大部分使用标准波特率的CAN控制器上工作良好，但是使用一些少见的波特率值（如115000）和时钟频率值将会失败。禁用内核的CONFIG_CAN_CALC_BITTIMING选项可以节省一些内存空间并且允许用户空间的命令工具完全的控制比特时序参数。使用CAN控制器的比特时序常量就可以达到这个目的（用户空间控制比特时序）。下面的命令将会列出这些变量：
+
+  $ ip -details link show can0 
+  ... 
+     sja1000: clock 8000000 tseg1 1..16 tseg2 1..8 sjw 1..4 brp 1..64 brp-inc 1 
+
+    6.5.3 启动和停止CAN网络设备
+
+
+一个CAN网络设备可以使用"ifconfig canX up/down" 或者 "ip link set canX up/down"来开启和关闭。为了避免错误的默认值，必须在启动CAN设备之前设置它的比特时序参数：
+
+    $ ip link set canX up type can bitrate 125000
+
+如果总线上出现太多的错误设备可能进入总线关闭状态（也就是从总线脱离）。进入总线关闭状态之后设备不会再发送和接收信息。给"restart-ms"设置一个非零值可以开启总线关闭自动恢复的功能（也就是进入总线关闭状态后重新开启），下面是一个示例：
+    $ ip link set canX type can restart-ms 100
+
+应用程序可以通过监测CAN的错误帧意识到已经进入总线关闭状态，并且可以使用以下命令重启：
+    $ ip link set canX type can restart
+
+注意，重启也会生成一个CAN错误帧（参见3.4节）。
+
+6.6 支持Socket CAN的硬件
+------------------------------
+
+"drivers/net/can"中的“Kconfig”文件中可以查看到所有支持的硬件列表。在CAN套接字项目网站上（参见第7章）有更多驱动何以获得，当然也有对早些时期版本内核的支持 。
+
+7. 学习Socket CAN的相关资源
+===================
+
+你可在BerliOS OSS项目网站的CAN套接字页面中发现更多资源，比如用户空间工具、对旧版内核的支持、更多的驱动、邮件列表等：
+
+    http://developer.berlios.de/projects/socketcan
+
+如果你有任何问题或者发现了BUG，不要迟疑，立马发送邮件到CAN套接字的用户邮件列表。但是在发送之前请首先搜索邮件记录中是否已经有了相同的问题。

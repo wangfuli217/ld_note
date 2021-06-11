@@ -1,0 +1,327 @@
+systemd     systemd由一个叫做单元的概念,它保存了服务、设备、挂载点和操作系统其他信息的配置文件，并能够处理不同单元之间的依赖关系。大部分单元都静态的定义在单元文件中，也有一些是动态生成的。单元有多种状态
+	处于活动的则是（active），当前正在运行
+	停止的则是（inactive），当前已经停止
+	启动中的则是（activing），当前正在启动
+	停止中的则是（deactiving），当前正在停止
+	失败的则是（failed）状态，意思说单元启动过程中遇到错误比如找不到文件、路径或者进程运行中崩溃了等。
+	service单元	用于封装一个后台服务进程，比如通过systemctl start firewalld启动防火墙，这种就属于service单元。
+	socket单元	用于封装一个后台服务进程，比如通过systemctl start firewalld启动防火墙，这种就属于service单元。
+	target单元	用于将多个单元在逻辑上组合在一起让它们同时启动。
+	device单元	用于封装一个设备文件，可用于基于设备启动。并不是每一个设备文件都需要一个device单元，但是每一个被udev规则标记的设备都必须作为一个device单元出现。
+	mount单元	用于封装一个文件系统挂载点（向后兼容/etc/fstab）
+	automount单元	用于封装一个文件系统自动挂载点，只有该文件系统被访问时才会进行挂载，它取代了传统的autofs服务。
+	timer单元	用于封装一个基于时间触发的动作，它取代了atd、crond等计划任务。
+	swap单元	用于封装一个交换分区或者交换文件，它与mount类似。
+	path单元	用于根据文件系统上特定对象的变化来启动其他服务。
+	slice单元	用于控制特定的CGroup内所有进程的总体资源占有。
+	scope单元	它与service单元类似，但是由systemd根据D-bus接口接收到的信息自动创建，可用于管理外部创建的进程。
+	systemd能够处理各种依赖与冲突关系以及先后顺序，依赖与冲突、先后顺序两者之间是独立的。比如service1依赖service2，而且启动service1必须先启动service2,，那么这2个服务将会同时启动。
+	一个单元配置文件只能描述一种单元。
+	当systemd以系统实例运行，那么优先级如下：
+		/lib/systemd/system	本地配置的系统单元			高
+		/run/systemd/system	运行时配置的系统单元		中
+		/usr/lib/systemd/system	软件包安装的系统单元	低
+	注意单元名称的后缀，可以看出是那一类单元。另外，enabled表示被启用的单元并不是说当前在运行，disabled表示被禁用的单元，至于static则表示不能直接启用，它们是被其他单元所依赖的对象。
+	
+在systemd中有一个叫做target的单元，也叫作目标单元。这个单元没有专用的配置选项，它只是以.target结尾的文件，它本身没有具体功能，你可以理解为类别，它的作用就是将一些单元汇聚在一起。通过下面的命令可以查看系统的target单元。
+	systemctl list-unit-file --type=target
+	常见的Target有:
+		basic.target	    启动基本系统，该目标间接包含了所有的本地挂载点单元以及其他必须的系统初始化单元。
+		ctrl-alt-del.target	当在控制台按下Ctrl+Alt+Del组合键时要启动的单元。
+		default.target	    默认的启动目标，通常指向multi-user.target或者graphical.target的目标。
+		graphical.target 	专用于启动图形化登陆界面的目标单元，其中包含了multi-user.target单元。
+		hibernate.target 	专用于系统休眠到硬盘时启动的单元。
+		halt.target      	专用于关闭系统单不切断电源时启动的单元。
+		local-fs.target  	专用于集合本地文件系统挂载点的目标单元。
+		multi-user.target   专用于多用户且为命令行模式下启动的单元。所有用于要在命令行多用户模式下启动的单元，其[Install]段都应该加上
+		WantedBy=multi-user.target指令。
+		reboot.target   	专用于重启系统时需要需要启动的单元。
+		rescure.target  	专用于启动基本系统并打开一个救援shell时需要启动的单元。
+		shutdown.target 	专用于在关机过程中关闭所有的单元。
+		sleep.target    	专用于进入休眠状态的目标单元。
+		timers.target   	专用于包含所有应该在系统启动时被启动的timer单元。
+	
+systemctl	将service和chkconfig命令结合到了一起,在/usr/lib/systemd/目录下,有system和user之分,需要开机不登陆就能运行的程序,存在系统服务里
+	start	服务名  启动某服务
+	restart	服务名	重新启动某服务
+	stop	服务名	停止某服务
+	enable	服务名	开机自动启动
+	disable	服务名	停止开机自动启动
+	status	服务名	查看服务状态
+	list-units  --type=service	查看所有已启动的服务,不加--type=service可以列出所有单元
+	is-enabled	服务名	查看是否开机启动
+	daemon-reload	若修改了某个服务的配置,可以使用此命令
+	每个服务以.service结尾,一般会分为3部分:[Unit] [Service] [Install]
+		Unit: 		
+			Description=	对单元进行简单描述的字符串。 用于UI中紧跟单元名称之后的简要描述文字。 例如 "Apache2 Web Server" 就是一个好例子。 不好的例子： "high-performance light-weight HTTP server"(太通用) 或 "Apache2"(信息太少)。
+			Documentation=	一组用空格分隔的文档URI列表， 这些文档是对此单元的详细说明。 可接受 "http://", "https://", "file:", "info:", "man:" 五种URI类型。 有关URI语法的详细说明，参见 uri(7) 手册。 这些URI应该按照相关性由高到低列出。 比如，将解释该单元作用的文档放在第一个， 最好再紧跟单元的配置说明， 最后再附上其他文档。 可以多次使用此选项， 依次向文档列表尾部添加新文档。 但是，如果为此选项设置一个空字符串， 那么表示清空先前已存在的列表。
+			Requires=		设置此单元所必须依赖的其他单元。 当此单元被启动时，所有这里列出的其他单元也必须被启动。 如果有某个单元未能成功启动，那么此单元也不会被启动。 想要添加多个单元， 可以多次使用此选项， 也可以设置一个空格分隔的单元列表。 注意，此选项并不影响单元之间的启动或停止顺序。 想要调整单元之间的启动或停止顺序， 请使用 After= 或 Before= 选项。 例如，在 foo.service 中设置了 Requires=bar.service 但是并未使用 After= 或 Before= 设定两者的启动顺序， 那么，当需要启动 foo.service 的时候， 这两个单元会被并行的同时启动。 建议使用 Wants= 代替 Requires= 来设置单元之间的非致命依赖关系， 从而有助于获得更好的健壮性， 特别是在某些单元启动失败的时候。
+			Before=			同After
+			After=			强制指定单元之间的先后顺序。 接受一个空格分隔的单元列表。 假定 foo.service 单元 包含 Before=bar.service 设置， 那么当两个单元都需要启动的时候， bar.service 将会一直延迟到 foo.service 启动完毕之后再启动。 注意，停止顺序与启动顺序正好相反， 也就是说， 只有当 bar.service 完全停止后， 才会停止 foo.service 单元。 After= 的含义 与 Before= 正好相反， 假定 foo.service 单元 包含 After=bar.service 设置， 那么当两个单元都需要启动的时候， foo.service 将会一直延迟到 bar.service 启动完毕之后再启动。 注意，停止顺序与启动顺序正好相反， 也就是说， 只有当 foo.service 完全停止后， 才会停止 bar.service 单元。 注意，此选项仅用于指定先后顺序， 与 Requires= 选项没有任何关系。 不过在实践中也经常遇见 将某个单元同时设置到 After= 与 Requires= 选项中的情形。 可以多次使用此选项， 以将多个单元添加到列表中。 假定两个单元之间存在先后顺序(无论谁先谁后)， 并且一个要停止而另一个要启动， 那么永远是"先停止后启动"的顺序。 但如果两个单元之间没有先后顺序， 那么它们的停止和启动就都是相互独立的， 并且是并行的
+			Wants=			此选项是 Requires= 的弱化版。 当此单元被启动时，所有这里列出的其他单元只是尽可能被启动。 但是，即使某些单元不存在或者未能启动成功， 也不会影响此单元的启动。 推荐使用此选项来设置单元之间的依赖关系。注意，此种依赖关系也可以在单元文件之外通过向 .wants/ 目录中添加软连接来设置， 详见前文
+			BindsTo=		与 Requires= 类似， 不同之处在于： 如果这里列出的单元停止运行或者崩溃， 那么也会连带导致该单元自身被停止。 这就意味着该单元可能因为 某个单元的主动退出、某个设备被拔出、某个挂载点被卸载， 而被强行停止。
+			PartOf=			与 Requires= 类似， 不同之处在于：仅作用于单元的停止或重启。 其含义是，当停止或重启这里列出的某个单元时， 也会同时停止或重启该单元自身。 注意，这个依赖是单向的， 该单元自身的停止或重启并不影响这里列出的单元。
+			Conflicts=		指定单元之间的冲突关系。 接受一个空格分隔的单元列表，表明该单元不能与列表中的任何单元共存， 也就是说：(1)当此单元启动的时候，列表中的所有单元都将被停止； (2)当列表中的某个单元启动的时候，该单元同样也将被停止。 注意，此选项与 After= 和 Before= 选项没有任何关系。
+			OnFailure=		接受一个空格分隔的单元列表。 当该单元进入失败("failed")状态时， 将会启动列表中的单元。
+			PropagatesReloadTo=		同下
+			ReloadPropagatedFrom=	接受一个空格分隔的单元列表。 PropagatesReloadTo= 表示 在 reload 该单元时，也同时 reload 所有列表中的单元。 ReloadPropagatedFrom= 表示 在 reload 列表中的某个单元时，也同时 reload 该单元。
+			JoinsNamespaceOf=	接受一个空格分隔的单元列表， 表示将该单元所启动的进程加入到列表单元的网络及 临时文件(/tmp, /var/tmp) 的名字空间中。 如果单元列表中仅有一个单元处于已启动状态， 那么该单元将加入到这个唯一已启动单元的名字空间中。 如果单元列表中有多个单元处于已启动状态， 那么该单元将随机加入一个已启动单元的名字空间中。 此选项仅适用于支持 PrivateNetwork= 与/或 PrivateTmp= 指令的单元 (对加入者与被加入者都适用)。 详见 systemd.exec(5) 手册。
+			RequiresMountsFor=	接受一个空格分隔的绝对路径列表，表示该单元将会使用到这些文件系统路径。 所有这些路径中涉及的挂载点所对应的 mount 单元，都会被隐式的添加到 Requires= 与 After= 选项中。 也就是说，这些路径中所涉及的挂载点都会在启动该单元之前被自动挂载。
+			OnFailureJobMode=	可设为 "fail", "replace", "replace-irreversibly", "isolate", "flush", "ignore-dependencies", "ignore-requirements" 之一。 默认值是 "replace" 。 指定 OnFailure= 中列出的单元应该以何种方式排队。值的含义参见 systemctl(1) 手册中对 --job-mode= 选项的说明。 如果设为 "isolate" ， 那么只能在 OnFailure= 中设置一个单独的单元。
+			IgnoreOnIsolate=	如果设为 yes ， 那么在执行 systemctl isolate another.target 命令时，此单元不会被停止。 默认值是 no 
+			StopWhenUnneeded=	如果设为 yes ， 那么当此单元不再被任何已启动的单元依赖时， 将会被自动停止。 默认值 no 的含义是， 除非此单元与其他即将启动的单元冲突， 否则即使此单元已不再被任何已启动的单元依赖， 也不会自动停止它。
+			RefuseManualStart=  同下
+			RefuseManualStop=	如果设为 yes ， 那么此单元将拒绝被手动启动(RefuseManualStart=) 或拒绝被手动停止(RefuseManualStop=)。 也就是说， 此单元只能作为其他单元的依赖条件而存在， 只能因为依赖关系而被间接启动或者间接停止， 不能由用户以手动方式直接启动或者直接停止。 设置此选项是为了 禁止用户意外的启动或者停止某些特定的单元。 默认值是 no。\AllowIsolate=	如果设为 yes ， 那么此单元将允许被 systemctl isolate 命令操作， 否则将会被拒绝。 唯一一个将此选项设为 yes 的理由，大概是为了兼容SysV初始化系统。 此时应该仅考虑对 target 单元进行设置， 以防止系统进入不可用状态。 建议保持默认值 no
+			DefaultDependencies=	默认值 yes 表示为此单元隐式地创建默认依赖。 不同类型的单元，其默认依赖也不同，详见各自的手册页。 例如对于 service 单元来说， 默认的依赖关系是指： (1)开机时，必须在基础系统初始化完成之后才能启动该服务； (2)关机时，必须在该服务完全停止后才能关闭基础系统。 通常，只有那些在系统启动的早期就必须启动的单元， 以及那些必须在系统关闭的末尾才能关闭的单元， 才可以将此选项设为 no 。 注意，设为 no 并不表示取消所有的默认依赖， 只是表示取消非关键的默认依赖。 强烈建议对绝大多数普通单元保持此选项的默认值 yes 。
+			JobTimeoutSec=				同下
+			JobTimeoutAction=			同下
+			JobTimeoutRebootArgument=	同下
+			JobTimeoutSec=			用于设置该单元等候外部任务(job)完成的最长时限。 如果超时，那么超时的 job 将被撤销，并且该单元将保持其现有状态不变。 对于非 device 单元，此选项的默认值是 "infinity"(永不超时)。 注意，此选项的超时不是指单元自身的超时(例如 TimeoutStartSec= 就是指单元自身的超时)， 而是指该单元在启动或者停止等状态变化过程中，等候某个外部任务完成的最长时限。 换句话说，适用于单元自身的超时设置(例如 TimeoutStartSec=)用于指定单元自身在改变其状态时，总共允许使用多长时间； 而 JobTimeoutSec= 则是设置此单元在改变其状态的过程中，等候某个外部任务完成所能容忍的最长时间。
+			JobTimeoutAction=	用于指定当超时发生时， 将触发什么样的额外动作。 默认值为 none 。 可设置的值与 StartLimitAction= 相同，参见 systemd.service(5) 手册。 JobTimeoutRebootArgument= 用于指定传递给 reboot(2) 系统调用的字符串参数。
+			StartLimitIntervalSec=
+			StartLimitBurst=  设置单元的启动频率限制。 默认情况下，一个单元在10秒内最多允许启动5次。 StartLimitIntervalSec= 用于设置时长， 默认值等于 DefaultStartLimitIntervalSec= 的值(默认为10秒)，设为 0 表示不作限制。 StartLimitBurst= 用于设置在一段给定的时长内，最多允许启动多少次， 默认值等于 DefaultStartLimitBurst= 的值(默认为5次)。 虽然此选项通常与 Restart= (参见 systemd.service(5)) 一起使用， 但实际上，此选项作用于任何方式的启动(包括手动启动)， 而不仅仅是由 Restart= 触发的启动。 注意，一旦某个设置了 Restart= 自动重启逻辑的单元 触碰到了启动频率限制，那么该单元将再也不会尝试自动重启； 不过，如果该单元后来又被手动重启成功的话，那么该单元的自动重启逻辑将会被再次激活。 注意，systemctl reset-failed 命令能够重置单元的启动频率计数器。 系统管理员在手动启动某个已经触碰到了启动频率限制的单元之前，可以使用这个命令清除启动限制。 注意，因为启动频率限制位于所有单元条件检查之后，所以基于失败条件的启动不会计入启动频率限制的启动次数之中。 注意， slice, target, device, scope 单元不受此选项的影响， 因为这几种单元要么永远不会启动失败、要么只能成功启动一次。
+			RebootArgument=	 当 StartLimitAction= 或 FailureAction= 触发关机动作时， 此选项的值就是传递给 reboot(2) 系统调用的字符串参数。 相当于 systemctl reboot 命令接收的可选参数。
+			ConditionArchitecture=,
+			ConditionVirtualization=
+			ConditionHost=
+			ConditionKernelCommandLine=
+			ConditionSecurity=
+			ConditionCapability=
+			ConditionACPower=
+			ConditionNeedsUpdate=
+			ConditionFirstBoot=
+			ConditionPathExists=
+			ConditionPathExistsGlob=
+			ConditionPathIsDirectory=
+			ConditionPathIsSymbolicLink=, ConditionPathIsMountPoint=
+			ConditionPathIsReadWrite=
+			ConditionDirectoryNotEmpty=
+			ConditionFileNotEmpty=
+			ConditionFileIsExecutable= 这组选项用于在启动单元之前，首先测试特定的条件是否为真。 若为真则开始启动，否则将会(悄无声息地)跳过此单元(仅是跳过，而不是进入"failed"状态)。 注意，即使某单元由于测试条件为假而被跳过，那些由于依赖关系而必须先于此单元启动的单元并不会受到影响(也就是会照常启动)。 可以使用条件表达式来跳过那些对于本机系统无用的单元， 比如那些对于本机内核或运行环境没有用处的功能。 如果想要单元在测试条件为假时进入"failed"状态(而不是跳过)， 可以使用对应的另一组 AssertXXX= 选项(见下面)。
+			ConditionArchitecture=	检测是否运行于特定的硬件平台： x86, x86-64, ppc, ppc-le, ppc64, ppc64-le, ia64, parisc, parisc64, s390, s390x, sparc, sparc64, mips, mips-le, mips64, mips64-le, alpha, arm, arm-be, arm64, arm64-be, sh, sh64, m86k, tilegx, cris, native(编译 systemd 时的目标平台)。 可以在这些关键字前面加上感叹号(!)前缀表示逻辑反转。 注意，Personality= 的设置对此选项没有任何影响。
+			ConditionVirtualization=	检测是否运行于(特定的)虚拟环境中： qemu, kvm, zvm, vmware, microsoft, oracle, xen, bochs, uml, openvz, lxc, lxc-libvirt, systemd-nspawn, docker, rkt, vm(某种虚拟机), container(某种容器), yes(某种虚拟环境), no(物理机)。 参见 systemd-detect-virt(1) 手册以了解所有已知的虚拟化技术及其标识符。 如果嵌套在多个虚拟化环境内， 那么以最内层的那个为准。 可以在这些关键字前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionHost=	检测系统的 hostname 或者 "machine ID" 。 参数可以是一个主机名字符串(首尾可加引号界定)， 或者是一个 "machine ID" 格式的字符串(首尾不可加引号)， 参见 machine-id(5) 手册。 可以在字符串前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionKernelCommandLine=	检测是否设置了某个特定的内核引导选项。 参数可以是一个单独的单词，也可以是一个 "var=val" 格式的赋值字符串。 如果参数是一个单独的单词，那么以下两种情况都算是检测成功： (1)恰好存在一个完全匹配的单词选项； (2)在某个 "var=val" 格式的内核引导选项中等号前的 "var" 恰好与该单词完全匹配。 如果参数是一个 "var=val" 格式的赋值字符串， 那么必须恰好存在一个完全匹配的 "var=val" 格式的内核引导选项，才算检测成功。 可以在字符串前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionSecurity=	检测是否启用了特定的安全模块： selinux, apparmor, ima, smack, audit 。 可以在这些关键字前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionCapability=	检测 systemd 的 capability 集合中是否存在特定的 capabilities(7) 。 参数应设为例如 "CAP_MKNOD" 这样的 capability 名称。 注意，此选项不是检测特定的 capability 是否实际可用， 而是仅检测特定的 capability 在绑定集合中是否存在。 可以在名称前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionACPower=	检测系统是否正在使用交流电源。 yes 表示至少在使用一个交流电源， 或者更本不存在任何交流电源。 no 表示存在交流电源， 但是没有使用其中的任何一个。
+			ConditionNeedsUpdate=	可设为 /var 或 /etc 之一， 用于检测指定的目录是否需要更新。 设为 /var 表示 检测 /usr 目录的最后更新时间(mtime) 是否比 /var/.updated 文件的最后更新时间(mtime)更晚。 设为 /etc 表示 检测 /usr 目录的最后更新时间(mtime) 是否比 /etc/.updated 文件的最后更新时间(mtime)更晚。 可以在值前面加上感叹号(!)前缀表示逻辑反转。 当更新了 /usr 中的资源之后，可以通过使用此选项， 实现在下一次启动时更新 /etc 或 /var 目录的目的。 使用此选项的单元必须设置 ConditionFirstBoot=systemd-update-done.service ， 以确保在 .updated 文件被更新之前启动完毕。 参见 systemd-update-done.service(8) 手册。
+			ConditionFirstBoot=	可设为 yes 或 no 。 用于检测 /etc 目录 是否处于未填充的原始状态 (也就是系统出厂后的首次启动)。 此选项可用于系统出厂后，首次开机时执行必要的初始化操作。
+			ConditionPathExists=	检测指定的路径是否存在， 必须使用绝对路径。 可以在路径前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionPathExistsGlob=	与 ConditionPathExists= 类似， 唯一的不同是支持通配符。
+			ConditionPathIsDirectory=	检测指定的路径是否存在并且是一个目录，必须使用绝对路径。 可以在路径前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionPathIsSymbolicLink=	检测指定的路径是否存在并且是一个软连接，必须使用绝对路径。 可以在路径前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionPathIsMountPoint=	检测指定的路径是否存在并且是一个挂载点，必须使用绝对路径。 可以在路径前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionPathIsReadWrite=	检测指定的路径是否存在并且可读写(rw)，必须使用绝对路径。 可以在路径前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionDirectoryNotEmpty=	检测指定的路径是否存在并且是一个非空的目录，必须使用绝对路径。 可以在路径前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionDirectoryNotEmpty=	检测指定的路径是否存在并且是一个非空的目录，必须使用绝对路径。 可以在路径前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionFileNotEmpty=	检测指定的路径是否存在并且是一个非空的普通文件，必须使用绝对路径。 可以在路径前面加上感叹号(!)前缀表示逻辑反转。
+			ConditionFileIsExecutable=	检测指定的路径是否存在并且是一个可执行文件，必须使用绝对路径。 可以在路径前面加上感叹号(!)前缀表示逻辑反转。
+		Service:	是服务的关键,是服务运行的一些具体参数的设置
+			Type= 	下列之一
+				simple  表示ExecStart=进程是该服务的主进程,如果它需要为其他进程提供服务,那么必须在该服务启动前先建立好通信渠道,比如套接字,以加快后续单元的启动速度
+				forking 表示ExecStart=进程将会在启动时使用fork()函数,这是传统Unix的做法,也就是这个进程将由systemd进程fork出来,然后当该进程准备就绪时,systemd进程退出,而fork出来的进程作为服务的主进程继续运行,对于此类型的进程,建议设置PIDFile=选项，以帮助systemd准确定位该服务的主进程
+				oneshot	该进程会在systemd启动后续单元之前退出，适用于仅需要执行一次的程序。比如清理磁盘，你只需要执行一次，不需要一直在后台运行这个程序
+				dbus    该进程需要在D-Bus上获得一个由BusName=指定的名称，systemd将会在启动后续单元之前，首先确保该进程已经成功的获取了指定D-Bus名称。
+				notify  与simple类似，不同之处在于该进程会在启动完成之后通过sd_notify之类的接口发送一个通知消息。systemd在启动后续单元之前，必须确保该进程已经成功地发送了一个消息。
+				idel    与simple类似，不同之处在于该进程将会被延迟到所有操作都完成之后在执行。这样可以避免控制台上的状态信息与shell脚本的输出混在在一起。
+			ReaminAfterExit=	 当该服务的所有进程都退出之后，是否依然将此无视为活动的，默认为no。
+			User=			设置服务运行的用户,既可以设为数字形式的ID也可以设为字符串形式的名称。 如果没有明确设置 Group= 选项，则使用 User= 所属的默认组。 此选项不影响带有 "+" 前缀的命令
+			Group=			设置服务运行的用户组,既可以设为数字形式的ID也可以设为字符串形式的名称。 如果没有明确设置 Group= 选项，则使用 User= 所属的默认组。 此选项不影响带有 "+" 前缀的命令
+			PIDFile				守护进程的PID文件，必须是绝对路径，强烈建议在Type=forking的情况下明确设置此选项。这个路径也不是随便写的，而是你的进程实际的PID文件路径。这样systemd才能正确的读取该文件，但是它不会写入，只是会在服务停止后删除该文件，如果存在的话。
+			GuessMainPID=	    在没有设置PIDFile=值的时候，systemd是否要猜测主进程的PID。默认是yes。
+			ExecStartPre=		在执行ExecStart之前运行的命令。规则与ExecStart=相同
+			ExecStartPost=		在执行ExecStart之后运行的命令
+				对于ExecStartPost= 命令仅在服务已经启动成功之后才会运行，判断的标准基于 Type= 选项。 具体说来，对于 Type=simple 或 Type=idle 就是主进程已经成功启动； 对于 Type=oneshot 来说就是主进程已经成功退出； 对于 Type=forking 来说就是初始进程已经成功退出； 对于 Type=notify 来说就是已经发送了 "READY=1" ； 对于 Type=dbus 来说就是已经取得了 BusName= 中设置的总线名称。注意一下2点：
+				不可将 ExecStartPre= 用于需要长时间执行的进程。 因为所有由 ExecStartPre= 派生的子进程 都会在启动 ExecStart= 服务进程之前被杀死。
+				如果在服务启动完成之前，任意一个 ExecStartPre=, ExecStart=, ExecStartPost= 中无 "-" 前缀的命令执行失败或超时， 那么，ExecStopPost= 将会被继续执行，而 ExecStop= 则会被跳过。
+			ExecStart			设置启动服务是要执行的命令（命令+参数）。命令行必须是一个绝对路径表示可执行文件的位置，后面可以跟多个该命令支持的参数。如果在命令前面加上下面的标志，将会有不同含义:
+				@：表示后面的参数一次传递给被执行的程序
+				-：表示即使该进程以失败状态退出，也会被视为成功退出
+				+：表示该进程拥有超级用户特权
+				如果设置多个ExecStart=那么将依次运行，如果某个没有“-”前缀的命令执行失败，那么后续的ExecStart=将不会执行，同时该单元变为失败（failed）状态。
+				如果没有设置Type=forking时，这里的命令所启动的进程，将被视为该服务的主守护进程。
+			ExecReload=	
+				这是一个可选的指令， 用于设置当该服务被要求重新载入配置时所执行的命令行。 语法规则与 ExecStart= 完全相同。
+				另外，还有一个特殊的环境变量 $MAINPID 可用于表示主进程的PID， 例如可以这样使用：/bin/kill -HUP $MAINPID
+				注意，像上例那样，通过向守护进程发送复位信号， 强制其重新加载配置文件，并不是一个好习惯。 因为这是一个异步操作， 所以不适用于需要按照特定顺序重新加载配置文件的服务。 我们强烈建议将 ExecReload= 设为一个 能够确保重新加载配置文件的操作同步完成的命令行
+			ExecStopPost=
+				这是一个可选的指令， 用于设置在该服务停止之后所执行的命令行。 语法规则与 ExecStart= 完全相同。 注意，与 ExecStop= 不同，无论服务是否启动成功， 此选项中设置的命令都会在服务停止后被无条件的执行。
+				应该将此选项用于设置那些无论服务是否启动成功都必须在服务停止后无条件执行的清理操作。 此选项设置的命令必须能够正确处理由于服务启动失败而造成的各种残缺不全以及数据不一致的场景。 由于此选项设置的命令在执行时，整个服务的所有进程都已经全部结束，所以无法与服务进行任何通信。
+			RestartSec=			设置在重启服务(Restart=)前暂停多长时间。 默认值是100毫秒(100ms)。 如果未指定时间单位，那么将视为以秒为单位。 例如设为"20"等价于设为"20s"
+			TimeoutStartSec=	设置该服务允许的最大启动时长。 如果守护进程未能在限定的时长内发出"启动完毕"的信号，那么该服务将被视为启动失败，并会被关闭。 如果未指定时间单位，那么将视为以秒为单位。
+			TimeoutStopSec=		设置该服务允许的最大停止时长。 如果该服务未能在限定的时长内成功停止， 那么将会被强制使用 SIGTERM 信号关闭， 如果依然未能在相同的时长内成功停止， 那么将会被强制使用 SIGKILL 信号关闭。如果未指定时间单位，那么将视为以秒为单位。 例如设为"20"等价于设为"20s"。 设为 "infinity" 则表示永不超时。
+			RuntimeMaxSec=	    允许服务持续运行的最大时长。 如果服务持续运行超过了此处限制的时长，那么该服务将会被强制终止，同时将该服务变为失败(failed)状态。 注意，此选项对 Type=oneshot 类型的服务无效，因为它们会在启动完成后立即终止。 默认值为 "infinity" (不限时长)。
+			WatchdogSec=		设置该服务的看门狗(watchdog)的超时时长。 看门狗将在服务成功启动之后被启动。 该服务在运行过程中必须周期性的以 "WATCHDOG=1" ("keep-alive ping")调用 sd_notify(3) 函数。 如果在两次调用之间的时间间隔大于这里设定的值， 那么该服务将被视为失败(failed)状态， 并会被强制使用 SIGABRT 信号关闭。 通过将 Restart= 设为 on-failure, on-watchdog, on-abnormal, always 之一， 可以实现在失败状态下的自动重启该服务。 这里设置的值将会通过 WATCHDOG_USEC= 环境变量传递给守护进程， 这样就允许那些支持看门狗的服务自动启用"keep-alive ping"。 如果设置了此选项， 那么必须将 NotifyAccess= 设为 main(此种情况下的隐含默认值) 或 all 。 如果未指定时间单位，那么将视为以秒为单位。 例如设为"20"等价于设为"20s"。 默认值"0"表示禁用看门狗功能。 详见 sd_watchdog_enabled(3) 与 sd_event_set_watchdog(3) 手册。
+			Restart=			当服务进程正常退出、异常退出、被杀死、超时的时候，是否重启系统该服务。进程通过正常操作被停止则不会被执行重启。可选值为：
+				no：默认值，表示任何时候都不会被重启
+				always：表示会被无条件重启
+				no-success：表示仅在服务进程正常退出时重启				
+				on-failure：表示仅在服务进程异常退出时重启				
+				所谓正常退出是指，退出码为“0”，或者到IGHUP, SIGINT, SIGTERM, SIGPIPE 信号之一，并且退出码符合 SuccessExitStatus= 的设置。				
+				所谓异常退出时指，退出码不为“0”，或者被强杀或者因为超时被杀死。
+			ExecStop			停止命令
+			PrivateTmp=true		表示给服务分配独立的临时空间
+			BusName=			设置与此服务通讯所使用的D-Bus名称，如果Type=dbus，则必须设置此项
+			SuccessExitStatus=	额外定义附加的进程"正常退出"状态。 可以设为一系列以空格分隔的数字退出码或者信号名称
+			WorkingDirectory=	设置进程的工作目录。 既可以设为特殊值 "~" 表示 User= 用户的家目录， 也可以设为一个以 RootDirectory= 为基准的绝对路径。 例如当 RootDirectory=/sysroot 并且 WorkingDirectory=/work/dir 时， 实际的工作目录将是 /sysroot/work/dir 。 当 systemd 作为系统实例运行时，此选项的默认值是 / ； 当 systemd 作为用户实例运行时，此选项的默认值是对应用户的家目录。 如果给目录加上 "-" 前缀， 那么表示即使此目录不存在，也不算致命错误。 如果未设置 RootDirectory= 选项， 那么为 WorkingDirectory= 设置的绝对路径 将以主机(或容器)的根目录(也就是运行 systemd 的系统根目录)为基准。 注意，设置此选项将会导致自动添加额外的依赖关系(见上文)。
+			RootDirectory=		设置以 chroot(2) 方式执行进程时的根目录。 必须设为一个以主机(或容器)的根目录(也就是运行 systemd 的系统根目录)为基准的绝对路径。 如果设置了此选项， 必须确保进程及其辅助文件在 chroot() 监狱中确实可用。 注意，设置此选项将会导致自动添加额外的依赖关系(见上文)。
+			Nice=				设置进程的默认谦让值。 可以设为 -20(最高优先级) 到 19(最低优先级) 之间的整数值
+			Environment=	    设置进程的环境变量， 值是一个空格分隔的 VAR=VALUE 列表。 可以多次使用此选项以增加新的变量或者修改已有的变量 (同一个变量以最后一次的设置为准)。 若设为空， 则表示清空先前所有已设置的变量。 注意： (1)不会在字符串内部进行变量展开(也就是"$"没有特殊含义)； (2)如果值中包含空格， 那么必须在字符串两边使用双引号(")界定
+			KillMode=
+				control-group（默认值）：当前控制组里面的所有子进程，都会被杀掉
+				process 				 只杀主进程
+				mixed：					 主进程将收到 SIGTERM 信号，子进程收到 SIGKILL 信号
+				none：					 没有进程会被杀掉，只是执行服务的 stop 命令。
+			EnvironmentFile=	
+					与 Environment= 类似， 不同之处在于此选项是从文本文件中读取环境变量的设置。 文件中的空行以及以分号(;)或井号(#)开头的行会被忽略， 其他行的格式必须符合 VAR=VALUE 的shell变量赋值语法。 行尾的反斜杠(\)将被视为续行符， 这与shell语法类似。 若想在变量值中包含空格， 则必须在值的两端加上双引号(")界定。
+					文件必须用绝对路径表示(可以包含通配符)。 但可在路径前加上"-"前缀表示忽略不存在的文件。 可以多次使用此选项， 以从多个不同的文件中读取设置。 若设为空， 则表示清空所有先前已经从文件中读取的环境变量。
+					这里列出的文件将在进程启动前的瞬间被读取， 因此可以由前一个单元生成配置文件， 再由后一个单元去读取它。
+					从文件中读取的环境变量会覆盖 Environment= 中设置的同名变量。 文件的读取顺序就是它们出现在单元文件中的顺序， 并且对于同一个变量，以最后读取的文件中的设置为准。
+		[Install] 段：这个段包含单元启动信息，只有单元状态为enable或者disabled才会用到这个段，这个段不能出现在单元的.d/*.conf配置文件中。
+			Alias=	启用时使用的别名，可以设为一个空格分隔的别名列表。 每个别名的后缀(也就是单元类型)都必须与该单元自身的后缀相同。 如果多次使用此选项，那么每个选项所设置的别名都会被添加到别名列表中。 在启用此单元时，systemctl enable 命令将会为每个别名创建一个指向该单元文件的软连接。 注意，因为 mount, slice, swap, automount 单元不支持别名，所以不要在这些类型的单元中使用此选项。
+			WantedBy=
+			RequiredBy= 接受一个空格分隔的单元列表， 表示在使用 systemctl enable 启用此单元时， 将会在每个列表单元的 .wants/ 或 .requires/ 目录中创建一个指向该单元文件的软连接。 这相当于为每个列表中的单元文件添加了 Wants=此单元 或 Requires=此单元 选项。 这样当列表中的任意一个单元启动时，该单元都会被启动。 有关 Wants= 与 Requires= 的详细说明， 参见前面 [Unit] 小节的说明。 如果多次使用此选项，那么每个选项的单元列表都会合并在一起。
+						这个选项跟启动级别有关，通常设置的值为mult-user.targe 这是一个target，之后再讲，你只需要知道这相当于启动级别中的多用户默认。
+			Also=		设置此单元的附属单元，可以设为一个空格分隔的单元列表。 表示当使用 systemctl enable 启用 或 systemctl disable 停用 此单元时， 也同时自动的启用或停用附属单元。如果多次使用此选项， 那么每个选项所设置的附属单元列表都会合并在一起。
+			DefaultInstance=	仅对模板单元有意义， 用于指定默认的实例名称。 如果启用此单元时没有指定实例名称， 那么将使用这里设置的名称。
+	
+journalctl  服务日志管理
+	--no-full,--full, -l
+		如果字段内容超长则以省略号(…)截断以适应列宽。 默认显示完整的字段内容(超长的部分换行显示或者被分页工具截断)。
+		老旧的 -l/--full 选项 仅用于撤销已有的--no-full 选项，除此之外没有其他用处。
+	-a, --all
+		完整显示所有字段内容， 即使其中包含不可打印字符或者字段内容超长。
+	-f, --follow
+		只显示最新的日志项，并且不断显示新生成的日志项。 此选项隐含了 -n 选项。
+	-e, --pager-end
+		在分页工具内立即跳转到日志的尾部。 此选项隐含了 -n1000 以确保分页工具不必缓存太多的日志行。 不过这个隐含的行数可以被明确设置的-n 选项覆盖。 注意，此选项仅可用于 less(1) 分页器。
+	-n, --lines=
+		限制显示最新的日志行数。 --pager-end 与 --follow 隐含了此选项。 此选项的参数：若为正整数则表示最大行数； 若为 "all" 则表示不限制行数； 若不设参数则表示默认值10行。
+	--no-tail
+		显示所有日志行， 也就是用于撤销已有的 --lines= 选项(即使与 -f 连用)。
+	-r, --reverse
+		反转日志行的输出顺序， 也就是最先显示最新的日志。
+	-o, --output=
+		控制日志的输出格式。 可以使用如下选项：
+		short
+			这是默认值， 其输出格式与传统的 syslog 文件的格式相似， 每条日志一行。
+		short-iso
+			与 short 类似，只是将时间戳字段以 ISO 8601 格式显示。
+		short-precise
+			与 short 类似，只是将时间戳字段的秒数精确到微秒级别。
+		short-monotonic
+			与 short 类似，只是将时间戳字段的零值从内核启动时开始计算。
+		short-unix
+			与 short 类似，只是将时间戳字段显示为从"UNIX时间原点"(1970-1-1 00:00:00 UTC)以来的秒数。 精确到微秒级别。
+		verbose
+			以结构化的格式显示每条日志的所有字段。
+		export
+			将日志序列化为二进制字节流(大部分依然是文本) 以适用于备份与网络传输(详见 Journal Export Format 文档)。
+		json
+			将日志项按照JSON数据结构格式化， 每条日志一行(详见 Journal JSON Format 文档)。
+		json-pretty
+			将日志项按照JSON数据结构格式化， 但是每个字段一行， 以便于人类阅读。
+		json-sse
+			将日志项按照JSON数据结构格式化，每条日志一行，但是用大括号包围， 以适应 Server-Sent Events 的要求。
+		cat
+			仅显示日志的实际内容， 而不显示与此日志相关的任何元数据(包括时间戳)。
+		--utc
+			以世界统一时间(UTC)表示时间
+		--no-hostname
+			不显示来源于本机的日志消息的主机名字段。 此选项仅对 short 系列输出格式(见上文)有效。
+		-x, --catalog
+			在日志的输出中增加一些解释性的短文本， 以帮助进一步说明日志的含义、 问题的解决方案、支持论坛、 开发文档、以及其他任何内容。 并非所有日志都有这些额外的帮助文本， 详见Message Catalog Developer Documentation 文档。
+			注意，如果要将日志输出用于bug报告， 请不要使用此选项。
+	-q, --quiet
+		当以普通用户身份运行时， 不显示任何警告信息与提示信息。 例如："-- Logs begin at ...", "-- Reboot --"
+	-m, --merge
+		混合显示包括远程日志在内的所有可见日志。
+	-b [ID][±offset],--boot=[ID][±offset]
+		显示特定于某次启动的日志， 这相当于添加了一个 "_BOOT_ID=" 匹配条件。
+		如果参数为空(也就是 ID 与±offset 都未指定)， 则表示仅显示本次启动的日志。
+		如果省略了 ID ， 那么当±offset 是正数的时候， 将从日志头开始正向查找， 否则(也就是为负数或零)将从日志尾开始反响查找。 举例来说， "-b 1"表示按时间顺序排列最早的那次启动， "-b 2"则表示在时间上第二早的那次启动； "-b -0"表示最后一次启动， "-b -1"表示在时间上第二近的那次启动， 以此类推。 如果±offset 也省略了， 那么相当于"-b -0"， 除非本次启动不是最后一次启动(例如用--directory 指定了另外一台主机上的日志目录)。
+		如果指定了32字符的 ID ， 那么表示以此ID 所代表的那次启动为基准 计算偏移量(±offset)， 计算方法同上。 换句话说， 省略ID 表示以本次启动为基准 计算偏移量(±offset)。
+	--list-boots
+		列出每次启动的 序号(也就是相对于本次启动的偏移量)、32字符的ID、 第一条日志的时间戳、最后一条日志的时间戳。
+	-k, --dmesg
+		仅显示内核日志。隐含了 -b 选项以及 "_TRANSPORT=kernel" 匹配项。
+	-t, --identifier=SYSLOG_IDENTIFIER
+		仅显示 syslog 识别符为 SYSLOG_IDENTIFIER 的日志项。
+		可以多次使用该选项以指定多个识别符。
+	-u, --unit=UNIT|PATTERN
+		仅显示属于特定单元的日志。 也就是单元名称正好等于 UNIT 或者符合 PATTERN 模式的单元。 这相当于添加了一个 "_SYSTEMD_UNIT=UNIT" 匹配项(对于UNIT 来说)， 或一组匹配项(对于PATTERN 来说)。
+		可以多次使用此选项以添加多个并列的匹配条件(相当于用"OR"逻辑连接)。
+	--user-unit=
+		仅显示属于特定用户会话单元的日志。 相当于同时添加了 "_SYSTEMD_USER_UNIT=" 与 "_UID=" 两个匹配条件。
+		可以多次使用此选项以添加多个并列的匹配条件(相当于用"OR"逻辑连接)。
+	-p, --priority=
+		根据日志等级(包括等级范围)过滤输出结果。 日志等级数字与其名称之间的对应关系如下 (参见 syslog(3))： "emerg" (0), "alert" (1), "crit" (2), "err" (3), "warning" (4), "notice" (5), "info" (6), "debug" (7) 。 若设为一个单独的数字或日志等级名称， 则表示仅显示小于或等于此等级的日志 (也就是重要程度等于或高于此等级的日志)。 若使用 FROM..TO.. 设置一个范围， 则表示仅显示指定的等级范围内(含两端)的日志。 此选项相当于添加了 "PRIORITY=" 匹配条件。
+	-c, --cursor=
+		从指定的游标(cursor)开始显示日志。 [提示]每条日志都有一个"__CURSOR"字段，类似于该条日志的指纹。
+	--after-cursor=
+		从指定的游标(cursor)之后开始显示日志。 如果使用了 --show-cursor 选项， 则也会显示游标本身。
+	--show-cursor
+		在最后一条日志之后显示游标， 类似下面这样，以"--"开头：
+	-- cursor: s=0639...
+		游标的具体格式是私有的(也就是没有公开的规范)， 并且会变化。
+	-S, --since=,-U, --until=
+		显示晚于指定时间(--since=)的日志、显示早于指定时间(--until=)的日志。 参数的格式类似 "2012-10-30 18:17:16" 这样。 如果省略了"时:分:秒"部分， 则相当于设为 "00:00:00" 。 如果仅省略了"秒"的部分则相当于设为 ":00" 。 如果省略了"年-月-日"部分， 则相当于设为当前日期。 除了"年-月-日 时:分:秒"格式， 参数还可以进行如下设置： (1)设为 "yesterday", "today", "tomorrow" 以表示那一天的零点(00:00:00)。 (2)设为 "now" 以表示当前时间。 (3)可以在"年-月-日 时:分:秒"前加上 "-"(前移) 或 "+"(后移) 前缀以表示相对于当前时间的偏移。 关于时间与日期的详细规范， 参见 systemd.time(7)
+	-F, --field=
+		显示所有日志中某个字段的所有可能值。 [译者注]类似于SQL语句："SELECT DISTINCT 某字段 FROM 全部日志"
+	-N, --fields
+		输出所有日志字段的名称
+	--system, --user
+		仅显示系统服务与内核的日志(--system)、 仅显示当前用户的日志(--user)。 如果两个选项都未指定，则显示当前用户的所有可见日志。
+	-M, --machine=
+		显示来自于正在运行的、特定名称的本地容器的日志。 参数必须是一个本地容器的名称。
+	-D DIR, --directory=DIR
+		仅显示来自于特定目录中的日志， 而不是默认的运行时和系统日志目录中的日志。
+	--file=GLOB
+		GLOB 是一个可以包含"?"与"*"的文件路径匹配模式。 表示仅显示来自与指定的GLOB 模式匹配的文件中的日志， 而不是默认的运行时和系统日志目录中的日志。 可以多次使用此选项以指定多个匹配模式(多个模式之间用"OR"逻辑连接)。
+	--root=ROOT
+		在对日志进行操作时， 将 ROOT 视为系统的根目录。 例如--update-catalog 将会创建 ROOT/var/lib/systemd/catalog/database
+	--new-id128
+		此选项并不用于显示日志内容， 而是用于重新生成一个标识日志分类的 128-bit ID 。 此选项的目的在于 帮助开发者生成易于辨别的日志消息， 以方便调试。
+	--header
+		此选项并不用于显示日志内容， 而是用于显示日志文件内部的头信息(类似于元数据)。
+	--disk-usage
+		此选项并不用于显示日志内容， 而是用于显示所有日志文件(归档文件与活动文件)的磁盘占用总量。
+	--vacuum-size=,--vacuum-time=, --vacuum-files=
+		这些选项并不用于显示日志内容， 而是用于清理日志归档文件(并不清理活动的日志文件)， 以释放磁盘空间。 --vacuum-size= 可用于限制归档文件的最大磁盘使用量 (可以使用 "K", "M", "G", "T" 后缀)； --vacuum-time= 可用于清除指定时间之前的归档 (可以使用 "s", "m", "h", "days", "weeks", "months", "years" 后缀)； --vacuum-files= 可用于限制日志归档文件的最大数量。 注意，--vacuum-size= 对--disk-usage 的输出仅有间接效果， 因为 --disk-usage 输出的是归档日志与活动日志的总量。 同样，--vacuum-files= 也未必一定会减少日志文件的总数， 因为它同样仅作用于归档文件而不会删除活动的日志文件。 此三个选项可以同时使用，以同时从三个维度去限制归档文件。 若将某选项设为零，则表示取消此选项的限制。
+	--list-catalog [128-bit-ID...]
+		简要列出日志分类信息， 其中包括对分类信息的简要描述。
+		如果明确指定了分类ID(128-bit-ID)， 那么仅显示指定的分类。
+	--dump-catalog [128-bit-ID...]
+		详细列出日志分类信息 (格式与 .catalog 文件相同)。
+		如果明确指定了分类ID(128-bit-ID)， 那么仅显示指定的分类。
+	--update-catalog
+		更新日志分类索引二进制文件。 每当安装、删除、更新了分类文件，都需要执行一次此动作。
+	--setup-keys
+		此选项并不用于显示日志内容， 而是用于生成一个新的FSS(Forward Secure Sealing)密钥对。 此密钥对包含一个"sealing key"与一个"verification key"。 "sealing key"保存在本地日志目录中， 而"verification key"则必须保存在其他地方。 详见journald.conf(5) 中的Seal= 选项。
+	--force
+		与 --setup-keys 连用， 表示即使已经配置了FSS(Forward Secure Sealing)密钥对， 也要强制重新生成。
+	--interval=
+		与 --setup-keys 连用，指定"sealing key"的变化间隔。 较短的时间间隔会导致占用更多的CPU资源， 但是能够减少未检测的日志变化时间。 默认值是 15min
+	--verify¶
+		检查日志文件的内在一致性。 如果日志文件在生成时开启了FSS特性， 并且使用 --verify-key= 指定了FSS的"verification key"， 那么，同时还将验证日志文件的真实性。
+	--verify-key=
+		与 --verify 选项连用， 指定FSS的"verification key"
+	--sync
+		要求日志守护进程将所有未写入磁盘的日志数据刷写到磁盘上， 并且一直阻塞到刷写操作实际完成之后才返回。 因此该命令可以保证当它返回的时候， 所有在调用此命令的时间点之前的日志， 已经全部安全的刷写到了磁盘中。
+	--flush
+		要求日志守护进程 将 /run/log/journal 中的日志数据 刷写到 /var/log/journal 中 (如果持久存储设备当前可用的话)。 此操作会一直阻塞到操作完成之后才会返回， 因此可以确保在该命令返回时， 数据转移确实已经完成。 注意，此命令仅执行一个单独的、一次性的转移动作， 若没有数据需要转移， 则此命令什么也不做， 并且也会返回一个表示操作已正确完成的返回值。
+	--rotate
+		要求日志守护进程滚动日志文件。 此命令会一直阻塞到滚动完成之后才会返回。
+	-h, --help
+		显示简短的帮助信息并退出。
+	--version
+		显示简短的版本信息并退出。
+	--no-pager
+        不将程序的输出内容管道(pipe)给分页程序。
+        
+        
+        
+        
+        
+        

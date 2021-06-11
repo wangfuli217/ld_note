@@ -1,0 +1,20 @@
+-- 1) __index和__newindex都是在table中没有所需访问的index时才发挥作用
+-- 2) 为了监视一个table的所有访问, 就应该为真真的table创建一个代理, 这个代理就是一个空的table 
+local index = {}
+local mt = {
+  __index = function(t, k)
+    print('*access to element' .. tostring(k))
+    return t[index][k]    -- 访问原来的table
+  end, 
+  __newindex = function(t, k, v)
+    print('*update of element'..tostring(k)..'to'..tostring(v))
+    t[index][k] = v       -- 更新原来的table
+  end
+}
+function track(t)
+  local proxy = {}
+  proxy[index] = t
+  setmetatable(proxy, mt)
+  return proxy
+end
+-- 这样若有监视table t, 只需要执行t = track(t)

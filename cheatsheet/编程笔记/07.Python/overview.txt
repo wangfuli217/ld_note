@@ -1,0 +1,757 @@
+1. 元祖，列表，字典，字符串
+    元祖(tuple) >
+        初始：a = (1,2,3,4)
+        使用：b = a[1]
+<    列表(list) >
+        初始：a = [1,2,3,4]
+        添加：a += [5];
+        删除：del a[1]
+        使用：b = a[-1] #读取最后一个元素
+        切片：b = a[0:2] #切片第0个数据和第1个数据 => b==[1,2]
+<    字典(dict) >
+        初始：a = {'lq':165, 'hj':158} or a = dict(lq=165, hj=158)
+        添加: a['mv'] = 170
+        删除：del a['hj']
+        使用：a['lq']     => 如果'lq'没有在a里，则抛出异常
+              a.get('lq') => 如果'lq'没有在a里，返回None
+<    字符串(str) >
+        初始：a = 'liqiang' or a = "liqiang" or a = '''liqiang'''
+        添加: a += '-hj'
+        转换：int->str: repr(123) #供解释器读取的形式
+                        str(123)  #适于人阅读的形式
+              str->int: int('123')
+        格式化：a = '0x%02X 0x%02X' % (1, 2)   #a=='0x01 0x02'
+
+2. 以16进制打印bytes或str类型 >
+    >>> ' '.join('%02X' % x for x in b'\x01\x32\x33\x44')
+    '01 32 33 44'
+    >>> ' '.join(hex(ord(x))[2:] for x in '1234')
+    '31 32 33 24'
+
+3. 值传递 和 引用传递 => Python的内存模型
+    - dict和list的直接赋值都是传递引用, 例如： >
+        a = [1,2,3,4,5]
+        b = a
+<        那么a和b都是引用且指向相同的数据区, 改变其中一个, 就会改变另一个
+    - 整形的直接赋值则是值传递
+    - 类的对象也是引用，例如： >
+        class Hal():
+            data = 10
+        a = Hal()
+        b = a
+<       那么a和b都是引用，且指向相同的数据区, 改变其中一个, 就会改变另一个
+    - Python的内存模型是引用计数型指针，当访问list dict class等时会起作用
+      并且如果代码中出现：a = {} 则等价于C语言的：a = malloc(len)
+    - 实现值传递，拷贝目标 (item.copy(), copy.copy(item), copy.deepcopy(item), item={}or[]or()...)
+        浅拷贝 (shallow copy):
+            内置数据结构的copy()方法和copy.copy(item)都是浅拷贝
+            浅拷贝只拷贝结构体的成员，但是还有部分资源是共享的。拷贝不彻底。
+        深拷贝 (deep copy):
+            copy.deepcopy(item)是深拷贝
+            深拷贝就是为了解决浅拷贝拷贝不彻底的问题的，实现彻底拷贝。
+
+4. 找帮助 >
+    help(struct)      #找struct的帮助
+    help(struct.pack) #找struct.pack的帮助
+
+5. dict会自动排序插入的元素, collections.OrderedDict则不会自动排序
+    collections.OrderedDict的使用方法和dict相同
+    但是构造OrderedDict时需要注意，必须使用一下构造方法来实现有序构造: >
+    OrderedDict([('intv_min',0x0800), ('intv_max',0x0800)])
+
+6. 异常 >
+    try: #处理
+        self.dev = Serial(port, baudrate, rtscts)
+        self.dev.setBufferSize(2*1024*1024)
+        raise Exception('send command timeout')
+    except Exception as e: #出现异常
+        print(e)
+    else: #没出现异常
+        print("no Exception")
+    finally: #所有处理结束
+        print("finish")
+
+    #继承异常类，所有的异常都是继承于Exception
+    class FatalException(Exception):
+        def __init__(self, msg):
+            self.msg = msg
+        def __str__(self):
+            return '>>> Fatal Exception >>> ' + self.msg
+
+7. 枚举
+    python3.4加入了enum.IntEnum, 例如： >
+        定义：
+        class cmd_opcode(IntEnum):
+            CMD_DISCONNECT            = (0x0006 + OGF_LC)
+            CMD_READ_REMOTE_VER_INFO  = (0x001D + OGF_LC)
+            CMD_SET_EVENT_MASK        = (0x0001 + OGF_HC)
+            CMD_RESET                 = (0x0003 + OGF_HC)
+
+        引用：(cmd_opcode.CMD_RESET是一个int类型)
+        print(cmd_opcode.CMD_RESET)
+
+8. 二进制打包解包 (struct.pack, struct.unpack)
+    原型： >
+    pack(fmt, v1, v2, ...) -> bytes
+    unpack_from(fmt, buffer, offset=0) -> (v1, v2, ...)
+
+<    例子： >
+    payload = struct.pack('=hbbh', 1, 2, 3, 4)
+    payload = struct.pack('=hbbh', *[1,2,3,4]) #对一个list执行pack操作
+    [a, b, c] = unpack('<BHB', payload[3:7])
+
+<    fmt详解: >
+        The optional first format char indicates byte order, size and alignment:
+          @: native order, size & alignment (default)
+          =: native order, std. size & alignment
+          <: little-endian, std. size & alignment
+          >: big-endian, std. size & alignment
+          !: same as >
+
+        The remaining chars indicate types of args and must match exactly;
+        these can be preceded by a decimal repeat count:
+          x: pad byte (no data);
+          c: char;
+          b: signed byte;
+          B: unsigned byte;
+          ?: _Bool (requires C99; if not available, char is used instead)
+          h: short;
+          H: unsigned short;
+          i: int;
+          I: unsigned int;
+          l: long;
+          L: unsigned long;
+          f: float;
+          d: double.
+          s: string (array of char);
+          p: pascal string (with count byte).
+          n: ssize_t;
+          N: size_t;
+          P: an integer type that is wide enough to hold a pointer.
+          q: long long; Q:unsigned long long
+        Whitespace between formats is ignored.
+
+9. 列表推到式
+    创捷列表的新方法 >
+    1. a = [x*x for x in range(10)]
+    2. a = [x*x for x in range(10) if x%3==0]
+    3. a = [x*y for x in range(10) for y in range(3)]
+
+    第2个展开:
+    for x in range(10):
+        if x%3==0:
+            a += [x*x]
+
+10. 表示 false 含义:
+    False, None, 0, "", (), [], {}
+
+11. 可变形参函数
+    示例： >
+    def func(x, *args, **kargs):
+        print('x:', x)
+        print('args:', args)
+        print('kargs:', kargs)
+
+    func(1, 2, 3, 4, a=1, b=2, c=3)
+
+<    输出： >
+    x: 1
+    args: (2, 3, 4)
+    kargs: {'b': 2, 'c': 3, 'a': 1}
+
+12. 变量
+    python能够改变变量作用域的代码段是def、class、lamda.
+    if/elif/else、try/except/finally、for/while 并不能涉及变量作用域的更改，也就是说他们的代码块中的变量，在外部也是可以访问的
+    变量搜索路径是：本地变量->全局变量
+
+    在def,class,lamda外面的变量是全局变量,
+    在def,class,lamda内部可以直接读全局变量, 但是在这内部修改全局变量的话必须使用global声明。例如:
+    正确做法: >
+    COUNT=1
+    def func1():
+        global COUNT
+        COUNT += 1
+        print(COUNT)
+    def func2():
+        print(COUNT)
+<    错误做法: >
+    COUNT=1
+    def func1():
+        COUNT += 1
+        print(COUNT)
+
+
+13. 继承内置‘常量Class’(int, bytes, tuple, str)
+    内置常量Class一般是没有方法__init__的，因此继承他们的时候应该使用__new__代替。
+    例如:
+        类 *BDAddr*  >
+        class BDAddr(bytes):
+            def __new__(cls, bdaddr):
+                if type(bdaddr) is int:
+                    cls.bdaddr = struct.pack('q', bdaddr)[:6]
+                elif type(bdaddr) is bytes:
+                    cls.bdaddr = bdaddr
+                else:
+                    assert(0)
+                return bytes.__new__(cls, cls.bdaddr)
+            def __str__(self):
+                bdaddr = bytes(self) + b'\x00\x00'
+                [bdaddr] = struct.unpack('q', bdaddr)
+                return '0x%012X' % (bdaddr)
+            def __repr__(self):
+                return self.__str__()
+<        bdaddr = BDAddr(0x010203040506) #输出 >
+        b'\x06\x05\x04\x03\x02\x01'
+<        print(a) #输出 >
+        '0x010203040506'
+
+14. 类内置方法__new__ 和 __init__的区别：
+    - __new__  创建一个新实例，创建self。原型：__new__(cls):return instance。最先被调用。
+    - __init__ 对已经创建的实例进行初始化，使用self。原型：__init__(self)。调用__new__之后再被调用
+    例如：|BDAddr| 类中，__new__创建了类型为bytes的实例作为self, 因此在__init__和__str__中使用的self的基类型就是bytes的
+
+15. 常见类内置方法：
+    __init__(self,...)             初始化对象，在创建新对象时调用
+    __del__(self)                  释放对象，有且仅在对象的引用计数减到0后释放
+    __new__(cls,*args,**kwd)       实例的生成操作
+    __str__(self)                  在使用print语句时被调用
+    __repr__(self)                 比__str__更专业的表达
+    __getitem__(self,key)          获取序列的索引key对应的值，等价于seq[key]
+    __len__(self)                  在调用内联函数len()时被调用
+    __bytes__(self)                调用bytes()时调用
+    __cmp__(stc,dst)               比较两个对象src和dst
+    __getattr__(s,name)            获取属性的值
+    __setattr__(s,name,value)      设置属性的值
+    __delattr__(s,name)            删除name属性
+    __getattribute__()             __getattribute__()功能与__getattr__()类似
+    __gt__(self,other)             判断self对象是否大于other对象
+    __lt__(slef,other)             判断self对象是否小于other对象
+    __ge__(slef,other)             判断self对象是否大于或者等于other对象
+    __le__(slef,other)             判断self对象是否小于或者等于other对象
+    __eq__(slef,other)             判断self对象是否等于other对象
+
+16. __str__ 和 __repr__ 区别 实例
+    类实例: >
+    class Example():
+        def __str__(self):
+            return 'I am STR'
+        def __repr__(self):
+            return 'I am REPR'
+    a = Example()
+    d = {'key': a}
+<    >>> print(a) >
+    'I am STR'
+<    >>> print(d) >
+    {'key': 'I am REPR'}
+
+17. 常用内置函数
+    - 生成索引
+        enumerate() >
+        >>> d = {'a':1,'b':2, 'c':3}
+        >>> for index, key in enumerate(d):
+        >>>    print(index, key)
+        0 c
+        1 a
+        2 b
+<    - 类检查
+        1. type(instance) 返回一个实例所述的类
+        2. issubclass(subclass, parentclass) 检查是否是一个类的子类
+        3. isinstance(instance, class) 检测一个实例是否一个类的实例
+    - 执行字符串
+        exec(string)
+
+
+18. ini文件解析 configparser.ConfigParser
+    device.ini >
+    [tester]
+    port=COM32
+    baudrate=115200
+    rtscts=False
+
+<    解析 >
+    cf = configparser.ConfigParser()
+    cf.read('config/device.ini')
+    if cf.has_section('tester'):
+        try:
+            port     = cf.get('tester', 'port')
+            baudrate = cf.getint('tester', 'baudrate')
+            rtscts   = cf.getboolean('tester', 'rtscts')
+        except (configparser.NoSectionError, configparser.NoOptionError):
+            pass
+
+19. 正则表达式 re
+    语法：
+        匹配：
+            match_object = re.match(pattern, string, flags=0)  ~
+            match_object.group(num=0) #num=0表示全部匹配的，num>0表示匹配到的第几组  ~
+        替换：
+            result = re.sub(pattern, repl, string, count=0, flags=0):  ~
+        搜索：
+            match_object = re.search(pattern, string, flags=0)  ~
+        原始字符串：
+            r'string' 不做任何转译 即使是\ ~
+
+    flags: >
+        re.I: 使匹配对大小写不敏感
+        re.M: 多行匹配，影响 ^ 和 $
+<    pattern: >
+        ^            匹配字符串的开头
+        $            匹配字符串的末尾。
+        .            匹配任意字符，除了换行符，当re.DOTALL标记被指定时，则可以匹配包括换行符的任意字符。
+        [...]        用来表示一组字符,单独列出：[amk] 匹配 'a'，'m'或'k'
+        [^...]       不在[]中的字符：[^abc] 匹配除了a,b,c之外的字符。
+        re*          匹配0个或多个的表达式。
+        re+          匹配1个或多个的表达式。
+        re?          匹配0个或1个由前面的正则表达式定义的片段，贪婪方式
+        re{n}
+        re{n,}       精确匹配n个前面表达式。
+        re{n, m}     匹配 n 到 m 次由前面的正则表达式定义的片段，贪婪方式
+        a| b         匹配a或b
+        (re)         G匹配括号内的表达式，也表示一个组
+        (?imx)       正则表达式包含三种可选标志：i, m, 或 x 。只影响括号中的区域。
+        (?-imx)      正则表达式关闭 i, m, 或 x 可选标志。只影响括号中的区域。
+        (?: re)      类似 (...), 但是不表示一个组
+        (?imx: re)   在括号中使用i, m, 或 x 可选标志
+        (?-imx: re)  在括号中不使用i, m, 或 x 可选标志
+        (?#...)      注释.
+        (?= re)      前向肯定界定符。如果所含正则表达式，以 ... 表示，在当前位置成功匹配时成功，否则失败。但一旦所含表达式已经尝试，匹配引擎根本没有提高；模式的剩余部分还要尝试界定符的右边。
+        (?! re)      前向否定界定符。与肯定界定符相反；当所含表达式不能在字符串当前位置匹配时成功
+        (?> re)      匹配的独立模式，省去回溯。
+        \w           匹配字母数字
+        \W           匹配非字母数字
+        \s           匹配任意空白字符，等价于 [\t\n\r\f].
+        \S           匹配任意非空字符
+        \d           匹配任意数字，等价于 [0-9].
+        \D           匹配任意非数字
+        \A           匹配字符串开始
+        \Z           匹配字符串结束，如果是存在换行，只匹配到换行前的结束字符串。c
+        \z           匹配字符串结束
+        \G           匹配最后匹配完成的位置。
+        \b           匹配一个单词边界，也就是指单词和空格间的位置。例如， 'er\b' 可以匹配"never" 中的 'er'，但不能匹配 "verb" 中的 'er'。
+        \B           匹配非单词边界。'er\B' 能匹配 "verb" 中的 'er'，但不能匹配 "never" 中的 'er'。
+        \n, \t, 等.  匹配一个换行符。匹配一个制表符。等
+        \1...\9      比赛第n个分组的子表达式。
+        \10          匹配第n个分组的子表达式，如果它经匹配。否则指的是八进制字符码的表达式。
+
+<    example: >
+        import re
+        line = "Cats are smarter than dogs";
+        matchObj = re.match( r'(.*) are (.*?) .*', line, re.M|re.I)
+        if matchObj:
+           print "matchObj.group() : ", matchObj.group()
+           print "matchObj.group(1) : ", matchObj.group(1)
+           print "matchObj.group(2) : ", matchObj.group(2)
+        else:
+           print "No match!!"
+
+        以上实例执行结果如下：
+        matchObj.group() :  Cats are smarter than dogs
+        matchObj.group(1) :  Cats
+        matchObj.group(2) :  smarter
+
+20. 文件IO
+    打开文件: file_object = open(file, mode) ~
+    读取行:   line_data = file_object.readline() ~
+              line_list = file_object.readlines() ~
+    写入行:   file_object.writeline(line_data) ~
+              file_object.writelines(line_list) ~
+    读所有:   data = file_object.read() ~
+    写入：    file_object.write(data) ~
+    关闭文件: file_object.close()  ~
+    删除文件: os.remove(path) ~
+    创建目录: os.mkdir(path) ~
+    删除目录: os.rmdir(path) ~
+    递归删除目录下所有文件: shutil.rmtree(path) ~
+    产看文件是否存在: os.path.exists('msc.log') ~
+
+    mode: >
+    'r'       open for reading (default)
+    'w'       open for writing, truncating the file first
+    'x'       create a new file and open it for writing
+    'a'       open for writing, appending to the end of the file if it exists
+    'b'       binary mode
+    't'       text mode (default)
+    '+'       open a disk file for updating (reading and writing)
+    'U'       universal newline mode (deprecated)
+
+<    example: 
+    文本 >
+    f = open('config.ini', 'r')
+    for line in f.readlines():
+        match = re.match(r'^\s*(\w+)\s*$', line)
+        if match:
+            match.group(1)
+    f.close()
+<
+    二进制 >
+    fin  = open('in.bin', 'rb')
+    fout = open('out.bin', 'wb')
+    bin = fin.read() #bin 是bytes类型
+    fout.write(bin)
+<
+
+21. 锁 (自选锁)
+    threading.Lock >
+    lock = threading.Lock()  返回一个新Lock对象，即为一个新锁
+    lock.acquire()           相当于P操作，得到一个锁
+    lock.release()           相当于V操作，释放一个锁
+
+<    threading.Condition >
+    cond = threading.Condition()
+    cond.acquire()           相当于P操作，得到一个锁
+    cond.release()           相当于V操作，释放一个锁
+    cond.wait(timeout=None)
+    cond.notify_all()
+
+22. 线程通信
+    queue.Queue >
+    q = queue.Queue()                       初始化对象
+    q.get(block=True, timeout=None)         获取
+    q.put(item, block=True, timeout=None)   放入
+    q.put_nowait(item)
+    Exception: queue.Empty
+
+<    threading.Event >
+    evt = threading.Event()
+    evt.set()
+    evt.wait()
+
+23. time
+    函数: >
+    time()                    return current time in seconds since the Epoch as a float
+    clock()                   return CPU time since process start as a float
+    sleep()                   delay for a number of seconds given as a float: 1=>1s 0.1=>100ms
+    gmtime()                  convert seconds since Epoch to UTC tuple
+    localtime()               convert seconds since Epoch to local time tuple
+    asctime()                 convert time tuple to string
+    ctime()                   convert time in seconds to string
+    mktime()                  convert local time tuple to seconds since Epoch
+    strftime(format)          convert time tuple to string according to format specification
+    strptime(string, format)  parse string to time tuple according to format specification
+
+<    format: >
+    %Y  Year with century as a decimal number.
+    %m  Month as a decimal number [01,12].
+    %d  Day of the month as a decimal number [01,31].
+    %H  Hour (24-hour clock) as a decimal number [00,23].
+    %M  Minute as a decimal number [00,59].
+    %S  Second as a decimal number [00,61].
+    %z  Time zone offset from UTC.
+    %a  Locale's abbreviated weekday name.
+    %A  Locale's full weekday name.
+    %b  Locale's abbreviated month name.
+    %B  Locale's full month name.
+    %c  Locale's appropriate date and time representation.
+    %I  Hour (12-hour clock) as a decimal number [01,12].
+    %p  Locale's equivalent of either AM or PM.
+
+<    example: >
+    >>> time.strftime("%Y-%m-%d %H:%M:%S")
+    '2015-04-15 15:48:17'
+
+24. 字符串格式化
+    自python2.6开始，新增了一种格式化字符串的函数str.format()，可谓威力十足。
+
+    语法
+        它通过{}和:来代替%。(%: 'length=%d, width=%d' % (15,26) )
+
+    “映射”示例
+        通过位置 >
+            In [1]: '{0},{1}'.format('kzc',18)  
+            Out[1]: 'kzc,18'  
+            In [2]: '{},{}'.format('kzc',18)  
+            Out[2]: 'kzc,18'  
+            In [3]: '{1},{0},{1}'.format('kzc',18)  
+            Out[3]: '18,kzc,18'
+            字符串的format函数可以接受不限个参数，位置可以不按顺序，可以不用或者用多次，不过2.6不能为空{}，2.7才可以。
+<        通过关键字参数 >
+            In [5]: '{name},{age}'.format(age=18,name='kzc')  
+            Out[5]: 'kzc,18'
+<        通过下标 >
+            In [7]: p=['kzc',18]
+            In [8]: '{0[0]},{0[1]}'.format(p)
+            Out[8]: 'kzc,18'
+
+<    格式限定符
+        它有着丰富的的“格式限定符”（语法是{}中带:号），比如：
+        填充与对齐 >
+            填充常跟对齐一起使用
+            ^、<、>分别是居中、左对齐、右对齐，后面带宽度
+            :号后面带填充的字符，只能是一个字符，不指定的话默认是用空格填充
+            比如
+            In [15]: '{:>8}'.format('189')
+            Out[15]: '     189'
+            In [16]: '{:0>8}'.format('189')
+            Out[16]: '00000189'
+            In [17]: '{:a>8}'.format('189')
+            Out[17]: 'aaaaa189'
+<        精度与类型f >
+            精度常跟类型f一起使用
+            In [44]: '{:.2f}'.format(321.33345)
+            Out[44]: '321.33'
+            其中.2表示长度为2的精度，f表示float类型。
+<        进制，b、d、o、x分别是二进制、十进制、八进制、十六进制 >
+            In [54]: '{:b}'.format(17)
+            Out[54]: '10001'
+            In [55]: '{:d}'.format(17)
+            Out[55]: '17'
+            In [56]: '{:o}'.format(17)
+            Out[56]: '21'
+            In [57]: '{:02x}'.format(17)
+            Out[57]: '11'
+<        用,号还能用来做金额的千位分隔符 >
+            In [47]: '{:,}'.format(1234567890)
+            Out[47]: '1,234,567,890'
+
+25: 类似C语言中 ?:
+    max = (a if a > b else b)
+
+26. 线程 threading.Thread
+    方法1 (函数式): >
+    #工作线程
+    def work(args):
+        print('working: ' + args)
+    #创建线程实例
+    obj = threading.Thread(target=work, args='qli', name='qli_work')
+    #开始线程
+    obj.start()
+    #查询线程是否运行
+    obj.isAlive()
+    #等待线程结束
+    obj.join(timeout=None)
+<    方法2 (类式): >
+    #继承
+    class Hci(threading.Thread):
+        def __init__(self):
+            threading.Thread.__init__(self, name='qli_work')
+            #开始
+            self.start()
+        #工作线程
+        def run(self):
+            print('working!')
+
+27. *.py文件中指定python版本
+    首行加入： >
+    #! python3
+    #! python3.4
+<    Window内启动python的更多资料在：https://docs.python.org/3/using/windows.html
+    Window安装多版本python时，必须先安装python2再安装pyhton3
+
+28. py2exe
+    example:
+        cmd: >
+        python setup.py py2exe
+
+<        setup.py >
+        from distutils.core import setup
+        import py2exe
+        import glob
+        setup(  console = ["test.py"],                  # main file
+                zipfile = None,                         # bundle library (.zip) to exe
+                options = {"py2exe":
+                               {"compressed": 1,        # compressed
+                                "optimize": 2,          # optimize for -02
+                                "bundle_files": 1,      # bundle the dll to exe
+                                "dist_dir": 'exe',      # ouput directory
+                                "includes": [HS_INI_MAS_BV_01_C], # extra python source files
+                                }
+                            },                          #py2exe option
+                data_files = [
+                                ("config", glob.glob('config\\*.ini')), #config files
+                            ],                          #extra data files
+                )
+
+29. pyinstaller
+    example:
+        cmd: >
+        $ pyinstaller -F example.py
+        $ pyinstaller --icon file.ico setup.spec
+
+<        setup.spec >
+        # -*- mode: python -*-
+
+        import os
+        import sys
+        import glob
+
+        # Current path as pyinstaller search path
+        sys.path.append(os.path.abspath('.'))
+
+        # In current path model
+        import cases
+
+        # Hidden import model: my *.py file hidden import (use exec() to import)
+        hiddenimports = [HS_INI_MAS_BV_01_C]
+
+        # Pyinstaller onefile ("-F") template
+        a = Analysis(['test.py'],
+                     pathex=['.'],
+                     binaries=None,
+                     datas=None,
+                     hiddenimports=hiddenimports,
+                     hookspath=[],
+                     runtime_hooks=[],
+                     excludes=[],
+                     win_no_prefer_redirects=False,
+                     win_private_assemblies=False,
+                     cipher=None)
+        pyz = PYZ(a.pure,
+                  a.zipped_data,
+                  cipher=None)
+        exe = EXE(pyz,
+                  a.scripts,
+                  a.binaries,
+                  a.zipfiles,
+                  a.datas,
+                  name='test',
+                  debug=False,
+                  strip=False,
+                  upx=True,
+                  console=True)
+
+30. scrapy网络爬虫学习
+
+    文档： https://docs.scrapy.org/
+    安装：pip3 install scrapy
+
+    常用命令： >
+        scrapy crawl name          运行爬虫工程
+        scrapy startproject name   创建一个基本的爬虫工程
+        scrapy shell               使用scrapy shell，用于调试
+<
+    工程文件结构： >
+          scrapy.cfg          基本配置文件
+        ▾ name/               以工程名字为名字的的文件夹
+          ▾ spiders/          爬虫文件夹
+              __init__.py
+              name_spider.py  爬虫文件：用于定义具体的爬的方法，常用xpath进行解析html文件
+            __init__.py
+            items.py          定义需要“爬”的内容
+            middlewares.py    中间件：用于定义代理，防止重复下载等
+            pipelines.py      用于下载
+            settings.py       详细scrapy配置文件
+<
+    运行爬虫时传入参数：
+        使用crawl的 -a 参数来进行参数传递： >
+            scrapy crawl name -a pages=10 -a search=meinv #传入的参数为：pages=10 和 search=meinv
+<        spiders内的*.py里接收参数： >
+            class sisSpider(scrapy.Spider):
+                def __init__(self, search='', pages=100, *args, **kwargs):
+                    super(sisSpider, self).__init__(*args, **kwargs)
+                    ...
+<
+    XPATH：
+        XPATH 运算符： >
+        /                                       此路径运算符出现在模式开头时，表示应从根节点选择。
+        //                                      从当前节点开始递归下降，此路径运算符出现在模式开头时，表示应从根节点递归下降。
+        .                                       当前上下文。
+        ..                                      当前上下文节点父级。
+        *                                       通配符；选择所有元素节点与元素名无关。（不包括文本，注释，指令等节点，如果也要包含这些节点请用node()函数）
+        @                                       属性名的前缀。
+        @*                                      选择所有属性，与名称无关。
+        :                                       命名空间分隔符；将命名空间前缀与元素名或属性名分隔。
+        ( )                                     括号运算符(优先级最高)，强制运算优先级。
+        [ ]                                     应用筛选模式（即谓词，包括""过滤表达式""和""轴（向前/向后）""）
+        [ ]                                     下标运算符；用于在集合中编制索引。
+        |                                       两个节点集合的联合，如：//messages/message/to | //messages/message/cc
+        -                                       减法。
+        div，                                   浮点除法。
+        "and, or"                               逻辑运算。
+        mod                                     求余。
+        not()                                   逻辑非
+        =                                       等于
+        !=                                     不等于
+<
+        XPATH 筛选表达式： >
+        ancestor                                选取当前节点的所有先辈（父、祖父等）
+        ancestor-or-self                        选取当前节点的所有先辈（父、祖父等）以及当前节点本身
+        attribute                               选取当前节点的所有属性
+        child                                   选取当前节点的所有子元素。
+        descendant                              选取当前节点的所有后代元素（子、孙等）。
+        descendant-or-self                      选取当前节点的所有后代元素（子、孙等）以及当前节点本身。
+        following                               选取文档中当前节点的结束标签之后的所有节点。
+        namespace                               选取当前节点的所有命名空间节点
+        parent                                  选取当前节点的父节点。
+        preceding                               直到所有这个节点的父辈节点，顺序选择每个父辈节点前的所有同级节点
+        preceding-sibling                       选取当前节点之前的所有同级节点。
+        self                                    选取当前节点。
+<
+        XPATH 常用表达式实例： >
+        /                                       文档根.
+        /*                                      选择文档根下面的所有元素节点，即根节点（XML文档只有一个根节点）
+        /node()                                 根元素下所有的节点（包括文本节点，注释节点等）
+        /text()                                 查找文档根节点下的所有文本节点
+        /messages/message                       messages节点下的所有message节点
+        /messages/message[1]                    messages节点下的第一个message节点
+        /messages/message[1]/self::node()       第一个message节点（self轴表示自身，node()表示选择所有节点）
+        /messages/message[1]/node()             第一个message节点下的所有子节点
+        /messages/message[1]/*[last()]          第一个message节点的最后一个子节点
+        /messages/message[1]/[last()]           Error，谓词前必须是节点或节点集
+        /messages/message[1]/node()[last()]     第一个message节点的最后一个子节点
+        /messages/message[1]/text()             第一个message节点的所有子节点
+        /messages/message[1]//text()            第一个message节点下递归下降查找所有的文本节点（无限深度）
+        /messages/message[1] /child::node()     第一个message节点下的所有子节点
+        /messages/message[1] /node()
+        //message[@id=1] /node()
+        //message[@id=1] //child::node()        递归所有子节点（无限深度）
+        //message[position()=1]/node()          选择id=1的message节点以及id=0的message节点
+        /messages/message[1] /parent::*         Messages节点
+        //message[@id=0]/ancestor::*            Ancestor轴表示所有的祖辈，父，祖父等。 向上递归
+        //message[@id=0]/ancestor-or-self::*    向上递归,包含自身
+        //message[@id=0]/ancestor::node()       对比使用*,多一个文档根元素(Document root)
+        /messages/message[1]/descendant::node() 递归下降查找message节点的所有节点
+        //message[@id=1]/datetime/@date         查找id=1的message节点的datetime节点的date属性
+        //message[@id=1]/datetime[@date]        查找id=1的message节点的所有含有date属性的datetime节点
+        //message[datetime]                     查找所有含有datetime节点的message节点
+        //message/datetime/attribute::*         返回message节点下datetime节点的所有属性节点
+        //message/datetime/@*
+        //message/datetime[attribute::*]        选择所有含有属性的datetime节点
+        //message/datetime[attribute::node()]
+        //message/datetime[@*]
+        //message/datetime[@node()]
+        //attribute::*                          选择根节点下的所有属性节点
+        //message[@id=0]/body/preceding::node() 顺序选择body节点所在节点前的所有同级节点。（查找顺序为：先找到body节点的顶级节点（根节点）,得到根节点标签前的所有同级节点，执行完成后继续向下一级，顺序得到该节点标签前的所有同级节点，依次类推。）" 注意：查找同级节点是顺序查找，而不是递归查找。
+        //message[@id=1]//*[namespace::amazon]  查找id=1的所有message节点下的所有命名空间为amazon的节点。
+        //namespace::*                          文档中的所有的命名空间节点。（包括默认命名空间xmlns:xml）
+        /messages/message[1]/body/attachments/parent::node()          attachments节点的父节点。父节点只有一个,所以node()和* 返回结果一样。
+        //message[@id=0]/body/preceding-sibling::node()               顺序查找body标签前的所有同级节点。（和上例一个最大的区别是：不从最顶层开始到body节点逐层查找。我们可以理解成少了一个循环，而只查找当前节点前的同级节点）
+        //messages/message[1]//node()
+        /messages/message[1]/sender/following::*                      查找第一个message节点的sender节点后的所有同级节点，并对每一个同级节点递归向下查找。
+        //message[@id=1]/sender/following-sibling::*                  查找id=1的message节点的sender节点的所有后续的同级节点。
+        //message[@id=0]//books/*[local-name()='book']                选择books下的所有的book节点， 注意：由于book节点定义了命名空间<amazone:book>.若写成//message[@id=0]//books/book则查找不出任何节点。
+        //message[@id=0]//books/*[local-name()='book'][year>2006]     选择year节点值>2006的book节点
+        //message[@id=0]//books/*[local-name()='book'][1]/year>2006   指示第一个book节点的year节点值是否大于2006.  返回xs:boolean: true
+        //message[@id=0]//books/*[local-name()='book' and namespace-uri()='http://www.amazon.com/books/schema']   选择books下的所有的book节点，(节点名和命名空间都匹配)
+        /messages/message[1]/body/attachments/parent::* /messages/message[1]/body/attachments/..                  ..也表示父节点. 表示自身节点）
+
+31. readline模块: 让input拥有自动补全和历史记录的功能
+    >
+    import readline
+
+    # Set parse mode
+    readline.parse_and_bind("tab: complete")
+
+    # Read history
+    try:
+        readline.read_history_file('./.history')
+    except IOError:
+        pass
+
+    # Read user commands (The input commands will be recorded by readline automatically)
+    cmd = input('>>>')
+    ...
+
+    # Write history
+    readline.set_history_length(1000)
+    readline.write_history_file('./.history')
+
+32. traceback 追踪异常
+    >
+    import traceback
+
+    try:
+        xxxx
+    except:
+        traceback.print_exc()   # print exception
+        traceback.format_exc()  # return a exception string
+

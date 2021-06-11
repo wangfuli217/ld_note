@@ -1,0 +1,193 @@
+Haskell excels at complex, symbolic computation and as of April 2009 can also handle a great many threads (see update below). 
+Moreover, Haskell has more tools for getting complicated code right: things like QuickCheck, SmallCheck, and the static type system.
+
+
+"functors are the tool to add some structure to an object"
+
+pattern match works only on "CONSTRUCTORS"
+
+instance is kinda like it in OO but different, it's not runtime object
+
+Don't put class constraints on a data type, constraints belong only to the functions that manipulate the data.
+
+prelude merely re-exports a large subset of the funcs exported by Data.List
+
+if you curry the destructor function (either, maybe, foldr, etc) with the data, you get the function with the same type as the Church encoding of that data type.
+
+class constraints in class    declarations are used for making a typeclass a subclass of another typeclasses
+class constraints in instance declarations are used to express requirements about the contents of some type
+
+Sets and maps from Data.Set and Data.Map are implemented using trees
+
+type constructor + type variables = concrete type
+Maybe              a
+
+functor: types that can act like a box
+
+kinds -> type -> value
+
+class Functor f where
+    fmap :: (a -> b) -> f a -> f b      f a / f b mean that wrap a/b to box(conputational context), not func applies on a/b
+
+fmap is func composition, calling fmap on a functor should just map a func over that functor
+
+ghci> :t fmap (replicate 3)  
+fmap (replicate 3) :: (Functor f) => f a -> f [a]
+ghci> fmap (replicate 3) (Just 4)  
+Just [4,4,4]  
+ghci> fmap (replicate 3) (Right "blah")  
+Right ["blah","blah","blah"]  
+ghci> fmap (replicate 3) Nothing  
+Nothing  
+ghci> fmap (replicate 3) (Left "foo")  
+Left "foo"
+
+typeclasses are like interfaces
+
+strong expressing power == less syntax elements, not typing chars
+
+When a function doesn't take any parameters, we usually say it's a definition (or a name). Because we can't change what names (and functions) mean once we've defined them
+[1..20] but [20,19..1], don't apply it to float
+Functions that have type variables are called polymorphic functions
+let bindings are expressions and are fairly local in their scope, they can't be used across guards.
+because I/O code is tainted too, any computation that depends on tainted I/O data will have a tainted result.
+in a do block, the last action cannot be bound to a name
+call show on it and then it will print that string to the terminal using putStrLn implicitly.
+Using return doesn't cause the I/O do block to end in execution
+return  <==>  <-
+
+GHCi is a huge DO env, so 
+a <- return 5
+let a = 5       can't a = 5
+
+curried / composition		double reduce a parameter
+lambda	func			only reduce one in right side
+
+lambda only pattern match once, while where clause could do infinitely
+
+composition func	make func on the fly to pass to other func, sure lambda could also do that
+(.) :: (mid -> result) -> (arg -> mid) -> arg -> result
+f . g = \x -> f $ g x
+
+$ ...	==	(...)
+
+right-associative	. $
+
+make long chain of func-composition is discouraged
+
+import module (func1, func2)	including
+import module hiding (func)	excluding
+
+import qualified Data.Map as M		M.filter / filter
+
+We've already met some of its functions (like map and filter) because the Prelude module exports some functions from Data.List for convenience
+
+when we try to print a value out in the prompt, 
+Haskell first runs the show function to get the string representation of our value and then it prints that out to the terminal
+
+data Shape = Circle Float Float Float | Rectangle Float Float Float Float 
+deriving (Show)
+surface :: Shape -> Float  
+surface (Circle _ _ r) = pi * r ^ 2  
+surface (Rectangle x1 y1 x2 y2) = (abs $ x2 - x1) * (abs $ y2 - y1)
+ghci> Circle 5 6 7	(if no deriving (Show), we could just type 'surface Circle 5 6 7')
+
+[1,2]:[]	[[1,2]]			++	[1,2]		[[1,2]] /= [[1,2], []]
+[1,2]:[[]] 	[[1,2] : []]		++	X
+[1,2]:[3,4] 	X				[1,2,3,4]
+[1,2]:[[3,4]]	[[1,2] : [3,4]]			X
+
+most special pattern will always be the 1st to match
+so "error" must at 1st
+
+[ys | xs <- f, ys <- f xs]
+f deals with every elem in xs, the every result list will be auto concate to a single list ys
+
+f xs = [take n xs, drop n xs]
+  where n = length xs `div` 2		X, in 'n', 'xs' is invisible, use 'let-in' expr
+
+Just to be nitpicking: The FFI does *not* guarantee that Haskell's
+malloc(Bytes)/realloc(Bytes)/free is the same as C's malloc/realloc/free.
+So you should not e.g. use C's free for something allocated via Haskell's
+malloc.
+Apart from that, it may help to remember the following "equations":
+   alloca = malloc + free (exception-safe!)
+   new = malloc + poke
+   with = alloca + poke  = malloc + free + poke = new + free
+Depending on your needs, pooled allocation may an option, too:
+   http://haskell.org/ghc/docs/latest/html/libraries/base/Foreign.Marshal.Pool.html
+In that case, all allocations are belong to a given pool and memory is
+deallocated when the pool in question is. Furthermore:
+   withPool = newPool + freePool (exception-safe!)
+
+succ +=    pred -=
+list    head-last init-tail take-drop length null(is empty?) reverse maximum-minimum sum product elem(is in?) cycle-repeat(infinite)-replicate
+tuple   fst snd
+IO  show a -> "a" read "a" -> a when(Control.Monad) sequence( [IO a]->IO [a] ) mapM(sequence . map f xs)) mapM_ getContents(pipe)
+
+line <- getLine
+if null line
+unwords . words $ line
+
+if DO, if-then-else acts as if expr then IO-action else IO-action
+if True
+    then do ...
+    else return ()         while 'when' could do it
+
+make a func which returns an accelarator
+acc n = \i -> n + i     , it seems like a closure
+
+"never add typeclasses constraints in data declarations"
+data (Ord k) => Map k v = ...   so we have to 
+toList :: (Ord k) => Map k v -> [(k, v)]        , but sometimes we don't compare ks
+so data Map k v = ...   toList :: Map k v -> [(k, v)]
+
+The Show and Read typeclasses are for things that can be converted to or from strings
+ghci> read "Person {firstName =\"Michael\", lastName =\"Diamond\", age = 43}" :: Person  
+Person {firstName = "Michael", lastName = "Diamond", age = 43} 
+the point of show/read isn't display, but convert sth. to STR("...") or vise versa
+Prelude> "nihao"
+"nihao"                 --always has ""
+data Day = Monday | Tuesday | Wednesday | Thursday | Friday | Saturday | Sunday   
+           deriving (Eq, Ord, Show, Read, Bounded, Enum)
+ghci> Wednesday  
+Wednesday  
+ghci> show Wednesday  
+"Wednesday"             --always has ""
+ghci> read "Saturday" :: Day  
+Saturday  
+
+We could have used a Maybe a to represent the result but then we wouldn't know why we couldn't get the code. But now, we have information about the failure in our result type.
+Either a b = Left a | Right b
+
+where       只是语法构造
+let xx in   是语句(expression)，语句就有返回值，可以用在其他语中
+[if 5 > 3 then "Woo" else "Boo", if 'a' > 'b' then "Foo" else "Bar"]  ->    ["Woo", "Bar"]  
+4 * (if 10 > 5 then 10 else 0) + 2  
+4 * (let a = 9 in a + 1) + 2  
+
+TRICK:
+.) any/all instead of and/or of Data.List
+.) on from Data.Function are always used with ..By from Data.List
+
+FUNC:
+flip concatMap group span(break) splitAt enumFromTo inits tails zip7(max, not zip8)
+Data.Ord (comparing) sortBy
+
+
+ERROR:
+Non-exhaustive patterns in function		no pattern match for the one
+user error (Pattern match failure in do expression at ...)	
+		any unmatched control flow in do expr, e.g. Maybe(no Nothing pattern)
+
+Malformed head of type or class declaration
+type list = [Int]   should be type List = [Int]
+
+Prelude> read "2" 
+ERROR: Unresolved overloading 
+*** type : Read a => a 
+*** expression : read "2" 
+Prelude> read "2" :: Int 
+2
+Prelude> read "2" :: Float 
+2.0

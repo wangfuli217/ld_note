@@ -1,0 +1,133 @@
+XFS磁盘配额
+    格式：xfs_quota [ -x ] [ -p prog ] [ -c cmd ] ... [ -d project ] ... [ path ... ]
+    选项：
+        -x : 专家模式
+        -p : 错误消息提示
+        -c : 命令
+        -d : 项目
+
+交互模式
+    ~]# xfs_quota -x /mnt/xfs
+
+非交互式模式-查看帮助
+    ~]# xfs_quota -x -c "help"
+    df [-bir] [-hn] [-f file] -- show free and used counts for blocks and inodes
+    disable [-gpu] [-v] -- disable quota enforcement
+    dump [-gpu] [-f file] -- dump quota information for backup utilities
+    enable [-gpu] [-v] -- enable quota enforcement
+    help [command] -- help for one or all commands
+    limit [-gpu] bsoft|bhard|isoft|ihard|rtbsoft|rtbhard=N -d|id|name -- modify quota limits
+    off [-gpu] [-v] -- permanently switch quota off for a path
+    path [N] -- set current path, or show the list of paths
+    print -- list known mount points and projects
+    project [-c|-s|-C|-d <depth>|-p <path>] project ... -- check, setup or clear project quota trees
+    quit -- exit the program
+    quot [-bir] [-gpu] [-acv] [-f file] -- summarize filesystem ownership
+    quota [-bir] [-gpu] [-hnNv] [-f file] [id|name]... -- show usage and limits
+    remove [-gpu] [-v] -- remove quota extents from a filesystem
+    report [-bir] [-gpu] [-ahnt] [-f file] -- report filesystem quota information
+    restore [-gpu] [-f file] -- restore quota limits from a backup file
+    state [-gpu] [-a] [-v] [-f file] -- get overall quota state information
+    timer [-bir] [-gpu] value -d|id|name -- get/set quota enforcement timeouts
+    warn [-bir] [-gpu] value -d|id|name -- get/set enforcement warning counter
+
+    Use 'help commandname' for extended help.
+更多帮助信息，请参阅
+    ~]# man xfs_quota
+    
+对XFS文件系统启用基于用户和组的配额限制
+    ~]# mount -o uquota,gquota /dev/sdb1 /mnt/xfs
+    OR
+    ~]# echo "/dev/sdb1   /mnt/xfs    xfs    defaults,uquota,gquota  0 0" >>/etc/fstab
+    
+    ~]# useradd user1
+    ~]# chown user1.user1 /mnt/xfs
+    
+    设置用户文件数限制(700)
+    ~]# xfs_quota -x -c 'limit isoft=500 ihard=700 user1' /mnt/xfs/
+    
+    设置组容量限制(500MB)
+    ~]# xfs_quota -x -c 'limit -g bsoft=300m bhard=500m user1' /mnt/xfs/
+    
+    测试
+    ~]# su - user1
+    ~]$ dd if=/dev/zero of=/mnt/xfs/big.bin bs=1M count=501
+    dd: error writing ‘/mnt/xfs/big.bin’: Disk quota exceeded
+    501+0 records in
+    500+0 records out
+    524288000 bytes (524 MB) copied, 0.241775 s, 2.2 GB/s
+    
+    查看
+    ~]# xfs_quota -x -c "report -h" /mnt/xfs/
+
+对XFS文件系统启用基于项目的配额限制
+    限制日志文件目录中的文件只能使用1 GB的空间
+    ~]# mount -o prjquota /dev/xvm/var /var
+    ~]# echo 42:/var/log >> /etc/projects
+    ~]# echo logfiles:42 >> /etc/projid
+    ~]# xfs_quota -x -c 'project -s logfiles' /var
+    ~]# xfs_quota -x -c 'limit -p bhard=1g logfiles' /var
+    
+    不需要配置文件实现
+    ~]# rm -f /etc/projects /etc/projid
+    ~]# mount -o prjquota /dev/xvm/var /var
+    ~]# xfs_quota -x -c 'project -s -p /var/log 42' /var
+    ~]# xfs_quota -x -c 'limit -p bhard=1g 42' /var
+    
+EXT4磁盘配额
+    ~]# yum install quota -y
+    ~]# mount -o usrquota,grpquota /dev/sdb2 /mnt/ext4/
+    OR
+    ~]# echo "/dev/sdb2   /mnt/ext4    ext4    defaults,usrquota,grpquota  0 0" >>/etc/fstab
+    
+    ~]# useradd user4
+    ~]# chown user4.user4 /mnt/ext4
+
+创建配额数据文件
+    ~]# quotacheck -cugm /mnt/ext4/
+    选项：
+        -u : 基于用户的配额文件
+        -g : 基于组的配额文件
+        -c : 创建配额数据文件
+        -v : 显示执行过程信息
+        -a : 检测所有可用的分区
+        -m : 重新创建配额数据文件，会把以前的配额文件清除
+
+设置用户容量限制(500MB，单位KB)
+    ~]# edquota -u user4
+    Disk quotas for user user4 (uid 1001):
+    Filesystem                   blocks       soft       hard     inodes     soft     hard
+    /dev/sdb2                         0       300000     512000        0        0        0
+
+设置组文件数限制(700)
+    ~]# edquota -g user4
+    Disk quotas for user user4 (uid 1001):
+    Filesystem                   blocks       soft       hard     inodes     soft     hard
+    /dev/sdb2                         0       0          0        500        700        0
+
+启用、关闭文件系统的配额功能
+    ~]# quotaon /mnt/ext4		#开启
+    ~]# quotaoff /mnt/ext4		#关闭
+    选项：-a : 所有的
+
+测试
+    ~]# su - user1
+    ~]$ dd if=/dev/zero of=big.bin bs=1M count=501
+    sdb2: warning, user block quota exceeded.
+    sdb2: write failed, user block limit reached.
+    dd: error writing ‘big.bin’: Disk quota exceeded
+    500+0 records in
+    499+0 records out
+    524283904 bytes (524 MB) copied, 0.39388 s, 1.3 GB/s
+
+查看
+    ~]# quota -u user4
+
+
+把user4的信息复制给多个用户
+    ~]# edquota -p user4 user5 user6
+
+设置宽限时间
+    ~]# edquota -t     #全局设置
+    ~]# edquota -T <user/uid>  #针对某个用户，这里面的时间单位只能用 days, hours, minutes, seconds这四种
+    

@@ -1,0 +1,72 @@
+.\" This man page is Copyright (C) 2003, 2010 Lennert Buytenhek.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.TH iv_task 3 2010-08-15 "ivykis" "ivykis programmer's manual"
+.SH NAME
+iv_task_register, iv_task_unregister, iv_task_registered \- deal with ivykis tasks
+.SH SYNOPSIS
+.B #include <iv.h>
+.sp
+.nf
+struct iv_task {
+        void            *cookie;
+        void            (*handler)(void *);
+};
+.fi
+.sp
+.BI "void IV_TASK_INIT(struct iv_task *" task ");"
+.br
+.BI "void iv_task_register(struct iv_task *" task ");"
+.br
+.BI "void iv_task_unregister(struct iv_task *" task ");"
+.br
+.BI "int iv_task_registered(const struct iv_task *" task ");"
+.br
+.SH DESCRIPTION
+The functions
+.B iv_task_register
+and
+.B iv_task_unregister
+register, respectively unregister, a task with the current thread's
+ivykis event loop.
+.B iv_task_registered
+on a task returns true if that task is currently registered with ivykis.
+.PP
+A task is like a timer, but with an immediate timeout.  When a task
+is registered, unless it is unregistered again first, the callback
+function specified by
+.B ->handler
+is guaranteed to be called once, in the thread that the task was
+registered in, some time after control returns to the ivykis main
+loop but before ivykis will sleep for more events, with
+.B ->cookie
+as its first and sole argument.  When this happens, the task is
+transparently unregistered.
+.PP
+Tasks are mainly used for scheduling code for execution where it is not
+appropriate to directly run that code in the calling context (for
+example, because the current context might be run as a callback function
+where the caller expects certain conditions to remain invariant after
+the callback completes).
+.PP
+The application is allowed to change the
+.B ->cookie
+and
+.B ->handler
+members at any time.
+.PP
+A given
+.B struct iv_task
+can only be registered in one thread at a time, and a task can only
+be unregistered in the thread that it was registered from.
+.PP
+There is no limit on the number of tasks registered at once.
+.PP
+See
+.BR iv_examples (3)
+for programming examples.
+.SH "SEE ALSO"
+.BR ivykis (3),
+.BR iv_examples (3)

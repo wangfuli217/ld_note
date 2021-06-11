@@ -1,0 +1,47 @@
+--[[
+  setmetatable(table, metatable)
+  解释：Lua中的这个函数只能设置所给表的元表，
+        如果要想改变其他类型的元表只能在C语言中实现，不能通过lua函数设置，
+        如果第二个参数matetable为nil，则将table的元表设置为空。
+        
+        如果原来table的元表中包含一个"__metatable"字段，那么函数将会抛出一个错误。
+E: nil or table expected
+E: cannot change a protected metatable
+--]]
+
+
+-- 定义一个数字
+local aNumber = 100
+
+-- 定义一个普通的元表
+local tab1 = { 
+    x = 13,
+    y = 36,
+}
+
+-- 设置数字的元表,将会如下错误，为了不影响下面运行，我们就注释掉了
+-- 错误提示：bad argument #1 to 'setmetatable' (table expected, got number)
+-- setmetatable(aNumber, tab1)
+
+-- 没有元表时打印变量
+print("\ntab1.z =", tab1.z)        --  nil
+
+-- 设置元表后打印变量
+local m1 = { z = 36}
+setmetatable(tab1, {__index = m1})
+print("\ntab1.z =", tab1.z)       -- 36
+
+-- 设置元表为空后打印变量
+setmetatable(tab1, nil)
+print("\ntab1.z =", tab1.z)       -- nil
+
+-- 设置为有字段"__metatable"的元表
+setmetatable(tab1, {__index = m1, __metatable = 'I have metatable'})
+print("\ntab1.z =", tab1.z)       -- 36
+
+-- 再次设置元表会报错，因为原来的元表有'__metatable',起到保护作用
+setmetatable(tab1, {__index = m1})   -- cannot change a protected metatable
+
+--[[
+1. 有一种特殊的情况就是当元表中包含'__metatable'的时候，该元表将不能被修改，最后的错误也验证了这一点。
+--]]

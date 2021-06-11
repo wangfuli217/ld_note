@@ -1,0 +1,435 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!-- saved from url=(0035)http://db.tt/ORtPX1Y3 -->
+<!-- 交流QQ群:26651479 -->
+<html>
+<head>
+    <title>编码转换</title>
+    <META http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+</head>
+<body>
+<center>
+    <textarea style="width:48%;height:78%;" rows="30" id="mytext" ></textarea>
+    <textarea style="width:48%;height:78%;" rows="30" id="outtext" readonly='true' ></textarea>
+    <br/><br/>
+
+    <input type="button" value="查看ASCII码" onclick="toAscii();" />
+    <input type="button" value="ASCII解码" onclick="fromAscii();" />
+    <br/>
+
+    <input type="button" value="URL转码" onclick="outputText.value=encodeURIComponent(inputText.value);" />
+    <input type="button" value="URL解码" onclick="try{outputText.value=decodeURIComponent(inputText.value);}catch(e){}" />
+    &nbsp;|&nbsp;
+    <input type="button" value="URL参数查看" onclick="outputText.value=c$.json2str(c$.getRequestParams(inputText.value));" />
+    <input type="button" value="转成URL" onclick="toURL()" />
+    <br/>
+
+    <input type="button" value="Unicode转码" onclick="UnicodeEscape();" />
+    <input type="button" value="Unicode转码(包括符号)" onclick="UnicodeEscape(true);" />
+    <input type="button" value="escape" onclick="outputText.value=escape(inputText.value);" />
+    <input type="button" value="Unicode解码" onclick="UnicodeUnEscape();" />
+    <br/>
+
+    <input type="button" value="HTML转码" onclick="outputText.value=inputText.value.toHtml();" />
+    <input type="button" value="HTML解码" onclick="outputText.value=inputText.value.toText();" />
+    <br/>
+
+    <div id="author" style="color: white"></div>
+</center>
+</body>
+</html>
+
+<script type="text/javascript">
+// 输入框
+var inputText = document.getElementById("mytext");
+// 输出框
+var outputText = document.getElementById("outtext");
+
+// 转码
+// 注意：html的编码是“%u”开头的，但java的却是“\u”开头，所以这里替换了
+function UnicodeEscape(deep) {
+    var str = inputText.value;
+    var tem = "";
+    // 替换中文等 非拉丁文
+    // 注: escape 不会编码的字符：  *  +  -  .  /  @  _  0-9  a-z  A-Z
+    tem = escape(str).replace(new RegExp('%u[0-9a-f]{4}', 'gim'), function(match) {
+        return '\\' + match.substring(1);
+    });
+    // 深转码, 替换英文符号。
+    if (deep === true) {
+        tem = tem.replace(new RegExp('%[0-9a-f]{2}', 'gim'), function(match) {
+            return "\\u00" + match.substring(1);
+        });
+    }
+    // 不转换英文符号时,需还原这些符号
+    else {
+        tem = unescape(tem);
+    }
+    outputText.value = tem;
+}
+
+// 解码
+function UnicodeUnEscape(method) {
+    var str = inputText.value;
+    //百分号替换成斜杠
+    str = str.replace(/\\u/gim, "%u");
+    outputText.value = unescape(str);
+}
+
+// 查看ASCII码
+function toAscii() {
+    var str = inputText.value;
+    var arr = str.split(''); // 将字符串分解成数组
+    for (var i=0, length = arr.length; i < length; i++) {
+        var tem = arr[i].charCodeAt(0);
+        // 处理换行符,换行不转换,以便查看
+        if (tem == 10) arr[i] = '\r\n';  //  \n 符号
+        else if (tem == 13) arr[i] = ''; //  \r 符号
+        // 各编码以空格分隔
+        else if (i < length - 1 && arr[i+1].charCodeAt(0) != 10 && arr[i+1].charCodeAt(0) != 13) arr[i] = tem + ' ';
+        // 如果需要换行,则不加空格
+        else arr[i] = tem;
+    }
+    outputText.value = arr.join('');
+}
+
+// 将输入的ASCII反过来查看
+function fromAscii() {
+    var str = inputText.value;
+    // 字符串按空格或者逗号分隔
+    var str2 = str.replace(/[ ]+|[,]+/gm, ' ').replace(/\n+/gm, ' \n ');
+    // 要求每个输入的都是数值，否则无法处理
+    if ( new RegExp("^[0-9]+$").test(str2.replace(/(\s|\r|\n)/gm, '')) === false ) {
+        window.alert('输入的ASCII码必须每个都是数字,且用空格或者逗号分隔！');
+        return;
+    }
+    var arr = str2.split(' '); // 将字符串分解成数组
+    for (var i=0, length = arr.length; i < length; i++) {
+        var tem = arr[i];
+        // 处理换行符,换行不转换,以便查看
+        if (tem.charCodeAt(0) == 10) arr[i] = '\r\n'; //  \n 符号
+        else if (tem.charCodeAt(0) == 13) arr[i] = ''; //  \r 符号
+        else {
+            var temNum = tem >> 0; // 转成 int 类型
+            arr[i] = String.fromCharCode(temNum);
+        }
+    }
+    outputText.value = arr.join('');
+}
+
+// 转成URL
+function toURL() {
+    try
+    {
+        eval('var data='+inputText.value);
+        outputText.value=c$.toQueryStr(data);
+    }
+    catch(e){
+        alert('必须输入json格式的内容才可以转换！如：\n{a:1,b:"名称"}');
+    }
+}
+
+(function() {
+     var s = "%u4EA4%u6D41QQ%u7FA4%3A26651479%3Cbr/%3E%0A%u4F5C%u8005%3A%u51AF%u4E07%u91CC%26nbsp%3B%26nbsp%3B%0A%u8054%u7CFBQQ%3A292598441";
+     s += "%26nbsp%3B%26nbsp%3B%0A%u90AE%u7BB1%3Adaillow@gmail.com%3Cbr/%3E%0A%u66F4%u65B0%u65F6%u95F4%3A";
+     document.getElementById("author").innerHTML = unescape(s) + new Date(document.lastModified).toLocaleString();
+})();
+
+
+
+/**
+ * <P> Title: JavaScript Util                        </P>
+ * <P> Description: JavaScript 工具                  </P>
+ * <P> Modify: 2013/02/08                            </P>
+ * @author 冯万里
+ * @version 1.0
+ *
+ * 为减少 js 关键词的占用,此工具类只占用“c$”一个关键词;
+ * 使用时用: c$.函数名(参数列表); 或者 c$().函数名(参数列表)
+ * 字符串操作函数、日期操作函数、数组操作函数等,直接增加到 String、Date、Array 类里面,便于直接使用
+ */
+(function(window, undefined) {
+
+var document = window.document,
+	navigator = window.navigator,
+	location = window.location;
+
+/**
+ * 定义 c$ 类
+ */
+c$ = window.c$ = function() {
+    return c$;
+};
+
+/**
+ * 这是错误调试程序
+ * 当页面发生错误时，提示错误讯息；仅测试环境里会提示，正式环境下不提示错误。
+ * 注意：仅IE、fiefox有效,w3c标准里面没有此定义, chrome、opera 和 safari 浏览器不支持此事件
+ */
+window.onerror = function(msg, url, sLine) {
+    var hostUrl = window.location.href;
+    // 判断网址,测试时可以提示出错信息;正式发布时不提示
+    if (hostUrl.indexOf("http://localhost") === 0 || hostUrl.indexOf("http://127.0.0.1") === 0 ||
+        hostUrl.indexOf("http://192.168.") === 0 || hostUrl.indexOf("file://") === 0) {
+        var errorMsg = "当前页面的javascript发生错误.\n\n";
+        errorMsg += "错误: " + msg + "\n";   // 出错信息
+        errorMsg += "URL: " + url + "\n";    // 出错文件的地址
+        errorMsg += "行: " + sLine + "\n\n"; // 发生错误的行
+        errorMsg += "点击“确定”以继续。\n\n";
+        window.alert( errorMsg );
+    }
+    // 返回true,会消去 IE下那个恼人的“网页上有错误”的提示
+    return true;
+};
+
+/**
+ * 去除字符串的前后空格
+ * @return {String} 去除前后空格后的字符串
+ * @example  " dd dd ".trim()  // 返回: "dd dd"
+ */
+String.prototype.trim = function() {
+    var str = this.replace(/^\s+/, ''), // 截取开头
+        end = str.length - 1,
+        ws = /\s/;
+    // 截取结尾(结尾用正则会比较慢)
+    while (ws.test(str.charAt(end))) {
+        end--;
+    }
+    return str.slice(0, end + 1);
+    //return this.replace(new RegExp("(^[\\s　]+)|([\\s　]+$)", "g"), "");
+};
+
+/**
+ * 判断是否以子串开头
+ * @param  {String} sub 被判断的子串
+ * @return {Boolean} 以子串开头则返回 true，否则返回false
+ */
+String.prototype.startWith = function(sub) {
+    if (this == sub || sub == '') return true;
+    return this.length >= sub.length && this.slice(0, sub.length) == sub;
+};
+
+/**
+ * 判断是否以子串结尾
+ * @param  {String} sub 被判断的子串
+ * @return {String} 以子串结尾则返回 true，否则返回false
+ */
+String.prototype.endWith = function(sub) {
+    if (this == sub || sub == '') return true;
+    return this.length >= sub.length && this.slice(0 - sub.length) == sub;
+};
+
+/**
+ * 转换字符串成 Html 页面上显示的编码
+ * @return {String} 转换后的字符串
+ * @example "<div>".toHtml() 返回: "&lt;div&gt;"
+ */
+String.prototype.toHtml = function() {
+    var div = document.createElement('div');
+    var text = document.createTextNode(this);
+    div.appendChild(text);
+    return div.innerHTML;
+};
+
+/**
+ * 转换字符串由 Html 页面上显示的编码变回正常编码(与 toHtml 函数对应)
+ * @return {String} 转换后的字符串
+ * @example "&nbsp;".toText() // 返回: " "
+ */
+String.prototype.toText = function() {
+    var div = document.createElement("div");
+    div.innerHTML = this;
+    return div.innerText || div.textContent || '';
+};
+
+/**
+ * 把时间格式化成字符串
+ * 月(M)、日(d)、12小时(h)、24小时(H)、分(m)、秒(s)、季度(q) 可以用 1-2 个占位符
+ * 年(y)可以用 1-4 个占位符, 周(E)可以用 1-3 个占位符, 毫秒(S)只能用 1 个占位符(是 1-3 位的数字)
+ * @param  {String} format 格式化的字符串(默认为：yyyy-MM-dd HH:mm:ss )
+ * @return {String} 格式化时间后的字符串
+ * @example alert(new Date().format("yyyy-MM-dd HH:mm:ss.S EEE")); // 显示如: "2013-01-29 17:01:13.25 星期二"
+ */
+Date.prototype.format = function(format) {
+    // 默认显示格式
+    format = format || "yyyy-MM-dd HH:mm:ss";
+    var o = {
+        "M{1,2}" : this.getMonth()+1, // 月份  (返回1~12,或者01~12)
+        "d{1,2}" : this.getDate(), // 日期  (返回1~31,或者01~31)
+        "h{1,2}" : this.getHours() % 12 == 0 ? 12 : this.getHours() % 12, // 小时  (返回1~12,或者01~12)
+        "H{1,2}" : this.getHours(), // 小时  (返回1~23,或者01~23)
+        "m{1,2}" : this.getMinutes(), // 分钟  (返回1~59,或者01~59)
+        "s{1,2}" : this.getSeconds(), // 秒  (返回1~59,或者01~59)
+        "q{1,2}" : Math.floor((this.getMonth()+3)/3), // 季度  (返回1~4,或者01~04)
+        "S" : this.getMilliseconds() // millisecond  (返回1~999,或者01~99) 注意，“S”只能写一个
+    }
+    // 年份
+    if (/([y|Y]{1,4})/.test(format)) {
+        format = format.replace(RegExp.$1,(this.getFullYear()+"").substr(4 - RegExp.$1.length));
+    }
+    // 星期
+	if (/(E{1,3})/.test(format)) {
+        var week = { "0" : "\u65e5", "1" : "\u4e00", "2" : "\u4e8c", "3" : "\u4e09", "4" : "\u56db", "5" : "\u4e94", "6" : "\u516d" };
+		format = format.replace(RegExp.$1, ((RegExp.$1.length >= 2) ? (RegExp.$1.length == 3 ? "\u661f\u671f" : "\u5468") : "") + week[this.getDay() + ""]);
+    }
+    // 其余逐个处理
+    for (var k in o) {
+        if (new RegExp("("+ k +")").test(format)) {
+            format = format.replace(RegExp.$1, (RegExp.$1.length == 1 ? o[k] :("00"+ o[k]).substr((""+ o[k]).length)));
+        }
+    }
+    return format;
+};
+
+/**
+ * 分解URL请求参数
+ * @param  {String} href 网址；没有参数时默认使用所在网页的网址
+ * @param  {Boolean} key2lowerCase 是否需要将key转成小写,为true则转成小写，否则不转(默认不干涉)
+ * @return {Object} 返回json形式的参数内容
+ * @example c$.getRequestParams("http://localhost/index.html?d2d=%E5%93%88%E5%93%88&dd=oo111") // 返回对象: {d2d:'哈哈', dd:'oo111'}
+ */
+c$.getRequestParams = function(href, key2lowerCase) {
+    href = href || location.href;
+    href = href.trim();
+    // 传过来是 json 则直接返回
+    if (href.startWith('{') && href.endWith('}')) {
+        try {
+            eval('var result='+href);
+            return result;
+        } catch (e) {}
+    }
+    var result = {};
+    var regex = /(\w+)=([^&]*)/gi;
+    var ms = href.match(regex);
+    if (ms == null) return result;
+
+    for(var i = 0, length = ms.length; i < length; i++) {
+        var ns = ms[i].match(regex);
+        var key = RegExp.$1;
+        key = key2lowerCase ? ("" + key).toLowerCase() : key;
+        try {
+            result[key] = decodeURIComponent(RegExp.$2); // 转码需要完全转
+            result[key] = result[key].replace('+', ' '); // 空格会变成加号
+        }catch(e){}
+    }
+
+    return result;
+};
+
+/**
+ * 把对象格式化成 URL 的参数形式
+ * @param  {Object} obj 需要转成参数的对象
+ * @param  {String} href 网址; 没有网址则只返回格式化后的参数部分,有网址则拼接到网址上(还会修改网址上原有的值)
+ * @param  {Boolean} key2lowerCase 是否需要将key转成小写,为true则转成小写，否则不转(默认不干涉)
+ * @return {String} 返回编码后的字符串
+ * @example
+ *  c$.toQueryStr({d2d:'看看', b:2}, "http://localhost/index.html?d2d=哈哈&dd=oo111") // 返回: "http://localhost/index.html?d2d=%E7%9C%8B%E7%9C%8B&dd=oo111&b=2"
+ *  c$.toQueryStr({d2d:'哈哈', b:2}) // 返回: "d2d=%E5%93%88%E5%93%88&b=2"
+ */
+c$.toQueryStr = function(obj, href, key2lowerCase) {
+    if (!href || typeof href != 'string') {
+        href = "";
+    }
+    // 把网址上的参数拼接到 obj 类里面
+    else {
+        if (!obj || typeof obj != 'object') {
+            obj = c$.getRequestParams(href, key2lowerCase);
+        } else {
+            obj = c$.extend(c$.getRequestParams(href, key2lowerCase), obj);
+        }
+    }
+
+    // 截取出网址(去掉参数部分)
+    var index = href.indexOf("?");
+    if (index > 0) href = href.substring(0, index) + '?';
+
+    var parts = [];
+    for (var key in obj) {
+        key = key2lowerCase ? ("" + key).toLowerCase() : key;
+        parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(obj[key]));
+    }
+    href += parts.join('&');
+    return href;
+};
+
+/**
+ * 类的扩展
+ * @param {Object} destination 被扩展的类
+ * @param {Object} source 要扩展的内容(没有此参数则直接扩展到 c$ 类里面)
+ * @param {Boolean} rewrite 是否重写属性/方法
+ * @return {Object} 扩展后的类(可以不接收参数,原被扩展的类会被修改而引用不变)
+ *
+ * @example
+ *  var a = new Object();
+ *  c$.extend(a, {
+ *      alertStr: function(str){alert(str);}
+ *  });
+ *  a.alertStr('要提示的内容'); // 调用
+ */
+c$.extend = function(destination, source, rewrite) {
+    source = source || this;
+    for (var property in source) {
+        if (rewrite || null == destination[property]) {
+            destination[property] = source[property];
+        }
+    }
+    return destination;
+};
+
+/**
+ * 将 JSON 对象内容转成字符串(注：中文会被url转码, 日期类型会被格式化成字符串)
+ * @param  {Object} obj 被转换的JSON对象
+ * @param  {Boolean} encode 是否需要将key和value使用encodeURI转码
+ * @param  {Boolean} key2lowerCase 是否需要将key转成小写,为true则转成小写，否则不转
+ * @return {String} 返回字符串形式的json内容
+ * @example
+ *    c$.json2str({a:1, b:[1,'2',3], c:'哈哈'}) // 返回字符串: '{"a":1,"b":[1,"2",3],"c":"哈哈"}'
+ *    c$.json2str({a:1, b:[1,'2',3], c:'哈哈'}, true) // 返回字符串: '{"a":1,"b":[1,"2",3],"c":"%E5%93%88%E5%93%88"}'
+ */
+c$.json2str = function (obj, encode, key2lowerCase) {
+    var arr = [];
+    if (obj === '') return '""'; // 空字符串处理
+    // undefined, null, false, 0, NaN, Infinity
+    if (!obj) return "" + obj;
+    var thisFun = arguments.callee;
+    // 转换字符串
+    var format = function(value) {
+        // 对字符串的处理，URI转码, 以便提交数据
+        if (typeof value == 'string') {
+            value = encode ? encodeURIComponent(value) : value;
+            return '"' + value.replace(new RegExp('"', "g"), '\\"') + '"';
+        }
+        // 处理 日期
+        if (value && value.constructor == Date) return '"' + value.format() + '"';
+        // 处理 正则表达式,返回“/^\s+/gi”格式的内容
+        if (value && value.constructor == RegExp) return '' + value;
+        // 处理 数组
+        if (value && value.constructor == Array) {
+            // 使用临时变量，避免修改源数据
+            var temArr = [];
+            for (var i=0; i < value.length; i++) {
+                if (typeof value[i] == 'function') continue; // 自添加的函数,不用转换
+                temArr.push(format(value[i]));
+            }
+            return '[' + temArr.join(',') + ']';
+        }
+        // 如果是 函数
+        if (typeof value == 'function') try { return format(value());}catch(e){ return value + ""; };
+        // 如果是 object, 这里认为是 json，递归调用
+        if (typeof value == 'object' && value != null) return thisFun(value, encode, key2lowerCase);
+        // undefined, null, bool, number 类型，直接返回
+        return value;
+    }
+    // bool, number, string, function, 数组, 日期
+    if (typeof obj != 'object' || obj.constructor == Array || obj.constructor == Date || obj.constructor == RegExp) return format(obj);
+    for (var key in obj) {
+        // 将key转成小写
+        var tem_key = key2lowerCase ? ("" + key).toLowerCase() : key;
+        arr.push('"' + (encode ? encodeURIComponent(tem_key) : tem_key) + '":' + format(obj[key]));
+    }
+    // 为了方便查看
+    return '{\r\n  ' + arr.join(',\r\n  ') + '\r\n}';
+};
+
+
+})(window);
+</script>

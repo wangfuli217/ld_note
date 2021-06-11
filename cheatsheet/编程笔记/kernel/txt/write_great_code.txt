@@ -1,0 +1,255 @@
+digit 数字 手指
+
+2进制  binary  bit
+10进制 decimal digit
+
+8进制适用于12 36位等3倍数的系统
+
+切莫让机器做字符串/数的转换，非常低效，尤其是有符号数或浮点数时
+
+基本上我们不能对binary补码计数系统的最小值取负
+
+小数->大数，只需在高端位添0即可
+
+大数->小数，2种方法：符号缩减；饱和操作（saturation）
+符号缩减：1.必须检查需要丢弃的高端字节，他们必须全0或全$FF,若含其他值则无法缩减。 
+	  2.最终结果的最高位必须与被丢弃的所有为一致。 
+	  在c中，唯一安全的解决方案是将表达式的结果值存储到1个小变量中前，将该结果与某个上下边界的值进行比较
+saturation：将大数剪裁（clip）到小数表示范围内的最大（或者最小值）。剪裁永远不是最好方案，但有时这比产生异常或者终止计算好。诸如音视频领域经clip后结果还是可	    	    分辨的
+
+BCD：每半字节表示1个10进制数，1个字节则表示01-99，而2进制可以表示0-255
+
+binary比decimal提供更好的近似值，binary表示小数是decimal的2.5倍。有些用decimal精确表示的无法用b同样做到，但b是d的6倍
+
+b d都无法表示1/3，3进制可以，但3进制无法准确表示1/2,1/10,所以用rational即真分数是很好的解决方案
+
+位串掩码操作 masking
+
+使用逻辑运算符比if快得多，如a && b || c
+
+left-shift，最高位作为进位，第0位补0
+
+unsigned right-shift同左移无区别，signed时用rotate（也叫算术右移），即最高位（符号位）不变
+
+p54 在移位运算的类型未定的语言中模拟32位的逻辑右移和算术右移
+
+<<快于*，所以尽可能让乘数位2的幂，哪怕牺牲存储空间
+
+cpu操作byte，word，dword时效率最高。若打包 packed，则需要额外instructions将data从位域打解包，还需要时间去执行和额外空间存储这些instructions
+packed != 对齐且慢于后者
+
+c内置对packed data的支持（使用内置的好处是compiler自动处理data的打解包），如下格式定义：
+struct
+{
+	unsigned bits0_3  :4;  /*该field最小分配bits*/
+	unsigned bits4_11  :8;
+	unsigned bits12_15  :4;
+	unsigned bits16_23  :8;
+	unsigned bits24_31  :8;
+} packedData;
+
+compiler会自行决定如何实现上述位域，可以再field间插入bits。但大多数试图尽量减少填充位。所以c/c++的位域声明不可移植。
+
+packed data中，zeroth存取效率最高，所以尽量让各field位于字节边界
+
+float比int精确表示的数少。1个数用2种浮点数方式表达，则意味着这种格式能表示的数少1各
+
+保护位（guard digits；guard bits），提高长串计算时的准确性
+
+float 5准则：
+1.计算顺序影响结果准确性
+2.先乘除后加减
+3.尽量对同数量级做乘除法
+4.减法结果可能比所用的float格式所能支持的精度小
+5.对于2数比较，不能直接==，必须计算2者差，看它是否小于某个很小的误差值 		if( abs( val1 - val2 ) <= error ) then...
+
+float:	1+8阶码+23（+1）尾数（1到2间有无限个数，但能表示的只有8mega，即2的23次方。尾数第24位隐含因为总是1）
+double：1+11+52（+1）
+extended：+16 guard bits  intel 80x86的FPU，将入内存的f或d自动4舍5入到合适大小。所以非intel做float运算时可能精度低
+
+ascii中第5 6位决定所在字符组
+6位		5位		组
+0		0		控制字符
+0		1		数字（与$30-$39对应）+标点
+1		0		大写字符+特殊字符
+1		1		小写字符+特殊字符
+
+intel 80x86 CPU都有64位总线，但只提供32位寄存器，归为32位处理器
+AMD x86-64 都是64位
+
+data bus越大，1次内存操作可以访问更大块的数据
+
+曾经人们认为1mb的总线数据传输速度已经超过任何可能需求。
+2的64次方的地址范围可算是无限，因为宇宙共有2的76次方的例子
+
+80x86支持字节寻址，有些只支持字甚至双字，但假定内存是可字节寻址的软件很多（例如所有c/c++程序），则硬件不支持的用软件模拟字节寻址
+
+32位内存接口的x86 CPU可在1次内存访问中访问任意单个字节，address data上地址总是4倍数。所以字的低端最好在偶数地址，双字的低端字节最好在能够被4整除的地址。
+
+大多RISC要求data访问的大小与data bus 1样，或者与通用整数寄存器大小一样，取2者中较小的。在这样机器上访问byte或word，需要将他们作为打了包的field处理，并使用shift和masking来从dword中提取或者插入byte和word数据。如果想避免为word的访问付出代价，那就用dword数据
+
+little endian byte organization: base从右至左增大，同bits编号增大方向相同。如USB
+big endian byte organization:	网络传输数据通常的标准格式，因为TCP/IP与其他一些网络协议要用大端
+
+system clock是control bus上的一个电气信号，周期性在0 1间变换，其频率是system clock frequency。sc大部分时间都处于0 1，极少时间用来在2者间切换。所以clock edge是perfect sync point
+
+scf不意味着每秒能执行那么多运算，很多运算需要多个scf才能完成
+
+内存访问时间是从cpu将address放到address bus上开始到cpu从data bus上取得data之间的时间
+
+bus clock是cpu速度的1个分数。如，典型的再100mhz到4ghz范围内的处理器可使用66 100 133 400 500 800mhz的clock frequency
+
+cpu不会等内存系统，访问时间用的是bus clock frequency。若内存子系统工作的不够快，跟不上cpu预期的访问时间，cpu在内存读取操作中读到的会是垃圾数据，而在内存写操作中也不能正确存储data，毫无疑问会让系统失效
+
+等待状态时留给设备的1个额外的时钟周期，它给设备额外的时间来响应cpu的请求。而加入等待状态一般会将访问内存需要的时间加倍
+
+temporal locality of reference 引用的时间局部性
+spatial locality of reference  引用的空间局部性
+
+通常，程序只能使用分配到的内存的10%-20%，在任意给定时间，1个1mb的程序可能只会访问到4到8kb的data和code
+
+出现在cache中的各bytes没有固定地址，cache可以动态改变地址，这允许系统将最近访问的数值保存在cache中。
+
+cache miss就是无法再cache中找到data。
+
+如果持续访问之前没有访问过的连续内存的话，在访问内存的时候进行cache并不能加速程序。为解决这个问题，当miss时，cache会读取memory中连续的bytes（这块data被称为cache line）。例如，x86在1次miss出现时读取16-64bytes。这有个重要问题，若读取16bytes，为何要整块读取而非随需而取呢？因为in fact，当今大多数memory都有特殊mode，允许访问chip上连续几个内存位置。cache利用这个功能，减少访问内存位置所需要的等待状态的个数。尽管如果你只访问cache中的部分bytes的话，每次cache miss都读取16bytes比较耗时，但就平均而言，cache system工作得很好。
+
+若某个application需要访问速度慢的内存，选择合适的address mode通常能够允许使用更少的instructions与更少的内存访问来得到同样的结果
+
+内存寻址在指令中可以表示成如下的通用格式：	ADDRESS_OR_OFFSET常数 ( %BASE_OR_OFFSET寄存器 , %INDEX寄存器 , MULTIPLIER常数 )
+它所表示的地址可以这样计算出来：		FINAL ADDRESS = ADDRESS_OR_OFFSET常数 + BASE_OR_OFFSET寄存器 + MULTIPLIER常数 * INDEX寄存器
+在有些寻址方式中会省略这4项中的某些项，相当于这些项是0
+
+直接寻址（Direct Addressing Mode）。只使用ADDRESS_OR_OFFSET寻址，例如movl ADDRESS, %eax把ADDRESS地址处的32位数传送到eax寄存器。把var的内存地址编码为访问这个	 	  var的机器指令的1部分，在x86中，直接地址是附加在指令编码中的32位值，如mov %eax, i; 将EAX值存到变量i中。访问的是在程序执行前就知道地址的var，用直接只	  	  需1条指令就能访问到var的内存地址，如全局静态变量
+
+变址寻址（Indexed Addressing Mode） 。movl data_items(,%edi,4), %eax就属于这种寻址方式。整合direct和indirect，其机器instructions将1个offset（direct address）	  和1个register都编入。cpu计算2部分的和，产生有效地址effective address。instructions比indirect	  	  长，但其优势在于，在ins中指定address，而无需1条单独ins将add装入reg（即indirect的缺点）。cpu通常提供更短的格式在ins中编码8或16bits的offset，此时reg	  提供内存中object的base address，offset提供该data structure内部的1个固定位置量（即base可变而offset固定）。适合访问数组元素和间接访问如structure和record等object。
+
+间接寻址（Indirect Addressing Mode）。只使用BASE_OR_OFFSET寻址，例如movl(%eax), %ebx，把eax寄存器的值看作地址，把这个地址处的32位数传送到ebx寄存器。注意和	  	  movl %eax, %ebx区分开。用register保存内存地址，比DAM的优势是1.可在运行时修改间接地址值；2.表示register存储间接地址的编码尾数比32bits直接地址的编码	  位数少很多，即指令短。缺点是需要额外1到多条指令将地址调入register。访问pointer变量索引的object
+
+基址寻址（Base Pointer Addressing Mode）。只使用ADDRESS_OR_OFFSET和BASE_OR_OFFSET寻址，例如movl 4(%eax), %ebx，例如一个结构体的基	  	  地址保存在eax寄存器中，其中一个成员在结构体内的偏移量是4字节，要把这个成员读上来就可以用这条指令。用于访问结构体成员。
+
+立即数寻址（Immediate Mode）。就是指令中有一个操作数是立即数，例如movl $12,%eax中的$12，这其实跟寻址没什么关系，但也算作一种寻址方式。
+
+寄存器寻址（Register Addressing Mode）。就是指令中有一个操作数是寄存器，例如movl $12, %eax中的%eax，这跟内存寻址没什么关系，但也算作一种寻址方式。在汇编程序	    	    中寄存器用助记符来表示，在机器指令中则要用几个Bit表示寄存器的编号，这几个Bit也可以看作寄存器的地址，但是和内存地址不在一个地址空间。
+
+pointer实际是内存地址的abstraction，因此语言可以使用将pointer的值映射到内存中object address的机制定义pointer
+
+能用软件实现的任何arithmetic，都可以用硬件直接实现，但用微处理器+soft实现要便宜的多。现代系统中assembly主要用途就是作为复杂电子线路的廉价替代品。嵌入式系统这领域就是处理这个问题的。嵌入式系统式嵌入在其他产品中的计算机系统
+
+seven-segment decoder  即最常用的7段式LED解码器
+
+解码电路还可以用开解码机器指令
+
+组合电路的1大问题在于它是无记忆的。理论上，所有的逻辑函数的输出进依赖当前的输入。输入值的任何变化立刻体现在输出上。但是计算机需要记住先前计算结果的能力，这就是时序sequential，或者说中控逻辑clocked logic大显身手的领域
+
+intel x86 cpu的ins长度范围是1到大约15bytes
+
+每条ins需要多个步骤，每步骤可近似看做1个clock frequency。则步骤越多，ins越慢
+
+并行-提高处理速度的关键
+
+cpu不能再1个ins的各步骤间共享某些资源，即data hazard。
+
+比如执行move时，cpu并未在所有步骤都访问memory，如在存储data到aim reg时bus是空闲的。在bus空闲时，我们可以预取并存储下条ins的操作码与操作数。完成这功能的硬件是预取sequence，总线接口单元（Bus Interface Unit， BIU）负责控制对address和data bus的访问，处理来自不同模块，如execution unit与预取sequence的同时发生的bus访问请求。cpu的某个部件需要访问memory时，都发送request给BIU。当execution unit不使用BIU时，BIU从内存中取得其他的包含机器ins的data并存储到预取sequence。当cpu需要ins码或操作数时，可以从sequence获取下个可用的byte。Biu每次可从memory取多个bytes，还因为每个clock frequency从sequence消耗的bytes数要少于存在于sequence的bytes数，因此通常ins都会值sequence中供cpu使用
+
+ins越大，cpu去空sequence的速度越快。包含const和memory操作数的ins一搬是最大的。若连续execute很多这样ins，结果是cpu have to wait，因为它从sequence移出ins的速度比BIU复制data到sequence的速度快，所以尽量使用短ins有助改善sequence性能（因为sequence大小一定，ins越大，占体积越大，则sequence中ins数目越少）
+
+cpu大多取内存中连续data，因此在预取队列中存储data的却可以节省时间。jump和conditional-jump ins会使预取队列失效，因此跳转ins确实将控制转交到目标位置时，它们执行得比其他ins慢。某次跳转ins后可能需要几个clock frequency才能recover预取sequence的content。
+
+write faster codes，avoid jumping
+
+各种conditional-jump ins只有在确实将控制转移到目标位置的情况下才会让预取sequence失效。若condition不成立，则继续execute next ins，while 预取sequence保持available。so 让最可能的情况下程序excute下条ins而不是jump到别的address
+
+预取sequence的优势在于允许cpu重叠ins操作码的取指与解码和其他ins的execute。1条ins execute时，BIU正在获取并解码下条ins
+
+流水线pipeline：取指 解码 取址 取值 计算 存值
+
+在pipeline system中，跳转ins越少越好
+
+ins越短，装入cache的ins越多，ins越多，bus争用的frequency越低。用reg保存temporary result减少了给data cache的压力，使得data cache无需频繁刷新data到内存中或者从内存中读取data
+
+有些CISC，如x86，会自动处理data hazard，即让pipeline等待需要的data，但有些RISC不会这么做，结果就是得到错误值
+
+data hazard原因：1条ins的源操作数时前条ins的目标操作数。
+
+pipeline中，ins顺序影响程序性能。为了让data hazard尽量小影响，在data hazard的前后2ins中插入无关的可并行处理的ins如：
+mov 2, ecx;
+mov someVar, ebx;
+mov [ebx], eax;
+改成：
+mov someVar, ebx;
+mov 2, ecx;
+mov [ebx], eax;
+
+好的cpu可以做到out-of-order execution，即无需编码时人为安排
+
+x86系列从奔腾开始支持超标量superscalar execute，即cpu中含额外的多个独立单元，使同时间内可进行多个步骤，以致提高CPI clock per instruction。不过其硬件限制是x86有限的reg数量，解决方案是reg rename，即把EAX等变为EAX[0] EAX[1] EAX[2]等。但programmer不能直接访问这些renamed reg，cpu可在某些情况下用它们来avoid data hazard
+如：
+mov 0, eax[0];
+mov eax[0], i;
+mov 50, eax[1];
+mov eax[1], j;
+
+与superscalar达到同样效果的另方法是甚长指令字VLIW very long instruction words，intel在IA-64中用。cpu每次取很大的data block（安腾是41位，含3条ins），1次解码并execute，其中包含多个ins。VLIW要求programmer或compiler合理安排block中ins，不允许任何data hazard或其他hazard。Transmeta的Crusoe也是这样。intel及其他半导体商认为这是未来trend
+
+细粒度并行fine-grained parallelism：pipeline superscalar out-of-order execute VLIW都是cpu designer用来并行execute多个操作的技术，对于在系统中加速相邻ins非常有用
+
+粗粒度并行coarse-grained parallelism：添加更多功能单元，如加个cpu，被称为multiprocessing。2个cpu不可能交替用于execute单一程序中ins，因为将程序ins从处理器切换至另个处理器代价很高很耗时。新奔4及Xeon处理器支持multiprocessor的变种--超线程hyperthreading，其背后concept很easy--superscalar中少有程序ins在每个clock frequency都用cpu function unit completely，与其让它们闲着，不如让cpu运行2个独立thread，保证所有cpu单元运转。这样允许单个cpu完成1.5个cpu的工作
+
+RISC比intel明显优势的realm是在1个系统中支持多个处理器的能力。x86在大约16个处理器的时候达到收益递减点point of diminishing return，但Sun的 SPARC及其他RISC很容易支持64 cpu，而且每天还在增长。这是huge database即大型web server用昂贵的Unix的RISC而非x86的原因
+
+将操作码划分成多field利于编码
+
+CISC支持变长ins（在direct address mode中把32bits地址码转为8bits，以致寻址范围从-128到127），虽然能产生更短的程序，但变长ins的解码比定长稍复杂--解码前cpu必须先解码ins的长度，这个额外步骤消耗了时间而且可能让解码引入延迟而影响cpu的整体性能，并且限制了cpu的最高时钟速度（因为延迟延长时钟周期，因此减少cpu的clock frequency）。变长ins的另个问题是使得pipeline解码多个ins变得困难，因为cpu难判断预取sequence中各个ins的edge。
+
+Although the L1 cache size is fixed on the CPU, the cost per cache byte is much lower than the cost per register byte because the cache contains more storage than is available in all the combined registers, and the system designer's cost of both memory types is the price of the CPU
+
+NUMA, which stands for Non-Uniform Memory Access, is a bit of a misnomer. The term NUMA implies that different types of memory have different access times, and so it is descriptive of the entire memory hierarchy.A good example of NUMA memory is the memory on a video display card. Another example is flash memory
+
+Virtual memory, file storage, and network storage are examples of so-called online memory subsystems. Memory access within these memory subsystems is slower than accessing the main-memory subsystem. However, when a program requests data from one of these three memory subsystems, the memory device will respond to the request as quickly as its hardware allows. This is not true for the remaining levels in the memory hierarchy.
+
+access to these levels of the memory hierarchy usually occurs without any intervention on a program's part. Programs simply access main memory, and the hardware and operating system take care of the rest
+
+CPU rarely accesses main memory directly.
+
+cache：Direct-Mapped Cache; Fully Associative Cache; n-Way Set Associative Cache
+
+The more cache lines we have in each cache-line set, the closer we come to creating a fully associative cache, with all the attendant problems of complexity and speed. Most cache designs are direct-mapped, two-way set associative, or four-way set associative. The various members of the 80x86 family make use of all three.
+
+the direct-mapped cache is very good for data that you access in a sequential rather than random fashion. Because the CPU typically executes instructions in a sequential fashion, instruction bytes can be stored very effectively in a direct-mapped cache. However, because programs tend to access data more randomly than code, a two-way or four-way set associative cache usually makes a better choice for data accesses than a direct-mapped cache.
+
+Cache Line Replacement Policies:对于DMC，直接刷新data；对于2WSAC，cpu判断哪条条最近不常用，则更新这条
+
+Clearly any data written to the cache must ultimately be written to main memory as well.
+方案有2(software设置写策略也是可能，不过只能是BIOS或OS)：
+write-back：cache收到cpu的data后immediately写入memory
+write-through：维护dirty bit，在memory写data入cache line时检查这个，若有db，则先把data写入m，这样增加Cache Line Replacement的等待时间。若系统在检查db前就写入	               m，则可消除这个时间。该特性由系统提供。有些系统不提供是经济原因
+
+thrashing：each memory access incurs the latency cost of bringing in a cache line from main memory
+
+place oft-used variables in adjacent memory cells so those variables tend to fall into the same cache lines
+
+modern 80x86 CPUs is that it automatically handles many misaligned data references. As you may recall, there is a penalty for accessing words or double-word objects at an address that is not an even multiple of that object's size. As it turns out, by providing some fancy logic, Intel's designers have eliminated this penalty as long as the data object is located completely within a cache line. However, if the object crosses a cache line, there will be a performance penalty for the memory access.
+
+Virtual memory on CPUs such as the 80x86 gives each process its own 32-bit address space. [3] This means that address $1000 in one program is physically different from address $1000 in a separate program.
+
+The CPU achieves this sleight of hand by mapping the virtual addresses used by programs to different physical addresses in actual memory. The virtual address and the physical address don't have to be the same, and usually they aren't. For example, program 1's virtual address $1000 might actually correspond to physical address $215000, while program 2's virtual address $1000 might correspond to physical memory address $300000. How can the CPU do this? Easy, by using paging.
+
+paging：you break up memory into blocks of bytes called pages. A page in main memory is comparable to a cache line in a cache subsystem, although pages are usually much larger than cache lines. For example, the 80x86 CPUs use a page size of 4,096 bytes.
+
+virtual高端20位map到物理高端位，即页间区分，virtual低端12位作页内区分
+
+using a page table - it requires two separate memory accesses in order to retrieve the data stored at a single physical address in memory: one to fetch a value from the page table, and one to read from or write to the desired memory location.
+
+To prevent cluttering the data or instruction cache with page-table entries, which increases the number of cache misses for data and instruction requests, the page table uses its own cache, known as the translation lookaside buffer (TLB).
+
+Thrashing：
+1.Insufficient memory at a given level in the memory hierarchy to properly contain the program working sets of cache lines or pages
+2.A program that does not exhibit locality of reference
+
+To reduce thrashing when locality of reference is causing the problem, you should restructure your program and its data structures to make its memory references physically near one another.
+
+avoid locality of reference：
+1.try to declare together all variables you use within a common code sequence
+2.allocate local variables within a procedure, because most languages allocate local storage on the stack and, as the system references the stack frequently,   variables on the stack tend to be in the cache
+3.declare your scalar variables together, and separate from your array and record variables

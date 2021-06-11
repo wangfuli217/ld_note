@@ -1,0 +1,47 @@
+--[[
+io.close() ## io.close() again then throw exception
+
+原型：io.close ([file])
+解释：这个函数等价于file:close()，-- io.close(file)
+      如果省略参数file的话，那么就表示关闭默认输出文件。 -- io.close()
+      函数file:close()也是用来关闭文件的，只是调用形式有所不同。 -- file:close()
+      另外当文件描述符被垃圾回收时，对应的文件也会自动关闭，但是这个时间是不确定的。-- garbage collect
+E: attempt to use a closed file
+--]]
+
+local file = io.open("iotest.txt","r")
+print("\nopen a file:")
+print(file)
+
+-- 关闭打开的文件  -- io.close(file)
+local ret = io.close(file);
+print("\nclose file ret:")
+print("io.close(file) == "..tostring(ret))
+
+local filenew = io.open("iotest.txt","r")
+print("\n\nopen a file again:")
+print(filenew)
+
+-- 换种方式再次关闭打开的文件 -- filenew:close()
+local retagain = filenew:close();
+print("\nclose file again ret:")
+print("file:close() = "..tostring(retagain))
+
+-- 设置并打开默认输出文件 -- io.close()
+outstd = io.output("iotest.txt")
+local outret = io.close()
+print("\nclose default out file ret:")
+print("io.close() = "..tostring(outret), "io.output = "..tostring(outstd), "io.stdout = "..tostring(io.stdout))
+
+-- 设置并打开默认输入文件 -- io.close() again then throw exception
+io.input("iotest.txt")
+local inret = io.close() -- attempt use a closed output stream
+print("\nclose default in file ret:")
+print(inret)
+
+--[[
+1. 保证打开文件和关闭文件成对出现是一个良好的习惯。
+2. 由结果可知函数io.close(file)和file:close()完全等价，但是当要关闭默认输出文件时，需要选择io.close()。
+3. 结果中最后一段报错可能有的人不理解，原因就是io.close()只能用来关闭默认的出输出文件，不能用关闭默认的输入文件，
+   而默认的输出文件在上面已经关闭过了，如果尝试再次关闭的话，Lua 解释器就会发出报错警告。
+--]]

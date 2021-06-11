@@ -1,0 +1,33 @@
+https://github.com/google/sanitizers/wiki
+
+Sanitizers包括AddressSanitizer,    https://github.com/google/sanitizers/wiki/AddressSanitizer
+              MemorySanitizer,     https://github.com/google/sanitizers/wiki/MemorySanitizer
+              ThreadSanitizer,     https://github.com/google/sanitizers/wiki/ThreadSanitizerCppManual
+              LeakSanitizer。      https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer 
+Sanitizers项目本是LLVM项目的一部分，但GNU也将该系列工具加入到了自家的GCC编译器中
+
+gcc 4.9 > Sanitizers
+
+-fsanitize=address -fno-omit-frame-pointer
+-g -O2 -fsanitize=address -fno-omit-frame-pointer
+
+    -fsanitize=address命令就是将asan编译进来,编译的.o文件在运行时stack上申请的内存都会被asan接管，
+如果出问题，asan会第一时间输出报告，如内存越界和非法访问。
+    -fno-onit-frame-pointer可以防止一些优化导致内存丧失可读性，链接时使用-fsanitize=address 
+-fno-omit-frame-pointer选项可以让程序在heap上申请的内存被asan接管，这样asan会监控new和delete来输出内存报告。
+
+
+可以在执行程序时，加入各种flags进行微调，
+例如：ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=suppr.txt ./a.out,打开内存泄漏检查，传入抑制文件.
+
+
+-fsanitize=address      #开启地址越界检查功能
+-fno-omit-frame-pointer #开启后，可以出界更详细的错误信息
+-fsanitize=leak         #开启内存泄露检查功能
+
+
+AddressSanitizer (detects addressability issues) and LeakSanitizer (detects memory leaks)
+ThreadSanitizer (detects data races and deadlocks) for C++ and Go
+MemorySanitizer (detects use of uninitialized memory)
+HWASAN, or Hardware-assisted AddressSanitizer, a newer variant of AddressSanitizer that consumes much less memory
+UBSan, or UndefinedBehaviorSanitizer

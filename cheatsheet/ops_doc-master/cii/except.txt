@@ -1,0 +1,60 @@
+1. TRY-EXCEPT进行扩展后的代码：
+do {
+    struct except_frame frame;
+    frame.prev = except_ctx.stack;
+    except_ctx.stack = &frame;
+    except_ctx.except_flag = setjmp(frame.env);
+    if (except_ctx.except_flag == Except_entered) {
+        S
+        if (except_ctx.except_flag == Except_entered)
+            except_ctx.stack = except_ctx.stack->prev;
+    } else if (frame.exception == &(e1)) {
+        except_ctx.except_flag = Except_handled;
+        S1
+        if (except_ctx.except_flag == Except_entered)
+            except_ctx.stack = except_ctx.stack->prev;
+    } else if (frame.exception == &(e2)) {
+        except_ctx.except_flag = Except_handled;
+        S2
+        if (except_ctx.except_flag == Except_entered)
+            except_ctx.stack = except_ctx.stack->prev;
+    }  …
+    } else if (frame.exception == &(en)) {
+        except_ctx.except_flag = Except_handled;
+        Sn
+        if (except_ctx.except_flag == Except_entered)
+            except_ctx.stack = except_ctx.stack->prev;
+    } else {
+        except_ctx.except_flag = Except_handled;
+        S0
+        if (except_ctx.except_flag == Except_entered)
+            except_ctx.stack = except_ctx.stack->prev;
+    }
+    if (except_ctx.except_flag == Except_raised)
+        Except_raise(frame.exception,
+            frame.file, frame.line);
+} while (0)
+
+
+
+2. TRY-FINALLY语句进行扩展后的代码：
+do {
+    struct except_frame frame;
+    frame.prev = except_ctx.stack;
+    except_ctx.stack = &frame;
+    except_ctx.except_flag = setjmp(frame.env);
+    if (except_ctx.except_flag == Except_entered) {
+        S
+        if (except_ctx.except_flag == Except_entered)
+            except_ctx.stack = except_ctx.stack->prev;
+    } {
+        if (except_ctx.except_flag == Except_entered)
+            except_ctx.except_flag = Except_finalized;
+        S1
+        if (except_ctx.except_flag == Except_entered)
+            except_ctx.stack = except_ctx.stack->prev;
+    }
+    if (except_ctx.except_flag == Except_raised)
+        Except_raise(frame.exception,
+            frame.file, frame.line);
+} while (0)

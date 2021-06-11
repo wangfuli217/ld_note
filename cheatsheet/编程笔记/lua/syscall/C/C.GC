@@ -1,0 +1,232 @@
+    Lua 的 GC 是增量式 GC, 不会因为单次 GC 时间过长而 stop the world 造成主逻辑卡顿
+Lua 5.2 中实验性的增加了分代 GC 特性, 可以通过接口在增量 GC 和分代 GC 之间切换. 
+分代 GC 的优点是可以快速回收短生命周期的临时对象, 缺点是周期性的强制全量 GC 可能引起卡顿
+由于缺乏反馈, Lua 5.3 中又去掉了分代 GC。
+
+增量 GC
+分代 GC
+
+在标记清除算法，引用计数算法，复制算法等常用的 GC 算法中, Lua 是使用的标记清除算法
+Lua 的所有对象引用都在虚拟机的准确管理下，因此可以准确的处理对象的引用情况（不是无法区别指针和数据的保守式GC）
+
+标记清除算法
+------------
+包含标记和清除两个主要阶段
+标记阶段查找所有被跟对象集合(root set)直接或间接引用的对象
+清除阶段释放所有没有被标记的对象，将被标记的对象的标记清除
+
+
+增量式 GC
+---------
+Lua 的增量式 GC 主要体现在 propagate 标记和各个 sweep 阶段是可以分多次执行的, 每次处理数个对象后暂停 GC, 之后再继续往下处理. 而在从 GCSpause 到 GCSpropagate 转换时需要一次性的标记根对象集合(root set)，还有 GCSpropagate 到 GCSswpallgc 之间还有个 GCSatomic 阶段, 以及 sweep 结束的 GCSswpend 阶段都是不能分多次执行的。
+需要应对的问题是：在 GC 暂停时，有可能创建新对象或改变对象的引用情况
+如果是创建新对象不用特殊处理, atomic 阶段会保证遍历所有 thread 的 stack 进行标记
+如果是改变了引用情况, 则需要在所有设置引用的地方通过 write barrier 来保证不会有活着的对象被漏标记的情况 ( 可以允许暂时错误标记没有被引用的对象, 这样没有错, 可以等下一次正常 gc 流程清理掉, 只是这种情况效率较低 )
+
+Lua 在标记阶段使用三种颜色来标记对象：
+白色：未被引用
+灰色：被引用，切本身包含未进一步处理的对其它对象的引用
+黑色：被引用，且无更多对其它对象的引用
+
+
+GC 的基本流程
+-------------
+(环境 lua-5.3.3)
+GCSpause: 处于两次完整 GC 流程中间的休息状态
+GCSpause 到 GCSpropagate : 一次性标记 root set
+GCSpropagate: 可以分多次执行，直到 gray 链表处理完，进入 GCSatomic
+GCSatoimic: 一次性的处理所有需要回顾一遍的地方, 保证一致性, 然后进入清理阶段 GCSswpallgc
+GCSswpallgc: 清理 allgc 链表, 可以分多次执行, 清理完后进入 GCSswpfinobj
+GCSswpfinobj: 清理 finobj 链表, 可以分多次执行, 清理完 后进入 GCSswptobefnz
+GCSswptobefnz: 清理 tobefnz 链表, 可以分多次执行, 清理完 后进入 GCSswpend
+GCSswpend: sweep main thread 然后进入 GCScallfin
+GCScallfin: 执行一些 finalizer (__gc) 然后进入 GCSpause, 完成循环
+
+注意 propagate 和各个 sweep 阶段都是可以每次执行一点，多次执行直到完成的，所以是增量式 gc
+增量式过程中依靠 write barrier 来保证一致性
+
+任何 GC 没有正在运行的时候, 一定处于 GCSpause (GC循环之间的暂停) 或 GCSpropagate (标记) 或 GCSswpallgc 到 GCSswptobefnz 中的某个阶段 (清理)
+
+
+为什么叫 propagatemark ?
+------------------------
+因为是从当前 gray 对象出发, 去搜索所有被它们引用的对象, 再从所有被找到的对象出发, 再找所有被它们引用的对象. 这样持续下去直到所有被直接或间接引用到的对象都被找到. 所以叫 propagate (传播)
+
+
+
+atomic 阶段
+-----------
+顾名思义, 这个阶段是原子性的, 需要一次从头到尾执行一遍, 而不能增量式的每次执行一点
+这个阶段感觉主要是进行一些查漏补缺的工作, 把之前 propagate 阶段因为增量式执行引入的问题都解决掉
+以一个一致的状态进入接下来的 sweep 阶段
+
+
+
+关于 finalizer
+--------------
+setmetatable 时检查 mt 是否有 __gc
+如果有则把对象从 allgc 链表转移到 finobj 链表
+对象是什么时候被移到 tobefnz 链表的呢?
+atomic 阶段会调用 separatetobefnz 函数将所有不再存活的对象从 finobj 链表移到 tobefnz 链表等待调用
+( 此时会遍历整个 finobj 链表, 因此如果系统中存在太多带有 finalizer 的对象可能在这里会有效率问题 )
+
+P.S.
+tobefnz 链表也会被算进 root set, 因此可以保证 __gc 方法调用时所有相关对象都还是存活可以访问的
+
+
+
+write barrier 是用来做什么的
+----------------------------
+用来保证增量式GC在GC流程中暂停时，对象引用状态的改变不会引起GC流程产生错误的结果
+TODO
+
+
+
+luaC_barrier 和 luaC_objbarrier 的区别
+--------------------------------------
+luaC_barrier 是针对 TValue
+luaC_objbarrier 是针对 GCObject
+
+#define gcvalue(o) check_exp(iscollectable(o), val_(o).gc)
+#define obj2gco(v) (cast(GCObject *, (v)))
+
+#define val_(o) ((o)->value_)
+
+
+lua.exe 跑一个简单脚本启动过程中的 GCObject 创建情况
+----------------------------------------------------
+<<虚拟机初始化>>
+init_registry: registry = {}
+init_registry: registry.LUA_RIDX_GLOBALS = {}
+luaT_init: 17 个 metamethod 名字的 string ( "__index" 之类的)
+luaX_init: 22 个保留的关键字字符串 ("and" 之类的)
+lua_newstate => f_luaopen: MEMERRMSG 字符串
+初次触发 gc
+
+<<初始化标准库>>
+luaL_openlibs: luaL_requiref 库名字符串, 库里的各种函数名字符串, 版本号等库常量字符串, require需要的"package" "_LOADED"等字符串, 库的table
+
+<<lua.exe解析处理参数>>
+lua.c => handle_script => getargs 创建参数对应字符串
+
+<<解析加载lua源码>>
+luaL_loadfilex: push fmt, 文件名, 格式化过程, 结果 等 4 个字符串
+parser: 创建 closure对象, proto对象, "_ENV"字符串, FuncState用的table对象, 解析源码的各个中间字符串对象
+parser: 创建 upvalue对象
+
+
+reallymarkobject 和 propagatemark
+---------------------------------
+reallymarkobject: 将 userdata, string, closed upvalue 涂黑, 其它类型对象涂灰等待进一步处理
+propagatemark: 从灰色对象里取出一个涂黑（除了thread，它们永远是灰色），然后对它引用的其它对象调用 reallymarkobject
+
+propagatemark 只在 GCSpropagate 和 GCSatomic 阶段使用
+
+
+为什么要用两个不同的 white bit 来 flip 着用
+-----------------------------------------------
+::lua-5.3.3::
+在 atomic 结束时会 flip white bit (也就是标记阶段结束，进入清理阶段前)
+判读一个对象是否死亡 isdeadm 是判断对象 maked 标记的 otherwhite bit 是否为 1
+也就是说进入清理阶段之后, 将对象变为白色不会影响当前对象是否死亡的判断
+
+iswhite 宏只要任意 white bit 标记则为 true
+isdead isdeadm 等宏必须要要 otherwhite bit 标记才为 true
+
+在 sweep 阶段 write barrier 还会继续被触发
+sweep 阶段的 write barrier 会提前把黑色对象涂回白色, 设置 flip 之后的当前 white bit
+因为 sweep 判断死亡用的是 otherwhite bit, 再扫描到这个对象的话就不会误判其死亡了
+( 当然 sweep 阶段的 write barrier 可以什么也不做, 但是这样就会导致 write barrrier 被无用的触发多次, 效率较低 )
+
+
+
+关于 gclist 指针 和 gray, grayagain, weak, ephemeron, allweak 链表
+------------------------------------------------------------------
+lua5.3.3 里 gclist 指针只在 Proto, Closure, Table 几种类型的对象中存在，并不是所有 GCObject 都有 gclist 指针, 也就是说 gray, grayagain, weak, ephemeron, allweak 这几个链表中只可能存在以上类型的对象
+
+
+
+关于 barrier 和 barrierback
+---------------------------
+lua-5.2.4 里 , 当 lua 处理对表的域赋值或对表设置源表时, 例如
+local t = {}
+t.field = other_val
+setmetatable(t, mt)
+使用的是 barrierback 而不是 barrier
+将发出引用的 t 从黑色改回灰色，好处是可以及时处理 t 中引用的进一步改变，例如:
+t.field = other_val
+t.field = nil
+下次 gc 时还是从 t 出发去找，不会错误的标记 other_val
+相比较而言, 对 userdata 设置源表, 使用的是 barrier 而不是 barrierback, 因此
+local u = new_userdata()
+setmetatable(u, mt)
+setmetatable(u, nil)
+会导致 mt 被错误标记, 要下一次 gc 循环才能正确清理
+
+P.S.发现 lua-5.3.3 里对 table 的 setmetatable 也是用的 barrier 而不是 barrierback 了
+
+
+lua 中所有可能产生引用的地方
+----------------------------
+thread 的 stack
+table 的域
+table 的 mt
+userdata 的 mt
+userdata 的 uservalue
+global mt
+closure 的 upvalue
+proto 的 constant
+proto 的 localvars 的 varname
+proto 的 upvalues 的 name
+proto 的子 prototypes
+
+lua 里所有 thread 都不会变成黑色, 而总是灰色
+
+
+如果刚好开始sweep阶段之前创建了一个新对象，会不会有问题?
+--------------------------------------------------------
+sweep 的工作是干掉白色对象，把黑色对象涂回白色
+新创建的对象是挂在allgc头部的白色对象
+粗看新创建的对象不是有被 sweep 干掉的风险吗?
+
+其实不会，有两方面可以避免发生这样的情况:
+1. 进入 sweep 阶段之前 white bit 进行了 flip，此时判断死亡用的是 other white bit, 跟新创建对象用的 white bit 不一样
+2. 进入 sweep 阶段前 entersweep 函数会线进行1次单步sweep,让 sweepgc 指针指向 allgc 链表内部而不是头部. 这样的目的是避免正式开始 sweep 阶段时, 还需要花时间跳过链表头部现在到正式开始 sweep 阶段之间新创建的对象们.
+
+
+
+为什么要有一个 grayagain 链表? 跟 gray 有什么不同?
+--------------------------------------------------
+当 propagatemark 处理所有 gray 对象时, thread 对象也会被从 gray 链表中拿出来, thread 总是灰色的, 被处理完后也不会变成黑色, 而是保持灰色, 但是也不能这样直接放回 gray 链表, 否则 gray 链表就永远处理不完了. 所以另外放到一个叫 grayagain 的链表中
+另外在 barrierback 系列函数中, 对象被涂成灰色, 也不是放到 gray 链表, 而是放到 grayagain 链表
+在 traverseweakvalue 和 traverseephemoron 中也有把对象挂到 grayagain 上 (还没仔细看)
+grayagain 最后是在 atomic 阶段的 retraversegrays 中处理
+
+
+为什么要有 obj2gco 这个宏?
+--------------------------
+::lua-5.3.3::
+obj2gco 是做向上类型转换
+从各种具体的 object 类型指针 (例如 lua_State *) 准换到更抽象的 GCObject *
+与之相对应的从抽象的 GCObject * 向下转换到具体类型指针的宏有:
+Table *: gco2t
+LClosure *: gco2lcl
+CClosure *: gco2ccl
+lua_State *: gco2th
+Proto *: gco2p
+
+
+
+为什么 grayagain 链表会形成循环?
+--------------------------------
+::lua-5.3.3::
+propagatemark mainthread 时 linkgclist(th, g->grayagain) 形成循环
+调用栈: luaC_step -> singlestep -> atomic -> propagateall -> propagatemark
+
+restartcollection 时 grayagain 被设置为 NULL
+到 atomic 时读取并使用 grayagain 链表, 之后不再读取
+因此可以认为 grayagain 链表的有效期为 restartcollection 之后到 atomic 之前 ( 也就是标记阶段)
+( atomic 一开始就保存了 grayagain 指针, 因此其后的操作引起的 grayagain 也无意义 )
+也就是说在 atomic 阶段, sweep 阶段和 pause 阶段, grayagain 是无意义的
+因此在 atomic 阶段引起 grayagain 形成了循环也无所谓
+

@@ -1,0 +1,143 @@
+
+
+1.大多数情况下可以用QList。像prepend()、append()和insert()这种操作，通常QList比QVector快的多。
+  这是因为QList是基于index标签存储它的元素项在内存中(虽然内存不连续，这点与STL的list 是一样的)，
+  比那种依赖iterator迭代的容器类更快捷，而且你的代码也更少。
+2.当迭代器指向QList中的一个项目后，如果QList进行了插入或者删除操作，那么这个迭代器就无效了。
+3.QStringList类就是继承于QList<QString>容器类(注意QList<QString>其实是一个类模板，里面装的是QString类型，
+  然后又有一个QStringList类继承于它)
+
+基本信息
+--------
+是否为空
+    bool isEmpty() const
+    bool empty() const
+元素个数
+    int count() const
+    int size() const
+    int length() const
+    int count(const T &value) const
+是否包含
+    开头：bool startsWith(const T &value) const
+    中间：bool contains(const T &value) const
+    结尾：bool endsWith(const T &value) const
+    
+
+修改
+--------
+赋值：void replace(int i, const T &value)
+插入
+    开头
+        void prepend(const T &value)
+        void push_front(const T &value)
+    中间：void insert(......)
+    结尾
+        void append(......)
+        void push_back(const T &value)
+        
+删除
+    全部：void clear()
+    开头
+        T takeFirst()
+        void removeFirst()
+        void pop_front()
+    “兼容STL”中间
+        T takeAt(int i)
+        void removeAt(int i)
+        bool removeOne(const T &value)
+        int removeAll(const T &value)
+    最后
+        T takeLast()
+        void removeLast()
+        void pop_back()
+   根据游标
+        单个：QList::iterator erase(QList::iterator pos)
+        范围：QList::iterator erase(QList::iterator begin, QList::iterator end)
+移动：void move(int from, int to)
+交换：void swap(int i, int j)
+
+修改某个元素就用 replace() 函数或者 operator[] 操作符。
+关于删除操作，如果在删除某个元素的时候还想获得删除的元素值是多少，用“take系列”函数；如果仅仅是删除，用“remove系列”的函数会更好。
+
+
+获取
+--------
+元素
+    开头
+        T & first()const 
+        T & const First() const
+        T & front()“兼容STL”
+    中间：const T & at(int i) const
+    结尾
+        T & last()const 
+        T & constLast() const
+        T & back()“兼容STL”
+    子 List：QList<T> mid(int pos, int length = -1) const
+    索引
+      正向：int indexOf(const T &value, int from = ...) const
+      反向：int lastIndexOf(const T &value, int from = ...) const
+    数值：T value(......) const
+    
+    
+    
+游标
+--------
+正向
+    开头
+        Qxxxx::iterator begin()
+        Qxxxx::const_iterator cbegin() const
+        Qxxxx::const_iterator constBegin() const
+    结尾
+        Qxxxx::iterator end()
+        Qxxxx::const_iterator cend() const
+        Qxxxx::const_iterator constEnd() const
+反向
+    开头
+         Qxxxx::reverse_iterator rbegin()Qxxxx::const_reverse_iterator crbegin() const
+    结尾 Qxxxx::reverse_iterator rend()Qxxxx::const_reverse_iterator crend() const
+    
+如果是 QList，则 Qxxxx 为 QList；如果是 QVector，则 Qxxxx 为 QVector。
+
+
+转换
+--------
+互相转换
+    QList
+        QVector<T> toVector() const
+        [static] QList<T> fromVector(const QVector<T> &vector)
+    QVector
+        QList<T> toList() const
+        [static] QVector<T> fromList(const QList<T> &list)
+    标准转换
+    QList
+        std::list<T> toStdList() const
+        [static] QList<T> fromStdList(const std::list<T> &list)
+    QVector
+        std::vector<T> toStdVector() const
+        [static] QVector<T> fromStdVector(const std::vector<T> &vector)
+
+其他
+--------
+调整空间
+    QList
+        void reserve(int alloc)
+    QVector
+        void reserve(int size)void resize(int size)
+    计算哈希值
+    uint qHash(const Qxxxx<T> &key, uint seed = ...)
+
+特有的函数
+--------
+QVector
+    void remove(int i)
+    QVector<T> & fill(const T &value, int size = ...)
+    T * data()const 
+    T * constData() const
+释放不需要的内存
+        void squeeze()
+        void shrink_to_fit()“STL兼容”
+
+QList
+--------
+    QSet<T> toSet() const
+    [static] QList<T> fromSet(const QSet<T> &set)

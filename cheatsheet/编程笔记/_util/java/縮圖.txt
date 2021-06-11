@@ -1,0 +1,188 @@
+/**
+ * @author ccjack@gmail.com
+ *
+ */
+import ij.*;
+import ij.process.*;
+import ij.io.*;
+import ij.measure.Calibration;
+import com.sun.image.codec.jpeg.*;
+import java.awt.image.*;
+import java.awt.*;
+import java.io.*;
+import org.apache.log4j.Logger;
+ 
+public class ImageJ_thum{
+    static Logger log = Logger.getLogger(ImageJ_thum.class);
+  ImagePlus imp;
+  int xshrink;
+  int yshrink;
+    double product;
+    int[] pixel;
+    int[] sum;
+    int samples;
+    int quality;
+    String origFile = "";
+    String thumFile = "";
+    int origSize;
+    int thumSize;
+ 
+  //設定縮圖的資訊
+    public void setThum(String origFile,int origSize,String thumFile,int thumSize){
+    imp = new Opener().openImage(origFile);
+    this.origFile = origFile;
+    this.thumFile = thumFile;
+    this.origSize = origSize;
+    this.thumSize = thumSize;
+ 
+    //將下列恢復值
+    xshrink = 1;
+    yshrink = 1;
+    pixel = new int[3];
+    sum = new int[3];
+    quality = 90;
+  }
+    //存檔
+  public void makeThum(){
+    this.quality = 90;
+    transSize(imp.getProcessor(),thumSize);
+    shrink(imp.getProcessor());
+    saveAsJpeg(imp,thumFile);
+  }
+    //確認原圖是否大於max長度,有超過則強迫縮到max長度,並回傳是否有修改
+  public boolean checkOrigSize(){
+    int w = imp.getWidth();
+      int h = imp.getHeight();
+    if(w > origSize){
+      this.quality = 100;
+      transSize(imp.getProcessor(),origSize);
+      shrink(imp.getProcessor());
+      saveAsJpeg(imp,origFile);
+      return true;
+    } else {
+      return false;
+    }
+ 
+  }
+ 
+  /*
+   *先將圖縮成可供Averaging_Reducer倍數縮圖的大小
+   */
+  private void transSize(ImageProcessor ip,int maxSize){
+    Rectangle r = ip.getRoi();
+    double width = r.width;;
+    double height = r.height;
+    double rato = 1.0;
+    if(width > height && width > maxSize){
+      rato = (maxSize/width)*(int)(width/maxSize);
+      xshrink = (int)(width/maxSize);
+      yshrink = xshrink;
+    } else if(width <= height && height > maxSize){
+      rato = (maxSize/height)*(int)(height/maxSize);
+      yshrink = (int)(height/maxSize);
+      xshrink = yshrink;
+    }
+    product = xshrink*yshrink;
+    int w = (int) (width*rato);
+    int h = (int) (height*rato);
+    int nSlices = imp.getStackSize();
+    try {
+      StackProcessor sp = new StackProcessor(imp.getStack(), ip);
+      ImageStack s2 = sp.resize(w,h);
+      int newSize = s2.getSize();
+      if (s2.getWidth()>0 && newSize>0) {
+        Calibration cal = imp.getCalibration();
+        if (cal.scaled()) {
+        cal.pixelWidth *= width/w;
+        cal.pixelHeight *= height/h;
+        imp.setCalibration(cal);
+      }
+      imp.setStack(null, s2);
+      }
+    } catch (OutOfMemoryError o){
+      log.error("Resize out of memory error",o);
+    }
+  }
+ 
+  /*
+   *Averaging_Reducer的倍數縮圖法
+   */
+    private void shrink(ImageProcessor ip) {
+ 
+    if (imp.getBitDepth()==32)
+        {shrinkFloat(ip); return;}
+    samples = ip instanceof ColorProcessor?3:1;
+    int w = ip.getRoi().width/xshrink;
+    int h = ip.getRoi().height/yshrink;
+    ImageProcessor ip2 = ip.createProcessor(w, h);
+    for (int y=0; y<h; y++)
+    for (int x=0; x<w; x++)
+        ip2.putPixel(x, y, getAverage(ip, x, y));
+    ip2.resetMinAndMax();
+    imp = new ImagePlus("",ip2);
+    }
+ 
+    private int[] getAverage(ImageProcessor ip, int x, int y) {
+     for (int i=0; i<samples; i++)
+    sum[i] = 0;
+     for (int y2=0; y2<yshrink; y2++) {
+    for (int x2=0;  x2<xshrink; x2++) {
+        pixel = ip.getPixel(x*xshrink+x2, y*yshrink+y2, pixel);
+        for (int i=0; i<samples; i++)
+         sum[i] += pixel[i];
+     }
+    }
+    for (int i=0; i<samples; i++)
+    sum[i] = (int)(sum[i]/product+0.5);
+   return sum;
+    }
+ 
+    private void shrinkFloat(ImageProcessor ip) {
+    int w = ip.getRoi().width/xshrink;
+    int h = ip.getRoi().height/yshrink;
+    ImageProcessor ip2 = ip.createProcessor(w, h);
+    for (int y=0; y<h; y++)
+    for (int x=0; x<w; x++)
+        ip2.putPixelValue(x, y, getFloatAverage(ip, x, y));
+    ip2.resetMinAndMax();
+    imp = new ImagePlus("",ip2);
+    }
+ 
+    private float getFloatAverage(ImageProcessor ip, int x, int y) {
+    double sum = 0.0;
+    for (int y2=0; y2<yshrink; y2++)
+    for (int x2=0;  x2<xshrink; x2++)
+        sum += ip.getPixelValue(x*xshrink+x2, y*yshrink+y2);
+    return (float)(sum/product);
+    }
+ 
+    /*
+     *sun的jpeg壓縮,quality=0-100
+     */
+    private void saveAsJpeg(ImagePlus imp, String path) {
+    int width = imp.getWidth();
+    int height = imp.getHeight();
+    BufferedImage   bi = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+    try {
+    FileOutputStream  f  = new FileOutputStream(path);
+    Graphics g = bi.createGraphics();
+    g.drawImage(imp.getImage(), 0, 0, null);
+    g.dispose();
+    JPEGImageEncoder encoder = JPEGCodec.createJPEGEncoder(f);
+    JPEGEncodeParam param = encoder.getDefaultJPEGEncodeParam(bi);
+    param.setQuality((float)(quality/100.0), true);
+    encoder.encode(bi, param);
+    f.close();
+    }
+    catch (Exception e) {
+    log.error("製作縮圖轉存jpg檔io失敗",e);
+    }
+    }
+    
+ }
+
+
+
+ccjack wrote:
+提供一個很好用的影像處理api
+http://rsbweb.nih.gov/ij/index.html

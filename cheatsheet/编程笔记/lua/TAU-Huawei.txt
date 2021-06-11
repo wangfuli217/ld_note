@@ -1,0 +1,92 @@
+1. 在覆盖区域上，LTE TDD A、B双网同覆盖，网内同频，A、B双网邻频。
+2. 一辆车分别在车头、车尾装备一台TAU，并通过车内交换机相连。
+3. 当TAU作为PIS、CCTV等非CBTC数据业务终端时，采用GRE隧道传输。
+4. 两台TAU通过VRRP进行状态检测，当主用TAU故障时，通过OSPF动态更新路由器路由，完成主备倒换。
+5. 当TAU作为CBTC车载数据业务终端时，目前一般采用后路由方式传输
+6. 为了进一步提高数据传输的安全性，支持核心机房路由器与TAU建立IPSec，保证S1-U无CBTC明文数据
+
+
+TCP&UDP:用于测试NAT端口映射 工具名称gperf
+Fping：用于测试设备重启导致的业务中断时间； 
+Pinginfoview:  用于测试设备重启导致的业务中断时间； 
+Ixchariot：用于模拟CBTC、PIS、CCTV业务流，并提供Qos指标统计； 
+
+-------------------------------------------------------------------------------
+静态路由功能: 将Network -> "Static Routes"   没有测试过此内容
+# 需要一台三层路由器，用于数据转发
+
+动态路由功能：具体页面还未见                 不知道如何测试
+# Network/"routing redirection"/Quagga
+
+VLAN功能    ： openwrt支持              测试用例表述不正确
+https://wiki.openwrt.org/doc/uci/network#vlan_interfaces 
+
+DHCP        ： dhcp功能测试过，但未完成覆盖测试
+
+NAT管理     ： 功能支持，页面未作为一个独立功能，底层如何关联到/etc/config/firewall 待分析
+
+TCP协议端口转发 ： 在防火墙页面有端口转发， 查看功能应该基本满足 没有测试过此内容
+UDP协议端口转发 ： 同"TCP协议端口转发"
+
+支持DNS    ：  满足
+
+后路由Routing Behind MS ： 支持待开发
+
+本地端口镜像 ： 观察端口 镜像端口 ： 物理端口镜像，== 不支持
+# https://github.com/mmaraya/port-mirroring
+
+支持9级Qos业务： 不支持
+
+支持WEB维护管理界面： 不支持
+
+本地TAU软件升级： 不支持，
+
+远程TAU软件升级： 支持，但没有测试过
+
+本地mini PCIe软件升级： 不支持，
+
+远程mini PCIe软件升级： 不支持
+
+LTE网络信息读取         不支持
+
+TAU工作状态监控         不支持
+
+内部存储记录日志        不支持(包括但不限于操作记录、系统日志、无线参数；记录日志的读取时间，及日志大小；)
+
+远程存储记录日志       不支持(包括但不限于操作记录、系统日志、无线参数；记录日志的读取时间，及日志大小；)
+
+内部数据存储          不支持  王珂通过tcpdump实现
+远程数据存储          不支持  王珂通过tcpdump实现
+
+配置数据备份及恢复    支持，没有测试过
+
+用户管理              不支持；工作量很大
+网管系统批量管理TAU   不支持
+
+手动设置时间          不支持
+NTP时间同步           支持
+https://wiki.openwrt.org/doc/uci/ntpclient
+SNTP时间同步          支持
+由于兼容性，应该支持
+
+双SIM卡管理           不支持
+
+支持VRRP              支持，待按照测试用例再测试
+/network/keepalived
+
+支持MAC地址过滤       支持需要再开发
+支持IP地址过滤        支持
+支持URL过滤           不支持
+支持服务访问控制      支持
+
+支持GRE隧道           支持
+支持IPSec（SCEP）     不支持
+
+支持SNMP管理          不支持
+https://wiki.openwrt.org/doc/uci/snmpd
+
+支持eSight网管        不支持
+
+支持锁频功能          底层支持，功能待开发
+
+组播                  支持；

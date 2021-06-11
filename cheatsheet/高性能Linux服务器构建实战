@@ -1,0 +1,378 @@
+1. 服务器安全运维
+1.1 账户和登录安全
+1.1.1 用户和用户组管理
+
+cat/less/more /etc/passwd
+awk -F':' '{print $1}' /etc/passwd
+wc -c/l/w  #字节/行数/字数
+userdel games
+groupdel games
+usermod -s /sbin/nologin nagios   #禁用该用户登录
+
+1.1.2 系统服务管理
+
+service/sysv-rc-conf /chkconfig
+service --status-all  #查看服务列表
+chkconfig --list #显示所有服务
+chkconfig [--add] [--del] name
+chkconfig --level 345 bluetooth off #指定蓝牙在345等级中关闭
+
+服务名称 	服务内容
+acpid 	电源管理，重要，建议开启
+apmd 	高级电源能源管理服务，监控电池性能
+kudzu 	检测硬件是否变化，建议开启
+crond 	为linux下自动安排的进程提供运行服务，建议开启
+atd 	类似crond，提供在指定时间做指定的事情，与window下计划任务功能相同
+keytables 	装载镜像键盘，选择启动
+iptables 	内置防火墙，必须启动
+xinetd 	支持多种网络服务的核心守护进程，建议开启
+xfs 	使用X window桌面系统必须的服务
+network 	启动网络服务，必须启动
+sshd 	linux远程登录服务，建议开启
+syslog 	系统日志服务，重要，建议开启
+运行等级 	个人理解
+0 	为停机，机器关闭
+1 	为单用户模式，就像Win9x 下的安全模式类似
+2 	为多用户模式，但是没有NFS 支持
+3 	为完整的多用户模式，是标准的运行级
+4 	一般不用，在一些特殊情况下可以用它来做一些事情，例如在笔记本电脑的电池用尽时，可以切换到这个模式来做一些设置
+5 	就是 X11 ，进到 X Window 系统了
+6 	为重启，运行 init 6 机器就会重启
+1.1.3 登录密码安全管理
+
+vi /etc/ssh/sshd_config 
+Protocol 2 #允许使用ssh2
+PubkeyAuthentication yes #启动PublickKey认证
+AuthorizedKeysFile .ssh/authorized_key #PublicKey文件路径
+PasswordAuthentication no #禁用口令登录
+/etc/rc.d/init.d/sshd restart
+
+1.1.4 用户root权限管理
+
+sudo vi /etc/sudoers /sudo visudo  #检查sudoers语法
+sudo su -  #切换到root用户
+sudo [-l]  #显示当前用户的权限 [-V] #显示版本
+user01 ALL=(ALL) NOPASSWD: ALL
+用户名 网络中的主机=(执行命令的目标用户) 执行的命令范围
+
+1.1.5 系统欢迎页面管理
+
+/etc/issue、/etc/issue.net、/etc/redhat-release、/etc/motd
+vi /etc/ssh/sshd_config 
+Banner /etc/issue.net  #在ssh登录后显示内容，默认不开启
+
+ssh或telnet登录显示issue.net内容
+本地登录显示issue内容
+系统公告 /etc/motd #可发布系统维护、升级、警告黑客等信息 
+
+1.1.6禁用Control-Alt-Delete键盘关闭命令
+
+CentOS5.x以下
+vi /etc/inittab
+# ca::ctrlaltdel:/sbin/shutdown -t3 -r now
+CentOS6.x以上 
+vi /etc/init/control-alt-delete.conf
+# exec /sbin/shuddown -r now "Control-Alt-Delete pressed"
+
+1.2远程访问和认证安全
+1.2.1 取消telnet使用ssh登录
+
+telnet 是古老的远程登录认证服务，在网络上用明文传送口令和数据。
+sshd 通过使用ssh，加密所有传输的数据并压缩，加快网络传输速度，防止dns和ip欺骗。
+
+vi /etc/ssh/sshd_config
+Port 22 #sshd监听端口，建议更改默认5位以上的陌生数字
+Protocol 2 #ssh协议版本，ssh1有缺陷和漏洞，默认ssh2
+ListenAddress 0.0.0.0 #sshd服务器绑定的ip地址
+HostKey /etc/ssh/ssh_host_dsa_key #服务器密匙文件路径
+KeyRegenerationInterval 1h #多少秒后系统自动自动生成服务器密匙，防止被盗用
+ServerKeyBits 1024 #服务器密匙长度
+SyslogFacility AUTHPRIV #记录来自sshd消息的时候是否"facility code"
+LogLevel INFO #sshd日志消息级别
+LoginGraceTime 2m #如果用户登录失败，切断链接前服务器需要等待的时间
+PermitRootLogin no #超级用户root能不能用ssh登录，建议no
+StricModes yes #ssh在接收登录请求之前是否检查用户根目录和rhosts文件的权限和所有权，建议yes
+RSAAuthentication no #是否开启RSA密钥验证，针对SSH1
+PubkeyAuthentication yes #设置是否开启公钥验证
+AuthorizedKeysFile .ssh/authorized_keys #设置公钥验证文件的路径，与PubkeyAuthentication配合使用
+IgnoreUserKnownHosts no #SSH在进行RhostsRSAAuthentication 安全验证时是否忽略用户 "$HOME/.ssh/known_hosts"文件
+IgnoreRhosts yes #验证时是否使用 "~/,rhosts" 和 "~/.shosts" 文件
+PasswordAuthentication yes # 设置是否开启密码验证机制
+PermitEmptyPasswords no #是否允许用口令为空的账户登录系统，选择no
+ChallengeResponseAuthentication no #禁用s/key密码
+UsePAM no #不通过PAM验证
+X11Forwarding yes #用户设置是否允许X11转发
+PrintMotd yes #设置sshd是否在用户登录的时候显示 "/etc/motd" 中的信息。
+PrintLastLog no #是否显示上次登录信息，建议no
+Compression yes #是否压缩命令，建议yes
+TCPKeepAlive yes #防止死连接，建议yes
+UseDNS no #是否使用DNS反向解析
+MaxStartups 5 #设置同时允许几个尚未登入的联机，用户连上SSH尚未输入密码的联机。
+MaxAuthTries 3 #失败尝试登录次数3
+AllowUsers <用户名 用户名2> #指定允许通过远程访问的用户
+AllowGroups <组名 组名2> #指定允许通过远程访问的用户组
+DenyUsers <用户名 用户名2> #禁止通过远程访问的用户
+DenyGroups <组名 组名2> #禁用通过远程访问的用户组
+
+1.2.2 合理使用shell历史记录命令
+
+/etc/bashrc 或 /etc/bash.bashrc 或 ~/.bashrc
+HISTFILESIZE=4000
+HISTSIZE=4000
+HISTTIMEFORMAT='%F %T'
+export HISTTIMEFORMAT
+
+/etc/profile 提供系统审计和故障排查的历史功能
+#history
+USER_IP=`who -u am i 2>/dev/null | awk '{print $NF}' | sed -e 's/[()]//g'`
+HISTDIR=/usr/share/.history
+if [ -z $USER_IP ]; then
+        USER_IP=`hostname`
+fi
+
+if [ ! -d $HISTDIR ]; then
+        mkdir -p $HISTDIR
+        chmod 777 $HISTDIR
+fi
+
+if [ ! -d $HISTDIR/${LOGNAME} ]
+        then
+        mkdir -p $HISTDIR/${LOGNAME}
+        chmod 300 $HISTDIR/${LOGNAME}
+fi
+
+export HISTSIZE=4000
+DT='date + %Y%m%d_%H%M%S'
+export HISTFILE="$HISTDIR/${LOGNAME}/${USER_IP}.history.$DT"
+export HISTTIMEFORMAT="[%Y.%m.%d %H:%M:%S]"
+chmod 600 $HISTDIR/${LOGNAME}/*.history* 2>/dev/null
+
+
+find / -path /media -prune -o -name '*.history' -print 2>/dev/null #查找除/media目录以外的*.history文件
+
+1.2.3 启用tcp_wrappers防火墙
+
+分析tcp/ip封包软件，类似的ip封包软件有iptables
+iptables通过ip过滤机制实现第一层防护，直观地监视系统的运行状态，阻挡恶意攻击。
+tcp_wrappers实现某些服务的开发和关闭、允许和禁止，更有效的保证系统运行。
+
+service:host(s) [:action]
+
+service: #服务名，sshd、vsftpd、sendmail
+host(s): #主机名或ip，192.168.1.0、www.scooky.com
+action: #符合条件后采取的动作
+
+ALL:ALL EXCEPT 192.168.1.100 #除了192.168.1.100这台机器，任何机器执行所有服务时或被允许或被拒绝
+
+vi /etc/hosts.allow
+sshd: 192.168.1.100
+sshd: 192.168.1.101
+sshd: www.scooky.com
+
+vi /etc/hosts.deny
+sshd:ALL
+
+允许来自192.168.1.100/101或www.scooky.com的ssh连接，其余的主机被限制。
+
+1.3 文件系统安全
+1.3.1 锁定系统重要文件
+
+chattr [-RV] [-v version] [mode] 文件或目录
+-R #递归修改所有的文件及子目录
+-V #详细显示修改内容，并打印出来
+mode
+a #append，允许添加不能删除，常用于服务器日志文件安全设定。
+i  #immutable，不允许对文件进行任何操作，包括root。
+
+lsattr [-adlRvV] 文件或目录
+-a #列出目录中所有文件
+-d #显示指定目录的属性
+-R #递归方式列出目录中文件
+-v #显示文件或目录版本
+
+防止root被盗，对重要文件锁定，常用的有：
+chattr -R +i /bin /boot /lib /sbin
+chattr -R +i /usr/bin /usr/include /usr/lib /usr/sbin
+chattr +i /etc/passwd
+chattr +i /etc/shadow
+chattr +i /etc/hosts
+chattr +i /etc/resolv.conf
+chattr +i /etc/fstab
+chattr +i /etc/sudoers
+chattr +a /var/log/messages
+chattr +a /var/log/wtmp
+
+1.3.2 文件权限检查和修改
+
+find / -type f -perm -2 -o -perm -20 | xargs ls -al #查找系统中任何用户都有写权限的文件
+find / -type d -perm -2 -o -perm -20 | xargs ls -ld #查找系统中任何用户都有写权限的目录
+find / -type f -perm -4000 -o -perm -2000 -print | xargs ls -al #查找系统中所有含有s位的程序
+find / -user root -perm -2000 -print  -exec md5sum {} \; #检查系统中所有suid及sgid文件
+find / -user root -perm -4000 -print  -exec md5sum {} \; #检查系统中所有suid及sgid文件
+find / -nouser -o -nogroup #检查系统中没有属主的文件
+
+1.3.3 /tmp、/var/tmp、/dev/shm 安全设定
+
+/tmp、/var/tmp用来存放临时文件的主要目录
+/dev/shm是linux下的共享内存设备，启动系统时默认加载，使用tmpfs内存文件系统，数据驻留在RAM中，通过/dev/shm可直接操控系统内存。
+
+1. 设立/tmp分区法
+将/tmp设定为独立的磁盘分区，修改/etc/fstab的/tmp挂载属性，增加nosuid(不允许任何suid程序)、noexec(不能执行脚本)、nodev(不存在设备文件)三个选项，重新挂载/tmp分区即可。
+将/var/tmp链接到/tmp下
+mv /var/tmp/* /tmp
+ln -s /tmp /var/tmp
+2. 建立loopback文件系统法
+通过创建loopback文件系统来利用linux内核的loopback特性将文件系统挂载到/tmp下
+dd if=/dev/zero of=/dev/tmpfs bs=1M count=10000
+mke2fs -j /dev/tmpfs
+cp -av /tmp /tmp.old
+mount -o loop,noexec,nosuid,rw /dev/tmpfs /tmp
+chmod 1777 /tmp
+mv -f /tmp.old/* /tmp/
+rm -rf /tmp.old
+编辑/etc/fstab，以便系统启动时自动加载loopback文件系统
+/dev/tmpfs /tmp ext3 loop,nosuid,noexec,rw 0 0
+
+修改/dev/shm安全设置
+vi /etc/fstab
+tmpfs /dev/shm tmpfs defaults,nosuid,noexec,rw 0 0
+
+1.4 系统软件安全管理
+
+yum(yellow dog updater modified)
+rpm -qa | grep yum #检查是否安装了yum
+
+/etc/yum.conf #主配置文件
+/etc/yum.repos.d #资源配置目录
+
+/etc/yum.repos.d/CentOS-Base.repo #资源库配置
+name #发行版名称，Base表明此段寻找的事Base包信息
+mirrorlist #yum在互联网上查找升级文件的URL地址，basearch代表硬件架构（i386、x86-64等）
+gpgcheck #是否启动gpg检查，启用需要配置GPG-RPM-KEY的位置
+gpgkey #指定GPG密钥的地址
+
+yum自动下载升级资源包默认放置在/var/cache/yum目录下
+
+yum install dhcp #安装dhcp
+yum remove licp #删除licq包和有依赖性的包
+yum checkin-update #检查可更新的RPM包
+yum update #更新所有RPM包
+yum update kernel kernel-source #更新指定的RPM包
+yum upgrade #大规模的版本，与update的区别是陈旧的包也会升级
+yum info #列出资源库中所有可以安装或更新的RPM信息
+yum into perl* #列出资源库中特定的可以安装或更新以及安装的RPM包信息
+yum info updates #列出资源库中所有可以更新的RPM包信息
+yum info installed #列出所有已安装的所有RPM包信息
+yum info extras #列出已经安装，但不包含资源库中的RPM包信息，也就是其他网站下载的RPM包
+yum list updates #列出资源库中所有可以更新的RPM包
+yum list installed #列出已安装的RPM包
+yum list extras #列出已安装，但不包含在资源库中的RPM包，也就是其他网站下载的RPM包
+yum list # 列出资源库中所有可以安装或更新的RPM包
+yum list gcc* #列出资源库中特定的可以安装或更新以及已安装的RPM包
+yum search wget #搜索特定字符的RPM包信息
+yum provides realplay #搜索包含特定文件名的RPM包
+yum clean packages #清除暂存的RPM包
+yum clean headers #清除暂存的RPM头文件
+yum clean oldheaders #清除暂存中旧的RPM头文件
+yum [clean /clean all] #清除暂存旧的rpm头文件和包文件
+
+yum第三方源
+EPEL，企业版Linux附件软件包
+RPMForge，第三方软件源仓库
+
+1.5 Linux后门入侵检测工具
+
+文件级别rootkit，通过修改系统的重要文件来达到隐藏自己的目的，通常容易被替换的系统程序有，login、ls、ps、ifconfig、du、find、netstat，检查文件完整性工具常见的有Tripwire、aide等。
+
+内核级别rootkit，对系统底层获得完全控制权，修改内核，截获运行程序向内核提交的命令，并重定向到入侵者所选择的程序，只有防范攻击者将系统维持在最小权限工作，避免内核被植入rootkit。
+
+rootkit后门检测工具[chkrootkit](http://www.chkrootkit.org/)
+1. 准备gcc编译环境
+yum -y install gcc
+yum -y install gcc-c++
+yum -y install make
+2. 安装chkrootkit
+从官网下载chkrootkit源码
+tar zxvf chkrootkit.tar.gz
+cd chkrootkit-*
+make sense
+cd ..
+cp -r chkrootkit-* /usr/local/chkrootkit
+rm -rf chkrootkit-*
+3. 使用chkrootkit
+/usr/local/chkrootkit/chkrootkit -h #显示帮助信息
+-p dir1:dir2:dirN #指定chkrootkit检测时使用系统命令的目录
+/usr/local/chkrootkit/chkrootkit #开始检测系统
+4. chkrootkit的缺点
+chkrootkit在检查rootkit的过程中使用了部分系统命令，如果依赖的系统命令被替换，此时检测的结果将变得完全不可信。为了避免这个问题，在服务器对外开放之前，事先将chkrootkit使用的系统命令进行备份，使用时用备份命令进行检测。
+mkdir /usr/share/.commands
+cp `which --skip-alias awk cut echo find egrep id head ls netstat ps strings sed uname` /usr/share/.commands
+/usr/local/chkrootkit/chkrootkit -p /usr/share/.commands/
+cd /usr/share/
+tar zcvf commands.tar.gz .commands
+rm -rf commands.tar.gz
+在/usr/share/下建立一个.commands的隐藏文件，将chkrootkit使用的系统命令压缩备份，然后下载到一个安全的地方，服务器被入侵后，可以上传回来通过chkrootkit -p参数指定路径进行检测。
+
+rootkit后门检测工具[RKHunter](http://www.rootkit.nl/projects/rootkit_hunter.html)
+1. 安装RKHunter
+tar -zxvf rkhunter-1.4.0.tar.gz
+cd rkhunter-1.4.0
+./installer.sh --layout default --install
+2. 使用rkhunter
+/usr/local/bin/rkhunter-help   #显示帮助
+/usr/local/bin/rkhunter -c         #开始检测
+/usr/local/bin/rkhunter --check --skip-keypress   #开始检测并跳过enter确认
+3. 定时运行
+/etc/crontab
+09 3 * * * root /usr/local/bin/rkhunter --check --cronjob
+
+1.6 服务器遭受攻击后的处理过程
+
+1. 一般思路
+切断网络、查找攻击源、分析入侵原因和途径、备份用户数据、重新安装系统、修复程序或系统漏洞、恢复数据和连接网络。
+
+2. 检查并锁定可疑用户
+w   #列出所有登录过的所有用户
+passwd -l nobody #锁定nobody用户
+ps -ef | grep $pts/3 #根据w命令的TTY找到pid值
+kill -9 6051 #将此用户踢下线
+last #查看用户登录事件
+
+3. 检查并关闭系统可疑进程
+pidof sshd #查找正在运行软件的pid值
+ls -al /proc/13276/exe #进入内存目录找到pid对应的exe文件信息
+fuser -n tcp 25 #指定tcp、udp协议找到进程pid
+ps -ef | grep 2037 #根据pid找到运行目录
+
+4. 检查文件系统完好性
+对比/bin/ls文件的大小
+rpm -Va #rpm工具验证，文件标记M被篡改或替换
+
+1.7 一次Linux被入侵后的分析
+
+    攻击者通过80端口的web服务文件漏洞进行shell注入，进入系统，在/var/tmp目录下创建隐藏目录，将rootkit后门文件传到该路径下。
+    通过后门程序，获取超级用户权限，通过这台服务器进行对外发包
+    攻击者ip地址可能是代理的，也可能是控制其他的肉鸡服务器
+    为了永久控制这台机器，修改了系统默认账户mail，将mail账户变为登录，并设置了密码。
+    攻击完成后，自动清理了系统访问日志，毁灭证据。
+
+防范：
+
+    安装稳定版本操作系统，删除系统默认不需要的用户。
+    系统登录改为公钥认证，避开密码认证缺陷。
+    安装高版本的web服务器和对程序代码进行审核。
+    使用linux下的tcp_wrappers防火墙，限制SSH登录的源地址。
+    
+2. 网络安全运维
+2.1 网络实时流量监控工具iftop
+
+iftop是一个免费的网卡实时流量监控工具，类似linux下的top命令。可以监控指定网卡的实时流量、端口连接信息、反向解析ip等，非常适合监控代理服务器或路由器的网络流量。
+2.2 网络流量监控与分析工具Ntop和Ntopng
+
+对于单台服务器的网络故障排除，iftop工具可以轻松实现，监控庞大的网络服务器，并且要分析每台主机以及端口的网络状态时，就需要一个高效的网络管理系统了。
+2.3网络性能评估工具iperf
+
+iperf是一个基于TCP/IP和UDP/IP的网络性能测试工具，可以用来测量网络带宽和网络质量，提供网络延迟抖动、数据包丢失率、最大传输单元等统计信息，从而定位网络瓶颈，解决网络故障。
+2.4 网络探测和安全审核工具nmap
+
+nmap是一个开源免费的网络发现工具，通过它能够找出网络上在线的主机，测试主机上哪些端口处于监听状态，通过端口确定主机上运行的应用程序类型和版本信息，最后利用它还能侦测出操作系统的类型和版本。

@@ -1,0 +1,28 @@
+
+audio_t_all(){  cat - <<'EOF'
+alsamixer       # audio input output volume 
+amixer set 'Beep' 0% mute || amixer set 'PC Beep' 0% mute || amixer set 'PC Speaker' 0% mute # mute speaker 
+amixer --card 2 # list audio hardware device configuration 
+aplay recording.wav # audio output 
+aplay --list-devices # list audio hardware 
+aplay --list-pcms # list audio output speaker 
+arecord --duration 5 --format dat recording.wav # record audio file 
+arecord --format dat | aplay # test audio input capture output playback default microphone speakers 
+arecord --list-devices # list audio input capture microphones 
+EOF
+}
+
+audio_t_avconv(){ cat - <<'EOF'
+avconv -i input.mov -codec copy -ss 15 output.mov # video cut 
+avconv -i input.mov -codec:video libx264 -codec:audio copy -filter transpose=clock output.mov # video rotate 
+avconv -i %04d.jpg -vcodec libx264 -bf 0 -crf 12 -an -r 25 -s hd1080 timelapse2.mp4 # video convert 
+EOF
+}
+
+audio_t_avconv(){  cat - <<'EOF'
+ffmpeg -activation_bytes ACTIVATION_BYTES -i input.aax -vn -c:a copy output.mp4 # aax audio convert 
+ffmpeg -i input.mov -vcodec copy -acodec copy -ss 00:00:00 -t 00:01:00 output.mov # video split 
+ffmpeg -i %04d.jpg -vcodec libx264 -bf 0 -crf 12 -vpre medium -an -r 25 -s hd1080 timelapse.mp4 # video convert 
+ffmpeg -i %04d.jpg -vcodec libx264 -bf 0 -crf 12 -vpre medium -an -r 25 -s hd1080 -vf "transpose=2" timelapse.mp4 # video convert rotate 
+EOF
+}

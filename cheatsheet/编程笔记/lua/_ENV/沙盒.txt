@@ -1,0 +1,50 @@
+1. 背景知识
+  Lua 给我的感觉是：各种内置函数和标准库的存在感都是比较强的。如果执行这句：
+  for name in pairs(_G) do print(_G) end
+  就会把各种环境中已存在名称的打印出来：
+    全局变量：比如字符串 _VERSION。
+    内置函数：比如 print、tonumber、dofile 之类。
+    模块名称：比如 string、io、coroutine 之类。
+    这里的全局变量 _G 就是存放环境的表(于是会有 _G 中存在着 _G._G 的递归)。
+    
+  于是，平时对于全局变量的访问就可以等同于对 _G 表进行索引：
+    value = _G[varname]  --> value = varname
+    _G[varname] = value  --> varname = value
+  
+2. 改变函数的环境
+  函数的上下文环境可以通过 setfenv(f, table)函数改变，其中 table 是新的环境表，f 表示需要被改变环境的函数。
+  如果 f 是数字，则将其视为堆栈层级（Stack Level），从而指明函数（1 为当前函数，2 为上一级函数）：
+    a = 3          -- 全局变量 a
+    setfenv(1, {}) -- 将当前函数的环境表改为空表
+    print(a)       -- 出错，因为当前环境表中 print 已经不存在了
+  没错，不仅是 a 不存在，连 print 都一块儿不存在了。如果需要引用以前的 print 则需要在新的环境表中放入线索：
+    a = 3
+    setfenv(1, { g = _G })
+    g.print(a)             -- 输出 nil
+    g.print(g.a)           -- 输出 3
+  
+3. 沙盒
+  于是，出于安全或者改变一些内置函数行为的目的，需要在执行 Lua 代码时改变其环境时便可以使用 setfenv 函数。
+  仅将你认为安全的函数或者新的实现加入新环境表中：
+  
+4. Lua 5.2 的 _ENV 变量
+  Lua 5.2 中所有对全局变量 var 的访问都会在语法上翻译为 _ENV.var。而 _ENV 本身被认为是处于当前块外的一个局部变量。
+  (于是只要你自己定义一个名为 _ENV 的变量，就自动成为了其后代码所处的「环境」
+   另有一个「全局环境」(global enviroment)的概念，指初始的 _G 表。)
+   
+  就我的理解来说，优点就是原先虚无缥缈只能通过 setfenv、getfenv 访问的所谓「环境」终于实体化为一个始终存在的变量 _ENV 了。
+  于是以下两个函数内容大致是一样的：
+  -- Lua 5.1
+  function foobar()
+    setfenv(1, {})
+    -- code here
+  end
+  
+  -- Lua 5.2
+  function foobar()
+    local _ENV = {}
+    -- code here
+  end
+  
+  而更进一步的是，5.2 中对 load 函数作出了修改。（包括但不限于 :)）合并了 loadstring 功能，并可以在参数中指定所使用的环境表：
+    local func, message = load(code, nil, "t", env)

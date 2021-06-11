@@ -1,0 +1,396 @@
+traceroute、mii-tool、ifconfig、ifdown、ifup、ping、netstat、arp、rpcinfo和ip
+
+################### traceroute ###################
+traceroute: 显示数据包到目的主机之间的路径；用户可以追踪网络数据包的路由途径，预设数据包大小为60字节，用户可以另外配置。
+-F：不也要分段数据包
+-I：使用ICMP ECHO进行路由跟踪
+-T：使用TCP SYN进行路由跟踪
+-U：使用UDP的特定端口进行路由跟踪
+
+#tracert www.163.com
+
+Tracing route to 163.xdwscache.ourglb0.com [36.42.32.67]
+over a maximum of 30 hops:
+  1     *        *        *     Request timed out.
+  2     2 ms    <1 ms    <1 ms  ACA80101.ipt.aol.com [172.168.1.1]
+  3     1 ms     1 ms     2 ms  100.64.0.1
+  4     2 ms     1 ms     2 ms  10.224.23.5
+  5     2 ms     1 ms     2 ms  113.141.208.13
+  6     *        *        *     Request timed out.
+  7     *        *        *     Request timed out.
+  8     5 ms     5 ms     4 ms  219.145.156.54
+  9     4 ms     5 ms     5 ms  36.42.32.67
+1、远程主机的IP地址是36.42.32.67；
+2、允许经过的路由器上限为30（30 hops）
+3、传输测试数据包的大小为60个字节（60 byte packets）
+4、实际经过的路由器数目为5
+5、经过路由器的时间就是5 ms     5 ms     4 ms 
+6、* 表示分布在指定的TTL时间内，无法将分组经过该路由器，也是表示该路由器目前处于忙碌状态
+
+################### mii-tool ###################
+mii-tool: 可以查看和设置网卡的工作模式。
+-r：重新启动自动协商
+-R：重置MII开启状态
+-F：更改网络接口协商模式
+-w: 检测链路状态的变化
+
+mii-tool eth0
+mii-tool -v eth0
+mii-tool -F 100baseTx-HD eth0
+mii-tool -r eth0
+
+################### ifconfig ###################
+ifconfig 显示和配置网络接口
+add <地址> 设置网络设备的IPv6地址
+del <地址> 删除网络设备的IPv6地址
+mem_start <内存地址> 设置网络设备在主内存所占用的起始地址
+media <类型> 设置网络设备的媒介类型
+metric <数目> 设置在计算数据包的转送次数时，所要加上的数据
+mtu <字节> 
+netmask <子网掩码>
+up | down
+hw <类型> <硬件地址> : ether\ax25\ARCnet\netrom
+txqueuelen
+multicast
+tunnel <地址> 创建IPv4与IPv6之间隧道通信地址
+
+[-]promisc
+[-]arp
+[-]allmulti
+
+################### rpcinfo ###################
+rpcinfo:可以显示那些使用portmap注册的程序的信息，并向程序进行RPC调用，检查它们是否正常运行。
+-p：探测使用端口映射协议版本2的主机上portmap服务器并显示所有已注册的RPC程序的列表。如果不指定主机，默认值为本地主机。
+-u：执行一个到使用UDP的指定主机上的程序号的过程0的RPC调用，并报告是否收到响应。
+
+rpcinfo
+rpcinfo -s 192.168.0.2 #显示主机192.168.0.2上所有已注册的RPC程序的简明列表
+rpcinfo -p 192.168.0.2 #显示主机192.168.0.2上使用端口映射协议版本2的portmap服务并显示所有已注册的RPC程序列表。
+rpcinfo -m 显示端口映射操作统计的信息表
+
+################### ip ###################
+ip address add 192.168.0.3/24 brd _dev eth0 label eth0:0
+在网卡eth0上增加一个IP地址192.168.0.3，标准广播地址，指定别名为eth0:0
+
+ip address add local 192.168.1.1/24 brd +dev eth0
+添加静态主机路由
+ip address add local 192.168.1.1/24 brd -dev eth0
+添加静态主机路由
+
+ip link set dev eth0 up | ip link set dev eth0 down
+ip link set dev eth0 txqueuelen 900
+ip link set dev eth0 mtu 1400
+ip link set dev eth0 address 00:0C:29:B6:D2:A4
+
+添加静态网络路由
+ip route add 192.168.1.0/24 via 192.168.0.1
+添加静态主机路由
+ip route add 192.168.1.2 via 192.168.0.1
+更改静态主机路由
+ip route chg 192.168.1.0/24 dev eth0
+获取到IP地址192.168.0.200路径的的路由
+ip route get 192.168.0.200
+计算路由缓存里面的条数
+ip -o route list cloned | wc
+列出网络192.168.0.0的路由表
+ip route list 192.168.0.0/24
+
+（1） 添加到主机的路由。
+#route add –host 192.168.1.2 dev eth0:0
+#route add –host 10.20.30.148 gw 10.20.30.40
+（2） 添加到网络的路由。
+#route add –net 10.20.30.40 netmask 255.255.255.248 eth0
+#route add –net 10.20.30.48 netmask 255.255.255.248 gw 10.20.30.41
+#route add –net 192.168.1.0/24 eth1
+（3） 添加默认网关。
+#route add default gw 192.168.1.1
+（4） 查看内核路由表的配置。
+#route
+（5）删除路由。
+#route del –host 192.168.1.2 dev eth0:0
+#route del –host 10.20.30.148 gw 10.20.30.40
+#route del –net 10.20.30.40 netmask 255.255.255.248 eth0
+#route del –net 10.20.30.48 netmask 255.255.255.248 gw 10.20.30.41
+#route del –net 192.168.1.0/24 eth1
+#route del default gw 192.168.1.1
+
+
+
+################### nmap ###################
+网络探测和安全审核程序，通过扫描单个主机或网络，获得计算机正在运行和提供的服务等信息。
+nmap使用原始IP报文来发现网络有哪些主机、那些主机提供什么服务，哪些服务运行在什么操作系统上。它们使用什么类型报文过滤器或者防火墙
+以及一堆其他功能。
+支持：UDP，TCP connect、TCP SYN、ftp代理、反向标识、ICMP、FIN扫描、ACK扫描圣诞树、SYBC扫描以及null扫描。
+
+nmap [扫描类型] [选项] [扫描目标说明]
+--interactive                        在交互模式中启动
+--send-eth                           使用原以太网帧发送
+--send-ip                            在原IP层发送
+--privileged                         将定用户具有全部权限
+-6                                   启用IPv6扫描
+-p <端口范围>                        只扫描指定端口
+-A                                   激烈扫描模式选项
+--datadir <目录>                     说明用户nmap数据文件位置
+-v                                   提高说出信息的详细粒度
+--iflist                             显示主机接口和路由
+--allports                           不为版本探测排除任何端口
+--version-all                        尝试每个版本
+--version-light                      打开轻量级模式
+--version-trace                      跟踪版本扫描活动
+--version-intensity <强度>           设置版本扫描强度，强度值必须在0和9之间
+-d <级别>                            提高或设置调试级别
+--append-output                      在输出文件中添加
+--no-stylesheet                      忽略XML声明的XSL样式表
+--stylesheet <路径|URL>              设置XSL样式表，转换XML输出
+-S <IP地址>                          欺骗源地址
+-e <接口>                            使用指定接口
+-O                                   启用操作系统探测
+--open                               只显示打开或可能打开的端口
+--resume <文件名>                    恢复一个中断扫描
+--packet-trace                       显示发送和接收的所有数据包
+--iflist                             列举接口和路由
+--min-rtt-timeout <时间>             指定探测的往返时间
+-sC                                  相当于--script
+--script-trace                       显示发送和接收的所有数据
+--script-updatedb                    更新脚本数据库
+-g <端口>                            使用指定端口
+--ip-option <选项>                   指定IP选项发送数据包
+-oN <文件>                           要求将标准输出直接写入指定的文件
+-F                                   快速扫描：有限端口扫描
+-r                                   不要按随机顺序扫描端口
+-oX <文件>                           要求XML输出直接写入指定的文件
+-oS <文件>                           类似于交互工具输出
+-n                                   不用域名解析
+-R                                   为所有目标的解析的域名
+--system-dns                         使用系统域名解析器
+-oG <文件>                           Grep输出
+-oA <基本名称>                       输出至所有格式
+-f                                   报文分段
+--mtu <值>                           指定MTU
+--min-host-group <时间>              调整并行扫描组的最小值
+--max-host-group <时间>              调整并行扫描组的最大值
+--min-parallelism <时间>             调整探测报文的并行度的最小值
+--max-parallelism <时间>             调整探测报文的并行度的最大值
+--min-rtt-timeout <时间>             调整探测报文最小超时
+--max-rtt-timeout <时间>             调整探测报文最大超时
+--host-timeout <时间>                放弃低速目标主机
+--scan-delay <时间间隔>              调整探测保温的时间间隔
+--max-scan-delay <时间间隔>          调整探测报文的最大时间间隔
+-T <模板>                            
+--data-length <数量>                 附加随机数据包发送
+--ttl <值>                           设置IP TTL域
+--top-ports <端口数量>               扫描指定数量的最常见的端口
+--badsum                             使用一个伪造的TCP、UDP、SCTp报文检验和发送数据包
+--randomize-hosts                    对目标主机的顺序随机排序
+--min-rate <数据包数量>              发送数据包不能慢于每秒指定数量
+--max-rate <数据包数量>              发送数据包不能快于每秒指定数量
+-e <接口>                            使用指定接口
+-S <IP地址>                          源地址欺骗
+-g <端口号>                          使用指定端口号
+--scanflags <标志>                   自动以德TCP扫描标志
+
+
+主机发现：          
+-sL                 列表扫描
+-sP                 ping扫描
+-P0                 无ping
+-PS                 TCP SYN ping
+-PA                 TCP ACK ping
+-PU                 UDP ping
+-PE/PP/PM           ICMP ping类型
+-PR                 ARP ping
+                    
+端口扫描
+-sS                 TCP SYNC扫描
+-sT                 TCP connect扫描
+-sA                 TCP ACK扫描
+-sW                 TCP窗口扫描
+-sM                 TCP Maimon扫描
+-sU                 UDP扫描
+-sN                 TCP null扫描
+-sF                 FIN扫描
+-sX                 Xmas扫描
+-sI                 进行真正的TCP端口盲扫描：意味着没有报文从真实IP地址发生到目标
+-sO                 IP协议扫描
+-b                  FTP弹跳扫描
+
+服务和版本测试
+-sV                 版本扫描
+-sR                 RPC扫描
+                    
+操作系统探测
+-O                  启用操作系统探测
+--osscan-limit      针对指定的目标进行操作系统探测
+--osscan-guess      推测操作系统探测结果
+
+
+扫描单一的一个主机                                 nmap nxadmin.com#nmap 192.168.1.2
+扫描整个子网                                       nmap 192.168.1.1/24
+扫描多个目标                                       nmap 192.168.1.2 192.168.1.5
+扫描一个范围内的目标,                              nmap 192.168.1.1-100
+扫描target.txt包含的IP地址                         nmap -iL target.txt
+扫描除过某一个ip外的所有子网主机,                  nmap192.168.1.1/24-exclude192.168.1.1
+                 
+扫描特定主机上的80,21,23端口                        nmap -p80,21,23 192.168.1.1
+半开放扫描                                          nmap -sS 192.168.1.1
+Tcp connect() scan(sT)                              nmap -sT 192.168.1.1
+Udp scan(sU)ICMP不可达的错误消息，说明端口是关闭的  nmap -sU 192.168.1.1
+TcpSYN扫描不是最佳的扫描模式,因为有防火墙的存在     nmap -sF 192.168.1.8
+
+FIN扫描也不会在目标主机上创建日志(FIN扫描的优势之一).个类型的扫描都是具有差异性的,FIN扫描发送的包只包含FIN标识,
+NULL扫描不发送数据包上的任何字节,XMAS扫描发送FIN、PSH和URG标识的数据包.
+
+PING扫描不同于其它的扫描方式，因为它只用于找出主机是否是存在在网络中的.
+它不是用来发现是否开放端口的.PING扫描需要ROOT权限，如果用户没有ROOT权限,PING扫描将会使用connect()调用.
+nmap-sP192.168.1.1
+
+版本检测是用来扫描目标主机和端口上运行的软件的版本.它不同于其它的扫描技术，它不是用来扫描目标主机上开放的端口，
+不过它需要从开放的端口获取信息来判断软件的版本.使用版本检测扫描之前需要先用TCPSYN扫描开放了哪些端口.
+nmap-sV192.168.1.1
+
+Idlescan(sL)
+Idlescan是一种先进的扫描技术，它不是用你真实的主机Ip发送数据包，而是使用另外一个目标网络的主机发送数据包.
+代码如下:
+nmap-sL192.168.1.6 192.168.1.1
+
+有需要其它的扫描技术，如FTPbounce（FTP反弹）,fragmentationscan（碎片扫描）,IPprotocolscan（IP协议扫描）,
+以上讨论的是几种最主要的扫描方式.
+
+Nmap最重要的特点之一是能够远程检测操作系统和软件，Nmap的OS检测技术在渗透测试中用来了解远程主机的操作系统和软件是非常有用的，
+通过获取的信息你可以知道已知的漏洞。Nmap有一个名为的nmap-OS-DB数据库，该数据库包含超过2600操作系统的信息。Nmap把TCP和UDP数据包
+发送到目标机器上，然后检查结果和数据库对照。
+nmap -O 192.168.1.232
+
+Nmap的操作系统指纹识别技术：
+设备类型（路由器，工作组等）运行（运行的操作系统）操作系统的详细信息（操作系统的名称和版本）网络距离（目标和攻击者之间的距离跳）
+如果远程主机有防火墙，IDS和IPS系统，你可以使用-PN命令来确保不ping远程主机，因为有时候防火墙会组织掉ping请求.-PN命令告诉Nmap
+不用ping远程主机。
+#nmap -O -PN 192.168.1.1/24
+
+以上命令告诉发信主机远程主机是存活在网络上的，所以没有必要发送ping请求,使用-PN参数可以绕过PING命令,但是不影响主机的系统的发现.
+–osscan-guess猜测认为最接近目标的匹配操作系统类型。
+nmap -O --osscan-guess 192.168.1.1
+
+################### tcpdump ###################
+捕获第一个网络接口上所有流过的数据包
+tcpdump
+指定监听一个数据，达到指定数量自动停止抓包
+tcpdump -c 1
+将捕获的数据包写入/root/dumpfile文件中
+tcpdump -w /root/dumpfile
+捕获指定网络接口eth0的数据包
+tcpdump -i eth0
+捕获rhel收到和发出的所有数据包
+tcpdump host rhel #tcpdump host 192.168.0.2
+捕获主机192.168.0.2接收|发送的所有数据包
+tcpdump ip src 192.168.0.2 | tcpdump ip dst 192.168.0.2
+捕获主机rhel和主机rhel2和rhel3之间的流量
+tcpdump host rhel and \( rhel2 or rhel3 \)  # tcpdump host 192.168.0.2 and \( 192.168.0.3 or 192.168.0.4 \) 
+捕获主机rhel与主机linux之外的任何主机之间的所有IP数据包
+tcpdump ip host rhel and not linux # tcpdump ip host 192.168.0.2 and ！192.168.0.5
+捕获主机rhel发送到主机rhel得及过网络接口eth0的数据包
+tcpdump -i eth0 dst host rhel
+tcpdump -p udp port 53
+tcpdump -p arp
+tcpdump ether dst 00:0C::29:FA:19:10
+tcpdump src net 192.168.0.0/24
+tcpdump 'icmp[icmptype]!=icmp-echo and icmp[icmptype]!=icmp-echoreplay'
+tcpdump 'tcp[tcpflags]&(tcp-syn|tcp-fn)!=0 and not src and dstnet localnet'
+
+################### TCP Wrapper ###################
+1.tcpwraper概念:不同于iptables防火墙网络访问控制,iptables可对于tcp/ip进行所有访问控制并且工作在内核中,而tcpwraper只对部分具有
+tcp协议的服务进行网络访问控制,方便那些对iptables不熟悉的人使用,也就是说,只有那些链接libwraper.so库文件的服务,才受tcpwraper控制
+
+匹配顺序:首先查询/etc/hosts.allow,再查询/etc/hosts.deny，最后默认规则是允许所有通过
+
+TCPWrapper:保护机制用来通过定义哪些主机允许活不允许连接到网络服务。TCP Wrapper为多种不同的服务提供访问把关的功能，
+大多数网络服务系统都利用TCPwrapper在外来进入系统的请求或被请求的服务器之间设置防范。
+
+服务列表: 客户端列表 [:选项]
+/etc/hosts.allow  # 用来定义允许的访问
+/etc/hosts.deny   # 用来定义拒绝的访问
+
+服务列表：一个有逗号分割的服务名列表，在/usr/sbin目录中的程序，或ALL（EXCEPT）通配符，服务列表也接收运算符。
+ALL代表所有的服务程序，也可以指定特定的服务，如in.ftpd代表TFTP服务器程序，vsftpd代表vsftpd服务器程序。
+
+服务端列表：一个逗号分割的主机名、主机IP地址、特殊模式或通配符列表，该列表用来识别受这些规则影响的主机，客户端列表也可接受
+运算符。
+
+[服务列表]
+ALL     代表所有的客户端地址
+LOCAL   代表本地地址
+UNKNOWN 代表可解析的域名
+KNOWN   代表不可解析的域名
+[客户端列表]
+.sh.com                       sh.com域内的任何主机
+linux.sh.com                  主机域名Linux.sh.com
+linux                         主机名Linux
+192.168.0.5                   主机名192.168.0.5
+192.168.0.0/255.255.255.0     192.168.0.0网络内的任何主机
+192.168.0.                    192.168.0.0网络内的任何主机
+fe80:20c:29ff:fefa::/64       fe80:20c:29ff:fefa::网络内的任何主机
+@mynetwork                    网络组名mynetwok内的主机
+[选项]
+%a  客户端主机IP地址
+%A  服务器端主机IP地址
+%c  客户端信息、如用户名和主机名，或用户名和IP地址
+%d  守护进程名称
+%h  客户端主机名或IP地址
+%H  服务器端主机名或IP地址
+%n  客户端主机名
+%N  服务器主机名
+%p  守护进程PID
+%s  服务器信息，如守护进程的进程或服务器的主机名或IP地址
+%u  客户端名称
+%%  扩展为一个%字符
+DENY   #在host.allow文件中可以写DENY
+
+        ALLOW  #在host.deny文件中可以写ALLOW
+
+        spawn  #可以在后面执行一样命令
+        
+5.实例:不允许1.1.1.0/24访问本机telnet服务,但允许1.1.1.100访问,其他客户端不受控制
+5.1.方法1:
+vim /etc/hosts.allow
+in.telnetd: 1.1.1.100
+
+vim /etc/hosts.deny
+in.telnetd: 1.1.1.0/255.255.255.0
+
+5.2.方法2:
+vim /etc/hosts.deny
+in.telnetd: 1.1.1. EXCEPT 1.1.1.100
+
+5.3.方法3
+vim /etc/hosts.allow
+in.telnetd: ALL EXCEPT 1.1.1. EXCEPT 1.1.1.100
+
+vim /etc/hosts.deny
+in.telnetd: ALL
+
+6.在hosts.allow文件中,拒绝1.1.1.0/24访问本机sshd服务,这是一种不常见写法
+vim /etc/host.allow
+sshd: 1.1.1. :DENY
+7.允许1.1.1.0/24访问本机sshd服务,但必须将其登入日志进行记录
+vim /etc/hosts.allow
+sshd: 1.1.1. :spawn echo “`date`, Login attempt from %c to %s” >> /var/log/tcpwarper.log
+
+EXCEPT:允许特定的例外以用来在同一规则中拓展匹配的范围。
+
+
+优点：  对客户端和网络服务的透明性。连接的客户端和网络服务都不需要知道TCP wrapper在使用中合法用户会被记录到日志中，并获
+        得所需要的服务，而非法用户则无法获得要求的服务。
+        中央化管理多项协议。TCP wrapper独立运行于他们所保护的网络服务，这就允许多个服务器应用程序共享一组通用的访问控制
+        配置文件，从而简化管理任务。
+        
+        
+################### ppp和PPPOE ###################
+
+yum install ppp
+yum install rp-pppoe
+
+pppoe-setup
+
+pppoe-start
+pppoe-stop
+pppoe-status /etc/sysconfig/network-script/ifcfg-ppp0

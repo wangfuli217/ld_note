@@ -1,0 +1,166 @@
+https://github.com/Keybird0/Kali-learning-notes/wiki/%E4%BF%A1%E6%81%AF%E6%94%B6%E9%9B%86%E4%B9%8BDNS
+https://github.com/zhangyachen/zhangyachen.github.io/issues/45
+
+1. 相关概念
+对于一个网站最想了解的或许就是域名，sina.com这是一个域名(Domain Name)
+www.sina.com则是完全限定域名(FQND:Fully Qualified Domain Name)
+FQND即是该域名(sina.com)下的一个主机记录,主机记录也叫做A记录，当然也有可能是一个别名记录(C name)。
+
+每个域名都一个或者多个域名服务器，用来负责对该域名的解析，而域名服务器地址又是通过DNS里面的NS记录进行定义和注册的。
+此外每个域名或者也有自己的邮件服务器(MX记录)。
+而前面所有的解析记录都是将主机名解析成另外一个主机名或者IP地址，但是ptr则是一个反向解析记录的过程，即是将IP地址解析成主机名。
+
+2. DNS记录
+资源记录是一个包含了下列字段的4元组：
+    (Name,Value,Type,TTL)
+TTL是该记录的生存时间，决定了资源记录应当从缓存中删除的时间.
+
+2.1 DNS请求方法说明
+A:地址记录,返回32位IPv4地址，最常用于将主机名映射到主机的IP地址，但也用于DNSBL，在RFC 1101中存 储子网掩码等
+  记录是用来指定主机名（或域名）对应的IP地址记录
+CNAME:规范名字。可以将注册的不同域名都转到一个域名记录上，由这个域名记录统一解析管理
+      规范主机名:有着复杂的主机名的主机可以拥有一个或者多个别名。主机的本名叫作规范主机名。相当于一个人的本名和若干个外号
+AAAA:IPv6地址记录,返回一个128位的IPv6地址，最常用于将主机名映射到主机的IP地址。
+SOA:权限记录区域,指定关于DNS区域的权威信息，包括主要名称服务器，域管理员的电子邮件，域序列号以及与刷新区域有关的多个定时器。
+MX:记录是邮件交换记录，它指向一个邮件服务器，用于电子邮件系统发邮件时根据收信人的地址后缀来定位邮件服务器。
+   当Internet上的某用户要发一封信给 user@mydomain.com 时，该用户的邮件系统通过DNS查找mydomain.com这个域名的MX记录，
+   如果MX记录存在， 用户计算机就将邮件发送到MX记录所指定的邮件服务器上。
+NS:名称服务记录,指定该域名由哪个DNS服务器来进行解析。; <域名所在的权威名称服务器地址>
+   NS记录是指定由哪个DNS服务器解析你的域名。
+SPF:一个简单的电子邮件验证系统，旨在通过提供一种机制来检测电子邮件欺骗，以允许接收邮件交换者检查来自域的传入邮件来自该域管理员授权的主机
+TXT:文本记录,一般指某个主机名或域名的说明，
+    如：admin IN TXT "管理员, 电话：XXXXXXXXXXX"，
+    mail IN TXT "邮件主机，存放在xxx , 管理人：AAA"，
+    Jim IN TXT "contact: abc@mailserver.com"，也就是您可以设置 TXT 内容以便使别人联系到您。
+    
+    TXT的应用之一，SPF（Sender Policy Framework）反垃圾邮件。SPF是跟DNS相关的一项技术，它的内容写在DNS的TXT类型的记录里面。
+    MX记录的作用是给寄信者指明某个域名的邮件服务器有哪些。SPF的作用跟MX相反，它向收信者表明，哪些邮件服务器是经过某个域名认可会发送邮件的。
+    SPF的作用主要是反垃圾邮件，主要针对那些发信人伪造域名的垃圾邮件。
+    例如：当邮件服务器收到自称发件人是spam@gmail.com的邮件，那么到底它是不是真的gmail.com的邮件服务器发过来的呢，我们可以查询gmail.com的SPF记录，以此防止别人伪造你来发邮件。
+    
+PTR:指针记录 ，指向规范名称的指针。 与CNAME不同，DNS处理停止，只返回名称。 最常见的用途是实施反向 DNS查询，但其他用途包括DNS-SD等。
+SRV:服务定位器, SRV记录的作用是指明某域名下提供的服务。
+    _http._tcp.example.com. SRV 10 5 80. www.example.com
+    SRV后面项目的含义：
+    10 - 优先级，类似MX记录
+    5 - 权重
+    80 - 端口
+    www.example.com - 实际提供服务的主机名。
+
+NSEC:Next,NSSEC的一部分,用于证明名称不存在。 使用与(过时的)NXT记录相同的格式
+AXFR:授权区域传输,将主区域名称服务器上的整个区域文件传输到辅助名称服务器. 
+     DNS区域传输通常用于跨多个DNS服务器复制DNS数据，或备份DNS文件. 用户或服务器将执行来自“名称服务器”的特定区域传输请求。
+     如果名称服务器允许区域传输发生，名称服务器托管的所有DNS名称和IP地址将以可读的ASCII文本形式返回
+IXFR:增量区域传输,将整个区域文件从主名称服务器传输到辅助名称服务器
+
+
+
+3. DNS区域传输
+区域传送简单理解其实把一个域名服务器的所有信息同步到另一个域名服务器.一般只允许同一域的服务器进行同步,
+如果配置错误,就可能造成所有域名服务器可同步过去,导致泄露DNS服务器的所有信息.
+3.1 使用dig
+root@test:~# dig @ns4.sina.com sina.com axfr
+3.2 使用host
+root@test:~# host -T -l sina.com ns4.sina.com
+
+4. nslookup
+#nslookup
+> set type=a
+
+> sina.com
+Server:		61.232.202.158    # 域名服务器
+Address:	61.232.202.158#53 # 域名服务器和端口
+
+Non-authoritative answer:
+Name:	sina.com              # 域名
+Address: 66.102.251.33        # 域名对应地址
+
+> www.sina.com 
+Server:		61.232.202.158    # 域名服务器
+Address:	61.232.202.158#53 # 域名服务器和端口
+
+Non-authoritative answer:
+Name:   www.sina.com          # 域名
+Address: 112.25.53.229        # 域名对应地址
+
+也可以:
+nslookup -q=any sina.com (-q 是type的替换)
+> set type=any
+> sina.com
+Server:         192.168.27.1
+Address:        192.168.27.1#53
+
+Non-authoritative answer:
+sina.com        nameserver = ns3.sina.com.cn.
+sina.com        nameserver = ns2.sina.com.
+sina.com        nameserver = ns2.sina.com.cn.
+sina.com        nameserver = ns4.sina.com.
+sina.com        nameserver = ns3.sina.com.
+sina.com        nameserver = ns4.sina.com.cn.
+sina.com        nameserver = ns1.sina.com.cn.
+sina.com        nameserver = ns1.sina.com.
+
+Authoritative answers can be found from:
+
+
+> xianleidi.com
+Server:         192.168.27.1
+Address:        192.168.27.1#53
+
+Non-authoritative answer:
+xianleidi.com   text = "v=spf1 ip4:222.41.217.0/22 -all"  # txt类型之spf
+xianleidi.com   mail exchanger = 10 mail.xianleidi.com.   # 邮件类型
+Name:   xianleidi.com                                     # 域名
+Address: 222.41.217.210                                   # 域名对应地址
+xianleidi.com   nameserver = dns10.hichina.com.           # 阿里云BGP数据中心 -> 140.205.81.16
+xianleidi.com   nameserver = dns9.hichina.com.            # -> 140.205.81.15
+any查询出了xianleidi.com域名的所有记录，ns记录，mail邮件交换记录。除此以为我们可以看到有一条特殊的记录即
+"text",SPF记录，其作用就是反垃圾邮件的，根据方向解析，获得垃圾邮件的来源地址，对服务器得到ip进行对比，
+若匹配则判断为正规邮件，不匹配则为垃圾邮.
+
+5.dig
+
+dig sina.com
+dig +noall +answer A mail.163.com    # 查询163邮箱的邮件服务器A记录
+dig -x 220.181.14.155 +noall +answer # 反向查询 | 查询PTR记录
+dig +noall +answer sina.com ns       # 查询sina服务器A记录
+dig +trace baidu.com                 # 显示的结果为迭代查询的完整过程
+dig +short zhidao.baidu.com          # 简短
+
+dig xianleidi.com any                # 使用不同dns服务器进行查询
+
+;; ANSWER SECTION:
+xianleidi.com.          6       IN      TXT     "v=spf1 ip4:222.41.217.0/22 -all"
+xianleidi.com.          6       IN      MX      10 mail.xianleidi.com.
+xianleidi.com.          6       IN      A       222.41.217.210
+xianleidi.com.          85806   IN      NS      dns10.hichina.com.
+xianleidi.com.          85806   IN      NS      dns9.hichina.com.
+dig xianleidi.com any @8.8.8.8       # 使用不同dns服务器进行查询 @google
+;; ANSWER SECTION:
+xianleidi.com.          85743   IN      NS      dns10.hichina.com.
+xianleidi.com.          85743   IN      NS      dns9.hichina.com.
+
+dig zhidao.baidu.com
+第一段是查询参数和统计
+; <<>> DiG 9.8.2rc1-RedHat-9.8.2-0.37.rc1.el6 <<>> zhidao.baidu.com
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 189
+;; flags: qr rd ra; QUERY: 1, ANSWER: 4, AUTHORITY: 0, ADDITIONAL: 0
+
+第二段是查询内容：
+;zhidao.baidu.com.      IN  A
+查询zhidao.baidu.com的A记录。
+
+第三段是DNS服务器的答复：
+;; ANSWER SECTION:
+zhidao.baidu.com.   5   IN  CNAME   iknow.baidu.com.
+iknow.baidu.com.    5   IN  CNAME   iknow.n.shifen.com.
+iknow.n.shifen.com. 5   IN  A   123.125.65.91
+iknow.n.shifen.com. 5   IN  A   123.125.115.90
+
+第四段是DNS服务器的一些传输信息：
+;; Query time: 29 msec
+;; SERVER: 192.168.183.2#53(192.168.183.2)
+;; WHEN: Thu Jul  7 02:09:40 2016
+;; MSG SIZE  rcvd: 115

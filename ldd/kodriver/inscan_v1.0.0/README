@@ -1,0 +1,283 @@
+=============================================================================
+	     INVOLUSER CAN communication cards device driver
+		         Installation & Program Guide
+		       for Linux Kernel 2.4.xx, 2.6.xx,3.x
+	            Copyright (C) 2011, INVOLUSER Co, Ltd.
+=============================================================================
+Contents
+
+1. Introduction
+2. Test environment
+3. System Requirement
+4. Installation
+5. User space program for this driver
+6. Troubleshooting
+
+-----------------------------------------------------------------------------
+1. Introduction
+   
+   INVOLUSER CAN communication cards device driver,
+   It is a migration from can4linux 3.5.7 and compatible with can4linux 3.5.7
+   The application for can4linux driver can run on advcan driver without any modification.
+
+   Now it supports following boards.
+    
+    - PCI-CA60          : 6 port Isolated PCI CAN-bus Card.
+
+	 
+   This driver supports Linux Kernel 2.4.xx, 2.6.xx,3.x Intel x86 hardware 
+   platform. Any problem occurs, please contact INVOLUSER at 
+
+
+   This driver and utilities are published in form of source code under
+   GNU General Public License in this version. Please refer to GNU General
+   Public License announcement in each source code file for more detail.
+
+   This version of driver can be installed as Loadable Module (Module driver)
+   Before you install the driver, please refer to hardware installation 
+   procedure in the User's Manual.
+
+2. Test environment
+
+   +--------------------------+-------------------------+
+   |  Distribution            | kernel version          | 
+   +--------------------------+-------------------------+
+   |	Red Hat 9             |  2.4.20-8               |
+   +--------------------------+-------------------------+  
+   |	RedHat Enterprise 4   |  2.6.9-34.EL            |
+   +--------------------------+-------------------------+
+   |	Redhat Enterprise 5.4 |  2.6.18-164.el5         |
+   +--------------------------+-------------------------+ 
+   |	Fedora Core 8         |  2.6.23.1-42.fc8        |
+   +--------------------------+-------------------------+
+   |	Fedora Core 9         |  2.6.25-14.fc9          |
+   +--------------------------+-------------------------+
+   |	Fedora Core 10        |  2.6.27.5-117.fc10      |
+   +--------------------------+-------------------------+
+   |	Fedora Core 11        |  2.6.29.4-167.fc11      |    
+   +--------------------------+-------------------------+
+   |	Fedora Core 12        |  2.6.31.5-127.fc12      |
+   +--------------------------+-------------------------+
+   |    Fedora Core 13        |  2.6.33.3-85.fc13       | 
+   +--------------------------+-------------------------+
+   |	Fedora Core 14        |  2.6.35.6-45.fc14       |
+   +--------------------------+-------------------------+
+   |    Fedora Core 15        |  2.6.38.6-26.rc1.fc5    |
+   |                          |  2.6.40.6-0.FC15        |
+   +--------------------------+-------------------------+
+   |    Fedora Core 18        |  3.6.10-4.fc18          |
+   +--------------------------+-------------------------+
+   |	SUSE 10.1             |  2.6.16.13-4-default    |       
+   +--------------------------+-------------------------+
+   |	SUSE 10.3             |  2.6.22.5-31-default    |      
+   +--------------------------+-------------------------+
+   |	SUSE 11.2             |  2.6.31.5-0.1-desktop   |
+   +--------------------------+-------------------------+
+   |	SUSE 11.3             |  2.6.34-12		|
+   +--------------------------+-------------------------+
+   |    SUSE 11.4             |  2.6.38                 |
+   +--------------------------+-------------------------+
+   |	Mandriva 2010         |  2.6.31.5-desktop-1mnb  |
+   +--------------------------+-------------------------+
+   |	Debian 5.0.4          |  2.6.26-2-686           |   
+   +--------------------------+-------------------------+
+   |	Debian 6.0	      |  2.6.32-5-686           |     
+   +--------------------------+-------------------------+
+   |	Ubuntu 8.04           |  2.6.24-19-generic      | 
+   +--------------------------+-------------------------+
+   |	ubuntu 9.04           |  2.6.28-11-generic      |
+   +--------------------------+-------------------------+
+   |	Ubuntu 9.10           |  2.6.31-14-generic      |
+   +--------------------------+-------------------------+
+   |	Ubuntu 10.04          |  2.6.32-21-generic      |
+   +--------------------------+-------------------------+
+   |	Ubuntu 10.10          |  2.6.35-22-generic      |
+   +--------------------------+-------------------------+
+   |    Ubuntu 11.04          |  2.6.38                 |
+   +--------------------------+-------------------------+
+   |    Ubuntu 11.10          |  3.0.2                  |
+   +--------------------------+-------------------------+
+   |    Ubuntu 12.10          |  3.5.0-17-generic       |
+   +--------------------------+-------------------------+
+
+3. System Requirement
+   - Hardware platform: Intel x86 
+   - Kernel version: 2.4.xx, 2.6.xx
+   - gcc version 2.72 or later
+
+4. Installation
+
+   4.1 Hardware installation
+       Just install the card into your computer, please refer to hardware
+       installation procedure in the User's Manual.
+     
+   4.2 Driver files and device naming convention
+       The driver file may be obtained from ftp, CD-ROM .The
+       first step, anyway, is to copy driver file "inscan_source_vx.xx.tar.gz" into 
+       specified directory. e.g. /can. The execute commands to decompress as below.
+
+       # cd /workdir
+       # tar -zxvf inscan_source_vx.xx.tar.gz
+      
+   4.3 Compile and install CAN Linux driver
+       Module driver is easiest way to compile. In this part, both build 
+       method for 2.4, 2.6 and 3.x kernel are introduced.
+
+       4.3.1 Build driver for 2.6 or 3.x kernel with the current running kernel source
+          Find "Makefile" in /workdir/inscan/driver/, then run
+          # make
+
+	   The driver files "inscan.ko"  will be properly compiled.
+
+          Run following command to install the builded driver to the property
+          system directory.
+          # make install
+
+       4.3.2 Build driver for 2.4 kernel with the current running kernel source
+          Find "Makefile-2.4" in /workdir/inscan/driver/, then run
+          # make
+
+	       The driver files "inscan.o"  will be properly compiled.
+
+          Run following command to install the builded driver to the property
+          system directory.
+          # make install
+
+       4.3.3 Build a module with the user refered kernel source tree
+          In section 4.3.1 & 4.3.2, we build the kernel driver with the system 
+          running kernel source tree, if you want to use a different kernel
+          source tree, you must refer the "SOURCE" envirnment variable.
+
+          # make SOURCE=/path/to/your/own/kernel/source
+          
+   4.4 Load driver
+	  In some linux distributions or when you use ISA CAN device,
+	  after you run "make install" to install the driver,
+	  it only take effect in this booting and the driver can not load automaticcally when reboot.
+	  You need to run "make install"to install this driver every time when system boot up. 
+          However, it's better to have a boot time configuration to 
+          eliminate manual operation. 
+
+          For PCI CAN devies,in general Linux distributions, 
+          you can let the OS load the driver automaticcally by run the following command:
+	    # cd /workdir/advcan/driver/
+            # make install
+
+	  Reboot you device, if the above way do not take effect, or your CAN device is ISA device,
+	  you may add script to boot up script file as follows:
+	       
+          Example for FC6:
+          Edit the /etc/rc.d/rc.local file.
+	  #vi /etc/rc.d/rc.local
+
+	  Add the following script in the end of file,
+
+          	modprobe advcan
+          	CAN_MAJOR=`awk '$2=="inscan" {print $1}' /proc/devices`
+          	mknod /dev/can0 c $CAN_MAJOR 0
+          	mknod /dev/can1 c $CAN_MAJOR 1
+          	chmod 666 /dev/can0
+          	chmod 666 /dev/can1 
+
+          Reboot and check if advcan activated by "lsmod" command.
+
+
+   4.5 Create device driver file
+   	Ensure you have inserted the advcan module in the kernel (which can
+   	be show by the lsmod command)
+
+
+	Use ls command to see whether the CAN device name is create in /dev
+	#ls -l /dev/can*
+
+	If node device list, you need to create the CAN device manally as follows:
+   	Use the command:
+   	
+   	# cd /workdir/advcan/drvier
+        # make nodes
+   	
+   	Check the created device file:
+   	
+   	#ls -l /dev/can*
+   	crw-r--r--   1 root    root     254,   0 Jun 15 15:32 /dev/can0
+   	crw-r--r--   1 root    root     254,   1 Jun 15 15:32 /dev/can1
+   					                     |     |	
+   					                     |     |---- the minor number
+   					                     |---------- the major number, dynamic
+   	you also can get the major number of this device driver from system:
+   	
+   	# cat /proc/devices
+   	
+   	you can find the major number of the advcan device driver, and ensure
+   	the major number displayed use ls command is as same as the major get 
+   	from system. Other wise use the following command to create the correct
+   	device driver file:
+   	
+   	# mknod /dev/can0 c 254 0
+   	# mknod /dev/can1 c 254 1
+   			     |-----the major number which get from system
+
+	You can also add the script to boot up script file.
+
+   4.6 Driver rmmove.
+       You can use the following command to remove the driver from the system,
+	
+	# rmmod inscan
+        
+        or 
+
+	# cd /workdir/inscan/drvier
+        # make uninstall
+    
+5. User space program for this driver
+   
+   5.1 Include file
+        To program for this driver, the user must include the 
+        "can4linux.h" head file. You also can copy this head 
+        file to your owner work directory and include it.
+   
+   5.2 Examples Reference
+       These are some simple examples to test the communication between two CAN channels.
+
+        5.2.1 receive
+	      polling or nonblocking mode to receive message,date received are stored to
+	      logfile.txt,thus it is convinient to check them. 
+        5.2.2 transmit
+	      polling mode to transmit message
+        5.2.3 receive-select
+	      simple receiving using the select() call to wait for CAN messages
+	      date received are stored to logfile.txt,thus it is convinient to check them.
+        5.2.4 transmit-select
+	      simple transmit using the select() call. Press enter to stop transmit and another
+	      enter to resume transmit.
+        5.2.5 send_ioctl
+	      simple transmit using the SEND ioctl command 
+        5.2.6 baud
+              simple driver test: change the bit rate
+              the change itself stays after program is finished.
+              you can check it by read
+              cat /proc/sys/Can/Baud
+              before and after using this command
+        5.2.7 acceptance
+	      simple driver test: change the message filter with ioctl()
+	      the change itself stays after program is finished.
+	      you can check it by read
+	      cat /proc/sys/Can/AccCode /proc/sys/Can/AccMask
+	      before and after using this command
+        5.2.8 showstat
+	      very simple and basic driver test.
+        5.2.9 singlefilter
+	      In this example, when set accept code to only accept the message which id = 10 and rtr = 0"
+	      using /dev/can0 device to accept message 
+	      using /dev/can1 to transmit message
+        5.2.10 selfreception
+	      self reception example
+	      when you run this example, you should run another receive example 
+	      to receive the message transmit by selfreception and at the same time, selfreception will 
+	      also receive the message transmit by itself.
+
+6. Troubleshooting
+
+   The boot time error mesages and solutions are stated as clearly as
+   possible. If all the possible solutions fail, please contact our technical
+   support team to get more help.

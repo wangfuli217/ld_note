@@ -1,0 +1,35 @@
+#include<stdio.h>
+exec sql include sqlca;
+int main(void)
+{
+	exec sql begin declare section;
+		char userpasswd[30]="tarena/tarena";
+		int id=100;
+		char name[30]="test100";
+	exec sql end declare section;
+	exec sql connect:userpasswd;
+	/* DDL */
+	exec sql create table haha928(
+			id number primary key,
+			name varchar2(30)
+			);
+	if(!sqlca.sqlcode)
+		printf("创建表haha928成功\n");
+	else
+		printf("%s\n",sqlca.sqlerrm.sqlerrmc);
+	/* DML */
+	exec sql insert into haha928 values(1,'test1');
+	if(!sqlca.sqlcode)
+		exec sql commit;
+	else
+		printf("%s\n",sqlca.sqlerrm.sqlerrmc);
+	exec sql insert into haha928 values(:id,:name);
+	if(!sqlca.sqlcode)
+		exec sql commit;
+	else
+		printf("%s\n",sqlca.sqlerrm.sqlerrmc);
+	exec sql select name into :name from haha928 where id=1;
+	printf("name=%s\n",name);
+	exec sql commit work release;
+	return 0;
+}

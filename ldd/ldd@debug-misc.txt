@@ -1,0 +1,86 @@
+https://my.oschina.net/fgq611/blog/113249
+http://www.ibm.com/developerworks/cn/linux/sdk/l-debug/
+
+--------- strace ---------
+
+
+--------- BUG()和BUG_ON() ---------
+引发bug并打印信息
+1  BUG()和BUG_ON()
+
+一些内核调用可以用来方便标记bug，提供断言并输出信息。最常用的两个是BUG()和BUG_ON()。
+
+
+定义在<include/asm-generic>中：
+
+#ifndef HAVE_ARCH_BUG 
+#define BUG() do { 
+   printk("BUG: failure at %s:%d/%s()! ", __FILE__, __LINE__, __FUNCTION__); 
+   panic("BUG!");   /* 引发更严重的错误，不但打印错误消息，而且整个系统业会挂起 */ 
+} while (0) 
+#endif 
+
+#ifndef HAVE_ARCH_BUG_ON 
+   #define BUG_ON(condition) do { if (unlikely(condition)) BUG(); } while(0) 
+#endif
+
+当调用这两个宏的时候，它们会引发OOPS，导致栈的回溯和错误消息的打印。
+※ 可以把这两个调用当作断言使用，如：BUG_ON(bad_thing);
+
+--------- dump_stack() ---------
+dump_stack()
+
+有些时候，只需要在终端上打印一下栈的回溯信息来帮助你调试。这时可以使用dump_stack()。这个函数只在终端上打印寄存器上下文和函数的跟踪线索。
+
+   if (!debug_check) { 
+       printk(KERN_DEBUG “provide some information…/n”); 
+       dump_stack(); 
+   }
+   
+--------- MEMWATCH ---------   
+MEMWATCH 由 Johan Lindh 编写，是一个开放源代码 C 语言内存错误检测工具，您可以自己下载它。只要在代码中添加一个头文件并在 gcc 语句中定义了 MEMWATCH 之后，您就可以跟踪程序中的内存泄漏和错误了。MEMWATCH 支持ANSIC，它提供结果日志纪录，能检测双重释放（double-free）、错误释放（erroneous free）、没有释放的内存（unfreedmemory）、溢出和下溢等等。
+清单 1. 内存样本（test1.c）
+
+#include <stdlib.h>
+#include <stdio.h>
+#include "memwatch.h"
+int main(void)
+{
+ char *ptr1;
+ char *ptr2;
+ ptr1 = malloc(512);
+ ptr2 = malloc(512);
+ ptr2 = ptr1;
+ free(ptr2);
+ free(ptr1);
+}
+
+清单 1 中的代码将分配两个 512 字节的内存块，然后指向第一个内存块的指针被设定为指向第二个内存块。结果，第二个内存块的地址丢失，从而产生了内存泄漏。
+现在我们编译清单 1 的 memwatch.c。下面是一个 makefile 示例：
+test1
+
+gcc -DMEMWATCH -DMW_STDIO test1.c memwatch
+c -o test1
+
+当您运行 test1 程序后，它会生成一个关于泄漏的内存的报告。清单 2 展示了示例 memwatch.log 输出文件。
+
+
+------ YAMD ------
+
+YAMD 软件包由 Nate Eldredge 编写，可以查找 C 和 C++ 中动态的、与内存分配有关的问题。在撰写本文时，YAMD 的最新版本为 0.32。请下载 yamd-0.32.tar.gz。执行 make 命令来构建程序；然后执行 make install 命令安装程序并设置工具。
+一旦您下载了 YAMD 之后，请在 test1.c 上使用它。请删除 #include memwatch.h 并对 makefile 进行如下小小的修改：
+使用 YAMD 的 test1
+
+gcc -g test1.c -o test1
+
+------ kallsyms ------
+kallsyms
+
+开发版2.5内核引入了kallsyms特性，它可以通过定义CONFIG_KALLSYMS编译选项启用。该选项可以载入内核镜像所对应的内存地址的符号名称（即函数名），所以内核可以打印解码之后的跟踪线索。相应，解码OOPS也不再需要System.map和ksymoops工具了。另外，
+这样做，会使内核变大些，因为地址对应符号名称必须始终驻留在内核所在内存上。
+
+#cat /proc/kallsyms 
+c0100240   T    _stext 
+c0100240   t    run_init_process 
+c0100240   T      stext 
+c0100269   t    init

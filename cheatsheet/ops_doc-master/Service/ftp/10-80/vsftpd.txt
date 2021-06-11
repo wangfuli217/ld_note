@@ -1,0 +1,367 @@
+https://www.linuxidc.com/Linux/2019-07/159381.htm         FTP主动模式与FTP被动模式的端口说明
+
+https://www.cnblogs.com/doseoer/p/4007763.html            vsftpd全攻略(/etc/vsftpd/vsftpd.conf文件详解)
+https://www.cnblogs.com/miclesvic/articles/10437213.html  vsftpd配置文件参数详解
+
+https://github.com/dagwieers/vsftpd/releases/tag/2.3.5
+
+
+EXAMPLE -> vsftpd 实例
+匿名用户登录配置   27-125/anon
+系统用户登录配置   lms|rtu(root用户)  
+Vsftpd虚拟用户实战 10-80/etc 或者  27-125/vsftpd
+
+
+1. FTP主动模式与FTP被动模式的端口说明.txt -> (防火墙)
+===============================================================================
+1.1 开启主动模式:
+pasv_enable=NO
+
+1.2 开启被动模式:
+pasv_enable=YES
+pasv_min_port=30000 # 数据连接可以使用的端口范围的最小端口
+pasv_max_port=30999 # 数据连接可以使用的端口范围的最大端口
+
+2. 用chroot_list_file实现锁定于主目录.txt -> 锁定|不锁定 主目录。 <-> 能否访问根目录
+===============================================================================
+2.1 希望某用户浏览其主目录上级目录中的内容, 然后在文件vsftpd.chroot_list中添加该用户即可
+chroot_local_user＝YES
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd.chroot_list
+
+
+2.2 不希望某用户浏览其主目录之上的各目录权限的用户添加到文件vsftpd.chroot_list
+chroot_local_user＝NO
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd.chroot_list
+
+
+1、当chroot_list_enable=YES，chroot_local_user=YES时，在/etc/vsftpd.chroot_list文件中列出的用户，可以切换到其他目录；未在文件中列出的用户，不能切换到其他目录。
+2、当chroot_list_enable=YES，chroot_local_user=NO时，在/etc/vsftpd.chroot_list文件中列出的用户，不能切换到其他目录；未在文件中列出的用户，可以切换到其他目录。
+3、当chroot_list_enable=NO，chroot_local_user=YES时，所有的用户均不能切换到其他目录。
+4、当chroot_list_enable=NO，chroot_local_user=NO时，所有的用户均可以切换到其他目录。
+
+
+2.3 ubuntu 10-80
+chroot_local_user=YES
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd.chroot_list
+
+vsftpd.chroot_list 为空文件时，这样fred和tom都不能访问主目录上级目录，直接进入 local_root 指定的目录
+
+local_root=/var/ftp/  #当本地用户登入时，将被更换到定义的目录下。默认值为各用户的家目录。
+
+登录方式.txt
+===============================================================================
+1. 匿名登陆
+anonymous_enable=YES
+no_anon_password=YES/NO(NO)
+
+anon_upload_enable=YES
+anon_mkdir_write_enable=YES
+anon_other_write_enable=YES
+
+anon_world_readable_only=YES
+
+# useradd -s /sbin/nologin -d /var/ftp ftp
+# chown -R ftp.ftp /var/ftp
+# chmod a-w /var/ftp
+ftp_username=ftp
+anon_root=/var/ftp
+
+
+anon_umask=077
+anon_max_rate=50000 
+
+1.1 # 192.168.27.125
+listen=YES
+local_enable=NO
+anonymous_enable=YES
+write_enable=YES
+
+# Yes 时不能下载
+anon_world_readable_only=NO
+# NO 时不能上传
+anon_upload_enable=YES
+anon_mkdir_write_enable=YES
+anon_other_write_enable=YES
+anon_root=/var/ftp
+
+# 影响上传文件的权限，如果是077则导致上传文件不能下载
+anon_umask=000
+# Optional directives
+#
+anon_max_rate=2048000
+xferlog_enable=YES
+listen_port=21
+=======================================
+
+2. 本地用户登录
+=======================================
+local_enable=YES
+pam_service_name=vsftpd
+user_config_dir=/etc/vsftpd/userconf
+
+27-125\system-user
+
+3. 虚拟用户登录
+=======================================
+27-125\vsftpd
+10-80\etc
+local_enable=YES
+guest_enable=YES
+guest_username=ftp
+pam_service_name=vsftpd
+user_config_dir=/etc/vsftpd/userconf
+
+
+SSL加密传输和登录方式.txt
+===============================================================================
+1. 匿名用户，本地用户，虚拟用户的加密传输。
+2. 加密传输的加密方式
+3. 加密传输的日志输出
+
+匿名密码电子邮件响应列表.txt
+===============================================================================
+
+
+
+cmds_allowed.txt
+===============================================================================
+1、只能上传。不能下载、删除、重命名。
+cmds_allowed＝FEAT,REST,CWD,LIST,MDTM,MKD,NLST,PASS,PASV,PORT,PWD,QUIT,RMD,SIZE,STOR,TYPE,USER,ACCT,APPE,CDUP,HELP,MODE,NOOP,REIN,STAT,STOU,STRU,SYST
+2、只能下载。不能上传、删除、重命名。write_enable=NO
+3、只能上传、删除、重命名。不能下载。download_enable＝NO
+4、只能下载、删除、重命名。不能上传。
+cmds_allowed=FEAT,REST,CWD,LIST,MDTM,MKD,NLST,PASS,PASV,PORT,PWD,QUIT,RMD,RNFR,RNTO,RETR,DELE,SIZE,TYPE,USER,ACCT,APPE,CDUP,HELP,MODE,NOOP,REIN,STAT,STOU,STRU,SYST
+
+
+访问控制设置.txt  系统用户配置
+===============================================================================
+1、控制主机访问：
+tcp_wrappers=YES/NO
+/etc/hosts.allow
+/etc/hosts.deny
+2、控制用户访问：
+2.1 禁止vsftpd.user_list文件中的用户登录
+userlist_enable=yes
+userlist_deny=yes
+除了vsftpd.ftpusers文件和vsftpd.user_list文件中记录的ftp用户不能登录vsftp服务以外，其他的ftp用户都可以登录。
+
+2.2 允许vsftpd.user_list文件中的用户登录
+userlist_enable=yes
+userlist_deny=no
+说明：配置完以后，只允许vsftpd.user_list文件中记录的ftp用户能登录vsftp服务，其他的ftp用户都不可以登录。
+
+
+===============================================================================超时设置
+idle_session_timeout=600    # 空闲连接超时
+data_connection_timeout=120 # 数据传输超时
+ACCEPT_TIMEOUT=60           # 远程客户端与PASV样式数据连接建立连接的超时(以秒为单位)。
+connect_timeout=60          # PROT模式连接超时
+delay_failed_login          # 报告登录失败之前暂停的秒数。
+delay_successful_login      # 允许成功登录之前暂停的秒数。
+max_login_fails             # 在此多次登录失败后，会话被终止。
+max_per_ip                  # 如果vsftpd处于独立模式，则这是可以从同一源Internet地址连接的最大客户端数。如果客户端超过此限制，则会收到错误消息。
+
+
+===============================================================================服务器功能选项
+one_process_model         # 如果您有Linux 2.4内核，则可以使用不同的安全模型，每个连接只使用一个进程。它是一种不太纯粹的安全模型，但会提高您的性能。除非您知道自己在做什么，并且您的网站支持大量同时连接的用户，否则您真的不想启用它。
+pasv_enable=YES　　       #允许使用pasv模式
+pasv_promiscuous+NO　　   #关闭安全检查,小心呀.
+port_enable=YES　　       #允许使用port模式
+prot_promiscuous　　      #关闭安全检查
+tcp_wrappers=YES　　      #开启tcp_wrappers支持
+pam_service_name=vsftpd   #定义PAM 所使用的名称，预设为vsftpd。
+nopriv_user=nobody　　    #当服务器运行于最底层时使用的用户名
+pasv_address=(none)　　   #使vsftpd在pasv命令回复时跳转到指定的IP地址.(服务器联接跳转?)
+
+ 
+===============================================================================信息类设置
+ftpd_banner=welcome to FTP .　#login时显示欢迎信息.如果设置了banner_file则此设置无效
+dirmessage_enable=YES　　     #允许为目录配置显示信息,显示每个目录下面的message_file文件的内容
+setproctitle_enable=YES　　   #显示会话状态信息,关!
+
+
+=============================================================================== 文件定义 
+chroot_list_file=/etc/vsftpd/vsftpd.chroot_list     #定义不能更改用户主目录的文件
+userlist_file=/etc/vsftpd/vsftpd.user_list          #定义限制/允许用户登录的文件
+banner_file=/etc/vsftpd/banner                      #定义登录信息文件的位置
+banned_email_file=/etc/vsftpd.banned_emails         #禁止使用的匿名用户登陆时作为密码的电子邮件地址
+xferlog_file=/var/log/vsftpd.log                    #日志文件位置
+message_file=.message                               #目录信息文件
+
+=============================================================================== 目录定义 
+user_config_dir=/etc/vsftpd/userconf　　#定义用户配置文件的目录
+local_root=webdisk                      #此项设置每个用户登陆后其根目录为/home/username/webdisk
+   　　                                 #定义本地用户登陆的根目录,注意定义根目录可以是相对路径也可以是绝对路径.相对路径是针对用户家目录      #来说的.
+anon_root=/var/ftp　　                  #匿名用户登陆后的根目录
+
+
+
+=============================================================================== 用户连接选项
+max_clients=100　　               #可接受的最大client数目
+max_per_ip=5　　                  #每个ip的最大client数目
+connect_from_port_20=YES　　      #使用标准的20端口来连接ftp
+listen_address=192.168.0.2　　    #绑定到某个IP,其它IP不能访问
+listen_port=2121　　              #绑定到某个端口
+ftp_data_port=2020　　            #PORT样式连接源自的端口(只要命名不佳的 connect_from_port_20 已启用)。
+pasv_max_port=0　　               #pasv连接模式时可以使用port 范围的上界，0 表示任意。默认值为0。
+pasv_min_port=0　　               #pasv连接模式时可以使用port 范围的下界，0 表示任意。默认值为0。
+
+
+
+===============================================================================数据传输选项
+anon_max_rate=51200     #匿名用户的传输比率(b/s)
+local_max_rate=5120000  #本地用户的传输比率(b/s)
+
+
+===============================================================================安全选项
+Idle_session_timeout=600    #(用户会话空闲后10分钟)
+Data_connection_timeout=120 #(将数据连接空闲2分钟断)
+Accept_timeout=60           #(将客户端空闲1分钟后断)
+Connect_timeout=60          #(中断1分钟后又重新连接)
+Local_max_rate=50000        #(本地用户传输率50K)
+Anon_max_rate=30000         # (匿名用户传输率30K)
+
+Pasv_min_port=50000         # (将客户端的数据连接端口改在
+Pasv_max_port=60000         #50000—60000之间)
+
+Max_clients=200             #(FTP的最大连接数)
+Max_per_ip=4                #(每IP的最大连接数)
+Listen_port=5555            #(从5555端口进行数据连接)
+
+ 
+
+
+
+
+
+demo:
+anonymous(){
+# Access rights
+anonymous_enable=YES
+local_enable=NO
+write_enable=NO
+anon_upload_enable=NO
+anon_mkdir_write_enable=NO
+anon_other_write_enable=NO
+
+# Security
+anon_world_readable_only=YES
+connect_from_port_20=YES
+hide_ids=YES
+pasv_min_port=50000
+pasv_max_port=60000
+
+# Features
+xferlog_enable=YES
+ls_recurse_enable=NO
+ascii_download_enable=NO
+async_abor_enable=YES
+
+# Performance
+one_process_model=YES
+idle_session_timeout=120
+data_connection_timeout=300
+accept_timeout=60
+connect_timeout=60
+anon_max_rate=50000
+}
+
+anonymous(){
+参数	                        说明
+anonymous_enable=YES	        是否允许匿名登录 yes=允许 no= 不允许
+ftp_username=ftp	            设置ftp匿名登录时的用户名，默认 ftp
+no_anon_password=YES	        匿名用户登录不需要输入密码 默认 YES
+deny_email_enable=YES	        以banned_email_file里面的电子邮件为密码的匿名用户不能登录
+anon_root	                    匿名用户登录后的默认目录，不设置，默认为/var/ftp
+anon_upload_enable=YES	        允许匿名登录用户上传文件 默认NO
+anon_mkdir_write_enable=YES	    允许匿名登录用户创建目录 默认NO
+anon_other_write_enable=NO	    允许匿名用户有较高的写权限包括 删除目录和重命名等 默认NO
+anon_world_readable_only=YES	允许匿名用户下载可读文件 默认YES , 设置为yes时只能下载不能直接在Ftp中阅读。
+chown_uploads=YES	            设置是否改变匿名用户上传文件（非目录）的属主。默认值为NO。
+}
+
+local(){
+#下面是允许某些用户登入的项目  存在user_list文件中的用户不允许登入
+userlist_enable=YES
+userlist_deny=YES #如果这里改为NO  反过来只能存在user_list文件中的用户允许登入
+userlist_file=/etc/vsftpd/user_list
+anonymous_enable=NO
+
+#下面是限制用户只能访问自己的主目录  存在chroot_list文件中的用户只能访问自己的主目录
+chroot_local_user=YES
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd/chroot_list
+}
+
+virtual(){
+#创建虚拟用户的专用目录
+[root@localhost ~]# mkdir /home/vsftpd/admin
+
+
+[root@localhost ~]# vi /etc/vsftpd/loginuser.txt
+#加入两个用户  奇数行代表用户名 偶数行代表密码
+admin
+admin123
+
+#执行命令 生成虚拟数据库
+[root@localhost ~]# db_load -T -t hash -f /etc/vsftpd/loginuser.txt /etc/vsftpd/login.db
+#设置数据库文件的访问权限
+[root@localhost ~]# chmod 600 /etc/vsftpd/login.db
+[root@localhost ~]# vi /etc/pam.d/vsftpd
+#将以下内容增加的原文件前面两行：
+auth    required        pam_userdb.so db=/etc/vsftpd/login
+account required        pam_userdb.so db=/etc/vsftpd/login
+auth    sufficient      pam_userdb.so db=/etc/vsftpd/login
+account sufficient      pam_userdb.so db=/etc/vsftpd/login
+#我们建立的虚拟用户将采用PAM进行验证，这是通过/etc/vsftpd.conf文件中的 语句pam_service_name=vsftpd 来启用的。
+
+#auth       required     pam_listfile.so item=user sense=deny file=/etc/vsftpd.ftpusers onerr=succeed
+#auth       required     pam_stack.so service=system-auth
+#auth       required     pam_shells.so
+#account    required     pam_stack.so service=system-auth
+#session    required     pam_stack.so service=system-auth
+
+可以看出前面两行是对虚拟用户的验证，后面是对系统用户的验证。 为了安全我一般把系统用户的登入关闭  使用虚拟账号登入ftp
+对虚拟用户的验证使用了sufficient这个控制标志。
+这个标志的含义是如果这个模块验证通过，就不必使用后面的层叠模块进行验证了；但如果失败了，
+就继续后面的认证，也就是使用系统真实用户的验证。
+虚拟用户创建本地系统用户
+
+#新建一个系统用户vsftpd, 用户登录终端设为/bin/false(即使之不能登录系统)
+[root@localhost ~]# useradd vsftpd -d /home/vsftpd -s /bin/false
+[root@localhost ~]# chown vsftpd:vsftpd /home/vsftpd #改变目录所属用户组
+
+根据需要创建/etc/vsftpd/vsftpd.conf，以下设置：
+listen=YES                             #监听为专用模式
+anonymous_enable=NO                    #禁用匿名登入
+dirmessage_enable=YES
+xferlog_enable=YES
+xferlog_file=/var/log/vsftpd.log       #记录ftp操作日志
+xferlog_std_format=YES
+chroot_local_user=YES                  #对用户访问只限制在主目录 不能访问其他目录
+guest_enable=YES                       #启用guest
+guest_username=vsftpd                  #使用虚拟账号形式
+user_config_dir=/etc/vsftpd/user_conf  #虚拟账号配置目录
+pam_service_name=vsftpd                #对vsftpd的用户使用pam认证
+local_enable=YES
+
+#执行以下命令
+[root@localhost ~]# mkdir /etc/vsftpd/user_conf
+[root@localhost ~]# cd /etc/vsftpd/user_conf
+[root@localhost ~]# vi /etc/vsftpd/user_conf/admin
+#加入以下内容 拥有所有权限
+write_enable=YES
+anon_world_readable_only=NO
+anon_upload_enable=YES
+anon_mkdir_write_enable=YES
+anon_other_write_enable=YES
+local_root=/home/vsftpd/admin
+
+#如果不能读写操作 可能是目录权限不够需要设置权限 试试看
+[root@localhost ~]# chmod 777 /home/vsftpd/admin
+}
+
+

@@ -1,0 +1,46 @@
+#!/bin/sh
+
+PATH=/usr/local/bin/blackbag:$PATH
+export PATH
+
+if [ $# = 0 ]; then
+	cat << EOM
+
+bkb <command> [args] or -h ;# with commands as:
+
+	telson host:port &	;# binary netcat
+	blit foo		;# dump data to telson
+	replug -b host:port &	;# logging plugboard proxy
+	rebreak spans*		;# break logs into individual messages
+	httpcat post://foo/	;# like telson but for HTTP
+	unify foo		;# ASCII + HTML entities -> UTF16LE
+	deunify f\00o\00o\00	;# and back again
+	b64 foo			;# to base64
+	d64			;# and back again
+	len			;# prepend/append binary length
+	shf			;# strip N bytes off a buffer
+	deezee			;# seek and extract zlib-compressed buffers
+	dezip			;# or for ZIP
+	sub '\$\{hex:10\}\'	;# fuzzing substituter for binaries
+	hexify			;# binary-to-hexidecimal
+	binhex			;# and back again
+	dedump			;# convert 'hexdump -C' to binary
+	c 1000 c		;# print 1000 c's
+	tcbs			;# print connections in a pcap file
+	pstrip			;# lose short-snap pcap packets
+	tsec yes		;# wait fractional seconds, then abort
+	unasn foo.der		;# translate asn1/ber-der into a script
+	nint 10			;# write a binary integer
+	no < `randombin`	;# NUL->0xFF, or something else
+	crnl < text		;# ensure CRNL on all lines
+	echo "a%20b" | dehexify ;# HTTP-style dehexify
+	echo "a b" | httphexify ;# HTTP-style hex encoding
+EOM
+	
+fi
+
+$*
+
+
+
+

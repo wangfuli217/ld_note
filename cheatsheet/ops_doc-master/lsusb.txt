@@ -1,0 +1,211 @@
+
+usb_i_device_layout(){ cat - <<'EOF'
+https://docs.microsoft.com/zh-cn/windows-hardware/drivers/usbcon/usb-device-layout
+USB 配置定义设备的功能，主要是其强大功能和接口。
+设备可以有多个配置，但一次只能有一个处于活动状态。 
+USB 驱动程序堆栈不会选择活动配置，但可能由应用程序、驱动程序、设备驱动程序启动。 设备驱动程序将选择一个活动配置。
+
+
+配置可以有一个或多个用于定义设备功能的 USB 接口 。 
+通常，函数和接口之间存在一对一的相关性。 但是，某些设备公开了多个与一个函数相关的接口。 在这种情况下，设备可以具有接口关联描述符 IAD 。 IAD 将属于特定函数的接口组合在一起。
+每个接口都包含一个或多个 终结点，这些终结点用于将数据传入和传出设备。 此外，接口还包含 替代设置 ，用于定义与接口关联的函数的带宽要求。 若要求和，一组终结点构成一个接口，一组接口构成设备中的配置。
+EOF
+}
+
+usb_i_cmd_desc(){ cat - <<'EOF'
+http://usb.baiheee.com/usb_article/usb_spec/usb_cmd_desc.html
+
+设备描述符: lsusb -v [Device Descriptor]              struct usb_device_descriptor    厂商信息、产品ID等
+  配置描述符: lsusb -v [Configuration Descriptor]     struct usb_config_descroptor    配置信息
+    接口描述符: lsusb -v [Interface Descriptor]       struct usb_interface_descriptor 接口功能信息
+      端点描述符: lsusb -v [Endpoint Descriptor]      struct usb_endpoint_descriptor  底层通信细节
+
+[USB是什么]
+USB是一种主从结构，主机叫Host，从机叫Device，所以我们经常把从机叫做设备。
+USB数据通信只能发生在主机与从机之间 - 新的USB扩展规范USB OTG可以实现主机与主机之间通信，但实质也是通过设备作为媒介实现 -
+所有的数据通信都由主机发起，而从机只能被动地应答。
+
+[USB发现过程]
+当USB设备的识别过程（即枚举）也是一个数据通信过程，在这一过程中，USB规范规定了一个标准的过程，
+主机在这一过程中发也不同的命令，设备对这些命令作出正确响应以完成设备的识别过程（即我们经常说的枚举过程），
+
+[命令类型]
+所有的USB设备都要求对主机发给自己的控制命令作出响应，USB规范定义了11个标准命令，它们分别是：
+Clear_Feature
+Get_Configuration
+Get_Descriptor
+Get_Interface
+Get_Status
+Set_Address、
+Set_Configuration
+Set_Descriptor
+Set_Interface
+Set_Feature
+Synch_Frame
+所有USB设备都必须支持这些命令 - 个别命令除外，如Set_Descriptor、Synch_Frame -。
+
+[命令结构]
+不同的命令虽然有不同的数据和使用目的，但所有的USB命令结构是一样的。下表所示为USB命令的结构 - 偏移量低的先发送 -： 
+偏移量  域            长度（字节 值           描述
+0 	   bmRequestType 	1 	    位图 	     请求特征：
+                                       D7： 传输方向
+                                          0=主机至设备
+                                          1=设备至主机
+                                       D6..5：种类
+                                          0=标准
+                                          1=类
+                                          2=厂商
+                                          3=保留
+                                       D4..0：接受者
+                                          0=设备
+                                          1=接口
+                                          2=端点
+                                          3=其他
+                                       4..31 保留
+1 	   bRequest 	   1 	       值	        命令类型编码值
+2 	   wValue 	       2 	       值	        根据不同的命令，含义也不同
+4 	   wIndex 	       2 	       索引或偏移 	根据不同的命令，含义也不同，主要用于传送索引或偏移值
+6 	   wLength 	       2 	       值  	        如有数据传送阶段，此为数据字节数。
+
+[bRequest] -> [命令类型]
+
+
+[描述符]
+    在USB设备的枚举过程中，USB设备需要对主机发来的命令请求作出正确回应，这些应答数据都有规定的数据格式，
+在USB规范里把这些有固定结构的数据包称为描述符。
+
+1. USB协议为USB设备定义了一套描述设备功能和属性的有固定结构的描述符，
+包括标准的描述符即设备描述符、配置描述符、接口描述符、端点描述符和字符串描述符，还有非标准描述符，如类描述符。
+2. USB设备通过这些描述符向USB主机汇报设备的各种属性，主机通过对这些描述符的访问对设备进行类型识别、配置并为其提供相应的客户端驱动程序。
+
+USB设备通过描述符反映自己的设备特性。USB描述符是由特定格式排列的一组数据结构组成。
+
+在USB1.X中，规定了5种标准描述符：
+设备描述符（Device Descriptor）、
+配置描述符（Configuration Descriptor）、
+接口描述符（Interface Descriptor）、
+端点描述符（Endpoint Descriptor）和
+字符串描述符（String Descriptor）。
+
+USB描述符包含标准描述符、类描述符和厂商特定描述３种形式。它们都是必须的（除标准描述符里的字符串描述符可选外）。
+    每个USB设备只有一个设备描述符，而一个设备中可包含一个或多个配置描述符，即USB设备可以有多种配置。
+设备的每一个配置中又可以包含一个或多个接口描述符，即USB设备可以支持多种功能（接口），接口的特性通过描述符提供。
+
+[设备描述符]
+    设备描述符给出了USB设备的一般信息，包括对设备及在设备配置中起全程作用的信息，
+包括制造商标识号ID、产品序列号、所属设备类号、默认端点的最大包长度和配置描述符的个数等。
+一个USB设备必须有且仅有一个设备描述符。设备描述符是设备连接到总线上时USB主机所读取的第一个描述符，
+
+[配置描述符]
+    配置描述符中包括了描述符的长度（属于此描述符的所有接口描述符和端点描述符的长度的和）、供电方式（自供电/总线供电）、
+最大耗电量等。主果主机发出USB标准命令Get_Descriptor要求得到设备的某个配置描述符，那么除了此配置描述符以外，
+此配置包含的所有接口描述符与端点描述符都将提供给USB主机。
+
+[接口描述符]
+    配置描述符中包含了一个或多个接口描述符，这里的“接口”并不是指物理存在的接口，在这里把它称之为"功能"更易理解些，
+例如一个设备既有录音的功能又有扬声器的功能，则这个设备至少就有两个"接口"。
+
+    如果一个配置描述符不止支持一个接口描述符，并且每个接口描述符都有一个或多个端点描述符，那么在响应USB主机的配置描述符命令时，
+USB设备的端点描述符总是紧跟着相关的接口描述符后面，作为配置描述符的一部分被返回。接口描述符不可直接用Set_Descriptor和Get_Descriptor
+来存取。
+
+    如果一个接口仅使用端点0，则接口描述符以后就不再返回端点描述符，并且此接口表现的是一个控制接口的特性，它使用与端点0相关联的
+默认管道进行数据传输。在这种情况下bNumberEndpoints域应被设置成0。接口描述符在说明端点个数并不把端点0计算在内。
+
+[端点描述符]
+    端点是设备与主机之间进行数据传输的逻辑接口，除配置使用的端点0（控制端点，一般一个设备只有一个控制端点）
+为双向端口外，其它均为单向。端点描述符描述了数据的传输类型、传输方向、数据包大小和端点号（也可称为端点地址）等。
+
+    除了描述符中描述的端点外，每个设备必须要有一个默认的控制型端点，地址为0，它的数据传输为双向，而且没有专门的描述符，
+只是在设备描述符中定义了它的最大包长度。主机通过此端点向设备发送命令，获得设备的各种描述符的信息，并通过它来配置设备。
+EOF
+}
+
+usb_i_lsusb(){ cat - <<'EOF'
+显示本机的usb设备列表，可以显示出usb的详细信息，包括设备的读取速度和描述符。
+=============================================================================== lsusb
+-v  告诉lsusb详细显示所示设备的详细信息。这包括设备当前速度的配置描述符。如果可用，类描述符将显示USB设备类，
+    包括集线器、音频、HID、通信和芯片卡。
+-s [[bus]:][devnum]
+	显示指定总线和设备号的设备信息，总线和设备号用十进制标识。格式：lsusb -s 00:01
+-d [vendor]:[product]
+	显示指定厂商和产品编号的设备，用十六进制表示编号。格式：lsusb -d 8086: 
+-D  显示指定设备文件的设备信息，例如：lsusb -D /proc/bus/usb/001/001。只有
+    root用户才可以使用这个选项   
+-t  以树状结构显示
+
+    如果指定的设备没有被找到，那么返回一个非0值。/usr/share/hwdata/usb.ids文件中记录了所有的USB设备节点的信息，
+包括制造商、产品号、类、子类、协议等等。
+===============================================================================
+
+EOF
+}
+
+usb_i_usb_descriptor(){ cat - <<'EOF'
+    设备描述符给出了USB设备的一般信息，包括对设备及在设备配置中起全程作用的信息，包括制造商标识号ID、产品序列号、
+所属设备类号、默认端点的最大包长度和配置描述符的个数等。一个USB设备必须有且仅有一个设备描述符。
+struct usb_device_descriptor {
+    __u8  bLength;          /* 描述符长度 */
+    __u8  bDescriptorType;  /* 描述符类型编号 */
+
+    __le16 bcdUSB;          /* USB版本号 */
+    __u8  bDeviceClass;     /* USB分配的设备类code */
+    __u8  bDeviceSubClass;  /* USB分配的子类code */
+    __u8  bDeviceProtocol;  /* USB分配的协议code */
+    __u8  bMaxPacketSize0;  /* endpoint0最大包大小 */
+    __le16 idVendor;        /* 厂商编号 */
+    __le16 idProduct;       /* 产品编号 */
+    __le16 bcdDevice;       /* 设备出厂编号 */
+    __u8  iManufacturer;    /* 描述厂商字符串的索引 */
+    __u8  iProduct;         /* 描述产品字符串的索引 */
+    __u8  iSerialNumber;    /* 描述设备序列号字符串的索引 */
+    __u8  bNumConfigurations;/* 可能的配置数量 */
+} __attribute__ （（packed））;
+
+    配置描述符中包括了描述符的长度（属于此描述符的所有接口描述符和端点描述符的长度的和）、供电方式（自供电/总线供电）、最大耗电量等。
+struct usb_config_descriptor {
+    __u8  bLength;              /* 描述符长度 */
+    __u8  bDescriptorType;      /* 描述符类型编号 */
+
+    __le16 wTotalLength;        /* 配置所返回的所有数据的大小 */
+    __u8  bNumInterfaces;       /* 配置所支持的接口数 */
+    __u8  bConfigurationValue;  /* Set_Configuration命令需要的参数值 */
+    __u8  iConfiguration;       /* 描述该配置的字符串的索引值 */
+    __u8  bmAttributes;         /* 供电模式的选择 */
+    __u8  bMaxPower;            /* 设备从总线提取的最大电流 */
+} __attribute__ （（packed））;
+
+    配置描述符中包含了一个或多个接口描述符，这里的“接口”并不是指物理存在的接口，在这里把它称之为“功能”更易理解些，
+例如一个设备既有录音的功能又有扬声器的功能，则这个设备至少就有两个“接口”。
+struct usb_interface_descriptor {
+    __u8  bLength;              /* 描述符长度 */
+    __u8  bDescriptorType;      /* 描述符类型 */
+
+    __u8  bInterfaceNumber;     /* 接口的编号 */
+    __u8  bAlternateSetting;    /* 备用的接口描述符编号 */
+    __u8  bNumEndpoints;        /* 该接口使用的端点数，不包括端点0 */
+    __u8  bInterfaceClass;      /* 接口类型 */
+    __u8  bInterfaceSubClass;   /* 接口子类型 */
+    __u8  bInterfaceProtocol;   /* 接口所遵循的协议 */
+    __u8  iInterface;           /* 描述该接口的字符串索引值 */
+} __attribute__ （（packed））;
+
+    端点是设备与主机之间进行数据传输的逻辑接口，除配置使用的端点0（控制端点，一般一个设备只有一个控制端点）为双向端口外，
+其它均为单向。端点描述符描述了数据的传输类型、传输方向、数据包大小和端点号（也可称为端点地址）等。
+struct usb_endpoint_descriptor {
+    __u8  bLength;              /* 描述符长度 */
+    __u8  bDescriptorType;      /* 描述符类型 */
+
+    __u8  bEndpointAddress;     /* 端点地址:[0:3]端点号，[7]方向（0-输出，1-输入） */
+    __u8  bmAttributes;         /* 端点属性:[0:1]（00-控制,01-同步,02-批量,03-中断） */
+    __le16 wMaxPacketSize;      /* 本端点接收或发送的最大信息包的大小 */
+    __u8  bInterval;            /* 轮询数据传送端点的时间间隔:同步-1,中断-（1-255） */
+
+    /* NOTE:  these two are _only_ in audio endpoints. */
+    /* use USB_DT_ENDPOINT*_SIZE in bLength, not sizeof. */
+    __u8  bRefresh;
+    __u8  bSynchAddress;
+} __attribute__ （（packed））;
+EOF
+}
+

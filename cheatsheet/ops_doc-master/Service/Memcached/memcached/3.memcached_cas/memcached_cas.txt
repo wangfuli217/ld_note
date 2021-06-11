@@ -1,0 +1,17 @@
+memcached的原子性操作
+memcached是原子的吗？
+所有的被发送到memcached的单个命令是完全原子的。
+如果您针对同一份数据同时发送了一个set命令和一个get命令，它们不会影响对方。
+
+memcached 1.2.5以及更高版本，提供了gets和cas命令，它们可以解决上面的问题。
+如果您使用gets命令查询某个key的item，memcached会 给您返回该item当前值的唯一标识。
+如果您覆写了这个item并想把它写回到memcached中，您可以通过cas命令把那个唯一标识一起发送给 memcached。
+如果该item存放在memcached中的唯一标识与您提供的一致，您的写操作将会成功。
+如果另一个进程在这期间也修改了这个 item，那么该item存放在memcached中的唯一标识将会改变，您的写操作就会失败。
+根据这篇文章，在php手册找到了memcache的cas方法，实现原子性的操作。http://php.net/manual/zh/memcached.cas.php
+
+属于乐观锁。
+取Key的时候顺便请求cas，提交修改的时候提交cas，如果cas与memcached里当前该key的cas不同则拒绝修改。
+cas在插入时候会创建，更新时候会递增。
+举个例子你就懂了，我get(a)得到5，你set(a)=10，我set(a=5+1)，这个结果很明显不合理，我覆盖了你的10，怎么办，那就是cas了。
+我get(a)得到5，cas=1，你set(a)=10,cas更新为2，我set(a=5+1)并提交cas=1，结果cas=1 != 2，所以提交失败

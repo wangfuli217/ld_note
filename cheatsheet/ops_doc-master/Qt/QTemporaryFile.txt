@@ -1,0 +1,37 @@
+临时文件操作 
+
+1. QTemporaryFile 是从 QFile 类派生的，拥有 QFile 类全部的读写接口函数，
+
+2. 构造函数
+2.1 默认构造函数
+QTemporaryFile 构造函数分为两类，第一类不带模板参数的：
+QTemporaryFile()
+QTemporaryFile(QObject * parent)
+    parent 是父对象指针。如果不使用模板参数，那么 QTemporaryFile 自动根据应用程序名字和操作系统临时文件路径，
+构造唯一的临时文件名，还是以上面的应用程序名和系统临时路径为例，得到的临时文件可能为：
+"C:/Documents and Settings/Administrator/Local Settings/Temp/testtemp-BAIX6a"
+
+2.2 指定名称构造函数
+  QTemporaryFile(const QString & templateName)
+  QTemporaryFile(const QString & templateName, QObject * parent)
+  templateName 是模板名，如果模板名使用相对路径，那么是相对于应用程序的工作路径，这点是与临时文件夹类构造函数一样的。
+如果模板名为 "abcd"，那么生成的临时文件名可能为：
+  "abcdDSSn9G"
+  打头的是模板名，后面是六个随机的字母和数字。
+  
+  在 QTemporaryFile 类对象构造之后，可以用如下一对函数获取或者设置模板字符串：
+  QString QTemporaryFile::​fileTemplate() const
+  void QTemporaryFile::​setFileTemplate(const QString & name)
+  
+3. 打开
+  QTemporaryFile 类的构造函数只是生成临时文件名，还没有建立真实文件，需要调用打开函数，文件才会建立：
+  bool QTemporaryFile::​open()
+  临时文件总是以 QIODevice::ReadWrite 读写模式打开，如果打开成功就返回 true，否则返回 false。
+  临时文件不会在调用 close() 函数后销毁，只要没进入 QTemporaryFile 对象析构函数，临时文件一直存在，
+因此临时文件在 close() 函数之后可以重新打开。
+
+4. 手动调用删除函数删除临时文件
+bool QFile::​remove()
+如果不手动调用删除函数，那么临时文件在析构函数里面会自动删除，如果要改变自动删除的特性，使用如下函数：
+void QTemporaryFile::​setAutoRemove(bool b)  //设置是否自动删除
+bool QTemporaryFile::​autoRemove() const   //是否自动删除

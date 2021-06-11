@@ -1,0 +1,117 @@
+    本文档是本人花费多年，收集整理的，精心挑选！
+
+　　　　　　　　　ARM在汇编代码中调用C函数
+对 于ARM体系来说，不同语言撰写的函数之间相互调用（mix calls）遵循的是 ATPCS（ARM-Thumb Procedure Call Standard），ATPCS主要是定义了函数呼叫时参数的传递规则以及如何从函数返回，关于ATPCS的详细内容可以查看ADS1.2 Online Books --Developer Guide的2.1节。这篇文档要讲的是汇编代码中对C函数调用时如何进行参数的传递以及如何从C函数正确返回
+
+不同于x86的参数传递规则，ATPCS建议函数的形参不超过4个，如果形参个数少于或等于4，则形参由R0,R1,R2,R3四个寄存器进行传递；若形参个数大于4，大于4的部分必须通过堆栈进行传递。
+
+我们先讨论一下形参个数为4的情况.
+实例1：
+test_asm_args.asm
+//--------------------------------------------------------------------------------
+        IMPORT test_c_args ;声明test_c_args函数
+        AREA TEST_ASM, CODE, READONLY
+        EXPORT test_asm_args
+test_asm_args
+      STR lr, [sp, #-4]! ;保存当前lr
+        ldr r0,=0x10      ;参数 1
+        ldr r1,=0x20        ;参数 2
+        ldr r2,=0x30        ;参数 3
+        ldr r3,=0x40      ;参数 4
+        bl test_c_args      ;调用C函数
+        LDR pc, [sp], #4  ;将lr装进pc(返回main函数) 
+        END
+test_c_args.c
+//--------------------------------------------------------------------------------
+void test_c_args(int a,int b,int c,int d)
+{
+        printk("test_c_args:\n");
+        printk("%0x %0x %0x %0x\n",a,b,c,d);
+}
+main.c
+//--------------------------------------------------------------------------------
+int main()
+{
+    test_asm_args();
+    for(;;);
+}
+
+程序从main函数开始执行,main调用了test_asm_args,test_asm_args调用了test_c_args,最后从test_asm_args返回main.
+代 码分别使用了汇编和C定义了两个函数,test_asm_args 和 test_c_args,test_asm_args调用了test_c_args,其参数的传递方式就是向R0~R3分别写入参数值，之后使用bl语句 对test_c_args进行调用。其中值得注意的地方是用红色标记的语句，test_asm_args在调用test_c_args之前必须把当前的 lr入栈，调用完test_c_args之后再把刚才保存在栈中的lr写回pc,这样才能返回到main函数中。
+
+
+如果test_c_args的参数是8个呢？这种情况test_asm_args应该怎样传递参数呢？
+实例2：
+test_asm_args.asm
+//--------------------------------------------------------------------------------
+        IMPORT test_c_args ;声明test_c_args函数
+        AREA TEST_ASM, CODE, READONLY
+        EXPORT test_asm_args
+test_asm_args
+      STR lr, [sp, #-4]! ;保存当前lr
+      ldr r0,=0x1 ;参数 1
+      ldr r1,=0x2 ;参数 2
+      ldr r2,=0x3 ;参数 3
+      ldr r3,=0x4 ;参数 4
+      ldr r4,=0x8
+      str r4,[sp,#-4]! ;参数 8 入栈
+      ldr r4,=0x7
+      str r4,[sp,#-4]! ;参数 7 入栈
+      ldr r4,=0x6
+      str r4,[sp,#-4]! ;参数 6 入栈
+      ldr r4,=0x5
+      str r4,[sp,#-4]! ;参数 5 入栈
+      bl test_c_args_lots
+      ADD sp, sp, #4    ;清除栈中参数 5,本语句执行完后sp指向 参数6 
+      ADD sp, sp, #4    ;清除栈中参数 6,本语句执行完后sp指向 参数7
+      ADD sp, sp, #4    ;清除栈中参数 7,本语句执行完后sp指向 参数8
+      ADD sp, sp, #4    ;清除栈中参数 8,本语句执行完后sp指向 lr
+      LDR pc, [sp],#4    ;将lr装进pc(返回main函数) 
+        END
+test_c_args.c
+//--------------------------------------------------------------------------------
+void test_c_args(int a,int b,int c,int d,int e,int f,int g,int h)
+{
+      printk("test_c_args_lots:\n");
+      printk("%0x %0x %0x %0x %0x %0x %0x %0x\n",
+              a,b,c,d,e,f,g,h);
+}
+main.c
+//--------------------------------------------------------------------------------
+int main()
+{
+    test_asm_args();
+    for(;;);
+}
+
+这部分的代码和实例1的代码大部分是相同的，不同的地方是test_c_args的参数个数和test_asm_args的参数传递方式。
+在test_asm_args中，参数1～参数4还是通过R0~R3进行传递，而参数5～参数8则是通过把其压入堆栈的方式进行传递，不过要注意这四个入栈参数的入栈顺序，是以参数8->参数7->参数6->参数5的顺序入栈的。
+直到调用test_c_args之前，堆栈内容如下：
+sp->+----------+
+        |  参数5  |
+      +----------+
+        |  参数6  |
+      +----------+
+        |  参数7  |
+      +----------+
+        |  参数8  |
+      +----------+
+        |    lr      |
+      +----------+
+test_c_args执行返回后，则设置sp,对之前入栈的参数进行清除，最后将lr装入pc返回main函数，在执行 LDR pc, [sp],#4 指令之前堆栈内容如下：
+
+    本文档是本人花费多年，收集整理的，精心挑选！
+      +----------+
+        |  参数5  |
+      +----------+
+        |  参数6  |
+      +----------+
+        |  参数7  |
+      +----------+
+        |  参数8  |
+sp->+----------+
+        |    lr      |
+      +----------+
+
+
+    本文档是本人花费多年，收集整理的，精心挑选！

@@ -1,0 +1,103 @@
+http://notebook.kulchenko.com/programming/lua-good-different-bad-and-ugly-parts
+
+我已经用Lua编程了9个月，应该是时候停下来想想这段经历了。过去几年用过不少编程语言, perl, C, Javascript, MATLAB还有其他的，从TurboPascal到F#。Lua和这些语言做个比较是件很有意思的事情。我已经用Lua完成了一些不同类型的项目：一个远程调试器MobDebug https://github.com/pkulchenko/MobDebug ，扩展一个Lua IDE https://github.com/pkulchenko/ZeroBraneStudio ，一个mobile应用https://github.com/pkulchenko/LuaRemote ，还有几个教育性质的脚本https://github.com/pkulchenko/ZeroBraneEduPack ，以及一个在浏览器canvas上使用Lua画图的demo http://notebook.kulchenko.com/programming/drawing-on-browser-canvas-with-lua 。
+
+我已经看到有比较Lua好坏的文章，比如（http://lua-users.org/lists/lua-l/2007-11/msg00248.html http://blog.datamules.com/blog/2012/01/30/why-lua/ http://lua-users.org/lists/lua-l/2012-01/msg00731.html http://stackoverflow.com/questions/564665/advantages-of-lua http://gergely.imreh.net/blog/2011/07/language-of-the-month-lua-part-2/ http://stackoverflow.com/questions/1022560/subtle-differences-between-javascript-and-lua http://www.luafaq.org/gotchas.html ），但是我发现一些影响或者比较关注的特性没有在列表上。所以我写一个自己的列表。这篇文章不够广泛，Lua语言的某些方面也没有覆盖到（比如math和string库），但是它已经包含了我用Lua语言的要点。
+
+Good
+
+小：20000行源代码https://github.com/LuaDist/lua 在Linux下编译后就是182K左右的可执行解释器。
+
+可适性：任何有ANSI C编译器的平台都可以编译。可以看到在http://www.eluaproject.net/ 以及Lego Minstorms NXT上 http://hempeldesigngroup.com/lego/pblua/ ，mobile平台https://github.com/divineprog/mobilelua 游戏主机 http://blog.brokenfunction.com/2011/11/how-to-make-a-massively-cross-platform-game/ 到浏览器中（翻译到Javascript）http://notebook.kulchenko.com/programming/drawing-on-browser-canvas-with-lua
+
+容易嵌入和扩展：http://www.lua.org/pil/24.html 提供了简洁易用的接口与C/C++进行互通。
+
+快：http://shootout.alioth.debian.org/ 相比其他编程语言性能非常不错，还有一个JIT编译器 http://luajit.org/performance.html 对某些任务下的性能有显著提升；如果这还不能满足某些人，可以使用C语言实现性能瓶颈部分，与C的集成很容易，还可以继续从其它有用的部分收益。
+
+文档不错：语言手册 http://www.lua.org/manual/ ，书籍http://lua.org/pil/ 还有wiki http://lua-users.org/wiki/ 另外有http://www.capgo.com/Resources/SoftwareDev/LuaShortRef51.pdf
+
+友好热心的社区 http://lua-users.org/ ，通过文档，wiki还有邮件列表http://www.lua.org/lua-l.html 和SO http://stackoverflow.com/questions/tagged/lua ，任何问题都可以解决。
+
+干净和简单的参数适合初学者，对于非程序员也容易理解。Lua从Pascal的后继Modula http://en.wikipedia.org/wiki/Modula 借鉴了大部分控制语法，我仍然记得Philippe Kahn快速优雅的Turbo Pascal IDE http://en.wikipedia.org/wiki/Turbo_Pascal
+
+集成解释器：只要命令行运行lua就行了
+
+协程http://www.lua.org/pil/9.html 的内在支持，到实现iterators http://www.lua.org/pil/9.3.html 和非抢占性多线程 http://www.lua.org/pil/9.4.html
+
+增量垃圾收集器http://www.lua.org/manual/5.1/manual.html#2.10 有很低的延迟，没有额外的内存开销，很少的实现复杂度，支持弱表http://www.lua.org/pil/17.html
+
+强力的混杂式tables http://www.lua.org/pil/2.5.html 可以存储任意类型（除了nil），可以通过任何值索引（除了nil），比如 [1, 2, 5, foo = “bar”, [func] = “something”, [“some spaces”] = value()]
+
+词法定界（Lexical scoping）
+
+函数式编程http://www.lua.org/pil/6.html 通过一级（first class function）函数http://www.lua.org/pil/5.html 和闭包实现http://www.lua.org/pil/6.1.html
+
+尾调用http://www.lua.org/pil/6.3.html : return functioncall()
+
+递归函数不需要事先声明 local function foo() … foo() … end ，注意这样是不行的local foo = function() … foo() … end
+
+函数可以返回多值。调用者可以要求任意数量的返回值，如果比实际返回数量少，剩余的被抛弃，如果要求的多于实际返回的，用nil填充。
+
+函数允许可变函数参数个数 function foo(…) local args = {…}; bar(param, …) end
+
+Tables可以解开成一个参数列表，通过unpack（或者Lua5.2的table.unpack）实现 print(unpack({1, 2, 3})) prints 1 2 3
+
+可以操作环境变量（Lua5.1中的getfenv和setfenv，Lua5.2中的_ENV），这允许Lua建立沙箱机制 http://lua-users.org/wiki/SandBoxes
+
+变量列表赋值local a, b, c = 1, 2, x, y = y, x, or a, b = foo()
+
+使用[[…]] 做多行字符串，可以用[[…[=[…]=]…]]嵌套，注释如–[[…]]
+
+分号作为语句分隔符是可选的
+
+通过metatables重载 http://www.lua.org/manual/5.1/manual.html#2.8
+
+元编程http://metalua.luaforge.net/ 可以做到获取、修改一个抽象语法树来建立新的DSL
+
+for语句有两种方式，泛型式和数字式，数字型不光支持整数
+
+函数调用(function call)语法糖 f’string’, f”string” f[[string]]和 f{table}，以及方法调用(method call) obj:m()
+
+简单但是很有用的调试库 http://www.lua.org/pil/23.html
+
+ 
+
+不同之处
+
+表和字符串索引从1开始，而不是0
+
+在table中给一个元素赋值nil，就把这个元素删除了。
+
+没有整型这个数据类型；number表现为浮点数
+
+没有类，面向对象机制通过表和函数实现；继承通过元表机制实现 http://www.lua.org/manual/5.1/manual.html#2.8
+
+方法调用通过object:method(args)实现，这和object.method(object, args)一样，but with object evaluated only once
+
+nil和false是唯二的假值，0,0.0，”0″和其他的都是真。
+
+~=不等符号
+
+not, or, and关键字用做逻辑运算符
+
+赋值是语句http://www.lua.org/pil/4.1.html，这意味着不能a=b=1或者 if (a=1) then … end
+
+没有 a+=1 a++或者近似的方式
+
+没有continue语句，尽管有一个解释 http://www.luafaq.org/#T1.26 和一些变体，像是repeat break until true在循环内部打断，或者Lua5.2中的goto语句
+
+没有switch语句
+
+括号在某些情况下有必要，for example, a = {}; a.field works, but {}.field doesn’t; the latter needs to be specified as ({}).field.
+
+循环中控制变量默认本地化，loop外边就用不了了
+
+数值型for中的限制和步进值是被缓存的http://www.lua.org/pil/4.3.4.html  in for i = init(), limit(), step() do ... end all three functions init, limit, andstep are called once before the loop is executed.
+
+条件语句和其他控制结构不需要括号
+
+字符串和数字自动转换，但是在等于和不等于比较中不能自动转换。 0 == "0" is false, {} ~= 1 is true . foo[“0”]和foo[0]在表中指向不同的值； other relational operators generate errors on comparing values of different types.
+
+逗号和分号可以用在table语法中；都可以放在最后的大括号前面作为可选操作符a = {a = 1, b = 2, }。
+
+一些组件额外提供；一些人认为这是“没有电池”。这是紧凑和可适内核的结果，也可以通过Luarocks和Penlight解决 http://luarocks.org/ http://stevedonovan.github.com/Penlight/

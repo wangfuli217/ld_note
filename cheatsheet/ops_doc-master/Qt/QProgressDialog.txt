@@ -1,0 +1,53 @@
+https://blog.csdn.net/learn_sunzhuli/article/details/46289935
+
+
+1. 如果所耗总时间已知，则不需要借助定时器。
+
+    QProgressDialog dialog(tr("文件复制进度"), tr("取消"), 0, 50000, this);
+    dialog.setWindowTitle(tr("进度对话框"));
+    dialog.setWindowModality(Qt::WindowModal);
+    dialog.show();
+    for(int i = 0; i < 50000; i++)//已知最大值不超过50000
+    {
+        dialog.setValue(i);
+        QCoreApplication::processEvents();
+        if(dialog.wasCanceled())
+            break;
+    }
+    dialog.setValue(50000);
+    qDebug()<<tr("复制结束！");
+
+    
+2. 如果所耗总时间无法估计，则需要借助定时器， 做一个“没有终点”的进度对话框。 
+    progDlg = new QProgressDialog();
+    progDlg->setWindowTitle("Please wait..."); 
+    progDlg->setFixedWidth(300);
+    progDlg->setRange(0, 100);
+    progDlg->show();
+    timer = new QTimer();
+    currentValue = 0;
+    progDlg->setValue(currentValue);
+    connect(timer, SIGNAL(timeout()), this, SLOT(updateProgressDialog()));
+    timer->start(100);//开启一个没有终点的定时器
+
+//执行耗时操作。。。
+
+//耗时操作完成后，关闭进度对话框
+  timer->stop();//停止定时器
+  if(currentValue != 100)
+      currentValue = 100;
+  progDlg->setValue(currentValue);//进度达到最大值
+  delete progDlg;//关闭进度对话框
+
+//借助定时器，不断更新进度条，直到耗时操纵结束
+void updateProgressDialog()
+{
+    currentValue++;  
+    if( currentValue == 100 )  
+        currentValue = 0;  
+    progDlg ->setValue(currentValue);
+    QCoreApplication::processEvents();//避免界面冻结
+    if(progDlg->wasCanceled())
+        progDlg->setHidden(true);//隐藏对话框
+}
+

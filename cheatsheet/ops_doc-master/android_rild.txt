@@ -1,0 +1,744 @@
+cat /data/misc/wifi/*.conf  查看连接过的 WiFi 密码 
+svc wifi enable     开启/关闭 WiFi
+svc wifi disable    开启/关闭 WiFi
+
+https://github.com/mzlogin/awesome-adb
+
+logcat -b main -r -n 16 /mnt/asec/monit/logcat/main/main.log
+logcat -b radio -r -n 16 /mnt/asec/monit/logcat/radio/radio.log
+
+adb reboot recovery 重启到 Recovery 模式
+adb reboot          从 Recovery 重启到 Android
+reboot bootloader   重启到 Fastboot 模式
+
+
+# init.rc
+service ril-daemon /system/bin/rild -l /system/lib/libreference-ril.so -- -d /dev/ttyUSB2
+class main
+socket rild stream 660 root radio
+socket rild-debug stream 660 radio system
+user root
+group radio cache inet misc audio sdcard_rw log
+
+adb(){
+在做Android开发时经常出现android adb devices offline，解决办法如下：
+1 重启adb服务
+adb kill-server
+adb start-server
+linux下别忘了以root身份运行
+# adb start-server，adb devices,adb kill-server
+
+-------- adb client adb server adb deamon -------- 
+1. 运行在pc端的adb client： 
+    命令行程序”adb”用于从shell或脚本中运行adb命令。首先，“adb”程序尝试定位主机上的ADB服务器，
+如果找不到ADB服务器，“adb”程序自动启动一个ADB服务器。接下来，当设备的adbd和pc端的adb server
+建立连接后，adb client就可以向ADB servcer发送服务请求；
+2. 运行在pc端的adb server： 
+    ADB Server是运行在主机上的一个后台进程。它的作用在于检测USB端口感知设备的连接和拔除，
+以及模拟器实例的启动或停止，ADB Server还需要将adb client的请求通过usb或者tcp的方式发送到
+3. 对应的adbd上；
+运行在设备端的常驻进程adb demon (adbd)： 
+    程序“adbd”作为一个后台进程在Android设备或模拟器系统中运行。它的作用是连接ADB服务器，
+并且为运行在主机上的客户端提供一些服务；
+ 
+-------- adb client adb server -------- 
+1. adb [-d|-e|-s ]
+如果只有一个设备/模拟器连接时，可以省略掉 [-d|-e|-s ] 这一部分，直接使用 adb 。
+如果有多个设备/模拟器连接，则需要为命令指定目标设备。
+参数                含义
+-d                  指定当前唯一通过 USB 连接的 Android 设备为命令目标
+-e                  指定当前唯一运行的模拟器为命令目标
+-s <serialNumber>   指定相应 serialNumber 号的设备/模拟器为命令目标
+
+$ adb devices
+List of devices attached
+cf264b8f    device
+emulator-5554   device
+10.129.164.6:5555   device
+输出里的 cf264b8f、emulator-5554 和 10.129.164.6:5555 即为 serialNumber。
+adb -s cf264b8f shell wm size
+adb -s 10.129.164.6:5555 install test.apk
+
+注意：
+offline —— 表示设备未连接成功或无响应。
+device —— 设备已连接。注意这个状态并不能标识 Android 系统已经完全启动和可操作，在设备启动过程中设备实例就可连接到 adb，但启动完毕后系统才处于可操作状态。
+no device —— 没有设备/模拟器连接。
+
+2. 启动/停止
+adb start-server
+adb kill-server
+
+3. 版本信息
+adb version
+
+4. 以 root 权限运行 adbd
+adb root
+adb unroot 
+ 
+5. 指定 adb server 的网络端口 
+adb -P <port> start-server
+默认端口为 5037。
+
+6. USB 连接
+保证几点：
+硬件状态正常。
+包括 Android 设备处于正常开机状态，USB 连接线和各种接口完好。
+Android 设备的开发者选项和 USB 调试模式已开启。
+可以到「设置」-「开发者选项」-「Android 调试」查看。
+如果在设置里找不到开发者选项，那需要通过一个彩蛋来让它显示出来：在「设置」-「关于手机」连续点击「版本号」7 次。
+设备驱动状态正常。
+
+7. 无线连接（需要借助 USB 线）
+adb tcpip 5555
+adb connect <device-ip-address>
+adb disconnect <device-ip-address>
+
+8. 无线连接（无需借助 USB 线）
+需要 root 权限。
+setprop service.adb.tcp.port 5555
+adb connect <device-ip-address>
+
+有的设备，比如小米 5S + MIUI 8.0 + Android 6.0.1 MXB48T，可能在第 5 步之前需要重启 adbd 服务，在设备的终端模拟器上运行：
+restart adbd
+如果 restart 无效，尝试以下命令：
+stop adbd
+start adbd
+}
+getprop(){
+getprop ro.product.model 型号
+getprop ro.build.version.release Android 系统版本
+
+/system/build.prop
+ro.build.version.sdk            SDK 版本
+ro.build.version.release        Android 系统版本
+ro.build.version.security_patch Android 安全补丁程序级别
+ro.product.model                型号
+ro.product.brand                品牌
+ro.product.name                 设备名
+ro.product.board                处理器型号
+ro.product.cpu.abilist          CPU 支持的 abi 列表[节注一]
+persist.sys.isUsbOtgEnabled     是否支持 OTG
+dalvik.vm.heapsize              每个应用程序的内存上限
+ro.sf.lcd_density               屏幕密度
+
+}
+
+
+# getprop | grep -i ril
+# grep -i ril /init*rc /init*sh
+# busybox netstat -lpnx | grep -i ril
+
+# adb forward tcp:XXXX localfilesystem:/dev/socket/rild-debug
+
+# logcat -b radio
+# logcat -b radio | grep dev
+
+-------------------------- https://github.com/jackpal/Android-Terminal-Emulator/tree/master/docs
+---- /sbin 
+ueventd adbd
+
+---- /system/bin 
+am # Android Activity Manager start and stop Android activities 
+
+amix
+aplay # Command line audio file player.
+
+app_process
+applypatch  # Used to apply patches to android files.
+
+arec # Command line audio recorder
+
+bluetoothd # BlueTooth daemon
+
+dhcpcd dmesg dnsmasq dumpstate dumpsys dvz fsck_msdos gdbserver getevent  getprop gzip hciattach hd id ifconfig
+                                                                sendevent setprop
+keystore
+keystore_cli
+kill # Send signals to processes
+
+log
+logcat # Prints the Android runtime log.
+logwrapper
+showlease
+toolbox
+
+nandread ndc netcfg netd
+qemu-props qemud racoon radiooptions
+
+$ ls /system/xbin 
+
+add-property-tag btool check-lost+found dexdump dhdutil hcidump latencytop librank opcontrol oprofiled procmem procrank rawbu
+
+
+-------------------------- Diag 口
+U6300V三个串口中AT（ttyUSB1），Modem（ttyUSB2）可以发AT命令，Diag（ttyUSB0）不能发AT指令。
+Diag:Diagnostic interface诊断、诊断程序。
+
+
+dhcp(){
+netcfg eth0 up dhcp   //通过dhcp 自动获取ip，网关，掩码等
+}
+
+dns(){
+setprop net.dns1 128.224.160.11   //android中设置DNS的命令。
+setprop net.dns2 147.11.100.30
+}
+
+logcat(){
+logcat [<option>] ... [<filter-spec>] ...
+选项解析 : 
+-- "-s"选项 : 设置输出日志的标签, 只显示该标签的日志;
+-- "-f"选项 : 将日志输出到文件, 默认输出到标准输出流中, -f 参数执行不成功;
+-- "-r"选项 : 按照每千字节输出日志, 需要 -f 参数, 不过这个命令没有执行成功;
+-- "-n"选项 : 设置日志输出的最大数目, 需要 -r 参数, 这个执行 感觉 跟 adb logcat 效果一样;
+-- "-v"选项 : 设置日志的输出格式, 注意只能设置一项;
+-- "-c"选项 : 清空所有的日志缓存信息;
+-- "-d"选项 : 将缓存的日志输出到屏幕上, 并且不会阻塞;
+-- "-t"选项 : 输出最近的几行日志, 输出完退出, 不阻塞;
+-- "-g"选项 : 查看日志缓冲区信息;
+-- "-b"选项 : 加载一个日志缓冲区, 默认是 main, 下面详解;
+-- "-B"选项 : 以二进制形式输出日志;
+
+# 输出指定标签内容  adb logcat -s dalvikvm
+"-s"选项 : 设置默认的过滤器, 如 我们想要输出 "System.out" 标签的信息, 就可以使用 adb logcat -s System.out 命令
+# 输出日志信息到文件 : 
+"-f"选项 : 该选向后面跟着输入日志的文件, 使用 adb logcat -f log 命令
+">"输出 : ">" 后面跟着要输出的日志文件, 可以将 logcat 日志输出到文件中, 使用 adb logcat > log 命令, 使用 more log 命令查看日志信息;
+# 指定 logcat 的日志输出格式 : 
+-- "-v"选项 : 使用 adb logcat -v time 命令, 可以啥看日志的输出时间;
+-- "brief"格式 : 这是默认的日志格式 " 优先级 / 标签 (进程ID) : 日志信息 ", 使用 adb logcat -v prief 命令;
+-- "process"格式 : " 优先级 (进程ID) : 日志信息 ", 使用 adb logcat -v process 命令;
+-- "tag"格式 : " 优先级 / 标签 : 日志信息", 使用 adb logcat -v tag 命令;
+-- "thread"格式 : " 优先级 ( 进程ID : 线程ID) 标签 : 日志内容 ", 使用 adb logcat -v tag 命令;
+-- "raw"格式 : 只输出日志信息, 不附加任何其他 信息, 如 优先级 标签等, 使用 adb logcat -v raw 命令;
+-- "time"格式 : "日期 时间 优先级 / 标签 (进程ID) : 进程名称 : 日志信息 " , 使用 adb logcat -v time 命令;
+-- "long"格式 : " [ 日期 时间 进程ID : 线程ID 优先级 / 标签] 日志信息 ", 输出以上提到的所有的头信息, 使用 adb logcat -v long 命令;
+# 清空日志缓存信息 : 使用 adb logcat -c 命令, 可以将之前的日志信息清空, 重新开始输出日志信息;
+# 将缓存日志输出 : 使用 adb logcat -d 命令, 输出命令, 之后推出命令, 不会进行阻塞;
+# 输出最近的日志 : 使用 adb logcat -t 5 命令, 可以输出最近的5行日志, 并且不会阻塞;
+# 查看日志缓冲区信息 : 使用 adb logcat -g 命令;
+adb logcat -g
+adb logcat -g -b radio
+adb logcat -g -b events
+# 加载日志缓冲区 : 使用 adb logcat -b 缓冲区类型 命令;
+-- Android中的日志缓冲区 : 
+system缓冲区 - 与系统相关的日志信息, 
+radio缓冲区 - 广播电话相关的日志信息, 
+events缓冲区 - 事件相关的日志信息, 
+main缓冲区 - 默认的缓冲区;
+# 以二进制形式输出日志 : 使用 adb logcat -B 命令;
+# 过滤项解析
+过滤项格式 : <tag>[:priority] , 标签:日志等级, 默认的日志过滤项是 " *:I " ;
+过滤指定等级日志 : 使用 adb logcat 10 *:E 命令, 显示 Error 以上级别的日志;
+过滤指定标签等级日志 : 使用 adb logcat WifiHW:D *:S 命令进行过滤;
+   输出10条日志, 日志是 标签为 WifiHW, 并且优先级 Debug(调试) 等级以上的级别的日志;
+   如果没有 *S 就会输出错误;
+可以同时设置多个过滤器 : 使用 adb logcat WifiHW:D dalvikvm:I *:S 命令, 
+输出 WifiHW 标签 的 Debug 以上级别 和 dalvikvm 标签的 Info 以上级别的日志;
+
+1. 参数b
+adb logcat –b radio 
+adb logcat –b system 
+adb logcat –b events 
+adb logcat –b main
+
+2. 参数级别
+Android 的日志分为如下几个优先级（priority）：
+V -- Verbose（最低，输出得最多）
+D -- Debug I —— Info
+W -- Warning
+E -- Error
+F -- Fatal
+S -- Silent（最高，啥也不输出）
+adb logcat *:W                          会将 Warning、Error、Fatal 和 Silent 日志输出
+logcat ActivityManager:I MyApp:D *:S    按 tag 和级别过滤日志
+    表示输出 tag ActivityManager 的 Info 以上级别日志，输出 tag MyApp 的 Debug 以上级别日志，
+及其它 tag 的 Silent 级别日志（即屏蔽其它 tag 日志）。
+<filter-spec> 可以由多个 <tag>[:priority] 组成。
+
+//将缓冲区的log打印到屏幕并退出
+adb logcat -d 
+//清除缓冲区log（testCase运行前可以先清除一下）
+adb logcat -c
+//打印缓冲区大小并退出
+adb logcat -g
+//输出log
+adb logcat -f /data/local/tmp/log.txt -n 10 -r 1
+
+3. 输出格式
+logcat格式化输出
+格式          说明
+brief       显示优先级/标记和过程的PID发出的消息（默认格式）
+process     只显示PID
+tag         只显示优先级/标记
+raw         显示原始的日志消息，没有其他元数据字段
+time        调用显示日期、时间、优先级/标签和过程的PID发出消息
+threadtime  调用显示日期、时间、优先级、标签遗迹PID TID线程发出的消息
+long        显示所有元数据字段与空白行和单独的消息
+1. brief
+<priority>/<tag>(<pid>): <message>
+D/HeadsetStateMachine( 1785): Disconnected process message: 10, size: 0
+2. process
+<priority>(<pid>) <message>
+D( 1785) Disconnected process message: 10, size: 0  (HeadsetStateMachine)
+3. tag
+<priority>/<tag>: <message>
+D/HeadsetStateMachine: Disconnected process message: 10, size: 0 
+4. raw
+<message>
+Disconnected process message: 10, size: 0 
+5. time
+<datetime> <priority>/<tag>(<pid>): <message>
+08-28 22:39:39.974 D/HeadsetStateMachine( 1785): Disconnected process message: 10, size: 0
+6. threadtime
+<datetime> <pid> <tid> <priority> <tag>: <message>
+08-28 22:39:39.974  1785  1832 D HeadsetStateMachine: Disconnected process message: 10, size: 0
+7. [ <datetime> <pid>:<tid> <priority>/<tag> ] <message>
+[ 08-28 22:39:39.974  1785: 1832 D/HeadsetStateMachine ] Disconnected process message: 10, size: 0
+
+
+logcat -v long ActivityManager:I *:S
+logcat -c  清空日志
+}
+
+dmesg(){
+内核日志
+}
+https://www.cnblogs.com/JianXu/p/5380882.html
+pm(){
+pm工具为包管理（package manager）的简称
+可以使用pm工具来执行应用的安装和查询应用宝的信息、系统权限、控制应用
+pm工具是Android开发与测试过程中必不可少的工具，shell命令格式如下：
+1. pm list packages [-f] [-d] [-e] [-s] [-3] [-i] [-u] [--user USER_ID] [FILTER]
+    无参数：所有应用
+pm list packages [options] [FILTER]
+打印所有的已经安装的应用的包名，如果设置了文件过滤则值显示包含过滤文字的内容
+参数    描述
+-f      显示应用关联的 apk 文件
+-d      只显示 disabled 的应用
+-e      只显示 enabled 的应用
+-s      只显示系统应用
+-3      只显示第三方应用
+-i      显示应用的 installer
+-u      包含已卸载应用
+
+pm list packages        所有应用
+pm list packages -s     系统应用
+pm list packages -3     第三方应用
+pm list packages mazhuang
+
+2. 安装卸载apk
+pm install
+pm uninstall
+
+3. 清除应用数据与缓存
+pm clear <packagename>
+pm clear com.qihoo360.mobilesafe
+
+pm dump PACKAGE
+
+# 打印给定的包的系统状态
+打印内容                        说明
+DUMP OF SERVICE package         打印服务信息
+DUMP OF SERVICE activity        打印activity信息
+DUMP OF SERVICE meminfo         打印当前内存使用信息
+DUMP OF SERVICE procstats       打印系统内存使用与一段时间内存汇总
+DUMP OF SERVICE usagestats      打印服务器使用状态信息
+DUMP OF SERVICE batterystats    打印电池状态信息
+}
+
+install(){
+install [-lrtsdg] <path_to_apk>
+参数    含义
+-l      将应用安装到保护目录 /mnt/asec
+-r      允许覆盖安装
+-t      允许安装 AndroidManifest.xml 里 application 指定 android:testOnly="true" 的应用
+-s      将应用安装到 sdcard
+-d      允许降级覆盖安装
+-g      授予所有运行时权限
+adb install 实际是分三步完成：
+push apk 文件到 /data/local/tmp。
+调用 pm install 安装。
+删除 /data/local/tmp 下的对应 apk 文件。
+}
+
+uninstall(){
+adb uninstall [-k] <packagename>
+<packagename> 表示应用的包名，-k 参数可选，表示卸载应用但保留数据和缓存目录。 
+adb uninstall com.qihoo360.mobilesafe
+
+
+}
+https://www.cnblogs.com/JianXu/p/5376642.html
+dumpsys(){
+1. dumpsys activity activities | grep mFocusedActivity  查看前台 Activity
+输出示例：
+mFocusedActivity: ActivityRecord{8079d7e u0 com.cyanogenmod.trebuchet/com.android.launcher3.Launcher t42}
+其中的 com.cyanogenmod.trebuchet/com.android.launcher3.Launcher 就是当前处于前台的 Activity。
+
+2. dumpsys activity services [<packagename>]     查看正在运行的 Services
+<packagename> 参数不是必须的，指定 <packagename> 表示查看与某个包名相关的 Services，不指定表示查看所有 Services。
+
+3. dumpsys package <packagename> 查看应用详细信息
+    输出中包含很多信息，包括 Activity Resolver Table、Registered ContentProviders、包名、userId、
+安装后的文件资源代码等路径、版本信息、权限信息和授予状态、签名版本信息等。
+<packagename> 表示应用包名。
+
+4. dumpsys battery  电池状况
+ Current Battery Service state:
+  AC powered: false
+  USB powered: true
+  Wireless powered: false
+  status: 2
+  health: 2
+  present: true
+  level: 44
+  scale: 100
+  voltage: 3872
+  temperature: 280
+  technology: Li-poly
+其中 scale 代表最大电量，level 代表当前电量。上面的输出表示还剩下 44% 的电量。
+
+5. dumpsys window displays
+WINDOW MANAGER DISPLAY CONTENTS (dumpsys window displays)
+  Display: mDisplayId=0
+    init=1080x1920 420dpi cur=1080x1920 app=1080x1794 rng=1080x1017-1810x1731
+    deferred=false layoutNeeded=false
+其中 mDisplayId 为 显示屏编号，init 是初始分辨率和屏幕密度，app 的高度比 init 里的要小，表示屏幕底部有虚拟按键，高度为 1920 - 1794 = 126px 合 42dp。
+
+}
+
+
+settings(){
+settings get secure android_id    android_id
+
+settings put global adb_enabled 0  # 关闭 USB 调试模式
+
+状态栏和导航栏的显示隐藏
+settings put global policy_control <key-values>
+<key-values> 可由如下几种键及其对应的值组成，格式为 <key1>=<value1>:<key2>=<value2>。
+key	含义
+immersive.full          同时隐藏
+immersive.status        隐藏状态栏
+immersive.navigation    隐藏导航栏
+immersive.preconfirms   ?
+
+settings put global policy_control immersive.full=*
+settings put global policy_control immersive.status=com.package1,com.package2:immersive.navigation=apps,-com.package3
+表示设置在包名为 com.package1 和 com.package2 的应用里隐藏状态栏，在除了包名为 com.package3 的所有应用里隐藏导航栏。
+
+
+}
+https://www.cnblogs.com/JianXu/p/5330213.html
+aapt(){
+
+}
+
+wm(){
+wm size 屏幕分辨率
+Physical size: 1080x1920
+该设备屏幕分辨率为 1080px * 1920px。
+
+wm density 屏幕密度
+Physical density: 420 
+该设备屏幕密度为 420dpi。
+
+ wm size 480x1024
+ wm size reset
+ 
+ wm density 160
+ wm density reset
+ 
+ wm overscan 0,0,0,200     显示区域
+ wm overscan reset
+ 
+}
+https://www.cnblogs.com/JianXu/p/5161179.html
+shell(){
+//详细查询某个包的内存使用情况
+adb shell dumpsys meminfo com.leidi.subway
+adb shell dumpsys activity com.leidi.subway
+
+}
+screencap(){ 截屏
+screencap   [-hp] [-d display-id] [FILENAME] -p 文件保存路径  # 屏幕截图
+screencap /mnt/sdcard/1.png 
+screencap -p /sdcard/sc.png # 
+-p              指定保存文件为 png 格式
+-d display-id   指定截图的显示屏编号（有多显示屏的情况下）
+}
+screenrecord(){ 录制屏幕
+screenrecord /sdcard/filename.mp4
+–size WIDTHxHEIGHT      视频的尺寸，比如 1280x720，默认是屏幕分辨率。
+–bit-rate RATE          视频的比特率，默认是 4Mbps。
+–time-limit TIME        录制时长，单位秒。
+–verbose                输出更多信息。
+}
+
+am(){  与应用交互
+能使用am去模拟各种系统的行为，例如去启动一个activity，强制停止进程，发送广播进程，修改设备屏幕属性等等。
+start [options] <INTENT> ：          启动activity通过指定的intent参数。具体intent参数参照官方表。
+startservice [options] <INTENT> ：   启动service通过指定的intent参数。具体intent跟start命令参数相同。
+force-stop <PACKAGE> ：              强制停止指定的package包应用。
+kill [options] <PACKAGE> ：          杀死指定package包应用进程，该命令在安全模式下杀死进程，不影响用户体验。参数选项：--user <USER_ID> | all | current: 指定user进程杀死，如果不指定默认为所有users。（关于USER_ID下面会介绍到）
+kill-all ：                          杀死所有的后台进程。
+broadcast [options] <INTENT> ：      发送一个intent。具体intent参数参照start命令参数。参数选项：--user <USER_ID> | all | current: 指定user进程杀死，如果不指定默认为所有users。
+instrument [options] <COMPONENT> ：  测试命令，不多作介绍。
+profile start <PROCESS> <FILE> ：    在<PROCESS>进程中运行profile，分析结果写到<FILE>里。
+profile stop <PROCESS> ：            停止profile。
+set-debug-app [options] <PACKAGE> ： 设置package包应用为debug模式。参数选项：-w|--persistent：等待进入调试模式，保留值。
+clear-debug-app ：清空之前用set-debug-app命令设置的package包应用。
+
+<INTENT> 参数很灵活，和写 Android 程序时代码里的 Intent 相对应。
+用于决定 intent 对象的选项如下：
+参数              含义
+-a <ACTION>     指定 action，比如 android.intent.action.VIEW
+-c <CATEGORY>   指定 category，比如 android.intent.category.APP_CONTACTS
+-n <COMPONENT>  指定完整 component 名，用于明确指定启动哪个 Activity，如 com.example.app/.ExampleActivity
+
+1. am start [options] <INTENT> 调起 Activity
+am start -n com.tencent.mm/.ui.LauncherUI                                           调起微信主界面
+am start -n org.mazhuang.boottimemeasure/.MainActivity --es "toast" "hello, world"
+
+2. am startservice [options] <INTENT> 调起 Service
+shell am startservice -n com.tencent.mm/.plugin.accountsync.model.AccountAuthenticatorService
+调起微信的某 Service。
+
+3. am broadcast [options] <INTENT> 发送广播
+可以向所有组件广播，也可以只向指定组件广播。
+am broadcast -a android.intent.action.BOOT_COMPLETED
+只向 org.mazhuang.boottimemeasure/.BootCompletedReceiver 广播 BOOT_COMPLETED：
+am broadcast -a android.intent.action.BOOT_COMPLETED -n org.mazhuang.boottimemeasure/.BootCompletedReceiver
+
+4. am force-stop <packagename> 强制停止应用
+am force-stop com.qihoo360.mobilesafe  停止 360 安全卫士的一切进程与服务
+
+
+更加详细说明可以查阅官网：
+http://developer.android.com/tools/help/adb.html
+
+３.示例
+# am start -n 包(package)名/包名.活动(activity)名称
+启动的方法可以从每个应用的AndroidManifest.xml的文件中得到
+Music 和 Video（音乐和视频）的启动方法为：
+# am start -n com.android.music/com.android.music.MusicBrowserActivity
+# am start -n com.android.music/com.android.music.VideoBrowserActivity
+# am start -n com.android.music/com.android.music.MediaPlaybackActivity
+Camera（照相机）的启动方法为：
+# am start -n com.android.camera/com.android.camera.Camera
+Browser（浏览器）的启动方法为：
+# am start -n com.android.browser/com.android.browser.BrowserActivity
+启动浏览器 :
+am start -a android.intent.action.VIEW -d  http://www.163.com
+拨打电话 :
+am start -a android.intent.action.CALL -d tel:10000
+启动 google map 直接定位到广州 :
+am start -a android.intent.action.VIEW geo:0,0?q=guangzhou
+}
+input(){ 模拟按键/输入
+Usage: input [<source>] <command> [<arg>...]
+The sources are:
+      mouse
+      keyboard
+      joystick
+      touchnavigation
+      touchpad
+      trackball
+      stylus
+      dpad
+      gesture
+      touchscreen
+      gamepad
+The commands and default sources are:
+      text <string> (Default: touchscreen)
+      keyevent [--longpress] <key code number or name> ... (Default: keyboard)
+      tap <x> <y> (Default: touchscreen)
+      swipe <x1> <y1> <x2> <y2> [duration(ms)] (Default: touchscreen)
+      press (Default: trackball)
+      roll <dx> <dy> (Default: trackball)
+      
+input tap 50 250   在屏幕上点击坐标点x=50 y=250的位置。
+shell input keyevent 
+keycode	含义
+3	HOME 键
+4	返回键
+5	打开拨号应用
+6	挂断电话
+24	增加音量
+25	降低音量
+26	电源键
+27	拍照（需要在相机应用里）
+64	打开浏览器
+82	菜单键
+85	播放/暂停
+86	停止播放
+87	播放下一首
+88	播放上一首
+122	移动光标到行首或列表顶部
+123	移动光标到行末或列表底部
+126	恢复播放
+127	暂停播放
+164	静音
+176	打开系统设置
+187	切换应用
+207	打开联系人
+208	打开日历
+209	打开音乐
+210	打开计算器
+220	降低屏幕亮度
+221	提高屏幕亮度
+223	系统休眠
+224	点亮屏幕
+231	打开语音助手
+276	如果没有 wakelock 则让系统休眠
+
+input keyevent 26   电源键
+input keyevent 82   菜单键
+input keyevent 3    HOME 键
+input keyevent 24   增加音量：
+input keyevent 25   降低音量：
+input keyevent 164  静音：
+
+input keyevent 85   播放/暂停
+input keyevent 86   停止播放
+input keyevent 87   播放下一首：
+input keyevent 88   播放上一首
+input keyevent 126  恢复播放：
+input keyevent 127  暂停播放：
+
+input keyevent 224  点亮屏幕
+input keyevent 223  熄灭屏幕
+input swipe 300 1000 300 500    滑动解锁
+
+input text hello    输入文本
+}
+
+
+https://zmywly8866.github.io/2015/01/24/all-adb-command.html
+adb
+获取序列号：
+ adb get-serialno
+
+查看连接计算机的设备：
+ adb devices
+
+重启机器：
+ adb reboot
+
+重启到bootloader，即刷机模式：
+ adb reboot bootloader
+
+重启到recovery，即恢复模式：
+ adb reboot recovery
+
+查看log：
+ adb logcat
+
+终止adb服务进程：
+ adb kill-server
+
+重启adb服务进程：
+ adb start-server
+
+获取机器MAC地址：
+ adb shell  cat /sys/class/net/wlan0/address
+
+获取CPU序列号：
+adb shell cat /proc/cpuinfo
+
+安装APK：
+adb install <apkfile> //比如：adb install baidu.apk
+
+保留数据和缓存文件，重新安装apk：
+adb install -r <apkfile> //比如：adb install -r baidu.apk
+
+安装apk到sd卡：
+adb install -s <apkfile> // 比如：adb install -s baidu.apk
+
+卸载APK：
+adb uninstall <package> //比如：adb uninstall com.baidu.search
+
+卸载app但保留数据和缓存文件：
+adb uninstall -k <package> //比如：adb uninstall -k com.baidu.search
+
+启动应用：
+adb shell am start -n <package_name>/.<activity_class_name>
+
+查看设备cpu和内存占用情况：
+adb shell top
+
+查看占用内存前6的app：
+adb shell top -m 6
+
+刷新一次内存信息，然后返回：
+adb shell top -n 1
+
+查询各进程内存使用情况：
+adb shell procrank
+
+杀死一个进程：
+adb shell kill [pid]
+
+查看进程列表：
+adb shell ps
+
+查看指定进程状态：
+adb shell ps -x [PID]
+
+查看后台services信息：
+adb shell service list
+
+查看当前内存占用
+adb shell cat /proc/meminfo
+
+查看IO内存分区：
+adb shell cat /proc/iomem
+
+将system分区重新挂载为可读写分区：
+adb remount
+
+从本地复制文件到设备：
+adb push <local> <remote>
+
+从设备复制文件到本地：
+adb pull <remote>  <local>
+
+列出目录下的文件和文件夹，等同于dos中的dir命令：
+adb shell ls
+
+进入文件夹，等同于dos中的cd 命令：
+adb shell cd <folder>
+
+重命名文件：
+adb shell rename path/oldfilename path/newfilename
+
+删除system/avi.apk：
+adb shell rm /system/avi.apk
+
+删除文件夹及其下面所有文件：
+adb shell rm -r <folder>
+
+移动文件：
+adb shell mv path/file newpath/file
+
+设置文件权限：
+adb shell chmod 777 /system/fonts/DroidSansFallback.ttf
+
+新建文件夹：
+adb shell mkdir path/foldelname
+
+查看文件内容：
+adb shell cat <file>
+
+查看wifi密码：
+adb shell cat /data/misc/wifi/*.conf
+
+清除log缓存：
+adb logcat -c
+
+
+initrc(){
+http://www.codeceo.com/article/android-start-init.html
+https://blog.csdn.net/zhonglunshun/article/details/78615980
+}
+

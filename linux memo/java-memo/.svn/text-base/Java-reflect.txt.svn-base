@@ -1,0 +1,111 @@
+Java的反射机制的实现要借助于4个类：class，Constructor，Field，Method；
+    其中class代表的是类对象，
+    Constructor－类的构造器对象，
+    Field－类的属性对象，
+    Method－类的方法对象。
+通过这四个对象我们可以粗略的看到一个类的各个组成部分。
+
+Class：程序运行时，java运行时系统会对所有的对象进行运行时类型的处理。这项信息记录了每个对象所属的类，
+       虚拟机通常使用运行时类型信息选择正确的方法来执行。
+在Object类中定义了getClass()方法。我们可以通过这个方法获得指定对象的类对象。然后我们通过分析这个对象就可以得到我们要的信息了。 
+
+比如：ArrayList arrayList;
+Class clazz = arrayList.getClass();
+然后我来处理这个对象clazz。
+当然了Class类具有很多的方法，这里重点将和Constructor，Field，Method类有关系的方法。
+
+import java.lang.reflect.*;
+public class DumpMethods 
+{
+    public static void main(String args[]) {
+    try {
+        Class c = Class.forName("java.lang.String");
+        Method m[] = c.getDeclaredMethods();
+        for (int i = 0; i < m.length; i++)
+            System.out.println(m[i].toString());
+        } catch (Throwable e) {
+            System.err.println(e);
+        }
+    }
+}
+
+按如下语句执行：
+java DumpMethods java.util.ArrayList
+这个程序使用 Class.forName 载入指定的类，然后调用 getDeclaredMethods 来获取这个类中定义了的方法列表。java.lang.reflect.Methods 
+是用来描述某个类中单个方法的一个类。
+      
+Java类反射中的主要方法
+对于以下三类组件中的任何一类来说
+-- 构造函数、字段和方法
+-- java.lang.Class 提供四种独立的反射调用，以不同的方式来获得信息。调用都遵循一种标准格式。以下是用于查找构造函数的一组反射调用：
+    Constructor getConstructor(Class[] params) -- 获得使用特殊的参数类型的公共构造函数，
+    Constructor[] getConstructors() -- 获得类的所有公共构造函数
+    Constructor getDeclaredConstructor(Class[] params) -- 获得使用特定参数类型的构造函数(与接入级别无关)
+    Constructor[] getDeclaredConstructors() -- 获得类的所有构造函数(与接入级别无关)
+获得字段信息的Class 反射调用不同于那些用于接入构造函数的调用，在参数类型数组中使用了字段名：
+    Field getField(String name) -- 获得命名的公共字段
+    Field[] getFields() -- 获得类的所有公共字段
+    Field getDeclaredField(String name) -- 获得类声明的命名的字段
+    Field[] getDeclaredFields() -- 获得类声明的所有字段
+用于获得方法信息函数：
+    Method getMethod(String name, Class[] params) -- 使用特定的参数类型，获得命名的公共方法
+    Method[] getMethods() -- 获得类的所有公共方法
+    Method getDeclaredMethod(String name, Class[] params) -- 使用特写的参数类型，获得类声明的命名的方法
+    Method[] getDeclaredMethods() -- 获得类声明的所有方法
+使用 Reflection：
+
+用于 reflection 的类，如 Method，可以在 java.lang.relfect 包中找到。使用这些类的时候必须要遵循三个步骤：
+第一步是获得你想操作的类的 java.lang.Class 对象。
+    在运行中的 Java 程序中，用 java.lang.Class 类来描述类和接口等。
+    下面就是获得一个 Class 对象的方法之一：
+    Class c = Class.forName("java.lang.String");
+    这条语句得到一个 String 类的类对象。还有另一种方法，如下面的语句：
+    Class c = int.class;
+    或者
+    Class c = Integer.TYPE;
+    它们可获得基本类型的类信息。其中后一种方法中访问的是基本类型的封装类 (如 Intege ) 中预先定义好的 TYPE 字段。
+第二步是调用诸如 getDeclaredMethods 的方法，以取得该类中定义的所有方法的列表。
+    一旦取得这个信息，就可以进行第三步了——使用 reflection API 来操作这些信息，如下面这段代码：
+    Class c = Class.forName("java.lang.String");
+    Method m[] = c.getDeclaredMethods();
+    System.out.println(m[0].toString());
+它将以文本方式打印出 String 中定义的第一个方法的原型。
+处理对象：
+a.创建一个Class对象
+b.通过getField 创建一个Field对象
+c.调用Field.getXXX(Object)方法(XXX是Int,Float等，如果是对象就省略；Object是指实例).
+例如：
+
+import java.lang.reflect.*;
+import java.awt.*;
+class SampleGet {
+    
+    public static void main(String[] args) throws Exception {
+        Rectangle r = new Rectangle(100, 325);
+        printHeight(r);
+        printWidth(r);
+    }
+    static void printHeight(Rectangle r)throws Exception {
+        //Field属性名
+        Field heightField;
+        //Integer属性值
+        Integer heightValue;
+        //创建一个Class对象
+        Class c = r.getClass();
+        //.通过getField 创建一个Field对象
+        heightField = c.getField("height");
+        //调用Field.getXXX(Object)方法(XXX是Int,Float等，如果是对象就省略；Object是指实例).
+        heightValue = (Integer) heightField.get(r);
+        System.out.println("Height: " + heightValue.toString());
+    }
+    static void printWidth(Rectangle r) throws Exception{
+        Field widthField;
+        Integer widthValue;
+        Class c = r.getClass();
+
+        widthField = c.getField("width");
+        widthValue = (Integer) widthField.get(r);
+        System.out.println("Height: " + widthValue.toString());
+
+    }
+}      

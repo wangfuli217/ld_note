@@ -1,0 +1,111 @@
+  当我们处理数据文件的，一般来说，写文件比读取文件内容来的容易。
+  因为我们可以很好的控制文件的写操作，而从文件读取数据常常碰到不可预知的情况。
+  
+  方法是：将我们的数据文件内容作为Lua代码写到Lua程序中去。
+  通过使用table构造器，这些存放在Lua代码中的数据可以像其他普通的文件一样看起来引人注目。
+
+1. 数据文件：
+    我们可以利用Lua中table的构造式来定义一种文件格式，即文件中的数据是table构造并初始化的代码，这种方式对于Lua程序而言是非常方便和清晰的，如：
+    Entry { "Stephen Liu", "Male", "Programmer", "BS" }
+    Entry { "Jerry Tian", "Male", "Programmer", "BS" }
+    需要注意的是，Entry{<code>}等价于Entry({<code>})，对于上面的数据条目，如果我们能够定义一个合适的Entry函数，就可以让这些数据成为我们Lua代码的一部分了。见如下代码及其注释：
+
+    local count = 0
+    --这里预先定义了Entry函数，以便在执行dofile中的数据代码时，可以找到匹配的该函数。
+    function Entry() count = count + 1 end
+    dofile("d:/lua_data.conf")
+    print("number of entries: " .. count)
+    
+    --输出结果为：
+    --number of entries: 2
+
+    相比于上面数据文件的格式，我们还可以定义一种更为清晰的"自描述的数据"格式，其中每项数据都伴随一个表示其含义的简短描述。采用这样的格式，即便今后数据项发生了变化，我们仍然可以在改动极小的情况下保持向后的兼容性。见如下数据格式和相关的代码：
+    Entry { name = "Stephen Liu", gender = "Male", job = "Programmer", education = "BS" }
+    Entry { name = "Jerry Tian", gender = "Male", job = "Programmer", education = "BS" }
+
+    local personInfo = {}
+    function Entry(b) 
+        --这里将table对象b的name字段值作为personInfo的key信息。
+        if b.name then
+            personInfo[b.name] = true 
+        end
+    end
+    
+    dofile("d:/lua_data.conf")
+    for name in pairs(personInfo) do
+        print(name)
+    end
+    
+    --输出结果为：
+    --Jerry Tian
+    --Stephen Liu
+
+    可以看出这些代码片段都采用了事件驱动的做法。Entry函数作为一个回调函数，在执行dofile时为数据文件中的每个条目所调用。
+    Lua不仅运行速度快，而且编译速度也快。这主要是因为Lua在设计之初就将数据描述作为Lua的主要应用之一所致。
+    
+2. 序列化：
+    相信有Java或C#开发经验的人对于这一术语并不陌生。
+    就是将数据对象转换为字节流后在通过IO输出到文件或网络，读取的时候再将这些数据重新构造为与原始对象具有相同值的新对象。
+    或者我们也可以将一段可执行的Lua代码作为序列化后的数据格式。比如：varname = <expr>，
+    这里的<expr>表示计算变量varname的表达式。
+    下面的示例代码用于序列化无环的table：
+    
+2.1 保存不带循环的table
+  function serialize(o)
+    if type(o) == "number" then
+        io.write(o)
+    elseif type(o) == "string" then
+        --string.format函数的"%q"参数可以转义字符串中的元字符。
+        io.write(string.format("%q",o)) 
+    elseif type(o) == "table" then
+        io.write("{\n")
+        --迭代table中的各个元素，同时递归的写出各个字段的value。
+        --由此可以看出，这个简单例子可以支持嵌套的table。
+        for k,v in pairs(o) do
+            --这样做是为了防止k中包含非法的Lua标识符。
+            io.write(" ["); 
+            serialize(k); 
+            io.write("] = ")
+            serialize(v)
+            io.write(",\n")
+        end
+        io.write("}\n")
+    else
+        error("cannot serialize a " .. type(o))
+    end
+  end
+    
+2.2 保存带有循环的table
+  我们做一个限制：要保存的table只有一个字符串或者数字关键字。下面的这个函数序列化基本类型并返回结果。
+  function basicSerialize (o)
+      if type(o) == "number" then
+         return tostring(o)
+      else       -- assume it is a string
+         return string.format("%q", o)
+      end
+  end
+
+  关键内容在接下来的这个函数，saved这个参数是上面提到的记录已经保存的表的踪迹的table。
+  function save (name, value, saved)
+      saved = saved or {}         -- initial value
+      io.write(name, " = ")
+      if type(value) == "number" or type(value) == "string" then
+         io.write(basicSerialize(value), "\n")
+      elseif type(value) == "table" then
+         if saved[value] then     -- value already saved?
+             -- use its previous name
+             io.write(saved[value], "\n")
+         else
+             saved[value] = name  -- save name for next time
+             io.write("{}\n")     -- create a new table
+             for k,v in pairs(value) do  -- save its fields
+                local fieldname = string.format("%s[%s]", name,
+                                          basicSerialize(k))
+                save(fieldname, v, saved)
+             end
+         end
+      else
+         error("cannot save a " .. type(value))
+      end
+  end
+

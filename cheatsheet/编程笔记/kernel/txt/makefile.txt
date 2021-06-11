@@ -1,0 +1,24 @@
+make -C $(SUBDIR)	-C always auto bind with -w (--print-directory)
+
+cfile :=  $(wildcard $(main_src)/*.c)
+cfile +=  $(wildcard $(test_src)/*.c)
+objects := $(cfile:.c=.o )
+
+obj-m := mmiotool.o (module name)
+mmiotool-objs := mmiotool_test.o xxx.o yyy.o (module components)
+make -C build/linux-board-compiled
+make ARCH=arm CROSS_COMPILE=armv6jel-target-linux-gnueabi- (essetial '-')
+#include <march/comcerto-1000.h>    arch/arm/mach-comcerto/include/mach/comcerto-1000.h
+
+FBINCDIR = $(shell if [ -d /opt/firebird/include ]; then echo /opt/firebird/include; else echo nul; fi)
+
+变量传递
+make 可以将变量传递给子 make 进程，按照以下规则：
+a. 用户在命令行上赋值的变量默认传递，并且仍以命令行方式传递（这可保证子进程再有子进程时一直传下去） 
+    make CFLAGS=-DDEBUG
+b. Makefile 中赋值的变量默认不传递
+c. 用 export 命令可明令传递某一个变量（用法类似 bash，如 export MYVAR）
+d. 用 unexport 命令可明令不传递某一个变量
+e. 如果对一个变量有多次赋值，则它们的优先级顺序为：命令行赋值优先级最高；Makefile 自身的赋值次之；父进程传来的变量最低（父进程传来的命令行除外）。
+
+find . -maxdepth 1 -type d -exec make -C {} \;          recursive make

@@ -1,0 +1,114 @@
+##################################while case shift##############################
+foo() {
+  while [[ "$#" -gt 0 ]]
+  do
+    case $1 in
+      -f|--follow)
+        local FOLLOW="following"
+        ;;
+      -t|--tail)
+        local TAIL="tail=$2"
+        ;;
+    esac
+    shift
+  done
+  echo "FOLLOW: $FOLLOW"
+  echo "TAIL: $TAIL"
+}
+
+################################## while case shift ############################
+#!/bin/bash
+# Load the user defined parameters
+while [[ $# > 0 ]]
+do
+        case "$1" in
+                -a|--valueA)
+                        valA="$2"
+                        shift
+                        ;;
+                -b|--valueB)
+                        valB="$2"
+                        shift
+                        ;;
+                --help|*)
+                        echo "Usage:"
+                        echo "    --valueA \"value\""
+                        echo "    --valueB \"value\""
+                        echo "    --help"
+                        exit 1
+                        ;;
+        esac
+        shift
+done
+echo "A: $valA"
+echo "B: $valB"
+
+
+################################## for case shift ##############################
+#!/bin/bash
+dr=''
+install=false
+skip=false
+for op in "$@";do
+    if $skip;then skip=false;continue;fi
+    case "$op" in
+        -v|--version)
+            echo "$ver_info"
+            shift
+            exit 0
+            ;;
+        -h|--help)
+            echo "$help"
+            shift
+            exit 0
+            ;;
+        -dr|--doc-root)
+            shift
+            if [[ "$1" != "" ]]; then
+                dr="${1/%\//}"
+                shift
+                skip=true
+            else
+                echo "E: Arg missing for -dr option"
+                exit 1
+            fi
+            ;;
+        -i|--install)
+            install=true
+            shift
+            ;;
+        -*)
+            echo "E: Invalid option: $1"
+            shift
+            exit 1
+            ;;
+    esac
+done
+
+################################## for in ######################################
+for item in "$@"
+do  
+    if [[ -f $item ]]; then
+        echo "$item is a file"
+    fi
+done
+
+################################## for (()) #####################################
+for (( i = 1; i <= $#; ++ i ))
+do
+    item=${@:$i:1}
+    if [[ -f $item ]]; then
+        echo "$item is a file"
+    fi  
+done
+
+################################## for array ####################################
+for element in "${array[@]}"
+do
+    echo "$element"
+done
+
+for index in "${!array[@]}"
+do
+    echo "$index ${array[index]}"
+done

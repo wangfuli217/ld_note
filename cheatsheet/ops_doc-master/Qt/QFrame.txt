@@ -1,0 +1,94 @@
+QFrame与QWidget的区别：
+QFrame是基本控件的基类，QWidget是QFrame基类。
+
+QWidget类是所有用户界面对象的基类。
+    Widget是用户界面的基本单元：它从窗口系统接收鼠标，键盘和其他事件，并在屏幕上绘制自己。
+    每个Widget都是矩形的，它们按照Z-order进行排序。
+
+QFrame类：
+    QFrame类是有框架的窗口部件的基类。
+    QFrame绘制框架并且调用一个虚函数drawContents()来填充这个框架。这个函数是被子类重新实现的。
+这里至少还有两个有用的函数：drawFrame()和frameChanged()。
+    QPopupMenu使用这个来把菜单“升高”，高于周围屏幕。
+    QProgressBar有“凹陷”的外观。
+    QLabel有平坦的外观。这些有框架的窗口部件可以被改变。
+    
+    QLabel label(...);
+    label.setFrameStyle( QFrame::Panel | QFrame::Raised );
+    label.setLineWidth( 2 );
+
+    QProgressBar pbar(...);
+    label.setFrameStyle( QFrame::NoFrame );
+
+    QFrame类也能够直接被用来创建没有任何内容的简单框架，尽管通常情况下，你要用到QHBox或QVBox，
+因为它们可以自动的布置你放到框架中的窗口部件。
+    框架窗口部件有四个属性：frameStyle()、lineWidth()、midLineWidth()和margin()。 
+    框架风格由框架外形和阴影风格决定。
+框架外形有NoFrame、Box、Panel、StyledPanel、PopupPanel、WinPanel、ToolBarPanel、MenuBarPanel、HLine和VLine，
+阴影风格有Plain、Raised和Sunken。
+
+    线宽就是框架边界的宽度。
+    中间线宽指定的是在框架中间的另外一条线的宽度，它使用第三种颜色来得到一个三维的效果。
+注意中间线只有在Box、HLine和VLine这些凸起和凹陷的框架中才被绘制。
+    边白就是框架和框架内容之间的间隙。
+
+1.公有类型
+enum Shadow { Plain, Raised, Sunken }
+enum Shape { NoFrame, Box, Panel, StyledPanel, ..., WinPanel }
+enum StyleMask { Shadow_Mask, Shape_Mask }
+
+2.属性
+frameRect : QRect//控件矩形
+frameWidth : const int//框架的宽度
+
+frameShadow : Shadow//有无阴影
+  QFrame::Plain - 框架和内容看来和周围一样高
+  QFrame::Raised - 框架和内容看起来凸起
+  QFrame::Sunken - 框架和内容看起来凹陷
+  QFrame::MShadow - 内部的，对于阴影的掩码 
+Shadow和QFrame::Shape、lineWidth()和midLineWidth()相互作用。
+
+lineWidth : int//线宽度
+frameShape : Shape//框架形状
+  NoFrame - QFrame不画任何东西
+  Box - QFrame在它的内容周围画一个框
+  Panel - QFrame画一个平板使内容看起来凸起或者凹陷
+  WinPanel - 像Panel，但QFrame绘制三维效果的方式和Microsoft Windows 95（及其它）的一样
+  ToolBarPanel - QFrame调用QStyle::drawToolBarPanel()
+  MenuBarPanel - QFrame调用QStyle::drawMenuBarPanel()
+  HLine - QFrame绘制一个水平线，但没有框任何东西（作为分隔是有用的）
+  VLine - QFrame绘制一个竖直线，但没有框任何东西（作为分隔是有用的）
+  StyledPanel - QFrame调用QStyle::drawPanel()
+  PopupPanel - QFrame调用QStyle::drawPopupPanel() 
+
+midLineWidth : int//中间线的宽度
+
+3.公有函数
+QFrame(QWidget * parent = 0, Qt::WindowFlags f = 0)//构造函数，设置主窗口和框架类型
+~QFrame()//析构函数
+QRect frameRect() const//返回   框架的rect
+ 
+Shadow frameShadow() const
+Shape frameShape() const
+ 
+int QFrame::frameStyle() const//返回框架风格，类似frameShadow（）
+int frameWidth() const
+int lineWidth() const
+int midLineWidth() const
+void setFrameRect(const QRect &)
+void setFrameShadow(Shadow)
+void setFrameShape(Shape)
+void setFrameStyle(int style)
+void setLineWidth(int)
+void setMidLineWidth(int)
+
+3.重写公有函数
+virtual QSize sizeHint() const//返回尺寸大小
+
+4.保护函数
+void initStyleOption(QStyleOptionFrame * option) const//初始化画一个框架
+
+5.公有保护函数
+virtual void changeEvent(QEvent * ev)//事件状态改变
+virtual bool event(QEvent * e)//接收事件
+virtual void paintEvent(QPaintEvent *)//重绘事件

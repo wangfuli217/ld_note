@@ -1,0 +1,35 @@
+--- old/dynamic_dns_functions.sh	2017-08-27 20:49:56.927958739 +0800
++++ new/dynamic_dns_functions.sh	2017-09-04 17:00:59.084585731 +0800
+@@ -615,9 +615,13 @@ get_registered_ip() {
+ 		[ $force_dnstcp -eq 1 ] && __PROG="$__PROG -T"
+ 		__RUNPROG="$__PROG $domain $dns_server >$DATFILE 2>$ERRFILE"
+ 		__PROG="BIND host"
++	elif [ -x "${domain_script}" ]; then
++			write_log 4 "Busybox mydomainip - detect registered ip by ${domain_script}"
++		__RUNPROG="${domain_script} $domain >$DATFILE 2>$ERRFILE"
++		__PROG="BusyBox mydomainip"
+ 	elif [ -x /usr/bin/nslookup ]; then
+ 		[ $force_ipversion -ne 0 -o $force_dnstcp -ne 0 ] && \
+-			write_log 14 "Busybox nslookup - no support to 'force IP Version' or 'DNS over TCP'"
++			write_log 4 "Busybox nslookup - no support to 'force IP Version' or 'DNS over TCP'"
+ 		__RUNPROG="/usr/bin/nslookup $domain $dns_server >$DATFILE 2>$ERRFILE"
+ 		__PROG="BusyBox nslookup"
+ 	else
+@@ -633,6 +637,8 @@ get_registered_ip() {
+ 		else
+ 			if [ "$__PROG" = "BIND host" ]; then
+ 				__DATA=$(cat $DATFILE | awk -F "address " '/has/ {print $2; exit}' )
++			elif [ "$__PROG" = "BusyBox mydomainip" ]; then
++				__DATA=$(cat $DATFILE)
+ 			else
+ 				__DATA=$(cat $DATFILE | sed -ne "/^Name:/,\$ { s/^Address[0-9 ]\{0,\}: \($__REGEX\).*$/\\1/p }" )
+ 			fi
+@@ -641,7 +647,7 @@ get_registered_ip() {
+ 				eval "$1=\"$__DATA\""
+ 				return 0
+ 			}
+-			write_log 4 "NO valid IP found"
++			write_log 14 "NO valid IP found"
+ 			__ERR=127
+ 		fi
+ 		[ $LUCI_HELPER ] && return $__ERR

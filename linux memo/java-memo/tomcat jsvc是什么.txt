@@ -1,0 +1,120 @@
+## /usr/bin/jsvc
+## /usr/share/doc/jakarta-commons-daemon-jsvc-1.0.1
+## /usr/share/doc/jakarta-commons-daemon-jsvc-1.0.1/LICENSE
+## /usr/share/doc/jakarta-commons-daemon-jsvc-1.0.1/LICENSE.txt
+## /usr/share/man/man1/jsvc.1.gz
+
+
+NAME       jsvc - application to launch java daemon
+
+SYNOPSIS
+       jsvc [-jvm JVM name] [-classpath path] [-cp path] [-home directory] [-version] [-help] [-?] [-nodetach] [-debug] [-check] [-user user]
+            [-wait waittime] [-stop] [-verbose:class|gc|jni] [-outfile /full/path/to/file] [-errfile /full/path/to/file] [-pidfile /full/path/to/file]
+            [-Dproperty=value] [-Xoption]
+
+DESCRIPTION
+       jsvc executes classfile that implements a Daemon interface.
+       
+
+用来启动tomcat，在linux下面使用
+
+在linux上以服务的方式启动java程序
+1.安装jsvc
+在tomcat的bin目录下有一个jsvc.tar.gz的文件,进入tomcat的bin目录下
+#tar xvfz jsvc.tar.gz
+#cd jsvc-src
+#sh support/buildconf.sh
+#chmod 755 configure
+#./configure --with-java=/usr/local/java (改成你的JDK的位置)
+#make
+2.编写服务启动类
+
+package com.sohu.jsvc.test;
+public class TestJsvc {
+public static void main(String args[]) {
+System.out.println("execute main method!");
+}
+public void init() throws Exception {
+System.out.println("execute init method！");
+}
+public void init(String[] args) throws Exception{
+System.out.println("execute init(args) method");
+}
+public void start() throws Exception {
+System.out.println("execute start method！");
+}
+public void stop() throws Exception {
+System.out.println("execute stop method！");
+}
+public void destroy() throws Exception{
+System.out.println("execute destroy method!");
+}
+}
+main方法可以去掉，但是init(String[] args),start(),stop(),destroy()方法不能少，服务在启动时会先调用init(String[] args)方法
+然后调用start()方法，在服务停止是会首先调用stop()方法，然后调用destroy() 方法.
+3.把这个类打包成testjsvc.jar 放到/test目录下
+4.编写启动服务的脚本 myjsvc
+
+#!/bin/sh
+# myjsvc This shell script takes care of starting and stopping
+#
+# chkconfig: - 60 50
+# description: tlstat stat is a stat data daemon.
+# processname: myjsvc
+# Source function library.
+. /etc/rc.d/init.d/functions
+RETVAL=0
+prog="MYJSVC"
+# jdk的安装目录
+JAVA_HOME=/usr/java/jdk1.5.0_15
+#应用程序的目录
+MYJSVC_HOME=/test
+#jsvc所在的目录
+DAEMON_HOME=/usr/local/tomcat5/bin/jsvc-src
+#用户
+MYJSVC_USER=root
+# for multi instances adapt those lines.
+TMP_DIR=/var/tmp
+PID_FILE=/var/run/tlstat.pid
+#程序运行是所需的jar包，commons-daemon.jar是不能少的
+CLASSPATH=/test/testjsvc.jar:/usr/local/tomcat5/bin/commons-daemon.jar:
+case "$1" in
+start)
+#
+# Start TlStat Data Serivce
+#
+$DAEMON_HOME/jsvc -user $MYJSVC_USER -home $JAVA_HOME -Djava.io.tmpdir=$TMP_DIR -wait 10 -pidfile $PID_FILE #控制台的输出会写到tlstat.out文件里
+-outfile $MYJSVC_HOME/log/myjsvc.out -errfile '&1' -cp $CLASSPATH #服务启动类
+com.sohu.jsvc.test.TestJsvc
+#
+# To get a verbose JVM
+#-verbose # To get a debug of jsvc.
+#-debug exit $?
+;;
+stop)
+#
+# Stop TlStat Data Serivce
+#
+$DAEMON_HOME/jsvc -stop -pidfile $PID_FILE com.sohu.jsvc.test.TestJsvc
+exit $?
+;;
+*)
+echo "Usage myjsvc start/stop"
+exit 1;;
+esac
+5. 把myjsvc文件拷贝到/etc/init.d/目录下
+6. #chmod -c 777 /etc/init.d/myjsvc
+7. 添加服务
+#chkconfig --add myjsvc
+#chkconfig --level 345 myjsvc on
+8. 完成，启动服务
+#service myjsvc start
+你可以从/test/log/myjsvc.out文件里看到如下信息:
+execute init(args) method
+execute start method
+#service myjsvc stop
+你会发现/test/log/myjsvc.out文件里会增加如下信息
+execute stop method
+execute destroy method
+并且在系统重启时会自动启动myjsvc服务
+好了，一个简单的 liunx服务就写好了，你可以在TestJsvc的init(),start(),stop(),destroy()方法里添加你的业务，做你想做的事。

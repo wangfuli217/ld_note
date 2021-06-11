@@ -1,0 +1,73 @@
+# https://developers.redhat.com/blog/2018/10/22/introduction-to-linux-interfaces-for-virtual-networking/
+
+
+# Bridge
++---------+--------+     +---------+------+     +---------+--------+ 
+|       guest1     |     |     guest2     |     |       netns 1    | 
+|                  |     |                |     |                  | 
++-----+(eth0)+-----+     +-----+(eth0)+---+     +-----+(veth0)+----+ 
+        tap1                     tap2                   veth1
+          |                        |                      | 
+          |------------------------+----------------------|
+                                  br0
+                                  -+-
+                                  eth0
+                                   |
+                                   |
+                                 switch 
+                                 
+# ip link add br0 type bridge
+# ip link set eth0 master br0
+# ip link set tap1 master br0
+# ip link set tap2 master br0
+# ip link set veth1 master br0
+
+# Bonded interface
+                       +---------+--------+ 
+                       |       guest1     | 
+                       |                  | 
+                       +-----+(bond0)+----+ 
+                                 |
+                          +------+-----+ 
+                          |            |
+                         eth0         eth1
+ip link add bond1 type bond miimon 100 mode active-backup
+ip link set eth0 master bond1
+ip link set eth1 master bond1
+
+# Team device
+                      +---------+--------+
+                      |       guest1     |
+                      |                  |
+                      +-----+(team0)+----+
+                                |
+                         +------+-----+ 
+                         |            |
+                        eth0         eth1
+# teamd -o -n -U -d -t team0 -c '{"runner": {"name": "activebackup"},"link_watch": {"name": "ethtool"}}'
+# ip link set eth0 down
+# ip link set eth1 down
+# teamdctl team0 port add eth0
+# teamdctl team0 port add eth1
+
+                        
+# VLAN 820.1x                   
+                        eth0.2        eth0.3
+                         +------+-----+ 
+                                 |
+                                eth0 
+Tag Protocol | Priority | Canonical Format Indicator | VLAN ID
+    16Bits   |   3Bits  |       1Bit                 |   12Bits   
+# ip link add link eth0 name eth0.2 type vlan id 2
+# ip link add link eth0 name eth0.3 type vlan id 3
+ for example, by setting the switch port to trunk mode.
+ 
+ 
+# VXLAN
+VXLAN (Virtual eXtensible Local Area Network) is a tunneling protocol designed to 
+solve the problem of limited VLAN IDs (4,096) in IEEE 802.1q. It is described by IETF RFC 7348.
+# ip link add vx0 type vxlan id 100 local 1.1.1.1 remote 2.2.2.2 dev eth0 dstport 4789
+
+ 
+# https://developers.redhat.com/blog/tag/virtual-networking/
+ 

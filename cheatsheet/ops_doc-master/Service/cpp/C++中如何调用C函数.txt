@@ -1,0 +1,38 @@
+将 C 函数声明为``extern "C"''（在你的 C++ 代码里做这个声明），然后调用它（在你的 C 或者 C++ 代码里调用）。例如：
+
+// C++ code
+extern "C" void f(int); // 方法一
+extern "C" { // 另一种声明方法
+    int g(double);
+    double h();
+};
+
+void code(int i, double d){
+    f(i);
+    int ii = g(d);
+    double dd = h();
+    // ...
+}
+
+函数的定义可类似如下所示：
+
+/* C code: */
+void f(int i){
+    /* ... */
+}
+
+int g(double d){
+    /* ... */
+}
+
+double h(){
+    /* ... */
+}
+
+    注意，声明里使用的可是 C++ 的类型规则，而不是 C 的哦。
+所以调用声明为 ``extern "C"'' 的函数时，传递的参数个数必须正确。例如：
+// C++ code
+void more_code(int i, double d){
+    double dd = h(i,d); // 错误：不速之参数
+    // ...
+}

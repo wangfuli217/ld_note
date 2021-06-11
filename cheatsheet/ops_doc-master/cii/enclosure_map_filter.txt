@@ -1,0 +1,464 @@
+https://github.com/zyxstar/md_note/blob/master/docs/Language/C/C%E8%AF%AD%E8%A8%80(Uplooking).md
+cheatsheet/ops_doc-master/Service/cfaq/Expert-C-Programming/练习 
+
+http://soft.dog/tag/ 扩展
+https://github.com/bat-battle 扩展
+
+https://en.wikipedia.org/wiki/Asynchronous_I/O
+回调：
+synchronous callback,
+asynchronous callback
+
+定义函数指针类型:  typedef  void (*inc_t)(int*)
+定义函数类型:  typedef  void (inc_t)(int*)
+
+typedef void(func_t)();          //  函数类型
+typedef void(*func_ptr_t)();     //  函数指针类型
+void test(){
+    printf("%s\n", __func__);
+}
+int main(int argc, char* argv[]){
+    func_t* func = test;         //  声明一个指针
+    func_ptr_t func2 = test;     //  已经是指针类型
+    void (*func3)();             //  声明一个包含函数原型的函数指针变量
+    func3 = test;
+    func();
+    func2();
+    func3();
+    return EXIT_SUCCESS;
+}
+
+函数指针: 指向函数的指针 它是一个指针，只是它指向的内容由普通的变量或对象变成了函数，也就是说它可以指向函数的入口地址。
+  指针指向特定类型的函数；函数指针的类型要和指向的函数的类型一致；函数类型由返回值类型和参数类型决定。
+指针函数: 返回指针的函数 它是一个函数，只是返回值由普通的值对象变成了指针，也就是说函数返回的是一块内存地址。
+  指针可以指向一个函数地址；也可以指向一个结构体实例，结构体实例中包括一个或多个函数指针。
+
+char *(*fun1)(char *p1,char *p2); # 见moosefs中的main.c中timeentry, chldentry内函数定义
+char **fun2(char *p1,char *p2);
+char *fun3(char *p1,char *p2);
+第一条是定义一个函数指针，此函数返回值为一个字符型指针
+第二条是定义一个函数声明，此函数返回值为一个字符型的二级指针
+第三条是定义一个函数声明，此函数返回值为一个字符型的指针
+fun1函数指针和fun2声明，区别在于一个括号。
+Tip: 对于函数指针 char (*fun)(char *p1,char *p2), 可以理解 char (*)(char *p1,char *p2) fun;
+     对于函数指针 char (*fun)(char *p1,char *p2), 也可以理解为 char (*)(char *,char *) fun;
+     对于数组指针 char (*p)[5] 也可以这么理解 char (*)[5] p
+char fun(char *p1,char *p2); //声明或定义函数
+char (*pf)(char *p1,char *p2); //定义一个函数指针
+pf=&fun; //给函数指针赋值，与函数绑定
+(*pf)("xx","yy"); //使用指针来调用函数.
+
+一般用typedef声明一个函数指针的类型，然后将函数赋值给函数指针变量。它有两种声明方式： 
+###1 见moosefs中的init.h
+typedef void (*handle_t)(int);
+handle_t handle = foo;
+###2 见redis中ac.h中aeFileProc的声明和ac.c中aeCreateFileEvent的定义
+typedef void handle_t(int);
+hanle_t* handle = foo;
+
+1. 接口定义
+main_poll_register函数定义
+void main_poll_register (void (*desc)(struct pollfd *,uint32_t *),
+                         void (*serve)(struct pollfd *))
+                         {...} 
+pollentry结构体定义
+typedef struct pollentry {
+    void (*desc)(struct pollfd *,uint32_t *);
+    void (*serve)(struct pollfd *);
+    struct pollentry *next;
+} pollentry;
+在main_poll_register函数定义和pollentry结构体定义中，desc和serve可以看作形参；
+                                                     指针函数类型描述符                   形参
+即void (*desc)(struct pollfd *,uint32_t *); 可以看作 void (*)(struct pollfd *,uint32_t *) desc;
+即void (*serve)(struct pollfd *);           可以看作 void (*)(struct pollfd *)            serve;
+1.1 接口契约: desc 用于注册多个fd和fd需要监听的事件(POLLIN，POLLOUT); 用以说明fd有接收数据或者发送数据的意向。
+                   先设置pollfd[pos].fd = modfd; 再判断 modfd有接收请求；pollfd[pos].events |= POLLIN
+                                                 再判断 modfd有发送请求；pollfd[pos].events |= POLLOUT
+                   最后，注册模块要保存pollfd数组的偏移，以便能够快速定位pollfd数组内已注册modfd的位置。
+                   说明：每注册一个modfd需要 ndesc++; 设置下一个有效fd的位置。
+     serve 用于处理多个fd接收数据、发送数据的请求；先判断pollfd[pos].revents&POLLIN有效，再调用read函数接收数据，
+                                                   先判断pollfd[pos].revents&POLLOUT有效，再调用write函数发送数据。
+1.2 接口实现：
+    struct pollfd pdesc[MFSMAXFILES];
+    uint32_t ndesc;
+    foreach(pollentry) pollentry->desc(pdesc, &ndesc);
+    poll(pdesc, ndesc, 10);
+    foreach(pollentry) pollenrty->serve(pdesc)
+                                                   
+2. 接口定义
+typedef void aeFileProc(struct aeEventLoop *eventLoop, int fd, void *clientData, int mask);
+typedef int aeTimeProc(struct aeEventLoop *eventLoop, long long id, void *clientData);
+typedef void aeEventFinalizerProc(struct aeEventLoop *eventLoop, void *clientData);
+typedef void aeBeforeSleepProc(struct aeEventLoop *eventLoop);
+上述可以看作
+        派生类型定义                                                            派生类型标识符
+typedef void(struct aeEventLoop *eventLoop, int fd, void *clientData, int mask) aeFileProc;
+typedef int(struct aeEventLoop *eventLoop, long long id, void *clientData)      aeTimeProc;
+typedef void(struct aeEventLoop *eventLoop, void *clientData)                   aeEventFinalizerProc;
+typedef void(struct aeEventLoop *eventLoop)                                     aeBeforeSleepProc;
+
+int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask,
+        aeFileProc *proc, void *clientData)
+long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
+        aeTimeProc *proc, void *clientData,
+        aeEventFinalizerProc *finalizerProc)
+void aeSetBeforeSleepProc(aeEventLoop *eventLoop, aeBeforeSleepProc *beforesleep)
+2.1 接口契约
+    aeCreateFileEvent用于注册fd和fd需要监听的事件(AE_READABLE,AE_WRITABLE);用以说明fd有接收数据或发送数据的意图
+    proc(aeFileProc)用于处理fd接收数据、发送数据的请求；注册事件为AE_READABLE，则处理数据读请求；
+                                                        注册事件为AE_WRITABLE，则处理数据写请求；
+                    注意：clientData可以看做闭包回调的数据。
+    aeCreateTimeEvent用于注册timeout超时函数，返回值为id值，在proc(aeTimeProc)中可以判定一个函数多次注册
+    proc(aeTimeProc) 用于处理timeout超时事件，
+    finalizerProc(aeEventFinalizerProc) 用于处理超时注册函数proc(aeTimeProc)未执行前被删除的事件。
+2.2 组织流程
+  aeEventLoop *aeCreateEventLoop(int setsize) 
+  int aeCreateFileEvent()
+  long long aeCreateTimeEvent()
+  void aeSetBeforeSleepProc()
+  void aeMain(aeEventLoop *eventLoop)  
+  1. 在回调函数中调用void aeStop(aeEventLoop *eventLoop)则退出复用IO阻塞框架
+  2. 在回调函数中调用aeCreateFileEvent注册新连接回调函数；
+  3. AE_READABLE和AE_WRITEABLE;一次aeCreateFileEvent注册可以进行无限次read或write回调函数调用；
+                               通过aeDeleteFileEvent可以取消read或write回调函数调用。
+  4. aeCreateTimeEvent和aeSetBeforeSleepProc注册的定时器都是无限次的，通过aeDeleteTimeEvent可以删除定时器。
+  
+3. 接口定义
+void (*callback)(uint8_t status,void *extra);
+job_new(jobpool *jp,uint32_t op,void *args,void (*callback)(uint8_t status,void *extra),void *extra) 
+3.1 接口契约
+    job_new 用于注册op操作和操作相关的抽象数据；其中操作有OP_SERV_READ OP_SERV_WRITE等等，抽象数据有chunk_rw_args和chunk_rp_args等
+    callback函数在op操作处理完相关抽象数据之后，对tcp连接eptr进行后续处理或者对idlejob进行后续处理。
+3.2 组织流程
+    main(poll中接收请求) -> bgjobs.c(线程池中进行数据处理) -> main(poll中进行处理收尾)
+    接收数据             -> 处理数据                       -> 接收数据的处理响应
+    
+1.  (*(void(*)())0)()  例36 # 南京林洋boot部分
+    函数指针数组       例37 char *(*pf[3])(char *p);
+    函数指针数组的指针 例38 char *(*(*pf)[3])(char *p);
+  
+a. 函数指针 - 接口契约 
+  同步调用传递入函数指针; reduce, map, filter, range, each，qsort, bsearch      1. 算法封装和闭包处理
+    算法封装强调 数据自身和注册函数             关注比较关系；多用在排序查找qsort, bsearch
+    闭包函数强调 初始数据、传参数据和注册函数   关注前驱后继关系；多用在reduce, map, filter, range, each
+    
+  返回特殊变量(关键字-索引值-模式识别)对应函数; 3.array_callback.c              2. 协议处理和命令行处理
+    协议处理的特殊变量(索引值)常是int或str类型变量，将描述型数据转换成数据结构，以便后续函数处理.
+    命令行处理的特殊变量(索引值)常是str类型变量，   将可变数据转换成描述性数据(或数据结构)，以便后续函数处理.
+    
+    协议处理常是面向多TCP或UDP连接的，  一般会动态管理连接数据和状态，并把接收数据追加到连接上，将管理连接实例作为整体传递给函数指针。
+    命令行处理常是面向单TCP或UDP连接的，一般会全局管理连接数据和状态，一次发送所有数据和完整接收数据后转回用户输入，只传递本次用户输入数据。
+    
+    命令行处理函数指针指向函数 +常使用不定数类型 形式传参，传参不包含TCP或UDP连接信息，+函数不可重入
+    协议处理函数指针指向函数   +常使用固定类型   形式传参，传参包括TCP或UDP连接信息，  +函数可以重入
+    
+  注册函数由事件或时间驱动调用; moosefs和redis，以及moosefs实现poll,epoll,select的封转 3. 注册回调
+    不同的回调函数集对应不同的业务处理流程。连接上包括listen和数据收发连接 两种
+    moosefs和dnsmasq方式:  通过轮询的方式注册；    通过内核对buffer缓存数据的管理，驱动注册回调函数。
+      轮询注册:      每次遍历所有连接状态，有数据发送注册发送状态标识，需要数据接收注册接收状态标识
+      
+    redis或者libevent方式：根据接收和发送需求注册；通过内核对buffer缓存数据的管理，驱动注册回调函数。
+      接收和发送注册:在初始化时候注册 发送状态标识 和 接收状态标识。在接收数据后 判定是否取消 接收状态标识
+                                                                    在发送数据后 判定是否取消 发送状态标识
+    
+    moosefs redis和libevent的定时器方式：提供注册周期调用定时器；和提供注册一次任务超时定时器。
+    
+    moosefs: void (*desc)(struct pollfd *,uint32_t *);
+             void (*serve)(struct pollfd *);
+  注册函数由事件或数据驱动调用; 协议处理中HOOK注册和信号处理中signal注册；      4. 一次注册即可；
+    HOOK有函数注册，函数注销，默认处理函数；注册函数返回注册状态
+    信号有函数注册，默认处理函数，忽略信号；注册函数返回原先函数
+    atexit函数注册，注册函数按照逆顺序调用。          # 进程正常退出之后被调用
+    zmalloc_set_oom_handler(redisOutOfMemoryHandler); # 进程被信号kill掉之后被调用
+    
+  注册函数用于优化算法或者重用接口：cii中table，set和seq等，                    5. 只能注册不能注销
+                                    redis中adlist.c dict.c sds.c(可以看做sds的扩展数据类型)
+                                    adlist.h回调函数有dup,free,match; dict.h回调函数有hashFunction,keyDup,valDup,keyCompare,keyDestructor,valDestructor
+    优化算法：hash函数
+    重用接口：cmp 函数
+  
+1. 参数：固定类型
+         动态类型: 1. 数组  
+                   2. 强制void转换
+         不个数类型: 1. argc和argv方式
+                     2. 多指针，NULL结尾方式
+                     3. 多数值，0值-1值或特殊值结尾方式
+                     4. 如printf或者scanf方式；format字符串内容分析方式。
+                     
+2. 函数指针和连接状态结构体
+  函数指针属于结构体但 不属于连接状态结构体: 连接状态结构体 作为参数传递
+  函数指针属于连接状态结构体
+    连接状态结构体提供限制性配置             连接状态结构体 不作为参数传递
+    连接状态结构体提供缓存数据和状态         连接状态结构体 作为参数传递
+
+函数设计
+    callback：回调函数
+        在API中注册、用于在处理流中的合适时刻调用的函数
+        可以看作是hook的一种
+
+    hook：钩子函数
+        更广义的、用于修改对API调用的函数
+        callback、hook意义其实差不多，很多情况下名词混用
+
+    register：注册函数
+        提供参数作为hook的挂载点
+        register通过挂载点调用hook
+
+优点
+    让用户实现hook然后注册，框架调用用户自定义的hook，提供 更好的泛用性
+    框架不再处理hook函数中涉及的问题，降低系统耦合程度
+    hook函数可以随时更换，提升框架的灵活性、扩展性
+
+实现
+    函数指针作为函数参数，API通过函数指针调用函数实现 定制API
+    
+函数指针就成为一种类型了，可作为参数、变量、返回值、结构体成员等的类型，达到 接口契约 的功能。
+a1. 传递函数地址，调用函数-回调-传递函数； 3.array_callback.c 10. array_callback.c
+a2. 传递特殊字符串、字符或者标识。调用函数-回调-传递特殊字符串、字符或标识对应的函数
+a3. 传递特殊字符串、字符或者标识。调用函数-返回-传递特殊字符串、字符或标识对应的函数
+a4. 传递特殊字符串、字符或者标识。调用函数-返回-传递特殊字符串、字符或标识对应的结构体(结构体包含回调函数)
+
+a5. 传递函数地址，调用函数-注册-传递函数；传递函数通过流或状态变化而被调用
+a6. 传递函数地址，调用函数-注册-传递函数；传递函数由于时间超时而被调用
+
+
+b. int reduce(int(*callback)(int, int, int),
+                    int *arr, int size, int init) 循环调用ret=callback(init,arr[i],i); 对ret求和 后返回ret
+c. int* map(int(*callback)(int, int),
+                   int *arr, int size) 循环调用ret[i]=callback(arr[i],i); 然后将ret[i]数组返回
+d. void each(void(*callback)(int*, int), int *arr, int size) 循环调用callback(arr[i],i); callback调用没有返回值
+f. int filter(bool(*predicate)(int, int), int *arr, int size) 循环调用predicate(arr[i],i); 统计predicate返回值有效的个数
+g. int take_while(int(*predicate)(int, int),
+                  int(*move_next)(int, int), int init) 循环调用predicate(init, i)有效调用move_next(init, i)，
+h. int range(int start, int end, int step, int* arr)   按照start，end和step初始化arr数组。像lua中的for循环
+i. int partition(int(*cmp)(int, int),
+              int *arr, int size, int pivoit_idx)
+
+
+1. 闰年判断，四年一闰，百年不闰，四百年一闰(if, else if)
+is_leap_year.c
+2. 写一个函数，能够将两个字符串连接，并测试函数
+my_strcat.c
+3. 书写四个函数，分别计算两个整数 + - * /，书写第五个函数，使用参数型函数指针完成对以上四个函数的调用。
+array_callback.c     [固定参数形式的闭包回调]
+4. 假设需要产生5个，50~100的随机数
+scope_srand.c
+注意%的使用，将数值求模，可以将固定数值的取值范围
+srand(time(NULL))用于产生随机数的种子
+5. 十进制转任意进制   [递归调用实现] -> 保持某些参数的变和某些参数的不变
+from_decimal_trans.c
+6. 任意进制转十进制
+to_decimal_trans.c     [循环]
+7. 右移，高位补符号位（少数机器高位补零）
+    左移，右侧空位补零，左侧符号位移出，原先的某数据位将成为符号位（少数机器符号位被固定，是不能位移的）
+bit_shift.c
+8. 二维数组与二级指针
+addr_pointer_array.c  [其中包含地址、数组和指针] 华为
+9. 堆中分配二维数组
+除pp在栈中，其余都在堆中
+array2_malloc.c
+10. 函数指针 (函数指针作为返回值)
+array_callback.c
+
+11. 输入一个不超过五位的正整数，输出其逆数。例如输入12345，输出应为54321。
+number_reverse.c
+
+12. 计算1+2+3…+n的值，n是从键盘输入的自然数。
+number_reduce.c
+
+13. 从终端（键盘）读入20个数据到数组中，统计其中正数的个数，并计算这些正数之和。
+number_filter.c:
+
+14. 从终端（键盘）将5个整数输入到数组a中，然后将a逆序复制到数组b中，并输出b中各元素的值。
+array_reverse.c
+
+15. 要将5张100元的大钞票，换成等值的50元，20元，10元，5元一张的小钞票，每种面值至少1张，编程求需要多少张纸币。
+number_enum_total.c
+
+16. 求n以内（不包括n）同时能被3和7整除的所有自然数之和的平方根s，n从键盘输入。例如若n为1000时，函数值应为：s=153.909064。
+reduce_range_filter.c
+
+17. 一辆卡车违反交通规则，撞人后逃跑。现场有三人目击事件，但都没有记住车号，只记下车号的一些特征。
+甲说：牌照的前两位数字是相同的；
+乙说：牌照的后两位数字是相同的，但与前两位不同；
+丙是数学家，他说：四位的车号刚好是一个整数的平方。
+请根据以上线索找出车号。
+math1.c
+
+18. 输入1~10之间的一个数字，输出它对应的英文单词。
+number_mapper_literal.c
+
+19. 个位数为6且能被3整除但不能被5整除的三位自然数共有多少个，分别是哪些？
+math1.c
+
+20. 输入某年某月某日，判断这一天是这一年的第几天？
+dayofyear.c
+
+21. 两个乒乓球队进行比赛，各出三人。甲队为a,b,c三人，乙队为x,y,z三人。已抽签决定比赛名单。有人向队员打听比赛的名单。a说他不和x比，c说他不和x,z比，请编程序找出三队赛手的名单。
+
+22. 输入某三角形的三个边的长度，判断出这是个什么三角形（等腰、等边、任意，或不能构成）。
+triangle_type.c
+
+23. 输入10个数，分别统计其中正数、负数、零的个数。
+number_postive_negative.c
+
+24. 先随机产生N个三位自然数输出，然后再输出其中同时是3、5、7倍数的数。（设N为100）
+reduce_range_filter.c
+
+25. 用for编程找出100~200中的完全平方数
+is_square.c
+
+26. 从终端输入三个正实数，判断这三个数能否构成直角三角形。
+is_square.c
+
+27. 输入一行字符，分别统计出其中英文字母、空格、数字和其它字符的个数。
+alpha_digit_space.c
+
+28. 输入一个字串，判断它是否是对称串。如”abcdcba”是对称串，”123456789”不是。
+is_symmetrical.c
+
+29. 随机产生N个大写字母输出，然后统计其中共有多少个元音字符。（设N为50）
+gen_alpha.c
+
+30. 找出三位自然数中的所有素数，要求判断x素数用自定义函数data(x)实现。
+number_prime.c
+
+31. 从键盘输入10个战士的身高，输出平均身高，并找出哪些身高低于平均身高。
+reduce_range_filter2.c
+
+32. 从键盘输入10个战士的身高，输出平均身高，并找出哪些身高高于平均身高。
+reduce_range_filter3.c
+reduce_range_filter4.c
+
+33. 具备-l,-i,-a的选项，并且可组合配置，如-li,-al
+要求根据环境变量LS_COLORS，使用来颜色打印文件名
+函数调用关系
+
+main()
+    parse_argv()
+    load_ls_colors()
+    trave_dir()
+        foreach:
+            process_file()
+                get_file_type()
+                get_file_perm()
+                get_file_username()
+                get_file_groupname()
+                get_file_time()
+                get_link_filenm()
+                get_file_colors()
+                    get_ls_color_item()
+        show_ls_entries()
+            qsort()
+            foreach:
+                print_ls_entry()
+
+实现说明
+
+解释选项，并存储到位图中，并定义了一个判断选项位的宏HAS_BIT
+加载环境变量LS_COLORS，使用strtok_r来分解分割符
+使用strtok_r分割后，会影响被分割的字符串，所以会影响再次使用，并且该字符串不能存在只读区
+使用setjmp/longjmp来捕获异常，确保异常时，资源也得到回收
+在setjmp函数内部，如果是异常返回来的，并且需要使用的变量，最好是static的
+使用内核链表来存储和qsort来排序
+注意localtime重复调用时，会覆盖上次指针指向内容
+
+34. find_match
+void find(int (*match)(char*))
+
+35. qsort
+void qsort(void *base, size_t nmemb, size_t size,
+          int(*compar)(const void *, const void *));
+
+35. *(int*)&p
+函数指针与普通指针没什么差别，只是指向的内容不同而已
+#include <stdio.h> 
+
+void function(){
+	printf("Call Function!\n");
+}
+
+void main(){
+	void (*p)();
+	*(int*)&p=(int)function;
+	(*p)();
+}
+
+使用函数指针的好处在于，可以将实现同一功能的多个模块统一起来标识，这样一来更容易后期维护，系统结构更加清晰
+便于分层设计，利于系统抽象，降低耦合度以及使接口与实现分开
+
+36. (*(void(*)())0)()
+void(*)() 函数指针类型
+(void(*)())0 将0强制转换为函数指针类型
+(*(void(*)())0) 取0地址开始的一段内存里面的内容
+(*(void(*)())0)() 函数调用
+
+37. 函数指针数组
+这是在定义一个函数指针数组
+char *(*pf[3])(char *p)
+以下为用法
+
+#include <stdio.h> 
+
+char * fun1(char *p){
+	printf("%s\n",p);
+	return p;
+}
+
+char * fun2(char *p){
+	printf("%s\n",p);
+	return p;
+}
+
+char * fun3(char *p){
+	printf("%s\n",p);
+	return p;
+}
+
+void main(){
+	char *(*pf[3])(char *p);
+
+	pf[0]=fun1; //因为fun的值就是函数首地址
+	pf[1]=&fun2;
+	pf[2]=&fun3;
+
+	pf[0]("fun1");
+	pf[1]("fun2");
+	pf[2]("fun3");
+}
+
+38. 函数指针数组的指针
+这是在定义一个函数指针数组的指针
+char *(*(*pf)[3])(char *p);
+pf是一个指针，而非数组名
+#include <stdio.h> 
+
+char * fun1(char *p){
+	printf("%s\n",p);
+	return p;
+}
+
+char * fun2(char *p){
+	printf("%s\n",p);
+	return p;
+}
+
+char * fun3(char *p){
+	printf("%s\n",p);
+	return p;
+}
+
+void main(){
+	char *(*a[3])(char *p); //a是一个数组名
+	char *(*(*pf)[3])(char *p)=&a; //pf是一个指针
+
+
+	a[0]=fun1;
+	a[1]=&fun2;
+	a[2]=&fun3;
+
+	pf[0][0]("fun1");
+	pf[0][1]("fun2");
+	pf[0][2]("fun3");
+}
+          

@@ -1,0 +1,91 @@
+http://www.cnblogs.com/studio313/category/66891.html
+
+dnsmasq能够缓存外部DNS记录，同时提供本地DNS解析或者作为外部DNS的代理，即dnsmasq会首先查找/etc/hosts等本地解析文件，然后再查找/etc/resolv.conf等外部nameserver配置文件中定义的外部DNS。所以说dnsmasq是一个很不错的DNS中继。DNS配置同样写入dnsmasq.conf配置文件里。
+	
+# 本地解析文件
+# If you don't want dnsmasq to read /etc/hosts, uncomment the following line.
+#no-hosts
+# or if you want it to read another file, as well as /etc/hosts, use this.
+#addn-hosts=/etc/banner_add_hosts
+ 
+# Set this (and domain: see below) if you want to have a domain
+# automatically added to simple names in a hosts-file.
+# 例如，/etc/hosts中的os01将扩展成os01.debugo.com
+expand-hosts
+# Add local-only domains here, queries in these domains are answered
+# from /etc/hosts or DHCP only.
+local=/debugo.com/
+ 
+# 强制使用完整的解析名
+# Never forward plain names (without a dot or domain part)
+domain-needed
+ 
+# 添加额外的上级DNS主机（nameserver）配置文件
+# Change this line if you want dns to get its upstream servers from
+# somewhere other that /etc/resolv.conf
+#resolv-file=
+ 
+# 不使用上级DNS主机配置文件(/etc/resolv.conf和resolv-file）
+# If you don't want dnsmasq to read /etc/resolv.conf or any other
+# file, getting its servers from this file instead (see below), then
+# uncomment this.
+no-resolv
+# 相应的，可以为特定的域名指定解析它的nameserver。一般是其他的内部DNS name server
+# Add other name servers here, with domain specs if they are for
+# non-public domains.
+# server=/myserver.com/192.168.0.1
+ 
+# 设置DNS缓存大小（单位：DNS解析条数）
+#Set the size of dnsmasq's cache. The default is 150 names. Setting the cache size to zero disables caching.
+cache-size=500
+ 
+# 关于log的几个选项
+# For debugging purposes, log each DNS query as it passes through
+# dnsmasq.
+log-queries
+ 
+# Log lots of extra information about DHCP transactions.
+#log-dhcp
+ 
+# Log to this syslog facility or file. (defaults to DAEMON)
+log-facility=/var/log/dnsmasq.log
+ 
+# 异步log，缓解阻塞，提高性能。
+# Enable asynchronous logging and optionally set the limit on the number of lines which will be queued by dnsmasq
+# when writing to the syslog is slow.
+# Dnsmasq can log asynchronously: this allows it to continue functioning without being blocked by syslog,
+# and allows syslog to use dnsmasq for DNS queries without risking deadlock. If the queue of log-lines becomes
+# full, dnsmasq will log the overflow, and the number of messages lost.
+# The default queue length is 5, a sane value would be 5-25, and a maximum limit of 100 is imposed.
+log-async=20
+ 
+# 指定domain的IP地址
+# Add domains which you want to force to an IP address here.
+# The example below send any host in doubleclick.net to a local
+# webserver.
+address=/doubleclick.net/127.0.0.1
+address=/.phobos.apple.com/202.175.5.114
+
+配置完成后重启dnsmasq，然后在客户端测试：
+	
+[root@os03]nslookup os01.debugo.com
+Server:192.168.1.132
+Address:192.168.1.132#53
+Name:os01.debugo.com
+Address:192.168.1.132
+[root@os03]nslookup os02.debugo.com
+Server:192.168.1.132
+Address:192.168.1.132#53
+Name:os02.debugo.com
+Address:192.168.1.201
+[root@os03]nslookup doubleclick.net
+Server:192.168.1.132
+Address:192.168.1.132#53
+Name:doubleclick.net
+Address:127.0.0.1
+#注意，由于address选项解析为127.0.0.1，而非server的192.168.1.132地址。
+[root@os03]nslookup a1.phobos.apple.com
+Server:192.168.1.132
+Address:192.168.1.132#53
+Name:a1.phobos.apple.com
+Address:202.175.5.114

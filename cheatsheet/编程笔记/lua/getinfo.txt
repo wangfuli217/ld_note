@@ -1,0 +1,92 @@
+getinfo
+    1.原型：getinfo(level, arg)
+    2.调用：debug.getinfo(level, arg)
+    3.返回值：返回一个包含函数信息的table，table的内容由参数arg决定，包含哪个函数的信息由level决定.
+    4.参数解释：
+        level:函数调用的层级，表示要输出哪个函数的信息。
+            0:getinfo自身，1：调用getinfo的函数f1，2：调用f1的函数f2,...以此类推。f1, f2, ...也可能不是函数，而是在文件中直接调用getinfo
+        arg:该参数是一个字符串，其中每个字符代表一组字段，用于指定希望获取哪些信息，可为 "n","S","l","u","f","L" 中的一个或他们的组合
+        'n': fills in the field name and namewhat; 
+　　　　'S': fills in the fields source, linedefined, lastlinedefined, what, and short_src;(source)
+　　　　'l': fills in the field currentline; 
+　　　　'u': fills in the field nups;
+　　　　'f': pushes onto the stack the function that is running at the given level; ->func
+　　　　'L': pushes onto the stack a table whose indices are the numbers of the lines that are valid on the function. (A valid line is a line with some 　　　　　　associated code, that is, a line where you can put a break point. Non-valid lines include empty lines and comments.) ->activelines
+　　　　name:函数名， namewhat:函数类型（field, upvalue, global），what:函数类型（Lua, C, main），
+　　　　 short_src， source:函数所属的文件名，  
+         linedefined, lastlinedefined:函数定义的起始和结束行号，
+　　　　 currentline:上级（level - 1）函数被调用的行号，
+         nups: 函数的upvalue值的个数， 
+         func:函数本身， 
+         activelines：一个包含行号的table，可理解为该函数运行的代码的行号
+         
+二、示例
+假设一个文件luatest4.lua包含如下代码：
+local args = {"n","S","l","u","f","L"}
+local function f1()
+    for level =0,3 do --不同级别
+        print("level================", level)
+        for k, v in ipairs(args) do --不同参数
+            print("arg======", v)
+            local fInfo = debug.getinfo(level, v)
+            for key, val in pairs(fInfo) do
+                print("key, val==", key, val)
+            end
+        end
+    end
+end
+
+local function f2()
+    print("f1=====", f1)
+    f1()
+end
+
+function main()
+    print("f2=====", f2)
+    f2()
+end
+print("main======", main)
+main()
+
+--========运行以上代码，结果如下（win7上测试的）======
+
+main====== function: 0073D128
+f2===== function: 0073D108
+f1===== function: 0073D0E8
+level================ 0             level================ 1                level================ 2                level================ 3
+arg====== n                         arg====== n                            arg====== n                            arg====== n
+key, val== name getinfo             key, val== name f1                     key, val== name f2                     key, val== name main
+key, val== namewhat field           key, val== namewhat upvalue            key, val== namewhat upvalue            key, val== namewhat global
+arg====== S                         arg====== S                            arg====== S                            arg====== S
+key, val== source =[C]              key, val== source @luatest4.lua        key, val== source @luatest4.lua        key, val== source @luatest4.lua
+key, val== what C                   key, val== what Lua                    key, val== what Lua                    key, val== what Lua
+key, val== lastlinedefined -1       key, val== lastlinedefined 13          key, val== lastlinedefined 18          key, val== lastlinedefined 23
+key, val== linedefined -1           key, val== linedefined 2               key, val== linedefined 15              key, val== linedefined 20
+key, val== short_src [C]            key, val== short_src luatest4.lua      key, val== short_src luatest4.lua      key, val== short_src luatest4.lua
+arg====== l                         arg====== l                            arg====== l                            arg====== l
+key, val== currentline -1           key, val== currentline 7               key, val== currentline 17              key, val== currentline 22
+arg====== u                         arg====== u                            arg====== u                            arg====== u
+key, val== nups 0                   key, val== nups 1                      key, val== nups 1                      key, val== nups 1
+arg====== f                         arg====== f                            arg====== f                            arg====== f
+key, val== func function: 0073AF70  key, val== func function: 0073D0E8     key, val== func function: 0073D108     key, val== func function: 0073D128
+arg====== L                         arg====== L                            arg====== L                            arg====== L
+                                    key, val== activelines table: 0073BC78 key, val== activelines table: 0073BDE0 key, val== activelines table: 0073EA78
+--===============================
+
+看完这个示例后，大家应该对getinfo有所了解了吧。
+
+function traceback ()
+    local level = 1
+    while true do
+       local info = debug.getinfo(level, "Sl")
+       if not info then break end
+       if info.what == "C" then    -- is a C function?
+           print(level, "C function")
+       else   -- a Lua function
+           print(string.format("[%s]:%d",
+           info.short_src, info.currentline))
+       end
+       level = level + 1
+    end
+end
+

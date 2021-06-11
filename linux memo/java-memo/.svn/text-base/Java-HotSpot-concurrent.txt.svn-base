@@ -1,0 +1,155 @@
+Java中的内存泄露
+    bigArray = null;
+
+标记清除算法简介：
+垃圾回收过程经常使用的算法是标记清楚，这个过程分为三步：
+1、迭代分配表，把每个对象都标记为"已死亡"。
+2、从指向堆的局部变量开始，顺着遇到的每个对象的全部引用向下，每遇到一个之间没有见过的对象或数组，就把它标记为"存活"。
+像这样一直向下，直到找出能从局部变量到达的引用位置。
+3、再次迭代分配表，回收所有没有标记为"存活"的对象在堆中占用的内存，然后把这些内存放回可用内存列表中，最后把这些对象从分配表中删除。
+
+STW-- STop-The—World
+安全点 safepoint
+
+对于处于少数几个预期生命周期之一-----代。
+弱代假设   分代垃圾回收  新生代和老年代
+
+------------------- 新生代回收优化：筛选回收 evacuation
+Eden区 Survivor区 Tenured区
+
+应用程序在Eden区创建对象，不确定性垃圾回收循环会移除这些对象。这个垃圾回收循环在需要时才会运行。堆分为两代：新生代和老年代。
+新生代由三个区组成Eden区和两个Survivor区；而老年代只有一个内存空间。
+
+多次垃圾回收循环后存活下来的对象，最终会推给老年代。只回收新生代的回收操作消耗往往不大。HotSpot使用的标记清除算法比目前为止我们看到的要
+高级，而且还会做额外的簿记，提升垃圾回收的性能。
+
+------------------- 回收老年代
+并行回收程序：使用多个线程执行回收操作的垃圾回收程序。
+并发回收程序：可以和应用线程同时运行的垃圾回收程序。
+到目前为止我们见到的垃圾回收程序都是并行回收程序，而不是并发回收程序。
+
+并发标记清除 CMS(Concurrent Mark and Sweep)
+G1 Garbage First
+Serial回收程序 SerialOld回收程序
+
+Thread t = new Thread(()->{System.out.println("Hello World");});
+t.start();
+
+NEW:            已创建线程，但是还没在线程上调用start方法。
+RUNNABLE:       线程正在运行，或者当操作系统调度线程时可以运行
+BLOCKED:        线程中止运行，因为它在等待获得一个锁，以便进入声明为synchronized的方法或代码块
+WAITING:        线程中止运行，因为他调用了Object.wait()或Thread.join()方法
+TIMED_WAITTING: 线程中止运行，因为他调用了Thread.sleep()方法，或者调用Object.wait()或Thread.join()方法，而且传入超时时间
+TERMINATED:     线程执行完毕。线程对象的run方法正常退出，或者抛出异常。
+
+并发编程的安全性：
+在一个程序中，不管调用什么方法，也不管操作系统如何调度应用线程，一个对象看到的任何其他对象都不处于非法或不一致的状态，
+这样的程序才称为安全的多线程程序。
+只要修改或读取对象的过程中，对象的状态可能不一致，这段代码就要受保护。为了保护这种代码，Java平台只提供了一种机制，互斥。 synchronized
+synchronized：
+1、线程需要修改对象时，会临时把对象变成不一致状态
+2、线程获取监视器，指明它需要临时互斥存储这个对象
+3、线程修改对象，修改完毕后对象处于一致的合法状态
+4、线程释放监视器
+获取监视器不能避免访问对象，只能避免其他线程声称拥有这个锁。
+volatile
+应用程序使用字段或者变量前，必须重新从主内存读取值。同样，修改使用volatile修饰的值后，在写入变量之后，必须存回主内存。
+
+private volatile boolean shutdown = false;
+public void shutdown(){
+    shutdown = true;
+}
+public void run(){
+    while(!shutdown){
+    //
+    }
+}
+经常和非常有用的BlockingQueue一起使用，BlockingQueue接口用于分配工作。
+
+Thread类中有用的方法
+getId()
+getPriority setPriority
+setName getName
+getState
+isAlive
+start
+interrupt
+join
+setDaemon
+setUncaughtExceptionHandler
+
+public class WaitingQueue<E>{
+    LinkedList<E> q = new LinkedList<E>();
+    public synchronized void push(E o){
+        q.add(o);
+        this.notifyAll();
+    }
+    public synchronized E pop(){
+        while(q.size() == 0)
+        {
+            try(this.wait();)
+            catch(InterruptedException ignore){}
+        }
+        return q.remove();
+    }
+}
+
+
+-------------Executors
+
+此包中所定义的 Executor、ExecutorService、ScheduledExecutorService、ThreadFactory 和 Callable 类的工厂和实用方法。此类支持以下各种方法： 
+
+创建并返回设置有常用配置字符串的 ExecutorService 的方法。 
+创建并返回设置有常用配置字符串的 ScheduledExecutorService 的方法。 
+创建并返回“包装的”ExecutorService 方法，它通过使特定于实现的方法不可访问来禁用重新配置。 
+创建并返回 ThreadFactory 的方法，它可将新创建的线程设置为已知的状态。 
+创建并返回非闭包形式的 Callable 的方法，这样可将其用于需要 Callable 的执行方法中。 
+
+
+public interface Executor执行已提交的 Runnable 任务的对象。此接口提供一种将任务提交与每个任务将如何运行的机制（包括线程使用的细节、调度等）分离开来的方法。通常使用 Executor 而不是显式地创建线程。例如，可能会使用以下方法，而不是为一组任务中的每个任务调用 new Thread(new(RunnableTask())).start()： 
+
+ Executor executor = anExecutor;
+ executor.execute(new RunnableTask1());
+ executor.execute(new RunnableTask2());
+ ...
+ 不过，Executor 接口并没有严格地要求执行是异步的。在最简单的情况下，执行程序可以在调用方的线程中立即运行已提交的任务： 
+ class DirectExecutor implements Executor {
+     public void execute(Runnable r) {
+         r.run();
+     }
+ }更常见的是，任务是在某个不是调用方线程的线程中执行的。以下执行程序将为每个任务生成一个新线程。 
+ class ThreadPerTaskExecutor implements Executor {
+     public void execute(Runnable r) {
+         new Thread(r).start();
+     }
+ }许多 Executor 实现都对调度任务的方式和时间强加了某种限制。以下执行程序使任务提交与第二个执行程序保持连续，这说明了一个复合执行程序。 
+ class SerialExecutor implements Executor {
+     final Queue<Runnable> tasks = new LinkedBlockingQueue<Runnable>();
+     final Executor executor;
+     Runnable active;
+
+     SerialExecutor(Executor executor) {
+         this.executor = executor;
+     }
+
+     public synchronized void execute(final Runnable r) {
+         tasks.offer(new Runnable() {
+             public void run() {
+                 try {
+                     r.run();
+                 } finally {
+                     scheduleNext();
+                 }
+             }
+         });
+         if (active == null) {
+             scheduleNext();
+         }
+     }
+
+     protected synchronized void scheduleNext() {
+         if ((active = tasks.poll()) != null) {
+             executor.execute(active);
+         }
+     }
+ }

@@ -1,0 +1,66 @@
+--[[
+  next(table [, index])  -- 允许程序遍历表中的每一个字段，返回下一索引和该索引的值
+  解释：使程序可以遍历表table的所有字段。他的第一个参数是一个表，第二个参数是一个表中有效的索引。
+        函数会返回表中相对于指定索引的下一个索引和索引位置的值，
+        当我们将第二个参数设置为nil调用函数时，函数会返回这个表的初始索引和该索引位置的值，
+        
+    当我们使用表的最后一个索引或者在空表中使用nil做索引时，函数就会返回nil。
+    当我们省略第二个参数时，它会被默认解释成nil。特别的，你可以使用next(t)的形式来检测表是否为空。
+  
+    使用这个函数获得的索引是未指定顺序的枚举，即使是对于数字类型的索引也是一样(如果要以数字的顺序遍历一个表，
+应该是使用数字类型的for或者是ipairs函数)。
+    函数如果在遍历期间你给一个并不存在的字段赋值，其行为的结果是未定义的。不过你可以修改已经存在的字段，也可以
+清除已经存在的字段。
+--]]
+
+-- 定义一个测试表
+local tab = {
+    x = 1,
+    y = 66,
+    [100] = 100,
+    [3] = 3,
+}
+
+-- 判断表是否为空
+local index, value = nil, nil
+index, value = next(tab)
+if index ~= nil then
+    print("\ntable tab is not nil")
+end
+
+-- 遍历table
+print("\ntraverse table with while:")
+while index ~= nil do
+    print("[\""..index.."\"] = "..value);
+    index, value = next(tab, index)
+end
+
+print("\ntraverse table with for:")
+for i,v in next, tab, nil do
+  print(i,v)
+end
+
+index = "x"
+index, value = next(tab, index)
+-- 再次遍历table
+print("\ntraverse table begin with index='x':")
+while index ~= nil do
+    print("[\""..index.."\"] = "..value);
+    index, value = next(tab, index)
+end
+
+-- 传入最后索引
+local ret = next(tab, 100)
+print("\nlast index test ret is", ret)
+
+-- 传入空表
+local ret = next({}, nil)
+print("\nnil table test ret is", ret)
+
+-- 传入不存在索引
+local ret = next(tab, 1000)
+print("\nerror index test ret is", ret)
+
+--[[
+1.当传入无效索引时函数会报错，所以还不是不要随便传入一个索引，而应该使用这个函数返回的索引
+--]]

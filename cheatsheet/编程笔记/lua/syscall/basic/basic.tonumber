@@ -1,0 +1,74 @@
+--[[
+  tonumber(e [, base])
+  解释：这个函数会尝试将它的参数转换为数字，
+        如果参数已经是一个数字或者是一个可以转换成数字的字符串，那么这个函数就会返回转换后的数字，
+        否者返回nil表示无法转换。
+        
+        这个函数有一个额外的参数base可以来指定参数的进制，它的取值范围是[2,36]，
+        当这个参数超过10的时候，使用A代表10(大小写都可以)，B代表11，以此类推最后Z代表35，默认的这个参数是10，
+        数字能有一个小数部分，也会有一个指数部分，只有可识别的整数可以被接受。
+  file.read("*n") 也可以转换数字
+--]]
+
+
+-- 定义一个等待转换的列表
+local wait_list = { 
+    a = 13,
+    b = "36",
+    c = "52s",
+    d = false,
+    e = function() print("e") end,
+    f = 32,
+    g = "A3",
+    h = true,
+    i = "12e2",
+    j = "12E1",
+    k = "3.14"
+}
+
+
+-- 转换已经是数字的变量
+print("\nwait_list.a(13) =", tonumber(wait_list.a))         -- 13
+                                                            
+-- 转换全是数字的字符串                                      
+print("\nwait_list.b('36') =", tonumber(wait_list.b))       -- 36
+                                                            
+-- 转换包含字母的字符串                                     
+print("\nwait_list.c('52s') =", tonumber(wait_list.c))      -- nil
+                                                            
+-- 转换值为false的变量                                       
+print("\nwait_list.d(false) =", tonumber(wait_list.d))      -- nil 
+-- 转换值为true的变量
+print("wait_list.h(true) =", tonumber(wait_list.h))         -- nil
+
+-- 转换值保存函数的变量                                      
+print("\nwait_list.e(function) =", tonumber(wait_list.e))   -- nil
+
+
+-- 将数字看成二进制来转换=3*2+2 什么玩意，2进制出现3，错误！
+print("\nwait_list.f(32,2) =", tonumber(wait_list.f, 2))    -- nil
+
+-- 将数字看成四进制来转换=3*4+2
+print("wait_list.f(32,4) =", tonumber(wait_list.f, 4))      -- 14
+
+-- 将数字看成八进制来转换=3*8+2
+print("wait_list.f(32,8) =", tonumber(wait_list.f, 8))      -- 26
+
+
+-- 将数字看成十进制来转换=A*10+3 什么玩意，10进制出现A，错误！
+print("\nwait_list.g(A3,10) =", tonumber(wait_list.g, 10))   -- nil
+
+-- 将数字看成十六进制来转换=A*16+3
+print("wait_list.g(A3,16) =", tonumber(wait_list.g, 16))     -- 163
+
+-- 将数字看成32进制来转换=A*32+3
+print("wait_list.g(A3,32) =", tonumber(wait_list.g, 32))      -- 323
+
+-- 转换已经是数字的字符串 
+print("\nwait_list.i(12e2) =", tonumber(wait_list.i))         -- 1200
+
+-- 转换已经是数字的字符串 
+print("\nwait_list.j(12E1) =", tonumber(wait_list.j))         -- 120
+
+-- 转换已经是数字的字符串 
+print("\nwait_list.k(3.14) =", tonumber(wait_list.k))         -- 3.14

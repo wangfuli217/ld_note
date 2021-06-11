@@ -1,0 +1,56 @@
+Build Settings
+    make menuconfig
+    LuCI -> Libraries -> LuCI core libraries -> Build Target.
+
+Compile Time caching (modulecache)
+    uci set luci.ccache.enable=0 
+    uci commit luci
+
+-- rm /tmp/luci-modulecache
+
+Changes to the menu (indexcache)
+    -- /www/cgi-bin/luci --注释掉下面行
+    --luci.dispatcher.indexcache = "/tmp/luci-indexcache"
+    
+commotion-lua-helpers
+    require "commotion_helpers" 
+    log("This is a thing to output")
+    
+    -- logread -f |grep luci
+
+Line-by-line Call trace
+    require "luci.debug".trap_memtrace("l", "/tmp/trace")
+    
+在OpenWrt中读取config文件时要小心的地方
+    有如下的config文件。
+    config 'user' 'manager'
+        option 'username' 'Ly'
+        option 'password' '111'
+        option 'pass' ''
+    
+    如果我们要读取pass，获取到的值应该是一个空字符串。但真正的使用如下来获取时，会得到一个nil值。
+    local u = require "luci.model.uci".cursor()
+    local config = u.get_all("routermgr", "manager");
+    
+    pass = config['pass'] 
+    所以要使用如下来获取：
+    pass = config['pass'] or ""
+    
+在OpenWrt中保存数据到config
+    1、使用luci.model.uci来操作config文件。
+    2、使用cursor:set(config, section, option, value)进行设置
+    3、使用commit(config)来保存并更新config文件。
+    PS：使用save也能保存，但不会更新到config文件中。
+    
+在OpenWrt中跳转到任意url -- http://www.cnblogs.com/AUOONG/archive/2012/03/16/2400115.html
+        在Openwrt中我们无法直接通过输出url的方式来跳转，而对于页面中的链接又是必不可少的。
+    因此在LuCI中也提供了一种即时生成URL的方式。可以通过调用build_url来生成我们想要的URL，
+    build_url的使用依赖于在controller中注册的模块的path：
+    entry(path, target, title=nil, order=nil)
+    例如我们有如下的一个entry。
+        page                  = entry({"admin", "register"}, template("admin/system/register"), _("Register"), 10)
+        page.i18n           = 'admin'
+        page.dependent = true
+    
+    如果想跳转到这个Register页面，则我们可以直接使用：
+    <a href="<%=luci.dispatcher.build_url("admin/register")%>">注册</a>
