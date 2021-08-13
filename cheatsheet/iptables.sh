@@ -59,6 +59,7 @@ https://www.frozentux.net/iptables-tutorial/iptables-tutorial.html#STATEMACHINE
 conntrack_i_intro
 }
 
+
 iptables_p_graph(){ cat - <<'iptables_p_graph'
                                [PREROUTING]                                     NO     [INPUT]
 Incoming Packet -> raw|connection(state) tracking|mangle|nat -> For this host? ----> mangle|filter --> Local Process -> Local Generated packeted -> Routing Decision
@@ -250,6 +251,8 @@ match: 协议 -p tcp|udp|icmp; -m state|ctstate;
 jump:  处理 -j ACCEPT | REJECT 
 EOF
 }
+
+
 iptables_i_tables_chain(){ cat - <<'EOF'
 raw:PREROUTING,OUTPUT    # 关闭nat表上启用的连接追踪机制；要求: ip_conntrack 内核驱动支持
 连接跟踪机制: NEW，ESTABLISHED，RELATED和INVALID # iptables -m state  -h -> 谁或什么能发起新的会话
@@ -281,6 +284,27 @@ EOF
 }
 
 iptables_p_conntrack(){ cat - <<'EOF'
+连接跟踪的相关参数
+    调整连接追踪功能所能够容纳最大连接数量: /proc/sys/net/ipv4/ip_conntrack_max
+    已经追踪到并记录下的连接: /proc/net/nf_conntrack
+    不同协议或连接类型追踪的时长: /proc/sys/net/netfilter/
+更该连接跟踪表的最大容量
+    修改内核参数文件 sysctl.conf
+        加大 ip_conntrack_max 值
+        net.ipv4.ip_conntrack_max = 393216
+        net.ipv4.netfilter.ip_conntrack_max = 393216
+        降低 ip_conntrack timeout时间
+        net.ipv4.netfilter.ip_conntrack_tcp_timeout_established = 300
+        net.ipv4.netfilter.ip_conntrack_tcp_timeout_time_wait = 120
+        net.ipv4.netfilter.ip_conntrack_tcp_timeout_close_wait = 60
+        net.ipv4.netfilter.ip_conntrack_tcp_timeout_fin_wait = 120
+        重载配置文件
+        sysctl -p
+DNAT 的基础是 conntrack，所以先看看，内核提供了哪些 conntrack 的配置选项。在终端一中，继续执行下面的命令
+net.netfilter.nf_conntrack_count，   表示当前连接跟踪数
+net.netfilter.nf_conntrack_max，     表示最大连接跟踪数
+net.netfilter.nf_conntrack_buckets， 表示连接跟踪表的大小
+
 1. [conntrack与链]
 连接跟踪机制: NEW，ESTABLISHED，RELATED和INVALID -> 谁或什么能发起新的会话
 除了本地产生的包由OUTPUT链处理外，所有连接跟踪都是在PREROUTING链里进行处理的，
@@ -288,15 +312,38 @@ iptables_p_conntrack(){ cat - <<'EOF'
 如果我们发送一个流的初始化包，状态就会在OUTPUT链 里被设置为NEW，当我们收到回应的包时，状态就会在PREROUTING链里被设置为ESTABLISHED。
 如果第一个包不是本地产生的，那就会在PREROUTING链里被设置为NEW状态。
 综上，所有状态的改变和计算都是在nat表中的PREROUTING链和OUTPUT链里完成的。
+    
+/proc/net/nf_conntrack: conntrack -L [conntrack]; /proc/net/nf_conntrack_expect: conntrack -L expect
+2.1 [conntrack本地或者无NAT转发]
+tcp 6  43184 ESTABLISHED src=192.168.2.5 dst=10.25.39.80     sport=5646  dport=443              src=10.25.39.80     dst=192.168.2.5 sport=443  dport=5646 [ASSURED] mark=0 use=1 # 
+tcp 6  26   SYN_SENT     src=192.168.2.5 dst=192.168.2.10    sport=35684 dport=443  [UNREPLIED] src=192.168.2.10    dst=192.168.2.5 sport=443  dport=35684          mark=0 use=1 # 
+udp 17 29                src=192.168.8.1 dst=239.255.255.250 sport=48169 dport=1900 [UNREPLIED] src=239.255.255.250 dst=192.168.8.1 sport=1900 dport=48169          mark=0 use=1 # UNREPLIED说明这个连接还没有收到任何回应
+第一个四元组(源地址、目标地址、源端口、目标端口)记录的是原始方向的连接信息，即发送者发送报文的方向。
+第二个四元组(源地址、目标地址、源端口、目标端口)记录的是连接跟踪子系统期望收到的对端回复报文的连接信息
+  2.1.1 如果报文匹配到一个 NAT 规则，例如 IP 地址伪装，相应的映射信息会记录在链接跟踪项的回复方向部分，并自动应用于同一条流的所有后续报文。
+  2.1.2 即使一条流经过了地址或端口的转换，也可以成功在连接状态表中查找到回复报文的四元组信息。
+第一个显示的四元组信息永远不会改变：它就是发送者发送的连接信息。NAT 操作只会修改回复方向(第二个)四元组，因为这是接受者看到的连接信息。
 
-2. [conntrack记录含义]
-/proc/net/ip_conntrack
-tcp  6   117 SYN_SENT src=192.168.1.6 dst=192.168.1.9 sport=32775  dport=22 [UNREPLIED] src=192.168.1.9 dst=192.168.1.6 sport=22 dport=32775 use=2
-6:       协议
-117:     这条conntrack记录的生存时间，它会有规律地被消耗，直到收到这个连接的更多的包
-SYN_SENT:接下来的是这个连接在当前时间点的状态。 SYN_SENT说明我们正在观 察的这个连接只在一个方向发送了一TCP SYN包。
-src=192.168.1.6 dst=192.168.1.9 sport=32775  dport=22
-UNREPLIED:这个连接还没有收到任何回应。最后，是希望接收的应答包的信息，他们 的地址和端口和前面是相反的。
+2.2 [NAT转发]
+tcp 6 114 TIME_WAIT src=10.0.0.10 dst=10.8.2.12 sport=5536 dport=80 src=10.8.2.12 dst=192.168.1.2 sport=80 dport=5536 [ASSURED] # 末尾有 [ASSURED]的记录说明两个方向已没有流量。这样的记录是确定的，在连接跟踪表满时，是不会被删除的， 没有[ASSURED]的记录就要被删除。
+连接跟踪项表示一条从 10.0.0.10:5536 到 10.8.2.12:80 的连接。回复方向的四元组不是原始方向四元组的简单翻转：源地址已修改。目标主机(10.8.2.12)将回复数据包发送到 192.168.1.2，而不是 10.0.0.10。
+每当 10.0.0.10 发送新的报文时，具有此连接跟踪项的路由器会将源地址替换为 192.168.1.2。当 10.8.2.12 发送回复报文时，该路由器将目的地址修改回 10.0.0.10。
+
+2.3 [tcp]
+tcp      6 117 SYN_SENT       src=192.168.1.5 dst=192.168.1.35 sport=1031  dport=23 [UNREPLIED] src=192.168.1.35 dst=192.168.1.5 sport=23  dport=1031 use=1 # SYN 发送      NEW
+tcp      6 57  SYN_RECV       src=192.168.1.5 dst=192.168.1.35 sport=1031  dport=23             src=192.168.1.35 dst=192.168.1.5 sport=23  dport=1031 use=1 # SYN+ACK收到   
+tcp      6 431999 ESTABLISHED src=192.168.1.5 dst=192.168.1.35 sport=1031  dport=23             src=192.168.1.35 dst=192.168.1.5 sport=23  dport=1031 use=1 # ACK发送       ESTABLISHED
+在发出最后一个ACK包之前，连接(指两个方向)是不会关闭的。注意，这只是针对一般的情况。连接也可以通过发送关闭，这用在拒绝一个连接的时候。在RST包发送之后，要经过预先设定的一段时间，连接才能断掉。
+连接关闭后，进入TIME_WAIT状态，缺省时间是2分钟。之所以留这个时间，是为了让数据包能完全通过各种规则的检查，也是为了数据包能通过拥挤的路由器，从而到达目的地。
+
+2.4 [udp]
+udp      17 20  src=192.168.1.2 dst=192.168.1.5 sport=137  dport=1025 [UNREPLIED] src=192.168.1.5 dst=192.168.1.2 sport=1025 dport=137            use=1  # UDP发出 NEW
+udp      17 170 src=192.168.1.2 dst=192.168.1.5 sport=137  dport=1025             src=192.168.1.5 dst=192.168.1.2 sport=1025 dport=137            use=1  # UDP收到 ESTABLISHED
+udp      17 175 src=192.168.1.5 dst=195.22.79.2 sport=1025 dport=53               src=195.22.79.2 dst=192.168.1.5 sport=53   dport=1025 [ASSURED] use=1
+
+2.5 [icmp] /proc/sys/net/ipv4/netfilter/ip_ct_icmp_timeout ; ICMP的另一个非常重要的作用是，告诉UDP、TCP连接或正在努力建立的连接发生了什么，这时ICMP应答 被认为是RELATED的。
+icmp     1 25 src=192.168.1.6 dst=192.168.1.10 type=8 code=0 id=33029 [UNREPLIED] src=192.168.1.10 dst=192.168.1.6 type=0 code=0 id=33029 use=1
+/proc/sys/net/ipv4/netfilter/ip_ct_generic_timeout
 
 连接跟踪记录的信息依据IP所包含的协议不同而不同，所有相应的值都是在头文件linux/include/netfilter-ipv4/ip_conntrack*.h中定义的。
 IP、TCP、UDP、ICMP协议的缺省值是在linux/include/netfilter-ipv4/ip_conntrack.h里定义的。
@@ -323,17 +370,17 @@ tcp      6 57 SYN_RECV src=192.168.1.5 dst=192.168.1.35 sport=1031 dport=23 src=
 tcp      6 431999 ESTABLISHED src=192.168.1.5 dst=192.168.1.35 sport=1031 dport=23 src=192.168.1.35 dst=192.168.1.5 sport=23 dport=1031 use=1
 
 5. [内部状态]
-State 	        Timeout value
-NONE 	        30 minutes
-ESTABLISHED 	5 days
-SYN_SENT 	    2 minutes
-SYN_RECV 	    60 seconds
-FIN_WAIT 	    2 minutes
-TIME_WAIT 	    2 minutes
-CLOSE 	        10 seconds
-CLOSE_WAIT 	    12 hours
-LAST_ACK 	    30 seconds
-LISTEN> 	    2 minutes
+State           Timeout value
+NONE            30 minutes
+ESTABLISHED     5 days
+SYN_SENT        2 minutes
+SYN_RECV        60 seconds
+FIN_WAIT        2 minutes
+TIME_WAIT       2 minutes
+CLOSE           10 seconds
+CLOSE_WAIT      12 hours
+LAST_ACK        30 seconds
+LISTEN>         2 minutes
 /proc/sys/net/ipv4/netfilter/ip_ct_tcp_* # 单位是jiffies(百分之一秒)，所以3000就代表30秒
 modprobe ip_conntrack_*
 
@@ -367,7 +414,24 @@ yum install -y iptables-services
 ### iptables <option> <chain> <matching criteria> <target>
 EOF
 }
-iptables_i_target_DNAT(){ cat - <<'EOF'
+iptables_i_target_DNAT(){ cat - <<'iptables_i_target_DNAT'
+这个目标只在nat表中PREROUTING和OUTPUT链以及只从这些链中调用的用户定义的链中有效。 
+dnat 指定数据包的目标地址应该被mangle(这个连接中的所有未来数据包也将被mangle)，并且规则应该停止被检查。
+
+--to-destination [ipaddr[-ipaddr]][:port[-port]]
+可以指定一个新的目标IP地址，也可以指定一个包含的IP地址范围。
+如果该规则还指定了以下协议之一：TCP、UDP、DCCP或SCTP，可以选择一个端口范围
+如果没有指定端口范围，那么目标端口将不会被修改。
+如果没有指定IP地址，  那么只有目的端口会被修改。
+
+在2.6.10以下的内核中，你可以添加几个--to-destination选项。对于这些内核，如果你通过地址范围或多个--to-destination选项指定了一个以上的目标地址，一个简单的循环(一个接一个的循环)负载平衡会在这些地址之间发生。 
+后来的内核(>=2.6.11-rc1)不再有NAT到多地址范围的能力。
+--random
+如果使用选项--random，那么端口映射将被随机化（内核>=2.6.22）。
+--persistent
+为客户的每个连接提供相同的源地址/目的地址。 这取代了SAME目标。从2.6.29-rc2开始支持持久化映射。
+
+-------------------------------------------------------------------------------
 目的网络地址转换的，就是重写包的目的IP地址。
 如果一个包被匹配了，那么和它属于同一个流的所有的包都会被自动转换，然后就可以被路由到正确的主机或网络。
 目的地址也可以是一个范围，这样的话，DNAT会为每一个流随机分配一个地址。因此，我们可以用这个target做某种类型地负载平衡。
@@ -393,7 +457,7 @@ iptables -t nat -A POSTROUTING -p tcp --dst $HTTP_IP --dport 80 -j SNAT --to-sou
 
 [防火墙自己要访问HTTP服务器时] 
 iptables -t nat -A OUTPUT --dst $INET_IP -p tcp --dport 80 -j DNAT --to-destination $HTTP_IP
-EOF
+iptables_i_target_DNAT
 }
 
 iptables_i_ipaddress_class(){ cat - <<'EOF'
@@ -413,12 +477,14 @@ iptables_i_mod(){ cat - <<'EOF'
 /sbin/insmod ipt_REJECT
 /sbin/insmod ipt_MASQUERADE
 
+配置模块文件路径是 /usr/lib64/xtables/*.so (小写字母)
+操作模块文件路径是 /usr/lib64/xtables/*.so (大写字母)
+
 # 详细说明
 https://www.frozentux.net/iptables-tutorial/iptables-tutorial.html
 
 # iptables -m socket [libxt_socket.so] -h          #模块-选项
 # iptables -j CLUSTERIP [libipt_CLUSTERIP.so] -h   #处理
-
 /lib64/libip4tc.so.0
 /lib64/libip4tc.so.0.0.0
 /lib64/libip6tc.so.0
@@ -475,10 +541,9 @@ https://www.frozentux.net/iptables-tutorial/iptables-tutorial.html
 # iptables -t raw -A OUTPUT -p icmp -j TRACE
 # iptables -t raw -A PREROUTING -p icmp -j TRACE
 
-加载对应内核模组
+加载对应内核模组 
 modprobe ipt_LOG
 调试信息记录在/var/log/kern.log文件。
-
 /lib64/xtables/libxt_cluster.so
 /lib64/xtables/libxt_comment.so
 /lib64/xtables/libxt_connbytes.so
@@ -844,6 +909,80 @@ Create content in user specified chains--建立自定义链的规 则。
 PREROUTING chain--要对包做DNAT操作的话，就要用到此链了。大部 分脚本不会用到这条链，或者是把里面的规则注释掉了，因为我们不想在不了解它的情况下就在防火墙上撕 开一个大口子，这会对我们的局域网造成威胁。当然，也有一些脚本默认使用了这条链，因为那些脚本的目 的就是提供这样的服务。
 POSTROUTING chain--如果使用SNAT操作，就要在此建立规则。你可 能有一个或多个局域网需要防火墙的保护，而我就是依据这样的情况来写此脚本的，所以这个脚本中使用的 POSTROUTING链是相当实用的。大部分情况下，我们会使用SNAT target，但有些情况，如PPPoE，我们不得不 使用MASQUERADE target。
 OUTPUT chain--不管什么脚本都几乎不会用到这个链。迄今为止，我 还没有任何好的理由使用它，如果你有什么理由用它了的话，麻烦你把相应的规则也给我一份，我会把它加 到本指南里的。
+
+# https://blog.csdn.net/u013354486/article/details/78996727
+常用的NAT类型主要有Full Cone NAT(全锥型)， Restricted NAT(限制型锥型), Port Restricted NAT(端口限制型锥型), Symmetric NAT(对称型)四种。
+四种类型的主要区别在于对外界访问内部IP的控制力度。为方便解释，我们使用如下的用语来说明四种NAT类型的不同之处。
+
+[用语定义]
+1. 内部Tuple：指内部主机的私有地址和端口号所构成的二元组，即内部主机所发送报文的源地址、端口所构成的二元组
+2. 外部Tuple：指内部Tuple经过NAT的源地址/端口转换之后，所获得的外部地址、端口所构成的二元组，即外部主机收到经NAT转换之后的报文时，它所看到的该报文的源地址(通常是NAT设备的地址)和源端口
+3. 目标Tuple：指外部主机的地址、端口所构成的二元组，即内部主机所发送报文的目标地址、端口所构成的二元组
+
+[详细释义]
+1. Full Cone NAT：所有来自同一个内部Tuple X的请求均被NAT转换至同一个外部Tuple Y，而不管这些请求是不是属于同一个应用或者是多个应用的。
+除此之外，当X-Y的转换关系建立之后，任意外部主机均可随时将Y中的地址和端口作为目标地址和目标端口，向内部主机发送UDP报文，由于对外部请求的来源无任何限制，因此这种方式虽然足够简单，但却不那么安全
+2. Restricted Clone NAT： 它是Full Cone的受限版本：所有来自同一个内部Tuple X的请求均被NAT转换至同一个外部Tuple Y，这与Full Cone相同，但不同的是，
+只有当内部主机曾经发送过报文给外部主机(假设其IP地址为Z)后，外部主机才能以Y中的信息作为目标地址和目标端口，向内部主机发送UDP请求报文，
+这意味着，NAT设备只向内转发(目标地址/端口转换)那些来自于当前已知的外部主机的UDP报文，从而保障了外部请求来源的安全性
+3. Port Restricted Cone NAT：它是Restricted Cone NAT的进一步受限版。只有当内部主机曾经发送过报文给外部主机(假设其IP地址为Z且端口为P)之后，外部主机才能以Y中的信息作为目标地址和目标端口，
+向内部主机发送UDP报文，同时，其请求报文的源端口必须为P，这一要求进一步强化了对外部报文请求来源的限制，从而较Restrictd Cone更具安全性
+4. Symmetric NAT：这是一种比所有Cone NAT都要更为灵活的转换方式：在Cone NAT中，内部主机的内部Tuple与外部Tuple的转换映射关系是独立于内部主机所发出的UDP报文中的目标地址及端口的，即与目标Tuple无关； 
+在Symmetric NAT中，目标Tuple则成为了NAT设备建立转换关系的一个重要考量：只有来自于同一个内部Tuple、且针对同一目标Tuple的请求才被NAT转换至同一个外部Tuple，否则的话，NAT将为之分配一个新的外部Tuple；
+打个比方，当内部主机以相同的内部Tuple对2个不同的目标Tuple发送UDP报文时，此时NAT将会为内部主机分配两个不同的外部Tuple，并且建立起两个不同的内、外部Tuple转换关系。
+与此同时，只有接收到了内部主机所发送的数据包的外部主机才能向内部主机返回UDP报文，这里对外部返回报文来源的限制是与Port Restricted Cone一致的。
+不难看出，如果说Full Cone是要求最宽松NAT UDP转换方式，那么，Symmetric NAT则是要求最严格的NAT方式，其不仅体现在转换关系的建立上，而且还体现在对外部报文来源的限制方面。
+
+通常情况下，Linux系统自带的NAT类型多为端口限制型锥型NAT或者对称型。
+--to-ports port[-port]      Port (range) to map to. # 3. Port Restricted Cone NAT
+--random == --random-fully  Randomize source port.  # 4. Symmetric NAT
+
+1. 端口限制型NAT: Port Restricted NAT是Netfilter中自带的NAT转化规则，即MASQUERADE。此种情况下，需要检测外部tuple和目标tuple四个变量，均相同才可以成功访问内部tuple。
+2. 限制型NAT    : 限制型锥形，即目标IP的任意端口均可通过访问指定的外部tuple来访问内部tuple。由于nf_nat_core内部保存的tuple表示由src来作为哈希索引的，因此我们这里并不适用：我们这里需要检查的是分配的IP，Port和外部进来的端口三个变量。
+3. 全锥型NAT    : 全锥型是最容易联通的NAT，因为只需要内部ip在NAT表中有申明过，则外部任意IP，端口均可以透过指定的IP、端口访问。在2的基础上，我们去掉对端口限制的检查即可实现。
+4. 对称型NAT    : MASQUERADE中，iptables命令行输入–random则为对称型NAT，在第二讲的代码中有提到。这里主要是由于添加的标记位使得端口不是和端口限制型锥形一样取自内部tuple的端口不变，而是经过了改变。由此，即使目标tuple的访问也会由于找不到端口而无法访问内部tuple。
+
+# https://www.shixuen.com/zh-CN/router/nat_traversal.html
+我们通常说的 NAT1/NAT2/NAT3/NAT4，从 NAT1 至 NAT4，限制越来越来严格。
+-------------------------------------------------------------------------------- NAT1：Full Cone NAT # 完全圆锥型 NAT
+一旦一个内部地址(iAddr:iPort)映射到外部地址(eAddr:ePort)，所有发自 iAddr:iPort 的包都经由 eAddr:ePort 向外发送。
+任意外部主机都能通过 eAddr:ePort 来向 iAddr:iPort 发送数据，外部主机的源端口不受限。
+
+iTuple[192.168.0.2:4000] dTuple[6.6.6.6:8000]   -> oTuple[2.2.2.2:5000] dTuple[6.6.6.6:8000] 
+1. 以后所有来自客户 A 4000 端口的数据包都经路由器外部端口 5000 进行 NAT 转发。
+2. 此时，所有发往路由器外部端口 5000 的数据包都会 NAT 转发至客户 A。
+服务器 A 向客户 A 发送数据 X，源端口可以是任意端口，这里用端口 9000。
+
+任意目的 IP 发往路由器外部端口 2.2.2.2:5000 的数据包才都会 NAT 转发至客户 A 192.168.0.2:4000 上。
+BT 软件都喜欢用户处于 NAT1 环境下，因为这样其它 BT 用户可以轻易地与你所开放的端口进行链接。
+
+
+-------------------------------------------------------------------------------- NAT2：Address-Restricted Cone NAT # 地址受限圆锥型 NAT
+一旦一个内部地址(iAddr:iPort)映射到外部地址(eAddr:ePort)，所有发自 iAddr:iPort 的包都经由 eAddr:ePort 向外发送。
+当 iAddr:iPort 已经向外部主机(hAddr:any)发送过数据后，hAddr:any 就能通过 eAddr:ePort 来向 iAddr:iPort 发送数据。any 指外部主机源端口不受限制。
+
+iTuple[192.168.0.2:4000] dTuple[6.6.6.6:8000]   -> oTuple[2.2.2.2:5000] dTuple[6.6.6.6:8000]  
+只有目的 IP (6.6.6.6) 发往路由器外部端口 2.2.2.2:5000 的数据包才都会 NAT 转发至客户 A 192.168.0.2:4000 上，而其它 IP 发往 2.2.2.2:5000 的数据包全部丢掉。
+
+如果其它 IP 想与客户 A 进行通信怎么办？
+假如服务器 B 想与客户 A 进行通信，那就需要重新走一次上面的 1-8 流程，即客户 A 首先向服务器 B 发出数据连接请求，然后服务器 B 才可以通过路由器与客户 A 进行通信。
+
+-------------------------------------------------------------------------------- NAT3：Port-Restricted Cone NAT # 端口受限圆锥型 NAT
+一旦一个内部地址(iAddr:iPort)映射到外部地址(eAddr:ePort)，所有发自 iAddr:iPort 的包都经由 eAddr:ePort 向外发送。
+如果 iAddr:iPort 已经向外部主机 (hAddr:hPort) 发送了数据，那么 hAddr:hPort 就可以通过 eAddr:ePort 与 iAddr:iPort 进行通信。
+
+iTuple[192.168.0.2:4000] dTuple[6.6.6.6:8000]   -> oTuple[2.2.2.2:5000] dTuple[6.6.6.6:8000]  
+-------------------------------------------------------------------------------- NAT4：Symmetric NAT  # 对称 NAT
+来自同一内部主机 (iAddr:iPort) 的数据发送到同一外部主机 (hAddr:hPort)，映射到同一外部地址 (eAddr:ePort)。
+同一 iAddr:iPort 发到不同的 hAddr:hPort 的信息包，分别映射到不同的 ePort
+
+此后，外部端口 2.2.2.2:5000 只接收来自目的 IP 6.6.6.6:8000 的数据包。
+此后，外部端口 2.2.2.2:5000 只转发内网 192.168.0.2:4000 发往 6.6.6.6:8000 的数据包。
+
+NAT 穿透
+一、中间服务器转发  p2p 网络通信看作一个 C/S 结构来通过服务器转发信息
+二、反向连接        但是它只能在通信的两端只有一端处于 NAT 之后的情况下
+三、UDP/TCP 打洞    
 iptables_i_nat
 }
 
@@ -930,10 +1069,13 @@ iptables_i_filter_reject(){ cat - <<'EOF'
     
 tcp-reset主要用来阻塞身份识别探针
 # iptables -A FORWARD -p TCP --dport 22 -j REJECT --reject-with tcp-reset
+
+iptables -A INPUT -j REJECT --reject-with icmp-host-unreachable
 EOF
 }
 
 iptables_i_chain_userdefined(){ cat - <<'EOF'
+    -F [CHAIN]：#flush：清空指定规则链，如果省略CHAIN，则可以实现删除对应表中的所有链
     -P :设置默认策略的(设定默认门是关着的还是开着的)
         默认策略一般只有两种
         iptables -P INPUT (DROP|ACCEPT)  默认是关的/默认是开的
@@ -942,9 +1084,10 @@ iptables_i_chain_userdefined(){ cat - <<'EOF'
     -N:NEW 支持用户新建一个链
         iptables -N inbound_tcp_web 表示附在tcp表上用于检查web的。
     -X: 用于删除用户自定义的空链
-        使用方法跟-N相同，但是在删除之前必须要将里面的链给清空昂了
+        使用方法跟-N相同，但是在删除之前必须要将里面的链给清空
     -E：用来Rename chain主要是用来给用户自定义的链重命名
         -E oldname newname
+    -Z：置零指定链中所有规则的计数器
     -h| <some command> -h:列出iptables的命令和选项，如果-h后面跟着某个iptables命令，则列出此命令的语法和选项。
     --modprobe=<command> 在向规则链中增加或插入规则时使用<command>来加载必要的规则。
     
@@ -965,6 +1108,48 @@ iptables_i_chain_userdefined(){ cat - <<'EOF'
 bad_tcp_packets，allowed链，
 icmp_packets、tcp_packets、udp_packets 和allowed
 EOF
+}
+
+iptables_t_chain_userdefined(){ cat - <<'iptables_t_chain_userdefined'
+[clean_in]
+    iptables -N clean_in
+    iptables -A clean_in -d 255.255.255.255 -p icmp -j DROP
+    iptables -A clean_in -d 172.16.255.255 -p icmp -j DROP
+    iptables -A clean_in -p tcp ! --syn -m state --state NEW -j DROP
+    iptables -A clean_in -p tcp --tcp-flags ALL ALL -j DROP
+    iptables -A clean_in -p tcp --tcp-flags ALL NONE -j DROP
+    iptables -A clean_in -d 172.16.100.7 -j RETURN  # 返回其调用链
+
+[tcp flood]
+    -N syn_flood
+    -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m comment --comment "!fw3" -j syn_flood
+    -A syn_flood -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 25/sec --limit-burst 50 -m comment --comment "!fw3" -j RETURN
+    -A syn_flood -m comment --comment "!fw3" -j DROP
+
+[icmp flood]
+    -N icmp_flood
+    -I INPUT -p icmp -j icmp_flood
+    -A icmp_flood -m limit --limit 1/s --limit-burst 3 -j RETURN
+    -A icmp_flood -m limit --limit 2/min -j LOG --log-prefix "ICMP_ATTACK"
+    -A icmp_flood -j DROP
+
+[udp flood] 53端口dnsmasq的conntrack链
+    -N udp_flood
+    -N udp_flood_check
+    -N udp_flood_set
+    -N udp_flood_proc
+    -I INPUT -p udp -j udp_flood
+    -A udp_flood -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    -A udp_flood -m conntrack --ctstate INVALID -j DROP
+    -A udp_flood -m conntrack --ctstate NEW -j udp_flood_set
+    -A udp_flood_set -m recent --rcheck -j udp_flood_check
+    -A udp_flood_set -m recent --set
+    -A udp_flood_set -j udp_flood_check
+    -A udp_flood_proc -m limit --limit 2/min -j LOG --log-prefix "UDP_ATTACK"
+    -A udp_flood_proc -j DROP
+    -A udp_flood_check -m recent --update --seconds 1 --hitcount 128 -j udp_flood_proc
+    -A udp_flood_check -j RETURN
+iptables_t_chain_userdefined
 }
 
 iptables_i_rule(){ cat - <<'EOF'
@@ -1031,7 +1216,7 @@ state扩展：
     /proc/net/nf_conntrack
 调整可记录的连接数量最大值：
     /proc/sys/net/nf_conntrack_max
-超时时长：
+超时时长： # 不同的协议的连接追踪时长
 /proc/sys/net/netfilter/*timeout*
 EOF
 }
@@ -1085,16 +1270,36 @@ iptables_i_filter_tcp(){ cat - <<'EOF'
 2、--tcp-flags ALL NONE匹配所有标记都未置1的包
 3、iptables -p tcp --tcp-flags ! SYN,FIN,ACK # SYN表示匹配那些FIN和ACK标记被设置而SYN标记没有设置的包
 
--tcpflags syn,ack,fin,rst syn   =   --syn # 匹配那些SYN标记被设置而 ACK和RST标记没有设置的包。
-                                  ! --syn # 匹配那些RST或ACK被置位的包，换句话说，就是 状态为已建立的连接的包。
+ip6tables -p tcp --tcp-flags syn,ack -j ACCEPT
+--tcpflags syn,ack,fin,rst syn   =   --syn # 匹配那些SYN标记被设置而 ACK和RST标记没有设置的包。
+                                   ! --syn # 匹配那些RST或ACK被置位的包，换句话说，就是 状态为已建立的连接的包。
 表示检查这4个位，这4个位中syn必须为1，其他的必须为0。所以这个意思就是用于检测三次握手的第一次包的。
-对于这种专门匹配第一包的SYN为1的包，还有一种简写方式，叫做-syn
+对于这种专门匹配第一包的SYN为1的包，还有一种简写方式，叫做--syn
+
+man iptables-extensions
+
+ip6tables -I OUTPUT -o rmnet_data0 -p tcp --tcp-flags SYN,ACK,FIN,RST SYN -j ACCEPT
+ip6tables -I INPUT  -i rmnet_data0   -p tcp --tcp-flags SYN,ACK,FIN,RST SYN -j ACCEPT
 
 --tcp-option  # 查看选项的类型
 TCP选项:
 第一个8位组表示选项的类型，
 第二个8位组表示选项的长度
 第三部分当然就是选项的内容
+
+# iptables -A OUTPUT -p tcp --dport telnet -j REJECT # Rule: iptables to drop outgoing telnet connections
+# iptables -A INPUT -p tcp --dport telnet -j REJECT  # Rule: iptables to reject incoming telnet connections
+# iptables -A OUTPUT -p tcp --dport ssh -j REJECT    # Rule: iptables to reject outgoing ssh connections
+# iptables -A INPUT -p tcp --dport ssh -j REJECT     # Rule: iptables to reject incoming ssh connections
+
+# Rule: iptables to accept incoming ssh connections from specific IP address
+# iptables -A INPUT -p tcp -s 77.66.55.44 --dport ssh -j ACCEPT
+# iptables -A INPUT -p tcp --dport ssh -j REJECT
+
+# Rule: iptables to accept incoming ssh connections from specific MAC address
+# iptables -A INPUT -m mac --mac-source 00:e0:4c:f1:41:6b -p tcp --dport ssh -j ACCEPT
+# iptables -A INPUT -p tcp --dport ssh -j REJECT
+
 EOF
 }
 
@@ -1114,6 +1319,17 @@ iptables_i_filter_icmp(){ cat - <<'EOF'
 echo-request(请求回显)，一般用8 来表示
 所以 -icmp-type 8 匹配请求回显数据包
 echo-reply (响应的数据包)一般用0来表示
+
+# Rule: iptables to drop incoming ping requests
+iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
+
+# 仅允许自己ping通别人
+iptables -A OUTPUT -s 172.16.100.7 -p icmp --icmp-type 8 -j ACCEPT  # echo-request (ping)
+iptables -A INPUT  -d 172.16.100.7 -p icmp --icmp-type 0 -j ACCEPT  # echo-reply (pong)
+
+# 仅允许自己ping通别人
+iptables -A OUTPUT -s 172.16.100.7 -p icmp --icmp-type 8 -j ACCEPT  # echo-request
+iptables -A INPUT  -d 172.16.100.7 -p icmp --icmp-type 0 -j ACCEPT  # echo-reply
 EOF
 }
 
@@ -1126,36 +1342,43 @@ iptables_i_filter_multiport(){ cat - <<'EOF'
       -m multiport：表示启用多端口扩展
       之后我们就可以启用比如 -dports 21,23,80
       -m | --match multiport
-      --source-port <port>[,<port>]      # 源端口
-      --destination-port <port>[,<port>] # 目的端口
-      --port <port>[,<port>]             # 源端口和目的端口
+      --source-port <port>[,<port>]      # 源端口            [!] --source-ports,--sports port[,port|,port:port]...
+      --destination-port <port>[,<port>] # 目的端口          [!] --destination-ports,--dports port[,port|,port:port]...
+      --port <port>[,<port>]             # 源端口和目的端口  [!] --ports port[,port|,port:port]...
 源端口多端口匹配，最多可以指定15个端口，以英文逗号分隔，注意没有空格。使用时必须有-p tcp或-p udp为前提条件。
-      
-1. NETBIOS和SMB的UDP端口，常见的Mircrosoft Windows计算机的端口漏洞和蠕虫攻击的目标      
+
+[multiport]
+[!] --sports port[,port:port]...: 源端口       # 67(DHCP服务器)和68(DHCP客户端) -m multiport --sports 67,68   546(DHCP客户端)和547(DHCP服务器) -m multiport --sports 546,547  服务器/客户端端口都被指定
+[!] --dports port[,port:port]...: 目标端口     # 67(DHCP服务器)和68(DHCP客户端) -m multiport --dports 67,68   546(DHCP客户端)和547(DHCP服务器) -m multiport --dports 546,547  服务器/客户端端口都被指定
+[!] --ports port[,port:port]...:  两者同时指定 # 67(DHCP服务器)和68(DHCP客户端) -m multiport --ports 67,68    546(DHCP客户端)和547(DHCP服务器) -m multiport --ports 546,547   服务器端口被指定
+                                               # 53(DNS协议) -m multiport --ports 53  
+                                               # 22(SSH协议) -m multiport --ports 22 
+                                               # 23(telnet)  -m multiport --ports 23  
+                                               # 123(NTP)    -m multiport --ports 123  
+
+-m multiport --destination-ports 21,22,80 -j ACCEPT
+
+-------------------------------------------------------------------------------- 1. NETBIOS和SMB的UDP端口，常见的Mircrosoft Windows计算机的端口漏洞和蠕虫攻击的目标      
 iptables -A INPUT -i eth0 -p udp -m multiport --destination-port 135,136,137,138,139 -j DROP
-2. NFS, SOCKS, squid
+-------------------------------------------------------------------------------- 2. NFS, SOCKS, squid
 iptables -A OUTPUT -o eth0 -p tcp -m multiport --destination-port 2049,1080,3128 --sync -j REJECT
-3. 
+-------------------------------------------------------------------------------- 3. 
 iptables -A INPUT -i <interface> -p tcp -m multiport --source-port 80,443 !--sync -j ACCEPT # OK
 iptables -A INPUT -i <interface> -p tcp !--sync -m multiport --source-port 80,443 -j ACCEPT # NO
 
-iptables -A INPUT -i <interface> -p tcp -m multiport --source-port 80,443 !--sync \
--d $IPADDR --dport 1024:65536
--j ACCEPT # OK
-iptables -A INPUT -i <interface> -p tcp -m multiport --source-port 80,443 \
--d $IPADDR !--sync --dport 1024:65536
--j ACCEPT # OK
+iptables -A INPUT -i <interface> -p tcp -m multiport --source-port 80,443 !--sync -d $IPADDR --dport 1024:6553 -j ACCEPT # OK
+iptables -A INPUT -i <interface> -p tcp -m multiport --source-port 80,443 -d $IPADDR !--sync --dport 1024:65536 -j ACCEPT # OK
 
-iptables -A OUTPUT -o <interface> -p tcp -m multiport --destination-port 80,443 \
-!--sync -d $IPADDR --dport 1024:65536
--j ACCEPT # OK
-iptables -A OUTPUT -o <interface> -p tcp -m multiport --destination-port 80,443 \
---sync -d $IPADDR --dport 1024:65536
--j ACCEPT # OK
+iptables -A OUTPUT -o <interface> -p tcp -m multiport --destination-port 80,443 !--sync -d $IPADDR --dport 1024:65536 -j ACCEPT # OK
+iptables -A OUTPUT -o <interface> -p tcp -m multiport --destination-port 80,443 --sync -d $IPADDR --dport 1024:65536 -j ACCEPT # OK
+
+iptables -A INPUT -i eth0 -p tcp -m state --state NEW -m multiport --dports ssh,smtp,http,https -j ACCEPT
 EOF
 }
 
 iptables_i_filter_limit(){ cat - <<'EOF'
+limit模块是对"报文到达速率"进行限制的.如果想要限制单位时间内流入的包的数量，就能用limit模块
+
     当涌来一大批需要日志记录的数据报时，将会产生许多的日志消息，限值比率的匹配对于抑制日志消息的数量很有用。
 你可以事先设定一个限定值，当符合条件 的包的数量不超过它时，就记录；超过了，就不记录了。
 减少DoS syn flood攻击的影响
@@ -1166,7 +1389,7 @@ iptables_i_filter_limit(){ cat - <<'EOF'
 峰值定义了通过初始匹配的数据包的数量。默认值是5.当达到限制后，之后的匹配则会限制在频率处。
 默认的限制频率是每小时3次匹配。可选的时间帧标识符包括/second /minute /hour /day
 
-当在给定的1秒内接收到初始的5个echo请求后，对传入的ping消息的日志记录限制为每秒1个：
+-------------------------------------------------------------------------------- 当在给定的1秒内接收到初始的5个echo请求后，对传入的ping消息的日志记录限制为每秒1个：
 iptables -A INPUT -i eth0 -p icmp --icmp-type echo-request -m limit --limit 1/second -j LOG #将丢弃包情况记入日志
 或
 iptables -A INPUT -i eth0 -p icmp --icmp-type echo-request -m limit --limit 1/second -j ACCEPT
@@ -1186,7 +1409,17 @@ iptables -A INPUT -i eth0 -p icmp --icmp-type echo-request -j DROP
 
 --limit 3/minute --limit-burst 5 # 开始时有5个通行证，用完之后每20秒增加一个
 --limit 3/hour --limit-burst 5   # 开始时有5个通行证，用完之后每20分钟增加一个
-[Limit- match.txt]
+
+-------------------------------------------------------------------------------- 
+iptables -A INPUT -p icmp -m limit --limit 6/m --limit-burst 5 -j ACCEPT
+iptables -A INPUT -p icmp -j DROP
+前四个包的回应都很正常，然后从第五个包开始，我们每10秒可以收到一个正常的回应。这是因为我们设定了单位时间(在这里是每分钟)内允许通过的数据包的个数是每分钟6个，也即每10秒钟一个；
+其次我们又设定了事件触发阀值为5，所以我们的前四个包都是正常的，只是从第五个包开始，限制规则开始生效，故只能每10秒收到一个正常回应。
+
+-------------------------------------------------------------------------------- 每分钟放行3个，最多一次拥入3个
+iptables -I INPUT -d 172.16.100.7 -p tcp --dport 22 -m limit --limit 3/minute --limit-burst 3 -j ACCEPT	
+-------------------------------------------------------------------------------- 修改第三条规则为限定每分种5个ping请求，但前6个是很快的
+iptables -R INPUT 3 -d 172.6.100.7 -p icmp --icmp-type 8 -m limit --limit 5/minute --limit-burst 6 -j ACCEPT
 EOF
 }
 
@@ -1199,6 +1432,18 @@ iptables_i_filter_state(){ cat - <<'EOF'
 利用连接状态绕过规则检查
 
 iptables -A INPUT -m state --state RELATED,ESTABLISHED
+
+[当前连接不受影响，新建连接将被拒绝]
+Rule: iptables to reject all outgoing network connections
+The second line of the rules only allows current outgoing and established connections. This is very useful when you are logged in to the server via ssh or telnet.
+# iptables -F OUTPUT
+# iptables -A OUTPUT -m state --state ESTABLISHED -j ACCEPT
+# iptables -A OUTPUT -j REJECT
+
+Rule: iptables to reject all incoming network connections
+# iptables -F INPUT
+# iptables -A INPUT -m state --state ESTABLISHED -j ACCEPT
+# iptables -A INPUT -j REJECT
 EOF
 }
 
@@ -1209,6 +1454,10 @@ iptables_i_filter_mac(){ cat - <<'EOF'
 # [!] --mac-source XX:XX:XX:XX:XX:XX Match source MAC address
 MAC addresses只用于Ethernet类型的网络，所以这个match只能用于Ethernet接口。
 还只能在PREROUTING，FORWARD 和INPUT链里使用。
+
+Drop or Accept Traffic From Mac Address
+iptables -A INPUT -m mac --mac-source 00:0F:EA:91:04:08 -j DROP
+iptables -A INPUT -p tcp --destination-port 22 -m mac --mac-source 00:0F:EA:91:04:07 -j ACCEPT
 EOF
 }
 
@@ -1255,6 +1504,28 @@ iptables_i_filter_tos(){ cat - <<'EOF'
                           (0x04)  4 Maximize-Reliability
                           (0x02)  2 Minimize-Cost
                           (0x00)  0 Normal-Service
+
+minimum delay 
+当数据需要使用最快的路径进行传输时使用此服务，如电话、ssh 会话、telnet 会话、在线视频等等。
+maximum throughput
+数据传输不关心延迟但关心网络路径的吞吐量时使用此服务，如 web 服务、ftp 传输等等。
+maximum reliability
+当数据传输需要最大的可靠性时(减少数据重复传输)使用此选项，如简单网络管理协议，DNS 等等。
+minimum cost
+当数据对延迟、宽带关心而关心"Money"时，使用此选项，以便网络中的路由器进行路径选择时使用花销最小的路径。
+|-------------------|-------|---------|----------------|
+|TOS                |ANDmask| XORmask |Suggested Use   |
+|-------------------|-------|---------|----------------|
+|Minimum Delay      |0x01   | 0x10    |ftp, telnet, ssh|
+|Maximum Throughput |0x01   | 0x08    |ftp-data, www   |
+|Maximum Reliability|0x01   | 0x04    |snmp, dns       |
+|Minimum Cost       |0x01   | 0x02    |nntp, smtp      |
+|-------------------|-------|---------|----------------|
+The general syntax used to match TOS bits looks like:
+iptables -m tos --tos mnemonic [other-args] -j target
+
+The general syntax used to set TOS bits looks like:
+iptables [other-args] -j TOS --set mnemonic
 EOF
 }
 
@@ -1275,14 +1546,22 @@ NAT
 XRESOLVE    
 --src-type <type> 用类型<type>匹配源地址
 --dst-type <type> 用类型<type>匹配目的地址
+
+
 EOF
 }
 
-iptables_i_filter_iprange(){ cat - <<'EOF'
+iptables_i_filter_iprange(){ cat - <<'iptables_i_filter_iprange'
 ----- -m iprange -----iptables -m iprange -h
 [!] --src-range <ip[-ip]>    指定(或否定)将匹配的源IP地址范围
 [!] --dst-range <ip[-ip]>    指定(或否定)将匹配的目的IP地址范围
-EOF
+-------------------------------------------------------------------------------- 源IP是100.3到100的，可以访问目标端口22,状态要是NEW或ESTABLISHED
+iptables -A INPUT -p tcp -m iprange --src-range 172.16.100.3-172.16.100.100 --dport 22 -m state --state NEW,ESTABLISHED -j ACCEPT
+
+# 一个可以指定网段，一个可以指定地址段。总的来说，指定地址段的比指定网段的更灵活。
+[!] --source    -s address[/mask][...]      source specification
+[!] --destination -d address[/mask][...]    destination specification
+iptables_i_filter_iprange
 }
 
 iptables_i_filter_length(){ cat - <<'EOF'
@@ -1300,29 +1579,77 @@ iptables -I INPUT -p icmp --icmp-type 8 -m length --length :60 -j ACCEPT
 EOF
 }
 
-iptables_i_filter_time(){ cat - <<'EOF'
------ -m time -----iptables -m time -h
-    --datestart time     Start and stop time, to be given in ISO 8601
-    --datestop time      (YYYY[-MM[-DD[Thh[:mm[:ss]]]]])
-    --timestart time     Start and stop daytime (hh:mm[:ss])
-    --timestop time      (between 00:00:00 and 23:59:59)
-[!] --monthdays value    List of days on which to match, separated by comma
-                         (Possible days: 1 to 31; defaults to all)
-[!] --weekdays value     List of weekdays on which to match, sep. by comma
-                         (Possible days: Mon,Tue,Wed,Thu,Fri,Sat,Sun or 1 to 7
+iptables_i_filter_time(){ cat - <<'iptables_i_filter_time'
+----- -m time -----iptables -m time -h                                          # 根据报文到达的时间与指定的时间范围(UTC时间)进行匹配
+                             -m time [ --datestart | --datestop YYYY[-MM[-DD[Thh[:mm[:ss]]]]] ] [ --timestart | --timestop HH:MM[:SS] ]　[!] [ --monthdays | --weekdays Day[,Day...] ]　[ --utc | --localtz ]
+--datestart 和 --datestop: 此为指定一段时间内做特定流量匹配。
+    --datestart time     Start and stop time, to be given in ISO 8601           # YYYY-MM[-DD]      -m time --datestart 2017-12-24       --datestop 2018-12-27
+    --datestop time      (YYYY[-MM[-DD[Thh[:mm[:ss]]]]])                        # YYYY-MM[-DD]      -m time --datestart 2017-01-01T17:00 --datestop 2020-01-01T23:59:59
+    --timestart time     Start and stop daytime (hh:mm[:ss])                    # hh:mm[:ss]        -m time --timestart 12:30 --timestop 13:30
+    --timestop time      (between 00:00:00 and 23:59:59)                        # hh:mm[:ss]        
+[!] --monthdays value    List of days on which to match, separated by comma     # day[,day]         -m time --weekdays Fri --monthdays 22,23,24,25,26,27,28
+                         (Possible days: 1 to 31; defaults to all)              #                   
+[!] --weekdays value     List of weekdays on which to match, sep. by comma      #                   
+                         (Possible days: Mon,Tue,Wed,Thu,Fri,Sat,Sun or 1 to 7  # day[,day]         
                          Defaults to all weekdays.)
     --localtz/--utc      Time is interpreted as UTC/local time
 -m time --timestart 8:00 --timestop 12:00  表示从哪个时间到哪个时间段
 -m time --days    表示那天
 
+-------------------------------------------------------------------------------- 对于openwrt而言
+/home/mr3/m3/etc/TZ 包含内容是 CST-8
+
+/home/mr3/m3/etc/config/system
+config system
+    option hostname 'XiaoQiang'
+    option timezone 'CST-8'
+    
+--------------------------------------------------------------------------------
+    # 可以通过time扩展模块，根据时间段匹配报文，如果报文到达的时间在指定的时间范围以内，则符合匹配条件。
+# --monthdays与--weekdays可以使用"!"取反，其他选项不能取反。
+
+-------------------------------------------------------------------------------- 指定时间
+[root@bogon ~]# iptables -I OUTPUT -p tcp --dport 80 -m time --timestart 09:00:00 --timestop 18:00:00 -j REJECT
+[root@bogon ~]# iptables -I OUTPUT -p tcp --dport 443 -m time --timestart 09:00:00 --timestop 18:00:00 -j REJECT
+# 每天早上9点到下午6点不能看网页。"-m time"表示使用time扩展模块，--timestart选项用于指定起始时间，--timestop选项用于指定结束时间。
+
+-------------------------------------------------------------------------------- 按周指定日期
+[root@bogon ~]# iptables -I OUTPUT -p tcp --dport 80 -m time --weekdays 6,7 -j REJECT
+# 只有周六日不能看网页。使用--weekdays选项可以指定每个星期的具体哪一天，可以同时指定多个，用逗号隔开，除了能够数字表示"星期几",还能用缩写表示，例如：Mon, Tue, Wed, Thu, Fri, Sat, Sun
+iptables -I OUTPUT -p tcp --dport 80 -m time --timestart 09:00:00 --timestop 18:00:00 --weekdays 6,7 -j REJECT
+
+-------------------------------------------------------------------------------- 指月指定日期
+[root@bogon ~]# iptables -I OUTPUT -p tcp --dport 80 -m time --monthdays 22,23 -j REJECT
+# 使用--monthdays选项可以具体指定的每个月的22号，23号不能访问网页。
+[root@bogon ~]# iptables -I OUTPUT -p tcp --dport 80 -m time --weekdays 5 --monthdays 22,23,24,25,26,27,28 -j REJECT
+# 当一条规则中同时存在多个条件时，多个条件之间默认存在"与"的关系。所以，上面的规则表示匹配的时间必须为星期五，并且这个"星期五"同时还需要是每个月的22号到28号之间的一天，也就表示每个月的第4个星期五
+
+-------------------------------------------------------------------------------- 指定具体时间
+[root@bogon ~]# iptables -I OUTPUT -p tcp --dport 80 -m time --datestart 2018-10-15 --datestop 2018-10-19 -j REJECT
+# 可以使用--datestart 选项与-datestop选项，指定具体的日期范围。测试中，此条可以生效。
+
+-------------------------------------------------------------------------------- Time-based Rules with time*
+iptables -A FORWARD -p tcp -m multiport --dport http,https -o eth0 -i eth1 -m time --timestart 21:30 --timestop 22:30 --days Mon,Tue,Wed,Thu,Fri -j ACCEPT
+iptables_i_filter_time
+}
+
+iptables_i_filter_string(){ cat - <<'iptables_i_filter_string'
 ----- -m string -----iptables -m string -h
 --from                       Offset to start searching from
 --to                         Offset to stop searching
---algo                       Algorithm
+--algo                       Algorithm # --algo {bm|kmp}：#指定算法
 --icase                      Ignore case (default: 0)
 [!] --string string          Match a string in a packet
-[!] --hex-string string      Match a hex string in a packe
-EOF
+[!] --hex-string string      Match a hex string in a packet/connection
+
+-------------------------------------------------------------------------------- 这条是匹配不到的，因为当用户的请求中没有h7n9，请求页面时，我们响应的报文是从OUTPUT响应出去的，所以应将规则写在OUTPUT上
+iptables -I INPUT -d 172.16.100.7 -m string --algo kmp --string "h7n9" -j REJECT
+iptables -R OUTPUT 1 -s 172.16.100.7 -m string --algo kmp --string "h7n9" -j REJECT
+
+-------------------------------------------------------------------------------- Matching Against a string* in a Packets Data Payload
+iptables -A FORWARD -m string --string '.com' -j DROP
+iptables -A FORWARD -m string --string '.exe' -j DROP
+iptables_i_filter_string
 }
 
 iptables_t_limit(){ cat - <<'EOF'
@@ -1339,7 +1666,7 @@ iptables_t_limit(){ cat - <<'EOF'
 说明 用来比对瞬间大量封包的数量，上面的例子是用来比对一次同时涌入的封包是否超过 5 个(这是默认值)，超过此上限的封
 将被直接丢弃。使用效果同上。
 
-3、使用--limit限制ping的一个例子
+-------------------------------------------------------------------------------- 3、使用--limit限制ping的一个例子
 限制同时响应的 ping (echo-request) 的连接数
 限制每分只接受一個 icmp echo-request 封包
 #iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/m --limit-burst 1 -j ACCEPT
@@ -1352,20 +1679,20 @@ iptables -A INPUT -p tcp --dport 80 -m limit --limit 25/minute --limit-burst 100
     -limit 25/minute: 允许最多每分钟25个连接
     -limit-burst 100: 当达到100个连接后，才启用上述25/minute限制
 
-4、用户自定义使用链
+-------------------------------------------------------------------------------- 4、用户自定义使用链
 上面例子的另一种实现方法：
 iptables -N pinglimit
 iptables -A pinglimit -m limit --limit 1/m --limit-burst 1 -j ACCEPT
 iptables -A pinglimit -j DROP
 iptables -A INPUT -p icmp --icmp-type echo-request -j pinglimit
 
-5、防范 SYN-Flood 碎片攻击
+-------------------------------------------------------------------------------- 5、防范 SYN-Flood 碎片攻击
 iptables -N syn_flood
 iptables -A syn_flood -m limit --limit 100/s --limit-burst 150 -j RETURN
 iptables -A syn_flood -j DROP
 iptables -t filter -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j syn_flood
 
-6. 记录丢弃的数据包
+-------------------------------------------------------------------------------- 6. 记录丢弃的数据包
 # 1.新建名为LOGGING的链
 iptables -N LOGGING
 # 2.将所有来自INPUT链中的数据包跳转到LOGGING链中
@@ -1701,6 +2028,7 @@ iptables_t_Block_Facebook(){ cat - <<'EOF'
 EOF
 }
 
+# @https://github.com/trimstray/iptables-essentials
 iptables_t_Log_and_Drop_Packets(){ cat - <<'EOF'
   iptables -A INPUT -i eth1 -s 10.0.0.0/8 -j LOG --log-prefix "IP_SPOOF A: "
   iptables -A INPUT -i eth1 -s 10.0.0.0/8 -j DROP
@@ -1713,8 +2041,22 @@ iptables_t_Log_and_Drop_Packets(){ cat - <<'EOF'
 
 The -m limit module can limit the number of log entries created per time. 
 This is used to prevent flooding your log file. To log and drop spoofing per 5 minutes, in bursts of at most 7 entries .
-	# iptables -A INPUT -i eth1 -s 10.0.0.0/8 -m limit --limit 5/m --limit-burst 7 -j LOG --log-prefix "IP_SPOOF A: "
-	# iptables -A INPUT -i eth1 -s 10.0.0.0/8 -j DROP
+# iptables -A INPUT -i eth1 -s 10.0.0.0/8 -m limit --limit 5/m --limit-burst 7 -j LOG --log-prefix "IP_SPOOF A: "
+# iptables -A INPUT -i eth1 -s 10.0.0.0/8 -j DROP
+-------------------------------------------------------------------------------- Syn-flood protection
+iptables -N syn_flood
+
+iptables -A INPUT -p tcp --syn -j syn_flood
+iptables -A syn_flood -m limit --limit 1/s --limit-burst 3 -j RETURN
+iptables -A syn_flood -j DROP
+
+iptables -A INPUT -p icmp -m limit --limit  1/s --limit-burst 1 -j ACCEPT
+
+iptables -A INPUT -p icmp -m limit --limit 1/s --limit-burst 1 -j LOG --log-prefix PING-DROP:
+iptables -A INPUT -p icmp -j DROP
+
+iptables -A OUTPUT -p icmp -j ACCEPT
+
 EOF
 }
 
@@ -1761,6 +2103,7 @@ EOF
 
 iptables_t_target_MARK(){ cat - <<'EOF'
 MARK标记用于将特定的数据包打上标签，供Iptables配合TC做QOS流量限制或应用策略路由。
+此模块是给数据包打标记的，它可以配合CONNMARK一起使用，完成更强大的功能，CONNMARK是给一个连接(注: 连接是两个方向,一个请求流，一个响应流组成)打标记。
 
 iptables -j MARK --help
 --set-mark #标记数据包
@@ -1773,10 +2116,21 @@ iptables -t mangle -A PREROUTING -p tcp -m mark --mark 1 -j CONNMARK --save-mark
 #匹配标记1的数据并保存数据包中的MARK到连接中
 
 iptables -j CONNMARK --help
+-j CONNMARK [--set-mark value[/mask]] [--save-mark | --restore-mark [--mask mask]] 
 --set-mark     #标记连接
 --save-mark    #保存数据包中的MARK到连接中
 --restore-mark #将连接中的MARK设置到同一连接的其它数据包中
-iptables -t mangle -A PREROUTING -p tcp -j CONNMARK --set-mark 1
+
+--set-mark value[/mask] : 给一个连接打指定的标记. mask: 是标记的掩码位,即:value 和 mask做或运算的值。
+--save-mark：   将nfmark复制到ctmark中, 即: 将连接中的标记值，保存到/proc/net/nf_conntrack中.
+--restore-mark: 将ctmark复制到nfmark中, 即: 将/proc/net/nf_conntrack中mark的值恢复到连接mark中。
+--mask 掩码值:  即在保存 或 恢复时，是否执行 mark 与 mask的或运算, 若需要则添加mask.
+
+iptables -F
+iptables -t mangle -A POSTROUTING -j CONNMARK --restore-mark 　　 #恢复连接mark到数据包mark中.
+iptables -t mangle -A POSTROUTING -m mark --mark 20 -j ACCEPT 　　 #检测数据包mark若为20则直接转发
+iptables -t mangle -A POSTROUTING -s 1.1.1.0/24 -j MARK --set-mark 20 #若为一个新连接就给数据包添加标记20
+iptables -t mangle -A POSTROUTING -j CONNMARK --save-mark 　　　 #将连接中数据包的标记保存到nf_conntrack中.
 
 iptables -m connmark --help
 --mark value #匹配连接的MARK的标记
@@ -1824,6 +2178,13 @@ iptables -t mangle -A PREROUTING -p tcp -m connmark --mark 1 -j CONNMARK --resto
 #iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,ACK,FIN,RST ACK -m length --length  40:60 -j MARK --set-mark 13
 EOF
 }
+iptables_i_tcpmss(){ cat - <<'iptables_i_tcpmss'
+Block uncommon MSS values
+
+iptables -t mangle -A PREROUTING -p tcp -m conntrack --ctstate NEW -m tcpmss ! --mss 536:65535 -j DROP
+iptables_i_tcpmss
+}
+
 iptables_t_TCPMSS_DHCP_PPPOE(){ cat - <<'EOF'
 iptables -j TCPMSS --help   # 修订TCPMSS值
 
@@ -1867,7 +2228,9 @@ iptables -t mangle -A PREROUTING -i pppoe-wan -j TTL --ttl-set 2
 #进入路由数据包TTL设置为2，二级路由可接收数据不转发。
 EOF
 }
-iptables_t_tcp_flags(){ cat - <<'EOF'
+
+# @https://github.com/trimstray/iptables-essentials
+iptables_t_tcp_flags(){ cat - <<'iptables_t_tcp_flags'
 iptables -p tcp -h  # 匹配tcp选项值 
 [!] --tcp-flags mask comp       match when TCP flags & mask == comp (Flags: SYN ACK FIN RST URG PSH ALL NONE)
 [!] --syn                       match when only SYN flag set (equivalent to --tcp-flags SYN,RST,ACK,FIN SYN)
@@ -1885,8 +2248,55 @@ iptables -A INPUT -p tcp --tcp-flags ALL NONE -j DROP
 
 拒绝TCP标记为SYN/ACK但连接状态为NEW的数据包，防止ACK欺骗。
 iptables -A INPUT -p tcp --tcp-flags SYN,ACK SYN,ACK -m state --state NEW -j DROP
-EOF
+-------------------------------------------------------------------------------- XMAS packets
+iptables -A INPUT -p tcp --tcp-flags ALL ALL -j DROP                                    # ALLflags attack
+
+-------------------------------------------------------------------------------- Drop all NULL packets
+iptables -A INPUT -p tcp --tcp-flags ALL NONE -j DROP                                   # NULLflags attack
+
+-------------------------------------------------------------------------------- Block Uncommon MSS Values
+iptables -t mangle -A PREROUTING -p tcp -m conntrack --ctstate NEW -m tcpmss ! --mss 536:65535 -j DROP
+
+-------------------------------------------------------------------------------- Block Packets With Bogus TCP Flags
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG NONE -j DROP # 
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags FIN,SYN FIN,SYN -j DROP              # SYN-FIN attack
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags SYN,RST SYN,RST -j DROP              # SYN-RST attack
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags FIN,RST FIN,RST -j DROP              # 
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags FIN,ACK FIN -j DROP                  # 
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags ACK,URG URG -j DROP                  # 
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags ACK,FIN FIN -j DROP                  # 
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags ACK,PSH PSH -j DROP                  # 
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags ALL ALL -j DROP                      # 
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags ALL NONE -j DROP                     # 
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags ALL FIN,PSH,URG -j DROP              # X-Mas attack
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags ALL SYN,FIN,PSH,URG -j DROP          # 
+iptables -t mangle -A PREROUTING -p tcp --tcp-flags ALL SYN,RST,ACK,FIN,URG -j DROP      # 
+                                 -p tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN -j DROP  # nmap FIN scan
+
+-------------------------------------------------------------------------------- Block New Packets That Are Not SYN
+iptables -A INPUT -p tcp ! --syn -m state --state NEW -j DROP
+iptables -t mangle -A PREROUTING -p tcp ! --syn -m conntrack --ctstate NEW -j DROP
+
+-------------------------------------------------------------------------------- Protection against port scanning
+iptables -N port-scanning
+iptables -A port-scanning -p tcp --tcp-flags SYN,ACK,FIN,RST RST -m limit --limit 1/s --limit-burst 2 -j RETURN
+iptables -A port-scanning -j DROP
+iptables_t_tcp_flags
 }
+
+# @https://github.com/trimstray/iptables-essentials
+iptables_i_SYNPROXY(){ cat - <<'iptables_i_SYNPROXY'
+Mitigating SYN Floods With SYNPROXY
+iptables -t raw -A PREROUTING -p tcp -m tcp --syn -j CT --notrack
+iptables -A INPUT -p tcp -m tcp -m conntrack --ctstate INVALID,UNTRACKED -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460
+iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
+
+SYNPROXY target for DDos protection
+iptables -t raw -A PREROUTING -p tcp -m tcp --dport 80 --syn -j CT --notrack
+iptables -A INPUT -p tcp -m tcp --dport 80 -m conntrack --ctstate INVALID,UNTRACKED -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460
+iptables_i_SYNPROXY
+}
+
 
 iptables_i_RETURN(){ cat - <<'EOF'
     RETURN 结束在目前规则链中的过滤程序，返回主规则链继续过滤，如果把自订规则链看成是一个子程序，那么这个动作，
@@ -2152,21 +2562,24 @@ Linux内核将通过netlink套接字组播这个数据包。然后，一个或�
                        一个netlink的信息，只是由好几部分组 成罢了。默认值是1，这是为了向后兼容，因为以前的版本不能处理
                        分段的信息。
    
-NFLOG: iptables -j NFLOG -h
+NFLOG: iptables -j NFLOG -h # 能向用户空间进程转发日志的target模块
+                -j NFLOG | ULOG: 
 该目标提供匹配数据包的日志记录。当这个目标被设置为规则时，Linux内核将把数据包传递给加载的日志后端来记录数据包。
 这个目标通常与nfnetlink_log结合使用，作为日志后端，它将通过netlink套接字把数据包组播到指定的组播组。一个或多个
 用户空间进程可以订阅该组来接收数据包。和LOG一样，这是一个非终端目标，即规则遍历在下一个规则处继续。
 --nflog-group NUM          标识消息写入哪个消息池，如果消息池不存在将不会写消息
 --nflog-range NUM          消息中包含网络层数据最大长度，0表示将写入所有网络层数据
---nflog-threshold NUM    消息池消息个数等于大于NUM，刷新消息池。
---nflog-prefix STRING    本条消息的前缀
+--nflog-threshold NUM      消息池消息个数等于大于NUM，刷新消息池。
+--nflog-prefix STRING      本条消息的前缀
 
 说明：消息池也有一个threshold属性，target中也有一个threshold属性，每次写入消息前，取两者最小的，然后判断是否刷新消息池。
 注意：这里的group是选择消息池，nflog netlink消息是发送给创建这个消息池的进程，不是用广播包来发送，而ULOG是用广播包来发送消息。
 iptables的默认属性： -j NFLOG -nflog-group 0 -nflog-threshold 1
 
+#@ 若需要iptables匹配指定规则后，向用户空间的进程发送匹配规则的日志，则可以使用此日志模块，它会在规则被匹配后，由Linux内核通过netlink套接字多播方式向用户空间中加入指定组播组的进程，发送日志信息。NFLOG：支持1~2^32-1个组播组， ULOG: 支持1~32个组播组
 
 LOG iptables -j LOG -h
+              -j LOG [ --log-level 日志级别名 | --log-prefix 日志前缀字符串 | --log-tcp-sequence | --log-uid | --log-ip-options | --log-tcp-options ]
     打开内核对匹配数据包的日志记录。 当为一个规则设置这个选项时，Linux 内核将通过内核日志打印所有匹配数据包的一些信息 
 (就像大多数 IP/IPv6 头部字段一样)(可以用 dmesg(1) 读取或在 syslog 中读取)。
     这是一个 "非终端目标"，即规则遍历在下一个规则处继续。 所以，如果你想把拒绝的数据包LOG化，可以使用两个具有相同匹配
@@ -2318,7 +2731,7 @@ iptables_t_Block_Open_Common_Ports(){ cat - <<'EOF'
 EOF
 }
 
-iptables_t_ip_forward_DNAT(){ cat - <<'EOF'
+iptables_t_ip_forward_DNAT(){ cat - <<'iptables_t_ip_forward_DNAT'
 	ip_forward(路由器模式){
 		首先要开启端口转发器必须先修改内核运行参数ip_forward,打开转发:
 		# echo 1 > /proc/sys/net/ipv4/ip_forward   //此方法临时生效
@@ -2366,8 +2779,9 @@ iptables_t_ip_forward_DNAT(){ cat - <<'EOF'
         iptables -A FORWARD -d 172.29.88.56 -p tcp --dport 80 -j ACCEPT
         iptables -A FORWARD -s 172.29.88.56 -p tcp -j ACCEPT
     }
-EOF
+iptables_t_ip_forward_DNAT
 }
+
 iptables_i_layer7(){  cat - <<'EOF'
 2.下载相关软件
 wget http://www.kernel.org/pub/linux/kernel/v2.6/linux-2.6.28.tar.bz2
@@ -2518,17 +2932,379 @@ done
 EOF
 }
 
+iptables_t_Block_Private_Subnets(){ cat - <<'iptables_t_Block_Private_Subnets'
+
+_subnets=("224.0.0.0/3" "169.254.0.0/16" "172.16.0.0/12" "192.0.2.0/24" "192.168.0.0/16" "10.0.0.0/8" "0.0.0.0/8" "240.0.0.0/5")
+
+for _sub in "${_subnets[@]}" ; do
+  iptables -t mangle -A PREROUTING -s "$_sub" -j DROP
+done
+iptables -t mangle -A PREROUTING -s 127.0.0.0/8 ! -i lo -j DROP
+
+
+# Reject spoofed packets
+# These adresses are mostly used for LAN's, so if these would come to a WAN-only server, drop them.
+iptables -A INPUT -s 10.0.0.0/8 -j DROP
+iptables -A INPUT -s 169.254.0.0/16 -j DROP
+iptables -A INPUT -s 172.16.0.0/12 -j DROP
+iptables -A INPUT -s 127.0.0.0/8 -j DROP
+
+#Multicast-adresses.
+iptables -A INPUT -s 224.0.0.0/4 -j DROP
+iptables -A INPUT -d 224.0.0.0/4 -j DROP
+iptables -A INPUT -s 240.0.0.0/5 -j DROP
+iptables -A INPUT -d 240.0.0.0/5 -j DROP
+iptables -A INPUT -s 0.0.0.0/8 -j DROP
+iptables -A INPUT -d 0.0.0.0/8 -j DROP
+iptables -A INPUT -d 239.255.255.0/24 -j DROP
+iptables -A INPUT -d 255.255.255.255 -j DROP
+
+# Drop all invalid packets
+iptables -A INPUT -m state --state INVALID -j DROP
+iptables -A FORWARD -m state --state INVALID -j DROP
+iptables -A OUTPUT -m state --state INVALID -j DROP
+iptables_t_Block_Private_Subnets
+}
+
+iptables_t_open_ports(){ cat - <<'iptables_t_open_ports'
+
+#!/bin/bash
+ALLOWEDTCP="80 3128 3784"
+ALLOWEDUDP="3128 3784"
+
+#
+## Permitted Ports
+#
+
+for port in $ALLOWEDTCP; do
+       echo "Accepting port TCP $port..."
+       $IPTABLES -A INPUT -t filter -p tcp --dport $port -j ACCEPT
+done
+
+for port in $ALLOWEDUDP; do
+        echo "Accepting port UDP $port..."
+        $IPTABLES -A INPUT -t filter -p udp --dport $port -j ACCEPT
+done
+iptables_t_open_ports
+}
+
+iptables_t_whitelist_blacklist(){ cat - <<'iptables_t_whitelist_blacklist'
+
+#!/bin/bash
+
+WHITELIST=/whitelist.txt
+BLACKLIST=/blacklist.txt
+
+#THIS WILL CLEAR ALL EXISTING RULES!
+echo 'Clearing all rules'
+iptables -F
+
+#
+## Whitelist
+#
+
+for x in `grep -v ^# $WHITELIST | awk '{print $1}'`; do
+        echo "Permitting $x..."
+        $IPTABLES -A INPUT -t filter -s $x -j ACCEPT
+done
+
+#
+## Blacklist
+#
+
+for x in `grep -v ^# $BLACKLIST | awk '{print $1}'`; do
+        echo "Denying $x..."
+        $IPTABLES -A INPUT -t filter -s $x -j DROP
+done
+
+iptables_t_whitelist_blacklist
+}
+
+# @https://www.cnblogs.com/wn1m/p/10919742.html
+iptables_i_rpfilter(){  cat - <<'iptables_i_rpfilter'
+rpfilter：
+  　它是帮助 helper模块 做安全监测的一个反欺骗(Anti-spoofing)模块，由于helper模块依赖于客户端
+  和服务器的数据做检测，来判断相关连接，它并不能像conntrack一样能跟踪连接的其余部分，因此
+  无法做任何一致性检查，这就给伪造数据的欺骗攻击带来的便利，而rpfilter就是来解决此问题的。
+  　注：
+  　rpfilter 模块是从Linux3.3 和 iptables1.4.13后才有的模块。它是基于路由的反向路径过滤实现。
+  　ls   /proc/sys/net/ipv4/{all, Interfaces}/rp_filter 　　 #可用于激活rp_filter功能
+              #【当对{interface}进行源验证时，将使用conf/{all,interface}/rp_filter的最大值。】.
+      注:
+      　  0: 不做源地址验证
+          1：严格源地址反向路径验证模式。每个传入数据包都要根据fib_validate_source函数进行测试，
+              如果接口不是最佳的反向路径,即入接口不是响应报文的出接口，则数据包检查将失败。
+              默认情况下，失败的包将被丢弃。【RFC3704】
+          2：松散源地址反向路径验证模式。 每个传入数据包的源地址也将根据fib_validate_source函数进行测试，
+          如果通过任何接口都无法访问源地址，则数据包检查将失败。
+          RFC3704目前推荐的做法是启用严格模式，以防止IP欺骗攻击DDos。
+          如果使用非对称路由或其他复杂路由，则建议使用松散模式。
+          　　https://home.regit.org/netfilter-en/secure-use-of-helpers/
+          这篇英文博客，有对该模块的介绍和使用，为了不理解错误，先记录到此。
+          　　https://www.cnblogs.com/lipengxiang2009/p/7446388.html
+          
+  另注:
+  　若启用了rpfilter功能,若需要知道内核丢弃了那些报文,可启用log_martians功能.
+  　　　echo 1 >/proc/sys/net/ipv4/conf/<interfacename>/log_martians
+
+# @https://www.cnblogs.com/lipengxiang2009/p/7446388.html
+即rp_filter参数有三个值，0、1、2，具体含义：
+0：不开启源地址校验。
+1：开启严格的反向路径校验。对每个进来的数据包，校验其反向路径是否是最佳路径。如果反向路径不是最佳路径，则直接丢弃该数据包。
+2：开启松散的反向路径校验。对每个进来的数据包，校验其源地址是否可达，即反向路径是否能通（通过任意网口），如果反向路径不同，则直接丢弃该数据包。
+
+二、rp_filter参数示例
+假设机器有2个网口:
+eth0: 192.168.1.100
+eth1：200.153.1.122
+数据包源IP：10.75.153.98，目的IP：200.153.1.122
+系统路由表配置为：
+[root@localhost ~]# route -n
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+default      192.168.1.234      0.0.0.0 　　    UG    0      0        0 eth0  
+192.168.120.0   0.0.0.0         255.255.255.0   U     0      0        0 eth0
+10.75.153.98    0.0.0.0         255.255.255.0   U     0      0        0 eth0
+系统rp_filter参数的配置为：
+[root@localhost ~]# sysctl -a | grep rp_filter
+net.ipv4.conf.all.rp_filter=1
+net.ipv4.conf.default.rp_filter=1
+　　如上所示，数据包发到了eth1网卡，如果这时候开启了rp_filter参数，并配置为1，则系统会严格校验数据包的反向路径。从路由表中可以看出，返回响应时数据包要从eth0网卡出，即请求数据包进的网卡和响应数据包出的网卡不是同一个网卡，这时候系统会判断该反向路径不是最佳路径，而直接丢弃该请求数据包。（业务进程也收不到该请求数据包）
+解决办法：
+1.修改路由表，使响应数据包从eth1出，即保证请求数据包进的网卡和响应数据包出的网卡为同一个网卡。
+2.关闭rp_filter参数。（注意all和default的参数都要改）
+1)修改/etc/sysctl.conf文件，然后sysctl -p刷新到内存。
+2)使用sysctl -w直接写入内存：sysctl -w net.ipv4.conf.all.rp_filter=0
+3)修改/proc文件系统： echo "0">/proc/sys/net/ipv4/conf/all/rp_filter
+
+三、开启rp_filter参数的作用
+1. 减少DDoS攻击
+校验数据包的反向路径，如果反向路径不合适，则直接丢弃数据包，避免过多的无效连接消耗系统资源。
+2. 防止IP Spoofing
+校验数据包的反向路径，如果客户端伪造的源IP地址对应的反向路径不在路由表中，或者反向路径不是最佳路径，则直接丢弃数据包，不会向伪造IP的客户端回复响应。
+ 
+Ps：两种常见的非法攻击手段：
+1. DDos攻击(Distribute Deny of Service)
+分布式拒绝服务攻击。通过构造大量的无用数据包向目标服务发起请求，占用目标服务主机大量的资源，还可能造成网络拥塞，进而影响到正常用户的访问。
+2. IP Spoofing（IP欺骗）
+IP Spoofing指一个客户端通过伪造源IP，冒充另外一个客户端与目标服务进行通信，从而达到某些不可告人的秘密。
+iptables_i_rpfilter
+}
+
+iptables_i_CT(){  cat - <<'iptables_i_CT'
+16. CT target模块
+-j CT [ ...] 　　 #此模块仅做了基本介绍，没做详细使用说明，
+    详细使用参考： https://home.regit.org/netfilter-en/secure-use-of-helpers/
+    注:
+    CT模块引入的背景和作用:
+    helper模块：它是解决类似于ftp这种协议，使用两个连接 singaling flow(信令流) 和 data flow(数据流)，
+        信令流用于协商配置参数，而数据流用于传输数据 的这种协议连接的匹配问题，因为iptables为
+        了解决这个问题，引入了一个3/4层参数，而它打破了OSI七层的规范，所以后来就引入了helper
+        模块来解决此问题。
+    
+    helper模块的问题:
+        它是为了解决helper模块的在iptables规则一旦引用,该helper模块将自动开始在所有接口上解析报文,
+     以便找到与指定协议相关的连接，这带来的问题就是，造成CPU和内存资源被使用过多，而且其中很多
+     连接是不需要的解析的。
+    CT target模块:
+        它是helper模块的升级版，它包含helper模块，并将其做为一个根据需要调用的功能，当匹配到我们
+    关系的流量时，才调用它，来分析该链接流量是否为相关已建立链接的数据流。
+    为了更好让helper模块工作，建议在使用前，先禁止它处理指定 anyIP:端口 上所有数据包，然后再
+    使用CT在需要时调用它:
+    　　Linux3.5以后使用以下命令来禁止:
+    　　　　modprobe   nf_conntrack nf_conntrack_helper=0 　　 #这是在使用前可操作的方法.
+    　　　　vim  /etc/modprobe.d/firewalld-sysctls.conf 　应该类似此方式.
+    　　或
+    　　　　echo 0 > /proc/sys/net/netfilter/nf_conntrack_helper 　 
+    　　　　　　#这是在装载模块后使用此方式来禁止.
+    　　　　　　#Please note that flows that already got a helper will keep using it even if automatic
+    　　　　　　　　helper assignment has been disabled.
+    　　　　　　# 请注意，已经获得助手的流将继续使用它，即使自动助手分配已被禁用。
+    
+    　　Linux3.5以下禁止帮助模块行为的方式:
+    　　　　modprobe nf_conntrack_$PROTO ports=0
+    
+    　　以下模块若禁止其处理 anyIP:port 上所有数据包后，它们将在所有流上被停用:
+    　　　　ftp, irc, sane, sip, tftp
+    
+    　　以下模块必须使用ports参数，否则无法正常工作:
+    　　　　amanda, h323, netbios_ns, pptp, snmp
+    　　　　注:
+    　　　　　若使用ports=0 这种方式禁止了指定模块，则该模块在conntrack中将被自动
+    　　　　重命名为 $PROTO-0. 所以需要手动更新CT的调用.
+    例:
+    　iptables -A PREROUTING -t raw -p tcp --dport 21 -d 2.3.4.5 -j CT --helper ftp-0
+    
+    #以下列表描述了不同的连接跟踪帮助程序模块及其相关的自由度：
+    　　Fixed: Value of a connection tracking attribute is used. This is not a candidate for forgery.
+    　　　　【使用连接跟踪属性的值。这不是伪造的候选人。】
+    　　In CMD: Value is fetched from the payload. This is a candidate for forgery.
+    　　　　【从有效负载中获取值。这是伪造的候选人。】
+    
+iptables_i_CT
+}
+
+iptables_i_rateest (){  cat - <<'iptables_i_rateest'
+-m rateest [...参数选项..]
+    例:
+    #使用以下示例来说明该模块的使用方法:
+        
+    1. 定义两个速率估算器分别叫eth0 和 ppp0，它们都以250毫秒为速率测量时间间隔，
+    允许前后误差在0.5秒内，收集eth0 和 ppp0两个接口的速率。
+    iptables -t mangle -A POSTROUTING -o eth0 -j RATEEST --rateest-name eth0 --rateest-interval 250ms --rateest-ewma 0.5s
+    iptables -t mangle -A POSTROUTING -o ppp0 -j RATEEST --rateest-name ppp0 --rateest-interval 250ms --rateest-ewma 0.5s
+
+    2. 在eth0 和 ppp0两个接口之间负载流量。
+    #若eth0这个速率估算器收集了速率为Erate0，ppp0收集的速率为Prate0
+    #则规则1：
+        Erate0 减去 2.5mbit = ECZ0 ; 若 ECZ0 为负数，则将ECZ0赋值为0，为正数,则直接赋值为差值.
+        Prate0 减去 2mbit = PCZ0 ; 标准与ECZ0一样。
+        若 ECZ0 > PCZ0 则 给流量打上标记1.
+            iptables -t mangle -A balance -m conntrack --ctstate NEW -m helper --helper ftp \
+            -m rateest --rateest-delta --rateest1 eth0 --rateest-bps1 2.5mbit \
+            --rateest-gt \
+            --rateest2 ppp0 --rateest-bps2 2mbit \
+            -j CONNMARK --set-mark 1
+            
+    #规则2 与规则1原理一样，eth0大于ppp0，则给流量打上标记2
+        iptables -t mangle -A balance -m conntrack --ctstate NEW -m helper --helper ftp \
+            -m rateest --rateest-delta --rateest1 ppp0 --rateest-bps1 2mbit \
+            --rateest-gt \
+            --rateest2 eth0 --rateest-bps2 2.5mbit \
+            -j CONNMARK --set-mark 2
+        iptables -t mangle -A balance -j CONNMARK --restore-mark
+    
+参数选项:
+    比较操作符:
+    [!] --rateest-eq 　　 #等于
+    [!] --rateest-gt 　　 #大于
+    [!] --rateest-lt 　　 #小于
+    
+    --rateest-delta　　 #指定是使用相对比较 或 绝对比较. 相对比较: 即差值比较，绝对比较， 即: 直接使用速率估算器中的值做比较.
+    --rateest name
+    --rateest-bps [value] 　　 #bps:即每秒多少bit位.
+    --rateest-pps [value] 　　 #pps:即每秒多少个数据包
+    　　例:
+    　　　#指定按bps来比较，直接使用速率估算器中的值来比较。
+    　　　　iptables -t mangle ... -m rateest --rateest-bps --rateest eth0 --rateest-gt --rateest ppp0 -j ...
+    
+    --rateest1 name
+    --rateest2 name
+    --rateest-bps1 [value]
+    --rateest-bps2 [value]
+    --rateest-pps1 [value]
+    --rateest-pps2 [value]
+    注:
+    　　速率可用单位: bit, [kmgt]bit, [KMGT]ibit, Bps, [KMGT]Bps, [KMGT]iBps.
+    　　kbit 是千bit位,这是SI标准写法,Windows支持此标准， Kibit 也是千bit位，
+    　　这是IEC标准写法,目前Linux,Unix,MacOSX都支持此种标准.
+    　　KBps 是每秒多少千字节。
+    
+Example: This is what can be used to route outgoing data connections from an FTP server over two lines based on the available bandwidth at the time the data connection was started:
+# Estimate outgoing rates
+iptables -t mangle -A POSTROUTING -o eth0 -j RATEEST --rateest-name eth0 --rateest-interval 250ms --rateest-ewma 0.5s
+iptables -t mangle -A POSTROUTING -o ppp0 -j RATEEST --rateest-name ppp0 --rateest-interval 250ms --rateest-ewma 0.5s
+
+# Mark based on available bandwidth
+iptables -t mangle -A balance -m conntrack --ctstate NEW -m helper --helper ftp -m rateest --rateest-delta --rateest1 eth0 --rateest-bps1 2.5mbit --rateest-gt --rateest2 ppp0 --rateest-bps2 2mbit -j CONNMARK --set-mark 1
+iptables -t mangle -A balance -m conntrack --ctstate NEW -m helper --helper ftp -m rateest --rateest-delta --rateest1 ppp0 --rateest-bps1 2mbit --rateest-gt --rateest2 eth0 --rateest-bps2 2.5mbit -j CONNMARK --set-mark 2
+iptables -t mangle -A balance -j CONNMARK --restore-mark  
+iptables_i_rateest
+}
+
+
+iptables_i_quota(){  cat - <<'iptables_i_quota'
+quota 模块 匹配每个ip限制流量(不会清除纪录，要刷新纪录)
+  [!] --quota quota   quota (bytes)
+    iptables -A FORWARD -i eth0 -o eth1 -p tcp --sport 80 -m quota --quota 524288000 -j ACCEPT
+    iptables -A FORWARD -i eth0 -o eth1 -p tcp --sport 80 -j DROP
+iptables_i_quota
+}
+
+iptables_i_connbytes(){  cat - <<'iptables_i_connbytes'
+connbytes 模块限制每个连接中所能传输的数据量
+ [!] --connbytes from:[to]                      # --connbytes 10:匹配10个以上的单位量 :50匹配50个一下的单位量 10:50匹配10个-50个之间的单位量
+     --connbytes-dir [original, reply, both]    #[!]--connbytes-dir original来源方向 reply应答方向 both双向
+     --connbytes-mode [packets, bytes, avgpkt]  #--connbytes-mode packets以数据包的数量来计算 bytes以数据量来计算
+iptables -A FORWARD -p tcp -d $Web_Server --dport 80 -m connbytes --connbytes-dir reply --connbytes-mode bytes --connbytes 20971520: -j DROP
+iptables_i_connbytes
+}
+
+iptables_i_statistic(){  cat - <<'iptables_i_statistic'
+statistic 模块进行比例匹配
+   --mode mode                    Match mode (random, nth)
+   random mode:
+  [!] --probability p              Probability
+   nth mode:
+  [!] --every n                    Match every nth packet
+   --packet p                      Initial counter value (0 <= p <= n-1, default 0)
+iptables -A INPUT -p icmp -m statistic --mode random --probability 0.5 -j DROP  # 以随机方式丢弃50%的数据包
+iptables -A INPUT -p icmp -m statistic --mode nth --every 10 -j DROP            #按一定规律在每10个icmp包中丢弃1个icmp包
+#--mode:random以随机方式丢弃数据包，nth按一定规律丢弃数据包
+#--probability:此参数需结合random模式使用，例如--probability 0.4 即代表丢弃40%的数据，其中的数值为0-1
+#--every此参数需结合nth模式使用，例如--every 10代表在每10个数据包中要丢弃1个数据包
+#--packet此参数需要在nth模式与--every参数结合使用，例如--every 10 --packet5
+iptables_i_statistic
+}
+
+
 iptables_i_connlimit(){  cat - <<'EOF'
-connlimit模块针对每个IP限制连接数
+connlimit模块针对每个IP限制连接数  # 连接数限定，也就是线程数，
+connlimit模块允许你限制每个客户端ip的并发连接数，即每个ip同时连接到一个服务器个数。
+connlimit模块主要可以限制内网用户的网络使用，对服务器而言则可以限制每个ip发起的连接数。
+  --connlimit-upto n     match if the number of existing connections is 0..n  # 连接的数量大于n
+  --connlimit-above n    match if the number of existing connections is >n    # 连接的数量小于等于n
+  --connlimit-mask n     group hosts using prefix length (default: max len)   # 
+  --connlimit-saddr      select source address for grouping                   # 
+  --connlimit-daddr      select destination addresses for grouping            # 
+
+使用connlimit扩展模块，可以限制每个IP地址同时链接到server端的链接数量，注意：我们不用指定IP，其默认就是针对"每个客户端IP"，即对单IP的并发连接数限制。
+
+
+[manual]
+-------------------------------------------------------------------------------- allow 2 telnet connections per client host  # 主机
+iptables -A INPUT -p tcp --syn --dport 23 -m connlimit --connlimit-above 2 -j REJECT
+-------------------------------------------------------------------------------- you can also match the other way around:    # 主机
+iptables -A INPUT -p tcp --syn --dport 23 -m connlimit --connlimit-upto 2 -j ACCEPT
+-------------------------------------------------------------------------------- limit the number of parallel HTTP requests to 16 per class C sized source network (24 bit netmask) # 地址段
+iptables -p tcp --syn --dport 80 -m connlimit --connlimit-above 16 --connlimit-mask 24 -j REJECT
+-------------------------------------------------------------------------------- limit the number of parallel HTTP requests to 16 for the link local network                        # (限定)地址段
+(ipv6) ip6tables -p tcp --syn --dport 80 -s fe80::/64 -m connlimit --connlimit-above 16 --connlimit-mask 64 -j REJECT
+-------------------------------------------------------------------------------- Limit the number of connections to a particular host:                                              # 限定目的地址
+ip6tables -p tcp --syn --dport 49152:65535 -d 2001:db8::1 -m connlimit --connlimit-above 100 -j REJECT
+
+-------------------------------------------------------------------------------- 本机的web服务器最多允许同时发起两个请求进来
+iptables -A INPUT -d 172.16.100.7 -p tcp --dport 80 -m connlimit ! --connlimit-above 2 -j ACCEPT
+#这是没达到2个就允许，所以一般要在--connlimit-above前加！号。如果不加"!"号，可改ACCEPT的状态为DROP或REJECT了
+
+[other link]
 之前有介绍Iptables下limit模块，此模块应用限制是全局的，connlimit就灵活了许多，针对每个IP做限制。
 应用示例，注意不同的默认规则要使用不同的方法。
-1.默认规则为DROP的情况下限制每个IP连接不超过10个
+-------------------------------------------------------------------------------- 1.默认规则为DROP的情况下限制每个IP连接不超过10个
 iptables -P INPUT DROP
 iptables -A INPUT -p tcp --dport 80 -m connlimit ! --connlimit-above 10 -j ACCEPT
 
-2.默认规则为ACCEPT的情况下限制每个IP连接不超过10个
+-------------------------------------------------------------------------------- 2.默认规则为ACCEPT的情况下限制每个IP连接不超过10个
 iptables -P INPUT ACCEPT
 iptables -A INPUT -p tcp --dport 80 -m connlimit --connlimit-above 10 -j DROP
+
+-------------------------------------------------------------------------------- 3.允许每个客户机同时两个telnet连接
+iptables -A INPUT -p tcp --syn --dport 23 -m connlimit --connlimit-above 2 -j REJECT
+或
+iptables -A INPUT -p tcp --syn --dport 23 -m connlimit ! --connlimit-above 2 -j ACCEPT
+
+-------------------------------------------------------------------------------- 只允许每组C类ip同时16个http连接
+iptables -p tcp --syn --dport 80 -m connlimit --connlimit-above 16 --connlimit-mask 24 -j REJECT
+
+-------------------------------------------------------------------------------- 只允许每个ip同时5个80端口转发,超过的丢弃:
+iptables -I FORWARD -p tcp --syn --dport 80 -m connlimit --connlimit-above 5 -j DROP
+
+-------------------------------------------------------------------------------- 只允许每组C类ip同时10个80端口转发:
+iptables -I FORWARD -p tcp --syn --dport 80 -m connlimit --connlimit-above 10 --connlimit-mask 24 -j DROP
+
+-------------------------------------------------------------------------------- 为了防止DOS太多连接进来,那么可以允许最多15个初始连接,超过的丢弃.
+iptables -A INPUT -s 192.186.1.0/24 -p tcp --syn -m connlimit --connlimit-above 15 -j DROP
+iptables -A INPUT -s 192.186.1.0/24 -p tcp -m state --state ESTABLISHED,RELATED -j ACCEPT
 EOF
 }
 
@@ -2559,14 +3335,15 @@ iptables -m conntrack -h
 [!] --ctstate {INVALID|ESTABLISHED|NEW|RELATED|UNTRACKED|SNAT|DNAT}[,...]     # 逗号分开的枚举值，
                                State(s) to match
 # 等同于-A INPUT -s 192.168.10.0/24 -p udp -m state --state NEW -m udp --dport 111 -j ACCEPT
-[!] --ctproto proto            Protocol to match; by number or name, e.g. "tcp" # 匹配的四层协议
-[!] --ctorigsrc address[/mask]                                                  # 接收报文的源地址
-[!] --ctorigdst address[/mask]                                                  # 接收报文的目的地址
+--ctdir {ORIGINAL|REPLY}                                                        #指定仅匹配(ORIGINAL)源或(REPLY)目的地址,默认都匹配.
+[!] --ctproto proto            Protocol to match; by number or name, e.g. "tcp" # 匹配的四层协议   tcp|udp|sctp|..四层协议.. ] 
+[!] --ctorigsrc address[/mask]                                                  # 接收报文的源地址     匹配起始方或响应方的源或目的地址
+[!] --ctorigdst address[/mask]                                                  # 接收报文的目的地址   匹配起始方或响应方的源或目的地址
 [!] --ctreplsrc address[/mask]                                                  # 发送报文的源地址
 [!] --ctrepldst address[/mask]                                                  # 发送报文的目的地址
                                Original/Reply source/destination address
-[!] --ctorigsrcport port                                                        # 接收报文源端口
-[!] --ctorigdstport port                                                        # 接收报文目的端口
+[!] --ctorigsrcport port                                                        # 接收报文源端口       匹配起始方或响应方的源或目的端口
+[!] --ctorigdstport port                                                        # 接收报文目的端口     匹配起始方或响应方的源或目的端口
 [!] --ctreplsrcport port                                                        # 发送报文源端口
 [!] --ctrepldstport port                                                        # 发送报文目的端口
                                TCP/UDP/SCTP orig./reply source/destination port
@@ -2576,6 +3353,36 @@ iptables -m conntrack -h
 [!] --ctexpire time[:time]     Match remaining lifetime in seconds against
                                value or range of values (inclusive)
     --ctdir {ORIGINAL|REPLY}   Flow direction of packet
+
+--ctstate 可用的连接状态值:
+    NEW             #新建立连接的状态
+    ESTABLISHED
+    RELATED         #与现有连接相关联的连接状态，如FTP数据传输或ICMP错误。
+    SNAT            #它是一种虚拟状态,若起始源地址与响应目标地址不匹配时，则为此连接状态.
+    DNAT            #它是一种虚拟状态,若响应源地址与起始目的地址不匹配时，则为此连接状态.
+    UNTRACKED       #没有被nf_conntrack追踪的连接状态,注:iptables -t raw .. -j CT --notrack,显式指定不追踪该报文,则会出现此连接状态.
+    INVALID         #无法识别的无效状态.
+    
+--ctstatus 可用的连接状态值:
+    NONE            #以下都不是
+    EXPECTED        #这是一个预期的连接(即conntrack helper设置过的连接)。
+    SEEN_REPLY      #Conntrack在两个方向上都看到了连接的数据包。
+    ASSURED         #Conntrack入口永远不应该提前过期。
+    confirmed       #确认连接:原始数据包已离开本机
+
+#!/bin/bash
+iptables -F
+modprobe nf_conntrack_ftp
+iptables -A INPUT -p tcp -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -p tcp -s 192.168.1.0/24 --dport 21 -m state --state NEW -j ACCEPT
+iptables -A INPUT -p tcp --dport 21 -j DROP 
+
+#!/bin/bash
+iptables -F
+modprobe nf_conntrack_ftp
+iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -m conntrack --ctproto tcp --ctorigsrc 192.168.1.0/24 --ctorigdstport 21 --ctstate NEW -j ACCEPT
+iptables -A INTPU -p tcp --dport 21 -j DROP
 
 http://lw1957625.blog.163.com/blog/static/536348852013112610234800/
 # https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt
@@ -2688,58 +3495,356 @@ iptables -t raw -A OUTPUT -p tcp --sport 80 -j NOTRACK
 EOF
 }
 
-iptables_t_recent(){ cat - <<'EOF'
+# @http://home.regit.org/wp-content/uploads/2011/11/secure-conntrack-helpers.html
+iptables_i_helper(){ cat - <<'iptables_i_helper'
+Due to protocol constraints, not all helpers are equal. For example, 
+the FTP helper will create an expectation whose IP parameters are the two peers.
+The IRC helper creates expectations whose destination address is the client address and source address is any address. 
+This is due to the protocol: we do not know the IP address of the person who is the target of the DCC.
 
+The degree of freedom due to connection tracking helpers are therefore dependent on the nature of the protocol. 
+Some protocols have dangerous extensions, and these are disabled by default by Netfilter. 
+The user has to pass an option during loading of the module to enable this dangerous protocol features.
+For example, the FTP protocol can let the user choose to have the target server connect to another arbitrary server. 
+This could lead to a hole in the DMZ and it is therefore deactivated by default. To enable it, you've got to pass the loose option with the 1 value.
+
+The following list describes the different connection tracking helper modules and their associated degree of freedom:
+Module           Source address   Source Port   Destination address   Destination port   Protocol     Option
+amanda           Fixed            0-65535       Fixed                 In CMD             TCP           
+ftp              Fixed            0-65535       In CMD                In CMD             TCP          loose = 0 (default)
+ftp              Full             0-65535       In CMD                In CMD             TCP          loose = 1
+h323             Fixed            0-65535       Fixed                 In CMD             UDP          
+h323 q931        Fixed            0-65535       In CMD                In CMD             UDP          
+irc              Full             0-65535       Fixed                 In CMD             TCP          
+netbios_ns       Iface Network    Fixed         Fixed                 Fixed              UDP          
+pptp             Fixed            In CMD        Fixed                 In CMD             GRE          
+sane             Fixed            0-65535       Fixed                 In CMD             TCP          
+sip rtp_rtcp     Fixed            0-65535       Fixed                 In CMD             UDP          sip_direct_media = 1 (default)
+sip rtp_rtcp     Full             0-65535       In CMD                In CMD             UDP          sip_direct_media = 0
+sip signalling   Fixed            0-65535       Fixed                 In CMD             In CMD       sip_direct_signalling = 1 (default)
+sip signalling   Full             0-65535       In CMD                In CMD             In CMD       sip_direct_signalling = 0
+tftp             Fixed            0-65535       Fixed                 In Packet          UDP
+
+The following keywords are used:
+    Fixed:  Value of a connection tracking attribute is used. This is not a candidate for forgery.
+    In CMD: Value is fetched from the payload. This is a candidate for forgery.
+    
+-------------------------------------------------------------------------------- Example: FTP helper
+For example, if you run an FTP server, you can setup
+iptables -A FORWARD -m conntrack --ctstate RELATED -m helper \
+       --helper ftp -d $MY_FTP_SERVER -p tcp \
+       --dport 1024: -j ACCEPT
+
+If your clients are authorized to access FTP outside of your network, you can add
+iptables -A FORWARD -m conntrack --ctstate RELATED -m helper \
+       --helper ftp -o $OUT_IFACE -p tcp \
+       --dport 1024: -j ACCEPT
+iptables -A FORWARD -m conntrack --ctstate RELATED -m helper \
+       --helper ftp -i $OUT_IFACE -p tcp \
+       --dport 1024: -j ACCEPT
+       
+The same syntax applies to IPV6
+ip6tables -A FORWARD -m conntrack --ctstate RELATED -m helper \
+       --helper ftp -o $OUT_IFACE -p tcp \
+       --dport 1024: -j ACCEPT
+ip6tables -A FORWARD -m conntrack --ctstate RELATED -m helper \
+       --helper ftp -i $OUT_IFACE -p tcp \
+       --dport 1024: -j ACCEPT
+
+-------------------------------------------------------------------------------- Example: SIP helper
+You should limit the RELATED connection due to the SIP helper by restricting the destination address to the RTP server farm of your provider
+iptables -A FORWARD -m conntrack --ctstate RELATED -m helper \
+       --helper sip -d $ISP_RTP_SERVER -p udp -j ACCEPT
+
+-------------------------------------------------------------------------------- Example: h323 helper
+The issue is the same as the one described for SIP, you should limit the opening of the RELATED connection to the RTP server addresses of your VOIP provider.
+
+-------------------------------------------------------------------------------- Using the CT target to refine security
+One classic problem with helpers is the fact that helpers listen on predefined ports. If a service does not run on standard port, it is necessary to declare it. 
+For example, let's say we have a FTP server on IP address 1.2.3.4 running on port 2121.
+To declare it, we can simply do
+iptables -A PREROUTING -t raw -p tcp --dport 2121 \
+       -d 1.2.3.4 -j CT --helper ftp
+
+-------------------------------------------------------------------------------- Method
+Since Linux 3.5, it is possible to desactivate the automatic conntrack helper assignment. This can be done when loading the nf_conntrack module
+modprobe nf_conntrack nf_conntrack_helper=0
+This can also be done after the module is loading by using a /proc entry
+
+echo 0 > /proc/sys/net/netfilter/nf_conntrack_helper
+Please note that flows that already got a helper will keep using it even if automatic helper assignment has been disabled.
+
+For older kernel, it is possible to obtain this behavior for most connection tracking helper modules by setting the port number for the module to 0. For example
+modprobe nf_conntrack_$PROTO ports=0
+
+By doing this, the following modules will be deactivated on all flows by default:
+ftp
+irc
+sane
+sip
+tftp
+Due to the absence of a "ports" parameter, some modules will not work:
+amanda
+h323
+netbios_ns
+pptp
+snmp
+Please note, this will cause a renaming of the conntrack helper which will be named $PROTO-0. The CT rules must then be updated to reflect this change. 
+For example, if the option has been used for the ftp helper, one should use
+iptables -A PREROUTING -t raw -p tcp --dport 21 \
+       -d 2.3.4.5 -j CT --helper ftp-0
+
+-------------------------------------------------------------------------------- Using rpfilter module
+iptables -A PREROUTING -t raw -m rpfilter --invert -j DROP
+ip6tables -A PREROUTING -t raw -m rpfilter --invert -j DROP
+
+-------------------------------------------------------------------------------- Using rp_filter
+To activate it, you need to ensure that /proc/sys/net/ipv4/conf/*/rp_filter files contain 1. 
+rp_filter - INTEGER
+   0 - No source validation.
+   1 - Strict mode as defined in RFC3704 Strict
+       Reverse Path. Each incoming packet is
+       tested against the FIB and if the interface
+       is not the best reverse path the packet
+       check will fail. By default, failed packets
+       are discarded.
+   2 - Loose mode as defined in RFC3704 Loose
+       Reverse Path. Each incoming packet's source
+       address is also tested against the FIB
+       and if the source address is not reachable
+       via any interface, the packet check will fail.
+
+-------------------------------------------------------------------------------- Manual anti-spoofing
+The best way to do anti-spoofing is to use filtering rules in the RAW table. This has the great advantage of bypassing the connection tracking and helps to reduce the load that could be created by some flooding.
+    Anti-spoofing must be done on a per-interface basis. For each interface, we must list the authorized network on the interface. There is an exception, 
+which is the interface with the default route where an inverted logic must be used. In our example, let us take eth1, which is a LAN interface, 
+and have eth0 being the interface with the default route. Let's also have $NET_ETH1 being the network connected to $ETH1 and $ROUTED_VIA_ETH1 
+a network routed by this interface. With this setup, we can do anti-spoofing with the following rules
+
+iptables -A PREROUTING -t raw -i eth0 -s $NET_ETH1 -j DROP
+iptables -A PREROUTING -t raw -i eth0 -s $ROUTED_VIA_ETH1 -j DROP
+iptables -A PREROUTING -t raw -i eth1 -s $NET_ETH1 -j ACCEPT
+iptables -A PREROUTING -t raw -i eth1 -s $ROUTED_VIA_ETH1 -j ACCEPT
+iptables -A PREROUTING -t raw -i eth1 -j DROP
+The IPv6 case is similar if we omit the case of the local link network
+ip6tables -A PREROUTING -t raw -i eth0 -s $NET_ETH1 -j DROP
+ip6tables -A PREROUTING -t raw -i eth0 -s $ROUTED_VIA_ETH1 -j DROP
+ip6tables -A PREROUTING -t raw -s fe80::/64 -j ACCEPT
+ip6tables -A PREROUTING -t raw -i eth1 -s $NET_ETH1 -j ACCEPT
+ip6tables -A PREROUTING -t raw -i eth1 -s $ROUTED_VIA_ETH1 -j ACCEPT
+iptables_i_helper
+}
+
+
+iptables_i_recent(){ cat - <<'iptables_i_recent'
+recent模块可以看作iptables里面维护了一个地址列表，这个地址列表可以通过"–set"、"–update"、"–rcheck"、"–remove"四种方法来修改列表，每次使用时只能选用一种。
+还可附带"–name"参数来指定列表的名字(默认为DEFAULT)，"–rsource"、"–rdest"指示当前方法应用到数据包的源地址还是目的地址(默认是前者)。
+
+recent语句都带有布尔型返回值，每次执行若结果为真，则会执行后续的语句，比如"-j ACCEPT"之类的。
+
+对于实现前面提到的功能，还需要额外的参数。"–second"限制包地址被记录进列表的时间要小于等于后面的时间。另外，还有"–hitcount"、"–rttl"，
+  –set将地址添加进列表，并更新信息，包含地址加入的时间戳。
+  –rcheck检查地址是否在列表。
+  –update跟rcheck一样，但会刷新时间戳。
+  –remove就是在列表里删除地址，如果要删除的地址不存在就会返回假。
+
+recent模块维护了一个IP地址薄，通过匹配条件满足后，记录源IP(--resource) 或 目的IP(--rdest),形成IP列表，这样就可以引用此IP列表，将其定义为白名单 或 黑名单。 
+此模块还通过 --update 参数来更新last_seen 同时再执行--rcheck的动作，而--remove则是再条件匹配后，在IP列表中删除此次连接的IP，这样就完成了对IP列表的增删查改。
+
+-m recent [ --name IP地址薄文件名 [ --set [ --rsource | --rdest ] ] ] [ --rttl ] \
+            [ --seconds 记录有效时间 [ --hitcount 命中次数 ] [ --rcheck | --update ] ] \
+            [ --remove ]
+    参数说明:
+        --name IP地址薄文件名 ： 创建一个指定名称的IP地址薄文件.【创建】
+        --set --rsource | --rdest ： 将匹配连接的源IP 或 目的IP记录到 IP地址薄中。【增】
+        --remove： 查询IP列表中是否存在此次连接的IP，若存在则删除。 【删】
+        --update： 先执行 --rcheck ，后更新last_seen 的值。【改】
+        --rcheck： 及查询IP列表中是否存在此次连接的IP 【查】
+        --seconds 记录有效时间 ： 查询IP列表中是否存在此次连接的IP，若存在则检查其对应的last_seen的时间戳，是否已经超过 “记录有效时间”了。单位：秒
+        --hitcount 命中次数： 它通常和 --seconds X 一起使用，表示在 X 秒内允许一个IP连接多少次
+        --rttl 表示同时匹配IP包的TTL，
+补充说明：
+　　echo +1.1.1.1 > /proc/net/xt_recent/SSHAccess #向IP列表中手动添加记录
+　　echo -1.1.1.1 > /proc/net/xt_recent/SSHAccess #从IP列表中手动删除记录
+　　echo / > /proc/net/xt_recent/SSHAccess #清空IP列表
+
+　　ip_list_tot=100 　　 #recent模块的IP地址薄最多记录100条记录
+　　　　　　　　　　　　Number of addresses remembered per table.
+　　ip_pkt_list_tot=20 　　 #记录每个IP的数据包总数为20个
+　　　　　　　　　　　　Number of packets per address remembered.
+　　ip_list_hash_size=0
+　　　　　　　　Hash table size. 0 means to calculate it based on ip_list_tot, default: 512.
+　　ip_list_perms=0644 　　 #默认创建IP地址薄的权限
+　　　　　　　　　　　　　　Permissions for /proc/net/xt_recent/* files.
+　　ip_list_uid=0 　　　　　 #IP地址薄的用户UID
+　　　　　　　　　　　　　　Numerical UID for ownership of /proc/net/xt_recent/* files.
+　　ip_list_gid=0 　　 #GID  #Numerical GID for ownership of /proc/net/xt_recent/* files.
+-------------------------------------------------------------------------------- icmp触发ssh服务
+例如：
+    iptables -A INPUT -p icmp --icmp-type echo-request -m length --length 78 -m recent --set --name AdminSSH --rsource -j ACCEPT
+    注：
+此语句的功能是，若匹配到ping包的大小为78字节，则满足记录recent的条件，此时iptables将记录被匹配的IP报文
+的源IP 到/proc/net/xt_recent/AdminSSH 文件中.
+    iptables -A INPUT -p tcp --dport 22 --syn -m recent --rcheck --seconds 15 --name AdminSSH --rsource -j ACCEPT
+    注：
+此语句的功能是，若匹配到目标端口为22，并且是新建了TCP连接，则满足检查recent记录文件的条件，此时iptables
+将去检查/proc/net/xt_recent/AdminSSH文件中是否有 此次连接的源IP存在，若有则检查此源IP的
+last_seen(即:最后一次记录的时间戳)，若此时间戳 和当前时间对比，若在15秒内，则允许此源IP访问目的端口22.
+
+-------------------------------------------------------------------------------- tcp触发ssh服务
+参考完整示例：
+　　#记录前缀SSHAccess的日志:
+　　　　iptables -A INPUT -p tcp --dport 50001 --syn -j LOG --log-prefix "SSHAccess: "
+
+　　#符合规则，则创建SSHAccess IP地址薄，并重置TCP连接，记录源IP。
+　　　　iptables -A INPUT -p tcp --dport 50001 --syn -m recent --set --name SSHAccess --rsource \
+　　　　　　　　--rttl -j REJECT --reject-with tcp-reset
+
+　　#开启SSH端口，15秒内允许刚刚连接TCP50001的源IP登录SSH。
+　　　　iptables -A INPUT -p tcp --dport 22 --syn -m recent --rcheck --seconds 15 --name SSHAccess \
+　　　　　　　　--rsource -j ACCEPT
+
+　　#符合规则后，删除SSHAccess列表内的本次连接的源IP记录
+　　　　iptables -A INPUT -p tcp --dport 50002 --syn -m recent --remove --name webpool --rsource \
+　　　　　　　　-j REJECT --reject-with tcp-reset
+
+　　　　iptables -A INPUT -j DROP
+
+　　通过一些方式连接一次，即可开启SSH
+　　　　nc host 50001
+　　　　telnet host 50001
+　　　　nmap -sS host 50001
+-------------------------------------------------------------------------------- 限制每ip在一分钟内最多对服务器只能有8个http连接
+iptables -I INPUT -p tcp --dport 80 -d 172.23.4.96  -m conntrack --ctstate NEW -m recent --name httpuser --set -j ACCEPT
+iptables -A INPUT -m recent --update --name httpuser --seconds 60 --hitcount 9 -j LOG --log-prefix 'HTTP attack: '
+iptables -A INPUT -m recent --update --name httpuser --seconds 60 --hitcount 9 -j DROP
+1. -I，将本规则插入到 INPUT 链里头的最上头。只要是 TCP连接，目标端口是80，目标 IP是我们服务器的IP，刚刚新被建立起来时，我们就将这个联机列入 httpuser 这分清单中；
+2. -A，将本规则附在 INPUT 链的最尾端。只要是60秒内，同一个来源连续产生多个联机，到达第9个联机时，我们对此联机留下Log记录。记录行会以 HTTP attack 开头。每一次的本规则比对， –update 均会更新httpuser清单中的列表；
+3. -A，将本规则附在 INPUT 链的最尾端。同样的比对条件，但是本次的动作则是将此连接丢掉；
+
+iptables_i_recent
+}
+
+# @https://github.com/trimstray/iptables-essentials
+iptables_t_recent(){ cat - <<'iptables_t_recent'
 允许您动态地创建一个IP地址列表，然后以几种不同的方式与该列表进行匹配。
-例如，你可以创建一个 "badguy "列表，将试图连接到防火墙上139端口的人排除在外，然后不加考虑地DROP所有来自他们的未来数据包。
- 
+For example, you can create a "badguy" list out of people attempting to connect to port 139 on your firewall and then DROP all future packets from them without considering them.
+例如，      您可以创建一个"badguy"列表，列出尝试连接到防火墙上的端口 139 的人，                                  然后在不考虑它们的情况下从他们身上删除所有未来的数据包。
+iptables -A FORWARD -m recent --name badguy --rcheck --seconds 60 -j DROP
+iptables -A FORWARD -p tcp -i eth0 --dport 139 -m recent --name badguy --set -j DROP
+
 recent这个模块很有趣，善加利用可充分保证您服务器安全。
 设定常用参数：
 #http://www.haiyun.me
---name      #设定列表名称，默认DEFAULT。
---rsource   #源地址，此为默认。
---rdest     #目的地址
---seconds   #指定时间内
---hitcount  #命中次数
---set       #将地址添加进列表，并更新信息，包含地址加入的时间戳。
---rcheck    #检查地址是否在列表，以第一个匹配开始计算时间。
---update    #和rcheck类似，以最后一个匹配计算时间。
---remove    #在列表里删除相应地址，后跟列表名称及地址。
+--name      # 设定列表名称，默认DEFAULT。                             # 设置跟踪数据库的文件名
+--rsource   # 源地址，此为默认。                                      # 
+--rdest     # 目的地址                                                # 
+--seconds   # 指定时间内                                              # seconds当事件发生时，只会匹配数据库中前"几秒"内的记录，--seconds必须与--rcheck或--update参数共用
+--hitcount  # 命中次数                                                # hits匹配重复发生次数，必须与--rcheck或--update参数共用
+使用时，这将缩小匹配范围，仅在地址在列表中且已收到大于或等于给定值的数据包时才能发生匹配。
+此选项可以与--seconds 一起用于创建更窄的匹配，需要在特定时间范围内进行一定数量的命中。
+命中计数参数的最大值由xt_recent内核模块的"ip_pkt_list_tot"参数给出。在命令行上超过此值将导致规则被拒绝。
 
-示例：
-1.限制80端口60秒内每个IP只能发起10个新连接，超过记录日记及丢失数据包，可防CC及非伪造IP的syn flood。
+[!]--set       # 将地址添加进列表，并更新信息，包含地址加入的时间戳。 # 将符合条件的来源数据添加到数据库中，但如果来源端数据已经存在，则更新数据库中的记录信息  总是返回true
+[!]--rcheck    # 检查地址是否在列表，以第一个匹配开始计算时间。       # 只进行数据库中信息的匹配，并不会对已存在的数据做任何变更操作                            在列表返回true;否则返回false
+[!]--update    # 和rcheck类似，以最后一个匹配计算时间。               # 如果来源端的数据已存在，则将其更新；若不存在，则不做任何处理                            在列表返回true;否则返回false
+[!]--remove    # 在列表里删除相应地址，后跟列表名称及地址。           # 如果来源端数据已存在，则将其删除，若不存在，则不做任何处理                              在列表返回true;否则返回false
+
+示例：# http://www.haiyun.me
+-------------------------------------------------------------------------------- 1.限制80端口60秒内每个IP只能发起10个新连接，超过记录日记及丢失数据包，可防CC及非伪造IP的syn flood
 iptables -A INPUT -p tcp --dport 80 --syn -m recent --name webpool --rcheck --seconds 60 --hitcount 10 -j LOG --log-prefix 'DDOS:' --log-ip-options
 iptables -A INPUT -p tcp --dport 80 --syn -m recent --name webpool --rcheck --seconds 60 --hitcount 10 -j DROP
 iptables -A INPUT -p tcp --dport 80 --syn -m recent --name webpool --set -j ACCEPT
 
 备忘：每个IP目标端口为80的新连接会记录在案，可在/proc/net/xt_recent/目录内查看，rcheck检查此IP是否在案及请求次数，如果超过规则就丢弃数据包，否则进入下条规则并更新列表信息。
-2.发送特定指定执行相应操作，按上例如果自己IP被阻止了，可设置解锁哦。
-#http://www.haiyun.me
+
+-------------------------------------------------------------------------------- 1.2发送特定指定执行相应操作，按上例如果自己IP被阻止了，可设置解锁哦。
 iptables -A INPUT -p tcp --dport 5000 --syn -j LOG --log-prefix "WEBOPEN: "
 #记录日志，前缀WEBOPEN:
 iptables -A INPUT -p tcp --dport 5000 --syn -m recent --remove --name webpool --rsource -j REJECT --reject-with tcp-reset
 #符合规则即删除webpool列表内的本IP记录
 
-3.芝麻开门，默认封闭SSH端口，为您的SSH服务器设置开门暗语。
-iptables -A INPUT -p tcp --dport 50001 --syn -j LOG --log-prefix "SSHOPEN: "
-#记录日志，前缀SSHOPEN:
-iptables -A INPUT -p tcp --dport 50001 --syn -m recent --set --name sshopen --rsource -j REJECT --reject-with tcp-reset
-#目标端口tcp50001的新数据设定列表为sshopen返回TCP重置，并记录源地址。
-iptables -A INPUT -p tcp --dport 22 --syn -m recent --rcheck --seconds 15 --name sshopen --rsource -j ACCEPT
-#开启SSH端口，15秒内允许记录的源地址登录SSH。
-nc host 50001  #开门钥匙
-telnet host 50001
-nmap -sS host 50001
+-------------------------------------------------------------------------------- 2. 限制无法ssh直接连接服务器，需先用较大包ping一下，此时在15秒内才可以连接上： @测试通过
+iptables -P INPUT DROP
+iptables -A INPUT -s 127.0.0.1/32 -j ACCEPT
+iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -A INPUT -p icmp --icmp-type 8 -m length --length 128 -m recent --set --name SSHOPEN --rsource -j ACCEPT
+iptables -A INPUT -p icmp --icmp-type 8 -j ACCEPT
+iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --rcheck --seconds 15 --name SSHOPEN --rsource -j ACCEPT # 在15秒内使用ssh连接，才能正常连接
 
-指定端口容易被破解密钥，可以使用ping指定数据包大小为开门钥匙。
-iptables -A INPUT -p icmp --icmp-type 8 -m length --length 78 -j LOG --log-prefix "SSHOPEN: "
-#记录日志，前缀SSHOPEN:
-iptables -A INPUT -p icmp --icmp-type 8 -m length --length 78 -m recent --set --name sshopen --rsource -j ACCEPT
-#指定数据包78字节，包含IP头部20字节，ICMP头部8字节。
-iptables -A INPUT -p tcp --dport 22 --syn -m recent --rcheck --seconds 15 --name sshopen --rsource -j ACCEPT
-ping -s 50 host #Linux下解锁
-ping -l 50 host #Windows下解锁
-EOF
+1. 将INPUT链默认策略置为DROP，当包走完INPUT链而没被拿走时就会丢弃掉；
+2. 本地localhost的包全部接受；
+3. 对于已建立连接或是与已连接相关的包都接受，服务器对外连接回来的包一般都走这条；基本环境已经配好了，现在开始要为连接到服务器的ssh打开通路。
+4. icmp类型8是ping包；指定包大小为128字节；recent用的列表名称为SSHOPEN，列表记录源地址。符合上述条件的数据包都接收。如果ping包内容为100字节，则加上IP头、ICMP头的28字节，总共128字节。
+5. 接受一般的ping包；
+6. 对连接ssh 22端口的连接进行处理，来源于SSHOPEN源地址列表并且在列表时间小于等于15秒的才放行。
+测试：
+无法ssh直接连接服务器，使用"ping -l 100 服务器ip"后，15秒内就可以ssh连接服务器了。
+
+-------------------------------------------------------------------------------- 3. 对连接到本机的SSH连接进行限制，每个IP每小时只限连接2次
+iptables -P INPUT ACCEPT
+iptables -A INPUT -p tcp --dport 22  -m conntrack --ctstate NEW -m recent --name SSHPOOL --rcheck --seconds 3600 --hitcount 2 -j DROP
+iptables -A INPUT -p tcp --dport 22  -m conntrack --ctstate NEW -m recent --name SSHPOOL --set -j ACCEPT
+
+-------------------------------------------------------------------------------- 4. 在60秒内发送icmp接收6次后drop，下一分钟可以再处理6个报文 (-A/-I顺序相反) @测试通过
+iptables -I INPUT -p icmp --icmp-type 8 -m recent --set --name icmp_db
+iptables -I INPUT -p icmp --icmp-type 8 -m recent --name icmp_db --rcheck --second 60 --hitcount 6 -j DROP
+cat /proc/net/xt_recent/icmp_db
+modprobe xt_recent ip_list_tot=1024 ip_pkt_list_tot=50
+#ip_list_tot设置ip上限条数，默认100
+#ip_pkt_list_tot设置数据存储空间，默认20
+
+-------------------------------------------------------------------------------- 4.SSH brute-force protection
+iptables -A INPUT -p tcp --dport ssh -m conntrack --ctstate NEW -m recent --set
+iptables -A INPUT -p tcp --dport ssh -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 10 -j DROP
+
+-------------------------------------------------------------------------------- Maintaining a List of recent Connections to Match Against
+iptables -A FORWARD -m recent --name portscan --rcheck --seconds 100 -j DROP
+iptables -A FORWARD -p tcp -i eth0 --dport 443 -m recent --name portscan --set -j DROP
+
+-------------------------------------------------------------------------------- Blocking portscan 
+# Attempt to block portscans
+# Anyone who tried to portscan us is locked out for an entire day.
+iptables -A INPUT   -m recent --name portscan --rcheck --seconds 86400 -j DROP
+iptables -A FORWARD -m recent --name portscan --rcheck --seconds 86400 -j DROP
+
+# Once the day has passed, remove them from the portscan list
+iptables -A INPUT   -m recent --name portscan --remove
+iptables -A FORWARD -m recent --name portscan --remove
+
+# These rules add scanners to the portscan list, and log the attempt.
+iptables -A INPUT   -p tcp -m tcp --dport 139 -m recent --name portscan --set -j LOG --log-prefix "Portscan:"
+iptables -A INPUT   -p tcp -m tcp --dport 139 -m recent --name portscan --set -j DROP
+
+iptables -A FORWARD -p tcp -m tcp --dport 139 -m recent --name portscan --set -j LOG --log-prefix "Portscan:"
+iptables -A FORWARD -p tcp -m tcp --dport 139 -m recent --name portscan --set -j DROP
+
+-------------------------------------------------------------------------------- Makes iptables wait 15 seconds between new connections from the same IP on port 22 (SSH):
+iptables -A INPUT -p tcp -i eth0 -m state --state NEW --dport 22 -m recent --update --seconds 15 -j DROP
+iptables -A INPUT -p tcp -i eth0 -m state --state NEW --dport 22 -m recent --set -j ACCEPT
+
+-------------------------------------------------------------------------------- Putting it all together: SSH brute-force defense
+-A INPUT -i eth+ -p tcp --dport ssh -j SSH
+-A SSH -m set --match-set ssh_loggedon src -j ACCEPT
+-A SSH -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A SSH -m conntrack --ctstate NEW -m recent --set --name tarpit
+-A SSH -m conntrack --ctstate NEW -m recent --rcheck --seconds 120 --hitcount 3 --name tarpit -j SET --add-set ssh_dynblock src --exist
+-A SSH -m set --match-set ssh_dynblock src -j REJECT
+iptables_t_recent
+}
+
+iptables_t_recent_22_ddos(){ cat - <<'iptables_t_recent_22_ddos'
+ssh远程连接
+iptables -I INPUT -p tcp --dport 22 -m connlimit --connlimit-above 3 -j DROP
+# --set记录数据包的来源IP，如果IP已经存在将更新已经存在的条目
+iptables -I INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name SSH    # 记录访问tcp22端口的新连接，记录名为SSH。
+iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --name SSH --second 300 --hitcount 3 -j LOG --log-prefix "SSH Attack"
+# --update是指每次建立连接都更新列表；--seconds必须与--rcheck或者--update同时使用；--hitcount必须与--rcheck或者--update同时使用
+iptables -I INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --seconds 300 --hitcount 3 --name SSH -j DROP # SSH记录中的IP，300s内发起超过3次连接则拒绝此IP的连接。
+#利用connlimit模块将单IP的并发设置为3，会误杀使用NAT上网的用户，可以根据实际情况增大该值
+#利用recent和state模块限制单IP在300s内只能与本机建立3个新连接，被限制五分钟后即可恢复访问
+
+iptables_t_recent_22_ddos
 }
 
 iptables_i_netfilter_PREROUTING_INPUT(){ cat - <<'EOF'
@@ -2834,11 +3939,36 @@ match:
     -m ttl -ttl-lt 12 -j LOG -log-prefix "IPT TTL<12 "
     -m condition match a flag changeable from userspace
     -m geoip match on countries
-    
 EOF
 }
 
-iptables_i_FAQ_REDIRECT_DNAT(){ cat - <<'EOF'
+iptables_i_FAQ_conntrack_vs_state(){ cat - <<'iptables_i_FAQ_conntrack_vs_state'
+iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+-m conntrack --ctstate和-m state --state？
+
+1.  conntrack扩展名已被取代state。
+Obsolete extensions:
+• -m state: replaced by -m conntrack
+2. 关于状态和策略的防火墙问题的 SF问题与解答。OP在＃iptables @ freenode中声称在IRC上问了这个问题。在讨论之后，他得出以下结论：
+从技术上讲，conntrack匹配取代了状态匹配(因此过时了)。但是实际上，状态匹配不会以任何方式被淘汰。
+3. -m state 和-m conntrack有什么区别？
+两者都在下面使用相同的内核内部结构(连接跟踪子系统)。
+xt_conntrack.c的标题：
+xt_conntrack - Netfilter module to match connection tracking
+information. (Superset of Rusty's minimalistic state match.)
+因此，我想说的是-状态模块更简单(并且可能更少出错)。内核中的时间也更长。另一侧的Conntrack具有更多选项和功能[1]。
+非常有用，例如"-m conntrack --ctstate DNAT -j MASQUERADE" 路由/ DNAT修复；-)
+4. The "state" extension is a subset of the "conntrack" module.
+因此，state是conntrack的一部分，如果您只需要--state而不是conntrack的更高级功能，则它只是它的简单版本
+
+    The conntrack match is an extended version of the state match, which makes it possible to match packets in a much more granular way. 
+It let's you look at information directly available in the connection tracking system, without any "frontend" systems, such as in the state match. 
+For more information about the connection tracking system, take a look at the The state machine chapter.
+iptables_i_FAQ_conntrack_vs_state
+}
+
+iptables_i_FAQ_REDIRECT_DNAT(){ cat - <<'iptables_i_FAQ_REDIRECT_DNAT'
 环境：WAN(eth0), LAN(eth1)
 iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 80 -j REDIRECT --to 3128
 iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 80 -j DNAT --to 172.16.11.1:3128
@@ -2847,6 +3977,7 @@ iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 3389 -j DNAT --to 172.16.11
 DNAT 的功能更强大
 
 iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 8080
+iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 80 -j REDIRECT --to-port 3128
 在指定TCP或UDP协议的前提下，定义目的端口，方式如下：
 1、不使用这个选项，目的端口不会被改变。
 2、指定一个端口，如--to-ports 8080
@@ -2854,17 +3985,56 @@ iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 8080
 
 在防火墙所在的机子内部转发包或流到另一个端口.
 注意，它只能用在nat表的PREROUTING、OUTPUT链和被它们调用的自定义链里。
-EOF
+
+[DNAT]  nat表的PREROUTING链和OUTPUT链有效   仅在tcp, udp, dccp or sctp协议有效
+--to-destination [ipaddr[-ipaddr]][:port[-port]]  可以多条:实现负载均衡的功能 (>= 2.6.11-rc1 后多条功能不再提供)
+--random                                          
+--persistent                                      
+如果端口port没有指定，则端口不变化
+如果地址ipaddr没有指定，则地址不变化
+
+## Change destination addresses to 5.6.7.8
+# iptables -t nat -A PREROUTING -i eth0 -j DNAT --to 5.6.7.8
+
+## Change destination addresses to 5.6.7.8, 5.6.7.9 or 5.6.7.10.
+# iptables -t nat -A PREROUTING -i eth0 -j DNAT --to 5.6.7.8-5.6.7.10
+
+## Change destination addresses of web traffic to 5.6.7.8, port 8080.
+# iptables -t nat -A PREROUTING -p tcp --dport 80 -i eth0 -j DNAT --to 5.6.7.8:8080
+
+-------------------------------------------------------------------------------- Load Balancing with nth*
+_ips=("172.31.250.10" "172.31.250.11" "172.31.250.12" "172.31.250.13")
+
+for ip in "${_ips[@]}" ; do
+  iptables -A PREROUTING -i eth0 -p tcp --dport 80 -m state --state NEW -m nth --counter 0 --every 4 --packet 0 \
+    -j DNAT --to-destination ${ip}:80
+done
+
+-------------------------------------------------------------------------------- Load Balancing with random*
+_ips=("172.31.250.10" "172.31.250.11" "172.31.250.12" "172.31.250.13")
+
+for ip in "${_ips[@]}" ; do
+  iptables -A PREROUTING -i eth0 -p tcp --dport 80 -m state --state NEW -m random --average 25 \
+    -j DNAT --to-destination ${ip}:80
+done
+iptables_i_FAQ_REDIRECT_DNAT
 }
 
-iptables_i_FAQ_MASQUERADE_SNAT(){ cat - <<'EOF'
+iptables_i_FAQ_MASQUERADE_SNAT(){ cat - <<'iptables_i_FAQ_MASQUERADE_SNAT'
+echo "1" > /proc/sys/net/ipv4/ip_forward
+iptables -t nat -A POSTROUTING -o $EXT_IFACE -j MASQUERADE
+
+[正面]
 iptables -t nat -s 172.16.11.0/24 -o eth0 -j MASQUERADE
 iptables -t nat -s 172.16.11.0/24 -o eth0 -j SNAT --to 123.123.123.123
 iptables -t nat -s 172.16.11.0/24 -o eth0 -j SNAT --to 123.123.123.1-123.123.123.10
 结论：MASQUERADE 自动根据路由选择出口
-SNAT 适用于固定
-IP 的环境，负载小
+SNAT 适用于固定IP的环境，负载小
 SNAT 可实现地址面积映射
+
+[反面]
+iptables -t nat -A POSTROUTING -s LocalNet ! -d LocalNet -j SNAT --to-source ExtIP  # 外网IP固定
+iptables -t nat -A POSTROUTING -s LocalNET ! -d LocalNet -j MASQUERADE              # 外网IP经常变化
 
 MASQUERADE是被专门设计用于那些动态获取IP地址的连接的。
 如果你有固定的IP地址，还是用SNAT target
@@ -2872,7 +4042,30 @@ MASQUERADE是被专门设计用于那些动态获取IP地址的连接的。
 在指定TCP或UDP的前提下，设置外出包能使用的端口，方式 是单个端口，如--to-ports 1025，或者是端口范围，
 如--to-ports 1024-3000。注意，在指定范围时要使用连字号。这改变了SNAT中缺省的端口选择，
 iptables -t nat -A POSTROUTING -p TCP -j MASQUERADE --to-ports 1024-31000
-EOF
+
+[MASQUERADE] 仅在nat表的POSTROUTING链有效  仅在tcp, udp, dccp or sctp协议有效 见 iptables_i_nat 节
+--to-ports port[-port]   仅在tcp, udp, dccp or sctp.协议下有效
+--random                 端口随机
+--random-fully           
+
+## Masquerade everything out ppp0.
+# iptables -t nat -A POSTROUTING -o ppp0 -j MASQUERADE
+
+[SNAT]      仅在nat表的POSTROUTING链和INPUT链有效 仅在tcp, udp, dccp or sctp协议有效
+--to-source [ipaddr[-ipaddr]][:port[-port]] 
+--random
+--random-fully
+--persistent
+
+## Change source addresses to 1.2.3.4.
+# iptables -t nat -A POSTROUTING -o eth0 -j SNAT --to 1.2.3.4
+
+## Change source addresses to 1.2.3.4, 1.2.3.5 or 1.2.3.6
+# iptables -t nat -A POSTROUTING -o eth0 -j SNAT --to 1.2.3.4-1.2.3.6
+
+## Change source addresses to 1.2.3.4, ports 1-1023
+# iptables -t nat -A POSTROUTING -p tcp -o eth0 -j SNAT --to 1.2.3.4:1-1023
+iptables_i_FAQ_MASQUERADE_SNAT
 }
 
 iptables_i_FAQ_handler_j_g(){ cat - <<'EOF'
@@ -2936,6 +4129,15 @@ iptables -A FORWARD -m state --state NEW -p tcp ! --syn -j LOG -log-prefix "BAD 
 iptables -A FORWARD -m state --state NEW -p tcp ! --syn -j DROP
 结论：LOG 需占用一定负载，尽量不写硬盘
 如须记录，尽量少记，否则雪上加霜
+
+# 使用LOG动作，可以将符合条件的报文的相关信息记录到日志中，但当前报文具体是被"接受"，还是被"拒绝"，都由后面的规则控制
+# --log-level选项可以指定记录日志的日志级别，可用级别有emerg，alert，crit，error，warning，notice，info，debug。
+# --log-prefix选项可以给记录到的相关信息添加"标签"之类的信息，以便区分各种记录到的报文信息，方便在分析时进行过滤。--log-prefix对应的值不能超过29个字符。
+
+* 基本设置
+[root@localhost ~]# iptables -I INPUT -p tcp --dport 22 -j LOG
+* --log-prefix
+[root@localhost ~]# iptables -I INPUT -p tcp --dport 22 -m state --state NEW -j LOG --log-prefix "want-in-from-port-22"
 EOF
 }
 

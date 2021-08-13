@@ -1746,7 +1746,7 @@ struct iprule {
     char out_dev[IFNAMSIZ + 1];
 
     /* everything below is used as avl tree key */
-    /* don't change the order                   */
+    /* do not change the order                   */
 
     /* uci interface name */
     char *in_iface;
@@ -2280,6 +2280,7 @@ scope SCOPE_VALUE           地址范围，可能的值有：
     
     ### Remove all addresses from an interface
     ip address flush dev ${interface name}
+    ip address flush dev eth0 scope global|host|link
     ip address flush dev eth1
     
     ip -4 addr flush label "ppp*"
@@ -3375,6 +3376,12 @@ nud NUD_STATE 指定neighbour的nud值，即邻居不可到达检测，可以是
     reachable:说明该记录有效，直到可到达超时溢出。
     stale:说明该记录有效，但是其有效性值得怀疑。
 dev NAME 指定网络设备名称 
+
+# Add or delete an ARP entry for the neighbour IP address to `eth0`:
+sudo ip neighbour add|del ip_address lladdr mac_address dev eth0 nud reachable
+
+# Change or replace an ARP entry for the neighbour IP address to `eth0`:
+sudo ip neighbour change|replace ip_address lladdr new_mac_address dev eth0
 
 ip neigh add 10.0.0.3 lladdr 000001 dev eth0 nud perm
 # nud
