@@ -450,7 +450,29 @@ $(filter-out PATTERN...,TEXT)  # 空格分割的"TEXT"字串中所有不符合�
 objects=main1.o foo.o main2.o bar.o
 mains=main1.o main2.o
     $(filter-out $(mains),$(objects))  # foo.o bar.o
-    
+
+--------------------------------------------------------------------- include libtwt_dial by 
+export INCLUDE_LIB_DIAL=no  # 命令开关
+
+# 动态库关联的调试代码
+ifeq ($(INCLUDE_LIB_DIAL), yes)
+    APPDIRS += twttest/twt_dial
+endif
+
+# 动态库的包含libtwt_dial ( INCLUDE_LIB_DIAL=yes )或者 不包含libtwt_dial ( INCLUDE_LIB_DIAL=no )
+CSRCS_ALL = $(SDK_LIB_DIRS:%src=%src/*.c)
+ifeq ($(INCLUDE_LIB_DIAL), yes)
+    CSRCS = $(CSRCS_ALL)
+else
+    CSRCS = $(filter-out ../libtwt_dial/%,$(CSRCS_ALL))
+endif
+CPPSRCS_ALL = $(SDK_LIB_DIRS:%src=%src/*.cpp)
+ifeq ($(INCLUDE_LIB_DIAL), yes)
+    CPPSRCS = $(CPPSRCS_ALL)
+else
+    CPPSRCS = $(filter-out ../libtwt_dial/%,$(CPPSRCS_ALL))
+endif
+
 # syntax/learn-makefile/functions/filter-out.mk
 EOF
 }

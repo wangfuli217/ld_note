@@ -15545,34 +15545,34 @@ echo $value
         }
     }
     
-grep NW testfile     #打印出testfile中所有包含NW的行。
-grep '^n' testfile   #打印出以n开头的行。
-grep '4$' testfile   #打印出以4结尾的行。
-grep '5\..' testfile #打印出第一个字符是5，后面跟着一个.字符，在后面是任意字符的行。
-grep '\.5' testfile  #打印出所有包含.5的行。
-grep '^[we]' testfile #打印出所有以w或e开头的行。
-grep '[^0-9]' testfile #打印出所有不是以0-9开头的行。
-grep '[A-Z][A-Z] [A-Z]' testfile #打印出所有包含前两个字符是大写字符，后面紧跟一个空格及一个大写字母的行。
-grep '[a-z]\{9\}' testfile #打印所有包含每个字符串至少有9个连续小写字符的字符串的行。
-grep '\<north' testfile    #打印所有以north开头的单词的行。
-grep '\<north\>' testfile  #打印所有包含单词north的行。
-grep '^n\w*' testfile      #第一个字符是n，后面是任意字母或者数字。
+grep NW testfile                    #打印出testfile中所有包含NW的行。
+grep '^n' testfile                  #打印出以n开头的行。
+grep '4$' testfile                  #打印出以4结尾的行。
+grep '5\..' testfile                #打印出第一个字符是5，后面跟着一个.字符，在后面是任意字符的行。
+grep '\.5' testfile                 #打印出所有包含.5的行。
+grep '^[we]' testfile               #打印出所有以w或e开头的行。
+grep '[^0-9]' testfile              #打印出所有不是以0-9开头的行。
+grep '[A-Z][A-Z] [A-Z]' testfile    #打印出所有包含前两个字符是大写字符，后面紧跟一个空格及一个大写字母的行。
+grep '[a-z]\{9\}' testfile          #打印所有包含每个字符串至少有9个连续小写字符的字符串的行。
+grep '\<north' testfile             #打印所有以north开头的单词的行。
+grep '\<north\>' testfile           #打印所有包含单词north的行。
+grep '^n\w*' testfile               #第一个字符是n，后面是任意字母或者数字。
     
-egrep 'NW|EA' testfile     #打印所有包含NW或EA的行。
-grep 'NW\|EA' testfile     #对于标准grep，如果在扩展元字符前面加\，grep会自动启用扩展选项-E。
+egrep 'NW|EA' testfile              #打印所有包含NW或EA的行。
+grep 'NW\|EA' testfile              #对于标准grep，如果在扩展元字符前面加\，grep会自动启用扩展选项-E。
 egrep '3+' testfile
 grep -E '3+' testfile
-grep '3\+' testfile        #这3条命令将会打印出相同的结果，即所有包含一个或多个3的行。
+grep '3\+' testfile                 #这3条命令将会打印出相同的结果，即所有包含一个或多个3的行。
 egrep '2\.?[0-9]' testfile
 grep -E '2\.?[0-9]' testfile
-grep '2\.\?[0-9]' testfile #首先含有2字符，其后紧跟着0个或1个点，后面再是0和9之间的数字。
+grep '2\.\?[0-9]' testfile          #首先含有2字符，其后紧跟着0个或1个点，后面再是0和9之间的数字。
 egrep '(no)+' testfile
 grep -E '(no)+' testfile
-grep '\(no\)\+' testfile   #3个命令返回相同结果，即打印一个或者多个连续的no的行。
+grep '\(no\)\+' testfile            #3个命令返回相同结果，即打印一个或者多个连续的no的行。
 egrep '[Ss](h|u)' testfile
 grep -E '[Ss](h|u)' testfile
-grep '[Ss]\(h\|u\)' testfile   #3个命令返回相同结果，即以S或s开头，紧跟着h或者u的行。
-egrep 'w(es)t.*\1' testfile    #west开头，其中es为\1的值，后面紧跟着任意数量的任意字符，最后还有一个es出现在该行。
+grep '[Ss]\(h\|u\)' testfile        #3个命令返回相同结果，即以S或s开头，紧跟着h或者u的行。
+egrep 'w(es)t.*\1' testfile         #west开头，其中es为\1的值，后面紧跟着任意数量的任意字符，最后还有一个es出现在该行。
 
 
 https://www.gnu.org/software/grep/manual/grep.html
@@ -15678,55 +15678,6 @@ netstat -an|grep -e ESTABLISHED -e WAIT    #而-e呢不用""包起来，-e 指�
                                                                   # 文件内容相同，则返回$? = 1 没有打印输出，否则有打印输出，返回 $? = 0 
 EOF
 }
-1. Simple string search
-grep 'are' poem.txt
-grep 'so are' poem.txt
-echo 'int a[5]' | grep 'a[5]'
-echo 'int a[5]' | grep -F 'a[5]'
-echo 'int a[5]' | fgrep 'a[5]'
-2. Line number, count and limiting output lines
-grep -n 'sweet' poem.txt # Show line number of matching lines
-grep -c 'are' poem.txt   # Count number of matching lines
-grep -m2 'are' poem.txt  # Limit number of matching lines
-3. Multiple search strings
-grep -e 'blue' -e 'you' poem.txt
-grep -if search_strings.txt poem.txt # 模式格式文件
-7. Exclude/Include specific files/directories
-grep -ri --exclude='.*' 'you'
-grep -ri --include='*.info' 'you'
-8. Recursive search using find command # -exec command {} +
-find -type f -exec grep -il 'red' {} +                    # 
-find -type f -name '*.txt' -exec grep -in 'you' {} +      # 
-find -type f -not -name '*.txt' -exec grep -in 'you' {} + # 
-9. Options for scripting purposes
-if grep -qi 'rose' poem.txt; then echo 'match found!'; else echo 'match not found'; fi
-if grep -qi 'lily' poem.txt; then echo 'match found!'; else echo 'match not found'; fi
-grep -s 'rose' file_xyz.txt # 屏蔽错误输出
-10. BRE vs -F
-echo 'int a[5]' | grep 'a[5]'  # oops, why did it not match?
-echo 'int a[5]' | grep 'a['    # grep: Invalid regular expression
-echo 'int a[5]' | grep 'a[5'   # grep: Unmatched [ or [^
-echo 'int a[5]' | grep -F 'a[5]' # int a[5]
-echo 'int a[5]' | grep 'a\[5]' # int a[5]
-10.1 Line Anchors
-grep '^Fantasy' fav.txt
-grep 'Fantasy$' fav.txt
-grep 'Fantasy' fav.txt
-10.2 Word Anchors
-printf 'spar\npar\npart\napparent\n' | grep 'par\>'
-printf 'spar\npar\npart\napparent\n' | grep '\<par'
-printf 'spar\npar\npart\napparent\n' | grep '\<par\>'
-printf 'spar\npar\npart\napparent\n' | grep '\bpar\b'
-printf 'spar\npar\npart\napparent\n' | grep -w 'par'
-printf 'spar\npar\npart\napparent\n' | grep '\Bpar\B'
-printf 'spar\npar\npart\napparent\n' | grep '\Bpar'
-printf 'spar\npar\npart\napparent\n' | grep 'par\B'
-10.3 Alternation
-'|' 和 -e 具有相似的功能；
-grep 'blue\|you' poem.txt
-grep -E 'blue|you' poem.txt
-echo 'Fantasy is my favorite genre' | grep -Eio 'e|f'
-echo 'Fantasy is my favorite genre' | grep -Eio 'e$|^f'
 }
         grep用于if判断{
             if echo abc | grep "a"  > /dev/null 2>&1
