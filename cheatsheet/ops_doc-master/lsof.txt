@@ -1,0 +1,245 @@
+cat << 'lsof_i_idea'
+lsof替代了netstat和ps的全部工作
+Defaults in parentheses; comma-separated set (s) items; dash-separated ranges.
+  -?|-h list help          -a AND selections (OR)     -b avoid kernel blocks
+  -c c  cmd c ^c /c/[bix]  +c w  COMMAND width (9)
+  +d s  dir s files        -d s  select by FD set     +D D  dir D tree *SLOW?*
+                           +|-e s  exempt s *RISKY*   -i select IPv[46] files
+  -l list UID numbers      -n no host names           -N select NFS files
+  -o list file offset      -O avoid overhead *RISKY*  -P no port names
+  -R list paRent PID       -s list file size          -t terse listing
+  -T disable TCP/TPI info  -U select Unix socket      -v list version info
+  -V verbose search        +|-w  Warnings (+)         -X skip TCP&UDP* files
+  -Z Z  context [Z]
+  -- end option scan
+  +f|-f  +filesystem or -file names     +|-f[gG] flaGs
+  -F [f] select fields; -F? for help
+  +|-L [l] list (+) suppress (-) link counts < l (0 = all; default = 0)
+                                        +m [m] use|create mount supplement
+  +|-M   portMap registration (-)       -o o   o 0t offset digits (8)
+  -p s   exclude(^)|select PIDs         -S [t] t second stat timeout (15)
+  -T qs TCP/TPI Q,St (s) info
+  -g [s] exclude(^)|select and print process group IDs
+  -i i   select by IPv[46] address: [46][proto][@host|addr][:svc_list|port_list]
+  +|-r [t[m<fmt>]] repeat every t seconds (15);  + until no files, - forever.
+       An optional suffix to t is m<fmt>; m must separate t from <fmt> and
+      <fmt> is an strftime(3) format for the marker line.
+  -s p:s  exclude(^)|select protocol (p = TCP|UDP) states by name(s).
+  -u s   exclude(^)|select login|UID set s
+  -x [fl] cross over +d|+D File systems or symbolic Links
+  names  select named files or files on named file systems
+
+output: -F -g -l -n -P -o -s
+network: -i -s
+directory: +d +D (-x fl)
+system: -u -p -g -c
+lsof 查看已打开的文件
+文件包括:
+普通文件、目录、块文件、特殊字符文件、可执行文件、共享库、管道、符号链接、
+Socket流、网络Socket、NFS文件(-N)、UNIX域socket(-U)。
+
+查看方式:
+1. 查看进程打开的文件；
+2. 查看打开文件的进程；
+3. 查看进程打开的端口；
+4. 找回/恢复删除的文件；
+输出内容可以被其他程序识别，见-F和"OUTPUT FOR OTHER PROGRAMS"
+输出默认是循环模式，具体见 +|-r[t[m<fmt>]]
+lsof_i_idea
+
+lsof_i_intro(){  cat << 'lsof_i_intro'
+lsof替代了netstat和ps的全部工作
+-a     ANDed 后续选项都是AND方式过滤, 输出符合所有条件的被打开文件
+-b     lstat(2),  readlink(2), stat(2) 防止调用这些函数而被内核阻塞
+-c     cmd c ^c /regular expr/[bix] # <进程名>   列出指定进程所打开的文件 '^'取反
+       b:basic regluar i:ignore case x:extended regluar
+       lsof -c /^..o.$/i -a -d cwd
+       kill -HUP `lsof -t -c sshd`
++c     w COMMAND width (9)   # w=0,输出全部名称 w<COMMAND输出长度为'COMMAND', w>COMMAND输出长度大于COMMAND
+       UNIX通常将命令名限制在16个内，
+-d s   select by FD set      # 输出列表中排除或包含的文件描述符(FD)列表。
+       'cwd,1,3' 或 '^6,^2' 或 '0-7' 或 '^0-7'
++d<目录> 限定在具有stat权限的文件 # 列出指定目录下被打开的文件，不列出子目录下被打开文件，
+        除非指定-x  l或-x，否则被打开的链接文件不列出；除非指定-x  l或-x，否则被打开的subfilesystem(mount)文件不列出。
+-d<文件号> 列出占用该文件号的进程
++D<目录> 限定在具有stat权限的文件 # 递归列出目录下被打开的文件 
+         除非指定-x  l或-x，否则被打开的链接文件不列出；
++|-e s 免除路径名为s的文件系统受到可能阻塞的内核函数调用。 +e(stat,lstat,readlink) -e(stat,lstat)
+-F f   # OUTPUT FOR OTHER PROGRAMS
+       lsof -F ? 查阅
+-g  '123' '123,^456' # exclude(^)|选择并打印进程组ID
+-l  使用用户ID而不是登录名
++|-L [l] 启用(+)或禁用(-)文件链接计数列表,它们可用-例如,它们不适用于套接字或大多数FIFO和管道.
+         如果指定+L且没有跟数字, 则将列出所有链接计数。
+         指定-L(默认值)时，不会列出任何链接计数。
+         当+L后跟一个数字时，只列出链接数小于该数字的文件。(没有数字可以跟随-L)
+-n  不进行地址反解析
+-N NFS文件系统
+-p s '123' '123,^456' # 选择PID
+-P  不进行port反解析成服务名
+-o # 将SIZE/OFF输出列标题更改为OFFSET 偏移量
++|-r [t[m<fmt>]] repeat模式，-r无限循环，
+    lsof +d /usr/sbin/ +r 4m"%a %d %b %Y %T"
+    lsof -rm====%T====
+    lsof -r "m==== %T ===="
+-R PPID 显示PPID
+-S [t]  stat lstat readlink 调用超时时间
+-t 选项只返回PID
+-T TCP|TPI # lsof -i -Tqs
+-u 'abe',  '548,root'  列出UID号进程详情
+-U 'UNIX domain socket files'
+-x  [fl] # +d +D
+    f: parameter enables file system mount point cross-over processing
+    l:symbolic  linkcross-over processing
+-Z Selinux
+lsof  # 不带任何参数运行，列出所有进程打开的所有文件
+lsof_i_intro
+}
+
+lsof_i_file(){  cat << 'lsof_i_file' 
+# 普通文件
+lsof /etc/passwd    #那个进程在占用/etc/passwd 
+lsof /dev/hd4       # 硬件设备
+lsof /dev/log       # 日志文件
+lsof $(which httpd) #那个进程在使用apache的可执行文件
+lsof -d txt         # programs loaded in memory and executing
+lsof abc.txt        # 显示开启文件abc.txt的进程
+lsof_i_file
+}
+lsof_i_dir(){ cat << 'lsof_i_dir' 
+# 目录
+lsof +D /usr/lib   #那个进程在使用/usr/lib目录下的文件 lsof | grep '/usr/lib'
+lsof_i_dir
+}
+lsof_i_dev(){  cat << 'lsof_i_dev' 
+# 字符或设备文件
+lsof /dev/hda6     #那个进程在占用hda6 
+lsof /dev/cdrom    #那个进程在占用光驱
+lsof_i_dev
+}
+lsof_i_process(){  cat << 'lsof_i_process' 
+# 进程
+lsof -c mysql -c apache  # 列出多个程序多打开的文件信息
+lsof -c apache -c python # 列出多个程序多打开的文件信息
+lsof -p 1                # 单个进程
+lsof -p 123,456,789      # 多个进程
+lsof -p ^1               # 除了某个进程号
+lsof_i_process
+}
+lsof_i_user(){ cat << 'lsof_i_user'
+# 用户
+lsof -u test -c mysql   # 列出某个用户以及某个程序所打开的文件信息
+lsof   -u ^root     # 列出除了某个用户外的被打开的文件信息
+lsof -u daniel      # Show what a given user has open using -u
+lsof -u rms,root    # lsof -u rms -u root
+lsof -g 1234        # group id
+lsof -u ^daniel     # EXCEPT ^daniel
+备注：^这个符号在用户名之前，将会把是root用户打开的进程不让显示
+lsof_i_user
+}
+lsof_i_network(){ cat << 'lsof_i_network' 
+# 网络
+lsof -i             # 列出所有的网络连接
+1. -i选项
+lsof -i[46][protocol][@hostname|hostaddr][:service|port]
+--> IPv4 or IPv6
+  protocol --> TCP or UDP
+  hostname --> Internet host name
+  hostaddr --> IPv4地址
+  service --> /etc/service中的 service name (可以不止一个)
+  port --> 端口号 (可以不止一个)
+2. -i选项下的-s选项
+lsof -s [p:s] 
+--> -iTCP -sTCP:LISTEN
+CLOSED,  IDLE,  BOUND,  LISTEN,  ESTABLISHED,  SYN_SENT,  SYN_RCDV, ESTABLISHED, CLOSE_WAIT,  FIN_WAIT1,  CLOSING, LAST_ACK, FIN_WAIT_2, and TIME_WAIT
+--> -iUDP -sUDP:Idle
+Unbound and Idle
+lsof -i 4 -a -p 1234
+lsof -i 6           # IPv6 -> sudo lsof -i4
+lsof -Pnl +M -i4    # # To list all listening ports:
+lsof -i tcp         # 列出所有tcp 网络连接信息
+lsof -i -sTCP:LISTEN # lsof -i | grep -i LISTEN
+lsof -iTCP:port -sTCP:LISTEN # Find the process that is listening on a local TCP port
+lsof -i -sTCP:ESTABLISHED # lsof -i | grep -i ESTABLISHED
+lsof -i udp         # 列出所有udp网络连接信息
+lsof -i :3306       # 列出谁在使用某个端口
+lsof -i :snmp       # 列出谁在使用某个端口
+lsof -i udp:55      # 列出谁在使用某个特定的udp端口
+lsof -i UDP:who     # UDP who service port
+lsof -i tcp:80      # 特定的tcp端口
+lsof -i TCP:25      # TCP and port 25
+lsof -i @1.2.3.4    # Internet IPv4 host address 1.2.3.4
+lsof -i @[3ffe:1ebc::1]:1234 # Internet IPv6 host address 3ffe:1ebc::1, port 1234
+lsof -i @wonderland.cc.purdue.edu:513-515
+lsof -i TCP@lsof.itap:513 # TCP, port 513 and host name lsof.itap 
+lsof -i tcp@foo:1-10,smtp,99  # TCP, ports 1 through 10, service name smtp, port 99, host name foo
+lsof -i tcp@bar:1-smtp #  TCP, ports 1 through smtp, host bar
+lsof -i :time # either TCP, UDP or UDPLITE time service port
+lsof_i_network
+}
+lsof_i_nfs(){ cat << 'lsof_i_nfs' 
+lsof  -a -u test -i # 列出某个用户的所有活跃的网络端口
+lsof -N             # Network File System
+lsof -U             # Unix domain socket files
+lsof_i_nfs
+}
+lsof_i_and_or(){ cat << 'lsof_i_and_or' 
+# 关联关系
+lsof -a -u pkrumins -c bash # -a AND
+lsof -u pkrumins -c apache  # OR
+lsof -d mem         # memory-mapped
+lsof -i@172.16.12.5 # @host
+lsof -i@172.16.12.5:22 # @host:22
+lsof -t -c Mail     # Mail命令的PID
+lsof -t -i          # 所有与网络相关的程序
+lsof -r 1 -u john -i -a # Repeat listing files.
+lsof_i_and_or
+}
+
+lsof_i_fd_type(){ cat << 'lsof_i_fd_type'
+[FD：文件描述符，应用程序通过文件描述符识别该文件。如cwd、txt等]
+(1)cwd：表示current work dirctory，即：应用程序的当前工作目录，这是该应用程序启动的目录，除非它本身对这个目录进行更改
+(2)txt ：该类型的文件是程序代码，如应用程序二进制文件本身或共享库，如上列表中显示的 /sbin/init 程序
+(3)lnn：library references (AIX);
+(4)er：FD information error (see NAME column);
+(5)jld：jail directory (FreeBSD);
+(6)ltx：shared library text (code and data);
+(7)mxx ：hex memory-mapped type number xx.
+(7)mxx ：hex memory-mapped type number xx.
+(8)m86：DOS Merge mapped file;
+(9)mem：memory-mapped file;
+(10)mmap：memory-mapped device;
+(11)pd：parent directory;
+(12)rtd：root directory;
+(13)tr：kernel trace file (OpenBSD);
+(14)v86  VP/ix mapped file;
+(15)0：表示标准输入
+(16)1：表示标准输出
+(17)2：表示标准错误
+一般在标准输出、标准错误、标准输入后还跟着文件状态模式：r、w、u等
+(1)u：表示该文件被打开并处于读取/写入模式
+(2)r：表示该文件被打开并处于只读模式
+(3)w：表示该文件被打开并处于
+(4)空格：表示该文件的状态模式为unknow，且没有锁定
+(5)-：表示该文件的状态模式为unknow，且被锁定
+同时在文件状态模式后面，还跟着相关的锁
+(1) N：for a Solaris NFS lock of unknown type;
+(2) r：for read lock on part of the file;
+(3) R：for a read lock on the entire file;
+(4) w：for a write lock on part of the file;(文件的部分写锁)
+(5) W：for a write lock on the entire file;(整个文件的写锁)
+(6) u：for a read and write lock of any length;
+(7) U：for a lock of unknown type;
+(8) x：for an SCO OpenServer Xenix lock on part      of the file;
+(9) X：for an SCO OpenServer Xenix lock on the      entire file;
+(10) space：if there is no lock.
+
+[TYPE：文件类型，如DIR、REG等，常见的文件类型]
+(1) DIR：表示目录
+(2) CHR：表示字符类型
+(3) BLK：块设备类型
+(4) UNIX： UNIX 域套接字
+(5) FIFO：先进先出 (FIFO) 队列
+(6) IPv4：网际协议 (IP) 套接字
+lsof_i_fd_type
+}

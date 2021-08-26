@@ -2528,7 +2528,7 @@ man -a printf  # 在所有section中查找主题为printf的手册页
 man -k printf  # 在所有manual的简述中查找printf关键词 
 man -K printf  # 正文中查找
     -M         # 指定手册的搜索路径
-man 3 printf # 直接查看系统调用类帮助文档中主题名为printf的手册页 
+man 3 printf   # 直接查看系统调用类帮助文档中主题名为printf的手册页 
 
 bash # HISTORY EXPANSION
 man readline # 命令行快捷键 
