@@ -27,7 +27,7 @@ cat - <<'EOF'
     syntax/gnumake
     syntax/learn-makefile
 [advance]
-    makecheat.txt
+    makecheat.txt  make_m_opt 命令行选项
     make-mini.txt
     make.bashrc
 
@@ -193,13 +193,37 @@ make USE_TCMALLOC=yes     # 向makefile传递变量; 开关变量               
 PREFIX?=/usr/local        # Makefile PREFIX?形式的变量说明：可以向makefile传递变量:参变量  bashshell环境变量 export传递
 
 [变量的定义]
-MMEDIATE = DEFERRED								变量赋值 (递归方式)
-IMMEDIATE ?= DEFERRED							变量没有定义才赋值	
-IMMEDIATE := IMMEDIATE 						    立即展开 (静态方式)
+MMEDIATE = DEFERRED                         变量赋值 (递归方式)
+IMMEDIATE ?= DEFERRED                       变量没有定义才赋值
+IMMEDIATE := IMMEDIATE                      立即展开 (静态方式)
 IMMEDIATE += DEFERRED or IMMEDIATE
-define IMMEDIATE							    多行定义
+define IMMEDIATE                            多行定义
 DEFERRED
 endef
+uglify = $(uglify)                          # lazy assignment. = expressions are only evaluated when they’re being used.
+compressor := $(uglify)                     # immediate assignment
+prefix ?= /usr/local                        # safe assignment
+hello += world                              # append
+
+[Magic variables]
+out.o: src.c src.h
+  $@   # "out.o" (target)
+  $<   # "src.c" (first prerequisite)
+  $^   # "src.c src.h" (all prerequisites)
+
+%.o: %.c
+  ffmpeg -i $< > $@   # Input and output
+  foo $^
+
+%.o: %.c
+  $*   # the 'stem' with which an implicit rule matches ("foo" in "foo.c")
+
+also:
+  $+   # prerequisites (all, with duplication)
+  $?   # prerequisites (new ones)
+  $|   # prerequisites (order-only?)
+
+  $(@D) # target directory
 
 [变量的意义]
 makefile中变量：
@@ -235,9 +259,9 @@ EOF
 
 make_p_command(){ cat - <<'EOF'
 命令就是在任何一个目标的依赖文件发生变化后重建目标的动作描述。
-1. 关于@：用echo xxx会输出"echo xxx"，用@echo xxx才会会出"xxx"
-2. 关于-：删除不存在的文件会出错导致make终止，前面加上-表示忽略可能的错误
-3. 关于\; 用于连接长度过长的命令行
+1. 关于@：用echo xxx会输出"echo xxx"，用@echo xxx才会会出"xxx"              Do not print command
+2. 关于-：删除不存在的文件会出错导致make终止，前面加上-表示忽略可能的错误   Ignore errors
+3. 关于\; 用于连接长度过长的命令行                                          Run even if Make is in 'do not execute' mode
 
 @echo "make RTU_DEBUG=yes (-DRTUD_DEBUG)"
 @echo ${RTUDRELEASE}
@@ -250,6 +274,14 @@ for F in $(SRCS); do \
 :;\
 done;
 
+build:
+    @echo "compiling"
+    -gcc $< $@
+
+-include .depend
+
+1. Includes
+-include foo.make
 # syntax/gnumake/makeclean/Makefile
 EOF
 }
@@ -273,7 +305,6 @@ GNU的make工作时的执行步骤如下：(想来其它的make也是类似)
 7. 执行生成命令。
 EOF
 }
-
 
 make_p_library(){ cat - <<'EOF'
 常用编译项说明
@@ -311,6 +342,104 @@ bar.o : bar.c bar.h                  #  bar.o : bar.c bar.h
 EOF
 }
 
+make_p_func(){ cat - <<'make_p_func'
+1. Find files
+js_files  := $(wildcard test/*.js)
+all_files := $(shell find images -name "*")
+
+2. Substitutions
+file     = $(SOURCE:.cpp=.o)                # foo.cpp => foo.o
+outputs  = $(files:src/%.coffee=lib/%.js)
+
+outputs  = $(patsubst %.c, %.o, $(wildcard *.c))
+assets   = $(patsubst images/%, assets/%, $(wildcard images/*))
+
+3. More functions
+$(strip $(string_var))
+
+$(filter %.less, $(files))
+$(filter-out %.less, $(files))
+make_p_func
+}
+
+make_p_condtion(){ cat - <<'make_p_condtion'
+foo: $(objects)
+ifeq ($(CC),gcc)
+        $(CC) -o foo $(objects) $(libs_for_gcc)
+else
+        $(CC) -o foo $(objects) $(normal_libs)
+endif
+make_p_condtion
+}
+
+make_p_recursive(){ cat - <<'make_p_recursive'
+deploy:
+    $(MAKE) deploy2
+make_p_recursive
+}
+
+make_p_strict(){ cat - <<'make_p_strict'
+SHELL := bash         # 2. Always use (a recent) bash
+.ONESHELL:            # 3.1 each Make recipe is ran as one single shell session, rather than one new shell per line
+.SHELLFLAGS := -eu -o pipefail -c # 2.1 Use bash strict mode
+.DELETE_ON_ERROR:     # 3.2 Make rule fails, then it says on the box
+.DEFAULT_GOAL := all
+
+MAKEFLAGS := $(MAKEFLAGS)
+MAKEFLAGS += --warn-undefined-variables
+MAKEFLAGS += --no-builtin-rules
+MAKEFLAGS += --no-builtin-variables
+
+## use > as prefix to avoid tab/4space or some editor problem
+ifeq ($(origin .RECIPEPREFIX), undefined)
+  $(error This Make does not support .RECIPEPREFIX. Please use GNU Make 4.0 or later)
+endif
+.RECIPEPREFIX = >  # 1. Do not use tabs
+
+install::
+$(.RECIPEPREFIX)$(a)install -d $(DESTDIR)$(PREFIX)/
+endef
+
+test:
+> npm run test
+.PHONY: test  # Make will not look for a file named `test` on the file system
+
+# Default - top level rule is what gets ran when you run just `make`
+build: out/image-id
+.PHONY: build
+
+# Clean up the output directories; since all the sentinel files go under tmp, this will cause everything to get rebuilt
+clean:
+> rm -rf tmp
+> rm -rf out
+.PHONY: clean
+
+4.1. Generating output files
+# Docker image - re-built if the webpack output has been rebuilt
+out/image-id:                                   # $ for it is own templating variables
+> image_id="example.com/my-app:$$(pwgen -1)"    # the use of $$ instead of $ for bash subshells
+> docker build --tag="$${image_id}              # the use of $$ instead of $ for bash variables
+> echo "$${image_id}" > out/image-id
+4.2 Specifying inputs
+out/image-id: $(shell find src -type f)
+> image_id="example.com/my-app:$$(pwgen -1)"
+> docker build --tag="$${image_id}
+> echo "$${image_id}" > out/image-id
+4.3 Sentinel files
+# Tests - re-ran if any file under src has been changed since tmp/.tests-passed.sentinel was la
+out/.packed.sentinel: $(shell find src -type f)
+> node run webpack ..
+> touch out/.packed.sentinel  # A better option is to have rules that yield lots of files have a “sentinel” output
+4.4 On Make magic variables
+out/.packed.sentinel: $(shell find src -type f)
+> mkdir -p $(@D) # expands to `mkdir -p out`
+> node run webpack ..
+> touch $@  # expands to `touch out/.packed.sentinel`
+
+# 来自 https://tech.davis-hansson.com/p/make/  Your Makefiles are wrong?
+# 进一步 https://github.com/search?p=1&q=RECIPEPREFIX+pipefail+MAKEFLAGS+gcc&type=Code
+make_p_strict
+}
 
 make_k_PHONY(){ cat - <<'EOF'
 .PHONY : clean
