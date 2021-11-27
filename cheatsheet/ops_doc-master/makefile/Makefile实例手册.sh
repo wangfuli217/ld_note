@@ -178,7 +178,7 @@ $(Z)
 EOF
 }
 
-make_p_variable(){  cat - <<'EOF'
+make_p_variable(){  cat - <<'make_p_variable'
 变量名是不包括":"、"#"、"="、前置空白和尾空白的任何字符串
 [变量的来源]
 make命令     可以传递变量给Makefile文件
@@ -236,7 +236,10 @@ REDIS_LD=$(QUIET_LINK)$(CC) $(FINAL_LDFLAGS)
 # syntax/gnumake/variable
 # syntax/learn-makefile/pattern-rules/Makefile
 # syntax/learn-makefile/variable-expansion/Makefile
-EOF
+
+make -f make_p_variable
+make -f make_p_variable DEBUG=1
+make_p_variable
 }
 
 make_p_target(){ cat - <<'EOF'
@@ -314,16 +317,74 @@ make_p_library(){ cat - <<'EOF'
 EOF
 }
 
+make_p_subdir_and_link_together(){ cat - <<'make_p_subdir_and_link_together'
+.
+|-- Makefile
+|-- include
+|   `-- foo.h
+`-- src
+    |-- foo.c
+    `-- main.c
+
+make -f make_p_subdir_and_link_together
+make_p_subdir_and_link_together
+}
+
+make_p_build_shared_library(){ cat - <<'make_p_build_shared_library'
+.
+|-- Makefile
+|-- include
+|   `-- foo.h
+`-- src
+    |-- foo.c
+    `-- main.c
+
+make -f make_p_build_shared_library
+make_p_build_shared_library
+}
+
+make_p_build_shared_and_static_library(){ cat - <<'make_p_build_shared_and_static_library'
+.
+|-- Makefile
+|-- includex
+|   |-- bar.h
+|   `-- foo.h
+`-- srcx
+    |-- Makefile
+    |-- bar.c
+    `-- foo.c
+
+make -f make_p_build_shared_and_static_library
+make_p_build_shared_and_static_library
+}
+
+make_p_build_recursively(){ cat - <<'make_p_build_recursively'
+.
+|-- Makefile
+|-- includey
+|   `-- bar.h
+|   `-- foo.h
+|-- srcy
+|   |-- Makefile
+|   |-- bar.c
+|   `-- foo.c
+`-- testy
+    |-- Makefile
+    `-- test.c
+
+make -f make_p_build_recursively
+make_p_build_recursively
+}
 make_p_auto_variable(){ cat - <<'EOF'
 自动化变量说明
 1. 这些变量不需要括号括住
 $+ :所有的依赖文件，以空格分开，并以出现的先后为序，可能包含重复的依赖文件。
 $?:所有的依赖文件，以空格分开，这些依赖文件的修改日期比目标的创建日期晚
-$^ :所有的依赖文件，以空格分开，不包含重复的依赖文件。   # $^ 扩展成整个依靠的列表(除掉了里面所有重 复的文件名)
-$< :第一个依赖文件的名称。                               # $< 扩展成依靠列表中的第一个依靠文件
+$^ :所有的依赖文件，以空格分开，不包含重复的依赖文件。      # $^ 扩展成整个依靠的列表(除掉了里面所有重 复的文件名)
+$< :第一个依赖文件的名称。                                # $< 扩展成依靠列表中的第一个依靠文件
 $@ :目标的完整名称。                                     # $@ 扩展成当前规则的目的文件名，
-$* :不包含扩展名的目标文件名称。                         # 
-$% :如果目标是归档成员，则该变量表示目标的归档成员名称。 # 
+$* :不包含扩展名的目标文件名称。                           # 
+$% :如果目标是归档成员，则该变量表示目标的归档成员名称。     # 
 
 OBJS = foo.o bar.o                   #  OBJS = foo.o bar.o
 CC = gcc                             #  CC = gcc
@@ -339,6 +400,11 @@ bar.o : bar.c bar.h                  #  bar.o : bar.c bar.h
  $(CC) $(CFLAGS) -c bar.c -o bar.o   #   $(CC) $(CFLAGS) -c $< -o $@
  
 # syntax/learn-makefile/pattern-rules/Makefile
+$@  The file name of the target
+$<  The name of the first prerequisite
+$^  The names of all the prerequisites
+$+  prerequisites listed more than once are duplicated in the order
+make -f make_p_auto_variable
 EOF
 }
 
@@ -441,6 +507,27 @@ out/.packed.sentinel: $(shell find src -type f)
 make_p_strict
 }
 
+make_p_string(){ cat - <<'make_p_string'
+SRC      = hello_foo.c hello_bar.c foo_world.c bar_world.c
+SUBST    = $(subst .c,,$(SRC))
+SRCST    = $(SRC:.c=.o)
+PATSRCST = $(SRC:%.c=%.o)
+PATSUBST = $(patsubst %.c, %.o, $(SRC))
+$(filter hello_%, $(SRC))
+$(filter-out hello_%, $(SRC))"
+$(findstring hello, hello world)
+$(findstring hello, ker)
+$(findstring world, worl)
+$(words $(SRC))
+$(word 1,$(SRC))
+$(word 2,$(SRC))
+$(word 3,$(SRC))
+$(word 4,$(SRC))
+$(wordlist 1,3,$(SRC))
+
+make -f make_p_string
+make_p_string
+}
 make_k_PHONY(){ cat - <<'EOF'
 .PHONY : clean
 clean :
@@ -606,7 +693,7 @@ endif
 EOF
 }
 
-make_i_func_str_sort(){  cat - <<'EOF'
+make_p_func_str_sort(){  cat - <<'make_p_func_str_sort'
 7.$(sort LIST)
 函数名称：排序函数:sort。
 函数功能：给字串"LIST"中的单词以首字母为准进行排序(升序)，并取掉重复的单词。
@@ -617,7 +704,9 @@ make_i_func_str_sort(){  cat - <<'EOF'
 $(sort LIST)               # 空格分割的没有重复单词的字串。
 $(sort foo bar lose foo)   # bar foo lose
 # syntax/learn-makefile/functions/sort.mk
-EOF
+
+make -f make_p_func_str_sort # using $(sort list) sort list and remove duplicates
+make_p_func_str_sort
 }
 
 make_i_func_str_word(){  cat - <<'EOF'
@@ -811,7 +900,7 @@ $(wildcard a/*) $(wildcard b/*) $(wildcard c/*) $(wildcard d/*) #
 EOF
 }
 
-make_i_control_func_if(){ cat - <<'EOF'
+make_p_control_func_if(){ cat - <<'make_p_control_func_if'
 2.$(if CONDITION,THEN-PART[,ELSE-PART])
 函数功能：函数"if"提供了一个在函数上下文中实现条件判断的功能。就像make所支持的条件语句:ifeq。第一个参数"CONDITION"，在函
 数执行时忽略其前导和结尾空字符并展开。"CONDITION"的展开结果非空，则条件为真，就将第二个参数"THEN_PATR"作为函数的计算表达
@@ -826,7 +915,9 @@ $(if CONDITION,THEN-PART[,ELSE-PART])
 
 SUBDIR += $(if $(SRC_DIR) $(SRC_DIR),/home/src)
 # syntax/learn-makefile/functions/if.mk
-EOF
+
+make -f make_p_control_func_if
+make_p_control_func_if
 }
 
 make_i_func_call(){  cat - <<'EOF'
@@ -868,7 +959,7 @@ all:
 EOF
 }
 
-make_i_func_eval(){  cat - <<'EOF'
+make_p_func_eval(){  cat - <<'make_p_func_eval'
 5.eval函数
 函数功能：函数"eval"是一个比较特殊的函数。使用它我们可以在我们的Makefile中构造一个可变的规则结构关系(依赖关系链)，其中可以使用其
 它变量和函数。函数"eval"对它的参数进行展开，展开的结果作为Makefile的一部分，make可以对展开内容进行语法解析。展开的结果可以包含
@@ -878,7 +969,11 @@ make_i_func_eval(){  cat - <<'EOF'
 时由make解析时展开的。明确这一点对于使用"eval"函数非常重要。在理解了函数"eval"二次展开的过程后。实际使用时，当函数的展开结果中存
 在引用(格式为：$(x))时，那么在函数的参数中应该使用"$$"来代替"$"。因为这一点，所以通常它的参数中会使用函数"value"来取一个变量
 的文本值。
-EOF
+
+using $(eval) predefine variables
+make -f make_p_func_without_eval
+make -f make_p_func_eval
+make_p_func_eval
 }
 
 make_i_func_origin(){  cat - <<'EOF'
@@ -938,12 +1033,15 @@ $(error TEXT...)
 EOF
 }
 
-make_i_func_warning(){ cat - <<'EOF'
+make_p_func_warning(){ cat - <<'EOF'
+using $(warning text) check make rules (for debug)
+
 $(warning TEXT...)
 函数功能：函数"warning"类似于函数"error"，区别在于它不会导致致命错误(make不退出)，而只是提示"TEXT..."，make的执行过程继续。
 返回值：空字符
 函数说明：用法和"error"类似，展开过程相同。
 # syntax/learn-makefile/functions/errors.mk
+make -f make_i_func_warning
 EOF
 }
 
@@ -1441,7 +1539,7 @@ make_i_variable(){ cat - <<'EOF'
 EOF
 }
 
-make_i_variable_reference(){ cat - <<'EOF'
+make_p_variable_reference(){ cat - <<'make_p_variable_reference'
 [变量的引用]
 ======================================= 变量的风格 
 $(VARIABLE_NAME)   Makefile 中定义的或者是 make 的环境变量
@@ -1462,7 +1560,9 @@ echo $${PATH}  # echo ${PATH}                                         -> /bin:/s
 echo $$(PATH)  # echo $(PATH)                                         -> /bin/sh: PATH: command not found 即 $(cmd) 中PATH命令不能执行
 
 对一个变量的引用可以在 Makefile 的任何上下文中，目标、依赖、命令、绝大多数指示符和新变量的赋值中
-EOF
+
+make -f make_p_variable_reference
+make_p_variable_reference
 }
 
 make_i_variable_define(){ cat - <<'EOF'
