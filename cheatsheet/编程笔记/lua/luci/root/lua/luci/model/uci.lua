@@ -155,6 +155,7 @@ function Cursor.set_list(self, config, section, option, value)
 end
 
 -- Return a list of initscripts affected by configuration changes.
+-- 返回一些跟此配置更改相关的初始化脚本列表，
 function Cursor._affected(self, configlist)
 	configlist = type(configlist) == "table" and configlist or {configlist}
 
@@ -164,6 +165,7 @@ function Cursor._affected(self, configlist)
 	-- Resolve dependencies
 	local reloadlist = {}
 
+	-- 分解依赖情况
 	local function _resolve_deps(name)
 		local reload = {name}
 		local deps = {}
@@ -172,14 +174,14 @@ function Cursor._affected(self, configlist)
 			function(section)
 				if section.affects then
 					for i, aff in ipairs(section.affects) do
-						deps[#deps+1] = aff
+						deps[#deps+1] = aff -- 将依赖的配置文件保存到deps数组中去（本例中是将network保存进去）
 					end
 				end
 			end)
 
 		for i, dep in ipairs(deps) do
 			for j, add in ipairs(_resolve_deps(dep)) do
-				reload[#reload+1] = add
+				reload[#reload+1] = add 	-- 将所有依赖列表保存到一个数组reload中去（此处wireless只有一个依赖项affects，就是network）
 			end
 		end
 
@@ -187,9 +189,10 @@ function Cursor._affected(self, configlist)
 	end
 
 	-- Collect initscripts
+	-- 搜集初始化脚本
 	for j, config in ipairs(configlist) do
 		for i, e in ipairs(_resolve_deps(config)) do
-			if not util.contains(reloadlist, e) then
+			if not util.contains(reloadlist, e) then	-- 检测包reloadlist中是否含配置文件（cofig），若有包含，将其加入到reloadlist数组中
 				reloadlist[#reloadlist+1] = e
 			end
 		end

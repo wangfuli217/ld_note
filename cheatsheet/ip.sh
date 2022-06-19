@@ -277,7 +277,7 @@ ip_i_route_windows(){ cat - <<'ip_i_route_windows'
 route print
 
 (2) 只查看ipv4（ipv6）路由状态：
-route print-4(-6)
+route print -4(-6)
 
 (3) 添加路由：route add 目的网络 mask 子网掩码 网关——重启机器或网卡失效
 route add 192.168.1.0 mask 255.255.255.0 192.168.1.1
@@ -1931,6 +1931,17 @@ ip route    routing table management. Configuration files are:
             /etc/iproute2/rt_scopes
             /etc/iproute2/rt_tables
 
+table TABLEID          --- rt_tables -> ip route list table 0   # 路由表参数来自  /etc/iproute2/rt_tables 文件
+table to add this route. TABLEID may be a number or a string from the file /etc/iproute2/rt_tables. If this parameter is omitted, ip assumes table main, with exception of local, broadcast and nat routes, which are put to table local by default.
+realm REALMID          --- rt_realms -> ip route list realms 0  # realms参数来自 /etc/iproute2/rt_realms 文件
+the realm which this route is assigned to. REALMID may be a number or a string from the file /etc/iproute2/rt_realms.
+tos TOS or dsfield TOS --- rt_dsfield -> ip route list dsfield 0 # dsfield 参数来自 /etc/iproute2/rt_dsfield 文件
+Type Of Service (TOS) key. This key has no mask associated and the longest match is understood as first, compare TOS of the route and of the packet, if they are not equal, then the packet still may match to a route with zero TOS. TOS is either 8bit hexadecimal number or an identifier from /etc/iproute2/rt_dsfield.
+scope SCOPE_VAL        --- rt_scopes -> ip route list scope 0    # 范围参数来自 /etc/iproute2/rt_scopes 文件
+scope of the destinations covered by the route prefix. SCOPE_VAL may be a number or a string from the file /etc/iproute2/rt_scopes. If this parameter is omitted, ip assumes scope global for all gatewayed unicast routes, scope link for direct unicast routes and broadcasts and scope host for local routes.
+protocol RTPROTO       --- rt_protos -> ip route list proto boot # 协议参数来自 /etc/iproute2/rt_protos 文件
+routing protocol identifier of this route. RTPROTO may be a number or a string from the file /etc/iproute2/rt_protos. If the routing protocol ID is not given ip assumes the protocol is boot. IE. This route has been added by someone who does not understand what they are doing. Several of these protocol values have a fixed interpretation.
+
 [路由缓存表] -> [路由表](先查策略表，根据策略表遍历路由表)
 
 [路由缓存表]
@@ -2671,6 +2682,11 @@ EOF
 }
 
 ip_t_unicast_route(){  cat - <<'EOF'
+A unicast route is the most common route in routing tables.
+This is a typical route to a destination network address, which describes the path to the destination.
+Even complex routes, such as nexthop routes are considered unicast routes.
+If no route type is specified on the command line, the route is assumed to be a unicast route. 
+
 ip route add unicast 192.168.0.0/24 via 192.168.100.5
 ip route add default via 193.7.255.1
 ip route add unicast default via 206.59.29.193
@@ -2679,24 +2695,34 @@ EOF
 }
 
 ip_t_broadcast_route(){  cat - <<'EOF'
+This route type is used for link layer devices (such as Ethernet cards) which support the notion of a broadcast address.
+This route type is used only in the local routing table [26] and is typically handled by the kernel.
+
 ip route add table local broadcast 10.10.20.255 dev eth0 proto kernel scope link src 10.10.20.67
 ip route add table local broadcast 192.168.43.31 dev eth4 proto kernel scope link src 192.168.43.14
 EOF
 }
 
 ip_t_local_route(){  cat - <<'EOF'
+The kernel will add entries into the local routing table when IP addresses are added to an interface.
+This means that the IPs are locally hosted IPs 
+
 ip route add table local local 10.10.20.64 dev eth0 proto kernel scope host src 10.10.20.67
 ip route add table local local 192.168.43.12 dev eth4 proto kernel scope host src 192.168.43.14
 EOF
 }
 
 ip_t_nat_route(){ cat - <<'EOF'
+This route entry is added by the kernel in the local routing table, when the user attempts to configure stateless NAT. 
+
 ip route add nat 193.7.255.184 via 172.16.82.184
 ip route add nat 10.40.0.0/16 via 172.40.0.0
 EOF
 }
 
 ip_t_unreachable_route(){ cat - <<'EOF'
+When a request for a routing decision returns a destination with an unreachable route type, an ICMP unreachable is generated and returned to the source address. 
+
 ip route add unreachable 172.16.82.184
 ip route add unreachable 192.168.14.0/26
 ip route add unreachable 209.10.26.51
@@ -2704,6 +2730,8 @@ EOF
 }
 
 ip_t_prohibit_route(){  cat - <<'EOF'
+When a request for a routing decision returns a destination with a prohibit route type, the kernel generates an ICMP prohibited to return to the source address. 
+
 ip route add prohibit 10.21.82.157
 ip route add prohibit 172.28.113.0/28
 ip route add prohibit 209.10.26.51
@@ -2711,6 +2739,8 @@ EOF
 }
 
 ip_t_blackhole_route(){  cat - <<'EOF'
+A packet matching a route with the route type blackhole is discarded. No ICMP is sent and no packet is forwarded. 
+
 ip route add blackhole default
 ip route add blackhole 202.143.170.0/24
 ip route add blackhole 64.65.64.0/18
@@ -2718,9 +2748,60 @@ EOF
 }
 
 ip_t_throw_route(){ cat - <<'EOF'
+The throw route type is a convenient route type which causes a route lookup in a routing table to fail, returning the routing selection process to the RPDB. 
+This is useful when there are additional routing tables.
+Note that there is an implicit throw if no default route exists in a routing table, so the route created by the first command in the example is superfluous, although legal. 
+
 ip route add throw default
 ip route add throw 10.79.0.0/16
 ip route add throw 172.16.0.0/12
+EOF
+}
+
+ip_t_unicast_rule(){  cat - <<'EOF'
+A unicast rule entry is the most common rule type. This rule type simple causes the kernel to refer to the specified routing table in the search for a route.
+If no rule type is specified on the command line, the rule is assumed to be a unicast rule. 
+
+ip rule add unicast from 192.168.100.17 table 5
+ip rule add unicast iif eth7 table 5
+ip rule add unicast fwmark 4 table 4
+EOF
+}
+
+ip_t_nat_rule(){  cat - <<'EOF'
+The nat rule type is required for correct operation of stateless NAT. This rule is typically coupled with a corresponding nat route entry.
+The RPDB nat entry causes the kernel to rewrite the source address of an outbound packet. 
+
+ip rule add nat 193.7.255.184 from 172.16.82.184
+ip rule add nat 10.40.0.0 from 172.40.0.0/16
+EOF
+}
+
+ip_t_unreachable_rule(){  cat - <<'EOF'
+Any route lookup matching a rule entry with an unreachable rule type will cause the kernel to generate an ICMP unreachable to the source address of the packet. 
+
+ip rule add unreachable iif eth2 tos 0xc0
+ip rule add unreachable iif wan0 fwmark 5
+ip rule add unreachable from 192.168.7.0/25
+EOF
+}
+
+ip_t_prohibit_rule(){  cat - <<'EOF'
+Any route lookup matching a rule entry with a prohibit rule type will cause the kernel to generate an ICMP prohibited to the source address of the packet. 
+
+ip rule add prohibit from 209.10.26.51
+ip rule add prohibit to 64.65.64.0/18
+ip rule add prohibit fwmark 7
+EOF
+}
+
+ip_t_blackhole_rule(){  cat - <<'EOF'
+While traversing the RPDB, any route lookup which matches a rule with the blackhole rule type will cause the packet to be dropped.
+No ICMP will be sent and no packet will be forwarded. 
+
+ip rule add blackhole from 209.10.26.51
+ip rule add blackhole from 172.19.40.0/24
+ip rule add blackhole to 10.182.17.64/28
 EOF
 }
 

@@ -5704,7 +5704,7 @@ FILENAME=/home/heiko/dummy/packages.txt
 FILESIZE=$(stat -c %s "$FILENAME") 
 echo "Size of $FILENAME = $FILESIZE bytes."
 
-stat <file> # 显示指定文件<file>的状态信息。
+stat <file>    # 显示指定文件<file>的状态信息。
 stat -f <file> # 显示<file>所在文件系统的状态信息。
 stat -t <file> # 以简明格式显示<file>的状态信息。
 
@@ -8906,7 +8906,7 @@ passwd
 reboot
 }
 
-    system(用户与组){
+system(用户与组){
 1. 用户帐号，用户密码，用户组信息和用户组密码均是存放在不同的配置文件中的。/etc/passwd /etc/shadow /etc/group /etc/gshadow
 2. id groups gpasswd groupdel groupmod groupadd passwd userdel usermod useradd last whoami who w 
 /etc/passwd: 用户帐号的相关信息
@@ -8931,7 +8931,7 @@ reboot
   6.密码需要变更前的警告期限
   7.密码过期的恕限时间
   8.账号失效日期,和3一样都是从1970年1月1日到某天的天数
-9.保留,看以后有没有新功能加入
+  9.保留,看以后有没有新功能加入
 /etc/gshadow: 组密码及相关属性
 
 /etc/passwd:文件结构 man 5 passwd
@@ -8987,6 +8987,14 @@ useradd -u UID -g initial_group -G other_group -Mm -c 说明栏 -d home -s shell
     -p password 为新建用户指定登录密码。
 # 创建用户账户时，系统会自动创建该用户对应的主目录，该目录默认放在 / home 目录下，若要改变位置，可以利用 - d 参数指定；
 # 对于用户登录时使用的 shell，默认为 / bin/bash，若要更改，则使用 - s 参数指定
+
+adduser - 创建用户 
+adduser和addgroup 根据命令行选项和/etc/adduser.conf配置文件,添加adduser和addgroup信息到系统; -> adduser和addgroup是对useradd, groupadd 和 usermod的封装; perl脚本
+1. Add a normal user 没有 --system 或 --group 选项
+2. Add a system user   有--system
+3. Add a user group    有adduser --group
+4. Add a system group  有addgroup --system
+5. Add an existing user to an existing group
 }
 passwd(添加密码){
 passwd [OPTIONS] username 
@@ -15137,7 +15145,7 @@ test -x File                     文件存在并且可执行
     redirect(exec){
    自定义文件描述符 exec 3<input.txt 
                     exec 5>>output.txt
-    通过使用 <(some command) 可以将输出视为文件。例如，对比本地文件 /etc/hosts 和一个远程文件：
+   通过使用 <(some command) 可以将输出视为文件。例如，对比本地文件 /etc/hosts 和一个远程文件：
       diff /etc/hosts <(ssh somehost cat /etc/hosts)
       
         #  标准输出 stdout 和 标准错误 stderr  标准输入stdin

@@ -1568,11 +1568,11 @@ iptables_i_filter_length(){ cat - <<'EOF'
 ----- -m length -----iptables -m length -h
 [!] --length length[:length]  匹配长度<length>或在<length:length>范围内的数据包
 length使用参数：
--m length --length num #匹配指定大小的数据
--m length ! --length num #匹配非指定大小数据
--m length --length num: #匹配大于或等于
--m length --length :92 #匹配小于或等于
--m length --length num:num #匹配指定区间
+-m length --length num      # 匹配指定大小的数据
+-m length ! --length num    # 匹配非指定大小数据
+-m length --length num:     # 匹配大于或等于
+-m length --length :92      # 匹配小于或等于
+-m length --length num:num  # 匹配指定区间
 
 iptables -I INPUT -p icmp --icmp-type 8 -m length --length :60 -j ACCEPT 
 #仅允许数据包小于或等于60字节的ping请求数据进入
@@ -1596,6 +1596,8 @@ iptables_i_filter_time(){ cat - <<'iptables_i_filter_time'
 -m time --timestart 8:00 --timestop 12:00  表示从哪个时间到哪个时间段
 -m time --days    表示那天
 
+绝对时间设定: --datestart 和 --datestop: 此为指定一段时间内做特定流量匹配
+相对时间设定: --timestart 和 --timestop 及 --monthdays 和 --weekdays：这些都是相对时间，所以可以设定永久性对特定流量的匹配
 -------------------------------------------------------------------------------- 对于openwrt而言
 /home/mr3/m3/etc/TZ 包含内容是 CST-8
 
@@ -3017,6 +3019,13 @@ for x in `grep -v ^# $BLACKLIST | awk '{print $1}'`; do
         $IPTABLES -A INPUT -t filter -s $x -j DROP
 done
 
+# Iptables拒绝指定国家的IP访问
+wget -O /tmp/us.zone http://www.ipdeny.com/ipblocks/data/countries/us.zone
+for ip in `cat /tmp/us.zone`
+do
+Blocking $ip
+iptables -I INPUT -s $ip -j DROP
+done
 iptables_t_whitelist_blacklist
 }
 
