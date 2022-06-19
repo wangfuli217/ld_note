@@ -1,10 +1,59 @@
-awk_script(){
+awk_program(){ cat - <<'awk_program'
+BEGIN          {<initializations>} 
+   <pattern 1> {<program actions>} 
+   <pattern 2> {<program actions>} 
+   ...
+END            {< final actions >}
+
+awk '
+    BEGIN { print "\n>>>Start" }
+    !/(login|shutdown)/ { print NR, $0 }
+    END { print "<<<END\n" }
+' /etc/passwd
+
+awk 'BEGIN {print "hello world"}'                           # Prints "hello world"
+awk -F: '{print $1}' /etc/passwd                            # -F: Specify field separator
+awk -F: '/root/ {print $1}' /etc/passwd                     # /pattern/ Execute actions only for matched pattern
+awk -F: 'BEGIN { print "uid"} { print $1 }' /etc/passwd     # BEGIN block is executed once at the start
+awk -F: '{print $1} END { print "-done-"}' /etc/passwd      # END block is executed once at the end
+
+awk 'BEGIN{ while (a++ < 1000) s=s " "; print s }'          # Generate 1000 spaces
+
+awk -F: '{sum += $3} END { print sum, sum/NR } ' /etc/passwd # Print sum and average
+[Printing parameters]
+awk 'BEGIN {
+    for (i = 1; i < ARGC; i++)
+        print ARGV[i] }' a b c
+[Output field separator as a comma]
+
+awk 'BEGIN { FS=":";OFS=","}
+    {print $1,$2,$3,$4}' /etc/passwd
+
+[Position of match]
+awk 'BEGIN {
+    if (match("One Two Three", "Tw"))
+        print RSTART }'
+
+[Length of match]
+awk 'BEGIN {
+    if (match("One Two Three", "re"))
+        print RLENGTH }'
+        
+/regex/         Line matches
+!/regex/        Line not matches
+$1 ~ /regex/    Field matches
+$1 !~ /regex/   Field not matches
+"foo" in array  In array
+awk_program
+}
+
+awk_script(){ cat - <<'awk_script'
 操作对象  是预定义变量和自定义变量
 变量类型  字符串 数组和数值
 操作手段  除了类似sed中的内置函数外，采用了C语言编程模式，支持关系和算术运算，还有字段操作，对字符串处理功能丰富
 操作效果  变量被改变 或 求出统计结果
-工作模式 
-控制流程  处理一行 if while for break continue 
+工作模式
+控制流程  处理一行 if while for break continue
           AWK行循环 next exit getline
 
 预定义变量的值，是可以改变的；包括 $0 $1 和 FS OFS FNR 和 NR
@@ -20,13 +69,14 @@ in 可用于if判断和for循环的控制语句中。
 4. 流处理 : print printf sprintf getline > >> 重定向
 5. index是普通匹配，match是模式匹配，另外有RSTART和RLENGTH预定义内置变量和返回匹配数字a可选参数
    substr是基于位置的字符串截取，而sub和gsub是模式替换
+awk_script
 }
 
-https://github.com/learnbyexample/Command-line-text-processing/blob/master/gnu_awk.md  # stackoverflow
-http://www.math.utah.edu/docs/info/gawk_toc.html
+# https://github.com/learnbyexample/Command-line-text-processing/blob/master/gnu_awk.md  # stackoverflow
+# http://www.math.utah.edu/docs/info/gawk_toc.html
 
 awk 'BEGIN {awk-commands} /pattern/ {awk-commands} END {awk-commands}'
-awk_row_column(){
+awk_row_column(){ cat - <<'awk_row_column'
     awk 的设计深受 Unix 系统中的文本检索工具 grep 与文本编辑工具 sed 的启发，其语法借鉴了 C 语言。
 awk 要比grep和awk强大，使得简单的grep和sed命令使用较复杂的awk命令实现。
     认识了awk, 发现awk功能上可以替代grep,sed. 当然，相同的功能需要多写一点点代码。
@@ -41,19 +91,20 @@ awk 要比grep和awk强大，使得简单的grep和sed命令使用较复杂的aw
                                         # awk '{gsub(/pattern/,"foobar")}1' - sed 's/pattern/foobar/g' # gsub对应s/pattern/replace/g
     grep /regular/  支持--color, -w, -v 等选项
     awk '/regular/{print}', match(s,r,[,a]) 与之抗衡。
-    
+
     sed 's///' 一招定天下
     awk  sub(r,s,[,t]) gsub(r,s,[,t]) gensub(r,s,h,[,t]) 灵活替换。
-    
+
   在指名的一组文件上，或标准输入上、如果没有指定文件的话，执行字符串 program 中的 awk 命令。
   pattern { action statement; action statement; etc. } or
   pattern {
       action statement
       action statement
 }
+awk_row_column
 }
 
-awk_syntax(){
+awk_syntax(){  cat - <<'awk_syntax'
 模式与动作: 模式或动作二者都可以但不能同时省略。
     如果一个模式没有动作，简单的把匹配的行复制到输出。(所以匹配多个模式的行可能被打印多次)。
     如果一个动作没有模式，则这个动作在所有输入上进行。不匹配模式的行被忽略。
@@ -121,7 +172,7 @@ awk_syntax(){
         \r   # 回车
         \t   # 制表符Tab
         \c   # 代表任一其他字符
-    @ 模式匹配 @ 
+    @ 模式匹配 @
         -F"[ ]+|[%]+"  # 多个空格或多个%为分隔符
         [a-z]+         # 多个小写字母
         [a-Z]          # 代表所有大小写字母(aAbB...zZ)
@@ -138,18 +189,20 @@ awk_syntax(){
         [:upper:]      # 大写字母
         [:xdigit:]     # 十六进制的数字(0-9a-fA-F)
         [[:digit:][:lower:]]    # 数字和小写字母(占一个字符)
+awk_syntax
 }
 
-awk_command(){
+awk_command(){  cat - <<'awk_command'
 -F fs or --field-separator fs
     指定输入文件折分隔符，fs是一个字符串或者是一个正则表达式，如-F:
 -f scripfile or --file scriptfile
     从脚本文件中读取awk命令。
 -v var=value or --asign var=value
     赋值一个用户定义变量。
+awk_command
 }
 
-awk_out_variable(){
+awk_out_variable(){ cat - <<'awk_out_variable'
 1. awk的程序与shell的交互
 awk提供了与shell命令交互的能力，从而可以使得用户在awk程序中使用系统资源。awk主要通过2种机制来实现这种交互功能，分别为管道和sytem函数。
 1.1 通过管道实现与shell的交换
@@ -170,15 +223,16 @@ system(command)
 #! /bin/awk -f
 BEGIN {
     system("ls > filelist")
-    
+
     while(getline < "filelist" > 0)
     {
         print $1
     }
 }
+awk_out_variable
 }
 
-awk_in_variable(){
+awk_in_variable(){  cat - <<'awk_in_variable'
             $n                 # 当前记录的第 n 个字段，字段间由 FS 分隔(不包括分隔符) # Field
                 {print $3, $2} # 打印一个表格的第三和第二列。
                 $2 ~ /A|B|C/   # 打印在第二列是 A、B 或 C 的所有输入行
@@ -205,6 +259,8 @@ awk_in_variable(){
                 echo 'foo:123:bar:789' | awk -F: '{print $1, $NF}'   # foo 789
                 echo 'foo:123:bar:789' | awk -F: '{print $(NF-1)}'   # bar
                 用于输出
+                awk -F: '{print $(NF-1)}' /etc/passwd
+                awk -F: '{print $1,$NF}' /etc/passwd
                 awk '{print $0,NF}' employees # 变量NF(Number of Field)，记录当前记录有多少域,
                 echo '{foo}   bar=baz' | awk -F'[{}= ]+' -v OFS=" " '{$1=$1; print $0}' # 空白 foo bar baz
                 echo '{foo}   bar=baz' | awk -F'[{}= ]+' '{print $1}' # 空白
@@ -224,7 +280,7 @@ awk_in_variable(){
                 awk -F , 'BEGIN {print "FS = " FS}' | cat -vte  # FS = ,$  设置后FS数值集合
                 echo 'Sample123string54with908numbers' | awk -F'[0-9]+' '{print $2}' # string
                 # first field will be empty as there is nothing before '{'
-                echo '{foo}   bar=baz' | awk -F'[{}= ]+' '{print $1}' # 
+                echo '{foo}   bar=baz' | awk -F'[{}= ]+' '{print $1}' #
                 echo '{foo}   bar=baz' | awk -F'[{}= ]+' '{print $2}' # foo
                 echo '{foo}   bar=baz' | awk -F'[{}= ]+' '{print $3}' # bar
                 # for anything else, leading/trailing whitespaces will be considered
@@ -249,9 +305,9 @@ awk_in_variable(){
               ARGV可以被修改和追加。ARGC可以被修改。ARGV是一个null结尾的数组，ARGC-1标识ARGV数组最后一个元素。
               isdigit=$(awk 'BEGIN { if (match(ARGV[1],"^[0-9]+$") != 0) print "true"; else print "false" }' $1)
               awk 'BEGIN { for (i = 0; i < ARGC - 1; ++i) { printf "ARGV[%d] = %s\n", i, ARGV[i] } }' one two three four
-              # ARGV[0] = awk 
+              # ARGV[0] = awk
               # ARGV[1] = one
-              # ARGV[2] = two 
+              # ARGV[2] = two
               # ARGV[3] = three
             CONVFMT       # 数字转换格式 ( 默认值为 %.6g)
                 awk 'BEGIN { print "Conversion Format =", CONVFMT }' # Conversion Format = %.6g
@@ -267,10 +323,10 @@ awk_in_variable(){
                 awk 'NR==FNR { # some actions; next} # other condition {# other actions}' file1 file2
                 # NR多个文件叠加的行数，FNR当前文件累加的行数。
                 awk 'NR==FNR{a[$0];next} $0 in a' file1 file2 # 打印既在file1又在file2的行
-                awk 'NR==FNR{a[$1]=$2;next} {$3=a[$3]}1' mapfile datafile # 
-                awk 'NR==FNR{if($0>max) max=$0;next} {$0=max-$0}1' file file # 
+                awk 'NR==FNR{a[$1]=$2;next} {$3=a[$3]}1' mapfile datafile #
+                awk 'NR==FNR{if($0>max) max=$0;next} {$0=max-$0}1' file file #
             IGNORECASE    # 如果为真(即非 0 值)，则进行忽略大小写的匹配
-                awk 'BEGIN{IGNORECASE = 1} /amit/' marks.txt 
+                awk 'BEGIN{IGNORECASE = 1} /amit/' marks.txt
                 awk -v IGNORECASE=1 '/rose/' poem.txt
                 awk '/[rR]ose/' poem.txt
                 awk 'tolower($0) ~ /rose/' poem.txt
@@ -287,6 +343,7 @@ awk_in_variable(){
                 awk 'NR==2 || NR==4' poem.txt
                 awk 'END{print}' poem.txt # 最后一行
                 awk 'NR==4{print $2}' fruits.txt
+                awk -F: '{print NR, $0}' /etc/passwd
             OFMT          # 数字的输出格式 ( 默认值是 %.6g) printf 和 sprintf
                 awk 'BEGIN {print "OFMT = " OFMT}' # OFMT = %.6g
             OFS           # 输出字段分隔符 ( 默认值是一个空格 )
@@ -310,7 +367,7 @@ awk_in_variable(){
                 LC_ALL=C gawk -v RS='FOO[0-9]*\n' -v ORS= '{print > "out"NR}' file
                 awk 'BEGIN {print "RS = " RS}' | cat -vte # RS = $
                 s='this is a sample string'
-                printf "$s" | awk -v RS=' ' '{print NR, $0}' 
+                printf "$s" | awk -v RS=' ' '{print NR, $0}'
                 printf "$s" | awk -v RS=' ' '/a/'
             RSTART        # match函数匹配的第一次出现位置
                 awk 'BEGIN { if (match("One Two Three", "Thre")) { print RSTART } }'
@@ -319,8 +376,10 @@ awk_in_variable(){
         }
         awk '/Mary/' employees      #打印所有包含模板Mary的行。                                             行
         awk '{print $1}' employees  #打印文件中的第一个字段，这个域在每一行的开始，缺省由空格或其它分隔符。 列
+awk_in_variable
+}
 
-awk_printf_print_sprintf(){
+awk_printf_print_sprintf(){  cat - <<'awk_printf_print_sprintf'
 1. print [ ExpressionList ] [ Redirection ] [ Expression ]
     print 语句将 ExpressionList 参数指定的每个表达式的值写至标准输出。每个表达式由 OFS 特殊变量的当前值隔开，
 且每个记录由 ORS 特殊变量的当前值终止。
@@ -338,12 +397,12 @@ print $2  $1
         date | awk '{print "Month: " $2 "\nYear: ", $6}'
         awk '/Sally/{print "\t\tHave a nice day, " $1,$2 "!"}' employees
         awk 'BEGIN { OFMT="%.2f"; print 1.2456789, 12E-2}'
-        
+
         awk { print $1 >"foo1"; print $2 >"foo2" } # 输出可以被转向到多个文件中
         print $1 >>"foo"                           # 添加输出到文件 foo
         print $1 >$2  # 文件名可以是一个变量或字段，同常量一样；
         print | "mail bwk" # 输出可以用管道导入到(只在 UNIX 上的)其他进程；
-  
+
 print 和 printf 之间差异，
 1. OFS和ORS在print中有效，在printf中无效。即 print $0会自动追加换行; print $1,$2在 $1,$2之间会嵌入空格
 2. , 在print中具有ORS分隔功能，无 , 表示字符串之间连接。 , 在printf按照原样输出。
@@ -364,21 +423,22 @@ print 和 printf 之间差异，
 %x           打印十六进制数。       printf("y is %x.\n",y)                          y is f.
        echo "Linux" | awk '{printf "|%-15s|\n", $1}'  # %-15s表示保留15个字符的空间，同时左对齐
        echo "Linux" | awk '{printf "|%15s|\n", $1}'   # %-15s表示保留15个字符的空间，同时右对齐
-       awk '{printf "The name is %-15s ID is %8d\n", $1,$3}' employees #%8d表示数字右对齐，保留8个字符的空间 
+       awk '{printf "The name is %-15s ID is %8d\n", $1,$3}' employees #%8d表示数字右对齐，保留8个字符的空间
        printf "%8.2f %10ld\n", $1, $2 # 打印 $1 为 8 位宽的小数点后有两位的浮点数，打印 $2 为 10 位长的长十进制数，并跟随着一个换行。
-       
+
        函数 sprintf(f, e1, e2, ...) 在 f 指定的 printf 格式中生成表达式 e1、e2 等的值。所以例子
     x = sprintf("%8.2f %10ld", $1, $2) # 设置 x 为格式化 $1 和 $2 的值所生成的字符串。
-       }
-       
-awk_pattern(){
-    在动作之前的模式充当决定一个动作是否执行的选择者。有多种多样的表达式可以被用做模式: 
+awk_printf_print_sprintf
+}
+
+awk_pattern(){  cat - <<'awk_pattern'
+    在动作之前的模式充当决定一个动作是否执行的选择者。有多种多样的表达式可以被用做模式:
 正则表达式，算术关系表达式，字符串值的表达式，和它们的任意的布尔组合
     特殊模式 BEGIN 匹配输入的开始，在第一个记录被读取之前。
     模式 END 匹配输入的结束，在最后一个记录已经被处理之后。
     BEGIN 和 END 从而提供了在处理之前和之后获得控制的方式，用来做初始化和总结。
     如果 BEGIN 出现，它必须是第一模式；END 必须是最后一个模式，如果用到了的话。
-    
+
     模式摘要
 1. BEGIN { 语句 }
 在读取任何输入前执行一次 语句
@@ -402,13 +462,14 @@ BEGIN和END不与其他模式组合。范围模式不可以是任何其他模式
     awk '/are/{print $NF}' poem.txt
     awk '$0 !~ "are"' poem.txt
     awk '$0 ~ "^[ab]"' fruits.txt
-    
+
     awk '$1 ~ /a/' fruits.txt
     awk '$1 ~ /a/ && $2 > 20' fruits.txt
     awk '$1 !~ /a/' fruits.txt
-     }
-       
-awk_test(){ 
+awk_pattern
+}
+
+awk_test(){   cat - <<'awk_test'
 模式可以是涉及常用的关系算符 <、<=、==、!=、>=、> 的关系表达式
 运算符  含义        例子
 <       小于         x < y
@@ -436,20 +497,37 @@ $1 >= "s" # 选择开始于 s、t、u 等字符的行。
 
 在缺乏任何其他信息的情况下，字段被当作字符串
 $1 > $2 # 将进行字符串比较。
-       }
-       
-awk_operator(){
+awk_test
+}
+
+awk_operator(){ cat - <<'awk_operator'
        条件表达式使用两个符号--问号和冒号给表达式赋值： conditional expression1 ? expression2 : expressional3
        awk 'NR <= 3 {print ($7 > 4 ? "high "$7 : "low "$7) }' testfile
-       
+
 conditional expression1 expression2: expression3，
 例如：$ awk '{max = {$1 > $3} $1: $3: print max}' test。如果第一个域大于第三个域，$1就赋值给max，否则$3就赋值给max。
 $ awk '$1 + $2 < 100' test。如果第一和第二个域相加大于100，则打印这些行。
 $ awk '$1 > 5 && $2 < 10' test,如果第一个域大于5，并且第二个域小于10，则打印这些行。
-       
-       }
-       
-awk_math(){
+
+$1 == "root"        First field equals root
+{print $(NF-1)}     Second last field
+NR!=1{print $0}     From 2th record
+NR > 3              From 4th record
+NR == 1             First record
+END{print NR}       Total records
+BEGIN{print OFMT}   Output format
+{print NR, $0}      Line number
+{print NR " " $0}   Line number (tab)
+{$1 = NR; print}    Replace 1th field with line number
+$NF > 4             Last field > 4
+NR % 2 == 0         Even records
+NR==10, NR==20      Records 10 to 20
+BEGIN{print ARGC}   Total arguments
+ORS=NR%5?",":"\n"   Concatenate records
+awk_operator
+}
+
+awk_math(){ cat - <<'awk_math'
 运算符  含义     例子
 +       加       x + y
 -       减       x - y
@@ -485,9 +563,10 @@ awk_math(){
     5. 指数操作符
     awk 'BEGIN { a = 10; a = a ^ 2; print "a =", a }' # a = 100
     awk 'BEGIN { a = 10; a ^= 2; print "a =", a }'    # a = 100
-       }
-       
-awk_and_or(){ 
+awk_math
+}
+
+awk_and_or(){ cat - <<'awk_and_or'
 模式可以是模式的使用算符 ||(或)、&&(与)和 !(非)的任意布尔组合。
 运算符  含义    例子
 &&      逻辑与  a && b
@@ -500,9 +579,10 @@ awk_and_or(){
     awk '/foo/ && /bar/'
     awk '/foo/ && !/bar/'
     awk '/foo/ || /bar/'
-       }
-       
-awk_scope(){  
+awk_and_or
+}
+
+awk_scope(){ cat - <<'awk_scope'
 选择一个动作的"模式"还可以由用逗号分隔的两个模式组成
     pat1,{ ... } pat2
     在这种情况下，这个动作在 pat1 的一个出现和 pat2 的下一个出现之间(包含它们)的每个行上进行。
@@ -513,9 +593,10 @@ awk_scope(){
        awk '/endpat/{p=0};p;/beginpat/{p=1}'  # prints lines from /beginpat/ to /endpat/, not inclusive
        awk '/endpat/{p=0} /beginpat/{p=1} p'  # prints lines from /beginpat/ to /endpat/, excluding /endpat/
        awk 'p; /endpat/{p=0} /beginpat/{p=1}' # prints lines from /beginpat/ to /endpat/, excluding /beginpat/
+awk_scope
 }
 
-awk_assign(){
+awk_assign(){ cat - <<'awk_assign'
     awk 变量依据上下文而被接纳为数值(浮点数)或字符串值。
     x = 1 # x 明显的是个数
     x = "smith" # 明显的是个字符串
@@ -524,9 +605,10 @@ awk_assign(){
     缺省的，(不是内置的)变量被初始化为空字符串，它有为零的数值；这消除了大多数对 BEGIN 段落的需要。
     awk '$3 == "Ann" { $3 = "Christian"; print}' testfile
     awk '/Ann/{$8 += 12; print $8}' testfile #找到包含Ann的记录，并将该条记录的第八个域的值+=12，最后再打印输出。
+awk_assign
 }
-    
-awk_variable(){
+
+awk_variable(){ cat - <<'awk_variable'
     在awk中变量无须定义即可使用，变量在赋值时即已经完成了定义。变量的类型可以是数字、字符串。
 根据使用的不同，未初始化变量的值为0或空白字符串" "，这主要取决于变量应用的上下文。下面为变量的赋值负号列表：
 符号    含义       等价形式
@@ -553,9 +635,10 @@ print
 1. 字符串可以被串接
 length($1 $2 $3) # 返回前三个字段的长度
 print $1 " is " $2 # 打印用" is "分隔的两个字段。变量和数值表达式也可以在连接中出现。
-       }
-       
-awk_class_demo(){
+awk_variable
+}
+
+awk_class_demo(){ cat - <<'awk_class_demo'
             1) BEGIN: 其后紧跟着动作块, 该块将会在任何输入文件被读入之前执行, 如一些初始化工作, 或者打印一些输出标题.
        awk 'BEGIN{FS=":"; OFS="\t";ORS="\n\n"} {print $1,$2,$3}' file
        awk 'BEGIN { while (a++<513) s=s "x"; print s }' # 打印513个x字符
@@ -589,11 +672,12 @@ awk_class_demo(){
             8) 匹配操作符: " ~ " 用来在记录或者域内匹配正则表达式
        awk '$1 ~ /[Bb]ill/' employees      #显示所有第一个域匹配Bill或bill的行。
        awk '$1 !~ /[Bb]ill/' employees     #显示所有第一个域不匹配Bill或bill的行，其中!~表示不匹配的意思。
-        }
-        
-        r: regex ; s,t: strings ; n,p: integers
-        
-awk_in_func(){
+awk_class_demo
+}
+
+#  r: regex ; s,t: strings ; n,p: integers
+
+awk_in_func(){ cat - <<'awk_in_func'
         字符串连接操作符
         awk 'BEGIN { str1 = "Hello, "; str2 = "World"; str3 = str1 str2; print str3 }' # Hello, World
             1) sub/gsub(regexp, substitution string, [target string]); gsub和sub的差别是sub只是替换每条记录中第一个匹配正则的, gsub则替换该记录中所有匹配
@@ -603,7 +687,7 @@ awk_in_func(){
        awk '{sub(/Tom/,"Thomas"); print}' employees    # 在整个记录中匹配，替换只发生在第一次匹配发生的时候。如要在整个文件中进行匹配需要用到gsub
        awk '{sub(/Tom/,"Thomas",$1); print}' employees # 在整个记录的第一个域中进行匹配，替换只发生在第一次匹配发生的时候。
        awk 'BEGIN{info="this is a test in 2013-01-04"; sub(/[0-9]+/, "!", info); print info}'  # this is a test in !-01-04
-       
+
        awk '{gsub(/Tom/,"Thomas"); print}' employees    # 在整个文档中匹配test，匹配的都被替换成mytest。
        awk '{gsub(/Tom/,"Thomas",$1); print}' employees # 在整个文档的第一个域中匹配，所有匹配的都被替换成mytest。
        awk 'BEGIN{info="this is a test in 2013-01-04"; gsub(/[0-9]+/, "!", info); print info}'  # this is a test in !-!-!
@@ -613,7 +697,7 @@ awk_in_func(){
        awk '{ print index("test", "mytest") }' testfile # 结果应该是3
        awk 'BEGIN{print index("hollow", "low") }'       # 结果应该是4
        awk 'BEGIN{info="this is a test in 2013-01-04"; print index(info, "test") ? "found" : "no found";}'  # 匹配test，打印found； 不匹配， 打印not found
-       
+
             3) length(s) 返回字符串的长度. length(s)
             length 自身是个"伪变量"，它生成当前记录的长度；
             某个内置函数的名字，不带有参数或圆括号，表示这些函数在整个记录上的值
@@ -622,14 +706,14 @@ awk_in_func(){
        awk '{ print length( "test" ) }' # test字符串的长度。
        awk '{ print length }' testfile  # testfile文件中第条记录的字符数。
        awk 'length < 64' # 行长度小于64
-       
+
             4) substr(string, starting position, [length])
                substr(s,p) substr(s,p,n)
             substr(s, m, n) 生成 s 的开始于位置 m(起始于 1)的最多 n 个字符长的子串。如果省略了 n，子串到达 s 的结束处。
        awk 'BEGIN{print substr("Santa Claus",7,6)}'
        awk 'BEGIN{print substr("Santa Claus",7)}'
-       awk 'BEGIN{info="this is a test in 2013-01-04"; print substr(info, 4, 10);}'     
-       
+       awk 'BEGIN{info="this is a test in 2013-01-04"; print substr(info, 4, 10);}'
+
             5) match(string, regexp) 返回正则表示在string中的位置, 没有定位返回0
                match(s,r)
             match函数返回在字符串中正则表达式位置的索引，如果找不到指定的正则表达式则返回0。
@@ -647,27 +731,27 @@ awk_in_func(){
                split(s,a)  split(s,a,fs)
                按给定的分隔符把字符串分割为一个数组。如果分隔符没提供，则按当前FS值进行分割。
        awk 'BEGIN{split("12/24/99",date,"/"); for (i in date) {print date[i]} }'
-       awk 'BEGIN{info="this is a test in 2013-01-04"; split(info, tA, " "); print "len : " length(tA); for(k in tA) {print k, tA[k];}}' 
+       awk 'BEGIN{info="this is a test in 2013-01-04"; split(info, tA, " "); print "len : " length(tA); for(k in tA) {print k, tA[k];}}'
        把字符串 s 分解到 array[1], ..., array[n]。返回找到的元素数目。如果提供了 sep 参数，则把它用做字段分隔符；否则使用 FS 作为分隔符。
        n = split(s, array, sep)
-       
+
             8) variable = sprintf(format, ...) 和printf的最大区别就是他返回格式化后的字符串.
                           sprintf(fmt,expr-list)
        awk '{line = sprintf("%-15s %6.2f ",$5,$6); print line}' datafile
        awk(printf)
        awk 'BEGIN{n1=124.113; n2=-1.224; n3=1.2345; printf("n1 = %.2f, n2 = %.2u, n3 = %.2g, n1 = %X, n1 = %o\n", n1, n2, n3, n1, n1);}'
-       
+
             9) systime() 返回1970/1/1到当前时间的整秒数.
             awk 'BEGIN{tstamp1=mktime("2013 01 04 12 12 12"); tstamp2=systime(); print tstamp2-tstamp1;}'
             10) variable = strftime(format, [timestamp]) # C库中的strftime函数格式化时间。
             mktime( YYYY MM DD HH MM SS[ DST])
             awk 'BEGIN{tstamp=mktime("2013 01 04 12 12 12"); print strftime("%c", tstamp);}'
             awk 'BEGIN{tstamp1=mktime("2013 01 04 12 12 12"); tstamp2=mktime("2013 02 01 0 0 0"); print tstamp2-tstamp1;}'
-            
+
             strftime([format [, timestamp]])
             awk '{ now=strftime("%m/%d/%y"); print now }'
             awk '{ now=strftime( "%D", systime() ); print now }'
-            
+
             11) 数学函数: atan2(x,y), cos(x), exp(x)[求幂], int(x)[求整数], log(x), rand()[随机数], sin(x), sqrt(x), srand(x)
             名称        返回值
             atan2(x,y)  y,x范围内的余切
@@ -683,7 +767,7 @@ awk_in_func(){
             sqrt(x)     平方根
             awk 'BEGIN{print 31/3}'
             awk 'BEGIN{print int(31/3)}'
-            awk 'BEGIN{OFMT="%.3f"; fs=sin(3.14/2); fe=exp(1); fl=log(exp(2)); fi=int(3.1415); fq=sqrt(100); print fs, fe, fl, fi, fq;}' 
+            awk 'BEGIN{OFMT="%.3f"; fs=sin(3.14/2); fe=exp(1); fl=log(exp(2)); fi=int(3.1415); fq=sqrt(100); print fs, fe, fl, fi, fq;}'
             awk 'BEGIN{srand(); fr=int(100*rand()); print fr;}'
             12) 自定义函数：
             自定义函数可以放在awk脚本的任何可以放置模板和动作的地方。
@@ -691,22 +775,24 @@ awk_in_func(){
                 statements
                 return expression
             }
+awk_in_func
 }
 
-awk_system(){
+awk_system(){ cat << 'awk_system'
 awk 'BEGIN{b=system("ls -al"); print b;}'
-awk 'BEGIN{system("clear")}'
+awk 'BEGIN{system("clear")}'.
+awk_system
 }
 
 # close 用法
 可以在awk中打开一个管道，且同一时刻只能有一个管道存在。通过close()可关闭管道。
-如：$ awk '{print $1, $2 | "sort" }  END { close("sort"); } ' cbtc.sh 
+如：$ awk '{print $1, $2 | "sort" }  END { close("sort"); } ' cbtc.sh
 awk把print语句的输出通过管道作为linux命令sort的输入,END块执行关闭管道操作。
 
 awk 'BEGIN{while("cat /etc/passwd" | getline) {print $0;}; close("/etc/passwd");}' | head -n10
 
 # close(expr) 关闭管道文件
-close( Expression ) 
+close( Expression )
     用同一个带字符串值的 Expression 参数来关闭由 print 或 printf 语句打开的或调用 getline 函数打开的文件或管道。
 如果文件或管道成功关闭，则返回 0；其它情况下返回非零值。如果打算写一个文件，并稍后在同一个程序中读取文件，则 close 语句是必需的。
 
@@ -714,11 +800,11 @@ close( Expression )
 awk 'BEGIN {
      cmd = "tr [a-z] [A-Z]"
      print "hello, world !!!" |& cmd
-     
+
      close(cmd, "to")
      cmd |& getline out
      print out;
-     
+
      close(cmd);
   }'
   HELLO, WORLD !!!
@@ -730,7 +816,7 @@ awk 'BEGIN {
     接下来打印变量out的内容，然后关闭cmd
 }
 https://www.gnu.org/software/gawk/manual/html_node/Getline.html#Getline
-awk_getline(){
+awk_getline(){  cat << 'awk_getline'
 Variant                      | Effect                       | awk / gawk
 getline                      | Sets $0, NF, FNR, NR, and RT | AWK, NAWK, GAWK # 从当前文件中读取下条记录给$0, 修改了NF,NR和FNR的值。
 getline <file                | Sets $0, NF, and RT          | NAWK, GAWK      # 从指定名称文件file中读取下条记录，$0和NF被设置。
@@ -741,25 +827,25 @@ getline variable <file       | Sets var and RT              | NAWK, GAWK      # 
 command |& getline           | Sets $0, NF, and RT          | gawk
 command |& getline var       | Sets var and RT              | gawk
 
-1. Expression | getline [ Variable ] 
+1. Expression | getline [ Variable ]
     从来自 Expression 参数指定的命令的输出中通过管道传送的流中读取一个输入记录，并将该记录的值指定给 Variable 参数指定的变量。
-如果当前未打开将 Expression 参数的值作为其命令名称的流，则创建流。创建的流等同于调用 popen 子例程，此时 Command 参数取 Expression 
+如果当前未打开将 Expression 参数的值作为其命令名称的流，则创建流。创建的流等同于调用 popen 子例程，此时 Command 参数取 Expression
 参数的值且 Mode 参数设置为一个是 r 的值。只要流保留打开且 Expression 参数求得同一个字符串，则对 getline 函数的每次后续调用读取
 另一个记录。如果未指定 Variable 参数，则 $0 记录变量和 NF 特殊变量设置为从流读取的记录。
-2. getline [ Variable ] < Expression 
-    从 Expression 参数指定的文件读取输入的下一个记录，并将 Variable 参数指定的变量设置为该记录的值。只要流保留打开且 Expression 
+2. getline [ Variable ] < Expression
+    从 Expression 参数指定的文件读取输入的下一个记录，并将 Variable 参数指定的变量设置为该记录的值。只要流保留打开且 Expression
 参数对同一个字符串求值，则对 getline 函数的每次后续调用读取另一个记录。如果未指定 Variable 参数，则 $0 记录变量和 NF 特殊变量设置
 为从流读取的记录。
-3. getline [ Variable ] 
+3. getline [ Variable ]
     将 Variable 参数指定的变量设置为从当前输入文件读取的下一个输入记录。如果未指定 Variable 参数，则 $0 记录变量设置为该记录的值，
 还将设置 NF、NR 和 FNR 特殊变量。
 
     输出重定向需用到getline函数。getline从标准输入、管道或者当前正在处理的文件之外的其他输入文件获得输入。
 getline负责从输入获得下一行的内容，并给NF,NR和FNR等内建变量赋值。如果得到一条记录，getline函数返回1，
 如果到达文件的末尾就返回0，如果出现错误，例如打开文件失败，就返回-1。如：
-awk 'BEGIN{ "date" | getline d; print d}' test。 
+awk 'BEGIN{ "date" | getline d; print d}' test。
 # 执行linux的date命令，并通过管道输出给getline，然后再把输出赋值给自定义变量d，并打印它。
-awk 'BEGIN{"date" | getline d; split(d,mon); print mon[2]}' test。 
+awk 'BEGIN{"date" | getline d; split(d,mon); print mon[2]}' test。
 # 执行shell的date命令，并通过管道输出给getline，然后getline从管道中读取并将输入赋值给d，split函数把变量d转化成数组mon，然后打印数组mon的第二个元素。
 awk 'BEGIN{while( "ls" | getline) print}'
 # 命令ls的输出传递给geline作为输入，循环使getline从ls的输出中读取一行，并把它打印到屏幕。这里没有输入文件，因为BEGIN块在打开输入文件前执行，所以可以忽略输入文件。
@@ -770,9 +856,10 @@ awk 'BEGIN{while (getline < "/etc/passwd" > 0) lc++; print lc}'
 # awk将逐行读取文件/etc/passwd的内容，在到达文件末尾前，计数器lc一直增加，当到末尾时，打印lc的值。
 awk 'BEGIN{while(getline < "/etc/passwd"){print $0;}; close("/etc/passwd");}' | head -n10
 awk 'BEGIN{print "Enter your name:"; getline name; print name;}'
+awk_getline
 }
 
-awk_pattern(){
+awk_t_pattern(){ cat << 'awk_t_pattern'
 正则表达式操作符使用 ~ 和 !~ 分别代表匹配和不匹配。
 awk '$0 ~ 9' marks.txt
 awk '$0 !~ 9' marks.txt
@@ -788,10 +875,10 @@ echo -e "Colour\nColor" | awk '/Colou?r/'
 echo -e "ca\ncat\ncatt" | awk '/cat*/'
 echo -e "111\n22\n123\n234\n456\n222" | awk '/2+/'
 echo -e "Apple Juice\nApple Pie\nApple Tart\nApple Cake" | awk '/Apple (Juice|Cake)/'
+awk_t_pattern
 }
 
-awk_condition(){
-
+awk_condition(){ cat << 'awk_condition'
 #     awk 命令编程语言中的大部分条件语句和 C 编程语言中的条件语句具有相同的语法和功能。
 # 所有条件语句允许使用{ } (花括号) 将语句组合在一起。可以在条件语句的表达式部分和语句
 # 部分之间使用可选的换行字符，且换行字符或 ;（分号）用于隔离 { } (花括号) 中的多个语句。
@@ -835,9 +922,10 @@ exit 语句首先调用所有 END 操作（以它们发生的顺序），然后�
 # Comment
 # 语句放置注释。注释应始终以换行字符结束，但可以在一行上的任何地方开始。
 next 停止对当前输入记录的处理，从下一个输入记录继续。
+awk_condition
 }
 
-awk_if(){
+awk_if(){ cat << 'awk_if'
             awk '{print ($1>$2)?"第一排"$1:"第二排"$2}'      # 条件判断 括号代表if语句判断 "?"代表then ":"代表else
             awk '{max=($1>$2)? $1 : $2; print max}'          # 条件判断 如果$1大于$2,max值为为$1,否则为$2
             awk '{if ( $6 > 50) print $1 " Too high" ;\
@@ -853,7 +941,7 @@ if...in 语句搜索是否存在的 Array 元素。如果找到 Array 元素，�
 # 流程控制语句与大多数语言一样，基本格式如下
 if (condition)
    action
-   
+
 if (condition) {
    action-1
    action-1
@@ -868,11 +956,11 @@ else if (condition2)
    action-2
 else
    action-3
-   
+
 awk 'BEGIN { num = 11; if (num % 2 == 0) printf "%d is even number.\n", num; else printf "%d is odd number.\n", num }'
 awk 'BEGIN {
    a = 30;
-   
+
    if (a==10)
    print "a = 10";
    else if (a == 20)
@@ -880,13 +968,14 @@ awk 'BEGIN {
    else if (a == 30)
    print "a = 30";
 }'
+awk_if
 }
 
-awk_loop(){
+awk_loop(){  cat << 'awk_loop'
 1. while 循环
 while (condition)
   action
-  
+
 awk '{i = 1; while ( i <= NF ) { print NF, $i ; i++ } }' file
 awk 'BEGIN {i = 1; while (i < 6) { print i; ++i } }'
 
@@ -903,8 +992,8 @@ for (initialisation; condition; increment/decrement)
    action
 awk '{ for ( i = 1; i <= NF; i++ ) print NF,$i }' file
 awk 'BEGIN { for (i = 1; i <= 5; ++i) print i }'
-awk 'BEGIN { sum = 0; for (i = 0; i < 20; ++i) { sum += i; if (sum > 50) break; else print "Sum =", sum } }' 
-awk 'BEGIN { for (i = 1; i <= 20; ++i) { if (i % 2 == 0) print i ; else continue } }' 
+awk 'BEGIN { sum = 0; for (i = 0; i < 20; ++i) { sum += i; if (sum > 50) break; else print "Sum =", sum } }'
+awk 'BEGIN { for (i = 1; i <= 20; ++i) { if (i % 2 == 0) print i ; else continue } }'
 awk 'BEGIN { sum = 0; for (i = 0; i < 20; ++i) { sum += i; if (sum > 50) exit(10); else print "Sum =", sum } }'
 
 4. for循环方式2
@@ -913,7 +1002,7 @@ awk 'BEGIN { sum = 0; for (i = 0; i < 20; ++i) { sum += i; if (sum > 50) exit(10
     用字符串作为下标。如：count["test"]
 delete函数用于删除数组元素。如：$ awk '{line[x++]=$1} END{for(x in line) delete(line[x])}' test。
 分配给数组line的是第一个域的值，所有记录处理完成后，special for循环将删除每一个元素。
-        
+
     break 语句导致从围绕它 while 或 for 中立即退出，
     continue 语句导致开始下一次重复。
     next 语句导致立即跳转到下一个记录并从头开始扫描模式。
@@ -934,16 +1023,21 @@ pineapple  yellow 5
 
 awk  'NR != 1 { a[$2]++ } END { for (key in a) { print a[key] " " key } }' shell_awk_colours.txt
 awk  'BEGIN { FS=" "; OFS="\t"; print("color\tsum"); } NR != 1 { a[$2]+=$3; } END { for (b in a) { print b, a[b] } }' shell_awk_colours.txt
+awk_loop
 }
-awk_cmd_option(){
+awk_cmd_option(){cat - <<'awk_cmd_option'
 -v 变量赋值选项              # awk -v name=Jerry 'BEGIN{printf "Name = %s\n", name
+awk -v var1="Hello" -v var2="Wold" ' END {print var1, var2} ' </dev/null
+awk -v varName="$PWD" ' END {print varName}' </dev/null
+
 --dump-variables[=file] 选项 输出排好序的全局变量列表和它们最终的值到文件中，默认的文件是 awkvars.out # awk --dump-variables ''
 --help 选项                  打印帮助信息。
 --lint[=fatal] 选项          检查程序的不兼容性或者模棱两可的代码，当提供参数 fatal的时候，它会对待Warning消息作为Error。
---profile[=file]选项         输出一份格式化之后的程序到文件中，默认文件是 awkprof.out 
+--profile[=file]选项         输出一份格式化之后的程序到文件中，默认文件是 awkprof.out
  # awk --profile 'BEGIN{printf"---|Header|--\n"} {print} END{printf"---|Footer|---\n"}' marks.txt > /dev/null
 --traditional 选项           禁止所有的gawk规范的扩展
-        }
+awk_cmd_option
+}
         awk -v val=$x '{print $1, $2, $3, $4+val, $5+ENVIRON["y"]}' OFS="\t" score.txt #val参数传递
         # IPv4 Address [192.168.1.1]
         awk -F '[.]' 'function ok(n) { return (n ~ /^([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])$/) } {exit (ok($1) && ok($2) && ok($3) && ok($4))}'
@@ -978,7 +1072,7 @@ awk_cmd_option(){
         awk 'gsub(/liu/,"aaaa",$1){print $0}'    # 只打印匹配替换后的行
         awk '{$1="";$2="";$3="";print}'                        # 去掉前三列
         echo aada:aba|awk '/d/||/b/{print}'                    # 匹配两内容之一
-        
+
         echo Ma asdas|awk '$1~/^[a-Z][a-Z]$/{print }'          # 第一个域匹配正则
         echo aada:aaba|awk '/d/&&/b/{print}'                   # 同时匹配两条件
         awk 'length($1)=="4"{print $1}'                        # 字符串位数
@@ -1016,11 +1110,11 @@ awk_cmd_option(){
         cat 1.txt|awk -F" # " '{print "insert into user (user,password,email)values(""'\''"$1"'\'\,'""'\''"$2"'\'\,'""'\''"$3"'\'\)\;'"}' >>insert_1.txt     # 处理sql语句
         awk 'BEGIN{printf "what is your name?";getline name < "/dev/tty" } $1 ~name {print "FOUND" name " on line ", NR "."} END{print "see you," name "."}' file  # 两文件匹配
 
-        
+
         awk `1` input-file # awk打印文件的每一行
         # 对每一个'/pattern/{action}'，如果省略{action}，则{action}等价于{print}，没有参数的print会打印整个行。
         # 1相当于永远为true。因此会打印文件的每一行。
-        
+
 awk_build_function(){
 Awk(action) =
     for each file
@@ -1031,19 +1125,79 @@ Awk(action) =
 # 即把awk程序看做一个函数，action作为awk的参数。对符合pattern的输入行，调用action处理这一行的每个field。
 # 上面这段伪代码可以帮助我更好地理解awk。
         }
-        
+
 sed -n '/^[a-zA-Z0-9]/p' table.txt | awk '{lines[NR]=$0}  END{ for (i=1; i<=NR; i++){ printf("%s\t",lines[i]); if(i%3==0) printf("\n") } }'
 
-awk_array(){
+awk_array(){ cat - <<'awk_array'
+awk 'BEGIN {
+   fruits["mango"] = "yellow";
+   fruits["orange"] = "orange"
+   for(fruit in fruits) {
+     print "The color of " fruit " is " fruits[fruit]
+   }
+}'
+
+[Array with index]
+awk 'BEGIN {
+    arr[0] = "foo";
+    arr[1] = "bar";
+    print(arr[0]); # => foo
+    delete arr[0];
+    print(arr[0]); # => ""
+}'
+
+[Array with asort]
+awk 'BEGIN {
+    arr[0] = 3
+    arr[1] = 2
+    arr[2] = 4
+    n = asort(arr)
+    for (i = 1; i <= n ; i++)
+        print(arr[i])
+}'
+
+[Array with key]
+awk 'BEGIN {
+    assoc["foo"] = "bar";
+    assoc["bar"] = "baz";
+    print("baz" in assoc); # => 0
+    print("foo" in assoc); # => 1
+}'
+
+[Multi-dimensional]
+awk 'BEGIN {
+    multidim[0,0] = "foo";
+    multidim[0,1] = "bar";
+    multidim[1,0] = "baz";
+    multidim[1,1] = "boo";
+}'
+
+[Array with split]
+awk 'BEGIN {
+    split("foo:bar:baz", arr, ":");
+    for (key in arr)
+        print arr[key];
+}'
+
+[Multi-dimensional iteration]
+awk 'BEGIN {
+    array[1,2]=3;
+    array[2,3]=5;
+    for (comb in array) {
+        split(comb,sep,SUBSEP);
+        print sep[1], sep[2], 
+        array[sep[1],sep[2]]
+    }
+}'
     数组元素不用声明；在被提及到的时候才导致它的存在。下标可以有任何非空的值，包括非数值的字符串。作为常规的数值下标的例子，
     x[NR] = $0 # 把当前输入记录赋值到数组 x 的第 NR 个元素。
-    
+
     假设输入包含的字段带有象 apple、orange 等等这样的值。则程序
     /apple/ { x["apple"]++ }
     /orange/ { x["orange"]++ }
     END { print x["apple"], x["orange"] }
     增加指名的数组元素的计数，并在输入结束时打印它们。
-    
+
 1.awk中的数组是一维数组，使用时不用事先声明。第一次使用数组元素时，会自动生成数组元素的值，默认为空字符串""和数字0。
 awk 'END {if (arr["A"] == "") print "Empty string"}'  # Empty string
 awk 'END {if (arr["A"] == 0) print "Number 0"}'       # Number 0
@@ -1120,7 +1274,7 @@ ccc
 
 awk '
 FNR==1{                       #FNR==1，即a和b文本的第一行，这个用的真的很巧妙。
-        for(i=1;i<=NF;i++){ 
+        for(i=1;i<=NF;i++){
                 b[i]=$i       #读取文本的每个元素存入数组b
                 c[$i]++}      #另建立数组c，并统计每个元素的个数
                 next          #可以理解为，读取FNR!=1的文本内容。
@@ -1138,13 +1292,13 @@ END{
         }' a.txt b.txt
 
 }
-        
+
     取本机IP{
         /sbin/ifconfig |awk -v RS="Bcast:" '{print $NF}'|awk -F: '/addr/{print $2}'
         /sbin/ifconfig |awk '/inet/&&$2!~"127.0.0.1"{split($2,a,":");print a[2]}'
         /sbin/ifconfig |awk -v RS='inet addr:' '$1!="eth0"&&$1!="127.0.0.1"{print $1}'|awk '{printf"%s|",$0}'
         /sbin/ifconfig |awk  '{printf("line %d,%s\n",NR,$0)}'         # 指定类型(%d数字,%s字符)
-        
+
         过滤IP地址和广播地址：
         ifconfig eth0 | sed -n 's/^.*dr:\(.*\) B.*t:\(.*\)  Ma.*$/\1\2/gp'
         ifconfig eth0 | grep 'inet addr' | awk -F '[: ]+' '{print $4}'
@@ -1157,7 +1311,7 @@ END{
     awk '{printf "%-8s %-8s %-8s %-18s %-22s %-15s\n",$1,$2,$3,$4,$5,$6}' netstat.txt
     awk '$3==0 && $6=="LISTEN" ' netstat.txt
     awk ' $3>0 {print $0}' netstat.txt
-    awk '$3==0 && $6=="LISTEN" || NR==1 ' netstat.txt 
+    awk '$3==0 && $6=="LISTEN" || NR==1 ' netstat.txt
     awk '$3==0 && $6=="LISTEN" || NR==1 {printf "%-20s %-20s %s\n",$4,$5,$6}' netstat.txt
     awk '$3==0 && $6=="ESTABLISHED" || NR==1 {printf "%02s %s %-20s %-20s %s\n",NR, FNR, $4,$5,$6}' netstat.txt
     awk '$6 ~ /FIN/ || NR==1 {print NR,$4,$5,$6}' OFS="\t" netstat.txt
@@ -1165,14 +1319,14 @@ END{
     awk '/LISTEN/' netstat.txt
     awk '$6 ~ /FIN|TIME/ || NR==1 {print NR,$4,$5,$6}' OFS="\t" netstat.txt
     awk '$6 !~ /WAIT/ || NR==1 {print NR,$4,$5,$6}' OFS="\t" netstat.txt #awk '!/WAIT/' netstat.txt
-    
+
     awk 'NR!=1{print > $6}' netstat.txt
     awk 'NR!=1{print $4,$5 > $6}' netstat.txt
-    
+
     ls -l  *.cpp *.c *.h | awk '{sum+=$5} END {print sum}' #计算所有的C文件，CPP文件和H文件的文件大小总和。
-    
+
     ps aux | awk 'NR!=1{a[$1]+=$6;} END { for(i in a) print i ", " a[i]"KB";}' #统计每个用户的进程的占了多少内存
-    
+
     awk  'BEGIN{FS=":"} {print $1,$3,$6}' /etc/passwd
     awk  -F: '{print $1,$3,$6}' /etc/passwd
     awk -F '[;:]' #如果你要指定多个分隔符，你可以这样来：
@@ -1202,13 +1356,13 @@ END{
 
     #从file文件中找出长度大于80的行
     awk 'length>80' file
-     
+
     #按连接数查看客户端IP
     netstat -ntu | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -nr
-     
+
     #打印99乘法表
     seq 9 | sed 'H;g' | awk -v RS='' '{for(i=1;i<=NF;i++)printf("%dx%d=%d%s", i, NR, i*NR, i==NR?"\n":"\t")}'
-    
+
     老男孩awk经典题{
         分析图片服务日志，把日志(每个图片访问次数*图片大小的总和)排行，也就是计算每个url的总访问大小
         说明：本题生产环境应用：这个功能可以用于IDC网站流量带宽很高，然后通过分析服务器日志哪些元素占用流量过大，进而进行优化或裁剪该图片，压缩js等措施。
@@ -1264,39 +1418,40 @@ END{
 
         # 当前行NF小于等于2 只针对{print $4,$1"_"$2,b |"sort";next} 有效 即 6.19：行跳过此操作,  {b=$1} 仍然执行
         # 当前行NF大于2 执行到 next 强制跳过本行，即跳过后面的 {b=$1}
-    }
-    
+awk_array
+}
+
 awk_usual(){
-统计tomcat每秒的带宽(字节)，最大的排在最后面 
+统计tomcat每秒的带宽(字节)，最大的排在最后面
 #cat localhost_access_log.txt | awk '{ bytes[$5] += $NF; }; END{for(time in bytes) print bytes[time] " " time}' | sort -n
 
-统计某一秒的带宽 
+统计某一秒的带宽
 #grep "18:07:34" localhost_access_log.txt |awk '{ bytes += $NF; } END{ print bytes }'
 
     awk 'BEGIN{a=1;b="213";print "output "a","b;}'  # output 1,213
     awk 'BEGIN{a=1;b="213";print "output",a,","b;}' # output 1 ,213
     awk 'BEGIN{a=1;b="213";printf("output %d,%s\n",a,b)}' # output 1,213
-    
+
     echo "a:b c,d" |awk '{print $1; print $2; print NF}' # a:b c,d 2
     a:b
     c,d
     2
-    echo "a:b c,d" |awk -F " |,|:" '{print $1; print $2; print NF}' 
+    echo "a:b c,d" |awk -F " |,|:" '{print $1; print $2; print NF}'
     a
     b
     4
-    
-    abc.txt内容如下： 
-    first lady 
-    second boy 
+
+    abc.txt内容如下：
+    first lady
+    second boy
     third child
-    
+
     cat abc.txt |awk 'BEGIN {print "begin process"} {print "process 1 "$1} {print "process 2 "$2} END { print " the end"}'
 
-    cat abc.txt |awk -F " " ' 
-                'BEGIN {print "begin process"} #在开头的时候执行一次 
-                {print "process 1 "$1} #每一行执行一次 
-                {print "process 2 "$2} #每一行执行一次 
+    cat abc.txt |awk -F " " '
+                'BEGIN {print "begin process"} #在开头的时候执行一次
+                {print "process 1 "$1} #每一行执行一次
+                {print "process 2 "$2} #每一行执行一次
                 END { print " the end"}' #最后的时候执行一次'
     #没有BEGIN，只有END的情况
     cat abc.txt |awk '{print "begin process"} {print "process 1 "$1} {print "process 2 "$2} END { print " the end"}'
@@ -1305,10 +1460,10 @@ awk_usual(){
                 {print "process 1 "$1}           #每一行都会执行
                 {print "process 2 "$2}           #每一行都会执行
                 END { print " the end"}'         #最后执行一次'
-                
+
     awk 'BEGIN{array1["a"]=1;array1[2]="213";print array1["a"],array1[2]}'
 
-   # year.txt中内容如下  
+   # year.txt中内容如下
    2016:09 1    //表示2016年9月，有一个访问
    2016:06 1
    2016:06 1
@@ -1318,9 +1473,9 @@ awk_usual(){
    2015:01 1
    2016:02 1
    awk  '{bytes[$1]+=$2}  END { for(time in bytes) print bytes[time],time}' year.txt |sort -n
-   
-   awk '{bytes[$1]+=$2} 
-         //bytes为数组，下标是时间，value是访问量 
+
+   awk '{bytes[$1]+=$2}
+         //bytes为数组，下标是时间，value是访问量
          END { for(time in bytes) print bytes[time], time }' year.txt |sort -n
 
     awk的多维数组
