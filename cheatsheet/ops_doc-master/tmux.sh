@@ -41,10 +41,10 @@ Ctrl+b w：从列表中选择窗口。 #
 Ctrl+b ,：窗口重命名。                                                      # Ctrl+b , 	Rename tmux window
 [pane]
 Ctrl+b %：划分左右两个窗格。
-Ctrl+b "：划分上下两个窗格。
-Ctrl+b x：关闭当前窗格。
-Ctrl+b !：将当前窗格拆分为一个独立窗口。
-Ctrl+b o：光标切换到下一个窗格
+# Ctrl+b "：划分上下两个窗格。
+# Ctrl+b x：关闭当前窗格。
+# Ctrl+b !：将当前窗格拆分为一个独立窗口。
+# Ctrl+b o：光标切换到下一个窗格
 EOF
 
 tmux_i_session_restore(){ cat - <<'tmux_i_session_restore'
