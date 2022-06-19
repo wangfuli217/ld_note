@@ -1,10 +1,145 @@
-cmake_minimum_required(VERSION 2.8.4){
+cmakemodules
+cmakecommands
+cmakepolicies
+cmakevars
+cmakeprops
+cmakecompat
+
+https://cmake.org/cmake/help/latest/manual/cmake.1.html
+
+https://www.cnblogs.com/lidabo/p/13846872.html  # CMake CMake中构建静态库与动态库及其使用
+https://www.cnblogs.com/lidabo/p/13794231.html
+
+https://www.cnblogs.com/lsgxeva/p/9454431.html  # CMake 用法导览
+https://www.cnblogs.com/lsgxeva/p/9454443.html  # CMake 手册详解  https://www.cnblogs.com/coderfenghc/tag/cmake/
+https://www.cnblogs.com/lsgxeva/p/7804607.html  # CMAKE的使用
+https://www.cnblogs.com/lsgxeva/p/7804602.html  # cmake 常用变量和常用环境变量查表手册
+
+
+cmakecommands(){  cat - <<'cmakecommands'
+命令就相当于命令行下操作系统提供的各种命令，重要性不言而喻；可以说，这些命令是CMake构建系统的骨架。CMake 2.8.3共有80条命令，分别是：
+add_custom_command, add_custom_target, add_definitions, add_dependencies, add_executable, add_library, add_subdirectory, add_test, aux_source_directory, 
+break, build_command, 
+cmake_minimum_required, cmake_policy, configure_file, create_test_sourcelist, 
+define_property, 
+else, elseif, enable_language, enable_testing, endforeach, endfunction, endif, endmacro, endwhile, execute_process, export, 
+file, find_file, find_library, find_package, find_path, find_program, fltk_wrap_ui, foreach, function, 
+get_cmake_property, get_directory_property, get_filename_component, get_property, get_source_file_property, get_target_property, get_test_property, 
+if, include, include_directories, include_external_msproject, include_regular_expression, install, 
+link_directories, list, load_cache, load_command, 
+macro, mark_as_advanced, math, message, 
+option, output_required_files, 
+project, 
+qt_wrap_cpp, qt_wrap_ui, 
+remove_definitions, return, 
+separate_arguments, set, set_directory_properties, set_property, set_source_files_properties, set_target_properties, set_tests_properties, site_name, source_group, string, 
+target_link_libraries, try_compile, try_run, 
+unset, 
+variable_watch, 
+while。
+cmakecommands
+}
+
+
+cmake_minimum_required(){  cat - <<'cmake_minimum_required'
+cmake_minimum_required  设置一个工程所需要的最低CMake版本。
+cmake_minimum_required(VERSION major[.minor[.patch[.tweak]]] [FATAL_ERROR])
+
+如果CMake的当前版本低于指定的版本，它会停止处理工程文件，并报告错误。当指定的版本高于2.4时，它会隐含调用：
+cmake_policy(VERSION major[.minor[.patch[.tweak]]])
+从而将cmake的策略版本级别设置为指定的版本。当指定的版本是2.4或更低时，这条命令隐含调用：
+cmake_policy(VERSION 2.4)
+这将会启用对于CMake 2.4及更低版本的兼容性。
+FATAL_ERROR选项是可以接受的，但是CMake 2.6及更高的版本会忽略它。如果它被指定，那么CMake 2.4及更低版本将会以错误告终而非仅仅给出个警告。
+
+cmake_minimum_required(VERSION 2.6)  # libubox
+cmake_minimum_required(VERSION 3.6)  # libhv
+
 https://github.com/yszheda/wiki/wiki/CMake
 CMake : 编译系统生成器
 CPack : 包生成器
 CTest : 系统检测驱动器
 CDash : dashboard收集器
+cmake_minimum_required
 }
+
+cmake_policy(){  cat - <<'cmake_policy'
+cmake_policy  管理CMake的策略设置。
+随着CMake的演变，有时为了搞定bug或改善现有特色的实现方法，改变现有的行为是必须的。
+CMake的策略机制是在新的CMake版本带来行为上的改变时，用来帮助保持现有项目的构建的一种设计。
+每个新的策略（行为改变）被赋予一个"CMP<NNNN>"格式的识别符，其中"<NNNN>"是一个整数索引。
+每个策略相关的文档都会描述“旧行为”和“新行为”，以及引入该策略的原因。工程可以设置各种策略来选择期望的行为。
+当CMake需要了解要用哪种行为的时候，它会检查由工程指定的一种设置。如果没有可用的设置，工程假定使用“旧行为”，并且会给出警告要求你设置工程的策略。
+
+cmake_policy是用来设置“新行为”或“旧行为”的命令。如果支持单独设置策略，我们鼓励各项目根据CMake的版本来设置策略。
+cmake_policy(VERSION major.minor[.patch[.tweak]])
+    上述命令指定当前的CMakeLists.txt是为给定版本的CMake书写的。所有在指定的版本或更早的版本中引入的策略会被设置为使用“新行为”。所有在指定的版本之后引入的策略将会变为无效（unset）。该命令有效地为一个指定的CMake版本请求优先采用的行为，并且告知更新的CMake版本给出关于它们新策略的警告。命令中指定的策略版本必须至少是2.4，否则命令会报告一个错误。为了得到支持早于2.4版本的兼容性特性，查阅策略CMP0001的相关文档。
+    cmake_policy(SET CMP<NNNN> NEW)
+    cmake_policy(SET CMP<NNNN> OLD)
+    对于某种给定的策略，该命令要求CMake使用新的或者旧的行为。对于一个指定的策略，那些依赖于旧行为的工程，通过设置策略的状态为OLD，可以禁止策略的警告。或者，用户可以让工程采用新行为，并且设置策略的状态为NEW。
+cmake_policy(GET CMP<NNNN> <variable>)
+    该命令检查一个给定的策略是否设置为旧行为或新行为。如果策略被设置，输出的变量值会是“OLD”或“NEW”，否则为空。
+    CMake将策略设置保存在一个栈结构中，因此，cmake_policy命令产生的改变仅仅影响在栈顶端的元素。在策略栈中的一个新条目由各子路径自动管理，以此保护它的父路径及同层路径的策略设置。CMake也管理通过include()和find_package()命令加载的脚本中新加入的条目，除非调用时指定了NO_POLICY_SCOPE选项（另外可参考CMP0011）。cmake_policy命令提供了一种管理策略栈中自定义条目的接口：
+   cmake_policy(PUSH)
+   cmake_policy(POP)
+    每个PUSH必须有一个配对的POP来去掉撤销改变。这对于临时改变策略设置比较有用。
+    函数和宏会在它们被创建的时候记录策略设置，并且在它们被调用的时候使用记录前的策略。如果函数或者宏实现设置了策略，这个变化会通过调用者(caller)一直上传，自动传递到嵌套的最近的策略栈条目。
+cmake_policy
+}
+
+configure_file(){  cat - <<'configure_file'
+configure_file: 将一份文件拷贝到另一个位置并修改它的内容。
+configure_file(<input> <output>
+               [COPYONLY] [ESCAPE_QUOTES] [@ONLY])
+               
+将文件<input>拷贝到<output>然后替换文件内容中引用到的变量值。
+如果<input>是相对路径，它被评估的基础路径是当前源码路径。<input>必须是一个文件，而不是个路径。
+如果<output>是一个相对路径，它被评估的基础路径是当前二进制文件路径。
+如果<output>是一个已有的路径，那么输入文件将会以它原来的名字放到那个路径下。
+
+该命令替换掉在输入文件中，以${VAR}格式或@VAR@格式引用的任意变量，如同它们的值是由CMake确定的一样。 
+如果一个变量还未定义，它会被替换为空。如果指定了COPYONLY选项，那么变量就不会展开。
+如果指定了ESCAPE_QUOTES选项，那么所有被替换的变量将会按照C语言的规则被转义。该文件将会以CMake变量的当前值被配置。
+如果指定了@ONLY选项，只有@VAR@格式的变量会被替换而${VAR}格式的变量则会被忽略。这对于配置使用${VAR}格式的脚本文件比较有用。
+
+任何类似于#cmakedefine VAR的定义语句将会被替换为#define VAR或者/* #undef VAR */，视CMake中对VAR变量的设置而定。
+任何类似于#cmakedefine01 VAR的定义语句将会被替换为#define VAR 1或#define VAR 0，视VAR被评估为TRUE或FALSE而定。
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/hconfig.h.in ${CMAKE_CURRENT_SOURCE_DIR}/hconfig.h)
+configure_file
+}
+
+create_test_sourcelist(){  cat - <<'create_test_sourcelist'
+create_test_sourcelist: 为构建测试程序创建一个测试驱动器和源码列表。
+    create_test_sourcelist(sourceListName driverName
+                        test1 test2 test3
+                        EXTRA_INCLUDE include.h
+                        FUNCTION function)
+    测试驱动器是一个将很多小的测试代码连接为一个单一的可执行文件的程序。这在为了缩减总的需用空间而用很多大的库文件去构建静态可执行文件的时候，特别有用。
+create_test_sourcelist
+}
+
+define_property(){  cat - <<'define_property'
+define_property: 定义并描述（Document）自定义属性。
+    define_property(<GLOBAL | DIRECTORY | TARGET | SOURCE |
+                    TEST | VARIABLE | CACHED_VARIABLE>
+                    PROPERTY <name> [INHERITED]
+                    BRIEF_DOCS <brief-doc> [docs...]
+                    FULL_DOCS <full-doc> [docs...])
+
+在一个域（scope）中定义一个可以用set_property和get_property命令访问的属性。这个命令对于把文档和可以通过get_property命令得到的属性名称关联起来非常有用。第一个参数确定了这个属性可以使用的范围。它必须是下列值中的一个：
+  GLOBAL    = 与全局命名空间相关联
+  DIRECTORY = 与某一个目录相关联
+  TARGET    = 与一个目标相关联
+  SOURCE    = 与一个源文件相关联
+  TEST      = 与一个以add_test命名的测试相关联
+  VARIABLE  = 描述（document）一个CMake语言变量
+  CACHED_VARIABLE = 描述（document）一个CMake语言缓存变量
+  注意，与set_property和get_property不相同，不需要给出实际的作用域；只有作用域的类型才是重要的。PROPERTY选项必须有，它后面紧跟要定义的属性名。如果指定了INHERITED选项，那么如果get_property命令所请求的属性在该作用域中未设置，它会沿着链条向更高的作用域去搜索。DIRECTORY域向上是GLOBAL。TARGET，SOURCE和TEST向上是DIRECTORY。
+  BRIEF_DOCS和FULL_DOCS选项后面的参数是和属性相关联的字符串，分别作为变量的简单描述和完整描述。在使用get_property命令时，对应的选项可以获取这些描述信息。
+define_property
+}
+
 
 ? /usr/bin/cmake -P cmake_install.cmake ? 在Makefile中
 ? /usr/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake ?  在Makefile中
@@ -400,12 +535,28 @@ ENDIF(myHeader)
 同样，因为这些变量直接为FIND_指令所使用，所以所有使用FIND_指令的cmake模块都会受益。
 }
 
-ADD_SUBDIRECTORY(source_dir [binary_dir] [EXCLUDE_FROM_ALL]){
-source_dir       这个指令用于向当前工程添加存放源文件的子目录，
-binary_dir       并可以指定中间二进制和目标二进制存放的位置。
-EXCLUDE_FROM_ALL 参数的含义是将这个目录从编译过程中排除，
+add_subdirectory(){ cat - <<'add_subdirectory'
+为构建添加一个子路径。
+add_subdirectory(source_dir [binary_dir] 
+               [EXCLUDE_FROM_ALL])
+这条命令的作用是为构建添加一个子路径。source_dir选项指定了CMakeLists.txt源文件和代码文件的位置。
+如果source_dir是一个相对路径，那么source_dir选项会被解释为相对于当前的目录，但是它也可以是一个绝对路径。
+binary_dir选项指定了输出文件的路径。如果binary_dir是相对路径，它将会被解释为相对于当前输出路径，但是它也可以是一个绝对路径。
+如果没有指定binary_dir，binary_dir的值将会是没有做任何相对路径展开的source_dir，这也是通常的用法。
+在source_dir指定路径下的CMakeLists.txt将会在当前输入文件的处理过程执行到该命令之前，立即被CMake处理。
 
-ADD_SUBDIRECTORY(src)
+如果指定了EXCLUDE_FROM_ALL选项，在子路径下的目标默认不会被包含到父路径的ALL目标里，并且也会被排除在IDE工程文件之外。
+用户必须显式构建在子路径下的目标，比如一些示范性的例子工程就是这样。
+典型地，子路径应该包含它自己的project()命令调用，这样会在子路径下产生一份完整的构建系统（比如VS IDE的solution文件）
+注意，目标间的依赖性要高于这种排除行为。如果一个被父工程构建的目标依赖于在这个子路径下的目标，被依赖的目标会被包含到父工程的构建系统中，以满足依赖性的要求。
+
+ADD_SUBDIRECTORY(lua)
+ADD_SUBDIRECTORY(examples)
+ADD_SUBDIRECTORY(tests)
+ADD_SUBDIRECTORY(cram)
+ADD_SUBDIRECTORY(fuzz)
+
+add_subdirectory(src)
 1. 定义了将src子目录加入工程，并指定编译目标二进制输出路径为bin目录。编译中间结果存放在build/src目录。
 add_subdirectory(src bin)
 2. 编译中间结果和编译目标二进制存放到bin目录下。
@@ -415,7 +566,64 @@ SUBDIRS(dir1 dir2...){
 SUBDIRS(dir1 dir2...)，但是这个指令已经不推荐使用。它可以一次添加多个子目录，
 并且，即使外部编译，子目录体系仍然会被保存。
 如果我们在上面的例子中将ADD_SUBDIRECTORY (src bin)修改为SUBDIRS(src)。
+add_subdirectory
 }
+
+add_test(){ cat - <<'add_test'
+add_test 以指定的参数为工程添加一个测试。
+add_test(testname Exename arg1 arg2 ... )
+如果已经运行过了ENABLE_TESTING命令，这个命令将为当前路径添加一个测试目标。如果ENABLE_TESTING还没有运行过，该命令啥事都不做。
+    测试是由测试子系统运行的，它会以指定的参数执行Exename文件。Exename或者是由该工程构建的可执行文件，也可以是系统上自带的任意可执行文件(比如tclsh)。
+该测试会在CMakeList.txt文件的当前工作路径下运行，这个路径与二进制树上的路相对应。 
+
+add_test(NAME <name> [CONFIGURATIONS [Debug|Release|...]]
+       COMMAND <command> [arg1 [arg2 ...]])
+       
+如果COMMAND选项指定了一个可执行目标(用add_executable创建)，它会自动被在构建时创建的可执行文件所替换。
+如果指定了CONFIGURATIONS选项，那么该测试只有在列出的某一个配置下才会运行。
+
+在COMMAND选项后的参数可以使用"生成器表达式"，它的语法是"$<...>"。这些表达式会在构建系统生成期间，以及构建配置的专有信息的产生期间被评估。合法的表达式是：
+  $<CONFIGURATION>          = 配置名称
+  $<TARGET_FILE:tgt>        = 主要的二进制文件(.exe, .so.1.2, .a)
+  $<TARGET_LINKER_FILE:tgt> = 用于链接的文件(.a, .lib, .so)
+  $<TARGET_SONAME_FILE:tgt> = 带有.so.的文件(.so.3)
+    其中，"tgt"是目标的名称。目标文件表达式TARGET_FILE生成了一个完整的路径，但是它的_DIR和_NAME版本可以生成目录以及文件名部分：
+  $<TARGET_FILE_DIR:tgt>/$<TARGET_FILE_NAME:tgt>
+  $<TARGET_LINKER_FILE_DIR:tgt>/$<TARGET_LINKER_FILE_NAME:tgt>
+  $<TARGET_SONAME_FILE_DIR:tgt>/$<TARGET_SONAME_FILE_NAME:tgt>
+    用例：
+    add_test(NAME mytest
+            COMMAND testDriver --config $<CONFIGURATION>
+                                --exe $<TARGET_FILE:myexe>)
+　　这段代码创建了一个名为mytest的测试，它执行的命令是testDriver工具，传递的参数包括配置名，以及由目标生成的可执行文件myexe的完整路径。
+
+ubusd/test-fuzz
+ADD_TEST(
+  NAME ${name}
+  COMMAND ${name} -max_len=256 -timeout=10 -max_total_time=300 ${CMAKE_CURRENT_SOURCE_DIR}/corpus
+)
+ubusd/test-fuzz
+ADD_TEST(
+  NAME cram
+  COMMAND ${PYTHON_VENV_CRAM} ${test_cases}
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+4. ADD_TEST与ENABLE_TESTING指令。
+ENABLE_TESTING指令用来控制Makefile是否构建test目标，涉及工程所有目录。语法很简单，没有任何参数，
+ENABLE_TESTING()，一般情况这个指令放在工程的主CMakeLists.txt中.
+
+ADD_TEST指令的语法是:
+ADD_TEST(testname Exename arg1 arg2 ...)
+testname是自定义的test名称，Exename可以是构建的目标文件也可以是外部脚本等等。后面连接传递给可执行文件的参数。
+如果没有在同一个CMakeLists.txt中打开ENABLE_TESTING()指令，任何ADD_TEST都是无效的。
+比如我们前面的Helloworld例子，可以在工程主CMakeLists.txt中添加
+ADD_TEST(mytest ${PROJECT_BINARY_DIR}/bin/main)
+ENABLE_TESTING()
+生成Makefile后，就可以运行make test来执行测试了。
+add_test
+}
+
 
 CMAKE(){
 1. cmake自定义变量的方式
@@ -488,66 +696,109 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
 }
 
-ADD_DEFINITIONS(添加编译选项){
-1. ADD_DEFINITIONS
-向C/C++编译器添加-D定义，比如:
-ADD_DEFINITIONS(-DENABLE_DEBUG  -DABC)，参数之间用空格分割。
-如果你的代码中定义了#ifdef ENABLE_DEBUG #endif，这个代码块就会生效。
-如果要添加其他的编译器开关，可以通过CMAKE_C_FLAGS变量和CMAKE_CXX_FLAGS变量设置。
+cmake_file(){ cat - <<'cmake_file'
+文件操作命令
+file(WRITE filename "message to write"... )
+file(APPEND filename "message to write"... )
+file(READ filename variable [LIMIT numBytes] [OFFSET offset] [HEX])
+file(STRINGS filename variable [LIMIT_COUNT num]
+   [LIMIT_INPUT numBytes] [LIMIT_OUTPUT numBytes]
+   [LENGTH_MINIMUM numBytes] [LENGTH_MAXIMUM numBytes]
+   [NEWLINE_CONSUME] [REGEX regex]
+   [NO_HEX_CONVERSION])
+file(GLOB variable [RELATIVE path] [globbing expressions]...)
+file(GLOB_RECURSE variable [RELATIVE path] 
+   [FOLLOW_SYMLINKS] [globbing expressions]...)
+file(RENAME <oldname> <newname>)
+file(REMOVE [file1 ...])
+file(REMOVE_RECURSE [file1 ...])
+file(MAKE_DIRECTORY [directory1 directory2 ...])
+file(RELATIVE_PATH variable directory file)
+file(TO_CMAKE_PATH path result)
+file(TO_NATIVE_PATH path result)
+file(DOWNLOAD url file [TIMEOUT timeout] [STATUS status] [LOG log]
+   [EXPECTED_MD5 sum] [SHOW_PROGRESS])
+
+WRITE选项将会写一条消息到名为filename的文件中。如果文件已经存在，该命令会覆盖已有的文件；如果文件不存在，它将创建该文件。
+APPEND选项和WRITE选项一样，将会写一条消息到名为filename的文件中，只是该消息会附加到文件末尾。
+READ选项将会读一个文件中的内容并将其存储在变量里。读文件的位置从offset开始，最多读numBytes个字节。如果指定了HEX参数，二进制代码将会转换为十六进制表达方式，并存储在变量里。
+STRINGS将会从一个文件中将一个ASCII字符串的list解析出来，然后存储在variable变量中。文件中的二进制数据会被忽略。回车换行符会被忽略。
+    STRINGS也可以用在Intel的Hex和Motorola的S-记录文件；读取它们时，它们会被自动转换为二进制格式。可以使用NO_HEX_CONVERSION选项禁止这项功能。
+    LIMIT_COUNT选项设定了返回的字符串的最大数量。
+    LIMIT_INPUT设置了从输入文件中读取的最大字节数。
+    LIMIT_OUTPUT设置了在输出变量中存储的最大字节数。
+    LENGTH_MINIMUM设置了要返回的字符串的最小长度；小于该长度的字符串会被忽略。
+    LENGTH_MAXIMUM设置了返回字符串的最大长度；更长的字符串会被分割成不长于最大长度的字符串。
+    NEWLINE_CONSUME选项允许新行被包含到字符串中，而不是终止它们。
+    REGEX选项指定了一个待返回的字符串必须满足的正则表达式。典型的使用方式是：
+    file(STRINGS myfile.txt myfile)
+    该命令在变量myfile中存储了一个list，该list中每个项是输入文件中的一行文本。
+    GLOB选项将会为所有匹配查询表达式的文件生成一个文件list，并将该list存储进变量variable里。文件名查询表达式与正则表达式类似，只不过更加简单。
+如果为一个表达式指定了RELATIVE标志，返回的结果将会是相对于给定路径的相对路径。文件名查询表达式的例子有：
+        *.cxx      - 匹配所有扩展名为cxx的文件。
+        *.vt?      - 匹配所有扩展名是vta,...,vtz的文件。
+        f[3-5].txt - 匹配文件f3.txt, f4.txt, f5.txt。
+　　GLOB_RECURSE选项将会生成一个类似于通常的GLOB选项的list，只是它会寻访所有那些匹配目录的子路径并同时匹配查询表达式的文件。
+作为符号链接的子路径只有在给定FOLLOW_SYMLINKS选项或者cmake策略CMP0009被设置为NEW时，才会被寻访到。
+
+    使用递归查询的例子有：
+    /dir/*.py  - 匹配所有在/dir及其子目录下的python文件。
+
+    MAKE_DIRECTORY选项将会创建指定的目录，如果它们的父目录不存在时，同样也会创建。（类似于mkdir命令——译注）
+    RENAME选项对同一个文件系统下的一个文件或目录重命名。（类似于mv命令——译注）
+    REMOVE选项将会删除指定的文件，包括在子路径下的文件。（类似于rm命令——译注）
+    REMOVE_RECURSE选项会删除给定的文件以及目录，包括非空目录。（类似于rm -r 命令——译注）
+    RELATIVE_PATH选项会确定从direcroty参数到指定文件的相对路径。
+    TO_CMAKE_PATH选项会把path转换为一个以unix的 / 开头的cmake风格的路径。输入可以是一个单一的路径，也可以是一个系统路径，比如"$ENV{PATH}"。注意，在调用TO_CMAKE_PATH的ENV周围的双引号只能有一个参数(Note the double quotes around the ENV call TO_CMAKE_PATH only takes one argument. 原文如此。quotes和后面的takes让人后纠结，这句话翻译可能有误。欢迎指正——译注)。
+    TO_NATIVE_PATH选项与TO_CMAKE_PATH选项很相似，但是它会把cmake风格的路径转换为本地路径风格：windows下用\，而unix下用/。
+    DOWNLOAD 将给定的URL下载到指定的文件中。如果指定了LOG var选项，下载日志将会被输出到var中。
+    如果指定了STATUS var选项，下载操作的状态会被输出到var中。该状态返回值是一个长度为2的list。list的第一个元素是操作的数字返回值，第二个返回值是错误的字符串值。
+    错误信息如果是数字0，操作中没有发生错误。
+    如果指定了TIMEOUT time选项，在time秒之后，操作会超时退出；time应该是整数。
+    如果指定了EXPECTED_MD5 sum选项，下载操作会认证下载的文件的实际MD5和是否与期望值匹配。如果不匹配，操作将返回一个错误。如果指定了SHOW_PROGRESS选项，进度信息会以状态信息的形式被打印出来，直到操作完成。
+    
+    file命令还提供了COPY和INSTALL两种格式：
+    file(<COPY|INSTALL> files... DESTINATION <dir>
+       [FILE_PERMISSIONS permissions...]
+       [DIRECTORY_PERMISSIONS permissions...]
+       [NO_SOURCE_PERMISSIONS] [USE_SOURCE_PERMISSIONS]
+       [FILES_MATCHING]
+       [[PATTERN <pattern> | REGEX <regex>]
+        [EXCLUDE] [PERMISSIONS permissions...]] [...])
+　　COPY版本把文件、目录以及符号连接拷贝到一个目标文件夹。相对输入路径的评估是基于当前的源代码目录进行的，相对目标路径的评估是基于当前的构建目录进行的。
+复制过程将保留输入文件的时间戳；并且如果目标路径处存在同名同时间戳的文件，复制命令会把它优化掉。赋值过程将保留输入文件的访问权限，除非显式指定权限或指定NO_SOURCE_PERMISSIONS选项
+（默认是USE_SOURCE_PERMISSIONS）。参见install(DIRECTORY)命令中关于权限（permissions），PATTERN，REGEX和EXCLUDE选项的文档。
+INSTALL版本与COPY版本只有十分微小的差别：它会打印状态信息，并且默认使用NO_SOURCE_PERMISSIONS选项。install命令生成的安装脚本使用这个版本（它会使用一些没有在文档中涉及的内部使用的选项。）
+
+libubox: FILE(GLOB headers *.h)
+libubox: FILE(GLOB scripts sh/*.sh)
+libubox: FILE(GLOB test_cases "test-*.c")
+libubox: FILE(GLOB test_cases "test_*.t")
+cmake_file
 }
+cmake_include(){ cat - <<'cmake_include'
+CMD#45 : include 从给定的文件中读取CMake的列表文件。  # Load and run CMake code from a file or module.
+    include(<file|module> [OPTIONAL] [RESULT_VARIABLE <VAR>]
+                          [NO_POLICY_SCOPE])
+    从给定的文件中读取CMake的清单文件代码。在清单文件中的命令会被立即处理，就像它们是写在这条include命令展开的地方一样。如果指定了OPTIONAL选项，那么如果被包含文件不存在的话，不会报错。如果指定了RESULT_VARIABLE选项，那么var或者会被设置为被包含文件的完整路径，或者是NOTFOUND，表示没有找到该文件。
+    如果指定的是一个模块（module）而不是一个文件，查找的对象会变成路径CMAKE_MODULE_PATH下的文件<modulename>.camke。
+    参考cmake_policy()命令文档中关于NO_POLICY_SCOPE选项的讨论。
 
-ADD_DEPENDENCIES(说明依赖关系){
-ADD_DEPENDENCIES(preload-seccomp syscall-names-h)
-ADD_DEPENDENCIES(ujail capabilities-names-h)
-ADD_DEPENDENCIES(utrace syscall-names-h)
-ADD_DEPENDENCIES(preload-seccomp syscall-names-h)
-}
-
-cmake(cmake常用指令){
-2. ADD_DEPENDENCIES
-定义target依赖的其他target，确保在编译本target之前，其他的target已经被构建。
-ADD_DEPENDENCIES(target-name depend-target1 depend-target2 ...)
-
-3. ADD_EXECUTABLE、ADD_LIBRARY、ADD_SUBDIRECTORY前面已经介绍过了.
-
-4. ADD_TEST与ENABLE_TESTING指令。
-ENABLE_TESTING指令用来控制Makefile是否构建test目标，涉及工程所有目录。语法很简单，没有任何参数，
-ENABLE_TESTING()，一般情况这个指令放在工程的主CMakeLists.txt中.
-ADD_TEST指令的语法是:
-ADD_TEST(testname Exename arg1 arg2 ...)
-testname是自定义的test名称，Exename可以是构建的目标文件也可以是外部脚本等
-等。后面连接传递给可执行文件的参数。如果没有在同一个CMakeLists.txt中打开
-ENABLE_TESTING()指令，任何ADD_TEST都是无效的。
-比如我们前面的Helloworld例子，可以在工程主CMakeLists.txt中添加
-ADD_TEST(mytest ${PROJECT_BINARY_DIR}/bin/main)
-ENABLE_TESTING()
-生成Makefile后，就可以运行make test来执行测试了。
-
-8，FILE指令
-文件操作指令，基本语法为:
-        FILE(WRITE filename "message to write"... )
-        FILE(APPEND filename "message to write"... )
-        FILE(READ filename variable)
-        FILE(GLOB  variable [RELATIVE path] [globbing expressions]...)
-        FILE(GLOB_RECURSE variable [RELATIVE path] [globbing expressions]...)
-        FILE(REMOVE [directory]...)
-        FILE(REMOVE_RECURSE [directory]...)
-        FILE(MAKE_DIRECTORY [directory]...)
-        FILE(RELATIVE_PATH variable directory file)
-        FILE(TO_CMAKE_PATH path result)
-        FILE(TO_NATIVE_PATH path result)
-这里的语法都比较简单，不在展开介绍了。
-
-9，INCLUDE指令，用来载入CMakeLists.txt文件，也用于载入预定义的cmake模块.
+INCLUDE指令，用来载入CMakeLists.txt文件，也用于载入预定义的cmake模块.
         INCLUDE(file1 [OPTIONAL])
         INCLUDE(module [OPTIONAL])
 OPTIONAL参数的作用是文件不存在也不会产生错误。
-你可以指定载入一个文件，如果定义的是一个模块，那么将在CMAKE_MODULE_PATH中搜
-索这个模块并载入。
-载入的内容将在处理到INCLUDE语句是直接执行。
-二，INSTALL指令
-INSTALL系列指令已经在前面的章节有非常详细的说明，这里不在赘述，可参考前面的安
-装部分。
+你可以指定载入一个文件，如果定义的是一个模块，那么将在CMAKE_MODULE_PATH中搜索这个模块并载入。载入的内容将在处理到INCLUDE语句是直接执行。
+
+libubox:INCLUDE(CheckLibraryExists)
+libubox:INCLUDE(CheckFunctionExists)
+libubox:INCLUDE(FindPkgConfig)
+
+procd:INCLUDE(GNUInstallDirs)
+cmake_include
+}
+
+cmake_find(){ cat - <<'cmake_find'
 三，FIND_指令
 FIND_系列指令主要包含一下指令：
 FIND_FILE(<VAR> name1 path1 path2 ...)    # VAR变量代表找到的文件全路径，包含文件名
@@ -565,14 +816,203 @@ FIND_LIBRARY(libX X11 /usr/lib)
 IF(NOT libX)
 MESSAGE(FATAL_ERROR “libX not found”)
 ENDIF(NOT libX)
+cmake_find
+}
 
-四，控制指令：
+find_file(){ cat - <<'find_file'
+find_file(<VAR> name1 [path1 path2 ...])        查找一个文件的完整路径
+这是该命令的精简格式，对于大多数场合它都足够了。它与命令find_file(<VAR> name1 [PATHS path1 path2 ...])是等价的。
+find_file(
+             <VAR>
+             name | NAMES name1 [name2 ...]
+             [HINTS path1 [path2 ... ENV var]]
+             [PATHS path1 [path2 ... ENV var]]
+             [PATH_SUFFIXES suffix1 [suffix2 ...]]
+             [DOC "cache documentation string"]
+             [NO_DEFAULT_PATH]
+             [NO_CMAKE_ENVIRONMENT_PATH]
+             [NO_CMAKE_PATH]
+             [NO_SYSTEM_ENVIRONMENT_PATH]
+             [NO_CMAKE_SYSTEM_PATH]
+             [CMAKE_FIND_ROOT_PATH_BOTH |
+              ONLY_CMAKE_FIND_ROOT_PATH |
+              NO_CMAKE_FIND_ROOT_PATH]
+            )
+一个名字是<VAR>的缓存条目变量会被创建，用来存储该命令的结果。
+如果发现了文件的一个完整路径，该结果会被存储到该变量里并且搜索过程不会再重复，除非该变量被清除。
+如果什么都没发现，搜索的结果将会是<VAR>-NOTFOUND；并且在下一次以相同的变量调用find_file时，该搜索会重新尝试。
+被搜索的文件的文件名由NAMES选项后的名字列表指定。附加的其他搜索位置可以在PATHS选项之后指定。
+如果ENV var在HINTS或PATHS段中出现，环境变量var将会被读取然后被转换为一个系统级环境变量，并存储在一个cmake风格的路径list中。
+比如，使用ENV PATH将会将系统的path变量列出来。在DOC之后的变量将会用于cache中的文档字符串（documentation string）。PATH_SUFFIXES指定了在每个搜索路径下的需要搜索的子路径。
+
+如果指定了NO_DEFAULT_PATH选项，那么在搜索时不会附加其它路径。如果没有指定NO_DEFAULT_PATH选项，搜索过程如下：
+1、在cmake特有的cache变量中指定的搜索路径搜索。这些路径用于在命令行里用-DVAR=value被设置。如果使用了NO_CMAKE_PATH选项，该路径会被跳过。搜索路径还包括：  
+    对于每个在CMAKE_PREFIX_PATH中的路径<prefix>，<prefix>/include  
+    变量：CMAKE_INCLUDE_PATH
+    变量：CMAKE_FRAMEWORK_PATH
+2、在cmake特定的环境变量中指定的搜索路径搜索。该路径会在用户的shell配置中被设置。如果指定了NO_CMAKE_ENVIRONMENT_PATH选项，该路径会被跳过。搜索路径还包括：
+    对于每个在CMAKE_PREFIX_PATH中的路径<prefix>，<prefix>/include  
+    变量：CMAKE_INCLUDE_PATH
+    变量：CMAKE_FRAMEWORK_PATH
+3、由HINTS选项指定的搜索路径。这些路径是由系统内省（introspection）时计算出来的路径，比如已经发现的其他项的位置所提供的痕迹。硬编码的参考路径应该使用PATHS选项指定。
+4、搜索标准的系统环境变量。如果指定NO_SYSTEM_ENVIRONMENT_PATH选项，搜索路径将跳过其后的参数。搜索路径包括环境变量PATH个INCLUDE。
+5、查找在当前系统的平台文件中定义的cmake变量。如果指定了NO_CMAKE_SYSTEM_PATH选项，该路径会被跳过。其他的搜索路径还包括：
+    对于每个在CMAKE_PREFIX_PATH中的路径<prefix>，<prefix>/include  
+    变量：CMAKE_SYSTEM_INCLUDE_PATH
+    变量：CMAKE_SYSTEM_FRAMEWORK_PATH
+6、搜索由PATHS选项指定的路径或者在命令的简写版本中指定的路径。这一般是一些硬编码的参考路径。在Darwin后者支持OS X框架的系统上，cmake变量CMAKE_FIND_FRAMWORK可以设置为空或者下述值之一：
+    "FIRST"  - 在标准库或者头文件之前先查找框架。对于Darwin系统，这是默认的。
+    "LAST"   - 在标准库或头文件之后再查找框架。
+    "ONLY"   - 只查找框架。
+    "NEVER" - 从不查找框架。
+
+　　在Darwin或者支持OS X Application Bundles的系统上，cmake变量CMAKE_FIND_APPBUNDLE可以被设置为空，或者下列值之一：
+   "FIRST"  - 在标准程序之前查找application bundles，这也是Darwin系统的默认选项。
+   "LAST"   - 在标准程序之后查找application bundlesTry。
+   "ONLY"   - 只查找application bundles。
+   "NEVER" - 从不查找application bundles。
+　　CMake的变量CMAKE_FIND_ROOT_PATH指定了一个或多个在所有其它搜索路径之前的搜索路径。该选项很有效地将给定位置下的整个搜索路径的最优先路径进行了重新指定。默认情况下，它是空的。当交叉编译一个指向目标环境下的根目录中的目标时，CMake也会搜索那些路径；该变量这时显得非常有用。默认情况下，首先会搜索在CMAKE_FIND_ROOT_PATH变量中列出的路径，然后才是非根路径。设置CMAKE_FIND_ROOT_PATH_MODE_INCLUDE变量可以调整该默认行为。该行为可以在每次调用时被手动覆盖。通过使用CMAKE_FIND_ROOT_PATH_BOTH变量，搜索顺序将会是上述的那样。如果使用了NO_CMAKE_FIND_ROOT_PATH变量，那么CMAKE_FIND_ROOT_PATH将不会被用到。如果使用了ONLY_CMAKE_FIND_ROOT_PATH变量，那么只有CMAKE_FIND_ROOT_PATH中的路径（即re-rooted目录——译注）会被搜索。
+　　一般情况下，默认的搜索顺序是从最具体的路径到最不具体的路径。只要用NO_*选项多次调用该命令，工程就可以覆盖该顺序。
+    find_file(<VAR> NAMES name PATHS paths... NO_DEFAULT_PATH)
+    find_file(<VAR> NAMES name)
+　　只要这些调用中的一个成功了，返回变量就会被设置并存储在cache中；然后该命令就不会再继续查找了。
+find_file
+}
+
+find_library(){ cat - <<'find_library'
+    find_library(<VAR> name1 [path1 path2 ...]) # 查找一个库文件
+    这是该命令的简写版本，在大多数场合下都已经够用了。它与命令find_library(<VAR> name1 [PATHS path1 path2 ...])等价。
+    find_library(
+            <VAR>
+            name | NAMES name1 [name2 ...]
+            [HINTS path1 [path2 ... ENV var]]
+            [PATHS path1 [path2 ... ENV var]]
+            [PATH_SUFFIXES suffix1 [suffix2 ...]]
+            [DOC "cache documentation string"]
+            [NO_DEFAULT_PATH]
+            [NO_CMAKE_ENVIRONMENT_PATH]
+            [NO_CMAKE_PATH]
+            [NO_SYSTEM_ENVIRONMENT_PATH]
+            [NO_CMAKE_SYSTEM_PATH]
+            [CMAKE_FIND_ROOT_PATH_BOTH |
+            ONLY_CMAKE_FIND_ROOT_PATH |
+            NO_CMAKE_FIND_ROOT_PATH]
+            )
+    该命令用来查找一个库文件。一个名为<VAR>的cache条目会被创建来存储该命令的结果。
+如果找到了该库文件，那么结果会存储在该变量里，并且搜索过程将不再重复，除非该变量被清空。
+如果没有找到，结果变量将会是<VAR>-NOTFOUND，并且在下次使用相同变量调用find_library命令时，搜索过程会再次尝试。
+    在NAMES参数后列出的文件名是要被搜索的库名。附加的搜索位置在PATHS参数后指定。
+如果再HINTS或者PATHS字段中设置了ENV变量var，环境变量var将会被读取并从系统环境变量转换为一个cmake风格的路径list。例如，指定ENV PATH是获取系统path变量并将其转换为cmake的list的一种方式。
+在DOC之后的参数用来作为cache中的注释字符串。PATH_SUFFIXES选项指定了每个搜索路径下待搜索的子路径。
+
+ubusd:  FIND_LIBRARY(ubox_library NAMES libubox.a)
+ubusd:  FIND_LIBRARY(blob_library NAMES libblobmsg_json.a)
+ubusd:  FIND_LIBRARY(ubox_library NAMES ubox)
+ubusd:  FIND_LIBRARY(blob_library NAMES blobmsg_json)
+ubusd:  FIND_LIBRARY(json NAMES json-c json)
+
+libubox: FIND_LIBRARY(json NAMES json-c)
+libubox: FIND_LIBRARY(json NAMES json-c json)
+
+procd:FIND_LIBRARY(ubox NAMES ubox)
+procd:FIND_LIBRARY(ubus NAMES ubus)
+procd:FIND_LIBRARY(blobmsg_json NAMES blobmsg_json)
+procd:FIND_LIBRARY(json_script NAMES json_script)
+procd:FIND_LIBRARY(json NAMES json-c json)
+find_library
+}
+find_package(){ cat - <<'find_package'
+find_package(<package> [version] [EXACT] [QUIET]
+           [[REQUIRED|COMPONENTS] [components...]]
+           [NO_POLICY_SCOPE])
+    查找并加载外来工程的设置。该命令会设置<package>_FOUND变量，用来指示要找的包是否被找到了。如果这个包被找到了，与它相关的信息可以通过包自身记载的变量中得到。
+    QUIET选项将会禁掉包没有被发现时的警告信息。
+    REQUIRED选项表示如果报没有找到的话，cmake的过程会终止，并输出警告信息。在REQUIRED选项之后，
+    或者如果没有指定REQUIRED选项但是指定了COMPONENTS选项，在它们的后面可以列出一些与包相关的部件清单（components list）
+    。[version]参数需要一个版本号，它是正在查找的包应该兼容的版本号（格式是major[.minor[.patch[.tweak]]]）。
+    EXACT选项要求该版本号必须精确匹配。如果在find-module内部对该命令的递归调用没有给定[version]参数，那么[version]和EXACT选项会自动地从外部调用前向继承。对版本的支持目前只存在于包和包之间
+
+./tests/cram/CMakeLists.txt:1:FIND_PACKAGE(PythonInterp 3 REQUIRED)
+find_package
+}
+find_path(){ cat - <<'find_path'
+find_path 搜索包含某个文件的路径
+   find_path(<VAR> name1 [path1 path2 ...])
+　　在多数情况下，使用上述的精简命令格式就足够了。它与命令find_path(<VAR> name1 [PATHS path1 path2 ...])等价。
+   find_path(
+             <VAR>
+             name | NAMES name1 [name2 ...]
+             [HINTS path1 [path2 ... ENV var]]
+             [PATHS path1 [path2 ... ENV var]]
+             [PATH_SUFFIXES suffix1 [suffix2 ...]]
+             [DOC "cache documentation string"]
+             [NO_DEFAULT_PATH]
+             [NO_CMAKE_ENVIRONMENT_PATH]
+             [NO_CMAKE_PATH]
+             [NO_SYSTEM_ENVIRONMENT_PATH]
+             [NO_CMAKE_SYSTEM_PATH]
+             [CMAKE_FIND_ROOT_PATH_BOTH |
+              ONLY_CMAKE_FIND_ROOT_PATH |
+              NO_CMAKE_FIND_ROOT_PATH]
+            )
+　　该命令用于给定名字文件所在的路径。一条名为<VAR>的cache条目会被创建，并存储该命令的执行结果。
+如果在某个路径下发现了该文件，该结果会被存储到该变量中；除非该变量被清除，该次搜索不会继续进行。
+如果没有找到，存储的结果将会是<VAR>-NOTFOUND，并且当下一次以相同的变量名调用find_path命令时，该命令会再一次尝试搜索该文件。
+需要搜索的文件名通过在NAMES选项后面的列出来的参数来确定。附加的搜索位置可以在PATHS选项之后指定。
+如果在PATHS或者HINTS命令中还指定了ENV var选项，环境变量var将会被读取并从一个系统环境变量转换为一个cmake风格的路径list。
+比如，ENV PATH是列出系统path变量的一种方法。参数DOC将用来作为该变量在cache中的注释。PATH_SUFFIXES指定了在每个搜索路径下的附加子路径。
+
+ubusd/procd: FIND_PATH(ubox_include_dir libubox/usock.h)
+find_path
+}
+find_program(){ cat - <<'find_program'
+FIND_PROGRAM(PKG_CONFIG pkg-config)
+这是该命令的精简格式，它在大多数场合下都够用了。命令find_program(<VAR> name1 [PATHS path1 path2 ...])是它的等价形式。
+   find_program(
+             <VAR>
+             name | NAMES name1 [name2 ...]
+             [HINTS path1 [path2 ... ENV var]]
+             [PATHS path1 [path2 ... ENV var]]
+             [PATH_SUFFIXES suffix1 [suffix2 ...]]
+             [DOC "cache documentation string"]
+             [NO_DEFAULT_PATH]
+             [NO_CMAKE_ENVIRONMENT_PATH]
+             [NO_CMAKE_PATH]
+             [NO_SYSTEM_ENVIRONMENT_PATH]
+             [NO_CMAKE_SYSTEM_PATH]
+             [CMAKE_FIND_ROOT_PATH_BOTH |
+              ONLY_CMAKE_FIND_ROOT_PATH |
+              NO_CMAKE_FIND_ROOT_PATH]
+            )
+
+　　该命令用于查找程序。一个名为<VAR>的cache条目会被创建用来存储该命令的结果。
+如果该程序被找到了，结果会存储在该变量中，搜索过程将不会再重复，除非该变量被清除。
+如果没有找到，结果将会是<VAR>-NOTFOUND，并且下次以相同的变量调用该命令时，还会做搜索的尝试。被搜索的程序的名字由NAMES选项后列出的参数指定。附加的搜索位置可以在PATHS参数后指定。
+如果在HINTS或者PATHS选项后有ENV var参数，环境变量var将会被读取并从系统环境变量转换为cmake风格的路径list。
+比如ENV PATH是一种列出所有系统path变量的方法。DOC后的参数将会被用作cache中的注释字符串。PATH_SUFFIXES指定了在每个搜索路径下要检查的附加子路径。
+ubusd:  FIND_PROGRAM(PKG_CONFIG pkg-config)
+find_program
+}
+
+cmake_builtin_variables(){ cat - <<'cmake_builtin_variables'
+CMAKE_CXX_COMPILE_FEATURES
+CMAKE_CXX_EXTENSIONS
+CMAKE_CXX_STANDARD
+CMAKE_CXX_STANDARD_REQUIRED
+CMAKE_C_COMPILE_FEATURES
+CMAKE_C_EXTENSIONS
+CMAKE_C_STANDARD
+CMAKE_C_STANDARD_REQUIRED
+cmake_builtin_variables
+}
+
+cmake_if(){ cat - <<'cmake_if'
 1,IF指令，基本语法为：
-        IF(expression)
-          # THEN section.
-          COMMAND1(ARGS ...)
-          另外一个指令是ELSEIF，总体把握一个原则，凡是出现IF的地方一定要有对应的
-ENDIF.出现ELSEIF的地方，ENDIF是可选的。
+IF(expression)
+# THEN section.
+COMMAND1(ARGS ...)
+另外一个指令是ELSEIF，总体把握一个原则，凡是出现IF的地方一定要有对应的ENDIF.出现ELSEIF的地方，ENDIF是可选的。
+
 表达式的使用方法如下:
 IF(var)，如果变量不是：空，0，N, NO, OFF, FALSE, NOTFOUND或
 <var>_NOTFOUND时，表达式为真。
@@ -605,6 +1045,10 @@ IF(variable STREQUAL string)
 IF(string STREQUAL string)
 按照字母序的排列进行比较.
 IF(DEFINED variable)，如果变量被定义，为真。
+cmake_if
+}
+
+cmake_while(){ cat - <<'cmake_while'
 2,WHILE
 WHILE指令的语法是：
         WHILE(condition)
@@ -613,21 +1057,39 @@ WHILE指令的语法是：
           ...
         ENDWHILE(condition)
 其真假判断条件可以参考IF指令。
-3,FOREACH
-FOREACH指令的使用方法有三种形式：
-1，列表
-        FOREACH(loop_var arg1 arg2 ...)
-          COMMAND1(ARGS ...)
-          COMMAND2(ARGS ...)
-          ...
-        ENDFOREACH(loop_var)
-2，范围
-FOREACH(loop_var RANGE total)
-ENDFOREACH(loop_var)
-3. 范围和步进
-FOREACH(loop_var RANGE start stop [step])
-ENDFOREACH(loop_var)
+
+cmake_while
 }
+
+cmake_foreach(){ cat - <<'cmake_foreach'
+FOREACH指令的使用方法有三种形式：
+1. 列表: 对一个list中的每一个变量执行一组命令
+FOREACH(loop_var arg1 arg2 ...)
+  COMMAND1(ARGS ...)
+  COMMAND2(ARGS ...)
+  ...
+ENDFOREACH(loop_var)
+所有的foreach和与之匹配的endforeach命令之间的命令会被记录下来而不会被调用。
+等到遇到endforeach命令时，先前被记录下来的命令列表中的每条命令都会为list中的每个变量调用一遍。在每次迭代中，循环变量${loop_var}将会被设置为list中的当前变量值。
+
+
+2，范围
+foreach(loop_var RANGE total)              ENDFOREACH(loop_var)
+foreach(loop_var RANGE start stop [step])  ENDFOREACH(loop_var)
+foreach命令也可以遍历一个人为生成的数据区间。遍历的方式有三种：
+  如果指定了一个数字，区间是[0, total]。
+  如果指定了两个数字，区间将会是第一个数字到第二个数字。
+  第三个数字是从第一个数字遍历到第二个数字时的步长。
+
+3. 范围和步进
+foreach(loop_var IN [LISTS [list1 [...]]]
+                      [ITEMS [item1 [...]]])
+ENDFOREACH(loop_var)
+精确遍历一个项组成的list。LISTS选项后面是需要被遍历的list变量的名字，包括空元素（一个空字符串是一个零长度list）。ITEMS选项结束了list参数的解析，然后在迭代中引入所有在其后出现的项。
+
+cmake_foreach
+}
+
 FIND(){
 对于系统预定义的Find<name>.cmake模块，使用方法一般如上例所示：
 每一个模块都会定义以下几个变量
@@ -849,17 +1311,125 @@ CFLAGS= XXX #初始化CMAKE_C_FLAGS
 cmake(CMake的依赖分析){
 依赖分析，使用四个文件depend.make,flags.make,build.make,DependInfo.cmake.depend.make
 }
-cmake(生成目标){
-#生成可执行文件
-add_executable()
-#生成库文件，不指定类型，默认生成静态库
-add_library(foo [STATIC|SHARED|MODULE]foo1.c foo2.c)
+add_executable(){ cat - <<'add_executable'
+add_executable: 使用给定的源文件，为工程引入一个可执行文件。
+add_executable(<name> [WIN32] [MACOSX_BUNDLE]
+                 [EXCLUDE_FROM_ALL]
+                 source1 source2 ... sourceN)
+
+引入一个名为<name>的可执行目标，该目标会由调用该命令时在源文件列表中指定的源文件来构建。
+<name>对应于逻辑目标名字，并且在工程范围内必须是全局唯一的。被构建的可执行目标的实际文件名将根据具体的本地平台创建出来(比如<name>.exe或者仅仅是<name>)。
+默认情况下，可执行文件将会在构建树的路径下被创建，对应于该命令被调用的源文件树的路径。
+如果要改变这个位置，查看RUNTIME_OUTPUT_DIRECTORY目标属性的相关文档。
+如果要改变最终文件名的<name>部分，查看OUTPUT_NAME目标属性的相关文档。
+如果指定了MACOSX_BUNDLE选项，对应的属性会附加在创建的目标上。查看MACOSX_BUNDLE目标属性的文档可以找到更多的细节。
+如果指定了EXCLUDE_FROM_ALL选项，对应的属性将会设置在被创建的目标上。查看EXCLUDE_FROM_ALL目标属性的文档可以找到更多的细节。
+
+使用下述格式，add_executable命令也可以用来创建导入的（IMPORTED）可执行目标：
+# add_executable(<name> IMPORTED)
+一个导入的可执行目标引用了一个位于工程之外的可执行文件。
+该格式不会生成构建这个目标的规则。该目标名字的作用域在它被创建的路径以及底层路径有效。它可以像在该工程内的其他任意目标一样被引用。
+导入可执行文件为类似于add_custom_command之类的命令引用它提供了便利。
+
+关于导入的可执行文件的细节可以通过设置以IMPORTED_开头的属性来指定。这类属性中最重要的是IMPORTED_LOCATION（以及它对应于具体配置的版本IMPORTED_LOCATION_<CONFIG>）；该属性指定了执行文件主文件在磁盘上的位置。查看IMPORTED_*属性的文档来获得更多信息。
+libhv:add_executable(hloop_test hloop_test.c)
+libhv:add_executable(htimer_test htimer_test.c)
+libhv:add_executable(nc nc.c)
+libhv:add_executable(tinyhttpd tinyhttpd.c)
+libhv:add_executable(tcp_echo_server tcp_echo_server.c)
+libhv:add_executable(tcp_chat_server tcp_chat_server.c)
+
+libubox: ADD_EXECUTABLE(${name}-san ${name}.c)
+libubox: ADD_EXECUTABLE(jshn jshn.c)
+libubox: ADD_EXECUTABLE(ustream-example ustream-example.c)
+libubox: ADD_EXECUTABLE(json_script-example json_script-example.c)
+libubox: ADD_EXECUTABLE(${name} ${name}.c)
+libubox: ADD_EXECUTABLE(${name} ${name}.c)
+
+ubusd:   ADD_EXECUTABLE(${name}-san ${name}.c)
+ubusd:   ADD_EXECUTABLE(ubusd ubusd_main.c)
+ubusd:   ADD_EXECUTABLE(cli cli.c)
+ubusd:   ADD_EXECUTABLE(server server.c count.c)
+ubusd:   ADD_EXECUTABLE(client client.c count.c)
+ubusd:   ADD_EXECUTABLE(${name} ${name}.c)
+ubusd:   ADD_EXECUTABLE(${name} ${name}.c)
+add_executable
 }
-cmake(怎样获得一个目录下的所有源文件){
-    aux_source_directory(<dir> <variable>)
-    将dir中所有源文件（不包括头文件）保存到变量variable中，然后可以add_executable 
-(ss7gw ${variable})这样使用。
+
+add_library(){ cat - <<'add_library'
+add_library 使用指定的源文件向工程中添加一个库。
+add_library(<name> [STATIC | SHARED | MODULE]
+              [EXCLUDE_FROM_ALL]
+              source1 source2 ... sourceN)
+添加一个名为<name>的库文件，该库文件将会根据调用的命令里列出的源文件来创建。<name>对应于逻辑目标名称，而且在一个工程的全局域内必须是唯一的。
+待构建的库文件的实际文件名根据对应平台的命名约定来构造（比如lib<name>.a或者<name>.lib）。
+指定STATIC，SHARED，或者MODULE参数用来指定要创建的库的类型。
+    STATIC库是目标文件的归档文件，在链接其它目标的时候使用。
+    SHARED库会被动态链接，在运行时被加载。
+    MODULE库是不会被链接到其它目标中的插件，但是可能会在运行时使用dlopen-系列的函数动态链接。
+如果没有类型被显式指定，这个选项将会根据变量 BUILD_SHARED_LIBS 的当前值是否为真决定是STATIC还是SHARED。
+
+默认状态下，库文件将会在于源文件目录树的构建目录树的位置被创建，该命令也会在这里被调用。
+查阅ARCHIVE_OUTPUT_DIRECTORY，LIBRARY_OUTPUT_DIRECTORY，和RUNTIME_OUTPUT_DIRECTORY这三个目标属性的文档来改变这一位置。查阅OUTPUT_NAME目标属性的文档来改变最终文件名的<name>部分。
+
+如果指定了EXCLUDE_FROM_ALL属性，对应的一些属性会在目标被创建时被设置。查阅EXCLUDE_FROM_ALL的文档来获取该属性的细节。
+
+使用下述格式，add_library命令也可以用来创建导入的库目标：
+# add_library(<name> <SHARED|STATIC|MODULE|UNKNOWN> IMPORTED)
+导入的库目标是引用了在工程外的一个库文件的目标。没有生成构建这个库的规则。这个目标名字的作用域在它被创建的路径及以下有效。
+add_library可以向任何在该工程内构建的目标一样被引用。导入库为类似于target_link_libraries命令中引用它提供了便利。
+关于导入库细节可以通过指定那些以IMPORTED_的属性设置来指定。其中最重要的属性是IMPORTED_LOCATION（以及它的具体配置版本，IMPORTED_LOCATION_<CONFIG>），add_library指定了主库文件在磁盘上的位置。
+查阅IMPORTED_*属性的文档获取更多的信息。
+
+libubox: ADD_LIBRARY(ubox SHARED ${SOURCES})
+libubox: ADD_LIBRARY(ubox-static STATIC ${SOURCES})
+libubox: ADD_LIBRARY(blobmsg_json SHARED blobmsg_json.c)
+libubox: ADD_LIBRARY(blobmsg_json-static STATIC blobmsg_json.c)
+libubox: ADD_LIBRARY(json_script SHARED json_script.c)
+libubox: ADD_LIBRARY(uloop_lua MODULE uloop.c)
+
+ubusd : ADD_LIBRARY(ubus STATIC ${LIB_SOURCES})
+ubusd : ADD_LIBRARY(ubus SHARED ${LIB_SOURCES})
+ubusd : ADD_LIBRARY(ubusd_library STATIC ubusd.c ubusd_proto.c ubusd_id.c ubusd_obj.c ubusd_event.c ubusd_acl.c ubusd_monitor.c)
+ubusd : ADD_LIBRARY(ubus_lua MODULE ubus.c)
+add_library
 }
+
+aux_source_directory(){  cat - <<'aux_source_directory'
+aux_source_directory  查找在某个路径下的所有源文件。
+aux_source_directory(<dir> <variable>)
+搜集所有在指定路径下的源文件的文件名，将输出结果列表储存在指定的<variable>变量中。
+该命令主要用在那些使用显式模板实例化的工程上。模板实例化文件可以存储在Templates子目录下，然后可以使用这条命令自动收集起来；这样可以避免手工罗列所有的实例。
+
+使用该命令来避免为一个库或可执行目标写源文件的清单，是非常具有吸引力的。但是如果该命令貌似可以发挥作用，那么CMake就不需要生成一个感知新的源文件何时被加进来的构建系统了(也就是说，新文件的加入，并不会导致CMakeLists.txt过时，从而不能引起CMake重新运行。——译注)。
+正常情况下，生成的构建系统能够感知它何时需要重新运行CMake，因为需要修改CMakeLists.txt来引入一个新的源文件。
+当源文件仅仅是加到了该路径下，但是没有修改这个CMakeLists.txt文件，使用者只能手动重新运行CMake来产生一个包含这个新文件的构建系统。
+aux_source_directory
+}
+break(){  cat - <<'break'
+break 从一个包围该命令的foreach或while循环中跳出。
+    break()
+    从包围它的foreach循环或while循环中跳出。
+break
+}
+build_command(){  cat - <<'build_command'
+build_command  获取构建该工程的命令行。
+build_command(<variable>
+      [CONFIGURATION <config>]
+      [PROJECT_NAME <projname>]
+      [TARGET <target>])
+
+把给定的变量<variable>设置成一个字符串，其中包含使用由变量CMAKE_GENERATOR确定的项目构建工具，去构建某一个工程的某一个目标配置的命令行。
+对于多配置生成器，如果忽略CONFIGURATION选项，CMake将会选择一个合理的默认值；而对于单配置生成器，该选项会被忽略。
+如果PROJECT_NAME选项被忽略，得到的命令行用来构建当前构建树上的顶层工程。
+如果TARGET选项被忽略，得到的命令行可以用来构建所有目标，比较高效的用法是构建目标all或者ALL_BUILD。
+build_command(<cachevariable> <makecommand>)
+不推荐使用以上的这种格式，但对于后相兼容还是有用的。只要可以，就要使用第一种格式。
+这种格式将变量<cachevariable>设置为一个字符串，其中包含从构建树的根目录，用<makecommand>指定的构建工具构建这个工程的命令。<makecommand>应该是指向msdev，devenv，nmake，make或者是一种最终用户指定的构建工具的完整路径。
+build_command
+}
+
+
 cmake(怎样指定项目编译目标){
 project命令指定}
 cmake(怎样添加动态库和静态库){
@@ -905,4 +1475,178 @@ cmake(怎样指定目标文件目录){
 }
 cmake(怎样打印make的输出){
 make VERBOSE=1
+}
+
+
+add_custom_command(){ cat - <<'add_custom_command'
+add_custom_command 为生成的构建系统添加一条自定义的构建规则。
+
+add_custom_command命令有两种主要的功能；第一种是为了生成输出文件，添加一条自定义命令。
+# add_custom_command(OUTPUT output1 [output2 ...] 
+#                   COMMAND command1 [ARGS] [args1...]
+#                  [COMMAND command2 [ARGS] [args2...] ...]
+#                  [MAIN_DEPENDENCY depend]
+#                  [DEPENDS [depends...]]
+#                  [IMPLICIT_DEPENDS <lang1> depend1 ...]
+#                  [WORKING_DIRECTORY dir]
+#                  [COMMENT comment] [VERBATIM] [APPEND])
+这种命令格式定义了一条生成指定的文件（文件组）的生成命令。
+在相同路径下创建的目标（CMakeLists.txt文件）——任何自定义命令的输出都作为它的源文件——被设置了一条规则：在构建的时候，使用指定的命令来生成这些文件。
+如果一个输出文件名是相对路径，它将被解释成相对于构建树路径的相对路径，并且与当前源码路径是对应的。
+注意，MAIN_DEPENDENCY完全是可选的，它用来向visual studio建议在何处停止自定义命令。对于各种类型的makefile而言，这条命令创建了一个格式如下的新目标：
+OUTPUT: MAIN_DEPENDENCY DEPENDS
+    COMMAND
+如果指定了多于一条的命令，它们会按顺序执行。ARGS参数是可选的，它的存在是为了保持向后兼容，以后会被忽略掉。
+
+第二种格式为一个目标——比如一个库文件或者可执行文件——添加一条自定义命令。
+这种格式可以用于目标构建前或构建后的一些操作。这条命令会成为目标的一部分，并且只有目标被构建时才会执行。如果目标已经构建了，该目标将不会执行。
+# add_custom_command(TARGET target
+#                     PRE_BUILD | PRE_LINK | POST_BUILD
+#                     COMMAND command1 [ARGS] [args1...]
+#                     [COMMAND command2 [ARGS] [args2...] ...]
+#                     [WORKING_DIRECTORY dir]
+#                     [COMMENT comment] [VERBATIM])
+这条命令定义了一个与指定目标的构建过程相关的新命令。新命令在何时执行，由下述的选项决定：
+    PRE_BUILD  - 在所有其它的依赖之前执行；
+    PRE_LINK   - 在所有其它的依赖之后执行；
+    POST_BUILD - 在目标被构建之后执行；
+注意，只有Visual Studio 7或更高的版本才支持PRE_BUILD。对于其他的生成器，PRE_BUILD会被当做PRE_LINK来对待。
+如果指定了WORKING_DIRECTORY选项，这条命令会在给定的路径下执行。
+如果设置了COMMENT选项，后跟的参数会在构建时、以构建信息的形式、在命令执行之前显示出来。
+如果指定了APPEND选项，COMMAND以及DEPENDS选项的值会附加到第一个输出文件的自定义命令上。在此之前，必须有一次以相同的输出文件作为参数的对该命令的调用。
+在当前版本下，如果指定了APPEND选项，COMMENT, WORKING_DIRECTORY和MAIN_DEPENDENCY选项会被忽略掉，不过未来有可能会用到。
+
+如果指定了VERBATIM选项，所有该命令的参数将会合适地被转义，以便构建工具能够以原汁原味的参数去调用那些构建命令。
+注意，在add_custom_command能看到这些参数之前，CMake语言处理器会对这些参数做一层转义处理。推荐使用VERBATIM参数，因为它能够保证正确的行为。当VERBATIM未指定时，CMake的行为依赖于平台，因为CMake没有针对某一种工具的特殊字符采取保护措施。
+
+如果自定义命令的输出并不是实际的磁盘文件，应该使用SET_SOURCE_FILES_PROPERTIES命令将该输出的属性标记为SYMBOLIC。
+如果COMMAND选项指定了一个可执行目标（由ADD_EXECUTABLE命令创建的目标），在构建时，它会自动被可执行文件的位置所替换。而且，一个目标级的依赖性将会被添加进去，这样这个可执行目标将会在所有依赖于该自定义命令的结果的目标之前被构建。不过，任何时候重编译这个可执行文件，这种特性并不会引入一个会引起自定义命令重新运行的文件级依赖。
+
+DEPENDS选项指定了该命令依赖的文件。如果依赖的对象是同一目录（CMakeLists.txt文件）下另外一个自定义命令的输出，CMake会自动将其它自定义命令带到这个命令中来。
+如果DEPENDS指定了任何类型的目标（由ADD_*命令创建），一个目标级的依赖性将会被创建，以保证该目标在任何其它目标使用这个自定义命令的输出之前，该目标已经被创建了。
+而且，如果该目标是可执行文件或库文件，一个文件级依赖将会被创建，用来引发自定义命令在目标被重编译时的重新运行。
+add_custom_command
+}
+
+
+add_custom_target(){ cat - <<'add_custom_target'
+add_custom_target 添加一个目标，它没有输出；这样它就总是会被构建。
+# add_custom_target(Name [ALL] [command1 [args1...]]
+#                     [COMMAND command2 [args2...] ...]
+#                     [DEPENDS depend depend depend ... ]
+#                     [WORKING_DIRECTORY dir]
+#                     [COMMENT comment] [VERBATIM]
+#                     [SOURCES src1 [src2...]])
+
+用Name选项给定的名字添加一个目标，这个目标会引发给定的那些命令。这个目标没有输出文件，并且总是被认为是过时的，即使那些命令试图去创建一个与该目标同名的文件。
+使用ADD_CUSTOM_COMMAND命令可以生成一个带有依赖性的文件。
+默认情况下，没有目标会依赖于自定义目标。使用ADD_DEPENDENCIES命令可以添加依赖于该目标或者被该目标依赖的目标。
+如果指定了ALL选项，这表明这个目标应该被添加到默认的构建目标中，这样它每次都会被构建（命令的名字不能是ALL）。
+命令和选项是可选的；如果它们没有被指定，将会产生一个空目标。
+如果设定了WORKING_DIRECTORY参数，该命令会在它指定的路径下执行。
+如果指定了COMMENT选项，后跟的参数将会在构件的时候，在命令执行之前，被显示出来。
+DEPENDS 选项后面列出来的依赖目标可以引用add_custom_command命令在相同路径下（CMakeLists.txt）生成的输出和文件。
+SOURCES 选项指定了会被包含到自定义目标中的附加的源文件。指定的源文件将会被添加到IDE的工程文件中，方便在没有构建规则的情况下能够编辑。
+
+# add_custom_target(libhv DEPENDS hv)
+# add_custom_target(libhv_static DEPENDS hv_static)
+# add_custom_target(examples DEPENDS ${EXAMPLES})
+# add_custom_target(unittest DEPENDS
+mkdir_p
+rmdir_p
+date
+hatomic_test
+hthread_test
+hmutex_test
+connect_test
+socketpair_test
+base64
+md5
+sha1
+hstring_test
+hpath_test
+ls
+ifconfig
+defer_test
+synchronized_test
+threadpool_test
+objectpool_test
+nslookup
+ping
+ftp
+sendmail
+)
+
+ubusd:   ADD_CUSTOM_TARGET(prepare-cram-venv ALL DEPENDS ${PYTHON_VENV_CRAM})
+libubox: ADD_CUSTOM_TARGET(prepare-cram-venv ALL DEPENDS ${PYTHON_VENV_CRAM})
+
+procd :ADD_CUSTOM_TARGET(syscall-names-h DEPENDS syscall-names.h)
+procd :ADD_CUSTOM_TARGET(capabilities-names-h DEPENDS capabilities-names.h)
+add_custom_target
+}
+
+
+add_definitions(){ cat - <<'add_definitions'
+add_definitions 为源文件的编译添加由-D引入的define flag。
+add_definitions(-DFOO -DBAR ...)
+在编译器的命令行上，为当前路径以及下层路径的源文件加入一些define flag。这个命令可以用来引入任何flag，但是它的原意是用来引入预处理器的定义。
+那些以-D或/D开头的、看起来像预处理器定义的flag，会被自动加到当前路径的COMPILE_DEFINITIONS属性中。
+
+1. ADD_DEFINITIONS
+向C/C++编译器添加-D定义，比如:
+ADD_DEFINITIONS(-DENABLE_DEBUG  -DABC)，参数之间用空格分割。
+如果你的代码中定义了#ifdef ENABLE_DEBUG #endif，这个代码块就会生效。
+如果要添加其他的编译器开关，可以通过CMAKE_C_FLAGS变量和CMAKE_CXX_FLAGS变量设置。
+
+libhv: add_definitions(-DDEBUG)
+libhv: add_definitions(-DNDEBUG)
+libhv: add_definitions(-DENABLE_IPV6)
+libhv: add_definitions(-DENABLE_UDS)
+libhv: add_definitions(-DUSE_MULTIMAP)
+libhv: add_definitions(-DWITH_CURL)
+libhv: add_definitions(-DWITH_NGHTTP2)
+libhv: add_definitions(-DWITH_OPENSSL)
+libhv: add_definitions(-DWITH_GNUTLS)
+libhv: add_definitions(-DWITH_MBEDTLS)
+libhv: add_definitions(-D_WIN32_WINNT=0x0600)
+libhv: add_definitions(-DENABLE_WINDUMP)
+libhv: add_definitions(-D_WIN32_WINNT=0x600)
+libhv: add_definitions(-DHV_SOURCE=1)
+
+procd: ADD_DEFINITIONS(-Os -ggdb -Wall -Werror --std=gnu99 -Wmissing-declarations)
+procd: ADD_DEFINITIONS(-DUDEV_DEBUG -g3)
+procd: ADD_DEFINITIONS(-DEARLY_PATH="${EARLY_PATH}")
+procd: ADD_DEFINITIONS(-DZRAM_TMPFS)
+procd: ADD_DEFINITIONS(-DDISABLE_INIT)
+procd: ADD_DEFINITIONS(-DSECCOMP_SUPPORT)
+procd: ADD_DEFINITIONS(-Os -ggdb -Wall -Werror --std=gnu99 -Wmissing-declarations)
+
+libubox: ADD_DEFINITIONS(-Wall -Werror)
+libubox: ADD_DEFINITIONS(-Wextra -Werror=implicit-function-declaration)
+libubox: ADD_DEFINITIONS(-Wformat -Werror=format-security -Werror=format-nonliteral)
+libubox: ADD_DEFINITIONS(-Os -std=gnu99 -g3 -Wmissing-declarations -Wno-unused-parameter)
+libubox: ADD_DEFINITIONS(-DJSONC)
+libubox: ADD_DEFINITIONS(-O1 -Wall -Werror --std=gnu99 -g3)
+libubox: ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -g3 -I.. ${LUA_CFLAGS})
+
+ubusd: ADD_DEFINITIONS(-DUBUS_UNIX_SOCKET="${UBUS_UNIX_SOCKET}")
+ubusd: ADD_DEFINITIONS(-DUBUS_MAX_MSGLEN=${UBUS_MAX_MSGLEN})
+ubusd: ADD_DEFINITIONS(-I..)
+add_definitions
+}
+
+add_dependencies(){ cat - <<'add_dependencies'
+add_dependencies 为顶层目标引入一个依赖关系。 说明依赖关系
+ADD_DEPENDENCIES(target-name depend-target1 depend-target2 ...) # 定义target依赖的其他target，确保在编译本target之前，其他的target已经被构建。
+
+add_dependencies(target-name depend-target1
+                 depend-target2 ...)
+    让一个顶层目标依赖于其他的顶层目标。一个顶层目标是由命令ADD_EXECUTABLE，ADD_LIBRARY，或者ADD_CUSTOM_TARGET产生的目标。
+为这些命令的输出引入依赖性可以保证某个目标在其他的目标之前被构建。查看ADD_CUSTOM_TARGET和ADD_CUSTOM_COMMAND命令的DEPENDS选项，可以了解如何根据自定义规则引入文件级的依赖性。
+查看SET_SOURCE_FILES_PROPERTIES命令的OBJECT_DEPENDS选项，可以了解如何为目标文件引入文件级的依赖性。
+
+procd: ADD_DEPENDENCIES(preload-seccomp syscall-names-h)
+procd: ADD_DEPENDENCIES(ujail           capabilities-names-h)
+procd: ADD_DEPENDENCIES(utrace          syscall-names-h)
+add_dependencies
 }

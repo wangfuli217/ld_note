@@ -257,6 +257,32 @@ make_p_prerequisites(){ cat - <<'EOF'
 prerequisites: 规则的依赖
 1. 生成规则目标所需要的文件名列表。通常一个目标依赖于一个或者多个文件
 2. 文件名列表可以是: 可执行文件, .o文件 .so文件名 .a文件名
+
+3. 静态模式可以更容易地定义多目标的规则，可以让我们的规则变得更加有弹性和灵活。
+语法规则是：
+targets: target pattern: prereq patterns
+	command
+举一个常用的例子就是：
+objs := foo.o bar.o
+$(objs): %.o :%.c
+	$(CC) -c $(CFLAGS) $< -o $@
+
+4. 自动生成依赖
+gcc -M test.c   # 一个只包含了stdio.h的test.c文件
+gcc -MM test.c  # 如果排除掉系统头文件
+
+5. 把这个结果输出到后缀名为.d的文件中
+%.d :%.c
+	@set -e; rm -f $@; \
+	gcc -M $(CPPFLAGS) $< > $@.$$$$;\
+	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
+
+$$$$这个得到的是进程号，是为了保证名字的唯一性和临时性。
+接下来我们要做的就是把这些自动生成的规则放入到我们的主Makefile里。例如这样：
+
+SRCS = foo.c bar.c
+include $(SRCS:.c=.d)
 EOF
 }
 
@@ -306,6 +332,9 @@ GNU的make工作时的执行步骤如下：(想来其它的make也是类似)
 5. 为所有的目标文件创建依赖关系链。
 6. 根据依赖关系，决定哪些目标要重新生成。
 7. 执行生成命令。
+
+1到5步为第一阶段，6到7步为第二阶段。
+在第一阶段，如果变量被使用了，那么make就会把它展开在使用的位置，但是不会完全展开，会延迟展开。
 EOF
 }
 
@@ -1014,9 +1043,15 @@ make_i_func_shell(){  cat - <<'EOF'
 时函数引用才被展开。展开过程函数参数的执行时在另外一个shell进程中完成的，因此对于出现在规则命令行的多级"shell"函数引用需要谨慎处理，
 否则会影响效率(每一级的"shell"函数的参数都会有各自的shell进程)。
 
+1. 创建文件夹或者删除文件夹的函数
 # make可以使用它来和外部通信。
 contents := $(shell cat foo)
 files := $(shell echo *.c)
+
+CreateDir = $(shell [ -d $1 ] || mkdir -p $1 || echo "$1 exists")
+RemoveDir = $(shell [ -d $1 ] && rm -rf $1 || echo "rm $1 failed ")
+dummy := $(call CreateDir, $(DIR1_NAME))
+dummy += $(call CreateDir, $(DIR2_NAME))
 
 # syntax/learn-makefile/functions/shell.mk
 EOF
@@ -1114,6 +1149,13 @@ include FILENAMES...
 
 -include .make-settings
 # syntax/gnumake/makeclean/Makefile
+
+防止重复包含一个mk文件
+ifneq ($(this_filname),1)
+this_filename=1
+...
+endif
+
 EOF
 }
 
@@ -1504,6 +1546,22 @@ foo.c : foo.y
     
 1. 命令包中的"$^"会被"foo.y"替换；2. "$@"被"foo.c"替换。
 
+2. 定义宏和使用宏。
+define mymacro
+	@dir="$(1)"; ls $(1)/*
+endef
+all:
+	$(call mymacro, "src")
+
+3. 定义宏和使用宏。
+define myfunc
+echo "xxx"
+echo "yyy"
+endef
+使用就是这样：
+all:
+	$(myfunc)
+
 [空命令]
 target: ;
 空命令行可以防止make在执行时试图为重建这个目标去查找隐含命令和".DEFAULT"指定的命令。
@@ -1595,6 +1653,11 @@ A3. 定义一个空格:
 \syntax\gnumake\variable\define\Makefile # make reference_space
 nullstring :=
 space := $(nullstring) # end of the line
+
+定义一个空格的方法
+empty:=
+space:= $(empty) $(empty)
+merge=$(subst $(space),,$(1))
 
 A4. 条件赋值: ?=
 \syntax\gnumake\variable\define\Makefile # make reference_condition
