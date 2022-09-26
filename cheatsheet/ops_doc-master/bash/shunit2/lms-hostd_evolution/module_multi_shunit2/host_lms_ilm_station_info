@@ -1,0 +1,645 @@
+#!/bin/bash
+
+oneTimeSetUp() {
+  . "./test_helper"
+  status=""
+  output=""
+  if [ -n "${HOSTD_DEBUG}" ]; then
+    RTUCLIENT="hostd -q -d 1 -H ${RTU_HOST} -p ${RTU_PORT}"
+  else
+    RTUCLIENT="hostd -q -H ${RTU_HOST} -p ${RTU_PORT}"
+  fi
+
+  if [ -z "${ILM_INFO15}" ]; then
+    ILM_INFO15="3 4 5 3 4 5"
+  fi
+  if [ -z "${ILM_INFO26}" ]; then
+    ILM_INFO26="3 4 5 3 4 5 6"
+  fi
+  if [ -z "${ILM_INFO37}" ]; then
+    ILM_INFO37="3 4 5 3 4 5 1 5"
+  fi
+  if [ -z "${ILM_INFO48}" ]; then
+    ILM_INFO48="3 4 5 3 4 5 1 3 5"
+  fi
+}
+
+oneTimeTearDown() {
+  :
+}
+
+setUp() {
+  :
+}
+
+tearDown() {
+  :
+}
+
+######## protocol [ILM]     ########
+#### ilm-info-set slot direct count distances ...
+test_ILM_station_info_set_slot_valid() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  #                                 slot     direct count distances
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 1 5 ${ILM_INFO15} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set $ILM_SLOT 1 5 ${ILM_INFO15} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set $ILM_SLOT 1 5 ${ILM_INFO15} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 2
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 2 6 ${ILM_INFO26} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set $ILM_SLOT 2 6 ${ILM_INFO26} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set $ILM_SLOT 2 6 ${ILM_INFO26} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 3
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 3 7 ${ILM_INFO37} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set $ILM_SLOT 3 7 ${ILM_INFO37} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set $ILM_SLOT 3 7 ${ILM_INFO37} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 4
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 4 8 ${ILM_INFO48} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set $ILM_SLOT 4 8 ${ILM_INFO48} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set $ILM_SLOT 4 8 ${ILM_INFO48} @output:${output}" "${output}" "ilm-info-set"
+}
+
+# table driven test
+test_ILM_station_info_set_slot_valid_table() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+
+  while read -r direct stations station_array; do
+    output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" "${direct}" "${stations}" ${station_array} 2>&1)"
+    status=$?
+    assertTrue "$RTUCLIENT ilm-info-set $ILM_SLOT ${direct} ${stations} ${station_array} @ret:${status} @output:${output}" "${status}"
+    # or
+    assertEquals "$RTUCLIENT ilm-info-set $ILM_SLOT ${direct} ${stations} ${station_array} @ret:${status} @output:${output}" 0 "${status}"
+    assertContains "$RTUCLIENT ilm-info-set $ILM_SLOT ${direct} ${stations} ${station_array} @output:${output}" "${output}" "ilm-info-set"
+  done <<EOF
+1  5  ${ILM_INFO15}
+2  6  ${ILM_INFO26}
+3  7  ${ILM_INFO37}
+4  8  ${ILM_INFO48}
+EOF
+}
+
+test_ILM_E_station_info_set_slot_valid() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  #                                 slot     direct count distances
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_E_SLOT}" 5 5 ${ILM_INFO15} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set $ILM_E_SLOT 5 5 ${ILM_INFO15} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set $ILM_E_SLOT 5 5 ${ILM_INFO15} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 6
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_E_SLOT}" 6 6 ${ILM_INFO26} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set $ILM_E_SLOT 6 6 ${ILM_INFO26} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set $ILM_E_SLOT 6 6 ${ILM_INFO26} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 7
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_E_SLOT}" 7 7 ${ILM_INFO37} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set $ILM_E_SLOT 7 7 ${ILM_INFO37} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set $ILM_E_SLOT 7 7 ${ILM_INFO37} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 8
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_E_SLOT}" 8 8 ${ILM_INFO48} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set $ILM_E_SLOT 8 8 ${ILM_INFO48} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set $ILM_E_SLOT 8 8 ${ILM_INFO48} @output:${output}" "${output}" "ilm-info-set"
+}
+
+test_ILM_E_station_info_set_slot_valid_table() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  while read -r direct stations station_array; do
+    output="$($RTUCLIENT ilm-info-set "${ILM_E_SLOT}" "${direct}" "${stations}" ${station_array} 2>&1)"
+    status=$?
+    assertTrue "$RTUCLIENT ilm-info-set $ILM_E_SLOT ${direct} ${stations} ${station_array} @ret:${status} @output:${output}" "${status}"
+    # or
+    assertEquals "$RTUCLIENT ilm-info-set $ILM_E_SLOT ${direct} ${stations} ${station_array} @ret:${status} @output:${output}" 0 "${status}"
+    assertContains "$RTUCLIENT ilm-info-set $ILM_E_SLOT ${direct} ${stations} ${station_array} @output:${output}" "${output}" "ilm-info-set"
+  done <<EOF
+5  5  ${ILM_INFO15}
+6  6  ${ILM_INFO26}
+7  7  ${ILM_INFO37}
+8  8  ${ILM_INFO48}
+EOF
+}
+
+test_ILM_station_info_set_slot_255() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  #                                 slot     direct count distances
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set 255 1 5 ${ILM_INFO15} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set 255 1 5 ${ILM_INFO15} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set 255 1 5 ${ILM_INFO15} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 2
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set 255 2 6 ${ILM_INFO26} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set 255 2 6 ${ILM_INFO26} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set 255 2 6 ${ILM_INFO26} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 3
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set 255 3 7 ${ILM_INFO37} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set 255 3 7 ${ILM_INFO37} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set 255 3 7 ${ILM_INFO37} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 4
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set 255 4 8 ${ILM_INFO48} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set 255 4 8 ${ILM_INFO48} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set 255 4 8 ${ILM_INFO48} @output:${output}" "${output}" "ilm-info-set"
+}
+
+# table driven test
+test_ILM_station_info_set_slot_255_table() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+
+  while read -r direct stations station_array; do
+    output="$($RTUCLIENT ilm-info-set 255 "${direct}" "${stations}" ${station_array} 2>&1)"
+    status=$?
+    assertTrue "$RTUCLIENT ilm-info-set 255 ${direct} ${stations} ${station_array} @ret:${status} @output:${output}" "${status}"
+    # or
+    assertEquals "$RTUCLIENT ilm-info-set 255 ${direct} ${stations} ${station_array} @ret:${status} @output:${output}" 0 "${status}"
+    assertContains "$RTUCLIENT ilm-info-set 255 ${direct} ${stations} ${station_array} @output:${output}" "${output}" "ilm-info-set"
+  done <<EOF
+1  5  ${ILM_INFO15}
+2  6  ${ILM_INFO26}
+3  7  ${ILM_INFO37}
+4  8  ${ILM_INFO48}
+EOF
+}
+
+test_ILM_E_station_info_set_slot_255() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  #                                 slot     direct count distances
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set 255 5 5 ${ILM_INFO15} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set 255 5 5 ${ILM_INFO15} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set 255 5 5 ${ILM_INFO15} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 6
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set 255 6 6 ${ILM_INFO26} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set 255 6 6 ${ILM_INFO26} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set 255 6 6 ${ILM_INFO26} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 7
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set 255 7 7 ${ILM_INFO37} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set 255 7 7 ${ILM_INFO37} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set 255 7 7 ${ILM_INFO37} @output:${output}" "${output}" "ilm-info-set"
+
+  # direct 8
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set 255 8 8 ${ILM_INFO48} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set 255 8 8 ${ILM_INFO48} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set 255 8 8 ${ILM_INFO48} @output:${output}" "${output}" "ilm-info-set"
+}
+
+test_ILM_E_station_info_set_slot_255_table() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  while read -r direct stations station_array; do
+    output="$($RTUCLIENT ilm-info-set 255 "${direct}" "${stations}" ${station_array} 2>&1)"
+    status=$?
+    assertTrue "$RTUCLIENT ilm-info-set 255 ${direct} ${stations} ${station_array} @ret:${status} @output:${output}" "${status}"
+    # or
+    assertEquals "$RTUCLIENT ilm-info-set 255 ${direct} ${stations} ${station_array} @ret:${status} @output:${output}" 0 "${status}"
+    assertContains "$RTUCLIENT ilm-info-set 255 ${direct} ${stations} ${station_array} @output:${output}" "${output}" "ilm-info-set"
+  done <<EOF
+5  5  ${ILM_INFO15}
+6  6  ${ILM_INFO26}
+7  7  ${ILM_INFO37}
+8  8  ${ILM_INFO48}
+EOF
+}
+
+test_ILM_station_info_set_slot_invalid() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  # direct 1
+  local slot=$((ILM_SLOT + 1))
+  output="$($RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_set_slot_invalid() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  # direct 5
+  local slot=$((ILM_E_SLOT + 1))
+  output="$($RTUCLIENT ilm-info-set ${slot} 5 5 3 4 5 3 4 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${slot} 5 5 3 4 5 3 4 5 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${slot} 5 5 3 4 5 3 4 5 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-info-set ${slot} 5 5 3 4 5 3 4 5 @output:${output}" "${output}" "error"
+}
+
+test_ILM_station_info_set_slot_greater() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  local slot=254
+  output="$($RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_set_slot_greater() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  local slot=254
+  output="$($RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-info-set ${slot} 1 5 3 4 5 3 4 5 @output:${output}" "${output}" "error"
+}
+
+test_ILM_station_info_set_direct_zero() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 0 5 3 4 5 3 4 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${ILM_SLOT} 0 5 3 4 5 3 4 5 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_SLOT} 0 5 3 4 5 3 4 5 @output:${output}" "${output}" "port"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_SLOT} 0 5 3 4 5 3 4 5 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_set_direct_zero() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-info-set "${ILM_E_SLOT}" 0 5 3 4 5 3 4 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 0 5 3 4 5 3 4 5 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 0 5 3 4 5 3 4 5 @output:${output}" "${output}" "port"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 0 5 3 4 5 3 4 5 @output:${output}" "${output}" "error"
+}
+
+test_ILM_station_info_set_direct_greater() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 9 5 3 4 5 3 4 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${ILM_SLOT} 9 5 3 4 5 3 4 5 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_SLOT} 9 5 3 4 5 3 4 5 @output:${output}" "${output}" "port"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_SLOT} 9 5 3 4 5 3 4 5 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_set_direct_greater() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-info-set "${ILM_E_SLOT}" 9 5 3 4 5 3 4 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 9 5 3 4 5 3 4 5 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 9 5 3 4 5 3 4 5 @output:${output}" "${output}" "port"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 9 5 3 4 5 3 4 5 @output:${output}" "${output}" "error"
+}
+
+test_ILM_station_info_set_stations_greater() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  #54                                    92
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 1 19 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 3 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${ILM_SLOT} 1 19 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 3 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_SLOT} 1 19 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 3 @output:${output}" "${output}" "argument"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_SLOT} 1 19 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 3 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_set_stations_greater() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  #54                                    92
+  output="$($RTUCLIENT ilm-info-set "${ILM_E_SLOT}" 5 19 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 3 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 5 19 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 3 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 5 19 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 3 @output:${output}" "${output}" "argument"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 5 19 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 4 5 3 3 @output:${output}" "${output}" "error"
+}
+
+test_ILM_station_info_set_station_distance_greater() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 1 5 10 4 5 3 4 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${ILM_SLOT} 1 5 10 4 5 3 4 5 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_SLOT} 1 5 10 4 5 3 4 5 @output:${output}" "${output}" "argument"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_SLOT} 1 5 10 4 5 3 4 5 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_set_station_distance_greater() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-info-set "${ILM_E_SLOT}" 5 5 10 4 5 3 4 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 5 5 10 4 5 3 4 5 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 5 5 10 4 5 3 4 5 @output:${output}" "${output}" "argument"
+  assertContains "$RTUCLIENT ilm-info-set ${ILM_E_SLOT} 5 5 10 4 5 3 4 5 @output:${output}" "${output}" "error"
+}
+
+#### ilm-info-get slot direct
+test_ILM_station_info_get_slot_valid() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  # direct 1
+  output="$($RTUCLIENT ilm-info-get "${ILM_SLOT}" 1 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_SLOT 1 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 1 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 1 @output:${output}" "${output}" "${ILM_INFO15}"
+  assertNotContains "$RTUCLIENT ilm-info-get $ILM_SLOT 1 @output:${output}" "${output}" "error"
+
+  # direct 2
+  output="$($RTUCLIENT ilm-info-get "${ILM_SLOT}" 2 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_SLOT 2 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 2 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 2 @output:${output}" "${output}" "${ILM_INFO26}"
+  assertNotContains "$RTUCLIENT ilm-info-get $ILM_SLOT 2 @output:${output}" "${output}" "error"
+
+  # direct 3
+  output="$($RTUCLIENT ilm-info-get "${ILM_SLOT}" 3 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_SLOT 3 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 3 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 3 @output:${output}" "${output}" "${ILM_INFO37}"
+  assertNotContains "$RTUCLIENT ilm-info-get $ILM_SLOT 3 @output:${output}" "${output}" "error"
+
+  # direct 4
+  output="$($RTUCLIENT ilm-info-get "${ILM_SLOT}" 4 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_SLOT 4 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 4 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 4 @output:${output}" "${output}" "${ILM_INFO48}"
+  assertNotContains "$RTUCLIENT ilm-info-get $ILM_SLOT 4 @output:${output}" "${output}" "error"
+}
+
+test_ILM_station_info_get_slot_valid_table() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  while read -r direct station_array; do
+    output="$($RTUCLIENT ilm-info-get "${ILM_SLOT}" "${direct}" 2>&1)"
+    status=$?
+    assertEquals "$RTUCLIENT ilm-info-get $ILM_SLOT ${direct} @ret:${status} @output:${output}" 0 "${status}"
+    assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT ${direct} @output:${output}" "${output}" "distances"
+    assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT ${direct} @output:${output}" "${output}" "${station_array}"
+    assertNotContains "$RTUCLIENT ilm-info-get $ILM_SLOT ${direct} @output:${output}" "${output}" "error"
+  done <<EOF
+1  ${ILM_INFO15}
+2  ${ILM_INFO26}
+3  ${ILM_INFO37}
+4  ${ILM_INFO48}
+EOF
+}
+
+test_ILM_E_station_info_get_slot_valid() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  # direct 1
+  output="$($RTUCLIENT ilm-info-get "${ILM_E_SLOT}" 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_E_SLOT 5 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 5 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 5 @output:${output}" "${output}" "${ILM_INFO15}"
+  assertNotContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 5 @output:${output}" "${output}" "error"
+
+  # direct 2
+  output="$($RTUCLIENT ilm-info-get "${ILM_E_SLOT}" 6 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_E_SLOT 6 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 6 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 6 @output:${output}" "${output}" "${ILM_INFO26}"
+  assertNotContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 6 @output:${output}" "${output}" "error"
+
+  # direct 3
+  output="$($RTUCLIENT ilm-info-get "${ILM_E_SLOT}" 7 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_E_SLOT 7 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 7 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 7 @output:${output}" "${output}" "${ILM_INFO37}"
+  assertNotContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 7 @output:${output}" "${output}" "error"
+
+  # direct 4
+  output="$($RTUCLIENT ilm-info-get "${ILM_E_SLOT}" 8 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_E_SLOT 8 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 8 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 8 @output:${output}" "${output}" "${ILM_INFO48}"
+  assertNotContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 8 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_get_slot_valid_table() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  while read -r direct station_array; do
+    output="$($RTUCLIENT ilm-info-get "${ILM_E_SLOT}" "${direct}" 2>&1)"
+    status=$?
+    assertEquals "$RTUCLIENT ilm-info-get $ILM_E_SLOT ${direct} @ret:${status} @output:${output}" 0 "${status}"
+    assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT ${direct} @output:${output}" "${output}" "distances"
+    assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT ${direct} @output:${output}" "${output}" "${station_array}"
+    assertNotContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT ${direct} @output:${output}" "${output}" "error"
+  done <<EOF
+5  ${ILM_INFO15}
+6  ${ILM_INFO26}
+7  ${ILM_INFO37}
+8  ${ILM_INFO48}
+EOF
+}
+
+test_ILM_station_info_get_slot_255() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  # direct 1
+  output="$($RTUCLIENT ilm-info-get 255 1 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get 255 1 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get 255 1 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get 255 1 @output:${output}" "${output}" "${ILM_INFO15}"
+  assertNotContains "$RTUCLIENT ilm-info-get 255 1 @output:${output}" "${output}" "error"
+
+  # direct 2
+  output="$($RTUCLIENT ilm-info-get 255 2 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get 255 2 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get 255 2 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get 255 2 @output:${output}" "${output}" "${ILM_INFO26}"
+  assertNotContains "$RTUCLIENT ilm-info-get 255 2 @output:${output}" "${output}" "error"
+
+  # direct 3
+  output="$($RTUCLIENT ilm-info-get 255 3 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get 255 3 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get 255 3 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get 255 3 @output:${output}" "${output}" "${ILM_INFO37}"
+  assertNotContains "$RTUCLIENT ilm-info-get 255 3 @output:${output}" "${output}" "error"
+
+  # direct 4
+  output="$($RTUCLIENT ilm-info-get 255 4 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get 255 4 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get 255 4 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get 255 4 @output:${output}" "${output}" "${ILM_INFO48}"
+  assertNotContains "$RTUCLIENT ilm-info-get 255 4 @output:${output}" "${output}" "error"
+}
+
+test_ILM_station_info_get_slot_255_table() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  while read -r direct station_array; do
+    output="$($RTUCLIENT ilm-info-get 255 "${direct}" 2>&1)"
+    status=$?
+    assertEquals "$RTUCLIENT ilm-info-get 255 ${direct} @ret:${status} @output:${output}" 0 "${status}"
+    assertContains "$RTUCLIENT ilm-info-get 255 ${direct} @output:${output}" "${output}" "distances"
+    assertContains "$RTUCLIENT ilm-info-get 255 ${direct} @output:${output}" "${output}" "${station_array}"
+    assertNotContains "$RTUCLIENT ilm-info-get 255 ${direct} @output:${output}" "${output}" "error"
+  done <<EOF
+1  ${ILM_INFO15}
+2  ${ILM_INFO26}
+3  ${ILM_INFO37}
+4  ${ILM_INFO48}
+EOF
+}
+
+test_ILM_E_station_info_get_slot_255() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  # direct 1
+  output="$($RTUCLIENT ilm-info-get 255 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get 255 5 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get 255 5 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get 255 5 @output:${output}" "${output}" "${ILM_INFO15}"
+  assertNotContains "$RTUCLIENT ilm-info-get 255 5 @output:${output}" "${output}" "error"
+
+  # direct 2
+  output="$($RTUCLIENT ilm-info-get 255 6 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get 255 6 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get 255 6 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get 255 6 @output:${output}" "${output}" "${ILM_INFO26}"
+  assertNotContains "$RTUCLIENT ilm-info-get 255 6 @output:${output}" "${output}" "error"
+
+  # direct 3
+  output="$($RTUCLIENT ilm-info-get 255 7 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get 255 7 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get 255 7 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get 255 7 @output:${output}" "${output}" "${ILM_INFO37}"
+  assertNotContains "$RTUCLIENT ilm-info-get 255 7 @output:${output}" "${output}" "error"
+
+  # direct 4
+  output="$($RTUCLIENT ilm-info-get 255 8 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get 255 8 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get 255 8 @output:${output}" "${output}" "distances"
+  assertContains "$RTUCLIENT ilm-info-get 255 8 @output:${output}" "${output}" "${ILM_INFO48}"
+  assertNotContains "$RTUCLIENT ilm-info-get 255 8 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_get_slot_255_table() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  while read -r direct station_array; do
+    output="$($RTUCLIENT ilm-info-get 255 "${direct}" 2>&1)"
+    status=$?
+    assertEquals "$RTUCLIENT ilm-info-get 255 ${direct} @ret:${status} @output:${output}" 0 "${status}"
+    assertContains "$RTUCLIENT ilm-info-get 255 ${direct} @output:${output}" "${output}" "distances"
+    assertContains "$RTUCLIENT ilm-info-get 255 ${direct} @output:${output}" "${output}" "${station_array}"
+    assertNotContains "$RTUCLIENT ilm-info-get 255 ${direct} @output:${output}" "${output}" "error"
+  done <<EOF
+5  ${ILM_INFO15}
+6  ${ILM_INFO26}
+7  ${ILM_INFO37}
+8  ${ILM_INFO48}
+EOF
+}
+
+test_ILM_station_info_get_slot_invalid() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  # slot invalid "${ILM_SLOT}" + 1
+  local slot=$((ILM_SLOT + 1))
+  output="$($RTUCLIENT ilm-info-get ${slot} 1 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get ${slot} 1 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get ${slot} 1 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-info-get ${slot} 1 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_get_slot_invalid() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  # slot invalid "${ILM_E_SLOT}" + 1
+  local slot=$((ILM_E_SLOT + 1))
+  output="$($RTUCLIENT ilm-info-get ${slot} 1 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get ${slot} 1 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get ${slot} 1 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-info-get ${slot} 1 @output:${output}" "${output}" "error"
+}
+
+test_ILM_station_info_get_slot_greater() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  # slot invalid 254
+  output="$($RTUCLIENT ilm-info-get 254 1 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get 254 1 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get 254 1 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-info-get 254 1 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_get_slot_greater() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  # slot invalid 254
+  output="$($RTUCLIENT ilm-info-get 254 5 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get 254 5 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get 254 5 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-info-get 254 5 @output:${output}" "${output}" "error"
+}
+
+test_ILM_station_info_get_direct_zero() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  # direct invalid 0
+  output="$($RTUCLIENT ilm-info-get "${ILM_SLOT}" 0 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_SLOT 0 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 0 @output:${output}" "${output}" "port"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 0 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_get_direct_zero() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  # direct invalid 0
+  output="$($RTUCLIENT ilm-info-get "${ILM_E_SLOT}" 0 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_E_SLOT 0 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 0 @output:${output}" "${output}" "port"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 0 @output:${output}" "${output}" "error"
+}
+
+test_ILM_station_info_get_direct_greater() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  # direct invalid 9
+  output="$($RTUCLIENT ilm-info-get "${ILM_SLOT}" 9 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_SLOT 9 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 9 @output:${output}" "${output}" "port"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_SLOT 9 @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_station_info_get_direct_greater() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  # direct invalid 9
+  output="$($RTUCLIENT ilm-info-get "${ILM_E_SLOT}" 9 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-info-get $ILM_E_SLOT 9 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 9 @output:${output}" "${output}" "port"
+  assertContains "$RTUCLIENT ilm-info-get $ILM_E_SLOT 9 @output:${output}" "${output}" "error"
+}
+
+
+. ./shunit2

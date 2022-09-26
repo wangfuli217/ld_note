@@ -1,0 +1,142 @@
+#!/bin/bash
+
+####  hostd test for self     ####
+test_hostd_version() {
+  output="$($RTUCLIENT -v 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT -v @ret:${status} @output:${output}" 0 "${status}"
+  assertTrue "$RTUCLIENT -v @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT -v @output:${output}" "${output}" "xianleidi"
+}
+
+test_hostd_config() {
+  output="$($RTUCLIENT config 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT config @ret:${status} @output:${output}" 0 "${status}"
+  assertTrue "$RTUCLIENT config @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT config @output:${output}" "${output}" "QT(client)"
+}
+
+test_hostd_script() {
+  echo "serial" >script
+  output="$($RTUCLIENT -f script 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT -f script @ret:${status} @output:${output}" 0 "${status}"
+  assertTrue "$RTUCLIENT -f script @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT -f script @output:${output}" "${output}" "serial"
+  rm script
+}
+
+test_hostd_conn_info() {
+  output="$($RTUCLIENT conn-info 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT conn-info @ret:${status} @output:${output}" 0 "${status}"
+  assertTrue "$RTUCLIENT conn-info @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT conn-info @output:${output}" "${output}" "info"
+}
+
+test_hostd_debug() {
+  output="$($RTUCLIENT debug 0 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT debug 0 @ret:${status} @output:${output}" 0 "${status}"
+  assertTrue "$RTUCLIENT debug 0 @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT debug 0 @output:${output}" "${output}" "disable"
+
+  output="$($RTUCLIENT debug 1 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT debug 1 @ret:${status} @output:${output}" 0 "${status}"
+  assertTrue "$RTUCLIENT debug 1 @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT debug 1 @output:${output}" "${output}" "enable"
+}
+
+test_hostd_timeout() {
+  output="$($RTUCLIENT test-timeout 1000 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT test-timeout 1000 @ret:${status} @output:${output}" 0 "${status}"
+  assertTrue "$RTUCLIENT test-timeout 1000 @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT test-timeout 1000 @output:${output}" "${output}" "1000"
+
+  output="$($RTUCLIENT test-timeout 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT test-timeout @ret:${status} @output:${output}" 0 "${status}"
+  assertTrue "$RTUCLIENT test-timeout @ret:${status} @output:${output}" "${status}"
+}
+
+test_hostd_cfg_default() {
+  output="$($RTUCLIENT cfg-default 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT cfg-default @ret:${status} @output:${output}" 0 "${status}"
+  assertTrue "$RTUCLIENT cfg-default @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT cfg-default @output:${output}" "${output}" "default value"
+}
+
+test_hostd_command() {
+  while read -r want argument; do
+    output="$($RTUCLIENT command ${argument} 2>&1)"
+    status=$?
+    assertTrue "$RTUCLIENT $argument @ret:${status} @output:${output}" "${status}"
+    assertContains "$RTUCLIENT $argument @output:${output}" "${output}" "${want}"
+  done <<'EOF'
+PROTO_HOST_ERR_FLAG             error
+PROTO_HOST_ILM_STATION_INFO_SET ilm-info-set
+PROTO_HOST_ILM_STATION_INFO_GET ilm-info-get
+PROTO_HOST_ILM_INSULATE_TEST    ilm-test
+PROTO_HOST_ILM_INSULATE_RES_SET ilm-result-set
+PROTO_HOST_ILM_INSULATE_RES_GET ilm-result-get
+PROTO_HOST_ILM_CONFIG_GET       ilm-config-get
+PROTO_HOST_ILM_INSULATE_STATUS  ilm-status-get
+PROTO_HOST_SLOT_SERIAL_VERSION  serial
+PROTO_HOST_SLOT_LEDS_STATUS     leds
+PROTO_HOST_MCU_REBOOT           mcu-reboot
+PROTO_HOST_MCU_DATETIME_SET     mcu-date-set
+PROTO_HOST_MCU_ADDRESS_SET      mcu-addr-set
+PROTO_HOST_MCU_SOFRWARE_UPGRADE mcu-upgrade
+PROTO_HOST_MCU_SOFRWARE_VERSION mcu-version
+PROTO_HOST_SLOT_SETSERIAL       setserial
+PROTO_HOST_MCU_HOST_ADDR        mcu-host-addr
+PROTO_HOST_TPWU_250V_SET        tpwu-250v-set
+PROTO_HOST_TPWU_250V_STATUS     tpwu-250v-status
+PROTO_HOST_GDM_RSST_TEST        gdm-test
+PROTO_HOST_GDM_RSST_REVISON_SET gdm-revison-set
+PROTO_HOST_GDM_RSST_REVISON_GET gdm-revison-get
+PROTO_HOST_LMS_ACIVTE           lms-active
+PROTO_HOST_ILM_TEST_LOG_GET     ilm-test-log
+PROTO_HOST_GDM_TEST_LOG_GET     gdm-test-log
+PROTO_HOST_BELL_SET             bell-set
+PROTO_HOST_BELL_GET             bell-get
+PROTO_HOST_BELL_ENABLE          bell-enable
+PROTO_HOST_BELL_DISABLE         bell-disable
+PROTO_HOST_FAN_SET              fan-set
+PROTO_HOST_FAN_GET              fan-get
+EOF
+}
+
+test_hostd_self_table() {
+  echo "serial" >script
+  while read -r want argument; do
+    output="$($RTUCLIENT ${argument} 2>&1)"
+    status=$?
+    assertTrue "$RTUCLIENT $argument @ret:${status} @output:${output}" "${status}"
+    assertContains "$RTUCLIENT $argument @output:${output}" "${output}" "${want}"
+  done <<'EOF'
+xianleidi  -v
+xianleidi  config
+info       conn-info
+enable     debug 1
+disable    debug 0
+1000       test-timeout 1000
+value      cfg-default
+EOF
+  rm script
+}
+
+suite_addTest test_hostd_version
+suite_addTest test_hostd_config
+suite_addTest test_hostd_script
+suite_addTest test_hostd_conn_info
+suite_addTest test_hostd_debug
+suite_addTest test_hostd_timeout
+suite_addTest test_hostd_cfg_default
+suite_addTest test_hostd_command
+suite_addTest test_hostd_self_table
+    

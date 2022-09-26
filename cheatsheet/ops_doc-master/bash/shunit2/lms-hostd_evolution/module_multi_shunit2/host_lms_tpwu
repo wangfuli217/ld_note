@@ -1,0 +1,119 @@
+#!/bin/bash
+oneTimeSetUp() {
+  . "./test_helper"
+  status=""
+  output=""
+  if [ -n "${HOSTD_DEBUG}" ]; then
+    RTUCLIENT="hostd -q -d 1 -H ${RTU_HOST} -p ${RTU_PORT}"
+  else
+    RTUCLIENT="hostd -q -H ${RTU_HOST} -p ${RTU_PORT}"
+  fi
+}
+
+oneTimeTearDown() {
+  :
+}
+
+setUp() {
+  :
+}
+
+tearDown() {
+  :
+}
+
+######## protocol [TPWU]     ########
+#### tpwu-250v-set slot [0|1]
+test_TPWU_250V_set_slot_valid() {
+  [ -z "${TPWU_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT tpwu-250v-set "${TPWU_SLOT}" 1 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT tpwu-250v-set ${TPWU_SLOT} 1 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT tpwu-250v-set ${TPWU_SLOT} 1 @output:${output}" "${output}" "tpwu-250v-set"
+  assertNotContains "$RTUCLIENT tpwu-250v-set ${TPWU_SLOT} 1 @output:${output}" "${output}" "error"
+
+  # enable 0
+  output="$($RTUCLIENT tpwu-250v-set "${TPWU_SLOT}" 0 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT tpwu-250v-set ${TPWU_SLOT} 0 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT tpwu-250v-set ${TPWU_SLOT} 0 @output:${output}" "${output}" "tpwu-250v-set"
+  assertNotContains "$RTUCLIENT tpwu-250v-set ${TPWU_SLOT} 0 @output:${output}" "${output}" "error"
+
+}
+
+test_TPWU_250V_set_slot_255() {
+  [ -z "${TPWU_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT tpwu-250v-set 255 1 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT tpwu-250v-set 255 1 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT tpwu-250v-set 255 1 @output:${output}" "${output}" "tpwu-250v-set"
+  assertNotContains "$RTUCLIENT tpwu-250v-set 255 1 @output:${output}" "${output}" "error"
+
+  #enabke 0
+  output="$($RTUCLIENT tpwu-250v-set 255 0 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT tpwu-250v-set 255 0 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT tpwu-250v-set 255 0 @output:${output}" "${output}" "tpwu-250v-set"
+  assertNotContains "$RTUCLIENT tpwu-250v-set 255 0 @output:${output}" "${output}" "error"
+}
+
+test_TPWU_250V_set_slot_invalid() {
+  [ -z "${TPWU_SLOT:-}" ] && startSkipping
+  local slot=$((TPWU_SLOT + 1))
+  output="$($RTUCLIENT tpwu-250v-set ${slot} 0 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT tpwu-250v-set ${slot} 0 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT tpwu-250v-set ${slot} 0 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT tpwu-250v-set ${slot} 0 @output:${output}" "${output}" "error"
+}
+
+test_TPWU_250V_set_slot_greater() {
+  [ -z "${TPWU_SLOT:-}" ] && startSkipping
+  local slot=254
+  output="$($RTUCLIENT tpwu-250v-set ${slot} 0 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT tpwu-250v-set ${slot} 0 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT tpwu-250v-set ${slot} 0 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT tpwu-250v-set ${slot} 0 @output:${output}" "${output}" "error"
+}
+
+#### tpwu-250v-status slot
+test_TPWU_250V_status_slot_valid() {
+  [ -z "${TPWU_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT tpwu-250v-status "${TPWU_SLOT}" 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT tpwu-250v-status $TPWU_SLOT @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT tpwu-250v-status $TPWU_SLOT @output:${output}" "${output}" "status"
+  assertNotContains "$RTUCLIENT tpwu-250v-status $TPWU_SLOT @output:${output}" "${output}" "error"
+}
+
+test_TPWU_250V_status_slot_255() {
+  [ -z "${TPWU_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT tpwu-250v-status 255 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT tpwu-250v-status 255 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT tpwu-250v-status 255 @output:${output}" "${output}" "status"
+  assertNotContains "$RTUCLIENT tpwu-250v-status 255 @output:${output}" "${output}" "error"
+}
+
+test_TPWU_250V_status_slot_invalid() {
+  [ -z "${TPWU_SLOT:-}" ] && startSkipping
+  local slot=$((TPWU_SLOT + 1))
+  output="$($RTUCLIENT tpwu-250v-status ${slot} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT tpwu-250v-status ${slot} @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT tpwu-250v-status ${slot} @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT tpwu-250v-status ${slot} @output:${output}" "${output}" "error"
+}
+
+test_TPWU_250V_status_slot_greater() {
+  [ -z "${TPWU_SLOT:-}" ] && startSkipping
+  local slot=254
+  output="$($RTUCLIENT tpwu-250v-status ${slot} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT tpwu-250v-status ${slot} @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT tpwu-250v-status ${slot} @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT tpwu-250v-status ${slot} @output:${output}" "${output}" "error"
+}
+
+. ./shunit2

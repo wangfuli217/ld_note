@@ -1,0 +1,73 @@
+#!/bin/bash
+##
+## Author: Bertrand Benoit <mailto:contact@bertrand-benoit.net>
+## Description: Tests' Daemon sample.
+## Version: 0.1
+#
+# Must NOT be called directly - it will be managed by Tests system only.
+
+#########################
+## CONFIGURATION
+# general
+CATEGORY="daemonSample"
+
+[ -z "$SCRIPTS_COMMON_PATH" ] && echo -e "Unable to find scripts-common utilities script." >&2 && exit 1
+. "$SCRIPTS_COMMON_PATH"
+
+## Configuration.
+declare -r pidFile="$PID_DIR/testDaemonFeature.pid"
+declare -r daemonName="daemonSample"
+# N.B.: this script as both the daemon (managing start/status/stop/daemon actions), and the process to run (run action).
+declare -r processPath="$0"
+
+#########################
+## Command line management
+
+# N.B.: the -D option must be only internally used.
+# Defines VERBOSE to 0 if not already defined.
+VERBOSE=${VERBOSE:-0}
+newLogFile=""
+outputFile=""
+options=""
+while getopts "XSTKDRvh" opt
+do
+ case "$opt" in
+        X)      MODE_CHECK_CONFIG=1;;
+        S)      action="$DAEMON_ACTION_START"
+                newLogFile="$LOG_FILE.daemonSample"
+                outputFile="$newLogFile";;
+        T)      action="$DAEMON_ACTION_STATUS";;
+        K)      action="$DAEMON_ACTION_STOP";;
+        D)      action="$DAEMON_ACTION_DAEMON";;
+        ${DAEMON_OPTION_RUN//-/})
+                action="$DAEMON_ACTION_RUN";;
+
+        v)      VERBOSE=1;;
+        h|[?])  daemonUsage "$daemonName" ;;
+ esac
+done
+
+## Command line arguments check.
+# Ensures action is defined.
+[ -z "${action:-}" ] && daemonUsage "$daemonName"
+
+#########################
+## INSTRUCTIONS
+
+if [ "$action" = "$DAEMON_ACTION_DAEMON" ]; then
+  # Launches this script as daemon, used the -R option for core to run.
+  declare -a optionsArray=("$DAEMON_OPTION_RUN")
+fi
+
+# Manages daemon.
+manageDaemon "$action" "$daemonName" "$pidFile" "$processPath" "$newLogFile" "$outputFile" "${optionsArray[@]:-}"
+
+# Exists but if in "run" action.
+[[ "$action" != "$DAEMON_ACTION_RUN" ]] && exit 0
+
+# From here, the script acts as the process managed as Daemon.
+while [ 1 ]; do
+  # N.B.: enless loop, waiting to be killed by daemon management.
+  writeMessage "Test Daemon Process ... Received options: ${optionsArray[@]:-}"
+  sleep 5
+done

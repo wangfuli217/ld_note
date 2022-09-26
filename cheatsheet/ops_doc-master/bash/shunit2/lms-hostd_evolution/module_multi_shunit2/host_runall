@@ -1,0 +1,70 @@
+#!/bin/bash
+### ShellCheck (http://www.shellcheck.net/)
+#  Not following: ./test_helper was not specified as input (see shellcheck -x)
+#   shellcheck disable=SC1091
+# Double quote to prevent globbing and word splitting
+#   shellcheck disable=SC2086
+
+oneTimeSetUp() {
+  . "./test_helper"
+  status=""
+  output=""
+  if [ -n "${HOSTD_DEBUG}" ]; then
+    RTUCLIENT="hostd -q -d 1 -H ${RTU_HOST} -p ${RTU_PORT}"
+  else
+    RTUCLIENT="hostd -q -H ${RTU_HOST} -p ${RTU_PORT}"
+  fi
+
+  if [ -z "${ILM_INFO15}" ]; then
+    export ILM_INFO15="3 4 5 3 4 5"
+  fi
+  if [ -z "${ILM_INFO26}" ]; then
+    export ILM_INFO26="3 4 5 3 4 5 6"
+  fi
+  if [ -z "${ILM_INFO37}" ]; then
+    export ILM_INFO37="3 4 5 3 4 5 1 5"
+  fi
+  if [ -z "${ILM_INFO48}" ]; then
+    export ILM_INFO48="3 4 5 3 4 5 1 3 5"
+  fi
+
+  if [ -z "${ILM_RES16}" ]; then
+    export ILM_RES16="4.220 5.230 6.120 4.220 5.230 6.120"
+  fi
+  if [ -z "${ILM_RES27}" ]; then
+    export ILM_RES27="4.220 5.230 6.120 4.220 5.230 6.120 7.120"
+  fi
+  if [ -z "${ILM_RES38}" ]; then
+    export ILM_RES38="4.220 5.230 6.120 4.220 5.230 6.120 7.120 7.120"
+  fi
+  if [ -z "${ILM_RES49}" ]; then
+    export ILM_RES49="4.220 5.230 6.120 4.220 5.230 6.120 7.120 7.120 7.120"
+  fi
+
+}
+
+oneTimeTearDown() {
+  :
+}
+
+setUp() {
+  :
+}
+
+tearDown() {
+  :
+}
+
+suite()
+{
+  source host_cmd
+  source host_mcu
+  source host_lms_ilm
+  source host_lms_ilm_station_info
+  source host_lms_ilm_insulate_result
+  source host_lms_gdm
+  source host_lms_tpwu
+}
+
+# load shunit2
+. ./shunit2

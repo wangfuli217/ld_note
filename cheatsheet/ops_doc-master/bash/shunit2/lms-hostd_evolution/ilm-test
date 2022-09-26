@@ -1,0 +1,138 @@
+#! /bin/bash
+# ilm-test 1.0.0 - ilm test program
+# Copyright (C) 2017-2020 wangfuli
+#
+# depend on hostd program run in Centos from rtud project
+#           svn://192.168.10.107/lms-v7/mcu-card/mcu-code/lms
+# depend on rtud program run in rtu from rtud project
+#           svn://192.168.10.107/lms-v7/mcu-card/mcu-code/lms
+#
+# mail contract: wangfl217@126.com
+#
+# This software is the project which include the source and binary code
+# are private and protected by law. if you get they from anywhere you
+# should destroy it, please don't distribute it! you can't use this
+# software for any purpose. if you see this page in any other place please
+# let'us to know. if you want to get this software and its documentation
+# agreement you can contact our company. However, this notice must not be
+# changed or removed and no warranty is either expressed or implied by its
+# publication or distribution.
+
+### Sample usage:
+#
+# Run ilm-test include ilm-info-set command
+# $ bash ilm-test -H 192.168.27.172 -P 8002 -s
+#
+# Run ilm-test background
+# $ nohup bash ilm-test -H 192.168.27.172 -P 8002 -s & > ilm-test-trace.log
+#
+# Run ilm-test exclude ilm-info-set command
+# $ bash ilm-test -H 192.168.27.172 -P 8002
+#
+### ShellCheck (http://www.shellcheck.net/)
+# Disable source following.
+#   shellcheck disable=SC1090,SC1091
+# expr may be antiquated, but it is the only solution in some cases.
+#   shellcheck disable=SC2003
+# $() are not fully portable (POSIX != portable).
+#   shellcheck disable=SC2006
+
+RTU_HOST='192.168.27.172'
+RTU_PORT='8002'
+ILM_SLEEP=120
+ILM_INFO_SET=
+ILM_INFO_DIRECT=8
+
+###############################################################################
+# set -euo pipefail
+###############################################################################
+# set -o errexit  # Exit on most errors (see the manual)
+# set -o errtrace # Make sure any error trap is inherited
+# set -o nounset  # Disallow expansion of unset variables
+# set -o pipefail # Use last non-zero exit code in a pipeline
+
+ILM_TEST_ARGV0=$(basename "$0")
+
+ilm_test_usage() {
+  echo "usage: ${ILM_TEST_ARGV0} [-H 192.168.27.172] [-P 8002] [-t 120] [ -d 4|8 ] [-s]"
+  echo "nohup bash ilm-test -H 192.168.27.172 -P 8002 -s & > ilm-test-trace.log"
+}
+
+while getopts 'H:P:t:d:sh' opt; do
+  case ${opt} in
+    H) RTU_HOST=${OPTARG} ;;        # hostname only ip address
+    P) RTU_PORT=${OPTARG} ;;        # port
+    t) ILM_SLEEP=${OPTARG} ;;       # sleep for ilm-test
+    s) ILM_INFO_SET=enable ;;       # ilm-info-set
+    d) ILM_INFO_DIRECT=${OPTARG} ;; # help output
+    h)
+      ilm_test_usage
+      exit 0
+      ;; # help output
+    *)
+      ilm_test_usage
+      exit 1
+      ;; # help output
+  esac
+done
+
+if ! RET=$(hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" serial); then
+  echo "hostd -q -H ${RTU_HOST} -p ${RTU_PORT} serial >>> failure"
+  exit 0
+fi
+
+ILM_SLOT=$(echo "$RET" | awk '/@ilm@/{ print $1 }' | awk -F : '{ print $2 }')
+ILM_E_SLOT=$(echo "$RET" | awk '/@ilm_e@/{ print $1 }' | awk -F : '{ print $2 }')
+TPWU_SLOT=$(echo "$RET" | awk '/@tpwu@/{ print $1 }' | awk -F : '{ print $2 }')
+
+if [ -z "${ILM_SLOT}" ]; then
+  echo "ilm-card not exist >>> failure"
+  exit 0
+fi
+
+if [ -z "${TPWU_SLOT}" ]; then
+  echo "tpwu-card not exist >>> failure"
+  exit 0
+fi
+
+if [ -z "${ILM_E_SLOT}" ]; then
+  if [ "${ILM_INFO_DIRECT}" -eq 8 ]; then
+    echo "ilm-e-card not exist >>> failure"
+    echo "specify -d 4 ilm-direct"
+    exit 0
+  fi
+fi
+
+if [ "${ILM_INFO_SET}" = enable ]; then
+  hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" ilm-info-set 255 1 4 1 2 3 4 5
+  hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" ilm-info-set 255 2 4 1 3 4 5 1
+  hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" ilm-info-set 255 3 4 1 4 5 1 2
+  hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" ilm-info-set 255 4 4 1 5 1 2 3
+  if [ "${ILM_INFO_DIRECT}" -eq 8 ]; then
+    hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" ilm-info-set 255 5 4 1 1 2 3 4
+    hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" ilm-info-set 255 6 4 1 1 1 2 3
+    hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" ilm-info-set 255 7 4 1 1 1 3 4
+    hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" ilm-info-set 255 8 4 1 1 1 1 4
+  fi
+fi
+
+while true; do
+  hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" -t 600 ilm-test 255 1
+  sleep "${ILM_SLEEP}"
+  hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" -t 600 ilm-test 255 2
+  sleep "${ILM_SLEEP}"
+  hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" -t 600 ilm-test 255 3
+  sleep "${ILM_SLEEP}"
+  hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" -t 600 ilm-test 255 4
+  sleep "${ILM_SLEEP}"
+  if [ "${ILM_INFO_DIRECT}" -eq 8 ]; then
+    hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" -t 600 ilm-test 255 5
+    sleep "${ILM_SLEEP}"
+    hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" -t 600 ilm-test 255 6
+    sleep "${ILM_SLEEP}"
+    hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" -t 600 ilm-test 255 7
+    sleep "${ILM_SLEEP}"
+    hostd -q -H "${RTU_HOST}" -p "${RTU_PORT}" -t 600 ilm-test 255 8
+    sleep "${ILM_SLEEP}"
+  fi
+done

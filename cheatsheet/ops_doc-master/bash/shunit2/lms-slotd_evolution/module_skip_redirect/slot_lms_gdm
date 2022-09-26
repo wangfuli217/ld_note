@@ -1,0 +1,33 @@
+#!/bin/bash
+
+######## protocol [GDM]     ########
+test_slotd_GDM_test() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  output="$($SLOTD gdm-test "${GDM_SLOT}")"
+  status=$?
+
+  assertTrue "$SLOTD gdm-test ${GDM_SLOT} @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD gdm-test ${GDM_SLOT} @ret:${status} @output:${output}" 0 "rsst"
+}
+
+test_slotd_GDM_revision_set() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  output="$($SLOTD gdm-revision-set "${GDM_SLOT}" 0.15)"
+  status=$?
+
+  assertTrue "$SLOTD gdm-revision-set ${GDM_SLOT} 0.15 @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD gdm-revision-set ${GDM_SLOT} 0.15 @output:${output}" "${output}" "rsst"
+}
+
+test_slotd_GDM_revision_get() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  output="$($SLOTD gdm-revision-get "${GDM_SLOT}")"
+  status=$?
+
+  assertTrue "$SLOTD gdm-revision-get ${GDM_SLOT} @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD gdm-revision-get ${GDM_SLOT} @output:${output}" "${output}" "rsst"
+}
+
+suite_addTest test_slotd_GDM_test
+suite_addTest test_slotd_GDM_revision_set
+suite_addTest test_slotd_GDM_revision_get

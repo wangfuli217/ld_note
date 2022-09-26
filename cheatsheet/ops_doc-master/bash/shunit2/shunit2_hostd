@@ -1,0 +1,202 @@
+#!/bin/bash
+
+oneTimeSetUp() {
+  . "./test_helper"
+  status=""
+  output=""
+  MESSAGE_SUFFIX="unexpected failure ->>>"
+  if [ -n "${HOSTD_DEBUG}" ]; then
+    RTUCLIENT="hostd -q -d 1 -H ${RTU_HOST} -p ${RTU_PORT}"
+  else
+    RTUCLIENT="hostd -q -H ${RTU_HOST} -p ${RTU_PORT}"
+  fi
+  
+  if [ -z "${ILM_INFO15}" ]; then
+    ILM_INFO15="3 4 5 3 4 5"
+  fi
+  if [ -z "${ILM_INFO26}" ]; then
+    ILM_INFO26="3 4 5 3 4 5 6"
+  fi
+  if [ -z "${ILM_INFO37}" ]; then
+    ILM_INFO37="3 4 5 3 4 5 1 5"
+  fi
+  if [ -z "${ILM_INFO48}" ]; then
+    ILM_INFO48="3 4 5 3 4 5 1 3 5"
+  fi
+  
+  if [ -z "${ILM_RES16}" ]; then
+    ILM_RES16="4.220 5.230 6.120 4.220 5.230 6.120"
+  fi
+  if [ -z "${ILM_RES27}" ]; then
+    ILM_RES27="4.220 5.230 6.120 4.220 5.230 6.120 7.120"
+  fi
+  if [ -z "${ILM_RES38}" ]; then
+    ILM_RES38="4.220 5.230 6.120 4.220 5.230 6.120 7.120 7.120"
+  fi
+  if [ -z "${ILM_RES49}" ]; then
+    ILM_RES49="4.220 5.230 6.120 4.220 5.230 6.120 7.120 7.120 7.120"
+  fi
+
+}
+
+oneTimeTearDown() {
+  :
+}
+
+setUp() {
+  :
+}
+
+tearDown() {
+  rm -f "${stdoutF}"
+  rm -f "${stderrF}"
+}
+
+# @ret:$?
+# @stdout: cat ${stdoutF}
+# @stderr: cat ${stderrF}
+# @output stdout and stderr
+# @desc: $RTUCLIENT argument
+
+# output
+stdoutF="${TMPDIR:-/tmp}/STDOUT"
+stderrF="${TMPDIR:-/tmp}/STDERR"
+
+####  hostd test for self     ####
+test_hostd_version() { # format shunit2_asserts_test.sh
+## assert return value and ouput
+# return value 返回值验证方式
+#  shunit2 assert: lower version format : 命令执行错误，后续内容继续验证；
+  ( $RTUCLIENT -v >"${stdoutF}" 2>"${stderrF}" )
+  status=$?
+  assertTrue "$RTUCLIENT -v @ret:${status} @output:$(cat ${stderrF} ${stdoutF})" "${status}"
+  
+# shunit2 assert: higher version format : 命令执行错误，后续内容不再验证；
+  if ( $RTUCLIENT -v >"${stdoutF}" 2>"${stderrF}" ); then
+    status=$?
+    assertTrue "$RTUCLIENT -v @ret:${status} @output:$(cat ${stderrF} ${stdoutF})" "${status}"
+  else
+    fail "$RTUCLIENT -v @ret:$? @output:$(cat ${stderrF} ${stdoutF})"
+  fi
+
+## ouotput string 输出文件或字符串验证方式
+# from shunit2_misc_test.sh
+  if ! grep 'xianleidi' "${stdoutF}" >/dev/null; then
+    fail "${MESSAGE_SUFFIX} $(cat ${stdoutF})"
+  fi
+
+# from myself
+  assertContains "@output ${MESSAGE_SUFFIX}" "$(cat ${stdoutF})" "xianleidi"
+}
+## shunit2的高版本测试方式，命令执行错误，后续内容不再验证；
+## shunit2的低版本测试方式，命令执行错误，后续内容继续验证；
+
+test_hostd_config() {
+  ( $RTUCLIENT config >"${stdoutF}" 2>"${stderrF}" )
+  status=$?
+  assertTrue "$RTUCLIENT config @ret:${status} @output:$(cat ${stderrF} ${stdoutF})" "${status}"
+  assertContains "$RTUCLIENT config @ret:${status} @output:$(cat ${stderrF} ${stdoutF})" "$(cat ${stdoutF})" "xianleidi"
+}
+## 标准输出重定向到stdoutF, 错误输出从定向到stderrF
+
+test_hostd_conn_info() {
+  output="$($RTUCLIENT conn-info)"
+  status=$?
+  assertTrue "$RTUCLIENT conn-info @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT conn-info @ret:${status} @output:${output}" "${output}" "info"
+}
+## 将标准输出赋值给指定字符串
+
+test_hostd_self(){
+  echo "serial" >script
+  while read -r want argument; do
+    output="$($RTUCLIENT $argument 2>&1)"
+    assertTrue "$RTUCLIENT $argument @ret:${status}" "${status}"
+    assertContains "$RTUCLIENT $argument @output:${output}" "${output}" "${want}"
+  done <<'EOF'
+xianleidi  -v
+xianleidi  config
+serial     -f script
+info       conn-info
+enable     debug 1
+disable    debug 0
+EOF
+}
+## table_driven_test
+
+
+
+
+
+
+### ilm-info-set slot direct count distances ...
+test_ILM_station_info_set_slot_valid() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  #                                 slot     direct count distances
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 1 5 ${ILM_INFO15})"
+  status=$?
+  assertEquals "hostd ilm-info-set $ILM_SLOT 1 5 ${ILM_INFO15} @ret ${MESSAGE_SUFFIX}" 0 "${status}"
+  assertContains "hostd ilm-info-set $ILM_SLOT 1 5 ${ILM_INFO15} @output ${MESSAGE_SUFFIX}" "${output}" "ilm-info-set"
+
+  # direct 2
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 2 6 ${ILM_INFO26})"
+  status=$?
+  assertEquals "hostd ilm-info-set $ILM_SLOT 2 6 ${ILM_INFO26} @ret ${MESSAGE_SUFFIX}" 0 "${status}"
+  assertContains "hostd ilm-info-set $ILM_SLOT 2 6 ${ILM_INFO26} @output ${MESSAGE_SUFFIX}" "${output}" "ilm-info-set"
+
+  # direct 3
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 3 7 ${ILM_INFO37})"
+  status=$?
+  assertEquals "hostd ilm-info-set $ILM_SLOT 3 7 ${ILM_INFO37} @ret ${MESSAGE_SUFFIX}" 0 "${status}"
+  assertContains "hostd ilm-info-set $ILM_SLOT 3 7 ${ILM_INFO37} @output ${MESSAGE_SUFFIX}" "${output}" "ilm-info-set"
+
+  # direct 4
+  #   shellcheck disable=SC2086
+  output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" 4 8 ${ILM_INFO48})"
+  status=$?
+  assertEquals "hostd ilm-info-set $ILM_SLOT 4 8 ${ILM_INFO48} @ret ${MESSAGE_SUFFIX}" 0 "${status}"
+  assertContains "hostd ilm-info-set $ILM_SLOT 4 8 ${ILM_INFO48} @output ${MESSAGE_SUFFIX}" "${output}" "ilm-info-set"
+}
+
+# table drive
+test_ILM_station_info_set_slot_valid() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  
+  while read -r direct stations station_array; do
+    output="$($RTUCLIENT ilm-info-set "${ILM_SLOT}" "${direct}" "${stations}" "${station_array}" )"
+    status=$?
+    assertTrue "hostd ilm-info-set $ILM_SLOT ${direct} ${stations} ${station_array} @ret ${MESSAGE_SUFFIX}" "${status}"
+    # or
+    assertEquals "hostd ilm-info-set $ILM_SLOT ${direct} ${stations} ${station_array} @ret ${MESSAGE_SUFFIX}" 0 "${status}"
+    assertContains "hostd ilm-info-set $ILM_SLOT ${direct} ${stations} ${station_array} @output ${MESSAGE_SUFFIX}" "${output}" "ilm-info-set"
+  done <<EOF
+1  5  ${ILM_INFO15}
+2  6  ${ILM_INFO26}
+3  7  ${ILM_INFO37}
+4  8  ${ILM_INFO48}
+EOF
+}
+
+# table drive
+test_ILM_E_station_info_set_slot_valid() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+    while read -r direct stations station_array; do
+    output="$($RTUCLIENT ilm-info-set "${ILM_E_SLOT}" "${direct}" "${stations}" "${station_array}" )"
+    status=$?
+    assertTrue "hostd ilm-info-set $ILM_E_SLOT ${direct} ${stations} ${station_array} @ret ${MESSAGE_SUFFIX}" "${status}"
+    # or
+    assertEquals "hostd ilm-info-set $ILM_E_SLOT ${direct} ${stations} ${station_array} @ret ${MESSAGE_SUFFIX}" 0 "${status}"
+    assertContains "hostd ilm-info-set $ILM_E_SLOT ${direct} ${stations} ${station_array} @output ${MESSAGE_SUFFIX}" "${output}" "ilm-info-set"
+  done <<EOF
+5  5  ${ILM_INFO15}
+6  6  ${ILM_INFO26}
+7  7  ${ILM_INFO37}
+8  8  ${ILM_INFO48}
+EOF
+}
+
+. ./shunit2
+

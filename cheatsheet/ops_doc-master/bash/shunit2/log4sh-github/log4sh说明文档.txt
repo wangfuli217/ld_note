@@ -1,0 +1,625 @@
+cat - << 'EOF'
+[设计思想]  文件定义输出方向和输出文件管理:脚本在不调整 执行环境 状态下调整输出。
+    [log4sh_p_idea]
+[详细设计]
+API接口
+    [log4sh_i_group_Property]               引入配置文件配置或清空当前log4sh配置
+    [log4sh_i_group_Logger]                 输出流方向管理(追加Appender)，输出项类型由 appender_setType 配置
+    [log4sh_i_group_Appender]               Appender管理，输出附加内容和输出级别
+    [log4sh_i_group_FileAppender]           FileAppender类型: 指定文件名，文件大小和最多支持行数
+    [log4sh_i_group_SyslogAppender]         SyslogAppender类型: 输出Host和Facility
+    [log4sh_i_group_SMTPAppender]           SMTPAppender类型: 输出位置
+API接口参数                                 
+    [log4sh_i_Levels]                       输出级别
+    [log4sh_i_Appender]                     输出Appender名称有效性
+    [log4sh_i_AppenderTypes]                AppenderTypes类型  
+    [log4sh_i_AppenderOptions]              AppenderOptions选项
+    [log4sh_i_Environment_Variables]        可配置环境变量
+[设计样板]
+    [log4sh_t_mini_properties]              最简单的文件配置
+    [log4sh_t_helloworld_properties]        helloworld文件配置
+    [log4sh_t_helloworld_coding]            helloworld接口配置
+    [log4sh_t_test_prop_config_properties]  test-prop-config脚本配置文件 
+    
+1. Preconfigure log4sh (optional)  LOG4SH_CONFIGURATION="${config}" . ./log4sh
+2. Source log4sh
+3. Configure log4sh in code
+4. Logging with log4sh
+
+设计哲学: 通过定义输出形式化格式，实例化实现输出内容输出方式。
+输出方式形式化定义包括
+1. 输出方向形式化定义，FileAppender，RollingFileAppender, SyslogAppender, SMTPAppender
+2. 输出格式形式化定义，'%d [%p] (%F) - %m%n' 或 '[%p] (%F) - %m%n'
+3. 输出大小形式化定义，MaxFileSize = 10KB ,MaxBackupIndex = 1
+4. 输出级别形式化定义，trace, debug, info, warn, error, fatal
+形式化定义可以通过函数调用实现，也可以通过配置文件实现，使得可以通过参数修改输出方向，输出格式，输出大小，输出级别。
+EOF
+
+log4sh_p_idea(){ cat - << 'EOF'
+像log4j, log4perl类似的日志框架
+.properties 配置文件
+默认使用目录下: log4sh.properties 
+也可以使用环境变量: LOG4SH_CONFIGURATION 
+LOG4SH_CONFIGURATION="/etc/log4sh.conf"
+# 在没有配置文件情况下，没有输出。
+LOG4SH_CONFIG_PREFIX=log4sh|log4j
+
+[导入log4sh]
+./log4sh
+
+[Configure log4sh in code]
+logger_addAppender $appender # logger_addAppender ${APP_NAME}
+
+[日志输出级别]
+logger_setLevel INFO
+level=$(logger_getLevel)
+
+[函数调用] TRACE, DEBUG, INFO, WARN, ERROR, FATAL, OFF
+logger_trace
+logger_debug
+logger_info "Hello, world!"
+logger_warn
+logger_error
+logger_fatal
+EOF
+}
+
+log4sh_i_test(){ cat - << 'EOF'
+Prepare your environment.
+$ make test-prep
+$ cd test
+# Example 2.1. Hello, World! # 简单实例
+$ ./hello_world
+# Example 2.2. Properties Configuration Test # 配置文件测试
+$ ./test-prop-config
+test-prop-config 启动文件, 引入log4sh脚本和配置脚本log4sh.properties，然后调用test-common -> 输入
+stderr               log4sh.appender.mySTDERR = FileAppender
+syslog               log4sh.appender.mySimple = FileAppender
+log4sh-simple.log    log4sh.appender.myPattern = RollingFileAppender
+log4sh-pattern.log   log4sh.appender.mySyslog = SyslogAppender
+# Example 2.3. Runtime Configuration Test
+$ ./test-runtime-config  # 在运行阶段，输出是可以配置的
+
+EOF
+}
+
+log4sh_t_mini_properties(){ cat - << 'EOF'
+  log4sh.rootLogger=INFO, stdout
+  log4sh.appender.stdout=ConsoleAppender
+EOF
+}
+
+
+log4sh_i_group_Appender(){ cat - << 'EOL'
+配置生效
+======================================= appender_activateAppender
+void appender_activateOptions (appender);	 
+string  	appender;
+Activate an appender configuration. This should be called after reconfiguring an appender via code. 
+It needs only to be called once before any logging statements are called. This calling of this function 
+will be required in log4sh 1.4.x.
+appender_activateAppender myAppender
+
+关闭输出流
+======================================= appender_close
+void appender_close (appender);	 
+string  appender;
+Disable any further logging via an appender. Once closed, the appender can be reopened by setting 
+it to any logging Level (e.g. INFO).
+appender_close myAppender
+输出流是否存在
+======================================= appender_exists
+boolean appender_exists (appender);	 
+string  	appender;
+Checks for the existance of a named appender
+exists=`appender_exists myAppender`
+
+略:
+======================================= appender_getLayout
+string 	appender_getLayout (appender);	 
+string  appender;
+Gets the Layout of an Appender
+type=`appender_getLayout myAppender`
+略:
+======================================= appender_setLayout
+void appender_setLayout (appender, layout);	 
+string  	appender;
+string  	layout;
+Sets the Layout of an Appender (e.g. PatternLayout)
+appender_setLayout myAppender PatternLayout
+
+获取输出级别(该级别覆盖root级别)
+======================================= appender_getLevel
+string 	appender_getLevel (appender);	 
+string  appender;
+Gets the current logging Level of an Appender
+type=`appender_getLevel myAppender`
+设置输出级别(该级别覆盖root级别)
+======================================= appender_setLevel
+void/boolean appender_setLevel(appender,level);	 
+string  	appender;
+string  	level;
+Sets the Level of an Appender (e.g. INFO)
+appender_setLevel myAppender INFO
+
+获取输出内容布局 %d(日期) %F(文件选项) %L(可选) 
+======================================= appender_getPattern
+string 	appender_getPattern (appender);	 
+string  	appender;
+Gets the Pattern of an Appender
+pattern=`appender_getPattern myAppender`
+
+设置输出内容布局
+======================================= appender_setPattern
+void/booleanappender_setPattern (appender, 	pattern);	 
+string  	appender;
+string  	pattern;
+Sets the Pattern of an Appender
+appender_setPattern myAppender '%d %p - %m%n'
+appender_setPattern myPattern '%d [%p] (%F) - %m%n'
+logger_addAppenderWithPattern mySyslog '[%p] (%F) - %m%n'
+
+获取输出项类型
+======================================= appender_getType
+string 	appender_getType (	appender);	 
+string  	appender;
+Gets the Type of an Appender
+type=`appender_getType myAppender`
+
+设置输出项类型: ConsoleAppender,FileAppender,DailyRollingFileAppender,RollingFileAppender,SMTPAppender,SyslogAppender
+======================================= appender_setType
+void/boolean appender_setType (appender, type);	 
+string  	appender;
+string  	type;
+Sets the Type of an Appender (e.g. FileAppender)
+appender_setType myAppender FileAppender
+EOL
+}
+
+log4sh_i_group_SMTPAppender(){ cat - << 'EOF'
+======================================= appender_smtp_getSubject
+string appender_smtp_getSubject (appender);	 
+string  appender;
+Get the email subject for the given appender
+subject=`appender_smtp_getSubject myAppender`
+======================================= appender_smtp_getTo
+string 	appender_smtp_getTo (	appender);	 
+string  	appender;
+Get the to address for the given appender
+email=`appender_smtp_getTo myAppender`
+======================================= appender_smtp_setSubject
+void/boolean appender_smtp_setSubject(appender, subject);	 
+string  	appender;
+string  	subject;
+Sets the email subject for an SMTP appender
+appender_smtp_setSubject myAppender "This is a test"
+======================================= appender_smtp_setTo
+void appender_smtp_setTo (appender, 	 email);	 
+string  	appender;
+string  	email;
+Set the to address for the given appender
+appender_smtp_setTo myAppender user@example.com
+EOF
+}
+
+log4sh_i_group_SyslogAppender(){ cat - << 'EOF'
+======================================= appender_syslog_getFacility
+void appender_syslog_getFacility (appender);	 
+string  	appender;
+Get the syslog facility for the given appender.
+facility=`appender_syslog_getFacility myAppender`
+======================================= appender_syslog_getHost
+string/boolean 	appender_syslog_getHost (index);	 
+integer  	index;
+Get the syslog host of the specified appender.
+Since: 1.3.7
+host=`appender_syslog_getHost myAppender`
+======================================= appender_syslog_setFacility
+void appender_syslog_setFacility (appender, facility);	 
+string  	appender;
+string  	facility;
+Set the syslog facility for the given appender
+appender_syslog_setFacility myAppender local4`
+======================================= appender_syslog_setHost
+void/boolean appender_syslog_setHost (appender, host);	 
+string  	appender;
+string  	host;
+Set the syslog host for the given appender. Requires that the 'nc' command 
+alternative has been previously set with the log4sh_setAlternative() function.
+Since: 1.3.7
+appender_syslog_setHost myAppender localhost
+EOF
+}
+
+
+log4sh_i_group_FileAppender(){ cat - << 'EOF'
+支持: appender_setType mySimple RollingFileAppender|FileAppender|DailyRollingFileAppender
+
+======================================= appender_file_getFile
+string 	appender_file_getFile (appender);	 
+string  appender;
+Get the filename of a FileAppender
+appender_file_getFile myAppender
+======================================= appender_file_getMaxBackupIndex
+integer/boolean appender_file_getMaxBackupIndex (appender);	 
+string  appender;
+Returns the value of the MaxBackupIndex option.
+Since: 1.3.7
+appender_file_getMaxBackupIndex myAppender
+======================================= appender_file_getMaxFileSize
+integer/boolean appender_file_getMaxFileSize (appender);	 
+string  	appender;
+Get the maximum size that the output file is allowed to reach before being rolled over to backup files.
+Since: 1.3.7
+maxSize=`appender_file_getMaxBackupSize myAppender`
+======================================= appender_file_setFile
+void appender_file_setFile (appender,  filename);	 
+string  	appender;
+string  	filename;
+Set the filename for a FileAppender (e.g. STDERR or /var/log/log4sh.log).
+appender_file_setFile myAppender STDERR
+======================================= appender_file_setMaxBackupIndex
+void appender_file_setMaxBackupIndex (appender, index);	 
+string  	appender;
+integer  	index;
+Set the maximum number of backup files to keep around.
+The MaxBackupIndex option determines how many backup files are kept before the oldest is erased.
+This option takes a positive integer value. If set to zero, then there will be no backup files 
+and the log file will be truncated when it reaches MaxFileSize.
+Since: 1.3.7
+appender_file_setMaxBackupIndex myAppender 3
+======================================= appender_file_setMaxFileSize
+void/boolean appender_file_setMaxFileSize (appender, 	 size);	 
+string  	appender;
+string  	size;
+Set the maximum size that the output file is allowed to reach before being rolled over to backup files.
+In configuration files, the MaxFileSize option takes an long integer in the range 0 - 2^40. 
+You can specify the value with the suffixes "KiB", "MiB" or "GiB" so that the integer is interpreted 
+being expressed respectively in kilobytes, megabytes or gigabytes. For example, the value "10KiB" 
+will be interpreted as 10240.
+Since: 1.3.7
+appender_file_setMaxBackupSize myAppender 10KiB
+======================================= appender_file_setMaxFileSize
+void appender_setAppenderFile (appender, filename);	 
+string  	appender;
+string  	filename;
+Deprecated as of 1.3.2
+Set the filename for a FileAppender (e.g. "STDERR" or "/var/log/log4sh.log")
+appender_setAppenderFile myAppender STDERR
+EOF
+}
+
+log4sh_i_group_Level(){ cat - << 'EOF'
+======================================= logger_level_toInt
+integer logger_level_toInt (level);	 
+string  	level;
+Converts an externally used level tag into its integer equivalent
+levelInt=`logger_level_toInt WARN`
+======================================= logger_level_toLevel
+string 	logger_level_toLevel (	val);	 
+integer  	val;
+Converts an internally used level integer into its external level equivalent
+level=`logger_level_toLevel 3`
+EOF
+}
+
+log4sh_i_group_Log4sh(){ cat - << 'EOF'
+======================================= log4sh_enableStrictBehavior
+void/boolean log4sh_enableStrictBehavior (	);	 
+Enables strict log4j behavior.
+Since: 1.3.7
+log4sh_enableStrictBehavior
+======================================= log4sh_setAlternative
+void/boolean log4sh_setAlternative (command,path);	 
+string  	command;
+string  	path;
+Specifies an alternative path for a command.
+Since: 1.3.7
+log4sh_setAlternative nc /bin/nc
+EOF
+}
+
+log4sh_i_group_Logger(){ cat - << 'EOF'
+在root上追加输出项
+======================================= logger_addAppender
+logger_addAppender (appender);	 
+string  	appender;
+Add and initialize a new appender
+logger_addAppender $appender
+
+设置 '%F' 转义符对应的名字为 filename
+======================================= logger_setFilename
+void logger_setFilename (filename);	 
+string filename;
+Set the filename to be shown when the '%F' conversion character is used in a PatternLayout.
+logger_setFilename 'myScript.sh'
+
+获取 '%F' 转义符对应的名字
+======================================= logger_getFilename
+string 	logger_getFilename ();	 
+Get the filename that would be shown when the '%F' conversion character is used in a PatternLayout.
+filename=`logger_getFilename`
+
+获取日志输出级别
+======================================= logger_getLevel
+string logger_getLevel ();	 
+Get the global default logging level (e.g. DEBUG).
+level=`logger_getLevel`
+
+设置日志输出级别
+======================================= logger_setLevel
+void logger_setLevel (level);	 
+string  	level;
+Sets the global default logging level (e.g. DEBUG).
+logger_setLevel INFO
+
+输出日志
+======================================= log
+void log (level, message(s));	 
+string  	level;
+string[]  	message(s);
+The base logging command that logs a message to all defined appenders
+log DEBUG 'This is a test message'
+======================================= logger_trace
+void logger_trace (	message);	 
+string[]  	message;
+This is a helper function for logging a message at the TRACE priority
+logger_trace 'This is a trace message'
+======================================= logger_debug
+void logger_debug (message);	 
+string[]  	message;
+This is a helper function for logging a message at the DEBUG priority
+logger_debug 'This is a debug message'
+======================================= logger_info
+void logger_info (message);	 
+string[]  	message;
+This is a helper function for logging a message at the INFO priority
+logger_info 'This is a info message'
+======================================= logger_warn
+void logger_warn (	message);	 
+string[]  	message;
+This is a helper function for logging a message at the WARN priority
+logger_warn 'This is a warn message'
+======================================= logger_error
+void logger_error (message);	 
+string[]  	message;
+This is a helper function for logging a message at the ERROR priority
+logger_error 'This is a error message'
+======================================= logger_fatal
+void logger_fatal (message);	 
+string[]  	message;
+This is a helper function for logging a message at the FATAL priority
+logger_fatal 'This is a fatal message'
+
+log DEBUG 'This is a test message'
+logger_trace 'This is a trace message'
+logger_debug 'This is a debug message'
+logger_info  'This is a trace message'
+logger_warn  'This is a debug message'
+logger_error 'This is a trace message'
+logger_fatal 'This is a debug message'
+EOF
+}
+
+log4sh_i_group_Property(){ cat - << 'EOF'
+用来加载配置文件
+======================================= log4sh_doConfigure
+log4sh_doConfigure (configFileName);	 
+string  configFileName;
+    Read configuration from a file. The existing configuration is not cleared or reset. 
+If you require a different behavior, then call the log4sh_resetConfiguration before calling log4sh_doConfigure.
+log4sh_doConfigure myconfig.properties
+
+用来重置配置文件
+=======================================
+log4sh_resetConfiguration ();	 
+This function completely resets the log4sh configuration to have no appenders with a global logging level of ERROR.
+log4sh_resetConfiguration
+EOF
+}
+
+log4sh_i_group_cleanup(){ cat - << 'EOF'
+情况输出日志文件
+=======================================
+void log4sh_cleanup ();	 
+This is a cleanup function to remove the temporary directory used by log4sh. It is provided for scripts 
+who want to do log4sh cleanup work themselves rather than using the automated cleanup of log4sh that is 
+invoked upon a normal exit of the script.
+log4sh_cleanup
+EOF
+}
+
+log4sh_i_Levels(){ cat - << 'EOF'
+TRACE 	The TRACE level has the lowest possible rank and is intended to turn on all logging.
+DEBUG 	The DEBUG level designates fine-grained informational events that are most useful to debug an application.
+INFO 	The INFO level designates informational messages that highlight the progress of the application at coarse-grained level.
+WARN 	The WARN level designates potentially harmful situations.
+ERROR 	The ERROR level designates error events that might still allow the application to continue running.
+FATAL 	The FATAL level designates very severe error events that will presumably lead the application to abort.
+OFF 	The OFF level has the highest possible rank and is intended to turn off logging.
+EOF
+}
+log4sh_i_Appender(){ cat - << 'EOF'
+An appender name can be any alpha-numeric string containing no spaces.
+Name 	        Validity
+myAppender 	    valid
+my appender 	invalid
+EOF
+}
+
+log4sh_i_AppenderTypes(){ cat - << 'EOF'
+An appender can be set to one of several different types.
+Type 	                    Definition 	                                    Supported
+ConsoleAppender 	        Output sent to console (STDOUT). 	            yes
+FileAppender 	            Output sent to a file. 	                        yes
+DailyRollingFileAppender 	Output sent to a file that rolls over daily. 	partial; logs written, but not rotated
+RollingFileAppender 	    Output sent to a file that rolls over by size. 	partial; works, but needs improvement
+SMTPAppender 	            Output sent via email. 	                        parital; works, but needs improvement
+SyslogAppender 	            Output sent to a remote syslog daemon. 	        partial; only localhost supported
+EOF
+}
+log4sh_i_AppenderOptions(){ cat - << 'EOF'
+Options
+Option 	        Definition 	                                                                Supported?
+DatePattern 	Configure a pattern for the output filename. 	                            no (ignored)
+File 	        Output filename (special filename of STDERR used for logging to STDERR). 	yes
+MaxBackupIndex 	Number of old log files to keep. 	                                        no (ignored)
+MaxFileSize 	Maximum size of old log files. 	                                            no (ignored)
+Threshold 	    Logging level of the appender. 	                                            yes
+# log4sh.appender.A1=FileAppender
+EOF
+}
+log4sh_i_AppenderLayouts(){ cat - << 'EOF'
+Layouts
+Layout 	        Definition 	                                    Supported?
+HTMLLayout 	    Layout using HTML. 	                            no (same as SimpleLayout)
+SimpleLayout 	A simple default layout ('%p - %m') 	        yes
+PatternLayout 	A patterned layout (default: '%d %p - %m%n') 	yes
+# log4sh.appender.A1.layout=PatternLayout
+
+Setting an appender layout pattern
+# log4sh.appender.A1.layout.ConversionPattern=%d [%p] %c - %m%n
+EOF
+}
+
+log4sh_i_AppenderFileSize(){ cat - << 'EOF'
+Automated file rolling
+Acceptable file size units
+Unit 	        Bytes 	            Equivalent sizes
+B (bytes) 	    1 	                1B
+KB (kilobytes) 	1,000 	            1 KB = 1000B
+KiB (kibibytes) 1,024 	            1KiB = 1024B
+MB (megabytes) 	1,000,000 	        1MB = 1000KB
+MiB (mebibytes) 1,048,576 	        1MiB = 1024KiB
+GB (gigabytes) 	1,000,000,000 	    1GB = 1000MB
+GiB (gibibytes) 1,073,741,824 	    1GiB = 1024MiB
+TB (terabytes) 	1,000,000,000,000 	1TB = 1000GB
+TiB (tebibytes) 1,099,511,627,776 	1TiB = 1024GiB
+
+# Set root logger level to INFO and its only appender to R.
+log4sh.rootLogger=INFO, R
+
+# Add a RollingFileAppender named R.
+log4sh.appender.R = RollingFileAppender
+log4sh.appender.R.File = /path/to/some/file
+log4sh.appender.R.MaxFileSize = 10KB
+log4sh.appender.R.MaxBackupIndex = 1
+EOF
+
+}
+
+log4sh_i_Environment_Variables(){ cat - << 'EOF'
+Variable	Default	Description
+LOG4SH_ALTERNATIVE_NC	none	Provide log4sh with the absolute path to the nc (netcat) command -- e.g. /bin/nc
+LOG4SH_CONFIGURATION	none	Provide log4sh with the absolute path to the log4sh properties file.
+LOG4SH_CONFIG_PREFIX	log4sh	Define the expected prefix to use for parsing the properties file -- e.g. log4j
+LOG4SH_DEBUG	none	Enable internal log4sh debug output. Set to any non-empty value.
+LOG4SH_DEBUG_FILE	none	Define a file where all internal log4sh trace/debug/info output will be written to -- e.g. log4sh_internal.log
+LOG4SH_INFO	none	Enable internal log4sh info output. Set to any non-empty value.
+LOG4SH_TRACE	none	Enable internal log4sh trace output. Set to any non-empty value.
+EOF
+}
+
+log4sh_t_helloworld_properties(){ cat - << 'EOF'
+#
+# log4sh example: Hello, world properties file
+#
+
+# Set root logger level to INFO and its only appender to A1.
+log4sh.rootLogger=INFO, A1
+
+# A1 is set to be a ConsoleAppender.
+log4sh.appender.A1=ConsoleAppender
+
+# A1 uses a PatternLayout.
+log4sh.appender.A1.layout=PatternLayout
+log4sh.appender.A1.layout.ConversionPattern=%-4r [%t] %-5p %c %x - %m%n
+
+EOF
+}
+
+log4sh_t_helloworld_coding(){ cat - << 'EOF'
+# Load log4sh (disabling properties file warning) and clear the default
+# configuration.
+LOG4SH_CONFIGURATION='none' . ./log4sh
+log4sh_resetConfiguration
+
+# Set the global logging level to INFO.
+logger_setLevel INFO
+
+# Add and configure a FileAppender that outputs to STDERR, and activate the
+# configuration.
+logger_addAppender stderr
+appender_setType stderr FileAppender
+appender_file_setFile stderr STDERR
+appender_activateOptions stderr
+
+# Say Hello to the world.
+logger_info 'Hello, world'
+
+EOF
+}
+
+log4sh_t_test_prop_config_properties(){ cat - << 'EOF'
+# $Id: log4sh.properties 212 2006-08-10 18:26:10Z sfsetse $
+
+# set root logger to ERROR, and give it two appenders; stderr and R
+log4sh.rootLogger = INFO, mySTDERR, mySimple, myPattern, mySyslog
+
+# add a file appender at the default level that logs to STDERR
+log4sh.appender.mySTDERR = FileAppender
+log4sh.appender.mySTDERR.File = STDERR
+
+# add a file appender at the DEBUG level with the default layout
+log4sh.appender.mySimple = FileAppender
+log4sh.appender.mySimple.Threshold = DEBUG
+log4sh.appender.mySimple.File = log4sh-simple.log
+
+# add a file appender at the default level with a Pattern layout
+log4sh.appender.myPattern = RollingFileAppender
+log4sh.appender.myPattern.File = log4sh-pattern.log
+log4sh.appender.myPattern.layout = PatternLayout
+log4sh.appender.myPattern.layout.ConversionPattern = %d [%p] (%F) - %m%n
+
+# add a syslog appender at the default level with a facility of local4
+log4sh.appender.mySyslog = SyslogAppender
+log4sh.appender.mySyslog.Facility = local4
+log4sh.appender.mySyslog.layout = PatternLayout
+log4sh.appender.mySyslog.layout.ConversionPattern = [%p] (%F) - %m
+EOF
+}
+log4sh_t_test_runtime_config_coding(){ cat - << 'EOF'
+  # reset the log4sh configuration
+  log4sh_resetConfiguration
+
+  # setup the default logging level to INFO
+  logger_setLevel INFO
+
+  # add a file appender at the default level that logs to STDERR
+  logger_addAppender mySTDERR
+  appender_setType mySTDERR FileAppender
+  appender_file_setFile mySTDERR STDERR
+  appender_activateOptions mySTDERR
+
+  # add a file appender at the DEBUG level with the default layout
+  logger_addAppender mySimple
+  appender_setLevel mySimple DEBUG
+  appender_setType mySimple FileAppender
+  appender_file_setFile mySimple log4sh-simple.log
+  appender_activateOptions mySimple
+
+  # add file appender at the default level with a Pattern layout
+  logger_addAppender myPattern
+  appender_setType myPattern RollingFileAppender
+  appender_file_setFile myPattern log4sh-pattern.log
+  appender_setLayout myPattern PatternLayout
+  appender_setPattern myPattern '%d [%p] (%F) - %m%n'
+  appender_activateOptions myPattern
+
+  # add a syslog appender at the default level with a facility of local4
+  logger_addAppenderWithPattern mySyslog '[%p] (%F) - %m%n'
+  appender_setType mySyslog SyslogAppender
+  appender_syslog_setFacility mySyslog local4
+  appender_activateOptions mySyslog
+EOF
+}

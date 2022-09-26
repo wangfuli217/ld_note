@@ -1,0 +1,139 @@
+#!/bin/bash
+
+oneTimeSetUp() {
+  . "./test_helper"
+  status=""
+  output=""
+  if [ -n "${HOSTD_DEBUG}" ]; then
+    RTUCLIENT="hostd -q -d 1 -H ${RTU_HOST} -p ${RTU_PORT}"
+  else
+    RTUCLIENT="hostd -q -H ${RTU_HOST} -p ${RTU_PORT}"
+  fi
+}
+
+oneTimeTearDown() {
+  :
+}
+
+setUp() {
+  :
+}
+
+tearDown() {
+  :
+}
+
+
+
+#### ilm-config-get slot
+test_ILM_config_get_slot_valid() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-config-get "${ILM_SLOT}" 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-config-get $ILM_SLOT @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-config-get $ILM_SLOT @output:${output}" "${output}" "direct"
+  assertNotContains "$RTUCLIENT ilm-config-get $ILM_SLOT @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_config_get_slot_valid() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-config-get "${ILM_E_SLOT}" 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-config-get $ILM_E_SLOT @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-config-get $ILM_E_SLOT @output:${output}" "${output}" "direct"
+  assertNotContains "$RTUCLIENT ilm-config-get $ILM_E_SLOT @output:${output}" "${output}" "error"
+}
+
+test_ILM_config_get_slot_255() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-config-get 255 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-config-get 255 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-config-get 255 @output:${output}" "${output}" "direct"
+  assertNotContains "$RTUCLIENT ilm-config-get 255 @output:${output}" "${output}" "error"
+}
+
+test_ILM_config_get_slot_invalid() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  # slot invalid "${ILM_SLOT}" + 1
+  local slot=$((ILM_SLOT + 1))
+  output="$($RTUCLIENT ilm-config-get ${slot} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-config-get ${slot} @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-config-get ${slot} @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-config-get ${slot} @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_config_get_slot_invalid() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  # slot invalid "${ILM_E_SLOT}" + 1
+  local slot=$((ILM_E_SLOT + 1))
+  output="$($RTUCLIENT ilm-config-get ${slot} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-config-get ${slot} @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-config-get ${slot} @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-config-get ${slot} @output:${output}" "${output}" "error"
+}
+
+test_ILM_config_get_slot_greater() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  # slot invalid 254
+  local slot=254
+  output="$($RTUCLIENT ilm-config-get ${slot} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-config-get ${slot} @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-config-get ${slot} @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-config-get ${slot} @output:${output}" "${output}" "error"
+}
+
+#### ilm-status-get slot
+test_ILM_insulate_status_slot_valid() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-status-get "${ILM_SLOT}" 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-status-get $ILM_SLOT @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-status-get $ILM_SLOT @output:${output}" "${output}" "slot"
+  assertNotContains "$RTUCLIENT ilm-status-get $ILM_SLOT @output:${output}" "${output}" "error"
+}
+
+test_ILM_E_insulate_status_slot_valid() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-status-get "${ILM_E_SLOT}" 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-status-get $ILM_E_SLOT @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-status-get $ILM_E_SLOT @output:${output}" "${output}" "slot"
+  assertNotContains "$RTUCLIENT ilm-status-get $ILM_E_SLOT @output:${output}" "${output}" "error"
+}
+
+test_ILM_insulate_status_slot_255() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT ilm-status-get 255 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-status-get 255 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT ilm-status-get 255 @output:${output}" "${output}" "slot"
+  assertNotContains "$RTUCLIENT ilm-status-get 255 @output:${output}" "${output}" "error"
+}
+
+test_ILM_insulate_status_slot_invalid() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  # slot invalid "${ILM_SLOT}" + 1
+  local slot=$((ILM_SLOT + 1))
+  output="$($RTUCLIENT ilm-status-get ${slot} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-status-get ${slot} @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-status-get ${slot} @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-status-get ${slot} @output:${output}" "${output}" "error"
+}
+
+test_ILM_insulate_status_slot_greater() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  # slot invalid 254
+  local slot=254
+  output="$($RTUCLIENT ilm-status-get ${slot} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT ilm-status-get ${slot} @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT ilm-status-get ${slot} @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT ilm-status-get ${slot} @output:${output}" "${output}" "error"
+}
+
+. ./shunit2

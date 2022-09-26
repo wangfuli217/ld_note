@@ -1,0 +1,132 @@
+#!/bin/bash
+
+######## protocol [GDM]     ########
+#### gdm-test slot
+test_GDM_RSST_test_slot_valid() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT gdm-test "${GDM_SLOT}" 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-test ${GDM_SLOT} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT gdm-test ${GDM_SLOT} @output:${output}" "${output}" "rsst"
+  assertNotContains "$RTUCLIENT gdm-test ${GDM_SLOT} @output:${output}" "${output}" "error"
+}
+
+test_GDM_RSST_test_slot_255() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT gdm-test 255 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-test 255 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT gdm-test 255 @output:${output}" "${output}" "rsst"
+  assertNotContains "$RTUCLIENT gdm-test 255 @output:${output}" "${output}" "error"
+}
+
+test_GDM_RSST_test_slot_invalid() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  local slot=$((GDM_SLOT + 1))
+  output="$($RTUCLIENT gdm-test ${slot} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-test ${slot} @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT gdm-test ${slot} @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT gdm-test ${slot} @output:${output}" "${output}" "error"
+}
+
+test_GDM_RSST_test_slot_greater() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  local slot=254
+  output="$($RTUCLIENT gdm-test ${slot} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-test ${slot} @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT gdm-test ${slot} @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT gdm-test ${slot} @output:${output}" "${output}" "error"
+}
+
+#### gdm-revison-set slot rsst
+test_GDM_RSST_revison_set_slot_valid() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT gdm-revison-set "${GDM_SLOT}" 0.23 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-revison-set ${GDM_SLOT} 0.23 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT gdm-revison-set ${GDM_SLOT} 0.23 @output:${output}" "${output}" "gdm-revison-set"
+  assertNotContains "$RTUCLIENT gdm-revison-set ${GDM_SLOT} 0.23 @output:${output}" "${output}" "error"
+}
+
+test_GDM_RSST_revison_set_slot_255() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT gdm-revison-set 255 0.23 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-revison-set 255 0.23 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT gdm-revison-set 255 0.23 @output:${output}" "gdm-revison-set"
+  assertNotContains "$RTUCLIENT gdm-revison-set 255 0.23 @output:${output}" "${output}" "error"
+}
+
+test_GDM_RSST_revison_set_slot_invalid() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  local slot=$((GDM_SLOT + 1))
+  output="$($RTUCLIENT gdm-revison-set ${slot} 0.23 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-revison-set ${slot} 0.23 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT gdm-revison-set ${slot} 0.23 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT gdm-revison-set ${slot} 0.23 @output:${output}" "${output}" "error"
+}
+
+test_GDM_RSST_revison_set_slot_greater() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  local slot=254
+  output="$($RTUCLIENT gdm-revison-set 254 0.23 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-revison-set 254 0.23 @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT gdm-revison-set ${slot} 0.23 @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT gdm-revison-set ${slot} 0.23 @output:${output}" "${output}" "error"
+}
+
+#### gdm-revison-get slot
+test_GDM_RSST_revison_get_slot_valid() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT gdm-revison-get "${GDM_SLOT}" 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-revison-get ${GDM_SLOT} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT gdm-revison-get ${GDM_SLOT} @output:${output}" "${output}" "rsst"
+  assertNotContains "$RTUCLIENT gdm-revison-get ${GDM_SLOT} @output:${output}" "${output}" "error"
+}
+
+test_GDM_RSST_revison_get_slot_255() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  output="$($RTUCLIENT gdm-revison-get 255 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-revison-get 255 @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$RTUCLIENT gdm-revison-get 255 @output:${output}" "${output}" "rsst"
+  assertNotContains "$RTUCLIENT gdm-revison-get 255 @output:${output}" "${output}" "error"
+}
+
+test_GDM_RSST_revison_get_slot_invalid() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  local slot=$((GDM_SLOT + 1))
+  output="$($RTUCLIENT gdm-revison-get ${slot} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-revison-get ${slot} @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT gdm-revison-get ${slot} @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT gdm-revison-get ${slot} @output:${output}" "${output}" "error"
+}
+
+test_GDM_RSST_revison_get_slot_greater() {
+  [ -z "${GDM_SLOT:-}" ] && startSkipping
+  local slot=254
+  output="$($RTUCLIENT gdm-revison-get ${slot} 2>&1)"
+  status=$?
+  assertEquals "$RTUCLIENT gdm-revison-get ${slot} @ret:${status} @output:${output}" 255 "${status}"
+  assertContains "$RTUCLIENT gdm-revison-get ${slot} @output:${output}" "${output}" "slot"
+  assertContains "$RTUCLIENT gdm-revison-get ${slot} @output:${output}" "${output}" "error"
+}
+
+suite_addTest test_GDM_RSST_test_slot_valid
+suite_addTest test_GDM_RSST_test_slot_255
+suite_addTest test_GDM_RSST_test_slot_invalid
+suite_addTest test_GDM_RSST_test_slot_greater
+suite_addTest test_GDM_RSST_revison_set_slot_valid
+suite_addTest test_GDM_RSST_revison_set_slot_255
+suite_addTest test_GDM_RSST_revison_set_slot_invalid
+suite_addTest test_GDM_RSST_revison_set_slot_greater
+suite_addTest test_GDM_RSST_revison_get_slot_valid
+suite_addTest test_GDM_RSST_revison_get_slot_255
+suite_addTest test_GDM_RSST_revison_get_slot_invalid
+suite_addTest test_GDM_RSST_revison_get_slot_greater

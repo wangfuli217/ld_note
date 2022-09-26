@@ -1,0 +1,188 @@
+#!/bin/bash
+
+######## protocol [ilm]     ########
+test_slotd_serial_all_slots() {
+  output="$($SLOTD serial)"
+  status=$?
+  assertTrue "$SLOTD serial @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD serial @output:${output}" "${output}" "serial"
+  assertContains "$SLOTD serial @output:${output}" "${output}" "status"
+}
+
+test_slotd_serial_ilm_slot() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  output="$($SLOTD serial "${ILM_SLOT}")"
+  status=$?
+  assertTrue "$SLOTD serial ${ILM_SLOT} @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD serial ${ILM_SLOT} @output:${output}" "${output}" "serial"
+  assertContains "$SLOTD serial ${ILM_SLOT} @output:${output}" "${output}" "ilm"
+}
+
+test_slotd_serial_ilm_e_slot() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  output="$($SLOTD serial "${ILM_E_SLOT}")"
+  status=$?
+  assertTrue "$SLOTD serial ${ILM_E_SLOT} @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD serial ${ILM_E_SLOT} @output:${output}" "${output}" "serial"
+  assertContains "$SLOTD serial ${ILM_E_SLOT} @output:${output}" "${output}" "ilm"
+}
+
+test_slotd_version_all_slots() {
+  output="$($SLOTD version)"
+  status=$?
+  assertTrue "$SLOTD version @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD version @output:${output}" "${output}" "hardware"
+  assertContains "$SLOTD version @output:${output}" "${output}" "software"
+}
+
+test_slotd_version_ilm_slots() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  output="$($SLOTD version "${ILM_SLOT}")"
+  status=$?
+  assertTrue "$SLOTD version ${ILM_SLOT} @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD version ${ILM_SLOT} @output:${output}" "${output}" "hardware"
+  assertContains "$SLOTD version ${ILM_SLOT} @output:${output}" "${output}" "ilm"
+}
+
+test_slotd_version_ilm_e_slots() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  output="$($SLOTD version "${ILM_E_SLOT}")"
+  status=$?
+  assertTrue "$SLOTD version ${ILM_E_SLOT} @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD version ${ILM_E_SLOT} @output:${output}" "${output}" "hardware"
+  assertContains "$SLOTD version ${ILM_E_SLOT} @output:${output}" "${output}" "ilm"
+}
+
+test_slotd_leds_all_slots() {
+  output="$($SLOTD leds)"
+  status=$?
+  assertTrue "$SLOTD leds @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD leds @output:${output}" "${output}" "count"
+  assertContains "$SLOTD leds @output:${output}" "${output}" "leds"
+}
+
+test_slotd_leds_ilm_slots() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  output="$($SLOTD leds "${ILM_SLOT}")"
+  status=$?
+  assertEquals "$SLOTD leds ${ILM_SLOT} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$SLOTD leds ${ILM_SLOT} @output:${output}" "${output}" "ilm"
+  assertContains "$SLOTD leds ${ILM_SLOT} @output:${output}" "${output}" "leds"
+}
+
+test_slotd_leds_ilm_e_slots() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  output="$($SLOTD leds "${ILM_E_SLOT}")"
+  status=$?
+  assertEquals "$SLOTD leds ${ILM_E_SLOT} @ret:${status} @output:${output}" 0 "${status}"
+  assertContains "$SLOTD leds ${ILM_E_SLOT} @output:${output}" "${output}" "ilm"
+  assertContains "$SLOTD leds ${ILM_E_SLOT} @output:${output}" "${output}" "leds"
+}
+
+suite_common_table() {
+  while read -r content1 content2 argument; do
+    output="$($SLOTD ${argument})"
+    status=$?
+    assertTrue "$SLOTD ${argument} @ret:${status} @output:${output}" "${status}"
+    assertContains "$SLOTD ${argument} @output:${output}" "${output}" "${content1}"
+    assertContains "$SLOTD ${argument} @output:${output}" "${output}" "${content2}"
+  done <<EOF
+serial      ilm         serial
+hardware    ilm         version
+ilm         leds        leds
+EOF
+}
+
+suite_common_ilm_table() {
+  [ -z "${ILM_SLOT:-}" ] && startSkipping
+  while read -r content1 content2 argument; do
+    output="$($SLOTD ${argument} ${ILM_SLOT})"
+    status=$?
+    assertTrue "$SLOTD ${argument} ${ILM_SLOT} @ret:${status} @output:${output}" "${status}"
+    assertContains "$SLOTD ${argument} ${ILM_SLOT} @output:${output}" "${output}" "${content1}"
+    assertContains "$SLOTD ${argument} ${ILM_SLOT} @output:${output}" "${output}" "${content2}"
+  done <<EOF
+serial      status      serial
+hardware    software    version
+count       leds        leds
+EOF
+}
+
+suite_common_ilm_e_table() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping
+  while read -r content1 content2 argument; do
+    output="$($SLOTD ${argument} ${ILM_E_SLOT})"
+    status=$?
+    assertTrue "$SLOTD ${argument} ${ILM_E_SLOT} @ret:${status} @output:${output}" "${status}"
+    assertContains "$SLOTD ${argument} ${ILM_E_SLOT} @output:${output}" "${output}" "${content1}"
+    assertContains "$SLOTD ${argument} ${ILM_E_SLOT} @output:${output}" "${output}" "${content2}"
+  done <<EOF
+serial      status      serial
+hardware    software    version
+count       leds        leds
+EOF
+}
+
+suite_common_table(){
+  while read -r slot cmd content1 content2; do
+    if [ ${slot} != 255 ]; then
+      output="$($SLOTD ${cmd} ${slot})"
+      status=$?
+      assertTrue "$SLOTD ${cmd} ${slot} @ret:${status} @output:${output}" "${status}"
+      assertContains "$SLOTD ${cmd} ${slot} @output:${output}" "${output}" "${content1}"
+      assertContains "$SLOTD ${cmd} ${slot} @output:${output}" "${output}" "${content2}"
+    fi
+  done <<EOF
+"${ILM_SLOT:-255}"   serial serial  status
+"${ILM_E_SLOT:-255}" serial serial  status
+"${GDM_SLOT:-255}"   serial serial  status
+"${TPWU_SLOT:-255}"  serial serial  status
+"${PWU_SLOT:-255}"   serial serial  status
+"${ILM_SLOT:-255}"   version hardware  software
+"${ILM_E_SLOT:-255}" version hardware  software
+"${GDM_SLOT:-255}"   version hardware  software
+"${TPWU_SLOT:-255}"  version hardware  software
+"${PWU_SLOT:-255}"   version hardware  software
+"${ILM_SLOT:-255}"   leds leds  count
+"${ILM_E_SLOT:-255}" leds leds  count
+"${GDM_SLOT:-255}"   leds leds  count
+"${TPWU_SLOT:-255}"  leds leds  count
+"${PWU_SLOT:-255}"   leds leds  count
+EOF
+}
+
+suite_common_version_table(){
+  while read -r slot content1 content2; do
+    \[ ${slot} = 255 ] && startSkipping
+    # if [ ${slot} != 255 ]; then
+      output="$($SLOTD version ${slot})"
+      status=$?
+      assertTrue "$SLOTD version ${slot} @ret:${status} @output:${output}" "${status}"
+      assertContains "$SLOTD version ${slot} @output:${output}" "${output}" "${content1}"
+      assertContains "$SLOTD version ${slot} @output:${output}" "${output}" "${content2}"
+    \[ ${slot} = 255 ] && endSkipping || true
+    # echo "\$\?:$?"
+    # fi
+  done <<EOF
+"${ILM_SLOT:-255}"    hardware  software
+"${ILM_E_SLOT:-255}"  hardware  software
+"${GDM_SLOT:-255}"    hardware  software
+"${TPWU_SLOT:-255}"   hardware  software
+"${PWU_SLOT:-255}"    hardware  software
+EOF
+}
+
+suite_addTest test_slotd_serial_all_slots
+suite_addTest test_slotd_serial_ilm_slot
+suite_addTest test_slotd_serial_ilm_e_slot
+suite_addTest test_slotd_version_all_slots
+suite_addTest test_slotd_version_ilm_slots
+suite_addTest test_slotd_version_ilm_e_slots
+suite_addTest test_slotd_leds_all_slots
+suite_addTest test_slotd_leds_ilm_slots
+suite_addTest test_slotd_leds_ilm_e_slots
+suite_addTest suite_common_table
+suite_addTest suite_common_ilm_table
+suite_addTest suite_common_ilm_e_table
+suite_addTest suite_common_table
+suite_addTest suite_common_version_table

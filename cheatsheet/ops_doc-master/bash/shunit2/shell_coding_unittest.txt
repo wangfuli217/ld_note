@@ -1,0 +1,234 @@
+shell_p_script(){ cat - <<'EOF'
+1. 如何别写bash脚本 makebash
+  如何调试bash脚本， bash -x 还是使用 bashdb
+
+2. 进行代码静态检查 shellcheck
+2.1 忽略特定代码段指定检查告警
+在特定告警行上方:
+  # shellcheck disable=SC2016,SC2034
+  
+2.2 忽略所有代码段指定检查告警
+在文件开头部分: 
+# $() are not fully portable (POSIX != portable).
+#   shellcheck disable=SC2006
+# expr may be antiquated, but it is the only solution in some cases.
+#   shellcheck disable=SC2003
+
+2.3 通过选项排除指定告警
+  shellcheck --exclude=SC1117 emojify
+
+3. shfmt 代码格式化
+
+4. 进行代码覆盖率测试 kcon bashcov
+
+5.进行单元测试    shunit2 或 bats
+    makeshunit2 makebats
+    或者 bash_unit bashunit; 基于DSL(shellspec)形式比较复杂
+EOF
+}
+
+
+shell_p_coding(){ cat - <<'EOF'
+1. bash脚本如何布局，不同层次和类型布局不一样
+
+2. bash脚本编码规范，makebash 中 bash_p_coding
+EOF
+}
+
+shell_p_unittest(){ cat - <<'EOF'
+1. 单元测试
+  自动化功能检查
+    每次检查都必须运行相同，而无需为每次运行做任何手动调整
+    结果就不会容易受到执行环境，数据或被测代码外部的其他因素的影响。
+  Pass, Fail, and Error
+    被测代码表现出预期的行为
+    被测代码可以运行，但是没有表现出预期的行为
+    被测代码无法运行
+  我们应该检查什么？
+    我们只需要检查边界处的行为
+  我们不应该检查什么？
+    作为一般规则，请尽力避免在测试代码范围之外建立对因素的依赖
+  模拟df命令
+    模拟数据源，使得脚本能够在单个平台上，验证多个平台的兼容性。
+    通过模拟库创建的模拟在调用时可以返回预定义的值。
+    我们指定了每当被测代码调用df时都将返回的预定义输出。
+  模拟mail命令
+    我们想知道脚本是否尝试在正确的条件下发送电子邮件，但我们不希望它在任何地方发送真实的电子邮件
+    通过模拟库创建的模拟可以计算被测代码调用它们的次数，我们可以断言预期的调用次数。
+  运行自动检查的模式
+    安排:在安排步骤中，我们都为测试用例设置了先决条件。
+    行动:在行为步骤中，我们调用受测试的代码。
+    断言:在断言步骤中，我们声明期望看到的结果。
+  一些库包含有用的附加功能，例如捕获异常的能力或编写表驱动和数据驱动的测试用例的能力。
+  shunit2:最高推荐
+  bats:次等推荐
+  zunit: zsh版本类bats
+  bash-spec: 仅支持bash，
+  korn-spec是korn shell的bash-spec的一部分
+  Pester是Powershell选择的单元测试框架。
+  
+  roundup:消除Shell脚本中的错误和杂草
+  
+  ShellSpec         shUnit2                     Bats-core
+  all POSIX shell 	Bourne shell, POSIX shell 	bash only
+  BDD 	            xUnit 	                    original
+  DSL 	            shell script 	            almost bash
+  
+2. makeshunit2 @设计哲学: 在可选择的 方法 中，根据环境选择合适 的方法。
+
+3. makebats 
+
+4. roundup;
+未指定计划的汇总运行将尝试运行与$ PWD / *-test.sh匹配的所有文件
+roundup将枚举，隔离和执行计划中的测试
+EOF
+}
+
+
+shell_t_ext(){ cat - <<'EOF'
+https://github.com/SkypLabs/bsfl       Bash Shell Function Library                               bats test
+https://github.com/djui/bashunit       This is similar to the ShUnit and its successor shUnit2.
+https://github.com/pgrange/bash_unit   bash unit testing enterprise edition framework for professionals !
+EOF
+}
+
+
+shell_t_bash_unit(){ cat - <<'EOF'
+[命令]
+bash_unit [-f tap] [-p <pattern>] [test_file]
+-f tap 输出tap格式
+-p 根据指定格式过滤测试用例
+
+[安装]
+bash <(curl -s https://raw.githubusercontent.com/pgrange/bash_unit/master/install.sh)
+
+[启动]
+./bash_unit tests/test_core.sh
+./bash_unit -p fail_fails -p assert tests/test_core.sh
+./bash_unit -f tap tests/test_core.sh
+
+[测试函数]
+test 开头
+
+setup_suite 
+  setup 
+    test # assert
+    todo # skip
+  teardown  
+teardown_suite 
+
+[Test functions]
+  fail [message]
+  assert <assertion> [message]
+  assert_fail <assertion> [message]
+  assert_status_code <expected_status_code> <assertion> [message]
+  assert_equals <expected> <actual> [message]
+  assert_not_equals <unexpected> <actual> [message]
+  fake <command> [replacement code]
+
+[fake] mock
+  Using stdin
+  Using a function
+  fake parameters
+EOF
+}
+
+
+shell_t_bashunit(){  cat - <<'EOF'
+[命令]
+Usage: <testscript> [options...]
+Options:
+  -v, --verbose  Print expected and provided values
+  -s, --summary  Only print summary omitting individual test results
+  -q, --quiet    Do not print anything to standard output
+  -l, --lineshow  Show failing or skipped line after line number
+  -f, --failed   Print only individual failed test results
+  -h, --help     Show usage screen
+  
+  
+[整体说明]
+1. Write test cases
+testEcho test 开头
+
+2. Include this script at the end of your test script
+source $(dirname $0)/bashunit.bash
+
+3. Run test suite
+$ ./test_example
+
+[Test functions]
+assert($1)
+$1: Expression
+Assert that a given expression evaluates to true.
+
+assertEqual($1, $2)
+$1: Output
+$2: Expected
+Assert that a given output string is equal to an expected string.
+
+assertNotEqual($1, $2)
+$1: Output
+$2: Expected
+Assert that a given output string is not equal to an expected string.
+
+assertStartsWith($1, $2)
+$1: Output
+$2: Expected
+Assert that a given output string starts with an expected string.
+
+assertReturn($1, $2)
+$1: Output
+$2: Expected
+$?: Provided
+Assert that the last command's return code is equal to an expected integer.
+
+assertNotReturn($1, $2)
+$1: Output
+$2: Expected
+$?: Provided
+Assert that the last command's return code is not equal to an expected integer.
+
+assertGreaterThan($1, $2)
+$1 Output
+$2 Expected
+Assert that a given integer is greater than an expected integer.
+
+assertAtLeast($1, $2)
+$1 Output
+$2 Expected
+Assert that a given integer is greater than or equal to an expected integer.
+
+assertLessThan($1, $2)
+$1 Output
+$2 Expected
+Assert that a given integer is less than an expected integer.
+
+assertAtMost($1, $2)
+$1 Output
+$2 Expected
+Assert that a given integer is less than or equal to an expected integer.
+
+skip()
+Skip the current test case.
+EOF
+}
+
+shell_t_shellcheck(){  cat - <<'EOF'
+https://github.com/koalaman/shellcheck/issues
+sh/bash scripts
+EOF
+}
+
+shell_t_bashcov(){  cat - <<'EOF'
+# Code coverage tool for Bash
+gem install bashcov
+Usage: bashcov [options] [--] <command> [options]
+Examples:
+    bashcov ./script.sh
+    bashcov --skip-uncovered ./script.sh
+    bashcov -- ./script.sh --some --flags
+    bashcov --skip-uncovered -- ./script.sh --some --flags
+    
+支持  shUnit2, Bats, bash_unit, assert.sh, bashaspec
+EOF
+}

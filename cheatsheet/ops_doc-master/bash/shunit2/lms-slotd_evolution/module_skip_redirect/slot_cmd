@@ -1,0 +1,99 @@
+#!/bin/bash
+
+####  slotd test for self     ####
+test_slotd_version() {
+  output="$($SLOTD -v)"
+  status=$?
+  assertTrue "$SLOTD -v @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD -v @output:${output}" "${output}" "xianleidi"
+}
+
+test_slotd_config() {
+  output="$($SLOTD config)"
+  status=$?
+  assertTrue "$SLOTD config @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD config @output:${output}" "${output}" "xianleidi"
+}
+
+test_slotd_config() {
+  output="$($SLOTD debug 1)"
+  status=$?
+  assertTrue "$SLOTD debug 1 @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD debug 1 @output:${output}" "${output}" "enable"
+
+  output="$($SLOTD debug 0)"
+  status=$?
+  assertTrue "$SLOTD debug 0 @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD debug 0 @output:${output}" "${output}" "disable"
+}
+
+test_slotd_command() {
+  while read -r cmd content; do
+    output="$($SLOTD command "${cmd}")"
+    status=$?
+    assertTrue "$SLOTD command ${cmd} @ret:${status} @output:${output}" "${status}"
+    assertContains "$SLOTD command ${cmd} @output:${output}" "${output}" "${content}"
+  done <<EOF
+error               error
+serial              PROTO_SLOT_VERSION
+version             PROTO_SLOT_SERIAL
+leds                PROTO_SLOT_LEDS
+setserial           PROTO_SLOT_SETSERIAL
+reboot              PROTO_SLOT_REBOOT
+ilm-info-set        PROTO_SLOT_ILM_STATION_INFO_SET
+ilm-e-info-set      PROTO_SLOT_ILM_STATION_INFO_SET
+ilm-info-get        PROTO_SLOT_ILM_STATION_INFO_GET
+ilm-e-info-get      PROTO_SLOT_ILM_STATION_INFO_GET
+ilm-test            PROTO_SLOT_ILM_INSULATE_TEST
+ilm-e-test          PROTO_SLOT_ILM_INSULATE_TEST
+ilm-result-set      PROTO_SLOT_ILM_INSULATE_RES_SET
+ilm-e-result-set    PROTO_SLOT_ILM_INSULATE_RES_SET
+ilm-result-get      PROTO_SLOT_ILM_INSULATE_RES_GET
+ilm-e-result-get    PROTO_SLOT_ILM_INSULATE_RES_GET
+ilm-status-get      PROTO_SLOT_ILM_INSULATE_STATUS
+ilm-e-status-get    PROTO_SLOT_ILM_INSULATE_STATUS
+ilm-advt-tpwu       PROTO_SLOT_ILM_ADVERT_TPWU_POS
+ilm-e-advt-tpwu     PROTO_SLOT_ILM_ADVERT_TPWU_POS
+ilm-conf-get        PROTO_SLOT_ILM_CONFIG_GET
+ilm-e-conf-get      PROTO_SLOT_ILM_CONFIG_GET
+gdm-test            PROTO_SLOT_GDM_RSST_TEST
+gdm-revision-set    PROTO_SLOT_GDM_RSST_REVISON_SET
+gdm-revision-get    PROTO_SLOT_GDM_RSST_REVISON_GET
+tpwu-250v-set       PROTO_SLOT_TPWU_250V_SET
+tpwu-250v-status    PROTO_SLOT_TPWU_250V_STATUS
+EOF
+}
+
+test_slotd_script() {
+  echo "serial" >script
+  output="$($SLOTD -f script)"
+  status=$?
+  assertTrue "$SLOTD script @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD script @output:${output}" "${output}" "@mcu@"
+  rm script
+}
+
+suite_slotd_self() {
+  echo "serial" >script
+  while read -r content argument; do
+    output="$($SLOTD ${argument})"
+    status=$?
+    assertTrue "$SLOTD ${argument} @ret:${status} @output:${output}" "${status}"
+    assertContains "$SLOTD ${argument} @output:${output}" "${output}" "${content}"
+  done <<EOF
+xianleidi  -v
+xianleidi  config
+enable     debug 1
+disable    debug 0
+@mcu@      -f script
+EOF
+  rm script
+}
+
+
+suite_addTest test_slotd_version
+suite_addTest test_slotd_config
+suite_addTest test_slotd_config
+suite_addTest test_slotd_command
+suite_addTest test_slotd_script
+suite_addTest suite_slotd_self

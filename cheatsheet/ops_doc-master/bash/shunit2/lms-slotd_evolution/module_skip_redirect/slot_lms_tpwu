@@ -1,0 +1,29 @@
+#!/bin/bash
+
+######## protocol [TPWU]     ########
+test_slotd_TPWU_250v_set() {
+  [ -z "${TPWU_SLOT:-}" ] && startSkipping
+  output="$($SLOTD tpwu-250v-set "${TPWU_SLOT}" 1)"
+  status=$?
+
+  assertTrue "$SLOTD tpwu-250v-set ${TPWU_SLOT} 1 @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD tpwu-250v-set ${TPWU_SLOT} 1 @output:${output}" "${output}" "enable"
+
+  output="$($SLOTD tpwu-250v-set "${TPWU_SLOT}" 0)"
+  status=$?
+
+  assertTrue "$SLOTD tpwu-250v-set ${TPWU_SLOT} 0 @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD tpwu-250v-set ${TPWU_SLOT} 0 @output:${output}" "${output}" "enable"
+}
+
+test_slotd_TPWU_250v_status() {
+  [ -z "${TPWU_SLOT:-}" ] && startSkipping
+  output="$($SLOTD tpwu-250v-status "${TPWU_SLOT}")"
+  status=$?
+
+  assertTrue "$SLOTD tpwu-250v-status ${TPWU_SLOT} @ret:${status} @output:${output}" "${status}"
+  assertContains "$SLOTD tpwu-250v-status ${TPWU_SLOT} @output:${output}" "${output}" "enable"
+}
+
+suite_addTest test_slotd_TPWU_250v_set
+suite_addTest test_slotd_TPWU_250v_status

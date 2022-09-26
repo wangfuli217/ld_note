@@ -1,0 +1,918 @@
+cat - <<'EOF'
+[shunit2框架]
+    shunit2_p_idea
+[模块化]
+    shunit2_p_test
+    shunit2_p_table_driven
+    shunit2_p_table_driven_idea
+    shunit2_i_suites
+[断言接口]
+    shunit2_i_assert
+    shunit2_i_assert_Contains
+    shunit2_i_assert_Equals
+    shunit2_i_assert_Null
+    shunit2_i_assert_True
+    shunit2_p_desc
+[报错接口]
+    shunit2_i_fail
+    shunit2_i_fail_
+    shunit2_i_fail_arg
+[忽略接口]
+    shunit2_i_skipping
+    shunit2_t_skipping
+[实例参考]
+    shunit2_t_lms
+    shunit2_t_program
+    shunit2_test_helpers
+    shunit2_test_helpers_assert
+    shunit2_test_helpers_log
+    shunit2_test_runner
+project -> shunit2_t_shflag; shunit2_t_log4sh; shunit2_t_shlib; shunit2_t_slog
+
+[模块化设计] @代码简洁 && 可扩展
+如何模块化进行测试?        [模块化文件设计]  shunit2_t_lms (suite_addTest)
+如何实现表驱动测试?        [模块化函数设计]  shunit2_p_table_driven && shunit2_p_table_driven_idea
+[接口化设计] @代码可读 && 更严谨
+如何进行单项测试项测试?    [断言接口设计]    shunit2_p_test && shunit2_p_desc
+如何编写测试用例?          [测试接口设计]
+如何忽略不必要的测试?      [忽略接口设计]    shunit2_t_skipping
+shunit2执行注册接口过程    [shunit2框架]     shunit2_p_idea
+[更进一步]   @代码可移植 && 更可测          testing-in-bash-master工程中 example-shunit2 中
+进行mock类型的测试了吗? 主要修订 hostd或者slotd 命令的输入和输出
+
+    从表驱动测试到多文件模块设计，从测试全部实例到测试指定实例；从外部脚本初始化环境后，调用test_测试单元
+到在 oneTimeSetUp 中初始化环境后，调用test_测试单元；从Equals Contains NULL True断言判断到fail fail_arg自定义错误；
+从使用 skipping 已提供接口 到使用if else fi 自定义判断。从 xxx 到 yyy 不是后者方式更好，能选择就有设计判断，
+多个设计判断组合在一起就形成了设计思想。
+@ 设计哲学: 在可选择的 形式化方法 中，根据环境选择合适 的形式化方法。
+
+关于如何写脚本，当前有几个模板可以借鉴:
+    lms-hostd/hostd.sh      说明如何实现table-driven-test
+    shunit2_template.sh     测试脚本的布局
+    shunit2_git-ftp-test.sh 测试脚本的用例
+    bash/ubulk/ubulk-build 和 test(shunit2) 
+
+[自动化测试的思考] 
+https://github.com/dodie/testing-in-bash # testing-in-bash-master
+[自动化测试的思考]
+https://www.leadingagile.com/2018/10/unit-testing-shell-scriptspart-one/
+https://stackoverflow.com/questions/1339416/unit-testing-bash-scripts
+https://medium.com/wemake-services/testing-bash-applications-85512e7fe2de
+EOF
+
+shunit2_l_link(){
+cat - << 'EOF'
+https://github.com/kward/shunit2
+https://github.com/kward/shunit2/wiki
+https://github.com/truist/ubulk
+EOF
+}
+
+shunit2_p_compact(){ cat - << 'EOF'
+支持的系统: cygwin, FreeBSD,Linux,MAC OS, Solaris
+支持的shell:sh,bash,dash,ksh,pdksh,zsh
+
+从 shunit2_asserts_test.sh 断言形式到 
+https://github.com/kward/shunit2/blob/master/shunit2_asserts_test.sh(shunit2_master) 断言形式的变化
+是测试思想的变化；测试用例形式，反映测试思想。将✔和❌明显分开对待。
+高版本:命令执行错误，后续内容不再验证
+低版本:命令执行错误，后续内容继续验证
+EOF
+}
+
+shunit2_p_idea(){ cat - << 'EOF'
+[coding@table-driven-tests] or  keyword-driven testing
+https://github.com/kward/shunit2/wiki/Table-driven-tests
+oneTimeSetUp() 
+  setUp()
+    test()  # table-driven-tests  
+  tearDown()
+oneTimeTearDown()
+# shunit2_example_1.sh 说明框架执行过程
+# bash/testing-in-bash-master/example-shunit2/test/assertion_showcase.sh 接口使用说明
+
+[startup@Running specific tests]
+test-script.sh -- testOne testTwo otherFunction
+or
+shunit2 test-script.sh testOne testTwo otherFunction
+
+[assert@specific test condition]
+th_rtrn_:   返回值         assertTrue | assertFalse
+th_stdout_: 标准输出       assertFalse  "[ -s '${th_stdout_}' ]"
+th_stderr_: 标准错误输出   assertTrue   "[ -s '${th_stderr_}' ]"
+[shunit2_test_helpers_assert]
+# shunit2_test_helpers                       
+# bash/shunit2-master/shunit2_test_helpers   
+
+[mode@inject with shunit2]
+[单实例方式]
+./shunit2 shunit2_standalone_test.sh
+[混合模式]
+./shunit2_misc_test.sh
+
+[demo@shunit2]
+# test_runner 参数解析和命令行执行
+# Run all tests for all shells.
+# $ ./test_runner
+# Run all tests for single shell.
+# $ ./test_runner -s /bin/bash
+# Run single test for all shells.
+# $ ./test_runner -t shunit_asserts_test.sh
+# Run single test for single shell.
+# $ ./test_runner -s /bin/bash -t shunit_asserts_test.sh
+
+[lms-hostd_evolution]   不断优化的自我代码
+[lms-slotd_evolution]   不断优化的自我代码
+[shunit2_test_runner]   不断分析的自带代码
+[shunit2_test_helpers]  不断分析的自带代码
+数据驱动测试: 形式上: 达到既简化代码又提高代码扩展。 
+              设计上: 建立在输入和输出形式上的统一上。
+              方法上: read 合并 cat 的here document是推荐的方式
+输入: 参数个数和参数类型的一致性
+输出: 返回值和正确输出 或 错误输出的一致性上
+描述: 通过关键字描述相似输入的 差异性
+[shunit2_i_assert_Contains] 标准输出或错误输出
+[shunit2_i_assert_True]     返回值或者 [ ] 形式的判断上
+[shunit2_i_fail_arg]     
+[shunit2_p_table_driven1]   read + here document
+[shunit2_p_table_driven2]   read + here document
+[shunit2_p_table_driven3]   file descriptor redirection + here document
+[shunit2_p_table_driven4]   External file
+
+测试脚本设计上:
+1. 如何设计测试用例，        shunit2_p_test          如何设计测试用例
+2. 如何设计数据驱动测试用例: shunit2_p_table_driven  如何将测试用例设计成 表驱动测试 : shunit2_p_table_driven_idea
+3. 如何描述测试用例，        shunit2_p_test_desc     如何设计 message 部分; 与test函数名准确描述失败原因
+4. 展示设计测试用例，        shunit2_t_program       模块化设计(功能代码模块化，测试用例模块化) mock设计思想
+"测试用例"的设计由待测对象决定；能否使用"数据驱动测试用例"也由待测对象决定；如何描述是shunit2和待测对象的结合形成的。
+EOF
+# cat lms_hostd.sh
+}
+
+shunit2_p_test_desc(){ cat - << 'EOF'
+[assertEquals|assertNotEquals]
+assertEquals "test clean ipc" "$expected" "$actual"                                                          
+assertEquals "Executabled terminated normally" 0 $?                                                          
+assertEquals "version in header file ${F} does not match cmake version" "${CMAKE_VERSION}" "${FILE_VERSION}" 
+
+assertNotEquals "Executabled terminated non-zero" $? 0
+assertNotEquals "build fails" 0 $?
+assertNotEquals "version in files (${CMAKE_VERSION}) matches already existing release (${GIT_VERSION}):" "${CMAKE_VERSION}" "${GIT_VERSION}"
+
+[assertTrue|assertFalse]
+assertTrue "Test executable exists" "[ -f ${BUILD_DIR}/test/bin/failing_contract ]"
+assertTrue "make status exit code zero" "$rtrn"
+assertTrue "kubectl get nodes exit code zero" "$rtrn"
+
+[assertContains|assertNotContains]
+assertContains "make up was succesful" "$CMD_OUTPUT" "Your k8s-vagrant-multi-node Kuberenetes cluster should be ready now."
+assertContains "make status contains at least one 'running' VM" "$CMD_OUTPUT" "running"
+assertNotContains "make status contains 'not created' VMs" "$CMD_OUTPUT" "not created"
+
+[expected@return,STDOUT,STDERR]
+assertNotEquals "${th_test_}: expected non-true return value" "${SHUNIT_TRUE}" "${th_rtrn_}"
+assertTrue "${th_test_}: expected output to STDOUT" "[ -s '${th_stdout_}' ]"
+assertFalse "${th_test_}: expected no output to STDERR" "[ -s '${th_stderr_}' ]"
+
+[unexpected@return,STDOUT,STDERR]
+assertEquals 'unexpected root uid' '0' "${result}"
+
+[not equal@return,STDOUT,STDERR]
+assertEquals 'not equal' 1 2
+
+[want@return,STDOUT,STDERR]
+assertEquals "${desc}: fn() = ${got}, want ${want}" "${got}" "${want}"
+
+[should exist@return,STDOUT,STDERR]
+assertTrue  "command should exist"     '$(spaceship::exists cd)'
+assertFalse "command should not exist" '$(spaceship::exists d41d8cd)'
+assertTrue  "function should exist"    '$(spaceship::exists mock)'
+
+将变量命名 和 断言描述统一到 测试函数命名 上，尽可能体现高层原语。
+=======================================
+1. 描述内容 和 断言形式是否一致 assertEquals/assertNotEquals assertSame/assertNotSame  
+assertContains/assertNotContains assertNotNull/assertNull assertTrue/assertFalse
+当选定特定断言形式时，即决定了描述内容。Equals(Same) 描述两个字符串或数字之间关系。
+Contains 描述两个字符串之间关系，NotNull 描述单个字符串关系；True/False 描述命令返回值。
+2. 操作原语的级别， 在描述相等|不相等，包含|不包含，空|非空，正确返回|非正确返回的语句中，
+描述内容体现在那种级别上(当然越接近用户越好)。
+3. 词语的 适当性: expected: unexpected: equal|not equal, exist|not exist, should|should not
+词语的 适当性，与 高层原语相关 也与 断言形式相关，
+EOF
+}
+
+shunit2_p_table_driven(){ 
+echo "[read + here document]"
+shunit2_p_table_driven2
+cat - << 'EOF'
+    Frequently, the first variable name will be a description (desc) or keyword (kw), which is added to the output of each test.
+    Reading variables with read has the limitation that values are separated by spaces, which means individual table values 
+cannot contain spaces. If spaces are needed, the best workaround is to place table values with spaces in the last column 
+as the read command will append all content into the last variable name
+EOF
+
+echo "[file descriptor redirection + here document]"
+shunit2_p_table_driven3
+
+echo "[External file]"
+shunit2_p_table_driven4
+echo "This method is good if the test data is generated by some other source."
+cat - << 'EOF'
+数据驱动测试: 自动化测试灵魂的进一步提升，可以没做到但是不能没想到
+=======================================
+1. 形式上由 while read arg do; ... done << 等三种形式。其实，简单就是美。适合就会简单
+2. 设计上，将命令的输入输出统一在一个表中，由 表内容 驱动测试用例在 read 命令执行中一步一步执行。
+
+lms-slotd/slotd.sh 展示了 表驱动测试设计 和 非表驱动测试的
+EOF
+}
+
+shunit2_p_table_driven_idea(){ 
+cat - <<'EOL'
+  如何使用shunit2自动化测试slotd的问题?
+while read -r slot content1 content2; do
+    \[ ${slot} = 255 ] && startSkipping
+    # if [ ${slot} != 255 ]; then
+      output="$($SLOTD version ${slot})"
+      status=$?
+      assertTrue "$SLOTD version ${slot} @ret:${status} @output:${output}" "${status}"
+      assertContains "$SLOTD version ${slot} @output:${output}" "${output}" "${content1}"
+      assertContains "$SLOTD version ${slot} @output:${output}" "${output}" "${content2}"
+    \[ ${slot} = 255 ] && endSkipping || true
+    # echo "\$\?:$?"
+    # fi
+  done <<EOF
+"${ILM_SLOT:-255}"    hardware  software
+"${ILM_E_SLOT:-255}"  hardware  software
+"${GDM_SLOT:-255}"    hardware  software
+"${TPWU_SLOT:-255}"   hardware  software
+"${PWU_SLOT:-255}"    hardware  software
+EOF
+表驱动高级形式:
+EOL
+}
+
+
+shunit2_p_test(){ cat - << 'EOF'
+[How can I test code that calls "exit 0" or "exit 1"?]
+[返回值]
+(
+  FLAGS_HELP='this is a test'
+  FLAGS "${flag}" >"${stdoutF}" 2>"${stderrF}"
+)
+
+[标准输出, 错误输出和返回值]
+stdoutF="${TMPDIR:-/tmp}/STDOUT"
+stderrF="${TMPDIR:-/tmp}/STDERR"
+command arguments >"${stdoutF}" 2>"${stderrF}"
+
+[标准输出和返回值]
+output="$($RTUCLIENT ilm-info-set ${slot} 5 5 3 4 5 3 4 5 2>&1)"
+status=$?
+
+[更进一步的管理]
+echo "=== BEGIN COMMAND OUTPUT ==="
+exec 5>&1
+CMD_OUTPUT="$(set -o pipefail; unbuffer make -j3 NODE_COUNT=1 KUBE_NETWORK="none" up 2>&1 | tee >(cat - >&5))"
+rtrn=$?
+echo "=== END COMMAND OUTPUT ==="
+
+设计test测试用例，就是对 标准输出, 错误输出和返回值 的判断设计。即 命令设计思想的深思
+=======================================
+1. 适当的选择 断言形式: Equal|NotEqual Contains|NotContains NotNull|Null True|False
+如果能使用单原语 NotNull|Null True|False 就不使用双原语 Equal|NotEqual Contains|NotContains
+
+2. 对返回值，标准输出，错误输出的合理设计。如果返回值即可决定正确，就不再判断 stdout，
+如果返回值为错误值，最好能进一步设计对 stderr的判断。
+
+shunit2_hostd 收集了如何编写测试用例
+EOF
+}
+
+shunit2_t_lms(){ cat - << 'EOF'
+[execute]    支持全测试用例; 调用指定的测试用例
+hostd_test 192.168.27.172 8002                      # 全测试用例
+-> bash hostd.sh
+hostd_test 192.168.27.172 8002 test_hostd_version   # 指定的测试用例
+-> bash hostd.sh -- "$OPTION"   # OPTION=test_hostd_version
+
+[initialize] 引入可用板卡位置; 重新定义hostd为RTUCLIENT。
+oneTimeSetUp() {
+  . "./test_helper"                # 引入可用板卡位置
+  status=""
+  output=""
+  MESSAGE_SUFFIX="test failure ->>>"
+  # 重新定义hostd为RTUCLIENT; HOSTD_DEBUG支持性能打点，
+  if [ -n "${HOSTD_DEBUG}" ]; then
+    RTUCLIENT="hostd -q -d 1 -H ${RTU_HOST} -p ${RTU_PORT}"
+  else
+    RTUCLIENT="hostd -q -H ${RTU_HOST} -p ${RTU_PORT}"
+  fi
+}
+
+[test]
+test_ILM_E_station_info_set_slot_invalid() {
+  [ -z "${ILM_E_SLOT:-}" ] && startSkipping  # 根据板卡状态选择测试；
+  # direct 1
+  local slot=$((ILM_E_SLOT + 1))
+  output="$($RTUCLIENT ilm-info-set ${slot} 5 5 3 4 5 3 4 5)" # 命令输出字符串 assertContains 判断
+  status=$?                                                   # 命令返回状态码 assertEquals   判断
+  assertEquals "hostd ilm-info-set ${slot} 5 5 3 4 5 3 4 5 @ret ${MESSAGE_SUFFIX}" 255 "${status}"
+  assertContains "hostd ilm-info-set ${slot} 5 5 3 4 5 3 4 5 @output ${MESSAGE_SUFFIX}" "${output}" "slot"
+  assertContains "hostd ilm-info-set ${slot} 5 5 3 4 5 3 4 5 @output ${MESSAGE_SUFFIX}" "${output}" "error"
+}
+
+[finish]
+  rm -f "${RTU_TEST_HELPER}"  # 删除临时文件
+  
+测试脚本形式上参考bats测试用例实现；计划实现 数据驱动测试。
+在实现测试脚本上，内心在sh和bash之间摇摆，同时在 version 2.05b.0(1)-release-(arm-unknown-linux-gnu) 低版本
+                                                 version 4.1.2(1)-release-(x86_64-redhat-linux-gnu) 高版本
+                                                 之间摇摆。
+如何描述错误? 
+
+hostd.sh 展示了数据驱动测试前和数据驱动测试设计后的差异。
+
+lms-hostd 模块设计测试用例 -> 
+1. module_multi_shunit2 多次调用shunit2, 
+2. module_source_suite 使用 suite_addTest 管理函数
+
+lms-slotd 模块设计测试用例+skip+table_driven -> 
+3. module_skip_redirect(slot_common)
+
+模块化之后，如何进行 指定test_进行测试??? 未解决。
+EOF
+}
+
+shunit2_t_shflag(){
+cat - << 'EOF'
+1. 单元测试 是 保证库安全性的 最可靠保证
+2. 用例设计 是 体现库功能性的 最有力体现
+EOF
+  source shflags-github/shflags说明文档.txt
+}
+
+shunit2_t_log4sh(){
+  source log4sh-github/log4sh说明文档.txt
+}
+
+shunit2_t_slog(){
+  source slog-github/slog说明文档.txt
+}
+
+shunit2_t_shlib(){
+  source shlib-github/shlib说明文档.txt
+}
+shunit2_t_github(){ cat - << 'EOF'
+  https://github.com/lunastorm/shunit2-xml
+  https://github.com/joelpurra/shunit2-colorize
+  
+  https://github.com/chriscool/sharness
+  
+  https://github.com/codehearts/shpy
+EOF
+}
+
+
+shunit2_t_git_ftp(){ cat - << 'EOF'
+SVN提交后同步到FTP的相关文章，大致是通过利用SVN的HOOK来实现;
+git实现FTP Server代码提交;
+https://github.com/git-ftp/git-ftp
+https://github.com/lamby/devscripts # 一些bash 和 perl 脚本，以及shunit2对应的测试程序
+https://github.com/bwinhwang/lfs-ci # 通过makefile管理test测试用例
+https://github.com/vlajos/misspell-fixer # Simple tool for fixing common misspellings, typos in source code 
+EOF
+}
+
+shunit2_p_coding(){ cat - << 'EOF'
+变量、常量、函数的命名都是以shunit开头，使用户划分不同的命名空间。除assertEquals
+${shunit_someVariable}用于提高可读性。
+Type                             |  Sample
+-------------------------------------------------------------
+global public constant           |  SHUNIT_TRUE
+global private constant          |  __SHUNIT_SHELL_FLAGS
+global public variable           |  not used
+global private variable          |  __shunit_someVariable
+global macro                     |  _SHUNIT_SOME_MACRO_
+public function                  |  assertEquals
+public function, local variable  |  shunit_someVariable_
+private function                 |  _shunit_someFunction
+private function, local variable |  _shunit_someVariable_
+
+编码原则: 一致性编码就是美。
+=======================================
+EOF
+}
+
+shunit2_t_program(){ cat - << 'EOF'
+mock测试就是在测试过程中，对于某些不容易构造或者不容易获取的对象，用一个虚拟的对象来创建以便测试的测试方法。
+1. test_good_bad.sh                 Using command output in assert message.
+2. test_date_cmd.sh                 Passing arguments to test script.
+3. mkdir_test.sh                    Writing tests for existing commands
+4. mock_file.sh mock_file_test.sh   Writing unit tests that mock files
+5. lineno_test.sh                   测试支持lineno输出
+6. math_test.sh                     skipping方式
+7. shunit2同目录有很多很多自测脚本
+examples/equality_test.sh  测试 assertEquals 断言
+
+1. source shunit2以后，单元测试将会开始执行，一开始会扫描代码中所有test开头的函数，
+   并将其加入单元测试列表。
+2. 一个测试集合开始测试前会执行oneTimeSetUp函数，oneTimeSetUp函数内部可以编写一些
+  全局的初始条件，该函数在本次测试过程中仅执行一次。对应的是所有测试用例结束后，
+  将会执行oneTimeTearDown函数，在这里可以执行一些状态恢复的操作。
+3. 每个test用例函数被执行前，都会执行setUp函数，测试结束会执行tearDown函数，完整的
+  单元测试用例执行过程即：setUp() > test() > tearDown()。
+4. 测试完成后，shUnit2将会输出测试报告。
+
+shunit2_example_1.sh # oneTimeSetUp() > setUp() > test() > tearDown() > oneTimetearDown() 
+
+[模块设计测试用例]
+  -> shunit2_example_2 : 模块化设计 my_functions，使用 test测试脚本 进行单元测试 (强调函数模块化设计)
+描述:my_functions为函数脚本；test为测试脚本；run脚本使用my_functions提供功能.
+    使用test(shunit2)测试脚本验证 run脚本 使用的 my_functions脚本 中的函数功能
+[模块设计测试用例]
+  -> shunit2_example_3:  模块化设计 is_a_test 和 is_b_test 单元测试用例。        (强调测试用例模块化设计)
+  -> shunit2_example_4: 
+  shunit2_example_3 描述 my_functions_test 测试my_functions脚本时，test函数不能正确
+调用 my_functions_test脚本中 test开头测试用例的问题。
+  shunit2_example_4 描述 使用 suite_addTest 函数 解决 shunit2_example_3 测试脚本存在问题
+的实现方法。
+[模块设计测试用例]
+  -> shunit2_example_5 使用 shunit2 多次调用实现  单元测试用例模块化 (强调测试用例模块化设计)
+  
+# testing-in-bash-master/example-shunit2/test
+  assertion_showcase.sh  API演示
+  e2e_test.sh            mock演示
+  setup_and_teardown.sh  setup和teardown演示
+  unit_test.sh           单元测试方式
+  
+lms-hostd 模块设计测试用例 -> module_multi_shunit2 多次调用shunit2, module_source_suite 使用 suite_addTest 管理函数
+lms-slotd 模块设计测试用例+skip+table_driven -> module_skip_redirect(slot_common)
+EOF
+}
+
+shunit2_test_runner(){ cat - << 'EOF'
+1. 提供了runner_warn, runner_error, runner_fatal很好的框架
+2. 变量的命名，函数的命名，
+3. while getopts case 和 here document的使用 : 简单，高效，统一
+vim test_runner
+EOF
+}
+
+shunit2_test_helpers(){ cat - << 'EOF'
+1. 提供了debug和trace很好的框架
+2. 提供了assert断言时关注点: 1. 返回值，2.标准输出，3. 错误输出。
+3. 如何展现格式: 整体格式；变量注释，函数注释等等
+vim shunit2_test_helpers
+EOF
+}
+
+shunit2_test_helpers_assert(){ cat - << 'EOF'
+[使用临时文件]
+stdoutF="${TMPDIR:-/tmp}/STDOUT"
+stderrF="${TMPDIR:-/tmp}/STDERR"
+assertEquals 'x' 'x' >"${stdoutF}" 2>"${stderrF}"
+
+[assert@formation]
+th_assertTrueWithNoOutput 断言执行成功，且标准和错误输出都没内容
+th_assertFalseWithOutput  断言执行失败，且标准和错误输出都有内容
+th_assertFalseWithError   断言格式错误，且标准和错误输出都有内容
+
+# Args: 说明断言执行成功，且标准和错误输出都没内容
+#  th_test_: string: name of the subtest
+#  th_rtrn_: integer: the return value of the subtest performed
+#  th_stdout_: string: filename where stdout was redirected to
+#  th_stderr_: string: filename where stderr was redirected to
+th_assertTrueWithNoOutput
+th_assertTrueWithNoOutput 'equal' $? "${stdoutF}" "${stderrF}"
+
+# Args: 说明断言执行失败，且标准和错误输出都有内容
+#  th_test_: string: name of the subtest
+#  th_rtrn_: integer: the return value of the subtest performed
+#  th_stdout_: string: filename where stdout was redirected to
+#  th_stderr_: string: filename where stderr was redirected to
+th_assertFalseWithOutput
+th_assertFalseWithOutput 'not equal' $? "${stdoutF}" "${stderrF}"
+
+# Args: 说明断言格式错误，且标准和错误输出都有内容
+#  th_test_: string: name of the subtest
+#  th_rtrn_: integer: the return value of the subtest performed
+#  th_stdout_: string: filename where stdout was redirected to
+#  th_stderr_: string: filename where stderr was redirected to
+th_assertFalseWithError
+th_assertFalseWithError 'too few arguments' $? "${stdoutF}" "${stderrF}"
+
+从形式上，描述了测试用例结束之后，可以被判断的内容；
+1. 返回值，2.标准输出，3. 错误输出。
+EOF
+}
+
+shunit2_test_helpers_log(){  cat - << 'EOF'
+# Configure debugging. Set the DEBUG environment variable to any
+# non-empty value to enable debug output, or TRACE to enable trace
+# output.
+# 通过export TRACE=1 打开调试级别
+# 通过export DEBUG=1 打开调试级别
+TRACE=${TRACE:+'th_trace '}
+\[ -n "${TRACE}" ] && DEBUG=1
+\[ -z "${TRACE}" ] && TRACE=':'
+
+DEBUG=${DEBUG:+'th_debug '}
+\[ -z "${DEBUG}" ] && DEBUG=':'
+
+# Logging functions.
+th_trace() { echo "${MY_NAME}:TRACE $*" >&2; }
+th_debug() { echo "${MY_NAME}:DEBUG $*" >&2; }
+th_info() { echo "${MY_NAME}:INFO $*" >&2; }
+th_warn() { echo "${MY_NAME}:WARN $*" >&2; }
+th_error() { echo "${MY_NAME}:ERROR $*" >&2; }
+th_fatal() { echo "${MY_NAME}:FATAL $*" >&2; }
+
+${TRACE} 'trace output enabled'
+${DEBUG} 'debug output enabled'
+EOF
+}
+
+shunit2_i_assert(){ cat - << 'EOF'
+assertEquals [--lineno lineno] [message] expected actual
+
+# 通常字符串我们需要使用单引号'或者双引号"来引用。
+[Equals]
+  assertEquals [message] expected actual     # expected和actual为字符串,如果为数值则视为字符串
+  assertNotEquals [message] expected actual  # expected和actual为字符串,如果为数值则视为字符串
+  
+  ( assertEquals 'x' 'x' >./tmp_stdout 2>./tmp_stderr )           # no message
+  ( assertEquals  ${MSG} 'x' 'x' >./tmp_stdout 2>./tmp_stderr )   # with message
+./shunit2_asserts_test.sh -- testAssertEquals | testAssertSame
+./shunit2_asserts_test.sh -- testAssertNotEquals | testAssertNotSame
+
+  assertSame [message] expected actual       # 等同assertEquals
+  assertNotSame [message] unexpected actual  # 等同assertNotEquals
+  
+  assertContains [message] container content    # container包含content
+  assertNotContains [message] container content # container不包含content
+  
+[Null]
+  assertNull [message] value                 # 断定value为null,bash为0长度字符串，不支持数值0
+  assertNotNull [message] value              # 断定value为null,bash为非空字符串，不支持数值0
+  ( assertNull '' >"${stdoutF}" 2>"${stderrF}" )                  # no message
+  ( assertNull "${MSG}" '' >"${stdoutF}" 2>"${stderrF}" )         # with message
+  ( assertNotNull 'x' >"${stdoutF}" 2>"${stderrF}" )              # no message
+  ( assertNotNull "${MSG}" 'x' >"${stdoutF}" 2>"${stderrF}" )     # with message
+./shunit2_asserts_test.sh -- testAssertNull
+./shunit2_asserts_test.sh -- testAssertNotNull
+
+[True]
+  assertTrue [message] condition             # test condition为TRUE
+    assertTrue "[ 34 -gt 23 ]"
+    assertTrue 'test failed' "[ -r /some/non-existant/file' ]"
+    assertTrue 'test failed' '[ 1 -eq 1 -a 2 -eq 2 ]'
+  assertFalse [message] condition            # test condition为FALSE
+  ( assertTrue 0 >"${stdoutF}" 2>"${stderrF}" )                  # no message
+  ( assertTrue "${MSG}" 0 >"${stdoutF}" 2>"${stderrF}" )         # with message
+  ( assertFalse 1 >"${stdoutF}" 2>"${stderrF}" )                 # no message
+  ( assertFalse "${MSG}" 1 >"${stdoutF}" 2>"${stderrF}" )        # with message
+  
+# assertTrue and assertFalse evaluate condition in subshell
+   ( eval "${shunit_condition_}" ) >/dev/null 2>&1 
+  assertTrue 'not in subshell' '[[ ${BASH_SUBSHELL} -eq 0 ]]'
+EOF
+}
+
+
+shunit2_i_assert_Equals(){ cat - << 'EOL'
+stdoutF="${TMPDIR:-/tmp}/STDOUT"
+stderrF="${TMPDIR:-/tmp}/STDERR"
+
+  desc='equal'
+  if (assertEquals 'x' 'x' >"${stdoutF}" 2>"${stderrF}"); then
+    th_assertTrueWithNoOutput "${desc}" $? "${stdoutF}" "${stderrF}"
+  else
+    fail "${desc}: unexpected failure"
+    _showTestOutput
+  fi
+  
+assertEquals: 函数自身格式正确
+$?  返回值正确；
+()  进程组执行断言，使得输出不能共享，所以使用文件共享。
+
+grep '^ASSERT:\[[0-9]*\] *' "${stdoutF}" >/dev/null
+使用grep获得 STDOUT 和 STDERR 文件的内容
+EOL
+}
+
+shunit2_i_assert_Contains(){ cat - << 'EOL'
+testAssertContains() {
+  # Content is present.
+  while read -r desc container content; do
+    if (assertContains "${container}" "${content}" >"${stdoutF}" 2>"${stderrF}"); then
+      th_assertTrueWithNoOutput "${desc}" $? "${stdoutF}" "${stderrF}"
+    else
+      fail "${desc}: unexpected failure"
+      _showTestOutput
+    fi
+  done <<EOF
+abc_at_start  abcdef abc
+bcd_in_middle abcdef bcd
+def_at_end    abcdef def
+EOF
+
+数据驱动测试
+EOL
+}
+
+shunit2_i_assert_Null(){ cat - << 'EOL'
+stdoutF="${TMPDIR:-/tmp}/STDOUT"
+stderrF="${TMPDIR:-/tmp}/STDERR"
+
+  desc='null_without_message'
+  if (assertNull '' >"${stdoutF}" 2>"${stderrF}"); then
+    th_assertTrueWithNoOutput "${desc}" $? "${stdoutF}" "${stderrF}"
+  else
+    fail "${desc}: unexpected failure"
+    _showTestOutput
+  fi
+
+与shunit2_i_assert_Equals 形式相同
+EOL
+}
+
+shunit2_i_assert_True(){ cat - << 'EOL'
+  # True values.
+  while read -r desc value; do
+    if (assertTrue "${value}" >"${stdoutF}" 2>"${stderrF}"); then
+      th_assertTrueWithNoOutput "${desc}" $? "${stdoutF}" "${stderrF}"
+    else
+      fail "${desc}: unexpected failure"
+      _showTestOutput
+    fi
+  done <<'EOF'
+zero         0
+zero_eq_zero [ 0 -eq 0 ]
+EOF
+
+数据驱动测试
+EOL
+}
+
+shunit2_i_fail(){ cat - << 'EOF'
+Failures[失败]
+  和断言不同，Failures函数不会对期望值和实际值进行比较，纯粹就是报告测试失败。通常用于复杂的逻辑测试，
+Assert的函数无法满足测试需求，我们想用自己的代码自行测试，而对该单元测试做一个简单的标记。
+  fail [message]                             由shunit2输出错误 message
+  ( fail >"${stdoutF}" 2>"${stderrF}" )              # no message
+  ( fail "${MSG}" >"${stdoutF}" 2>"${stderrF}" )     # with message
+  
+  failNotEquals [message] unexpected actual  由shunit2输出错误 message, 并附加 unexpected actual信息
+  ( failNotEquals 'x' 'x' >"${stdoutF}" 2>"${stderrF}" )             # no message
+  ( failNotEquals "${MSG}" 'x' 'x' >"${stdoutF}" 2>"${stderrF}" )    # with message
+  
+  failSame [message] expected actual         由shunit2输出错误 message, 并附加 expected actual 信息
+  failNotSame [message] expected actual      由shunit2输出错误 message, 并附加 expected actual信息
+  failFound [message] content                由shunit2输出错误 message, 并附加 content
+  failNotFound [message] content             由shunit2输出错误 message, 并附加 content
+  
+  assertFileExists               ->  [ -f want ] || failNotFound want
+  assertFileDoesNotExist         ->  [ ! -f dont ] || failFound dont
+  assertFileContains             ->  grep -q needle /haystack || failNotFound ...
+  assertFileDoesNotContain
+  assertDirectoryExists
+  assertDirectoryDoesNotExist
+EOF
+}
+
+shunit2_i_fail_arg(){ cat - << 'EOL'
+FN_TESTS=`
+# fn num_args pattern
+cat <<EOF
+fail          1
+failNotEquals 3 but was:
+failFound     2 found$
+failNotFound  2 not found:
+failSame      3 not same
+failNotSame   3 but was:
+EOF
+`
+
+echo "${FN_TESTS}" |\
+  while read -r fn num_args pattern; do
+  
+  done
+
+数据驱动测试
+EOL
+}
+
+shunit2_i_fail_(){ cat - << 'EOL'
+  desc='fail_without_message'
+  if ( fail >"${stdoutF}" 2>"${stderrF}" ); then
+    fail "${desc}: expected a failure"
+    th_showOutput
+  else
+    th_assertFalseWithOutput "${desc}" $? "${stdoutF}" "${stderrF}"
+  fi
+EOL
+}
+
+shunit2_i_macro_debug(){ cat - << 'EOF'
+相比与assert，报告断言失败的当前行 # line noise
+${_ASSERT_EQUALS_} 
+${_ASSERT_NOT_EQUALS_} 
+${_ASSERT_CONTAINS_}
+${_ASSERT_NOT_CONTAINS_}
+${_ASSERT_SAME_} 
+${_ASSERT_NOT_SAME_} 
+${_ASSERT_NULL_} 
+${_ASSERT_NOT_NULL_} 
+${_ASSERT_TRUE_} 
+${_ASSERT_FALSE_} 
+
+
+${_ASSERT_EQUALS_} '"not equal"' 2 2
+
+${_FAIL_}
+${_FAIL_NOT_EQUALS_}
+${_FAIL_FOUND_}
+${_FAIL_NOT_FOUND_}
+${_FAIL_SAME_} 
+${_FAIL_NOT_SAME_}
+EOF
+}
+
+shunit2_t_macro_AssertEquals(){ cat - << 'EOF'
+[低版本]
+  ( ${_ASSERT_EQUALS_} 'x' 'y' >"${stdoutF}" 2>"${stderrF}" )
+  grep '^ASSERT:\[[0-9]*\] *' "${stdoutF}" >/dev/null
+  rtrn=$?
+  assertTrue '_ASSERT_EQUALS_ failure' ${rtrn}
+  [ "${rtrn}" -ne "${SHUNIT_TRUE}" ] && cat "${stderrF}" >&2
+  
+[高版本]
+  ( ${_ASSERT_EQUALS_} 'x' 'y' >"${stdoutF}" 2>"${stderrF}" )
+  if ! _assertGenerated; then
+    fail '_ASSERT_EQUALS_ failed to produce an ASSERT message'
+    _showTestOutput
+  fi
+
+EOF
+}
+
+shunit2_i_setup_teardown(){ cat - << 'EOF'
+Setup/Teardown
+  oneTimeSetUp     # test suite级别 初始化测试集环境
+  oneTimeTearDown  # test suite级别 释放测试集环境
+  setUp            # test unit 级别，初始化测试项环境
+  tearDown         # test unit 级别，释放测试项环境
+EOF
+}
+
+shunit2_i_skipping(){ cat - << 'EOF'
+Skipping
+  startSkipping 强制跳过剩余测试 __shunit_skip=${SHUNIT_TRUE}
+  endSkipping   结束忽略测试设置 __shunit_skip=${SHUNIT_FALSE}
+  isSkipping    查看忽略测试状态 ${SHUNIT_TRUE} or ${SHUNIT_FALSE}
+
+  如果测试项开始于startsSkipping，测试项没有使用stopSkipping结尾，则整个测试项将被忽略掉.
+EOF
+}
+
+shunit2_t_skipping(){ cat - << 'EOF'
+assertEquals 1 1 # This assertion will run
+startSkipping
+assertEquals 1 1 # This assertion will be skipped
+endSkipping
+assertEquals 1 1 # This assertion will also run
+EOF
+}
+
+shunit2_i_suites(){ cat - << 'EOF'
+标准的测试集合中，测试用例需要以test开头，如果想测试一些非标准命名的函数，就需要用到以下函数。
+记住，通常我们不希望这样使用。
+  suite
+  suite_addTest name 
+  
+# example/suite_test
+# lms-hostd/hostd.sh
+# lms-slotd/slotd.sh
+EOF
+}
+
+shunit2_i_macro(){ cat - << 'EOF'
+一些常用的宏
+  预定义
+  Constant          Value
+  SHUNIT_VERSION    The version of shUnit2 you are running.
+  SHUNIT_TRUE       Standard shell true value (the integer value 0).
+  SHUNIT_FALSE      Standard shell false value (the integer value 1).
+  SHUNIT_ERROR      The integer value 2.
+  SHUNIT_TMPDIR     Path to temporary directory that will be automatically cleaned up upon exit of shUnit2.
+用户自定义
+  Constant          Value
+  SHUNIT_PARENT     The filename of the shell script containing the tests. This is needed specifically for Zsh support.
+特殊 [全局宏]
+  ${_ASSERT_EQUALS_}: 包含行数信息的宏，可替换assert函数。
+  ${_ASSERT_NOT_EQUALS_}: 
+  ${_ASSERT_NULL_}: 
+  ${_ASSERT_NOT_NULL_}: 
+  ${_ASSERT_SAME_}: 
+  ${_ASSERT_NOT_SAME_}: 
+  ${_ASSERT_TRUE_}: 
+  ${_ASSERT_FALSE_}: 
+  ${_FAIL_}: 
+  ${_FAIL_NOT_EQUALS_}: 
+  ${_FAIL_SAME_}: 
+  ${_FAIL_NOT_SAME_}: 
+EOF
+}
+
+cat /dev/null << 'EOF'
+    #! /bin/sh
+    # file: examples/lineno_test.sh
+    
+    testLineNo()
+    {
+    # this assert will have line numbers included (e.g. "ASSERT:[123] ...") if
+    # they are supported.
+    echo "_ASSERT_EQUALS_ macro value: ${_ASSERT_EQUALS_}"
+    ${_ASSERT_EQUALS_} '"not equal"' 1 2
+    
+    # this assert will not have line numbers included (e.g. "ASSERT: ...")
+    assertEquals 'not equal' 1 2
+    }
+    
+    # load shunit2
+    . ../src/shunit2
+    
+    输出
+    
+    testLineNo
+    _ASSERT_EQUALS_ macro value: eval assertEquals --lineno "${LINENO:-}"
+    ASSERT:[9] not equal expected:<1> but was:<2>
+    ASSERT:not equal expected:<1> but was:<2>
+    Ran 1 test.
+    FAILED (failures=2)
+EOF
+ 
+shunit2_p_table_driven1(){ cat - << 'EOL'
+test_square_table() {
+  while read desc arg want ok; do
+    got=$(square ${arg} 2>&1); rtrn=$?
+    if [ ${ok} -eq ${SHUNIT_TRUE} ]; then
+      assertTrue "${desc}: square() unexpected error; return ${rtrn}" ${rtrn}
+      assertEquals "${desc}: square() = '${got}', want ${want}" "${got}" "${want}"
+    else
+      assertFalse "${desc}: square() expected error, got '${got}'" ${rtrn}
+    fi
+  done <<EOF
+one   1  1  ${SHUNIT_TRUE}
+two   2  4  ${SHUNIT_TRUE}
+three 3  9  ${SHUNIT_TRUE}
+empty '' '' ${SHUNIT_FALSE}
+EOF
+}
+EOL
+}
+
+shunit2_p_table_driven2(){ cat - << 'EOL'
+while read desc arg want; do
+  got=$(fn ${arg})
+  rtrn=$?
+  assertTrue "${desc}: fn() unexpected error; return ${rtrn}" ${rtrn}
+  assertEquals "${desc}: fn() = ${got}, want ${want}" "${got}" "${want}"
+done <<EOF
+test#1 value1 output_one
+test#2 value2 output_two
+EOF
+EOL
+}
+
+shunit2_p_table_driven3(){ cat - << 'EOL'
+exec 9<&0 <<EOF
+test#1 value1 output_one
+test#2 value2 output_two
+EOF
+while read desc arg want; do
+  got=$(fn ${arg})
+  rtrn=$?
+  assertTrue "${desc}: fn() unexpected error; return ${rtrn}" ${rtrn}
+  assertEquals "${desc}: fn() = ${got}, want ${want}" "${got}" "${want}"
+done
+exec 0<&9 9<&-
+EOL
+}
+
+shunit2_p_table_driven4(){ cat - << 'EOL'
+while read desc arg want; do
+  got=$(fn ${arg})
+  rtrn=$?
+  assertTrue "${desc}: fn() unexpected error; return ${rtrn}" ${rtrn}
+  assertEquals "${desc}: fn() = ${got}, want ${want}" "${got}" "${want}"
+done </path/to/some/testfile
+
+/path/to/some/testfile
+
+test#1 value1 output_one
+test#2 value2 output_two
+EOL
+}
+

@@ -1,0 +1,225 @@
+cat - << 'EOF'
+[设计思想] 将命令行参数解释过程设计成调用函数过程，
+    [shflag_p_idea]
+[详细设计]
+    [shflag_i_DEFINE_boolen]     FLAGS_TRUE FLAGS_FALSE 默认值
+    [shflag_i_DEFINE_float]      float有效-无效值
+    [shflag_i_DEFINE_integer]    integer有效-无效值
+    [shflag_i_FLAGS]             FLAGS 解释命令行参数
+    [shflag_i_FLAGS_HELP]        重定义usage信息
+    [shflag_i_usage]             接口说明
+[设计样板]
+    [shflag_t_example]           example部分简介
+    examples/debug_output.sh
+    examples/write_date.sh
+    
+使用shunit2进行的自动化测试脚本，对理解shunit2很有意义
+
+    将命令行参数解释过程设计成形式化的函数调用过程，通过"定义参数"(函数调用)和"参数处理"(函数调用)，进行命令行参数处理，
+处理后生成"参数变量"(变量定义,设置)。
+设计哲学: 将变化多样(处理过程不受限)的命令行参数处理，设计成统一规范(处理过程受限)的函数调用过程。
+限制1: 不支持重复选项，
+限制2: 不支持空值判断，参数都有默认值
+语言扩展: 支持float类型，支持bool类型。
+"定义参数"(函数调用)
+DEFINE_boolean
+DEFINE_float
+DEFINE_integer
+DEFINE_string
+"参数处理" (函数调用)
+FLAGS "$@"
+"参数变量" (变量引用)
+... ...
+以上都是函数，函数调用必然要求: 
+输入参数: 参数个数正确，参数值有效的情况下，函数返回正确的值。否则返回错误的值。
+输出参数: 返回正确时，有哪些输出值；返回错误时，有哪些输出值；
+EOF
+
+shflag_p_idea(){ cat - << 'EOF'
+[定义参数](函数调用) @ 定义成功返回$?为0， 成功这可范围对应 "FLAGS_force"变量 为默认值。
+# boolean  @ 不存在必须设置的情况
+DEFINE_boolean 'force' false 'force overwriting' 'f'
+DEFINE_boolean 'debug' false 'enable debug mode' 'd'
+#flaot    (必选项实现方法) @ 定义一个默认非法值，等于默认值则认为未配置
+DEFINE_float floatVal "${default}" 'invalid float' f
+DEFINE_float float 0.0 'float value' f
+# integer (必选项实现方法) @ 定义一个默认非法值，等于默认值则认为未配置
+DEFINE_integer test_int 0 'test integer' i
+DEFINE_integer intVal "${default}" 'valid integer' i
+# string  (必选项实现方法) @ 定义一个空字符串，如果字符串为空则认为未配置
+DEFINE_string 'name'           'world'        'name to say hello to'    'n'
+
+@ shflags_defines_test.sh # DEFINE_string是一个函数调用，关注返回值和输出参数
+@ shflags_public_test.sh  # DEFINE_xxx FLAGS 以及帮助提示
+[参数处理] (函数调用)
+FLAGS "$@" || exit $?
+
+@ shflags_parsing_test.sh # FLAGS 是一个函数调用，关注返回值和输出参数
+
+[参数重置] (函数调用)
+eval set -- "${FLAGS_ARGV}"
+(额外参数) 指定一个多个字符串: 字符串可以文件名，子命令，字符串标识
+
+[参数变量] (变量引用)
+FLAGS_force FLAGS_debug
+FLAGS_floatVal FLAGS_float
+FLAGS_test_int FLAGS_intVal
+FLAGS_name
+
+moosefs的cfg.c具有类似情况。
+cfg_getstr("HOST_PROTO_LOG", DEFAULT_HOST_PROTO_LOG);
+DEFINE_string "HOST_PROTO_LOG" DEFAULT_HOST_PROTO_LOG [desciption] [short option]
+EOF
+}
+
+shflag_i_DEFINE_boolen(){ cat - << 'EOF'
+boolen类型提前预定义了FLAGS_TRUE/FLAGS_FALSE用于比较。
+# 0
+echo ${FLAGS_TRUE}
+# 1
+echo ${FLAGS_FALSE}
+
+注意判断时都使用-eq -ne -le -lt -ge -gt，例如
+if [ ${FLAGS_force} -eq ${FLAGS_FALSE} ] ; then
+[ ${FLAGS_debug} -eq ${FLAGS_TRUE} ] || return
+
+TH_BOOL_VALID='true t 0 false f 1'; 
+TH_BOOL_INVALID='123 123.0 invalid'; 
+默认值有效参数 | 有效参数对应bool值
+-----------------------------------
+true           | ${FLAGS_TRUE}
+t              | ${FLAGS_TRUE}
+0              | ${FLAGS_TRUE}
+false          | ${FLAGS_FALSE}
+f              | ${FLAGS_FALSE}
+1              | ${FLAGS_FALSE}
+
+DEFINE_boolean() { _flags_define ${__FLAGS_TYPE_BOOLEAN} "$@"; }
+EOF
+}
+
+shflag_i_DEFINE_float(){ cat - << 'EOF'
+TH_FLOAT_VALID='-1234.0 -1.0 -.123 0.0 0. .123 1.0 1234.0'
+TH_FLOAT_INVALID='true false 1.2.3 -1.2.3 ""'; 
+
+DEFINE_float()   { _flags_define ${__FLAGS_TYPE_FLOAT} "$@"; }
+EOF
+}
+
+shflag_i_DEFINE_integer(){ cat - << 'EOF'
+TH_INT_VALID='-1234 -1 0 1 1234'; 
+TH_INT_INVALID='true false -1.0 -.123 0.0 .123 1.0 ""'; 
+
+DEFINE_integer() { _flags_define ${__FLAGS_TYPE_INTEGER} "$@"; }
+EOF
+}
+
+shflag_i_FLAGS(){ cat - << 'EOF'
+# Parse the flags.
+# Args:
+#   unnamed: list: command-line flags to parse
+# Returns:
+#   integer: success of operation, or error
+EOF
+}
+
+
+shflag_i_FLAGS_HELP(){ cat - << 'EOL'
+使用 shflags 后，可以自动生成 help 文档，例如
+
+$ sh hello_world.sh  --help
+USAGE: hello_world.sh [flags] args
+flags:
+  -n,--name:  name to say hello to (default: 'world')
+  -h,--help:  show this help (default: false)
+
+如果想要自定义 help，可以重新定义FLAGS_HELP
+FLAGS_HELP=$(cat <<EOF
+commands:
+  speak:  say something
+  sing:   sing something
+EOF
+)
+EOL
+}
+
+shflag_i_internal_variable(){ cat - << 'EOL'
+此外还有很多内置变量，可以用于获取 flags 信息
+
+见: shflags中flags_reset()函数
+
+# Shared attributes:
+#   flags_error:  last error message
+#   flags_output: last function output (rarely valid)
+#   flags_return: last return value
+#
+#   __flags_longNames: list of long names for all flags
+#   __flags_shortNames: list of short names for all flags
+#   __flags_boolNames: list of boolean flag names
+#
+#   __flags_opts: options parsed by getopt
+#
+# Per-flag attributes:
+#   FLAGS_<flag_name>: contains value of flag named 'flag_name'
+#   __flags_<flag_name>_default: the default flag value
+#   __flags_<flag_name>_help: the flag help string
+#   __flags_<flag_name>_short: the flag short name
+#   __flags_<flag_name>_type: the flag type
+EOL
+}
+
+shflag_t_example(){ cat - << 'EOF'
+examples/hello_world.sh 
+  ./hello_world.sh                    # Hello, world!
+  ./hello_world.sh -n Kate            # Hello, Kate!
+  ./hello_world.sh --name 'Kate Ward' # Hello, Kate Ward!
+  ./hello_world.sh -h                 # Usage
+examples/debug_output.sh
+  ./debug_output.sh speak             # 正常输出
+  ./debug_output.sh speak -d          # debug输出
+  ./debug_output.sh speak --debug     # debug输出
+  ./debug_output.sh speak --nodebug   # 正常输出
+  ./debug_output.sh speak -d xxx      # 错误的命令xxx
+examples/write_date.sh
+  ./write_date.sh
+  ./write_date.sh  junk.dat    # create the file just fine
+  ./write_date.sh  junk.dat    # fail with an error.
+  ./write_date.sh  -f junk.dat # we pass the -f flag
+EOF
+}
+
+shflag_i_usage(){ cat - << 'EOL'
+[参数解析]
+FLAGS "$@" || exit $?
+    标记"$@" || 退出$？ 以未解析的形式接受命令行参数$ @并将其传递给FLAGS函数进行处理。 
+如果已使用$ *，则传递的字符串参数中的所有空格都将丢失（假定$ {IFS}的默认值为<space> <tab> <newline>）。 
+还需要使用$ @引起的双引号来保持字符串参数中的空格。 如果FLAGS返回失败（由$ {FLAGS_ERROR}表示），则脚本以退出代码2退出。
+
+eval set -- "${FLAGS_ARGV}"
+    eval set -- "${FLAGS_ARGV}用非标志值替换$1，$2，$@等变量，以便脚本可以正常处理它们。
+当您要将一些标志传递给自己时，这通常很有用。 脚本来更改处理，但是您仍然希望允许传递非标记类型的选项。
+
+[参数定义]
+boolean；${FLAGS_TRUE} or ${FLAGS_FALSE} as "official" true/false values:
+         DEFINE_boolean 'force' false 'force overwriting' 'f'
+         DEFINE_boolean 'debug' false 'enable debug mode' 'd'
+float:  Float values are signed numbers that may or not contain a decimal point. 
+integer:Float values are signed numbers that do not contain a decimal point.
+
+string:
+        DEFINE_string 'name'           'world'        'name to say hello to'    'n'
+
+[命令行帮助]
+-h (or --help)
+FLAGS_HELP="USAGE: $0 [flags] filename" 
+
+FLAGS_HELP=$(cat <<EOF
+USAGE: $0 [flags] command
+commands:
+  backup:    snapshot, and then take backups of the snapshots
+  snapshot:  take snapshots of all the filesystems
+EOF
+)
+EOL
+}
+

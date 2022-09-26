@@ -1,0 +1,72 @@
+#! /bin/sh
+#
+# Section grep. Grep file section where records are separated by blank lines.
+#
+# Copyright 2017 Kate Ward. All Rights Reserved.
+# Released under the Apache 2.0 license.
+#
+# Author: kate.ward@forestent.com (Kate Ward)
+# https://github.com/kward/shlib
+#
+# Example: show section of xorg.conf containing the keyboard layout.
+# $ sgrep 'XkbLayout' /etc/X11/xorg.conf
+#
+# Known issues:
+# - sgrep doesn't work under macOS or Mac OS X due to sed limitations.
+
+# Treat unset variables as an error.
+set -u
+
+true; TRUE=$?
+false; FALSE=$?
+ERROR=2
+
+invert=${FALSE}
+die() { [ $# -gt 0 ] && echo "$@" >&2; exit ${ERROR}; }
+usage() { echo "usage: $0 [-v] pattern [file]"; }
+
+case $(uname -s) in
+  Darwin)
+    die 'sed needs -r support (or sgrep needs to be fixed)'
+    ;;
+  SunOS)
+    if [ -x /opt/csw/bin/gsed ]; then
+      sed=/opt/csw/bin/gsed
+    else
+      die 'error: need a working sed'
+    fi
+    ;;
+  *) sed='sed' ;;
+esac
+
+# Process command line flags.
+while getopts 'hv' opt; do
+  case ${opt} in
+    h) usage; exit 0 ;;
+    v) invert=${TRUE} ;;
+    *) die "error: unrecognized option ${opt}" ;;
+  esac
+done
+# shellcheck disable=SC2003
+shift "$(expr ${OPTIND} - 1)"
+
+if [ $# -eq 0 ]; then
+  usage
+  exit ${FALSE}
+fi
+
+pattern=${1:-}
+shift
+
+# Escape any '\' chars in the pattern.
+escPattern=$(echo "${pattern}" |sed 's!\\/!\\\\/!g')
+
+# Build sed pattern.
+if [ ${invert} -eq ${FALSE} ]; then
+  sedPattern="x;/${escPattern}/!d;"
+else
+  sedPattern=";/${escPattern}/d;"
+fi
+
+# Do the section grep.
+${sed} -re '/./{H;$!d;};'"${sedPattern}" "$@" |sed '1d'

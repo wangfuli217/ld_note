@@ -1,0 +1,113 @@
+#!/bin/bash
+# hostd_test 1.0.0 - hostd test program
+# Copyright (C) 2017-2020 wangfuli
+#
+# depend on https://github.com/kward/shunit2
+# depend on hostd program run in Centos from rtud project
+#           svn://192.168.10.107/lms-v7/mcu-card/mcu-code/lms
+# depend on rtud program run in rtu from rtud project
+#           svn://192.168.10.107/lms-v7/mcu-card/mcu-code/lms
+#
+# include shunit2 for unit testting
+#
+# mail contract: wangfl217@126.com
+#
+# This software is the project which include the source and binary code
+# are private and protected by law. if you get they from anywhere you
+# should destroy it, please don't distribute it! you can't use this
+# software for any purpose. if you see this page in any other place please
+# let'us to know. if you want to get this software and its documentation
+# agreement you can contact our company. However, this notice must not be
+# changed or removed and no warranty is either expressed or implied by its
+# publication or distribution.
+
+### Sample usage:
+#
+# Run all tests by sh
+# $ sh hostd_test 192.168.27.172 8002
+#
+# Run all tests by bash
+# $ bash hostd_test 192.168.27.172 8002
+#
+# Run single test for bash
+# $ bash hostd_test 192.168.27.172 8002 test_hostd_version
+#
+### ShellCheck (http://www.shellcheck.net/)
+# Consider using { cmd1; cmd2; } >> file instead of individual redirects
+#   shellcheck disable=SC2129
+# Can't follow non-constant source. Use a directive to specify location
+#   shellcheck disable=SC1090
+
+RTU_HOST='192.168.27.172'
+RTU_PORT='8002'
+RTU_TEST_HELPER="test_helper"
+
+export LANG=C
+
+version() {
+  echo "hostd_test 1.0.0"
+}
+
+usage() {
+  echo "hostd_test rtu_host rtu_port [test_function]"
+  echo "sh hostd_test 192.168.27.172 8002"
+  echo "sh hostd_test 192.168.27.172 8002 test_hostd_version"
+  echo "rtu_host:rtu_port connecting to rtu daemon"
+  echo ""
+}
+
+help() {
+  version
+  usage
+  exit 0
+}
+
+if [ $# = 2 ]; then
+  RTU_HOST="$1"
+  RTU_PORT="$2"
+elif [ $# = 3 ]; then
+  RTU_HOST="$1"
+  RTU_PORT="$2"
+  OPTION="$3"
+else
+  help
+  exit 0
+fi
+
+export RTU_HOST
+export RTU_PORT
+
+RET=$(hostd -q -H "$RTU_HOST" -p "$RTU_PORT" serial)
+#   shellcheck disable=SC2143
+[ "$(echo "${RET}" | grep "failure" >/dev/null 2>&1)" ] && {
+  echo "connecting to rtu[$RTU_HOST:$RTU_PORT] failure"
+  exit 1
+}
+
+RET=$(hostd -q -H "$RTU_HOST" -p "$RTU_PORT" serial)
+while [ "$?" -eq 255 ]; do
+  sleep 1
+  RET=$(hostd -q -H "$RTU_HOST" -p "$RTU_PORT" serial)
+done
+
+ILM_SLOT=$(echo "$RET" | awk '/@ilm@/{ print $1 }' | awk -F : '{ print $2 }')
+ILM_E_SLOT=$(echo "$RET" | awk '/@ilm_e@/{ print $1 }' | awk -F : '{ print $2 }')
+GDM_SLOT=$(echo "$RET" | awk '/@gdm@/{ print $1 }' | awk -F : '{ print $2 }')
+TPWU_SLOT=$(echo "$RET" | awk '/@tpwu@/{ print $1 }' | awk -F : '{ print $2 }')
+echo "ILM_SLOT=${ILM_SLOT}" >${RTU_TEST_HELPER}
+echo "ILM_E_SLOT=${ILM_E_SLOT}" >>${RTU_TEST_HELPER}
+echo "GDM_SLOT=${GDM_SLOT}" >>${RTU_TEST_HELPER}
+echo "TPWU_SLOT=${TPWU_SLOT}" >>${RTU_TEST_HELPER}
+
+. "./${RTU_TEST_HELPER}"
+
+if pidof hostd >/dev/null 2>&1; then
+  pidof hostd | xargs kill
+fi
+
+if [ -z "$OPTION" ]; then
+  bash ./hostd.sh
+else
+  bash ./hostd.sh -- "$OPTION"
+fi
+rm -f "${RTU_TEST_HELPER}"

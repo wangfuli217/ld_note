@@ -1,0 +1,124 @@
+#!/bin/bash
+
+#### hostd test for protocol ####
+######## protocol [MCU]     ########
+test_hostd_serial() {
+  output="$($RTUCLIENT serial 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT serial @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT serial @output:${output}" "${output}" "serial"
+}
+
+test_hostd_leds() {
+  output="$($RTUCLIENT leds 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT leds @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT leds @output:${output}" "${output}" "leds"
+}
+
+test_hostd_MCU_version() {
+  output="$($RTUCLIENT mcu-version 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT mcu-version @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT mcu-version @output:${output}" "${output}" "mcu-version"
+}
+
+test_hostd_MCU_date_set() {
+  output="$($RTUCLIENT mcu-date-set 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT mcu-date-set @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT mcu-date-set @output:${output}" "${output}" "mcu-date-set"
+
+  output="$($RTUCLIENT mcu-date-set 2020:01:10-17:22:33-5 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT mcu-date-set 2020:01:10-17:22:33-5 @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT mcu-date-set 2020:01:10-17:22:33-5 @output:${output}" "${output}" "mcu-date-set"
+}
+
+test_hostd_MCU_addr_set() {
+  #                                 ip-address    network-nask gateway
+  output="$($RTUCLIENT mcu-addr-set 192.168.27.171 255.255.0.0 192.168.27.1 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT mcu-addr-set 192.168.27.171 255.255.0.0 192.168.27.1 @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT mcu-addr-set 192.168.27.171 255.255.0.0 192.168.27.1 @output:${output}" "${output}" "mcu-addr-set"
+}
+
+test_hostd_MCU_bell() {
+  output="$($RTUCLIENT bell-set 1 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT bell-set 1 @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT bell-set 1 @output:${output}" "${output}" "bell-set"
+
+  output="$($RTUCLIENT bell-get 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT bell-get @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT bell-get @output:${output}" "${output}" "enable"
+
+  output="$($RTUCLIENT bell-set 0 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT bell-set 0 @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT bell-set 0 @output:${output}" "${output}" "bell-set"
+
+  output="$($RTUCLIENT bell-get 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT bell-get @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT bell-get @output:${output}" "${output}" "disable"
+
+  output="$($RTUCLIENT bell-enable 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT bell-enable @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT bell-enable @output:${output}" "${output}" "bell-enable"
+
+  output="$($RTUCLIENT bell-disable 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT bell-disable @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT bell-disable @output:${output}" "${output}" "bell-disable"
+}
+
+test_hostd_MCU_fan() {
+  output="$($RTUCLIENT fan-set 45 50 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT fan-set 45 50 @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT fan-set 45 50 @output:${output}" "${output}" "fan-set"
+
+  output="$($RTUCLIENT fan-get 2>&1)"
+  status=$?
+  assertTrue "$RTUCLIENT fan-get @ret:${status} @output:${output}" "${status}"
+  assertContains "$RTUCLIENT fan-get @output:${output}" "${output}" "fan-get"
+}
+
+# data-driven-test
+test_hostd_MCU_table() {
+  while read -r want argument; do
+    output="$($RTUCLIENT ${argument} 2>&1)"
+    status=$?
+    assertTrue "$RTUCLIENT $argument @ret:${status} @output:${output}" "${status}"
+    assertContains "$RTUCLIENT $argument @output:${output}" "${output}" "${want}"
+  done <<'EOF'
+serial          serial
+leds            leds
+mcu-version     mcu-version
+mcu-date-set    mcu-date-set
+mcu-date-set    mcu-date-set 2020:01:10-17:22:33-5
+mcu-addr-set    mcu-addr-set 192.168.27.171 255.255.0.0 192.168.27.1
+bell-set        bell-set 1
+enable          bell-get
+bell-set        bell-set 0
+disable         bell-get
+bell-enable     bell-enable
+bell-disable    bell-disable
+fan-set         fan-set 45 50
+fan-get         fan-get
+EOF
+}
+
+
+suite_addTest test_hostd_version
+suite_addTest test_hostd_config
+suite_addTest test_hostd_script
+suite_addTest test_hostd_conn_info
+suite_addTest test_hostd_debug
+suite_addTest test_hostd_timeout
+suite_addTest test_hostd_cfg_default
+suite_addTest test_hostd_command
+suite_addTest test_hostd_self_table
