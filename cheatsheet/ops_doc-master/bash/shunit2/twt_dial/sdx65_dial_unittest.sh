@@ -538,7 +538,7 @@ _test_apn_3gpp_reserved_1to6() {
   output="$(get_default_apn)"
   status=$?
   assertTrue "get_default_apn @ret:${status} @output:${output}" "${status}"
-  default_apn=$(echo "${output}" | awk '/default/{print $2}' | tr -d ',"')
+  default_apn=$(echo "${output}" | jsonfilter -e "$.default_apn")
 
   while read -r profile_id ip_family user_id apn_name auth_type auth_password; do
     output="$(set_apn_3gpp "${profile_id}" "${ip_family}" "${user_id}" "${apn_name}" "${auth_type}" "${auth_password}")"
@@ -551,24 +551,24 @@ _test_apn_3gpp_reserved_1to6() {
     assertContains "get_apn_info @output:${output}" "${output}" "${user_id}"
     assertContains "get_apn_info @output:${output}" "${output}" "${apn_name}"
   done <<EOF
-1  4   user_3gpp_reserved_id41   apn_3gpp_reserved_name41   0 auth_3gpp_reserved_password41
-2  4   user_3gpp_reserved_id42   apn_3gpp_reserved_name42   0 auth_3gpp_reserved_password42
-3  4   user_3gpp_reserved_id43   apn_3gpp_reserved_name43   0 auth_3gpp_reserved_password43
-4  4   user_3gpp_reserved_id44   apn_3gpp_reserved_name44   1 auth_3gpp_reserved_password44
-5  4   user_3gpp_reserved_id45   apn_3gpp_reserved_name45   1 auth_3gpp_reserved_password45
-6  4   user_3gpp_reserved_id46   apn_3gpp_reserved_name46   1 auth_3gpp_reserved_password46
-1  6   user_3gpp_reserved_id61   apn_3gpp_reserved_name61   0 auth_3gpp_reserved_password61
-2  6   user_3gpp_reserved_id62   apn_3gpp_reserved_name62   0 auth_3gpp_reserved_password62
-3  6   user_3gpp_reserved_id63   apn_3gpp_reserved_name63   0 auth_3gpp_reserved_password63
-4  6   user_3gpp_reserved_id64   apn_3gpp_reserved_name64   1 auth_3gpp_reserved_password64
-5  6   user_3gpp_reserved_id65   apn_3gpp_reserved_name65   1 auth_3gpp_reserved_password65
-6  6   user_3gpp_reserved_id66   apn_3gpp_reserved_name66   1 auth_3gpp_reserved_password66
-1  10  user_3gpp_reserved_id101  apn_3gpp_reserved_name101  0 auth_3gpp_reserved_password101
-2  10  user_3gpp_reserved_id102  apn_3gpp_reserved_name102  0 auth_3gpp_reserved_password102
-3  10  user_3gpp_reserved_id103  apn_3gpp_reserved_name103  0 auth_3gpp_reserved_password103
-4  10  user_3gpp_reserved_id104  apn_3gpp_reserved_name104  1 auth_3gpp_reserved_password104
-5  10  user_3gpp_reserved_id105  apn_3gpp_reserved_name105  1 auth_3gpp_reserved_password105
-6  10  user_3gpp_reserved_id106  apn_3gpp_reserved_name106  1 auth_3gpp_reserved_password106
+6  4   user_3gpp_reserved_id41   apn_3gpp_reserved_name41   0 auth_3gpp_reserved_password41
+7  4   user_3gpp_reserved_id42   apn_3gpp_reserved_name42   0 auth_3gpp_reserved_password42
+8  4   user_3gpp_reserved_id43   apn_3gpp_reserved_name43   0 auth_3gpp_reserved_password43
+9  4   user_3gpp_reserved_id44   apn_3gpp_reserved_name44   1 auth_3gpp_reserved_password44
+10  4   user_3gpp_reserved_id45   apn_3gpp_reserved_name45   1 auth_3gpp_reserved_password45
+11  4   user_3gpp_reserved_id46   apn_3gpp_reserved_name46   1 auth_3gpp_reserved_password46
+6  6   user_3gpp_reserved_id61   apn_3gpp_reserved_name61   0 auth_3gpp_reserved_password61
+7  6   user_3gpp_reserved_id62   apn_3gpp_reserved_name62   0 auth_3gpp_reserved_password62
+8  6   user_3gpp_reserved_id63   apn_3gpp_reserved_name63   0 auth_3gpp_reserved_password63
+9  6   user_3gpp_reserved_id64   apn_3gpp_reserved_name64   1 auth_3gpp_reserved_password64
+10  6   user_3gpp_reserved_id65   apn_3gpp_reserved_name65   1 auth_3gpp_reserved_password65
+11  6   user_3gpp_reserved_id66   apn_3gpp_reserved_name66   1 auth_3gpp_reserved_password66
+6  10  user_3gpp_reserved_id101  apn_3gpp_reserved_name101  0 auth_3gpp_reserved_password101
+7  10  user_3gpp_reserved_id102  apn_3gpp_reserved_name102  0 auth_3gpp_reserved_password102
+8  10  user_3gpp_reserved_id103  apn_3gpp_reserved_name103  0 auth_3gpp_reserved_password103
+9  10  user_3gpp_reserved_id104  apn_3gpp_reserved_name104  1 auth_3gpp_reserved_password104
+10  10  user_3gpp_reserved_id105  apn_3gpp_reserved_name105  1 auth_3gpp_reserved_password105
+11  10  user_3gpp_reserved_id106  apn_3gpp_reserved_name106  1 auth_3gpp_reserved_password106
 EOF
 
   # restore default apn
@@ -576,6 +576,67 @@ EOF
   status=$?
   assertTrue "get_default_apn @ret:${status} @output:${output}" "${status}"
 }
+
+_test_default_apn(){
+
+  # reserved default apn
+  output="$(get_default_apn)"
+  status=$?
+  assertTrue "get_default_apn @ret:${status} @output:${output}" "${status}"
+  local default_apn default_profile_id profile_id apn_name
+  default_apn=$(echo "${output}" | jsonfilter -e "$.default_apn")
+  default_profile_id=$(echo "${output}" | jsonfilter -e "$.profile_id")
+
+  output="$(get_apn_info)"
+  local apn_names=
+  local profile_ids=
+
+  for num in $(seq 1 14); do
+    config=$(echo "${output}" | jsonfilter -e "$.apn${num}")
+    [ -n "$config" ] && {
+        profile_ids="${profile_ids} $(echo "${output}" | jsonfilter -e "$.apn${num}[0]")"
+        apn_names="${apn_names} $(echo "${output}" | jsonfilter -e "$.apn${num}[1]")"
+    }
+  done
+
+  for prifile_id in $profile_ids; do
+    output="$(set_default_apn "${prifile_id}")"
+    status=$?
+    assertTrue "set_default_apn @ret:${status} @output:${output}" "${status}"
+
+    output="$(get_default_apn)"
+    status=$?
+    assertTrue "get_default_apn @ret:${status} @output:${output}" "${status}"
+    default_apn=$(echo "${output}" | jsonfilter -e "$.default_apn")
+    profile_id=$(echo "${output}" | jsonfilter -e "$.profile_id")
+    assertContains "get_default_apn @output:${output}" "${output}" "${prifile_id}"
+  done
+
+  for apn_name in $apn_names; do
+    output="$(set_default_apn "${apn_name}")"
+    status=$?
+    assertTrue "set_default_apn @ret:${status} @output:${output}" "${status}"
+
+    output="$(get_default_apn)"
+    status=$?
+    assertTrue "get_default_apn @ret:${status} @output:${output}" "${status}"
+    default_apn=$(echo "${output}" | jsonfilter -e "$.default_apn")
+    profile_id=$(echo "${output}" | jsonfilter -e "$.profile_id")
+    assertContains "get_default_apn @output:${output}" "${output}" "${apn_name}"
+  done
+
+  output="$(set_default_apn "${default_profile_id}")"
+  status=$?
+  assertTrue "set_default_apn @ret:${status} @output:${output}" "${status}"
+
+  output="$(get_default_apn)"
+  status=$?
+  assertTrue "get_default_apn @ret:${status} @output:${output}" "${status}"
+  default_apn=$(echo "${output}" | jsonfilter -e "$.default_apn")
+  profile_id=$(echo "${output}" | jsonfilter -e "$.profile_id")
+  assertContains "get_default_apn @output:${output}" "${output}" "${default_profile_id}"
+}
+
 
 _test_del_apn() {
 
@@ -643,10 +704,10 @@ EOF
     assertTrue "del_apn_profile_id ${profile_id} @ret:${status} @output:${output}" "${status}"
     assertContains "del_apn_profile_id ${profile_id} @output:${output}" "${output}" "error"
   done <<EOF
-0 4    user_3gpp2_del_id04    apn_3gpp2_del_name04    0 auth_3gpp2_del_password04 
-0 4    user_3gpp2_del_id04    apn_3gpp2_del_name04    1 auth_3gpp2_del_password04 
-0 6    user_3gpp2_del_id06    apn_3gpp2_del_name06    1 auth_3gpp2_del_password06 
-0 6    user_3gpp2_del_id06    apn_3gpp2_del_name06    0 auth_3gpp2_del_password06 
+0 4    user_3gpp2_del_id04    apn_3gpp2_del_name04    0 auth_3gpp2_del_password04
+0 4    user_3gpp2_del_id04    apn_3gpp2_del_name04    1 auth_3gpp2_del_password04
+0 6    user_3gpp2_del_id06    apn_3gpp2_del_name06    1 auth_3gpp2_del_password06
+0 6    user_3gpp2_del_id06    apn_3gpp2_del_name06    0 auth_3gpp2_del_password06
 0 10   user_3gpp2_del_id010   apn_3gpp2_del_name010   1 auth_3gpp2_del_password010
 0 10   user_3gpp2_del_id010   apn_3gpp2_del_name010   0 auth_3gpp2_del_password010
 EOF
@@ -662,8 +723,8 @@ EOF
     status=$?
     assertTrue "del_apn_profile_id ${profile_id} @ret:${status} @output:${output}" "${status}"
   done <<EOF
-5 4    user_del_id54    apn_del_name54    0 auth_del_password54 
-6 4    user_del_id64    apn_del_name64    0 auth_del_password64 
+5 4    user_del_id54    apn_del_name54    0 auth_del_password54
+6 4    user_del_id64    apn_del_name64    0 auth_del_password64
 EOF
   endSkipping
 }
