@@ -1,6 +1,6 @@
-http://www.dest-unreach.org/socat/doc/
+# http://www.dest-unreach.org/socat/doc/
 
-socat(过程){
+socat_stage(){ cat << 'socat_stage'
 init:命令行参数解析和日志系统建立
 open:打开第一个address，然后打卡第二个address，这个过程阻塞进行，对于复杂的socks，
      第一个address连接建立和认证过程进行过后，才会打开第二个address。
@@ -12,19 +12,21 @@ close: 当一个address达到EOF的时候，close过程就开始了，socat发�
 打开连接    先打开第一个连接，再打开第二个连接。这个单步执行的。 如果第一个连接失败，则会直接退出。
 数据转发    谁有数据就转发到另外一个连接上, read/write互换。
 关闭        其中一个连接掉开，执行处理另外一个连接。
-
+socat_stage
 }
 
-socat(选项){
+socat_option(){ cat << 'socat_option'
 -V              # 版本信息和支持特性
 -h | -?         # 命令行选项和地址类型
 -hh | -??       # 在命令行选项和地址类型基础上，追加简要的地址类型选项功能
 -hhh | -???     # 在命令行选项和地址类型基础上，追加详细的地址类型选项功能
+
 -d              # fatal 和 error 信息
 -d -d           # fatal, error, warning, 和 notice 信息.
 -d -d -d        # fatal, error, warning, notice, 和 info 信息
 -d -d -d -d     # fatal, error, warning, notice, info, 和 debug 信息.
 -D              # 在传输前打印文件描述打开信息
+
 -ly[<facility>] # syslog代替stderr
 -lf<logfile>    # 日志文件代替stderr
 -ls             # stderr
@@ -32,35 +34,41 @@ socat(选项){
 -lu             # 打印增加timestamp
 -lm[<facility>] # init和open在stderr，传输在syslog
 -lh             # 增加hostname到message中
+
 -v              # 将传输的数据打印到stderr  text
 -x              # 将传输的数据打印到stderr  hex
+
 -b<size>        # 设置数据传块大小
 -s              # 当设置的选项不支持时，退出不执行
 -t<timeout>     # address的一个channel到EOF，另一个写channel终止了，等待timeout以后退出。 双客户端的时候使用。
 -T<timeout>     # 长时间没有数据传输的情况下，退出
--u              # address1只用于读，address2只用于写
--U              # address1只用于写，address2只用于读
+-u              # address1只用于读,address2只用于写
+-U              # address1只用于写,address2只用于读
 -g              # 不验证地址选项：例如串口设备配置了socket选项
 -L<lockfile>    # lock存在则错误退出，否则，创建此文件，进行数据传输，退出时删除此文件
 -W<lockfile>    # lock存在则等待被调度，当此文件不存在，创建此文件，进行数据传输，退出时删除此文件
+socat_option
 }
 
-address(规则){
+socat_address(){ cat << 'socat_address'
 1. : 用来分割必选参数
 2. , 用来分割可选参数
 keyword关键字：不区分大小写; 有些规则，关键字可以被忽略。数字表示fd; /开头达表示文件。
 '-' == STDIO, 
 TCP == TCP4
-}
-
-
 TCP4:要求(name or address)和 (number or service name)
 -g  :选项集
-address(CREATE){
+socat_address
+}
+
+address_CREATE(){ cat << 'address_CREATE'
 CREATE:<filename> 创建一个filename，用于数据输出。filename是管道，创建将被阻塞。filename是socket，则出错。
     选项组: FD,REG,NAMED
     可用选项: mode, user, group, unlink-early, unlink-late, append
     进一步: OPEN, GOPEN
+
+creat(writing only) 
+address_CREATE
 }
 address(EXEC){
 EXEC:<command-line> Forks一个子进程。与父进程通信和调用execvp()执行<command-line>
