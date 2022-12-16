@@ -82,6 +82,141 @@ get_apn_info() {
   ubus call sdk_service.wm get_apn_info
 }
 
+wait_netup() {
+  local output status
+
+  while true; do
+    output=$(netstatus)
+    status=$?
+    network_status=$(echo "$output" | jsonfilter -e "$.network_status")
+    if [ "$network_status" = "1" ]; then
+      break
+    fi
+    sleep 1
+  done
+}
+
+netup_v4() {
+  local output status
+
+  output=$(netdown 10)
+  sleep 2
+  output=$(netup 4)
+
+  wait_netup
+  # sleep 3
+  while true; do
+    output=$(netconf)
+    status=$?
+    local v4addr
+    v4addr=$(echo "$output" | jsonfilter -e "$.IPV4.public_ip")
+    if [ "$v4addr" != "0.0.0.0" ]; then
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+    fi
+    [ "$MAX_WAIT_DIAL_SUCCESS" = "$timeout" ] && {
+      echo "netup 4:wait dial failure by timeout:$timeout $(date)"
+      return 1
+    }
+    timeout=$(($timeout + 1))
+    sleep 1
+  done
+
+  sleep 3 # trigger event on 3s timer
+  sleep 1 # assert uptime !=0
+  return 0
+}
+wait_netup_v4() {
+  while true; do
+    netup_v4 && { break; }
+  done
+}
+
+netup_v6() {
+  local output status
+
+  output=$(netdown 10)
+  sleep 2
+  output=$(netup 6)
+
+  wait_netup
+  #  sleep 3
+  while true; do
+    output=$(netconf)
+    status=$?
+    local v6addr
+    v6addr=$(echo "$output" | jsonfilter -e "$.IPV6.public_ip")
+    if [ "$v6addr" != "::" ]; then
+      ping -c 1 -6 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -6 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -6 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -6 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -6 www.mi.com >/dev/null 2>&1 && break || continue
+    fi
+    [ "$MAX_WAIT_DIAL_SUCCESS" = "$timeout" ] && {
+      echo "netup 6:wait dial failure by timeout:$timeout $(date)"
+      return 1
+    }
+    timeout=$(($timeout + 1))
+    sleep 1
+  done
+
+  sleep 3 # trigger event on 3s timer
+  sleep 1 # assert uptime !=0
+  return 0
+}
+wait_netup_v6() {
+  while true; do
+    netup_v6 && { break; }
+  done
+}
+
+netup_v4v6() {
+  local output status
+
+  output=$(netdown 10)
+  sleep 2
+  output=$(netup 10)
+
+  wait_netup
+  # sleep 3
+  while true; do
+    output=$(netconf)
+    status=$?
+    local v4addr v6addr
+    v4addr=$(echo "$output" | jsonfilter -e "$.IPV4.public_ip")
+    v6addr=$(echo "$output" | jsonfilter -e "$.IPV6.public_ip")
+    if [ "$v6addr" != "::" -a "$v4addr" != "0.0.0.0" ]; then
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+      ping -c 1 -4 www.mi.com >/dev/null 2>&1 && break || continue
+    fi
+    [ "$MAX_WAIT_DIAL_SUCCESS" = "$timeout" ] && {
+      echo "netup 10:wait dial failure by timeout:$timeout $(date)"
+      return 1
+    }
+    timeout=$(($timeout + 1))
+    sleep 1
+  done
+
+  sleep 3 # trigger event on 3s timer
+  sleep 1 # assert uptime !=0
+  return 0
+}
+
+wait_netup_v4v6() {
+  while true; do
+    netup_v4v6 && { break; }
+  done
+}
+
 test_netup_v10() {
   local output result
 
@@ -577,7 +712,7 @@ EOF
   assertTrue "get_default_apn @ret:${status} @output:${output}" "${status}"
 }
 
-_test_default_apn(){
+_test_default_apn_cfg(){
 
   # reserved default apn
   output="$(get_default_apn)"
@@ -637,6 +772,27 @@ _test_default_apn(){
   assertContains "get_default_apn @output:${output}" "${output}" "${default_profile_id}"
 }
 
+_test_default_apn_dial(){
+  output="$(get_default_apn)"
+  status=$?
+  assertTrue "get_default_apn @ret:${status} @output:${output}" "${status}"
+  local default_apn default_profile_id profile_id apn_name
+  default_apn=$(echo "${output}" | jsonfilter -e "$.default_apn")
+  default_profile_id=$(echo "${output}" | jsonfilter -e "$.profile_id")
+
+  for num in $(seq 1 14); do
+    wait_netup_v4
+  done
+}
+
+# 通过socat串联客户端无法正确获得结果
+# echo "ATI"  | socat -T 5 -t 5  - tcp-connect:192.168.225.1:20002  # 客户端
+#
+# socat tcp4-l:20002,fork system:"tail -f /dev/smd8"!!STDOUT |
+#     while read -r line; do
+#         printf "$line" >> /tmp/socat
+#         echo -e "$line\r\n" > /dev/smd8
+#     done &
 
 _test_del_apn() {
 
