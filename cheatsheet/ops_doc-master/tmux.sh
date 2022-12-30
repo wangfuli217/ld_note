@@ -138,12 +138,17 @@ bind C-a send-prefix    # 绑定Ctrl+a为新的指令前缀
 # 从tmux v1.6版起,支持设置第二个指令前缀
 set-option -g prefix2 '# 设置一个不常用的'键作为指令前缀,按键更快些
 
+[-f file] source-file
+/etc/tmux.conf ->  ~/.tmux.conf, $XDG_CONFIG_HOME/tmux/tmux.conf or ~/.config/tmux/tmux.conf.
+[-L socket-name] TMUX_TMPDIR or /tmp 1.default 2.in a directory tmux-UID 3.SIGUSR1 recreate
+[-u] == -T UTF-8
+[-v] tmux-client-PID.log and tmux-server-PID.log 1.-vv tmux-out-PID.log 2.SIGUSR2 on/off
+
 [重新加载配置]
 # 在tmux窗口中,先按下Ctrl+b指令前缀,然后按下系统指令:,进入到命令模式后输入source-file ~/.tmux.conf,回车后生效
 # 绑定快捷键为r
-bind r source-file ~/.tmux.conf \; display-message "Config reloaded.."
-
-
+bind     r source-file ~/.tmux.conf \; display-message "Config reloaded.."
+bind-key R source-file ~/.tmux.conf \; display-message "source-file done"
 [新增面板]
 unbind '"'
 bind - splitw -v -c '#{pane_current_path}' # 垂直方向新增面板,默认进入当前目录
@@ -231,6 +236,67 @@ tmux默认会自动重命名窗口,频繁的命令行操作,将频繁触发重�
 setw -g automatic-rename off
 setw -g allow-rename off
 
+exit-empty [on | off]  # on:没有session退出tmux server. 1.start-server 启动tmux而不创建session 2. -D 设置exit-empty=off
+
+[命令在shell,配置文件和命令行格式]
+$ tmux set-option -g status-style bg=cyan       run from the shell prompt
+set-option -g status-style bg=cyan              run from ~/.tmux.conf
+bind-key C set-option -g status-style bg=cyan   bound to a key
+command name:set-option
+flag        :-g 
+arguments   :status-style bg=cyan
+
+new-window 'vi ~/.tmux.conf' 等价于 /bin/sh -c 'vi ~/.tmux.conf' 等价于 tmux new-window vi ~/.tmux.conf -执行shell命令的命令-> new-window, new-session, split-window, respawn-window and respawn-pane
+
+[条件执行和{}执行块]
+bind x if-shell "true" {
+    if-shell "true" {
+        display "true!"
+    }
+}
+
+[条件执行]
+%if "#{==:#{host},myhost}"
+set -g status-style bg=red
+%elif "#{==:#{host},myotherhost}"
+set -g status-style bg=green
+%else
+set -g status-style bg=blue
+%endif                mysession       @1或mysession:1   mysession:mywindow.1   session IDs are prefixed with a ‘$’, windows with a ‘@’, and panes with a ‘%’
+        list-clients, list-session,   list-window,      list-pane,             list-commands， list-keys, list-buffers 
+[-t|-s] target-client,target-session, target-window, or target-pane 命令影响的范围
+
+[options]   -s:server options, 默认:session options, -w:window options, and -p:pane options. -g: the global session or window option: -u unset; -a|append:expects a string or a style
+set-option -s   command
+show-options -s command
+set-option [-aFgopqsuUw] [-t target-pane] option value  (alias: set)
+show-options [-AgHpqsvw] [-t target-pane] [option]      (alias: show) -A继承性属性
+tmux show -s    显示服务器选项
+tmux show -g    没有其他的旗标为显式全局会话选项
+tmux show -wg   一起为显示全局窗口选项
+tmux show -g status 指定显示 status 选项
+set -g mode-keys vi    mode-keys 复制模式使用 vi 键
+set -g status-keys vi  status-keys 命令提示使用 vi 键
+
+[快捷键] tmux lsk -Tprefix 仅列出prefix表中的快捷键 1.-Troot 2.-Tprefix 3.-Tcopy-mode 3.-Tcopy-mode --> tmux lsk -Tcopy-mode C-a
+‘A’ to ‘Z’; 特殊按键: Up, Down, Left, Right, BSpace, BTab, DC (Delete), End, Enter, Escape, F1 to F12, Home, IC (Insert), NPage/PageDown/PgDn, PPage/PageUp/PgUp, Space, and Tab
+Ctrl keys may be prefixed with ‘C-’ or ‘^’, 
+Shift keys with ‘S-’
+Alt (meta) with ‘M-’. 
+bind-key '"' split-window
+bind-key "'" new-window
+bind-key [-nr] [-N note] [-T key-table] key command [arguments]     # (alias: bind) 支持多表(因为支持多模式)
+list-keys [-1aN] [-P prefix-string -T key-table] [key]              # (alias: lsk)
+send-keys [-FHlMRX] [-N repeat-count] [-t target-pane] key ...      # (alias: send)
+send-prefix [-2] [-t target-pane]
+unbind-key [-anq] [-T key-table] key                                # (alias: unbind)
+
+tmux 中的每个快捷键绑定都属于一个命名的快捷键表
+有四个默认的快捷表：bind-keyunbind-key
+root（根） 表包含不带前缀键的快捷键绑定
+prefix（前缀） 表包含在前缀键按下之后的快捷键绑定 就像进入到 tmux 的快捷键提到的那样
+copy-mode（复制模式） 表包含使用 emacs（1）-style 的按键 在复制模式下使用快捷键绑定。
+copy-mode-vi 表包含使用 vi（1）-style 的按键在复制模式下使用快捷键绑定。
 tmux_i_conf
 }
 
